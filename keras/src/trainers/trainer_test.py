@@ -5,15 +5,8 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
-from keras.src import initializers
-from keras.src import layers
-from keras.src import losses
-from keras.src import metrics
-from keras.src import models
-from keras.src import ops
-from keras.src import optimizers
-from keras.src import testing
+from keras.src import (backend, initializers, layers, losses, metrics, models,
+                       ops, optimizers, testing)
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.optimizers.rmsprop import RMSprop
@@ -25,9 +18,8 @@ if backend.backend() == "jax":
 elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
+    from keras.src.backend.tensorflow.trainer import \
+        TensorFlowTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 elif backend.backend() == "openvino":
@@ -2686,8 +2678,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_jit_compile_with_tf_determinism(self):
-        from tensorflow.python.framework.config import disable_op_determinism
-        from tensorflow.python.framework.config import enable_op_determinism
+        from tensorflow.python.framework.config import (disable_op_determinism,
+                                                        enable_op_determinism)
 
         enable_op_determinism()
 

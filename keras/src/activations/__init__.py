@@ -1,37 +1,17 @@
 import types
 
-from keras.src.activations.activations import celu
-from keras.src.activations.activations import elu
-from keras.src.activations.activations import exponential
-from keras.src.activations.activations import gelu
-from keras.src.activations.activations import glu
-from keras.src.activations.activations import hard_shrink
-from keras.src.activations.activations import hard_sigmoid
-from keras.src.activations.activations import hard_silu
-from keras.src.activations.activations import hard_tanh
-from keras.src.activations.activations import leaky_relu
-from keras.src.activations.activations import linear
-from keras.src.activations.activations import log_sigmoid
-from keras.src.activations.activations import log_softmax
-from keras.src.activations.activations import mish
-from keras.src.activations.activations import relu
-from keras.src.activations.activations import relu6
-from keras.src.activations.activations import selu
-from keras.src.activations.activations import sigmoid
-from keras.src.activations.activations import silu
-from keras.src.activations.activations import soft_shrink
-from keras.src.activations.activations import softmax
-from keras.src.activations.activations import softplus
-from keras.src.activations.activations import softsign
-from keras.src.activations.activations import sparse_plus
-from keras.src.activations.activations import sparsemax
-from keras.src.activations.activations import squareplus
-from keras.src.activations.activations import tanh
-from keras.src.activations.activations import tanh_shrink
-from keras.src.activations.activations import threshold
+from keras.src.activations.activations import (celu, elu, exponential, gelu,
+                                               glu, hard_shrink, hard_sigmoid,
+                                               hard_silu, hard_tanh,
+                                               leaky_relu, linear, log_sigmoid,
+                                               log_softmax, mish, relu, relu6,
+                                               selu, sigmoid, silu,
+                                               soft_shrink, softmax, softplus,
+                                               softsign, sparse_plus,
+                                               sparsemax, squareplus, tanh,
+                                               tanh_shrink, threshold)
 from keras.src.api_export import keras_export
-from keras.src.saving import object_registration
-from keras.src.saving import serialization_lib
+from keras.src.saving import object_registration, serialization_lib
 
 ALL_OBJECTS = {
     relu,

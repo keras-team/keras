@@ -1,11 +1,8 @@
 import inspect
 
 from keras.src.api_export import keras_export
-from keras.src.constraints.constraints import Constraint
-from keras.src.constraints.constraints import MaxNorm
-from keras.src.constraints.constraints import MinMaxNorm
-from keras.src.constraints.constraints import NonNeg
-from keras.src.constraints.constraints import UnitNorm
+from keras.src.constraints.constraints import (Constraint, MaxNorm, MinMaxNorm,
+                                               NonNeg, UnitNorm)
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 

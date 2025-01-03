@@ -2,9 +2,7 @@ import keras.src.backend
 from keras.src import tree
 from keras.src.layers.layer import Layer
 from keras.src.random.seed_generator import SeedGenerator
-from keras.src.utils import backend_utils
-from keras.src.utils import jax_utils
-from keras.src.utils import tracking
+from keras.src.utils import backend_utils, jax_utils, tracking
 
 
 class TFDataLayer(Layer):

@@ -1,7 +1,6 @@
 import torch
 
-from keras.src import ops
-from keras.src import optimizers
+from keras.src import ops, optimizers
 from keras.src.backend.torch.optimizers import torch_parallel_optimizer
 
 

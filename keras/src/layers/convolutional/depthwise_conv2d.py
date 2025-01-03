@@ -1,5 +1,6 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.convolutional.base_depthwise_conv import BaseDepthwiseConv
+from keras.src.layers.convolutional.base_depthwise_conv import \
+    BaseDepthwiseConv
 
 
 @keras_export("keras.layers.DepthwiseConv2D")

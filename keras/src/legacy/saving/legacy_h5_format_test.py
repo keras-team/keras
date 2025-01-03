@@ -4,13 +4,9 @@ import numpy as np
 import pytest
 
 import keras
-from keras.src import layers
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
+from keras.src import layers, models, ops, testing
 from keras.src.legacy.saving import legacy_h5_format
-from keras.src.saving import object_registration
-from keras.src.saving import serialization_lib
+from keras.src.saving import object_registration, serialization_lib
 
 # TODO: more thorough testing. Correctness depends
 # on exact weight ordering for each layer, so we need

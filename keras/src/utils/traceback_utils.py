@@ -4,8 +4,7 @@ import traceback
 import types
 from functools import wraps
 
-from keras.src import backend
-from keras.src import tree
+from keras.src import backend, tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 

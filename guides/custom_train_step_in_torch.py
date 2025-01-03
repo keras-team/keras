@@ -47,10 +47,11 @@ import os
 # This guide can only be run with the torch backend.
 os.environ["KERAS_BACKEND"] = "torch"
 
+import numpy as np
 import torch
+
 import keras
 from keras import layers
-import numpy as np
 
 """
 ## A first simple example

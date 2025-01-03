@@ -7,8 +7,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
-from keras.src.utils import file_utils
-from keras.src.utils import io_utils
+from keras.src.utils import file_utils, io_utils
 
 
 @keras_export("keras.callbacks.ModelCheckpoint")

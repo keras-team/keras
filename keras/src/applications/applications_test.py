@@ -4,26 +4,14 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
-from keras.src.applications import convnext
-from keras.src.applications import densenet
-from keras.src.applications import efficientnet
-from keras.src.applications import efficientnet_v2
-from keras.src.applications import inception_resnet_v2
-from keras.src.applications import inception_v3
-from keras.src.applications import mobilenet
-from keras.src.applications import mobilenet_v2
-from keras.src.applications import mobilenet_v3
-from keras.src.applications import nasnet
-from keras.src.applications import resnet
-from keras.src.applications import resnet_v2
-from keras.src.applications import vgg16
-from keras.src.applications import vgg19
-from keras.src.applications import xception
+from keras.src import backend, testing
+from keras.src.applications import (convnext, densenet, efficientnet,
+                                    efficientnet_v2, inception_resnet_v2,
+                                    inception_v3, mobilenet, mobilenet_v2,
+                                    mobilenet_v3, nasnet, resnet, resnet_v2,
+                                    vgg16, vgg19, xception)
 from keras.src.saving import serialization_lib
-from keras.src.utils import file_utils
-from keras.src.utils import image_utils
+from keras.src.utils import file_utils, image_utils
 
 try:
     import PIL

@@ -1,5 +1,6 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.convolutional.base_conv_transpose import BaseConvTranspose
+from keras.src.layers.convolutional.base_conv_transpose import \
+    BaseConvTranspose
 
 
 @keras_export(

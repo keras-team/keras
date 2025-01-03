@@ -30,9 +30,9 @@ Let's dive in.
 """
 
 import numpy as np
+
 import keras
-from keras import ops
-from keras import layers
+from keras import layers, ops
 
 """
 ## The `Layer` class: the combination of state (weights) and some computation

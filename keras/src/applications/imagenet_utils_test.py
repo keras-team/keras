@@ -3,8 +3,7 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.applications import imagenet_utils as utils
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 

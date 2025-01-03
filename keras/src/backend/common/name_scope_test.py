@@ -1,6 +1,5 @@
 from keras.src import testing
-from keras.src.backend.common.name_scope import current_path
-from keras.src.backend.common.name_scope import name_scope
+from keras.src.backend.common.name_scope import current_path, name_scope
 
 
 class NameScopeTest(testing.TestCase):

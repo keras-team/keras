@@ -2,10 +2,8 @@ import os
 
 import numpy as np
 
-from keras.src import backend
-from keras.src import testing
-from keras.src.utils import image_dataset_utils
-from keras.src.utils import image_utils
+from keras.src import backend, testing
+from keras.src.utils import image_dataset_utils, image_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 

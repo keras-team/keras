@@ -13,8 +13,7 @@ Accelerator: GPU
 """
 
 import keras
-from keras import layers
-from keras import ops
+from keras import layers, ops
 
 """
 ## When to use a Sequential model

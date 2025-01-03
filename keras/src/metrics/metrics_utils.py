@@ -2,8 +2,7 @@ from enum import Enum
 
 import numpy as np
 
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.utils.python_utils import to_list
 

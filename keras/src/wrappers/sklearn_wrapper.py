@@ -5,19 +5,15 @@ import numpy as np
 from keras.src.api_export import keras_export
 from keras.src.models.cloning import clone_model
 from keras.src.models.model import Model
-from keras.src.wrappers.fixes import _routing_enabled
-from keras.src.wrappers.fixes import _validate_data
-from keras.src.wrappers.fixes import type_of_target
-from keras.src.wrappers.utils import TargetReshaper
-from keras.src.wrappers.utils import _check_model
-from keras.src.wrappers.utils import assert_sklearn_installed
+from keras.src.wrappers.fixes import (_routing_enabled, _validate_data,
+                                      type_of_target)
+from keras.src.wrappers.utils import (TargetReshaper, _check_model,
+                                      assert_sklearn_installed)
 
 try:
     import sklearn
-    from sklearn.base import BaseEstimator
-    from sklearn.base import ClassifierMixin
-    from sklearn.base import RegressorMixin
-    from sklearn.base import TransformerMixin
+    from sklearn.base import (BaseEstimator, ClassifierMixin, RegressorMixin,
+                              TransformerMixin)
 except ImportError:
     sklearn = None
 

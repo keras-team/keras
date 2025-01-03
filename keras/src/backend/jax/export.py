@@ -4,8 +4,7 @@ import itertools
 import string
 import warnings
 
-from keras.src import layers
-from keras.src import tree
+from keras.src import layers, tree
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.utils.module_utils import tensorflow as tf
 

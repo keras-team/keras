@@ -11,8 +11,7 @@ from keras.src import tree
 from keras.src.backend import distribution_lib as jax_distribution_lib
 from keras.src.distribution import distribution_lib
 from keras.src.trainers import trainer as base_trainer
-from keras.src.trainers.data_adapters import array_slicing
-from keras.src.trainers.data_adapters import data_adapter_utils
+from keras.src.trainers.data_adapters import array_slicing, data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
 

@@ -5,11 +5,7 @@ import pytest
 from absl import logging
 from absl.testing import parameterized
 
-from keras.src import layers
-from keras.src import metrics
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
+from keras.src import layers, metrics, models, ops, testing
 from keras.src.metrics import metrics_utils
 
 

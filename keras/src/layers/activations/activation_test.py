@@ -1,8 +1,6 @@
 import pytest
 
-from keras.src import activations
-from keras.src import layers
-from keras.src import testing
+from keras.src import activations, layers, testing
 
 
 class ActivationTest(testing.TestCase):

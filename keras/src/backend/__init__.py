@@ -8,30 +8,24 @@ if backend() == "torch":
 
 from keras.src.api_export import keras_export
 from keras.src.backend.common.dtypes import result_type
-from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
-from keras.src.backend.common.keras_tensor import is_keras_tensor
-from keras.src.backend.common.masking import get_keras_mask
-from keras.src.backend.common.masking import set_keras_mask
-from keras.src.backend.common.stateless_scope import StatelessScope
-from keras.src.backend.common.stateless_scope import get_stateless_scope
-from keras.src.backend.common.stateless_scope import in_stateless_scope
-from keras.src.backend.common.symbolic_scope import SymbolicScope
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
-from keras.src.backend.common.variables import AutocastScope
-from keras.src.backend.common.variables import Variable
-from keras.src.backend.common.variables import get_autocast_scope
-from keras.src.backend.common.variables import is_float_dtype
-from keras.src.backend.common.variables import is_int_dtype
-from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.common.variables import standardize_shape
-from keras.src.backend.config import epsilon
-from keras.src.backend.config import floatx
-from keras.src.backend.config import image_data_format
-from keras.src.backend.config import set_epsilon
-from keras.src.backend.config import set_floatx
-from keras.src.backend.config import set_image_data_format
-from keras.src.backend.config import standardize_data_format
+from keras.src.backend.common.keras_tensor import (KerasTensor,
+                                                   any_symbolic_tensors,
+                                                   is_keras_tensor)
+from keras.src.backend.common.masking import get_keras_mask, set_keras_mask
+from keras.src.backend.common.stateless_scope import (StatelessScope,
+                                                      get_stateless_scope,
+                                                      in_stateless_scope)
+from keras.src.backend.common.symbolic_scope import (SymbolicScope,
+                                                     in_symbolic_scope)
+from keras.src.backend.common.variables import (AutocastScope, Variable,
+                                                get_autocast_scope,
+                                                is_float_dtype, is_int_dtype,
+                                                standardize_dtype,
+                                                standardize_shape)
+from keras.src.backend.config import (epsilon, floatx, image_data_format,
+                                      set_epsilon, set_floatx,
+                                      set_image_data_format,
+                                      standardize_data_format)
 
 # Import backend functions.
 if backend() == "tensorflow":

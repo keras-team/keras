@@ -1,22 +1,14 @@
 import functools
-from collections import OrderedDict
-from collections import defaultdict
-from collections import deque
-from collections import namedtuple
+from collections import OrderedDict, defaultdict, deque, namedtuple
 
 import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
+from keras.src import backend, ops, testing
 from keras.src.tree.tree_api import MAP_TO_NONE
-from keras.src.utils.module_utils import dmtree
-from keras.src.utils.module_utils import optree
-from keras.src.utils.tracking import TrackedDict
-from keras.src.utils.tracking import TrackedList
-from keras.src.utils.tracking import TrackedSet
+from keras.src.utils.module_utils import dmtree, optree
+from keras.src.utils.tracking import TrackedDict, TrackedList, TrackedSet
 
 TEST_CASES = []
 if dmtree.available:
@@ -147,8 +139,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_is_nested_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         self.assertTrue(t.is_nested(ListWrapper([])))
         self.assertTrue(t.is_nested(ListWrapper([1])))
@@ -228,8 +220,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_flatten_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         self.assertEqualStrict(t.flatten(ListWrapper([])), [])
         self.assertEqualStrict(t.flatten(ListWrapper([1])), [1])
@@ -397,8 +389,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_flatten_with_path_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         self.assertEqualStrict(
             t.flatten_with_path(ListWrapper([])),
@@ -543,8 +535,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_pack_sequence_as_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         self.assertEqualStrict(
             t.pack_sequence_as(ListWrapper([]), []), ListWrapper([])
@@ -691,8 +683,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_map_structure_with_one_structure_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         def f1(x):
             return x + 10
@@ -1023,8 +1015,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_map_structure_with_multiple_structures_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         def f2(x, y):
             return x + y
@@ -1391,8 +1383,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_assert_same_structure_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         t.assert_same_structure(ListWrapper([]), ListWrapper([]))
         t.assert_same_structure(ListWrapper([1]), ListWrapper([10]))
@@ -1616,8 +1608,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_assert_same_paths_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         t.assert_same_paths(ListWrapper([]), ListWrapper([]))
         t.assert_same_paths(ListWrapper([1]), ListWrapper([10]))
@@ -1881,8 +1873,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_traverse_top_down_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         v = Visitor(lambda x: None if t.is_nested(x) else x + 10)
 
@@ -2185,8 +2177,8 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_traverse_bottom_up_tf_wrappers(self, t):
-        from tensorflow.python.trackable.data_structures import ListWrapper
-        from tensorflow.python.trackable.data_structures import _DictWrapper
+        from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                                 _DictWrapper)
 
         v = Visitor(lambda x: None if t.is_nested(x) else x + 10)
         traverse_u = functools.partial(t.traverse, top_down=False)

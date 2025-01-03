@@ -1,11 +1,9 @@
 import numpy as np
 
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
-    convert_format,
-)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import \
+    convert_format  # noqa: E501
 
 try:
     import cv2

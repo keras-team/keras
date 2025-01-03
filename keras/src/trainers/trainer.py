@@ -4,17 +4,12 @@ import warnings
 
 from keras.src import backend
 from keras.src import metrics as metrics_module
-from keras.src import ops
-from keras.src import optimizers
-from keras.src import tree
+from keras.src import ops, optimizers, tree
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.saving import serialization_lib
-from keras.src.trainers.compile_utils import CompileLoss
-from keras.src.trainers.compile_utils import CompileMetrics
+from keras.src.trainers.compile_utils import CompileLoss, CompileMetrics
 from keras.src.trainers.data_adapters import data_adapter_utils
-from keras.src.utils import python_utils
-from keras.src.utils import traceback_utils
-from keras.src.utils import tracking
+from keras.src.utils import python_utils, traceback_utils, tracking
 
 
 class Trainer:
@@ -1135,9 +1130,8 @@ def model_supports_jit(model):
     # XLA not supported by some layers
     if all(x.supports_jit for x in model._flatten_layers()):
         if backend.backend() == "tensorflow":
-            from tensorflow.python.framework.config import (
-                is_op_determinism_enabled,
-            )
+            from tensorflow.python.framework.config import \
+                is_op_determinism_enabled
 
             if is_op_determinism_enabled():
                 # disable XLA with determinism enabled since not all ops are

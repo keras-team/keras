@@ -6,8 +6,7 @@ import tensorflow as tf
 from absl.testing import parameterized
 from tensorflow.python.eager import context
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.optimizers.sgd import SGD
 
 

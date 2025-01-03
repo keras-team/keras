@@ -4,12 +4,13 @@ import os
 # Set backend env to torch
 os.environ["KERAS_BACKEND"] = "torch"
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from keras import layers
+
 import keras
-import numpy as np
+from keras import layers
 
 # Model / data parameters
 num_classes = 10

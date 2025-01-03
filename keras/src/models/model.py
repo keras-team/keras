@@ -3,20 +3,17 @@ import json
 import typing
 import warnings
 
-from keras.src import backend
-from keras.src import utils
+from keras.src import backend, utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
-from keras.src.utils import summary_utils
-from keras.src.utils import traceback_utils
+from keras.src.utils import summary_utils, traceback_utils
 
 if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
+    from keras.src.backend.tensorflow.trainer import \
+        TensorFlowTrainer as Trainer
 elif backend.backend() == "jax":
     from keras.src.backend.jax.trainer import JAXTrainer as Trainer
 elif backend.backend() == "torch":

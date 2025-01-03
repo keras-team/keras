@@ -1,11 +1,9 @@
 import inspect
 
 from keras.src.api_export import keras_export
-from keras.src.regularizers.regularizers import L1
-from keras.src.regularizers.regularizers import L1L2
-from keras.src.regularizers.regularizers import L2
-from keras.src.regularizers.regularizers import OrthogonalRegularizer
-from keras.src.regularizers.regularizers import Regularizer
+from keras.src.regularizers.regularizers import (L1, L1L2, L2,
+                                                 OrthogonalRegularizer,
+                                                 Regularizer)
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 

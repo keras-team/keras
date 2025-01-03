@@ -6,31 +6,19 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
-from keras.src import layers
-from keras.src import losses
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
-from keras.src.backend.common import dtypes
-from keras.src.backend.common import standardize_dtype
+from keras.src import backend, layers, losses, models, ops, testing
+from keras.src.backend.common import dtypes, standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.layers.convolutional.conv_test import np_conv1d
-from keras.src.layers.convolutional.conv_test import np_conv2d
-from keras.src.layers.convolutional.conv_test import np_conv3d
+from keras.src.layers.convolutional.conv_test import (np_conv1d, np_conv2d,
+                                                      np_conv3d)
 from keras.src.layers.convolutional.conv_transpose_test import (
-    np_conv1d_transpose,
-)
-from keras.src.layers.convolutional.conv_transpose_test import (
-    np_conv2d_transpose,
-)
-from keras.src.layers.convolutional.depthwise_conv_test import (
-    np_depthwise_conv2d,
-)
-from keras.src.layers.pooling.average_pooling_test import np_avgpool1d
-from keras.src.layers.pooling.average_pooling_test import np_avgpool2d
-from keras.src.layers.pooling.max_pooling_test import np_maxpool1d
-from keras.src.layers.pooling.max_pooling_test import np_maxpool2d
+    np_conv1d_transpose, np_conv2d_transpose)
+from keras.src.layers.convolutional.depthwise_conv_test import \
+    np_depthwise_conv2d
+from keras.src.layers.pooling.average_pooling_test import (np_avgpool1d,
+                                                           np_avgpool2d)
+from keras.src.layers.pooling.max_pooling_test import (np_maxpool1d,
+                                                       np_maxpool2d)
 from keras.src.ops import nn as knn
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product

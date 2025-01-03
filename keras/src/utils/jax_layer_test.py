@@ -7,17 +7,10 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import metrics
-from keras.src import models
-from keras.src import saving
-from keras.src import testing
-from keras.src import tree
-from keras.src import utils
+from keras.src import (backend, layers, metrics, models, saving, testing, tree,
+                       utils)
 from keras.src.saving import object_registration
-from keras.src.utils.jax_layer import FlaxLayer
-from keras.src.utils.jax_layer import JaxLayer
+from keras.src.utils.jax_layer import FlaxLayer, JaxLayer
 
 try:
     import flax

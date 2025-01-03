@@ -4,8 +4,7 @@ import numpy as np
 
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
-from keras.src.layers import Dense
-from keras.src.layers import Input
+from keras.src.layers import Dense, Input
 from keras.src.models import Model
 from keras.src.ops import function
 from keras.src.ops import numpy as knp

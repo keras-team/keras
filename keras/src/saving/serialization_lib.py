@@ -7,8 +7,7 @@ import warnings
 
 import numpy as np
 
-from keras.src import api_export
-from keras.src import backend
+from keras.src import api_export, backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 from keras.src.saving import object_registration

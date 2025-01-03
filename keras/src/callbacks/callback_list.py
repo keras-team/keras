@@ -1,8 +1,6 @@
 import concurrent.futures
 
-from keras.src import backend
-from keras.src import tree
-from keras.src import utils
+from keras.src import backend, tree, utils
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src.callbacks.history import History

@@ -5,14 +5,11 @@ import pytest
 from absl.testing import parameterized
 
 from conftest import skip_if_backend
-from keras.src import backend
-from keras.src import initializers
-from keras.src import ops
+from keras.src import backend, initializers, ops
 from keras.src.backend.common import dtypes
-from keras.src.backend.common.variables import AutocastScope
-from keras.src.backend.common.variables import shape_equal
-from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.common.variables import standardize_shape
+from keras.src.backend.common.variables import (AutocastScope, shape_equal,
+                                                standardize_dtype,
+                                                standardize_shape)
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 

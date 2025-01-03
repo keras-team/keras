@@ -3,11 +3,7 @@ import os
 import pytest
 from tensorflow import data as tf_data
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
+from keras.src import backend, layers, models, ops, testing
 from keras.src.layers.preprocessing import feature_space
 from keras.src.saving import saving_api
 

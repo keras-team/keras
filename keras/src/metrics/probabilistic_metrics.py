@@ -1,9 +1,7 @@
 from keras.src.api_export import keras_export
-from keras.src.losses.losses import binary_crossentropy
-from keras.src.losses.losses import categorical_crossentropy
-from keras.src.losses.losses import kl_divergence
-from keras.src.losses.losses import poisson
-from keras.src.losses.losses import sparse_categorical_crossentropy
+from keras.src.losses.losses import (binary_crossentropy,
+                                     categorical_crossentropy, kl_divergence,
+                                     poisson, sparse_categorical_crossentropy)
 from keras.src.metrics import reduction_metrics
 
 

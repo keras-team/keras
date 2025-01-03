@@ -6,15 +6,12 @@ import shutil
 import rich
 import rich.console
 import rich.markup
-
 # See https://github.com/keras-team/keras/issues/448
 # for below imports
 import rich.table
 
-from keras.src import backend
-from keras.src import tree
-from keras.src.utils import dtype_utils
-from keras.src.utils import io_utils
+from keras.src import backend, tree
+from keras.src.utils import dtype_utils, io_utils
 
 
 def count_params(weights):
@@ -154,8 +151,7 @@ def print_summary(
             matches `layer_range[1]`. By default (`None`) all
             layers in the model are included in the summary.
     """
-    from keras.src.models import Functional
-    from keras.src.models import Sequential
+    from keras.src.models import Functional, Sequential
 
     if not print_fn and not io_utils.is_interactive_logging_enabled():
         print_fn = io_utils.print_msg

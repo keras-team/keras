@@ -5,9 +5,8 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import tree
-from keras.src.backend.common import KerasVariable
-from keras.src.backend.common import global_state
-from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import (KerasVariable, global_state,
+                                      standardize_dtype)
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope

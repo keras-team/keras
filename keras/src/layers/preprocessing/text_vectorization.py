@@ -6,9 +6,7 @@ from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
 from keras.src.layers.preprocessing.string_lookup import StringLookup
 from keras.src.saving import serialization_lib
-from keras.src.utils import argument_validation
-from keras.src.utils import backend_utils
-from keras.src.utils import tf_utils
+from keras.src.utils import argument_validation, backend_utils, tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 

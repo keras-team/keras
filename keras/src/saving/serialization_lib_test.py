@@ -6,8 +6,7 @@ import numpy as np
 import pytest
 
 import keras
-from keras.src import ops
-from keras.src import testing
+from keras.src import ops, testing
 from keras.src.saving import serialization_lib
 
 

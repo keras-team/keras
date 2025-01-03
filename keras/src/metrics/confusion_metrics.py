@@ -1,9 +1,6 @@
 import numpy as np
 
-from keras.src import activations
-from keras.src import backend
-from keras.src import initializers
-from keras.src import ops
+from keras.src import activations, backend, initializers, ops
 from keras.src.api_export import keras_export
 from keras.src.metrics import metrics_utils
 from keras.src.metrics.metric import Metric

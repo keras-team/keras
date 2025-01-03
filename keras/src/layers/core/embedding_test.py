@@ -4,12 +4,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import constraints
-from keras.src import layers
-from keras.src import models
-from keras.src import ops
-from keras.src import saving
+from keras.src import backend, constraints, layers, models, ops, saving
 from keras.src.export import export_lib
 from keras.src.testing import test_case
 

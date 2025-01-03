@@ -1,5 +1,4 @@
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.metrics import reduction_metrics

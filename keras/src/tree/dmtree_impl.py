@@ -64,8 +64,8 @@ register_tree_node(
 )
 
 if backend() == "tensorflow":
-    from tensorflow.python.trackable.data_structures import ListWrapper
-    from tensorflow.python.trackable.data_structures import _DictWrapper
+    from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                             _DictWrapper)
 
     register_tree_node(
         ListWrapper,

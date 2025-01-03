@@ -1,5 +1,4 @@
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
 
 

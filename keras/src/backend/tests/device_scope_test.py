@@ -1,7 +1,6 @@
 import pytest
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 
 
 class DeviceTest(testing.TestCase):

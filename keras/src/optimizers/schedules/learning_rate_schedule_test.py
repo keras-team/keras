@@ -5,10 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import optimizers
-from keras.src import testing
+from keras.src import backend, layers, optimizers, testing
 from keras.src.models import Sequential
 from keras.src.optimizers import schedules
 

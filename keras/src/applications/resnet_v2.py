@@ -1,6 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.applications import imagenet_utils
-from keras.src.applications import resnet
+from keras.src.applications import imagenet_utils, resnet
 
 
 @keras_export(

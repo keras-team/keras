@@ -1,7 +1,6 @@
 import warnings
 
-from keras.src import backend
-from keras.src import layers
+from keras.src import backend, layers
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
 from keras.src.models import Functional

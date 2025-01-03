@@ -1,8 +1,6 @@
 import warnings
 
-from keras.src import backend
-from keras.src import initializers
-from keras.src import ops
+from keras.src import backend, initializers, ops
 from keras.src.api_export import keras_export
 from keras.src.metrics.metric import Metric
 from keras.src.metrics.metrics_utils import confusion_matrix

@@ -90,9 +90,8 @@ class StatelessScope:
             # We're back in eager scope;
             # if any variables were created within the stateless
             # scope, we initialize them here.
-            from keras.src.backend.common.variables import (
-                initialize_all_variables,
-            )
+            from keras.src.backend.common.variables import \
+                initialize_all_variables
 
             initialize_all_variables()
 

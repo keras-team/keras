@@ -2,18 +2,11 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import testing
+from keras.src import backend, layers, testing
 from keras.src.backend.common.backend_utils import (
     _convert_conv_transpose_padding_args_from_keras_to_torch,
-)
-from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
-)
-from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_padding_args_for_jax,
-)
+    compute_conv_transpose_padding_args_for_jax)
 
 
 def np_conv1d_transpose(

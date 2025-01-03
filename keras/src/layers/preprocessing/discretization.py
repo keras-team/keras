@@ -3,8 +3,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
-from keras.src.utils import argument_validation
-from keras.src.utils import numerical_utils
+from keras.src.utils import argument_validation, numerical_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 

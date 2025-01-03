@@ -1,9 +1,7 @@
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.bounding_box import (  # noqa: E501
-    BoundingBox,
-)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.bounding_box import \
+    BoundingBox  # noqa: E501
 from keras.src.utils import backend_utils
 
 

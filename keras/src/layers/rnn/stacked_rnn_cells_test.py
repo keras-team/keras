@@ -1,10 +1,8 @@
 import numpy as np
 import pytest
 
-from keras.src import layers
-from keras.src import testing
-from keras.src.layers.rnn.rnn_test import OneStateRNNCell
-from keras.src.layers.rnn.rnn_test import TwoStatesRNNCell
+from keras.src import layers, testing
+from keras.src.layers.rnn.rnn_test import OneStateRNNCell, TwoStatesRNNCell
 
 
 class StackedRNNTest(testing.TestCase):

@@ -11,9 +11,9 @@ Accelerator: None
 ## Setup
 """
 import numpy as np
+
 import keras
-from keras import ops
-from keras import layers
+from keras import layers, ops
 
 """
 ## Introduction

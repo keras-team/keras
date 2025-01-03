@@ -1,9 +1,7 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
-from keras.src.utils import backend_utils
-from keras.src.utils import numerical_utils
-from keras.src.utils import tf_utils
+from keras.src.utils import backend_utils, numerical_utils, tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 

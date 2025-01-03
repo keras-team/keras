@@ -3,8 +3,7 @@
 
 import numpy as np
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.optimizers.adafactor import Adafactor
 
 

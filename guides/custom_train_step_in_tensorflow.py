@@ -47,10 +47,11 @@ import os
 # This guide can only be run with the TF backend.
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
+import numpy as np
 import tensorflow as tf
+
 import keras
 from keras import layers
-import numpy as np
 
 """
 ## A first simple example

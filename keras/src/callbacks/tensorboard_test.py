@@ -10,14 +10,8 @@ from tensorflow.compat.v1 import SummaryMetadata
 from tensorflow.core.util import event_pb2
 from tensorflow.python.lib.io import tf_record
 
-from keras.src import backend
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import losses
-from keras.src import models
-from keras.src import ops
-from keras.src import optimizers
-from keras.src import testing
+from keras.src import (backend, callbacks, layers, losses, models, ops,
+                       optimizers, testing)
 from keras.src.optimizers import schedules
 
 # Note: this file and tensorboard in general has a dependency on tensorflow

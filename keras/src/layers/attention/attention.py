@@ -1,5 +1,4 @@
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer

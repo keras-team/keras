@@ -1,17 +1,11 @@
 import torch
 import torch.nn.functional as tnn
 
-from keras.src import backend
-from keras.src import tree
-from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_padding_args_for_torch,
-)
-from keras.src.backend.torch.core import cast
-from keras.src.backend.torch.core import convert_to_tensor
-from keras.src.backend.torch.core import get_device
-from keras.src.backend.torch.numpy import expand_dims
-from keras.src.backend.torch.numpy import maximum
-from keras.src.backend.torch.numpy import where
+from keras.src import backend, tree
+from keras.src.backend.common.backend_utils import \
+    compute_conv_transpose_padding_args_for_torch
+from keras.src.backend.torch.core import cast, convert_to_tensor, get_device
+from keras.src.backend.torch.numpy import expand_dims, maximum, where
 from keras.src.utils.argument_validation import standardize_tuple
 
 
@@ -942,8 +936,7 @@ def _can_use_flash_attention(
 ):
     """Verify the availability of flash attention."""
     try:
-        from torch.backends.cuda import SDPAParams
-        from torch.backends.cuda import can_use_flash_attention
+        from torch.backends.cuda import SDPAParams, can_use_flash_attention
     except ImportError:
         if raise_error:
             raise ImportError(

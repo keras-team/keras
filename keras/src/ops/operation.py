@@ -1,14 +1,11 @@
 import inspect
 import textwrap
 
-from keras.src import backend
-from keras.src import dtype_policies
-from keras.src import tree
+from keras.src import backend, dtype_policies, tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.ops.node import Node
-from keras.src.utils import python_utils
-from keras.src.utils import traceback_utils
+from keras.src.utils import python_utils, traceback_utils
 from keras.src.utils.naming import auto_name
 
 

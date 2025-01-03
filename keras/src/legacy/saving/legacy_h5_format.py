@@ -5,12 +5,9 @@ import warnings
 import numpy as np
 from absl import logging
 
-from keras.src import backend
-from keras.src import optimizers
+from keras.src import backend, optimizers
 from keras.src.backend.common import global_state
-from keras.src.legacy.saving import json_utils
-from keras.src.legacy.saving import saving_options
-from keras.src.legacy.saving import saving_utils
+from keras.src.legacy.saving import json_utils, saving_options, saving_utils
 from keras.src.saving import object_registration
 from keras.src.utils import io_utils
 

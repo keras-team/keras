@@ -1,8 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.utils import backend_utils
 
 

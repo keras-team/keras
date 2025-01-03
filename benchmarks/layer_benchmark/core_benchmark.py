@@ -13,8 +13,7 @@ python3 -m benchmarks.layer_benchmark.core_benchmark \
 """
 
 import numpy as np
-from absl import app
-from absl import flags
+from absl import app, flags
 
 from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
 

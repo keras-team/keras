@@ -2,8 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import layers
-from keras.src import testing
+from keras.src import layers, testing
 
 
 @pytest.mark.requires_trainable_backend

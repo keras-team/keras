@@ -5,12 +5,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import constraints
-from keras.src import layers
-from keras.src import models
-from keras.src import optimizers
-from keras.src import testing
+from keras.src import backend, constraints, layers, models, optimizers, testing
 
 
 class OptimizerTest(testing.TestCase):

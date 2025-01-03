@@ -1,9 +1,7 @@
 import numpy as np
 import pytest
 
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import testing
+from keras.src import callbacks, layers, testing
 from keras.src.models import Sequential
 from keras.src.utils import file_utils
 

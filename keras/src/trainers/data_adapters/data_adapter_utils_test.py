@@ -2,11 +2,9 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
-from keras.src.trainers.data_adapters.data_adapter_utils import (
-    class_weight_to_sample_weights,
-)
+from keras.src import backend, testing
+from keras.src.trainers.data_adapters.data_adapter_utils import \
+    class_weight_to_sample_weights
 
 
 class TestClassWeightToSampleWeights(testing.TestCase):

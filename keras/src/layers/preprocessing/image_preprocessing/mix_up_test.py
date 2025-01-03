@@ -2,9 +2,7 @@ import numpy as np
 import pytest
 from tensorflow import data as tf_data
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import testing
+from keras.src import backend, layers, testing
 from keras.src.backend import convert_to_tensor
 
 

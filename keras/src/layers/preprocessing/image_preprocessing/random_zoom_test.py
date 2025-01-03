@@ -3,10 +3,7 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import models
-from keras.src import testing
+from keras.src import backend, layers, models, testing
 from keras.src.utils import backend_utils
 
 

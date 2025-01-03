@@ -1,7 +1,6 @@
 import torch
 
-from keras.src import layers
-from keras.src import testing
+from keras.src import layers, testing
 from keras.src.backend.common import KerasVariable
 
 

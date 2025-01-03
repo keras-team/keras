@@ -2,8 +2,7 @@ from unittest.mock import patch
 
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.backend.common import dtypes
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product

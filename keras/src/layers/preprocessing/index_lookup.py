@@ -4,9 +4,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.layers.layer import Layer
-from keras.src.utils import argument_validation
-from keras.src.utils import numerical_utils
-from keras.src.utils import tf_utils
+from keras.src.utils import argument_validation, numerical_utils, tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 

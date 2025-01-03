@@ -11,8 +11,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.saving import saving_lib
 from keras.src.saving.saving_lib import H5IOStore
-from keras.src.utils import naming
-from keras.src.utils import summary_utils
+from keras.src.utils import naming, summary_utils
 
 try:
     import IPython as ipython

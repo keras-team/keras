@@ -9,11 +9,8 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
-from keras.src import testing
-from keras.src.backend.common import dtypes
-from keras.src.backend.common import is_int_dtype
-from keras.src.backend.common import standardize_dtype
+from keras.src import backend, testing
+from keras.src.backend.common import dtypes, is_int_dtype, standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product

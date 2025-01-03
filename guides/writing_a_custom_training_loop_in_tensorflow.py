@@ -11,15 +11,16 @@ Accelerator: None
 ## Setup
 """
 
-import time
 import os
+import time
 
 # This guide can only be run with the TensorFlow backend.
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import tensorflow as tf
-import keras
 import numpy as np
+import tensorflow as tf
+
+import keras
 
 """
 ## Introduction

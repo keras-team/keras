@@ -1,6 +1,4 @@
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
+from keras.src import backend, ops, testing
 from keras.src.layers.core import input_layer
 from keras.src.ops import operation_utils
 

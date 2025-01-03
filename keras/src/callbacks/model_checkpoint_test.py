@@ -3,12 +3,7 @@ import warnings
 
 import pytest
 
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import metrics
-from keras.src import models
-from keras.src import saving
-from keras.src import testing
+from keras.src import callbacks, layers, metrics, models, saving, testing
 from keras.src.models import Sequential
 from keras.src.testing import test_utils
 from keras.src.utils import numerical_utils

@@ -1,8 +1,7 @@
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
-from keras.src.utils import backend_utils
-from keras.src.utils import numerical_utils
+from keras.src.utils import backend_utils, numerical_utils
 
 
 @keras_export("keras.layers.CategoryEncoding")

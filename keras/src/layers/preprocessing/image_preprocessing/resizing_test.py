@@ -3,10 +3,7 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
-from keras.src import Sequential
-from keras.src import backend
-from keras.src import layers
-from keras.src import testing
+from keras.src import Sequential, backend, layers, testing
 
 
 class ResizingTest(testing.TestCase):

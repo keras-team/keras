@@ -1,5 +1,6 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.convolutional.base_separable_conv import BaseSeparableConv
+from keras.src.layers.convolutional.base_separable_conv import \
+    BaseSeparableConv
 
 
 @keras_export(

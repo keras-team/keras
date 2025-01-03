@@ -1,5 +1,4 @@
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 
 DTYPE_TO_SIZE = {
     **{f"float{i}": i for i in (16, 32, 64)},

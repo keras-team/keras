@@ -1,12 +1,6 @@
-from keras.src.tree.tree_api import assert_same_paths
-from keras.src.tree.tree_api import assert_same_structure
-from keras.src.tree.tree_api import flatten
-from keras.src.tree.tree_api import flatten_with_path
-from keras.src.tree.tree_api import is_nested
-from keras.src.tree.tree_api import lists_to_tuples
-from keras.src.tree.tree_api import map_shape_structure
-from keras.src.tree.tree_api import map_structure
-from keras.src.tree.tree_api import map_structure_up_to
-from keras.src.tree.tree_api import pack_sequence_as
-from keras.src.tree.tree_api import register_tree_node_class
-from keras.src.tree.tree_api import traverse
+from keras.src.tree.tree_api import (assert_same_paths, assert_same_structure,
+                                     flatten, flatten_with_path, is_nested,
+                                     lists_to_tuples, map_shape_structure,
+                                     map_structure, map_structure_up_to,
+                                     pack_sequence_as,
+                                     register_tree_node_class, traverse)

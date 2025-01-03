@@ -1,7 +1,4 @@
-from keras.src import ops
-from keras.src import quantizers
-from keras.src import random
-from keras.src import testing
+from keras.src import ops, quantizers, random, testing
 
 
 class QuantizersTest(testing.TestCase):

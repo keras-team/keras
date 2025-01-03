@@ -2,9 +2,8 @@ import tensorflow as tf
 
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.config import floatx
-from keras.src.random.seed_generator import SeedGenerator
-from keras.src.random.seed_generator import draw_seed
-from keras.src.random.seed_generator import make_default_seed
+from keras.src.random.seed_generator import (SeedGenerator, draw_seed,
+                                             make_default_seed)
 
 
 def _cast_seed(seed):

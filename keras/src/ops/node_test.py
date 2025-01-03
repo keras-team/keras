@@ -1,7 +1,6 @@
 import numpy as np
 
-from keras.src import Layer
-from keras.src import testing
+from keras.src import Layer, testing
 from keras.src.backend import KerasTensor
 from keras.src.ops.node import Node
 

@@ -6,8 +6,7 @@ import warnings
 import numpy as np
 
 from keras.src import tree
-from keras.src.backend.common import KerasVariable
-from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import KerasVariable, standardize_dtype
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor

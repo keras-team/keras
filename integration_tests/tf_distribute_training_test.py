@@ -2,11 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 import keras
-from keras.src import layers
-from keras.src import losses
-from keras.src import metrics
-from keras.src import models
-from keras.src import optimizers
+from keras.src import layers, losses, metrics, models, optimizers
 from keras.src.callbacks import LearningRateScheduler
 
 

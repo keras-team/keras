@@ -2,16 +2,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import layers
-from keras.src import testing
-from keras.src.layers.convolutional.conv_test import np_conv1d
-from keras.src.layers.convolutional.conv_test import np_conv2d
+from keras.src import layers, testing
+from keras.src.layers.convolutional.conv_test import np_conv1d, np_conv2d
 from keras.src.layers.convolutional.depthwise_conv_test import (
-    np_depthwise_conv1d,
-)
-from keras.src.layers.convolutional.depthwise_conv_test import (
-    np_depthwise_conv2d,
-)
+    np_depthwise_conv1d, np_depthwise_conv2d)
 
 
 class SeparableConvBasicTest(testing.TestCase):

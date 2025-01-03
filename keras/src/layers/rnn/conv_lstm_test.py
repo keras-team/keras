@@ -1,10 +1,7 @@
 import numpy as np
 
-from keras.src import backend
-from keras.src import initializers
-from keras.src import testing
-from keras.src.layers.rnn.conv_lstm import ConvLSTM
-from keras.src.layers.rnn.conv_lstm import ConvLSTMCell
+from keras.src import backend, initializers, testing
+from keras.src.layers.rnn.conv_lstm import ConvLSTM, ConvLSTMCell
 
 
 class ConvLSTMCellTest(testing.TestCase):

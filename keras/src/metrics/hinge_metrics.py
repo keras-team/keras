@@ -1,7 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.losses.losses import categorical_hinge
-from keras.src.losses.losses import hinge
-from keras.src.losses.losses import squared_hinge
+from keras.src.losses.losses import categorical_hinge, hinge, squared_hinge
 from keras.src.metrics import reduction_metrics
 
 

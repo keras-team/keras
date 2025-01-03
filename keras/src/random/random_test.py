@@ -3,13 +3,9 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
-from keras.src.backend.common import dtypes
-from keras.src.backend.common import standardize_dtype
-from keras.src.random import random
-from keras.src.random import seed_generator
+from keras.src import backend, ops, testing
+from keras.src.backend.common import dtypes, standardize_dtype
+from keras.src.random import random, seed_generator
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.rng_utils import set_random_seed
 

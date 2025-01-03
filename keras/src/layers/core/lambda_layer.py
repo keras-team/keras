@@ -1,8 +1,7 @@
 import inspect
 import types
 
-from keras.src import backend
-from keras.src import tree
+from keras.src import backend, tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib

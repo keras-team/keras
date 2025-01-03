@@ -2,11 +2,7 @@ import numpy as np
 import pytest
 from absl import logging
 
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import losses
-from keras.src import optimizers
-from keras.src import testing
+from keras.src import callbacks, layers, losses, optimizers, testing
 from keras.src.models.sequential import Sequential
 
 

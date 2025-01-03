@@ -17,11 +17,11 @@ import os
 os.environ["KERAS_BACKEND"] = "jax"
 
 import jax
-
+import numpy as np
 # We import TF so we can use tf.data.
 import tensorflow as tf
+
 import keras
-import numpy as np
 
 """
 ## Introduction

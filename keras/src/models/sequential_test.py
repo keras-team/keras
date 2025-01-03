@@ -3,10 +3,7 @@ import pickle
 import numpy as np
 import pytest
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import saving
-from keras.src import testing
+from keras.src import backend, layers, saving, testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model

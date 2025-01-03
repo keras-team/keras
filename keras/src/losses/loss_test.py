@@ -3,13 +3,10 @@ import pickle
 import numpy as np
 import pytest
 
-from keras.src import backend
-from keras.src import dtype_policies
+from keras.src import backend, dtype_policies
 from keras.src import losses as losses_module
-from keras.src import ops
-from keras.src import testing
-from keras.src.losses.loss import Loss
-from keras.src.losses.loss import squeeze_or_expand_to_same_rank
+from keras.src import ops, testing
+from keras.src.losses.loss import Loss, squeeze_or_expand_to_same_rank
 
 
 class ExampleLoss(Loss):

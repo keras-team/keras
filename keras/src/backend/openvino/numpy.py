@@ -4,13 +4,11 @@ from openvino import Type
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
-from keras.src.backend.openvino.core import OPENVINO_DTYPES
-from keras.src.backend.openvino.core import OpenVINOKerasTensor
-from keras.src.backend.openvino.core import (
-    align_operand_types as _align_operand_types,
-)
-from keras.src.backend.openvino.core import get_ov_output
-from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import (OPENVINO_DTYPES,
+                                             OpenVINOKerasTensor)
+from keras.src.backend.openvino.core import \
+    align_operand_types as _align_operand_types
+from keras.src.backend.openvino.core import get_ov_output, ov_to_keras_type
 
 
 def add(x1, x2):

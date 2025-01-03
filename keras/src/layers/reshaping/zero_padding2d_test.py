@@ -1,10 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import dtype_policies
-from keras.src import layers
-from keras.src import testing
+from keras.src import backend, dtype_policies, layers, testing
 
 
 class ZeroPadding2DTest(testing.TestCase):

@@ -7,14 +7,8 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import models
-from keras.src import ops
-from keras.src import random
-from keras.src import testing
-from keras.src import tree
-from keras.src import utils
+from keras.src import (backend, layers, models, ops, random, testing, tree,
+                       utils)
 from keras.src.export import export_lib
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product

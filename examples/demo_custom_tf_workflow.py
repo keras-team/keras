@@ -7,12 +7,7 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 import numpy as np
 import tensorflow as tf
 
-from keras import Model
-from keras import backend
-from keras import initializers
-from keras import layers
-from keras import ops
-from keras import optimizers
+from keras import Model, backend, initializers, layers, ops, optimizers
 
 
 class MyDense(layers.Layer):

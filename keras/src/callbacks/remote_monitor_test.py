@@ -4,10 +4,7 @@ from unittest import mock
 import numpy as np
 
 from conftest import skip_if_backend
-from keras.src import backend
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import testing
+from keras.src import backend, callbacks, layers, testing
 from keras.src.models import Sequential
 from keras.src.utils import numerical_utils
 

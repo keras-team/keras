@@ -6,15 +6,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import losses
-from keras.src import testing
-from keras.src import tree
+from keras.src import backend, layers, losses, testing, tree
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
-from keras.src.models.model import Model
-from keras.src.models.model import model_from_json
+from keras.src.models.model import Model, model_from_json
 
 
 def _get_model():

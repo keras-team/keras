@@ -2,9 +2,7 @@ import numpy as np
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import testing
+from keras.src import backend, layers, testing
 
 TEST_CASES = [{"testcase_name": "dense", "sparse": False}]
 if backend.SUPPORTS_SPARSE_TENSORS:

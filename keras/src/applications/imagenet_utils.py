@@ -3,9 +3,7 @@ import warnings
 
 import numpy as np
 
-from keras.src import activations
-from keras.src import backend
-from keras.src import ops
+from keras.src import activations, backend, ops
 from keras.src.api_export import keras_export
 from keras.src.utils import file_utils
 

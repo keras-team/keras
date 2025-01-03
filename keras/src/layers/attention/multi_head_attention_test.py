@@ -5,19 +5,11 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import constraints
-from keras.src import dtype_policies
-from keras.src import initializers
-from keras.src import layers
-from keras.src import models
-from keras.src import ops
-from keras.src import random
-from keras.src import saving
-from keras.src import testing
-from keras.src.backend.config import disable_flash_attention
-from keras.src.backend.config import enable_flash_attention
-from keras.src.backend.config import is_flash_attention_enabled
+from keras.src import (backend, constraints, dtype_policies, initializers,
+                       layers, models, ops, random, saving, testing)
+from keras.src.backend.config import (disable_flash_attention,
+                                      enable_flash_attention,
+                                      is_flash_attention_enabled)
 
 
 class MultiHeadAttentionTest(testing.TestCase):

@@ -4,16 +4,12 @@ import warnings
 import numpy as np
 import openvino as ov
 import openvino.runtime.opset14 as ov_opset
-from openvino import Model
-from openvino import Tensor
-from openvino import compile_model
+from openvino import Model, Tensor, compile_model
 from openvino.runtime import Type
 
 from keras.src import tree
-from keras.src.backend.common import KerasVariable
-from keras.src.backend.common import dtypes
-from keras.src.backend.common import global_state
-from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import (KerasVariable, dtypes, global_state,
+                                      standardize_dtype)
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope

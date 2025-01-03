@@ -3,11 +3,10 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import config
-from keras.src.backend.common import dtypes
-from keras.src.backend.common import global_state
+from keras.src.backend.common import dtypes, global_state
 from keras.src.backend.common.name_scope import current_path
-from keras.src.backend.common.stateless_scope import get_stateless_scope
-from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common.stateless_scope import (get_stateless_scope,
+                                                      in_stateless_scope)
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
 

@@ -1,9 +1,7 @@
 import re
 import warnings
 
-from keras.src import backend
-from keras.src import initializers
-from keras.src import ops
+from keras.src import backend, initializers, ops
 from keras.src.optimizers.schedules import learning_rate_schedule
 from keras.src.saving import serialization_lib
 from keras.src.saving.keras_saveable import KerasSaveable

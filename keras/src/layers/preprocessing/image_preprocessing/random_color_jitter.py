@@ -3,9 +3,8 @@ import keras.src.layers.preprocessing.image_preprocessing.random_contrast as ran
 import keras.src.layers.preprocessing.image_preprocessing.random_hue as random_hue  # noqa: E501
 import keras.src.layers.preprocessing.image_preprocessing.random_saturation as random_saturation  # noqa: E501
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
-    BaseImagePreprocessingLayer,
-)
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import \
+    BaseImagePreprocessingLayer  # noqa: E501
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.utils import backend_utils
 

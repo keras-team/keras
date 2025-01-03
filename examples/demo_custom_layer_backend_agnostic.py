@@ -1,13 +1,7 @@
 import numpy as np
 
 import keras
-from keras import Model
-from keras import initializers
-from keras import layers
-from keras import losses
-from keras import metrics
-from keras import ops
-from keras import optimizers
+from keras import Model, initializers, layers, losses, metrics, ops, optimizers
 
 
 class MyDense(layers.Layer):

@@ -3,10 +3,7 @@ from unittest import mock
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import ops
-from keras.src import optimizers
-from keras.src import testing
+from keras.src import backend, ops, optimizers, testing
 
 
 class ScatterUpdateOptimizer(optimizers.Optimizer):

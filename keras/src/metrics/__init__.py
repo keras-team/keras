@@ -1,54 +1,38 @@
 import inspect
 
 from keras.src.api_export import keras_export
-from keras.src.metrics.accuracy_metrics import Accuracy
-from keras.src.metrics.accuracy_metrics import BinaryAccuracy
-from keras.src.metrics.accuracy_metrics import CategoricalAccuracy
-from keras.src.metrics.accuracy_metrics import SparseCategoricalAccuracy
-from keras.src.metrics.accuracy_metrics import SparseTopKCategoricalAccuracy
-from keras.src.metrics.accuracy_metrics import TopKCategoricalAccuracy
-from keras.src.metrics.confusion_metrics import AUC
-from keras.src.metrics.confusion_metrics import FalseNegatives
-from keras.src.metrics.confusion_metrics import FalsePositives
-from keras.src.metrics.confusion_metrics import Precision
-from keras.src.metrics.confusion_metrics import PrecisionAtRecall
-from keras.src.metrics.confusion_metrics import Recall
-from keras.src.metrics.confusion_metrics import RecallAtPrecision
-from keras.src.metrics.confusion_metrics import SensitivityAtSpecificity
-from keras.src.metrics.confusion_metrics import SpecificityAtSensitivity
-from keras.src.metrics.confusion_metrics import TrueNegatives
-from keras.src.metrics.confusion_metrics import TruePositives
-from keras.src.metrics.correlation_metrics import ConcordanceCorrelation
-from keras.src.metrics.correlation_metrics import PearsonCorrelation
-from keras.src.metrics.f_score_metrics import F1Score
-from keras.src.metrics.f_score_metrics import FBetaScore
-from keras.src.metrics.hinge_metrics import CategoricalHinge
-from keras.src.metrics.hinge_metrics import Hinge
-from keras.src.metrics.hinge_metrics import SquaredHinge
-from keras.src.metrics.iou_metrics import BinaryIoU
-from keras.src.metrics.iou_metrics import IoU
-from keras.src.metrics.iou_metrics import MeanIoU
-from keras.src.metrics.iou_metrics import OneHotIoU
-from keras.src.metrics.iou_metrics import OneHotMeanIoU
+from keras.src.metrics.accuracy_metrics import (Accuracy, BinaryAccuracy,
+                                                CategoricalAccuracy,
+                                                SparseCategoricalAccuracy,
+                                                SparseTopKCategoricalAccuracy,
+                                                TopKCategoricalAccuracy)
+from keras.src.metrics.confusion_metrics import (AUC, FalseNegatives,
+                                                 FalsePositives, Precision,
+                                                 PrecisionAtRecall, Recall,
+                                                 RecallAtPrecision,
+                                                 SensitivityAtSpecificity,
+                                                 SpecificityAtSensitivity,
+                                                 TrueNegatives, TruePositives)
+from keras.src.metrics.correlation_metrics import (ConcordanceCorrelation,
+                                                   PearsonCorrelation)
+from keras.src.metrics.f_score_metrics import F1Score, FBetaScore
+from keras.src.metrics.hinge_metrics import (CategoricalHinge, Hinge,
+                                             SquaredHinge)
+from keras.src.metrics.iou_metrics import (BinaryIoU, IoU, MeanIoU, OneHotIoU,
+                                           OneHotMeanIoU)
 from keras.src.metrics.metric import Metric
-from keras.src.metrics.probabilistic_metrics import BinaryCrossentropy
-from keras.src.metrics.probabilistic_metrics import CategoricalCrossentropy
-from keras.src.metrics.probabilistic_metrics import KLDivergence
-from keras.src.metrics.probabilistic_metrics import Poisson
 from keras.src.metrics.probabilistic_metrics import (
-    SparseCategoricalCrossentropy,
-)
-from keras.src.metrics.reduction_metrics import Mean
-from keras.src.metrics.reduction_metrics import MeanMetricWrapper
-from keras.src.metrics.reduction_metrics import Sum
-from keras.src.metrics.regression_metrics import CosineSimilarity
-from keras.src.metrics.regression_metrics import LogCoshError
-from keras.src.metrics.regression_metrics import MeanAbsoluteError
-from keras.src.metrics.regression_metrics import MeanAbsolutePercentageError
-from keras.src.metrics.regression_metrics import MeanSquaredError
-from keras.src.metrics.regression_metrics import MeanSquaredLogarithmicError
-from keras.src.metrics.regression_metrics import R2Score
-from keras.src.metrics.regression_metrics import RootMeanSquaredError
+    BinaryCrossentropy, CategoricalCrossentropy, KLDivergence, Poisson,
+    SparseCategoricalCrossentropy)
+from keras.src.metrics.reduction_metrics import Mean, MeanMetricWrapper, Sum
+from keras.src.metrics.regression_metrics import (CosineSimilarity,
+                                                  LogCoshError,
+                                                  MeanAbsoluteError,
+                                                  MeanAbsolutePercentageError,
+                                                  MeanSquaredError,
+                                                  MeanSquaredLogarithmicError,
+                                                  R2Score,
+                                                  RootMeanSquaredError)
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 

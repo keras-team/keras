@@ -13,9 +13,7 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
+from keras.src import backend, ops, testing
 from keras.src.saving import saving_lib
 
 

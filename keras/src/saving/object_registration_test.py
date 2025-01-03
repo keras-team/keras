@@ -1,7 +1,6 @@
 import keras
 from keras.src import testing
-from keras.src.saving import object_registration
-from keras.src.saving import serialization_lib
+from keras.src.saving import object_registration, serialization_lib
 
 
 class TestObjectRegistration(testing.TestCase):

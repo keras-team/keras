@@ -1,9 +1,7 @@
 import numpy as np
 from tensorflow import data as tf_data
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import testing
+from keras.src import backend, layers, testing
 
 
 class MaxNumBoundingBoxesTest(testing.TestCase):

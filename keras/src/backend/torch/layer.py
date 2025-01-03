@@ -1,5 +1,4 @@
-from typing import Iterator
-from typing import Tuple
+from typing import Iterator, Tuple
 
 import torch
 

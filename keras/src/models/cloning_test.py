@@ -2,11 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import layers
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
-from keras.src import tree
+from keras.src import layers, models, ops, testing, tree
 from keras.src.models.cloning import clone_model
 
 

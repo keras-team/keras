@@ -1,12 +1,7 @@
 import warnings
 
-from keras.src import backend
-from keras.src import constraints
-from keras.src import dtype_policies
-from keras.src import initializers
-from keras.src import ops
-from keras.src import quantizers
-from keras.src import regularizers
+from keras.src import (backend, constraints, dtype_policies, initializers, ops,
+                       quantizers, regularizers)
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 

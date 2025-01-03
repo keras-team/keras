@@ -1,18 +1,18 @@
 import types
 
 from keras.src.distribution import distribution_lib
-from keras.src.trainers.data_adapters import array_data_adapter
-from keras.src.trainers.data_adapters import data_adapter
-from keras.src.trainers.data_adapters import py_dataset_adapter
-from keras.src.trainers.data_adapters.array_data_adapter import ArrayDataAdapter
-from keras.src.trainers.data_adapters.generator_data_adapter import (
-    GeneratorDataAdapter,
-)
-from keras.src.trainers.data_adapters.py_dataset_adapter import PyDatasetAdapter
-from keras.src.trainers.data_adapters.tf_dataset_adapter import TFDatasetAdapter
-from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
-    TorchDataLoaderAdapter,
-)
+from keras.src.trainers.data_adapters import (array_data_adapter, data_adapter,
+                                              py_dataset_adapter)
+from keras.src.trainers.data_adapters.array_data_adapter import \
+    ArrayDataAdapter
+from keras.src.trainers.data_adapters.generator_data_adapter import \
+    GeneratorDataAdapter
+from keras.src.trainers.data_adapters.py_dataset_adapter import \
+    PyDatasetAdapter
+from keras.src.trainers.data_adapters.tf_dataset_adapter import \
+    TFDatasetAdapter
+from keras.src.trainers.data_adapters.torch_data_loader_adapter import \
+    TorchDataLoaderAdapter
 
 
 def get_data_adapter(

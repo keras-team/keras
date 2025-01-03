@@ -3,12 +3,9 @@ import numpy as np
 from jax import lax
 
 from keras.src import backend
-from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_padding_args_for_jax,
-)
-from keras.src.backend.numpy.core import cast
-from keras.src.backend.numpy.core import convert_to_tensor
-from keras.src.backend.numpy.core import is_tensor
+from keras.src.backend.common.backend_utils import \
+    compute_conv_transpose_padding_args_for_jax
+from keras.src.backend.numpy.core import cast, convert_to_tensor, is_tensor
 from keras.src.utils.module_utils import scipy
 
 

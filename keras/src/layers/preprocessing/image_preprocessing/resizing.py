@@ -1,14 +1,9 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
-    BaseImagePreprocessingLayer,
-)
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import \
+    BaseImagePreprocessingLayer  # noqa: E501
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
-    clip_to_image_size,
-)
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
-    convert_format,
-)
+    clip_to_image_size, convert_format)
 from keras.src.ops.core import _saturate_cast
 
 

@@ -3,9 +3,8 @@
 import numpy as np
 
 from keras.src import testing
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
-    iou as iou_lib,
-)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import \
+    iou as iou_lib
 
 
 class IoUTest(testing.TestCase):

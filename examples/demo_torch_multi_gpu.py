@@ -4,18 +4,18 @@ import os
 # Set backend env to torch
 os.environ["KERAS_BACKEND"] = "torch"
 
+import numpy as np
 import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.optim as optim
-from keras import layers
-import keras
-import numpy as np
-
-import torch.multiprocessing as mp
-import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
+
+import keras
+from keras import layers
 
 # Model / data parameters
 num_classes = 10

@@ -1,8 +1,6 @@
 import numpy as np
 
-from keras.src import backend
-from keras.src import ops
-from keras.src import tree
+from keras.src import backend, ops, tree
 from keras.src.api_export import keras_export
 
 NUM_BATCHES_FOR_TENSOR_SPEC = 2

@@ -1,8 +1,7 @@
 import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
-from keras.src.backend.openvino.core import OpenVINOKerasTensor
-from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import OpenVINOKerasTensor, get_ov_output
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):

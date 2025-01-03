@@ -2,8 +2,7 @@ import enum
 
 import pytest
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.legacy.saving import json_utils
 
 if backend.backend() == "tensorflow":

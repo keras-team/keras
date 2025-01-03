@@ -1,4 +1,5 @@
 import numpy as np
+
 import keras
 from keras import layers
 from keras.utils import to_categorical

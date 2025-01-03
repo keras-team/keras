@@ -2,10 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import layers
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
+from keras.src import layers, models, ops, testing
 from keras.src.utils import summary_utils
 
 

@@ -3,10 +3,8 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
-from keras.src.trainers import data_adapters
-from keras.src.trainers import epoch_iterator
+from keras.src import backend, testing
+from keras.src.trainers import data_adapters, epoch_iterator
 
 
 class TestEpochIterator(testing.TestCase):

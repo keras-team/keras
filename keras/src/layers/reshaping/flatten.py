@@ -1,7 +1,6 @@
 import math
 
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.layers.input_spec import InputSpec

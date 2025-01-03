@@ -2,13 +2,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import initializers
-from keras.src import layers
-from keras.src import testing
-from keras.src.backend.config import disable_flash_attention
-from keras.src.backend.config import enable_flash_attention
-from keras.src.backend.config import is_flash_attention_enabled
+from keras.src import backend, initializers, layers, testing
+from keras.src.backend.config import (disable_flash_attention,
+                                      enable_flash_attention,
+                                      is_flash_attention_enabled)
 
 
 class GroupedQueryAttentionTest(testing.TestCase):

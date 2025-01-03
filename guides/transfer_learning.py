@@ -11,11 +11,12 @@ Accelerator: GPU
 ## Setup
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow_datasets as tfds
+
 import keras
 from keras import layers
-import tensorflow_datasets as tfds
-import matplotlib.pyplot as plt
 
 """
 ## Introduction

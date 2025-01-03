@@ -6,8 +6,7 @@ from absl import logging
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
-from keras.src.utils import file_utils
-from keras.src.utils import io_utils
+from keras.src.utils import file_utils, io_utils
 
 try:
     import h5py

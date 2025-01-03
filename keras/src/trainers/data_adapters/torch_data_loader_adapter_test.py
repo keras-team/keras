@@ -5,12 +5,10 @@ import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.testing.test_utils import named_product
-from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
-    TorchDataLoaderAdapter,
-)
+from keras.src.trainers.data_adapters.torch_data_loader_adapter import \
+    TorchDataLoaderAdapter
 
 
 class TestTorchDataLoaderAdapter(testing.TestCase):

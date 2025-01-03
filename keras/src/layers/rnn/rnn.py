@@ -1,6 +1,4 @@
-from keras.src import backend
-from keras.src import ops
-from keras.src import tree
+from keras.src import backend, ops, tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell

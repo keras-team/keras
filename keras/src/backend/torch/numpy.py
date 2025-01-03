@@ -4,18 +4,14 @@ import math
 import numpy as np
 import torch
 
-from keras.src.backend import KerasTensor
-from keras.src.backend import config
+from keras.src.backend import KerasTensor, config
 from keras.src.backend.common import dtypes
-from keras.src.backend.common.backend_utils import canonicalize_axis
-from keras.src.backend.common.backend_utils import to_tuple_or_list
-from keras.src.backend.common.backend_utils import vectorize_impl
+from keras.src.backend.common.backend_utils import (canonicalize_axis,
+                                                    to_tuple_or_list,
+                                                    vectorize_impl)
 from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.torch.core import cast
-from keras.src.backend.torch.core import convert_to_tensor
-from keras.src.backend.torch.core import get_device
-from keras.src.backend.torch.core import is_tensor
-from keras.src.backend.torch.core import to_torch_dtype
+from keras.src.backend.torch.core import (cast, convert_to_tensor, get_device,
+                                          is_tensor, to_torch_dtype)
 
 TORCH_INT_TYPES = (
     torch.int8,

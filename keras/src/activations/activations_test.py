@@ -1,8 +1,6 @@
 import numpy as np
 
-from keras.src import activations
-from keras.src import backend
-from keras.src import testing
+from keras.src import activations, backend, testing
 
 
 def _ref_softmax(values):

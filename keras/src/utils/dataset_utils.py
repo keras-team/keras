@@ -240,9 +240,8 @@ def _get_next_sample(
     Yields:
         data_sample: The next sample.
     """
-    from keras.src.trainers.data_adapters.data_adapter_utils import (
-        is_torch_tensor,
-    )
+    from keras.src.trainers.data_adapters.data_adapter_utils import \
+        is_torch_tensor
 
     try:
         dataset_iterator = iter(dataset_iterator)

@@ -1,11 +1,7 @@
-from keras.src import backend
-from keras.src import tree
-from keras.src import utils
+from keras.src import backend, tree, utils
 from keras.src.api_export import keras_export
-from keras.src.layers import Input
-from keras.src.layers import InputLayer
-from keras.src.models.functional import Functional
-from keras.src.models.functional import functional_like_constructor
+from keras.src.layers import Input, InputLayer
+from keras.src.models.functional import Functional, functional_like_constructor
 from keras.src.models.sequential import Sequential
 from keras.src.saving import serialization_lib
 

@@ -22,9 +22,7 @@ import time
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from absl import app
-from absl import flags
-from absl import logging
+from absl import app, flags, logging
 from model_benchmark.benchmark_utils import BenchmarkMetricsCallback
 
 import keras

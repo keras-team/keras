@@ -1,8 +1,7 @@
 import numpy as np
 import pytest
 
-from keras.src import models
-from keras.src import testing
+from keras.src import models, testing
 from keras.src.callbacks.callback import Callback
 
 

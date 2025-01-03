@@ -1,8 +1,6 @@
 import pytest
 
-from keras.src import layers
-from keras.src import ops
-from keras.src import testing
+from keras.src import layers, ops, testing
 
 
 class ExampleWrapper(layers.Wrapper):

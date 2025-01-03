@@ -1,9 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
+from keras.src import backend, ops, testing
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.optimizers.sgd import SGD
 

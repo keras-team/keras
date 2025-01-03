@@ -1,11 +1,9 @@
 import ml_dtypes
 import numpy as np
 
-from keras.src import backend
-from keras.src import tree
+from keras.src import backend, tree
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
+from keras.src.backend import KerasTensor, any_symbolic_tensors
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils

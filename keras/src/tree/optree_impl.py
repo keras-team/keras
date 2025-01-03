@@ -10,8 +10,8 @@ def register_tree_node_class(cls):
 
 # Register backend-specific node classes
 if backend() == "tensorflow":
-    from tensorflow.python.trackable.data_structures import ListWrapper
-    from tensorflow.python.trackable.data_structures import _DictWrapper
+    from tensorflow.python.trackable.data_structures import (ListWrapper,
+                                                             _DictWrapper)
 
     optree.register_pytree_node(
         ListWrapper,

@@ -4,8 +4,7 @@ import math
 import numpy as np
 
 from keras.src import tree
-from keras.src.trainers.data_adapters import array_slicing
-from keras.src.trainers.data_adapters import data_adapter_utils
+from keras.src.trainers.data_adapters import array_slicing, data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
 
 

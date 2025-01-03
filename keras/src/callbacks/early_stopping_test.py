@@ -1,12 +1,7 @@
 import numpy as np
 import pytest
 
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import metrics
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
+from keras.src import callbacks, layers, metrics, models, ops, testing
 
 
 class EarlyStoppingTest(testing.TestCase):

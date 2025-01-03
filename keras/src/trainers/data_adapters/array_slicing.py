@@ -3,8 +3,7 @@ import math
 
 import numpy as np
 
-from keras.src import backend
-from keras.src import tree
+from keras.src import backend, tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.utils.module_utils import tensorflow as tf
 

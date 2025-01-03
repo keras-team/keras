@@ -11,15 +11,15 @@ Accelerator: GPU
 ## Setup
 """
 
+import os
+
+import numpy as np
+import tensorflow as tf
 # We import torch & TF so as to use torch Dataloaders & tf.data.Datasets.
 import torch
-import tensorflow as tf
 
-import os
-import numpy as np
 import keras
-from keras import layers
-from keras import ops
+from keras import layers, ops
 
 """
 ## Introduction

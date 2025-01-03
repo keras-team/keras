@@ -1,7 +1,6 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
-    BaseImagePreprocessingLayer,
-)
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import \
+    BaseImagePreprocessingLayer  # noqa: E501
 
 
 @keras_export("keras.layers.RandomHue")

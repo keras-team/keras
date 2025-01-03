@@ -4,11 +4,9 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
-from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_output_shape,
-)
-from keras.src.backend.tensorflow.core import cast
-from keras.src.backend.tensorflow.core import convert_to_tensor
+from keras.src.backend.common.backend_utils import \
+    compute_conv_transpose_output_shape
+from keras.src.backend.tensorflow.core import cast, convert_to_tensor
 
 
 def relu(x):

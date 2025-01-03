@@ -1,13 +1,9 @@
 import pytest
 
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import optimizers
-from keras.src import testing
+from keras.src import callbacks, layers, optimizers, testing
 from keras.src.models import Sequential
 from keras.src.testing import test_utils
-from keras.src.utils import io_utils
-from keras.src.utils import numerical_utils
+from keras.src.utils import io_utils, numerical_utils
 
 
 class LearningRateSchedulerTest(testing.TestCase):

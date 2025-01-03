@@ -47,12 +47,11 @@ os.environ["KERAS_BACKEND"] = "jax"
 import jax
 import numpy as np
 import tensorflow as tf
-import keras
-
 from jax.experimental import mesh_utils
-from jax.sharding import Mesh
-from jax.sharding import NamedSharding
+from jax.sharding import Mesh, NamedSharding
 from jax.sharding import PartitionSpec as P
+
+import keras
 
 
 def get_model():

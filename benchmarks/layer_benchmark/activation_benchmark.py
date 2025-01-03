@@ -12,8 +12,7 @@ python3 -m benchmarks.layer_benchmark.activation_benchmark \
 ```
 """
 
-from absl import app
-from absl import flags
+from absl import app, flags
 
 from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
 

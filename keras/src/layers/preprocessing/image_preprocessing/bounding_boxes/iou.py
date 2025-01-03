@@ -3,12 +3,10 @@
 import math
 
 import keras
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
-    converters,
-)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import \
+    converters
 
 
 def _compute_area(box):

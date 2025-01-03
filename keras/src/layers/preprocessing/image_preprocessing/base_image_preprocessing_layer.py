@@ -1,9 +1,8 @@
 import math
 
 from keras.src.backend import config as backend_config
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (  # noqa: E501
-    densify_bounding_boxes,
-)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import \
+    densify_bounding_boxes  # noqa: E501
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 
 

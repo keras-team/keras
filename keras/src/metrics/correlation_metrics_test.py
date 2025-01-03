@@ -2,9 +2,8 @@ import numpy as np
 from scipy.stats import pearsonr
 
 from keras.src import testing
-from keras.src.metrics import ConcordanceCorrelation
-from keras.src.metrics import PearsonCorrelation
-from keras.src.metrics import correlation_metrics
+from keras.src.metrics import (ConcordanceCorrelation, PearsonCorrelation,
+                               correlation_metrics)
 
 
 class CorrelationsTest(testing.TestCase):

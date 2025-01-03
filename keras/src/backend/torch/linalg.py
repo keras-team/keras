@@ -1,10 +1,8 @@
 import torch
 
-from keras.src.backend import config
-from keras.src.backend import standardize_dtype
+from keras.src.backend import config, standardize_dtype
 from keras.src.backend.common import dtypes
-from keras.src.backend.torch.core import cast
-from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.core import cast, convert_to_tensor
 
 
 def cholesky(x):

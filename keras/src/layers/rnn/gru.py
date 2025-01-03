@@ -1,10 +1,5 @@
-from keras.src import activations
-from keras.src import backend
-from keras.src import constraints
-from keras.src import initializers
-from keras.src import ops
-from keras.src import regularizers
-from keras.src import tree
+from keras.src import (activations, backend, constraints, initializers, ops,
+                       regularizers, tree)
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer

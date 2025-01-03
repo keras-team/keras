@@ -243,8 +243,7 @@ def model_to_dot(
             "the model on a batch of data."
         )
 
-    from keras.src.models import functional
-    from keras.src.models import sequential
+    from keras.src.models import functional, sequential
 
     # from keras.src.layers import Wrapper
 

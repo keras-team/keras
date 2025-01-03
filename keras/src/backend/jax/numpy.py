@@ -6,13 +6,11 @@ import jax.numpy as jnp
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
-from keras.src.backend.common.backend_utils import canonicalize_axis
-from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.backend_utils import (canonicalize_axis,
+                                                    to_tuple_or_list)
 from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.jax import nn
-from keras.src.backend.jax import sparse
-from keras.src.backend.jax.core import cast
-from keras.src.backend.jax.core import convert_to_tensor
+from keras.src.backend.jax import nn, sparse
+from keras.src.backend.jax.core import cast, convert_to_tensor
 
 
 @sparse.elementwise_binary_union(linear=True, use_sparsify=True)

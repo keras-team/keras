@@ -1,14 +1,12 @@
 from absl.testing import parameterized
 
-from keras.src.dtype_policies import deserialize
-from keras.src.dtype_policies import get
-from keras.src.dtype_policies import serialize
-from keras.src.dtype_policies.dtype_policy import DTypePolicy
-from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
-from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
-from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
-from keras.src.dtype_policies.dtype_policy import dtype_policy
-from keras.src.dtype_policies.dtype_policy import set_dtype_policy
+from keras.src.dtype_policies import deserialize, get, serialize
+from keras.src.dtype_policies.dtype_policy import (DTypePolicy,
+                                                   FloatDTypePolicy,
+                                                   QuantizedDTypePolicy,
+                                                   QuantizedFloat8DTypePolicy,
+                                                   dtype_policy,
+                                                   set_dtype_policy)
 from keras.src.testing import test_case
 
 
@@ -513,17 +511,15 @@ class QuantizedDTypePolicyTest(test_case.TestCase):
         ("float8_from_mixed_bfloat16", "float8_from_mixed_bfloat16"),
     )
     def test_get_quantized_dtype_policy_by_str(self, name):
-        from keras.src.dtype_policies.dtype_policy import (
-            _get_quantized_dtype_policy_by_str,
-        )
+        from keras.src.dtype_policies.dtype_policy import \
+            _get_quantized_dtype_policy_by_str
 
         policy = _get_quantized_dtype_policy_by_str(name)
         self.assertEqual(policy.name, name)
 
     def test_invalid_get_quantized_dtype_policy_by_str(self):
-        from keras.src.dtype_policies.dtype_policy import (
-            _get_quantized_dtype_policy_by_str,
-        )
+        from keras.src.dtype_policies.dtype_policy import \
+            _get_quantized_dtype_policy_by_str
 
         with self.assertRaisesRegex(TypeError, "must be a string."):
             _get_quantized_dtype_policy_by_str(123)

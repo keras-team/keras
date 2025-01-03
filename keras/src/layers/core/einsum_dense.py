@@ -4,13 +4,8 @@ import string
 import ml_dtypes
 import numpy as np
 
-from keras.src import activations
-from keras.src import constraints
-from keras.src import dtype_policies
-from keras.src import initializers
-from keras.src import ops
-from keras.src import quantizers
-from keras.src import regularizers
+from keras.src import (activations, constraints, dtype_policies, initializers,
+                       ops, quantizers, regularizers)
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer

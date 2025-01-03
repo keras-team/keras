@@ -6,8 +6,7 @@ import pytest
 import scipy.signal
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import math as kmath

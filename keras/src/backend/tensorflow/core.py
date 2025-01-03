@@ -5,15 +5,13 @@ import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
 from keras.src import tree
-from keras.src.backend.common import KerasVariable
-from keras.src.backend.common import global_state
-from keras.src.backend.common import is_int_dtype
-from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import (KerasVariable, global_state,
+                                      is_int_dtype, standardize_dtype)
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
-from keras.src.backend.common.stateless_scope import StatelessScope
-from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common.stateless_scope import (StatelessScope,
+                                                      in_stateless_scope)
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.tensorflow.sparse import sparse_to_dense
 from keras.src.utils.naming import auto_name

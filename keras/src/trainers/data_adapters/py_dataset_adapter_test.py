@@ -8,8 +8,7 @@ import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.utils.rng_utils import set_random_seed

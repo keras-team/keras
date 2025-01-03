@@ -1,12 +1,9 @@
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import tensorflow as tf
 
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
+from keras.src import backend, ops, testing
 from keras.src.backend.common import keras_tensor
 
 

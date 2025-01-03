@@ -1,12 +1,11 @@
 import inspect
 
 from keras.src.api_export import keras_export
-from keras.src.quantizers.quantizers import AbsMaxQuantizer
-from keras.src.quantizers.quantizers import Quantizer
-from keras.src.quantizers.quantizers import abs_max_quantize
-from keras.src.quantizers.quantizers import compute_float8_amax_history
-from keras.src.quantizers.quantizers import compute_float8_scale
-from keras.src.quantizers.quantizers import quantize_and_dequantize
+from keras.src.quantizers.quantizers import (AbsMaxQuantizer, Quantizer,
+                                             abs_max_quantize,
+                                             compute_float8_amax_history,
+                                             compute_float8_scale,
+                                             quantize_and_dequantize)
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 

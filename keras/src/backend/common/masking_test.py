@@ -1,8 +1,5 @@
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
-from keras.src.backend.common.masking import get_keras_mask
-from keras.src.backend.common.masking import set_keras_mask
+from keras.src import backend, ops, testing
+from keras.src.backend.common.masking import get_keras_mask, set_keras_mask
 
 
 class MaskingTest(testing.TestCase):

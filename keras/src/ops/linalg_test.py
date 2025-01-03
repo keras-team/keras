@@ -1,9 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import ops
-from keras.src import testing
+from keras.src import backend, ops, testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import linalg
 from keras.src.testing.test_utils import named_product

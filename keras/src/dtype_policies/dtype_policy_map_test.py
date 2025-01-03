@@ -1,13 +1,9 @@
 import numpy as np
 import pytest
 
-from keras.src import dtype_policies
-from keras.src import layers
-from keras.src import models
-from keras.src import saving
-from keras.src import testing
-from keras.src.dtype_policies.dtype_policy import dtype_policy
-from keras.src.dtype_policies.dtype_policy import set_dtype_policy
+from keras.src import dtype_policies, layers, models, saving, testing
+from keras.src.dtype_policies.dtype_policy import (dtype_policy,
+                                                   set_dtype_policy)
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 
 

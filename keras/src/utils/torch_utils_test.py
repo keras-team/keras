@@ -5,11 +5,7 @@ import pytest
 import torch
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import models
-from keras.src import saving
-from keras.src import testing
+from keras.src import backend, layers, models, saving, testing
 from keras.src.utils.torch_utils import TorchModuleWrapper
 
 

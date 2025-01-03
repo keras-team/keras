@@ -8,15 +8,15 @@ from keras.src.utils import torch_utils
 class TorchOptimizer(BaseOptimizer):
     def __new__(cls, *args, **kwargs):
         # Import locally to avoid circular imports.
-        from keras.src.backend.torch.optimizers import torch_adadelta
-        from keras.src.backend.torch.optimizers import torch_adagrad
-        from keras.src.backend.torch.optimizers import torch_adam
-        from keras.src.backend.torch.optimizers import torch_adamax
-        from keras.src.backend.torch.optimizers import torch_adamw
-        from keras.src.backend.torch.optimizers import torch_lion
-        from keras.src.backend.torch.optimizers import torch_nadam
-        from keras.src.backend.torch.optimizers import torch_rmsprop
-        from keras.src.backend.torch.optimizers import torch_sgd
+        from keras.src.backend.torch.optimizers import (torch_adadelta,
+                                                        torch_adagrad,
+                                                        torch_adam,
+                                                        torch_adamax,
+                                                        torch_adamw,
+                                                        torch_lion,
+                                                        torch_nadam,
+                                                        torch_rmsprop,
+                                                        torch_sgd)
 
         OPTIMIZERS = {
             optimizers.Adadelta: torch_adadelta.Adadelta,

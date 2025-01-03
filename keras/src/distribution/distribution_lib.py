@@ -13,8 +13,7 @@ import warnings
 import numpy as np
 
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import distribution_lib
+from keras.src.backend import KerasTensor, distribution_lib
 from keras.src.backend.common import global_state
 
 DEFAULT_BATCH_DIM_NAME = "batch"
@@ -449,9 +448,8 @@ class DataParallel(Distribution):
         return None
 
     def distribute_dataset(self, dataset):
-        from tensorflow.python.data.experimental.ops import (
-            distribute as tf_data_distribute,
-        )
+        from tensorflow.python.data.experimental.ops import \
+            distribute as tf_data_distribute
 
         from keras.src.utils.module_utils import tensorflow as tf
 
@@ -604,9 +602,8 @@ class ModelParallel(Distribution):
         return self._layout_map[path]
 
     def distribute_dataset(self, dataset):
-        from tensorflow.python.data.experimental.ops import (
-            distribute as tf_data_distribute,
-        )
+        from tensorflow.python.data.experimental.ops import \
+            distribute as tf_data_distribute
 
         from keras.src.utils.module_utils import tensorflow as tf
 

@@ -1,5 +1,4 @@
-from keras.src import testing
-from keras.src import tree
+from keras.src import testing, tree
 from keras.src.backend import KerasTensor
 from keras.src.ops.symbolic_arguments import SymbolicArguments
 

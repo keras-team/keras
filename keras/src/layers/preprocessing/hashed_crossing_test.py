@@ -3,9 +3,7 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import testing
+from keras.src import backend, layers, testing
 from keras.src.testing.test_utils import named_product
 
 

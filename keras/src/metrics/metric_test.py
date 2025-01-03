@@ -2,12 +2,9 @@ import pickle
 
 import numpy as np
 
-from keras.src import backend
-from keras.src import dtype_policies
-from keras.src import initializers
+from keras.src import backend, dtype_policies, initializers
 from keras.src import metrics as metrics_module
-from keras.src import ops
-from keras.src import testing
+from keras.src import ops, testing
 from keras.src.metrics.metric import Metric
 
 

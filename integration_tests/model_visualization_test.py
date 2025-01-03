@@ -2,8 +2,7 @@ import re
 
 import keras
 from keras.src import testing
-from keras.src.utils import model_to_dot
-from keras.src.utils import plot_model
+from keras.src.utils import model_to_dot, plot_model
 
 
 def parse_text_from_html(html):

@@ -1,11 +1,7 @@
 import numpy as np
 import pytest
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import ops
-from keras.src import regularizers
-from keras.src import testing
+from keras.src import backend, layers, ops, regularizers, testing
 
 
 class LayerNormalizationTest(testing.TestCase):

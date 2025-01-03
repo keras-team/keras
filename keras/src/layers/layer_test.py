@@ -4,13 +4,8 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import dtype_policies
-from keras.src import layers
-from keras.src import metrics
-from keras.src import models
-from keras.src import ops
-from keras.src import testing
+from keras.src import (backend, dtype_policies, layers, metrics, models, ops,
+                       testing)
 from keras.src.backend.common import global_state
 
 

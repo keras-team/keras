@@ -145,8 +145,7 @@ def make_default_seed():
 
 
 def draw_seed(seed):
-    from keras.src.backend import convert_to_tensor
-    from keras.src.backend import random_seed_dtype
+    from keras.src.backend import convert_to_tensor, random_seed_dtype
 
     if isinstance(seed, SeedGenerator):
         return seed.next()

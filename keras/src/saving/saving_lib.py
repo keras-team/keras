@@ -19,14 +19,11 @@ from keras.src.layers.layer import Layer
 from keras.src.losses.loss import Loss
 from keras.src.metrics.metric import Metric
 from keras.src.optimizers.optimizer import Optimizer
-from keras.src.saving.serialization_lib import ObjectSharingScope
-from keras.src.saving.serialization_lib import deserialize_keras_object
-from keras.src.saving.serialization_lib import serialize_keras_object
+from keras.src.saving.serialization_lib import (ObjectSharingScope,
+                                                deserialize_keras_object,
+                                                serialize_keras_object)
 from keras.src.trainers.compile_utils import CompileMetrics
-from keras.src.utils import file_utils
-from keras.src.utils import io_utils
-from keras.src.utils import naming
-from keras.src.utils import plot_model
+from keras.src.utils import file_utils, io_utils, naming, plot_model
 from keras.src.utils.model_visualization import check_pydot
 from keras.src.utils.summary_utils import weight_memory_size
 from keras.src.version import __version__ as keras_version

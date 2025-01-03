@@ -1,5 +1,4 @@
-from keras.src import backend
-from keras.src import tree
+from keras.src import backend, tree
 from keras.src.api_export import keras_export
 
 

@@ -1,11 +1,7 @@
 import numpy as np
 
-from keras import Model
-from keras import layers
-from keras import losses
-from keras import metrics
-from keras import optimizers
 import keras
+from keras import Model, layers, losses, metrics, optimizers
 
 keras.config.disable_traceback_filtering()
 

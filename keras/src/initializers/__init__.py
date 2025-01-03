@@ -2,26 +2,22 @@ import inspect
 
 import numpy as np
 
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.api_export import keras_export
-from keras.src.initializers.constant_initializers import STFT
-from keras.src.initializers.constant_initializers import Constant
-from keras.src.initializers.constant_initializers import Identity
-from keras.src.initializers.constant_initializers import Ones
-from keras.src.initializers.constant_initializers import Zeros
+from keras.src.initializers.constant_initializers import (STFT, Constant,
+                                                          Identity, Ones,
+                                                          Zeros)
 from keras.src.initializers.initializer import Initializer
-from keras.src.initializers.random_initializers import GlorotNormal
-from keras.src.initializers.random_initializers import GlorotUniform
-from keras.src.initializers.random_initializers import HeNormal
-from keras.src.initializers.random_initializers import HeUniform
-from keras.src.initializers.random_initializers import LecunNormal
-from keras.src.initializers.random_initializers import LecunUniform
-from keras.src.initializers.random_initializers import Orthogonal
-from keras.src.initializers.random_initializers import RandomNormal
-from keras.src.initializers.random_initializers import RandomUniform
-from keras.src.initializers.random_initializers import TruncatedNormal
-from keras.src.initializers.random_initializers import VarianceScaling
+from keras.src.initializers.random_initializers import (GlorotNormal,
+                                                        GlorotUniform,
+                                                        HeNormal, HeUniform,
+                                                        LecunNormal,
+                                                        LecunUniform,
+                                                        Orthogonal,
+                                                        RandomNormal,
+                                                        RandomUniform,
+                                                        TruncatedNormal,
+                                                        VarianceScaling)
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 

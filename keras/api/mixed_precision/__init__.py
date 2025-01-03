@@ -9,7 +9,6 @@ from keras.src.dtype_policies.dtype_policy import DTypePolicy as Policy
 from keras.src.dtype_policies.dtype_policy import dtype_policy
 from keras.src.dtype_policies.dtype_policy import dtype_policy as global_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
-from keras.src.dtype_policies.dtype_policy import (
-    set_dtype_policy as set_global_policy,
-)
+from keras.src.dtype_policies.dtype_policy import \
+    set_dtype_policy as set_global_policy
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer

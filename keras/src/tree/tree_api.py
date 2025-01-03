@@ -1,8 +1,7 @@
 import warnings
 
 from keras.src.api_export import keras_export
-from keras.src.utils.module_utils import dmtree
-from keras.src.utils.module_utils import optree
+from keras.src.utils.module_utils import dmtree, optree
 
 if optree.available:
     from keras.src.tree import optree_impl as tree_impl

@@ -1,7 +1,6 @@
 import numpy as np
 
-from keras.src import metrics
-from keras.src import testing
+from keras.src import metrics, testing
 
 
 class KLDivergenceTest(testing.TestCase):

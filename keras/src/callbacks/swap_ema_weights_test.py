@@ -4,14 +4,8 @@ import pytest
 import tensorflow as tf
 from tensorflow.python.eager import context
 
-from keras.src import backend
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import losses
-from keras.src import metrics
-from keras.src import optimizers
-from keras.src import saving
-from keras.src import testing
+from keras.src import (backend, callbacks, layers, losses, metrics, optimizers,
+                       saving, testing)
 from keras.src.models import Sequential
 from keras.src.testing import test_utils
 from keras.src.utils import numerical_utils

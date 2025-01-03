@@ -11,15 +11,13 @@ from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
-from keras.src.backend import config
-from keras.src.backend import standardize_dtype
+from keras.src.backend import config, standardize_dtype
 from keras.src.backend.common import dtypes
-from keras.src.backend.common.backend_utils import canonicalize_axis
-from keras.src.backend.common.backend_utils import to_tuple_or_list
-from keras.src.backend.common.backend_utils import vectorize_impl
+from keras.src.backend.common.backend_utils import (canonicalize_axis,
+                                                    to_tuple_or_list,
+                                                    vectorize_impl)
 from keras.src.backend.tensorflow import sparse
-from keras.src.backend.tensorflow.core import cast
-from keras.src.backend.tensorflow.core import convert_to_tensor
+from keras.src.backend.tensorflow.core import cast, convert_to_tensor
 from keras.src.backend.tensorflow.core import shape as shape_op
 
 
@@ -1259,9 +1257,8 @@ def expand_dims(x, axis):
     out_ndim = len(x.shape) + len(axis)
     axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
     if isinstance(x, tf.SparseTensor):
-        from keras.src.ops.operation_utils import (
-            compute_expand_dims_output_shape,
-        )
+        from keras.src.ops.operation_utils import \
+            compute_expand_dims_output_shape
 
         output_shape = compute_expand_dims_output_shape(x.shape, axis)
         for a in axis:
@@ -2094,9 +2091,8 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
-    from keras.src.ops.operation_utils import (
-        compute_take_along_axis_output_shape,
-    )
+    from keras.src.ops.operation_utils import \
+        compute_take_along_axis_output_shape
 
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices, "int64")
@@ -2488,7 +2484,8 @@ def squeeze(x, axis=None):
 
 def transpose(x, axes=None):
     if isinstance(x, tf.SparseTensor):
-        from keras.src.ops.operation_utils import compute_transpose_output_shape
+        from keras.src.ops.operation_utils import \
+            compute_transpose_output_shape
 
         output = tf.sparse.transpose(x, perm=axes)
         output.set_shape(compute_transpose_output_shape(x.shape, axes))

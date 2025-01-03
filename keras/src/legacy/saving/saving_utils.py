@@ -3,13 +3,9 @@ import threading
 
 from absl import logging
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import losses
+from keras.src import backend, layers, losses
 from keras.src import metrics as metrics_module
-from keras.src import models
-from keras.src import optimizers
-from keras.src import tree
+from keras.src import models, optimizers, tree
 from keras.src.legacy.saving import serialization
 from keras.src.saving import object_registration
 

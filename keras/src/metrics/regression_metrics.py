@@ -1,14 +1,12 @@
 import warnings
 
-from keras.src import initializers
-from keras.src import ops
+from keras.src import initializers, ops
 from keras.src.api_export import keras_export
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
-from keras.src.losses.losses import log_cosh
-from keras.src.losses.losses import mean_absolute_error
-from keras.src.losses.losses import mean_absolute_percentage_error
-from keras.src.losses.losses import mean_squared_error
-from keras.src.losses.losses import mean_squared_logarithmic_error
+from keras.src.losses.losses import (log_cosh, mean_absolute_error,
+                                     mean_absolute_percentage_error,
+                                     mean_squared_error,
+                                     mean_squared_logarithmic_error)
 from keras.src.metrics import reduction_metrics
 from keras.src.utils.numerical_utils import normalize
 

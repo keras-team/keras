@@ -2,8 +2,7 @@ import unittest
 
 import pytest
 
-from keras.src import backend
-from keras.src import ops
+from keras.src import backend, ops
 from keras.src.backend.common.keras_tensor import KerasTensor
 
 

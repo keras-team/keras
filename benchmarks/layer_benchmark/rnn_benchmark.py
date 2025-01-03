@@ -13,8 +13,7 @@ python3 -m benchmarks.layer_benchmark.rnn_benchmark \
 """
 
 import tensorflow as tf
-from absl import app
-from absl import flags
+from absl import app, flags
 
 import keras
 from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark

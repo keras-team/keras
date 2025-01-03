@@ -7,13 +7,8 @@ from pathlib import Path
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import distribution
-from keras.src import ops
-from keras.src import tree
-from keras.src import utils
-from keras.src.backend.common import is_float_dtype
-from keras.src.backend.common import standardize_dtype
+from keras.src import backend, distribution, ops, tree, utils
+from keras.src.backend.common import is_float_dtype, standardize_dtype
 from keras.src.backend.common.global_state import clear_session
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.models import Model
@@ -121,9 +116,9 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             raise AssertionError(f"File {path} does not exist")
 
     def run_class_serialization_test(self, instance, custom_objects=None):
-        from keras.src.saving import custom_object_scope
-        from keras.src.saving import deserialize_keras_object
-        from keras.src.saving import serialize_keras_object
+        from keras.src.saving import (custom_object_scope,
+                                      deserialize_keras_object,
+                                      serialize_keras_object)
 
         # get_config roundtrip
         cls = instance.__class__

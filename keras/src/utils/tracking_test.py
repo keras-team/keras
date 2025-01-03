@@ -1,7 +1,6 @@
 import collections
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.utils import tracking
 
 

@@ -1,34 +1,26 @@
 """Library for exporting inference-only Keras models/layers."""
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import tree
+from keras.src import backend, layers, tree
 from keras.src.api_export import keras_export
-from keras.src.models import Functional
-from keras.src.models import Sequential
+from keras.src.models import Functional, Sequential
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.export import (
-        TFExportArchive as BackendExportArchive,
-    )
+    from keras.src.backend.tensorflow.export import \
+        TFExportArchive as BackendExportArchive
 elif backend.backend() == "jax":
-    from keras.src.backend.jax.export import (
-        JaxExportArchive as BackendExportArchive,
-    )
+    from keras.src.backend.jax.export import \
+        JaxExportArchive as BackendExportArchive
 elif backend.backend() == "torch":
-    from keras.src.backend.torch.export import (
-        TorchExportArchive as BackendExportArchive,
-    )
+    from keras.src.backend.torch.export import \
+        TorchExportArchive as BackendExportArchive
 elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.export import (
-        NumpyExportArchive as BackendExportArchive,
-    )
+    from keras.src.backend.numpy.export import \
+        NumpyExportArchive as BackendExportArchive
 elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.export import (
-        OpenvinoExportArchive as BackendExportArchive,
-    )
+    from keras.src.backend.openvino.export import \
+        OpenvinoExportArchive as BackendExportArchive
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."
@@ -543,9 +535,8 @@ class ExportArchive(BackendExportArchive):
         # Next, track lookup tables.
         # Hopefully, one day this will be automated at the tf.function level.
         self._tf_trackable._misc_assets = []
-        from keras.src.layers import IntegerLookup
-        from keras.src.layers import StringLookup
-        from keras.src.layers import TextVectorization
+        from keras.src.layers import (IntegerLookup, StringLookup,
+                                      TextVectorization)
 
         if hasattr(self, "_tracked"):
             for root in self._tracked:

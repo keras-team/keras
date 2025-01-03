@@ -1,7 +1,6 @@
 import copy
 
-from keras.src import ops
-from keras.src import utils
+from keras.src import ops, utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib

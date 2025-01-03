@@ -4,12 +4,10 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
-from keras.src.backend import standardize_data_format
-from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_output_shape,
-)
+from keras.src.backend import (KerasTensor, any_symbolic_tensors,
+                               standardize_data_format)
+from keras.src.backend.common.backend_utils import \
+    compute_conv_transpose_output_shape
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape

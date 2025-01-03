@@ -1,8 +1,6 @@
 import numpy as np
 
-from keras.src import layers
-from keras.src import ops
-from keras.src import testing
+from keras.src import layers, ops, testing
 
 
 class AttentionTest(testing.TestCase):

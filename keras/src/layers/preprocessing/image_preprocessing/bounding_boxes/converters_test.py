@@ -3,17 +3,9 @@ import itertools
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import ops
-from keras.src import testing
+from keras.src import ops, testing
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
-    affine_transform,
-)
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
-    clip_to_image_size,
-)
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
-    convert_format,
-)
+    affine_transform, clip_to_image_size, convert_format)
 
 
 class ConvertersTest(testing.TestCase):

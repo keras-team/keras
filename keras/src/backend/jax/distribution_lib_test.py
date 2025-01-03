@@ -8,10 +8,7 @@ import jax
 import numpy as np
 import pytest
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import models
-from keras.src import testing
+from keras.src import backend, layers, models, testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
 

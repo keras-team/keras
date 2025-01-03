@@ -1,9 +1,7 @@
 import numpy as np
 
 from conftest import skip_if_backend
-from keras.src import backend
-from keras.src import dtype_policies
-from keras.src import testing
+from keras.src import backend, dtype_policies, testing
 from keras.src.backend.common import keras_tensor
 from keras.src.ops import numpy as knp
 from keras.src.ops import operation

@@ -1,8 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src.testing import test_case
-from keras.src.testing import test_utils
+from keras.src.testing import test_case, test_utils
 
 
 class GetTestDataTest(test_case.TestCase):

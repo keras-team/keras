@@ -5,17 +5,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import applications
-from keras.src import backend
-from keras.src import layers
-from keras.src import ops
-from keras.src import saving
-from keras.src import testing
+from keras.src import applications, backend, layers, ops, saving, testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
-from keras.src.models import Functional
-from keras.src.models import Model
-from keras.src.models import Sequential
+from keras.src.models import Functional, Model, Sequential
 
 
 class FunctionalTest(testing.TestCase):

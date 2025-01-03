@@ -2,8 +2,7 @@ from collections import namedtuple
 
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
-from keras.src import ops
-from keras.src import tree
+from keras.src import ops, tree
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.losses import loss as loss_module
 from keras.src.utils.naming import get_object_name

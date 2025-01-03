@@ -5,10 +5,7 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import layers
-from keras.src import models
-from keras.src import testing
+from keras.src import backend, layers, models, testing
 from keras.src.saving import load_model
 
 

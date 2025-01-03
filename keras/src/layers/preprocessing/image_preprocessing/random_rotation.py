@@ -1,10 +1,8 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
-    BaseImagePreprocessingLayer,
-)
-from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
-    converters,
-)
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import \
+    BaseImagePreprocessingLayer  # noqa: E501
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import \
+    converters
 from keras.src.random.seed_generator import SeedGenerator
 
 

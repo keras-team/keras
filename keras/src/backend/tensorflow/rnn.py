@@ -507,8 +507,7 @@ def _do_gru_arguments_support_cudnn(
     use_bias,
     reset_after,
 ):
-    from keras.src import activations
-    from keras.src import ops
+    from keras.src import activations, ops
 
     return (
         activation in (activations.tanh, tf.tanh, ops.tanh)
@@ -526,8 +525,7 @@ def _do_lstm_arguments_support_cudnn(
     unroll,
     use_bias,
 ):
-    from keras.src import activations
-    from keras.src import ops
+    from keras.src import activations, ops
 
     return (
         activation in (activations.tanh, tf.tanh, ops.tanh)

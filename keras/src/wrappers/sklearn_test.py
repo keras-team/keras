@@ -8,14 +8,11 @@ from packaging.version import parse as parse_version
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 import keras
-from keras.src.backend import floatx
-from keras.src.backend import set_floatx
-from keras.src.layers import Dense
-from keras.src.layers import Input
+from keras.src.backend import floatx, set_floatx
+from keras.src.layers import Dense, Input
 from keras.src.models import Model
-from keras.src.wrappers import SKLearnClassifier
-from keras.src.wrappers import SKLearnRegressor
-from keras.src.wrappers import SKLearnTransformer
+from keras.src.wrappers import (SKLearnClassifier, SKLearnRegressor,
+                                SKLearnTransformer)
 
 
 def wrapped_parametrize_with_checks(

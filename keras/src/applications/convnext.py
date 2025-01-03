@@ -1,15 +1,10 @@
 import numpy as np
 
-from keras.src import backend
-from keras.src import initializers
-from keras.src import layers
-from keras.src import ops
-from keras.src import random
+from keras.src import backend, initializers, layers, ops, random
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
 from keras.src.layers.layer import Layer
-from keras.src.models import Functional
-from keras.src.models import Sequential
+from keras.src.models import Functional, Sequential
 from keras.src.ops import operation_utils
 from keras.src.utils import file_utils
 

@@ -1,8 +1,10 @@
 # To run this demo, you will need to spin up a "TPU VM" on Google Cloud.
 # Please follow instructions here: https://cloud.google.com/tpu/docs/run-calculation-jax
 
+import collections
 # Force a JAX backend
-import os, pprint, collections
+import os
+import pprint
 
 os.environ["KERAS_BACKEND"] = "jax"
 
@@ -10,16 +12,14 @@ pp = pprint.PrettyPrinter()
 
 import jax
 import jax.numpy as jnp
-import tensorflow as tf  # just for tf.data
-import keras  # Keras multi-backend
-
 import numpy as np
+import tensorflow as tf  # just for tf.data
+from jax.experimental import mesh_utils
+from jax.sharding import Mesh, NamedSharding
+from jax.sharding import PartitionSpec as P
 from tqdm import tqdm
 
-from jax.experimental import mesh_utils
-from jax.sharding import Mesh
-from jax.sharding import NamedSharding
-from jax.sharding import PartitionSpec as P
+import keras  # Keras multi-backend
 
 """ Dataset
 Classic MNIST, loaded using tf.data

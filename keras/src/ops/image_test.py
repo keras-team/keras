@@ -6,8 +6,7 @@ import scipy.ndimage
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
-from keras.src import testing
+from keras.src import backend, testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import image as kimage
 from keras.src.testing.test_utils import named_product
