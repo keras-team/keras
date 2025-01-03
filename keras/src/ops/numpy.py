@@ -6522,7 +6522,14 @@ def eye(N, M=None, k=0, dtype=None):
 
     Returns:
         Tensor with ones on the k-th diagonal and zeros elsewhere.
+    Raises:
+        Error if N, M are not integer values.
     """
+    if not isinstance(N, int):
+        raise ValueError(f"N must be an integer, got {type(N).__name__}")
+    if M is not None and not isinstance(M, int):
+        raise ValueError(f"M must be an integer, got {type(M).__name__}")
+    
     return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
 
 
