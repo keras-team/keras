@@ -38,9 +38,6 @@ class TestTFSMLayer(testing.TestCase):
             len(model.non_trainable_weights),
         )
 
-        # TODO(nkovela): Expand test coverage/debug fine-tuning and
-        # non-trainable use cases here.
-
     def test_reloading_default_saved_model(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()

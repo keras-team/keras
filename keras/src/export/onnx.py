@@ -35,7 +35,7 @@ def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
 
     **Note:** The dtype policy must be "float32" for the model. You can further
     optimize the ONNX artifact using the ONNX toolkit. Learn more here:
-    https://onnxruntime.ai/docs/performance/.
+    [https://onnxruntime.ai/docs/performance/](https://onnxruntime.ai/docs/performance/).
 
     **Note:** The dynamic shape feature is not yet supported with Torch
     backend. As a result, you must fully define the shapes of the inputs using
