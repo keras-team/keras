@@ -200,12 +200,12 @@ class RandAugment(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        return bounding_boxes
+        raise NotImplementedError
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return segmentation_masks
+        raise NotImplementedError
 
     def compute_output_shape(self, input_shape):
         return input_shape
