@@ -100,7 +100,7 @@ def distribute_tensor(tensor, layout):
         return global_value
 
 
-def distribute_data_input(per_process_batch, layout):
+def distribute_data_input(per_process_batch, layout, batch_dim_name):
     """Distribute the input data with the corresponding layout.
 
     Note that the inputs here is a local worker batch. Within the local worker,
@@ -117,9 +117,13 @@ def distribute_data_input(per_process_batch, layout):
     if not isinstance(layout, jax.sharding.Sharding):
         layout = _to_jax_layout(layout)
 
-    mesh_shape = list(layout.mesh.shape.values())
-    num_model_replicas_total = mesh_shape[0]  # batch dimension of the mesh
-    mesh_model_dim_size = mesh_shape[1] if len(mesh_shape) > 1 else 1
+    num_model_replicas_total = layout.mesh.shape[batch_dim_name]
+
+    mesh_model_dim_size = 1
+    for name, dim_size in layout.mesh.shape.items():
+        if not name == batch_dim_name:
+            mesh_model_dim_size *= dim_size
+
     num_model_replicas_per_process = num_model_replicas_total / num_processes()
     per_process_batch_size = per_process_batch.shape[0]
 
