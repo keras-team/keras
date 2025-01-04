@@ -46,16 +46,16 @@ class Operation:
                 object_name=(f"{self.__class__.__name__}.call()"),
             )
             if check_point_flag and self.enable_gradient_ckeckpoint and \
-                (not self._call_has_training_arg or kwargs.get('training')):
-                if backend.backend()=='torch':
+               (not self._call_has_training_arg or kwargs.get('training')):
+                if backend.backend() == 'torch':
                     from torch.utils.checkpoint import checkpoint as cp
-                    return cp(call_fn,use_reentrant=False,*args, **kwargs)
-                elif backend.backend()=='tensorflow':
+                    return cp(call_fn, use_reentrant=False, *args, **kwargs)
+                elif backend.backend() == 'tensorflow':
                     from tensorflow import recompute_grad
                     return recompute_grad(call_fn)(*args, **kwargs)
-                elif backend.backend()=='jax':
+                elif backend.backend() == 'jax':
                     from jax import checkpoint
-                    return checkpoint(call_fn)(*args,**kwargs)
+                    return checkpoint(call_fn)(*args, **kwargs)
             return call_fn(*args, **kwargs)
 
         # Plain flow.

@@ -273,7 +273,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         dtype=None,
         autocast=True,
         name=None,
-        enable_gradient_ckeckpoint:bool=False,
+        enable_gradient_ckeckpoint: bool = False,
         **kwargs,
     ):
         BackendLayer.__init__(self)
