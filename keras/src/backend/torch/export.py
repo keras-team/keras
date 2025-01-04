@@ -3,9 +3,8 @@ import warnings
 
 import torch
 
-from keras.src import backend
-from keras.src import ops
 from keras.src import tree
+from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.module_utils import torch_xla
 
@@ -36,23 +35,10 @@ class TorchExportArchive:
                 f"Received: resource={resource} (of type {type(resource)})"
             )
 
-        def _check_input_signature(input_spec):
-            for s in tree.flatten(input_spec.shape):
-                if s is None:
-                    raise ValueError(
-                        "The shape in the `input_spec` must be fully "
-                        f"specified. Received: input_spec={input_spec}"
-                    )
-
-        def _to_torch_tensor(x, replace_none_number=1):
-            shape = backend.standardize_shape(x.shape)
-            shape = tuple(
-                s if s is not None else replace_none_number for s in shape
-            )
-            return ops.ones(shape, x.dtype)
-
-        tree.map_structure(_check_input_signature, input_signature)
-        sample_inputs = tree.map_structure(_to_torch_tensor, input_signature)
+        sample_inputs = tree.map_structure(
+            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+            input_signature,
+        )
         sample_inputs = tuple(sample_inputs)
 
         # Ref: torch_xla.tf_saved_model_integration

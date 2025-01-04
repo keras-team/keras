@@ -1,4 +1,4 @@
-"""Tests for inference-only model/layer exporting utilities."""
+"""Tests for SavedModel exporting utilities."""
 
 import os
 
@@ -14,8 +14,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
-from keras.src import utils
-from keras.src.export import export_lib
+from keras.src.export import saved_model
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
 
@@ -71,7 +70,7 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
-        export_lib.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
@@ -106,7 +105,7 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = tf.random.normal((3, 10))
         ref_output = model(ref_input)
 
-        export_lib.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertEqual(ref_output.shape, revived_model.serve(ref_input).shape)
         # Test with a different batch size
@@ -142,7 +141,7 @@ class ExportSavedModelTest(testing.TestCase):
         model = get_model(model_type, layer_list=[StateLayer()])
         model(tf.random.normal((3, 10)))
 
-        export_lib.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
 
         # The non-trainable counter is expected to increment
@@ -164,7 +163,7 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
-        export_lib.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
@@ -209,7 +208,7 @@ class ExportSavedModelTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         ref_output = model(tree.map_structure(ops.convert_to_tensor, ref_input))
 
-        export_lib.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
 
@@ -227,7 +226,7 @@ class ExportSavedModelTest(testing.TestCase):
             },
         )
         self.assertAllClose(ref_output, revived_model(ref_input))
-        export_lib.export_saved_model(revived_model, self.get_temp_dir())
+        saved_model.export_saved_model(revived_model, self.get_temp_dir())
 
         # Test with a different batch size
         if backend.backend() == "torch":
@@ -253,7 +252,7 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input_x, ref_input_y)
 
-        export_lib.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
             ref_output, revived_model.serve(ref_input_x, ref_input_y)
@@ -290,7 +289,7 @@ class ExportSavedModelTest(testing.TestCase):
             input_signature = (ref_input,)
         else:
             input_signature = (input_signature,)
-        export_lib.export_saved_model(
+        saved_model.export_saved_model(
             model, temp_filepath, input_signature=input_signature
         )
         revived_model = tf.saved_model.load(temp_filepath)
@@ -303,7 +302,7 @@ class ExportSavedModelTest(testing.TestCase):
         model = get_model("functional")
         with self.assertRaisesRegex(TypeError, "Unsupported x="):
             input_signature = (123,)
-            export_lib.export_saved_model(
+            saved_model.export_saved_model(
                 model, temp_filepath, input_signature=input_signature
             )
 
@@ -327,7 +326,7 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = ops.random.uniform((3, 10))
         ref_output = model(ref_input)
 
-        export_lib.export_saved_model(
+        saved_model.export_saved_model(
             model,
             temp_filepath,
             is_static=is_static,
@@ -362,13 +361,13 @@ class ExportArchiveTest(testing.TestCase):
         ref_output = model(ref_input)
 
         # Test variable tracking
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         self.assertLen(export_archive.variables, 8)
         self.assertLen(export_archive.trainable_variables, 6)
         self.assertLen(export_archive.non_trainable_variables, 2)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
@@ -388,7 +387,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_input = tf.random.normal((3, 10))
         ref_output = model(ref_input)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         fn = export_archive.add_endpoint(
             "call",
@@ -429,7 +428,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_input = [tf.random.normal((3, 8)), tf.random.normal((3, 6))]
         ref_output = model(ref_input)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
@@ -460,7 +459,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_input = tf.random.normal((3, 10))
         ref_output = model(ref_input)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
@@ -509,7 +508,7 @@ class ExportArchiveTest(testing.TestCase):
             # This will fail because the polymorphic_shapes that is
             # automatically generated will not account for the fact that
             # dynamic dimensions 1 and 2 must have the same value.
-            export_archive = export_lib.ExportArchive()
+            export_archive = saved_model.ExportArchive()
             export_archive.track(model)
             export_archive.add_endpoint(
                 "call",
@@ -519,7 +518,7 @@ class ExportArchiveTest(testing.TestCase):
             )
             export_archive.write_out(temp_filepath)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
@@ -543,7 +542,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_output = model(ref_input)
 
         # Test variable tracking
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         self.assertLen(export_archive.variables, 8)
         self.assertLen(export_archive.trainable_variables, 6)
@@ -608,7 +607,7 @@ class ExportArchiveTest(testing.TestCase):
 
         # Export with TF inference function as endpoint
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint("serve", infer_fn)
         export_archive.write_out(temp_filepath)
@@ -683,7 +682,7 @@ class ExportArchiveTest(testing.TestCase):
 
         # Export with TF inference function as endpoint
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint("serve", infer_fn)
         export_archive.write_out(temp_filepath)
@@ -707,7 +706,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_input = tf.random.normal((3, 10))
         ref_output = layer(ref_input)  # Build layer (important)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(layer)
         export_archive.add_endpoint(
             "call",
@@ -729,7 +728,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_inputs = [tf.random.normal((3, 2)), tf.random.normal((3, 2))]
         ref_outputs = model(ref_inputs)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "serve",
@@ -759,7 +758,7 @@ class ExportArchiveTest(testing.TestCase):
         }
         ref_outputs = model(ref_inputs)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "serve",
@@ -799,7 +798,7 @@ class ExportArchiveTest(testing.TestCase):
     #     ref_input = tf.convert_to_tensor(["one two three four"])
     #     ref_output = model(ref_input)
 
-    #     export_lib.export_saved_model(model, temp_filepath)
+    #     saved_model.export_saved_model(model, temp_filepath)
     #     revived_model = tf.saved_model.load(temp_filepath)
     #     self.assertAllClose(ref_output, revived_model.serve(ref_input))
 
@@ -812,7 +811,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_input_2 = tf.random.normal((3, 5))
         ref_output_2 = layer_2(ref_input_2)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.add_endpoint(
             "call_1",
             layer_1.call,
@@ -835,7 +834,7 @@ class ExportArchiveTest(testing.TestCase):
         x1 = tf.random.normal((3, 2, 2))
         x2 = tf.random.normal((3, 2, 2))
         ref_output = layer(x1, x2)  # Build layer (important)
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(layer)
         export_archive.add_endpoint(
             "call",
@@ -856,7 +855,7 @@ class ExportArchiveTest(testing.TestCase):
         x1 = tf.random.normal((3, 2, 2))
         x2 = tf.random.normal((3, 2, 2))
         ref_output = layer(x1, x2)  # Build layer (important)
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(layer)
         export_archive.add_endpoint(
             "call",
@@ -886,7 +885,7 @@ class ExportArchiveTest(testing.TestCase):
         )
 
         # Test variable tracking
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
@@ -908,13 +907,13 @@ class ExportArchiveTest(testing.TestCase):
         # Model has not been built
         model = models.Sequential([layers.Dense(2)])
         with self.assertRaisesRegex(ValueError, "It must be built"):
-            export_lib.export_saved_model(model, temp_filepath)
+            saved_model.export_saved_model(model, temp_filepath)
 
         # Subclassed model has not been called
         model = get_model("subclass")
         model.build((2, 10))
         with self.assertRaisesRegex(ValueError, "It must be called"):
-            export_lib.export_saved_model(model, temp_filepath)
+            saved_model.export_saved_model(model, temp_filepath)
 
     def test_export_archive_errors(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -922,7 +921,7 @@ class ExportArchiveTest(testing.TestCase):
         model(tf.random.normal((2, 3)))
 
         # Endpoint name reuse
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         export_archive.add_endpoint(
             "call",
@@ -939,18 +938,18 @@ class ExportArchiveTest(testing.TestCase):
             )
 
         # Write out with no endpoints
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         with self.assertRaisesRegex(ValueError, "No endpoints have been set"):
             export_archive.write_out(temp_filepath)
 
         # Invalid object type
         with self.assertRaisesRegex(ValueError, "Invalid resource type"):
-            export_archive = export_lib.ExportArchive()
+            export_archive = saved_model.ExportArchive()
             export_archive.track("model")
 
         # Set endpoint with no input signature
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         with self.assertRaisesRegex(
             ValueError, "you must provide an `input_signature`"
@@ -958,14 +957,14 @@ class ExportArchiveTest(testing.TestCase):
             export_archive.add_endpoint("call", model.__call__)
 
         # Set endpoint that has never been called
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
 
         @tf.function()
         def my_endpoint(x):
             return model(x)
 
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.track(model)
         with self.assertRaisesRegex(
             ValueError, "you must either provide a function"
@@ -978,7 +977,7 @@ class ExportArchiveTest(testing.TestCase):
         # Case where there are legitimately no assets.
         model = models.Sequential([layers.Flatten()])
         model(tf.random.normal((2, 3)))
-        export_archive = export_lib.ExportArchive()
+        export_archive = saved_model.ExportArchive()
         export_archive.add_endpoint(
             "call",
             model.__call__,
@@ -1000,133 +999,3 @@ class ExportArchiveTest(testing.TestCase):
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
-
-
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="TFSM Layer reloading is only for the TF backend.",
-)
-class TestTFSMLayer(testing.TestCase):
-    def test_reloading_export_archive(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        model = get_model()
-        ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input)
-
-        export_lib.export_saved_model(model, temp_filepath)
-        reloaded_layer = export_lib.TFSMLayer(temp_filepath)
-        self.assertAllClose(reloaded_layer(ref_input), ref_output, atol=1e-7)
-        self.assertLen(reloaded_layer.weights, len(model.weights))
-        self.assertLen(
-            reloaded_layer.trainable_weights, len(model.trainable_weights)
-        )
-        self.assertLen(
-            reloaded_layer.non_trainable_weights,
-            len(model.non_trainable_weights),
-        )
-
-        # TODO(nkovela): Expand test coverage/debug fine-tuning and
-        # non-trainable use cases here.
-
-    def test_reloading_default_saved_model(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        model = get_model()
-        ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input)
-
-        tf.saved_model.save(model, temp_filepath)
-        reloaded_layer = export_lib.TFSMLayer(
-            temp_filepath, call_endpoint="serving_default"
-        )
-        # The output is a dict, due to the nature of SavedModel saving.
-        new_output = reloaded_layer(ref_input)
-        self.assertAllClose(
-            new_output[list(new_output.keys())[0]],
-            ref_output,
-            atol=1e-7,
-        )
-        self.assertLen(reloaded_layer.weights, len(model.weights))
-        self.assertLen(
-            reloaded_layer.trainable_weights, len(model.trainable_weights)
-        )
-        self.assertLen(
-            reloaded_layer.non_trainable_weights,
-            len(model.non_trainable_weights),
-        )
-
-    def test_call_training(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        utils.set_random_seed(1337)
-        model = models.Sequential(
-            [
-                layers.Input((10,)),
-                layers.Dense(10),
-                layers.Dropout(0.99999),
-            ]
-        )
-        export_archive = export_lib.ExportArchive()
-        export_archive.track(model)
-        export_archive.add_endpoint(
-            name="call_inference",
-            fn=lambda x: model(x, training=False),
-            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
-        )
-        export_archive.add_endpoint(
-            name="call_training",
-            fn=lambda x: model(x, training=True),
-            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
-        )
-        export_archive.write_out(temp_filepath)
-        reloaded_layer = export_lib.TFSMLayer(
-            temp_filepath,
-            call_endpoint="call_inference",
-            call_training_endpoint="call_training",
-        )
-        inference_output = reloaded_layer(
-            tf.random.normal((1, 10)), training=False
-        )
-        training_output = reloaded_layer(
-            tf.random.normal((1, 10)), training=True
-        )
-        self.assertAllClose(np.mean(training_output), 0.0, atol=1e-7)
-        self.assertNotAllClose(np.mean(inference_output), 0.0, atol=1e-7)
-
-    def test_serialization(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        model = get_model()
-        ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input)
-
-        export_lib.export_saved_model(model, temp_filepath)
-        reloaded_layer = export_lib.TFSMLayer(temp_filepath)
-
-        # Test reinstantiation from config
-        config = reloaded_layer.get_config()
-        rereloaded_layer = export_lib.TFSMLayer.from_config(config)
-        self.assertAllClose(rereloaded_layer(ref_input), ref_output, atol=1e-7)
-
-        # Test whole model saving with reloaded layer inside
-        model = models.Sequential([reloaded_layer])
-        temp_model_filepath = os.path.join(self.get_temp_dir(), "m.keras")
-        model.save(temp_model_filepath, save_format="keras_v3")
-        reloaded_model = saving_lib.load_model(
-            temp_model_filepath,
-            custom_objects={"TFSMLayer": export_lib.TFSMLayer},
-        )
-        self.assertAllClose(reloaded_model(ref_input), ref_output, atol=1e-7)
-
-    def test_errors(self):
-        # Test missing call endpoint
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        model = models.Sequential([layers.Input((2,)), layers.Dense(3)])
-        export_lib.export_saved_model(model, temp_filepath)
-        with self.assertRaisesRegex(ValueError, "The endpoint 'wrong'"):
-            export_lib.TFSMLayer(temp_filepath, call_endpoint="wrong")
-
-        # Test missing call training endpoint
-        with self.assertRaisesRegex(ValueError, "The endpoint 'wrong'"):
-            export_lib.TFSMLayer(
-                temp_filepath,
-                call_endpoint="serve",
-                call_training_endpoint="wrong",
-            )
