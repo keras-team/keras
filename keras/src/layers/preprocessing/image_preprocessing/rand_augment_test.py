@@ -33,6 +33,44 @@ class RandAugmentTest(testing.TestCase):
         output = layer(inputs, training=False)
         self.assertAllClose(inputs, output)
 
+    def test_rand_augment_basic(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((2, 8, 8, 3))
+        else:
+            input_data = np.random.random((2, 3, 8, 8))
+        layer = layers.RandAugment()
+
+        augmented_image = layer(input_data)
+        self.assertEqual(augmented_image.shape, input_data.shape)
+
+    def test_rand_augment_no_operations(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((2, 8, 8, 3))
+        else:
+            input_data = np.random.random((2, 3, 8, 8))
+        layer = layers.RandAugment(num_ops=0)
+
+        augmented_image = layer(input_data)
+        self.assertAllClose(
+            backend.convert_to_numpy(augmented_image), input_data
+        )
+
+    def test_random_augment_randomness(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((2, 8, 8, 3))
+        else:
+            input_data = np.random.random((2, 3, 8, 8))
+
+        layer = layers.RandAugment(num_ops=8)
+        augmented_image = layer(input_data)
+
+        self.assertNotAllClose(
+            backend.convert_to_numpy(augmented_image), input_data
+        )
+
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
