@@ -35,6 +35,9 @@ else:
     )
 
 
+DEFAULT_ENDPOINT_NAME = "serve"
+
+
 @keras_export("keras.export.ExportArchive")
 class ExportArchive(BackendExportArchive):
     """ExportArchive is used to write SavedModel artifacts (e.g. for inference).
@@ -623,7 +626,7 @@ def export_saved_model(
         input_signature = get_input_signature(model)
 
     export_archive.track_and_add_endpoint(
-        "serve", model, input_signature, **kwargs
+        DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
     )
     export_archive.write_out(filepath, verbose=verbose)
 
