@@ -134,7 +134,11 @@ def _check_jax_kwargs(kwargs):
 
 
 def saved_model_to_onnx(saved_model_dir, filepath, name):
+    from keras.src.export.tf2onnx_lib import patch_tf2onnx
     from keras.src.utils.module_utils import tf2onnx
+
+    # TODO: Remove this patch once `tf2onnx` supports `numpy>=2.0.0`.
+    patch_tf2onnx()
 
     # Convert to ONNX using `tf2onnx` library.
     (graph_def, inputs, outputs, initialized_tables, tensors_to_rename) = (
