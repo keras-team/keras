@@ -65,7 +65,7 @@ class RandAugmentTest(testing.TestCase):
         else:
             input_data = np.random.random((2, 3, 8, 8))
 
-        layer = layers.RandAugment(num_ops=8, data_format=data_format)
+        layer = layers.RandAugment(num_ops=11, data_format=data_format)
         augmented_image = layer(input_data)
 
         self.assertNotAllClose(
