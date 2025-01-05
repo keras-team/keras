@@ -5,6 +5,7 @@ from keras.src import backend
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import get_input_signature
+from keras.src.export.saved_model import DEFAULT_ENDPOINT_NAME
 from keras.src.export.saved_model import export_saved_model
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -76,7 +77,12 @@ def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
                 input_signature,
                 **kwargs,
             )
-            saved_model_to_onnx(temp_dir, filepath, model.name)
+            saved_model_to_onnx(
+                temp_dir,
+                filepath,
+                model.name,
+                signatures=[DEFAULT_ENDPOINT_NAME],
+            )
 
     elif backend.backend() == "torch":
         import torch
@@ -133,12 +139,15 @@ def _check_jax_kwargs(kwargs):
     return kwargs
 
 
-def saved_model_to_onnx(saved_model_dir, filepath, name):
+def saved_model_to_onnx(saved_model_dir, filepath, name, signatures=None):
     from keras.src.export.tf2onnx_lib import patch_tf2onnx
     from keras.src.utils.module_utils import tf2onnx
 
     # TODO: Remove this patch once `tf2onnx` supports `numpy>=2.0.0`.
     patch_tf2onnx()
+
+    if signatures is None:
+        signatures = ["serve"]
 
     # Convert to ONNX using `tf2onnx` library.
     (graph_def, inputs, outputs, initialized_tables, tensors_to_rename) = (
@@ -146,6 +155,8 @@ def saved_model_to_onnx(saved_model_dir, filepath, name):
             saved_model_dir,
             None,
             None,
+            tag=signatures,
+            signatures=signatures,
             return_initialized_tables=True,
             return_tensors_to_rename=True,
         )
