@@ -15,7 +15,7 @@ class RandAugmentTest(testing.TestCase):
             init_kwargs={
                 "value_range": (0, 255),
                 "num_ops": 2,
-                "magnitude": 1,
+                "factor": 1,
                 "interpolation": "nearest",
                 "seed": 1,
             },

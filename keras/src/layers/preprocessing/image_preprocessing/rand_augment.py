@@ -21,26 +21,23 @@ class RandAugment(BaseImagePreprocessingLayer):
         - [RandAugment](https://arxiv.org/abs/1909.13719)
 
     Args:
-        value_range:
-            The range of values the input image can take. Default is (0, 255).
-            Typically, this would be (0, 1) for normalized images
-            or (0, 255) for raw images.
-        num_ops:
-            The number of augmentation operations to apply sequentially
+        value_range: The range of values the input image can take.
+            Default is `(0, 255)`. Typically, this would be `(0, 1)`
+            for normalized images or `(0, 255)` for raw images.
+        num_ops: The number of augmentation operations to apply sequentially
             to each image. Default is 2.
-        magnitude:
-            The strength of the augmentation as a normalized value
+        factor: The strength of the augmentation as a normalized value
             between 0 and 1. Default is 0.5.
-        interpolation:
-            The interpolation method to use for resizing operations.
-            Options include "nearest", "bilinear". Default is "bilinear".
-        seed:
-            Integer. Used to create a random seed.
+        interpolation: The interpolation method to use for resizing operations.
+            Options include `nearest`, `bilinear`. Default is `bilinear`.
+        seed: Integer. Used to create a random seed.
 
     """
 
+    _USE_BASE_FACTOR = False
+    _FACTOR_BOUNDS = (0, 1)
+
     _AUGMENT_LAYERS = [
-        "identity",
         "random_shear",
         "random_translation",
         "random_rotation",
@@ -58,7 +55,7 @@ class RandAugment(BaseImagePreprocessingLayer):
         self,
         value_range=(0, 255),
         num_ops=2,
-        magnitude=0.5,
+        factor=0.5,
         interpolation="bilinear",
         seed=None,
         data_format=None,
@@ -68,72 +65,72 @@ class RandAugment(BaseImagePreprocessingLayer):
 
         self.value_range = value_range
         self.num_ops = num_ops
-        self.magnitude = magnitude
+        self._set_factor(factor)
         self.interpolation = interpolation
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
         self.random_shear = layers.RandomShear(
-            x_factor=self.magnitude,
-            y_factor=self.magnitude,
+            x_factor=self.factor,
+            y_factor=self.factor,
             interpolation=interpolation,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.random_translation = layers.RandomTranslation(
-            height_factor=self.magnitude,
-            width_factor=self.magnitude,
+            height_factor=self.factor,
+            width_factor=self.factor,
             interpolation=interpolation,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.random_rotation = layers.RandomRotation(
-            factor=self.magnitude,
+            factor=self.factor,
             interpolation=interpolation,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.random_brightness = layers.RandomBrightness(
-            factor=self.magnitude,
+            factor=self.factor,
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.random_color_degeneration = layers.RandomColorDegeneration(
-            factor=self.magnitude,
+            factor=self.factor,
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.random_contrast = layers.RandomContrast(
-            factor=self.magnitude,
+            factor=self.factor,
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.random_sharpness = layers.RandomSharpness(
-            factor=self.magnitude,
+            factor=self.factor,
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.solarization = layers.Solarization(
-            addition_factor=self.magnitude,
-            threshold_factor=self.magnitude,
+            addition_factor=self.factor,
+            threshold_factor=self.factor,
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
         )
 
         self.random_posterization = layers.RandomPosterization(
-            factor=max(1, int(8 * self.magnitude)),
+            factor=max(1, int(8 * self.factor[1])),
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
@@ -157,16 +154,12 @@ class RandAugment(BaseImagePreprocessingLayer):
             self.backend.set_backend("tensorflow")
 
             for layer_name in self._AUGMENT_LAYERS:
-                if layer_name == "identity":
-                    continue
                 augmentation_layer = getattr(self, layer_name)
                 augmentation_layer.backend.set_backend("tensorflow")
 
         transformation = {}
         random.shuffle(self._AUGMENT_LAYERS)
         for layer_name in self._AUGMENT_LAYERS[: self.num_ops]:
-            if layer_name == "identity":
-                continue
             augmentation_layer = getattr(self, layer_name)
             transformation[layer_name] = (
                 augmentation_layer.get_random_transformation(
@@ -214,7 +207,7 @@ class RandAugment(BaseImagePreprocessingLayer):
         config = {
             "value_range": self.value_range,
             "num_ops": self.num_ops,
-            "magnitude": self.magnitude,
+            "factor": self.factor,
             "interpolation": self.interpolation,
             "seed": self.seed,
         }
