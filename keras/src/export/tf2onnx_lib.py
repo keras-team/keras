@@ -1,10 +1,12 @@
 import copy
+import functools
 import logging
 import traceback
 
 import numpy as np
 
 
+@functools.lru_cache()
 def patch_tf2onnx():
     """Patches `tf2onnx` to ensure compatibility with numpy>=2.0.0."""
 

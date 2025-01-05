@@ -1,13 +1,11 @@
-import pathlib
-import tempfile
-
 from keras.src import backend
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import get_input_signature
+from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.export.saved_model import DEFAULT_ENDPOINT_NAME
-from keras.src.export.saved_model import export_saved_model
-from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.export.saved_model import ExportArchive
+from keras.src.export.tf2onnx_lib import patch_tf2onnx
 
 
 def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
@@ -66,23 +64,18 @@ def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
             )
 
     if backend.backend() in ("tensorflow", "jax"):
-        working_dir = pathlib.Path(filepath).parent
-        with tempfile.TemporaryDirectory(dir=working_dir) as temp_dir:
-            if backend.backend() == "jax":
-                kwargs = _check_jax_kwargs(kwargs)
-            export_saved_model(
-                model,
-                temp_dir,
-                verbose,
-                input_signature,
-                **kwargs,
-            )
-            saved_model_to_onnx(
-                temp_dir,
-                filepath,
-                model.name,
-                signatures=[DEFAULT_ENDPOINT_NAME],
-            )
+        from keras.src.utils.module_utils import tf2onnx
+
+        input_signature = tree.map_structure(
+            make_tf_tensor_spec, input_signature
+        )
+        decorated_fn = get_concrete_fn(model, input_signature, **kwargs)
+
+        # Use `tf2onnx` to convert the `decorated_fn` to the ONNX format.
+        patch_tf2onnx()  # TODO: Remove this once `tf2onnx` supports numpy 2.
+        tf2onnx.convert.from_function(
+            decorated_fn, input_signature, output_path=filepath
+        )
 
     elif backend.backend() == "torch":
         import torch
@@ -139,39 +132,14 @@ def _check_jax_kwargs(kwargs):
     return kwargs
 
 
-def saved_model_to_onnx(saved_model_dir, filepath, name, signatures=None):
-    from keras.src.export.tf2onnx_lib import patch_tf2onnx
-    from keras.src.utils.module_utils import tf2onnx
-
-    # TODO: Remove this patch once `tf2onnx` supports `numpy>=2.0.0`.
-    patch_tf2onnx()
-
-    if signatures is None:
-        signatures = ["serve"]
-
-    # Convert to ONNX using `tf2onnx` library.
-    (graph_def, inputs, outputs, initialized_tables, tensors_to_rename) = (
-        tf2onnx.tf_loader.from_saved_model(
-            saved_model_dir,
-            None,
-            None,
-            tag=signatures,
-            signatures=signatures,
-            return_initialized_tables=True,
-            return_tensors_to_rename=True,
-        )
+def get_concrete_fn(model, input_signature, **kwargs):
+    """Get the `tf.function` associated with the model."""
+    if backend.backend() == "jax":
+        kwargs = _check_jax_kwargs(kwargs)
+    export_archive = ExportArchive()
+    export_archive.track_and_add_endpoint(
+        DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
     )
-
-    with tf.device("/cpu:0"):
-        _ = tf2onnx.convert._convert_common(
-            graph_def,
-            name=name,
-            target=[],
-            custom_op_handlers={},
-            extra_opset=[],
-            input_names=inputs,
-            output_names=outputs,
-            tensors_to_rename=tensors_to_rename,
-            initialized_tables=initialized_tables,
-            output_path=filepath,
-        )
+    if backend.backend() == "tensorflow":
+        export_archive._filter_and_track_resources()
+    return export_archive._get_concrete_fn(DEFAULT_ENDPOINT_NAME)
