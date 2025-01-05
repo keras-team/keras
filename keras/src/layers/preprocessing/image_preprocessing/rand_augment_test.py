@@ -18,6 +18,7 @@ class RandAugmentTest(testing.TestCase):
                 "factor": 1,
                 "interpolation": "nearest",
                 "seed": 1,
+                "data_format": "channels_last",
             },
             input_shape=(8, 3, 4, 3),
             supports_masking=False,
@@ -39,7 +40,7 @@ class RandAugmentTest(testing.TestCase):
             input_data = np.random.random((2, 8, 8, 3))
         else:
             input_data = np.random.random((2, 3, 8, 8))
-        layer = layers.RandAugment()
+        layer = layers.RandAugment(data_format=data_format)
 
         augmented_image = layer(input_data)
         self.assertEqual(augmented_image.shape, input_data.shape)
@@ -50,7 +51,7 @@ class RandAugmentTest(testing.TestCase):
             input_data = np.random.random((2, 8, 8, 3))
         else:
             input_data = np.random.random((2, 3, 8, 8))
-        layer = layers.RandAugment(num_ops=0)
+        layer = layers.RandAugment(num_ops=0, data_format=data_format)
 
         augmented_image = layer(input_data)
         self.assertAllClose(
@@ -64,7 +65,7 @@ class RandAugmentTest(testing.TestCase):
         else:
             input_data = np.random.random((2, 3, 8, 8))
 
-        layer = layers.RandAugment(num_ops=8)
+        layer = layers.RandAugment(num_ops=8, data_format=data_format)
         augmented_image = layer(input_data)
 
         self.assertNotAllClose(
@@ -77,7 +78,7 @@ class RandAugmentTest(testing.TestCase):
             input_data = np.random.random((2, 8, 8, 3))
         else:
             input_data = np.random.random((2, 3, 8, 8))
-        layer = layers.RandAugment()
+        layer = layers.RandAugment(data_format=data_format)
 
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
