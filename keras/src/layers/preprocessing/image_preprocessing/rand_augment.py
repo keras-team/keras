@@ -146,6 +146,11 @@ class RandAugment(BaseImagePreprocessingLayer):
             data_format=data_format,
         )
 
+    def build(self, input_shape):
+        for layer_name in self._AUGMENT_LAYERS:
+            augmentation_layer = getattr(self, layer_name)
+            augmentation_layer.build(input_shape)
+
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None
