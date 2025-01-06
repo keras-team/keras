@@ -585,7 +585,7 @@ class ModelParallel(Distribution):
         device_mesh = layout_map.device_mesh
         super().__init__(device_mesh)
         self._layout_map = layout_map
-        self.batch_dim_name = batch_dim_name or self.device_mesh.axis_names[0]
+        self._batch_dim_name = batch_dim_name or self.device_mesh.axis_names[0]
 
         # Those following attributes might get convert to public methods.
         self._num_process = distribution_lib.num_processes()
