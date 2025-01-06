@@ -112,6 +112,19 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
                 seed=self.seed,
             )
 
+    def build(self, input_shape):
+        if self.brightness_factor is not None:
+            self.random_brightness.build(input_shape)
+
+        if self.contrast_factor is not None:
+            self.random_contrast.build(input_shape)
+
+        if self.saturation_factor is not None:
+            self.random_saturation.build(input_shape)
+
+        if self.hue_factor is not None:
+            self.random_hue.build(input_shape)
+
     def transform_images(self, images, transformation, training=True):
         if training:
             if backend_utils.in_tf_graph():
