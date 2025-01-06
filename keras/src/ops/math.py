@@ -888,7 +888,7 @@ def istft(
         sequence_length: An integer representing the sequence length.
         sequence_stride: An integer representing the sequence hop size.
         fft_length: An integer representing the size of the FFT that produced
-            `stft`.
+            `stft`. Should be of type `int32`.
         length: An integer representing the output is clipped to exactly length.
             If not specified, no padding or clipping take place. Defaults to
             `None`.
