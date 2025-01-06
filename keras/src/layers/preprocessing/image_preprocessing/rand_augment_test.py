@@ -83,3 +83,32 @@ class RandAugmentTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
+
+    def test_rand_augment_tf_data_bounding_boxes(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            image_shape = (1, 10, 8, 3)
+        else:
+            image_shape = (1, 3, 10, 8)
+        input_image = np.random.random(image_shape)
+        bounding_boxes = {
+            "boxes": np.array(
+                [
+                    [
+                        [2, 1, 4, 3],
+                        [6, 4, 8, 6],
+                    ]
+                ]
+            ),
+            "labels": np.array([[1, 2]]),
+        }
+
+        input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
+
+        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        layer = layers.RandAugment(
+            data_format=data_format,
+            seed=42,
+            bounding_box_format="xyxy",
+        )
+        ds.map(layer)

@@ -76,6 +76,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             interpolation=interpolation,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.random_translation = layers.RandomTranslation(
@@ -84,6 +85,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             interpolation=interpolation,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.random_rotation = layers.RandomRotation(
@@ -91,6 +93,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             interpolation=interpolation,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.random_brightness = layers.RandomBrightness(
@@ -98,6 +101,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.random_color_degeneration = layers.RandomColorDegeneration(
@@ -105,6 +109,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.random_contrast = layers.RandomContrast(
@@ -112,6 +117,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.random_sharpness = layers.RandomSharpness(
@@ -119,6 +125,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.solarization = layers.Solarization(
@@ -127,6 +134,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.random_posterization = layers.RandomPosterization(
@@ -134,16 +142,15 @@ class RandAugment(BaseImagePreprocessingLayer):
             value_range=self.value_range,
             seed=self.seed,
             data_format=data_format,
+            **kwargs,
         )
 
         self.auto_contrast = layers.AutoContrast(
-            value_range=self.value_range,
-            data_format=data_format,
+            value_range=self.value_range, data_format=data_format, **kwargs
         )
 
         self.equalization = layers.Equalization(
-            value_range=self.value_range,
-            data_format=data_format,
+            value_range=self.value_range, data_format=data_format, **kwargs
         )
 
     def build(self, input_shape):
@@ -198,12 +205,20 @@ class RandAugment(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        raise NotImplementedError
+        if training:
+            for layer_name, transformation_value in transformation.items():
+                augmentation_layer = getattr(self, layer_name)
+                bounding_boxes = augmentation_layer.transform_bounding_boxes(
+                    bounding_boxes, transformation_value, training=training
+                )
+        return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        raise NotImplementedError
+        return self.transform_images(
+            segmentation_masks, transformation, training=training
+        )
 
     def compute_output_shape(self, input_shape):
         return input_shape
