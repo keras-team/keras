@@ -6,6 +6,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import export
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -14,7 +15,6 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
-from keras.src.export import export_lib
 
 
 class DenseTest(testing.TestCase):
@@ -566,7 +566,7 @@ class DenseTest(testing.TestCase):
             ref_input = tf.random.normal((2, 8))
             ref_output = model(ref_input)
             model.export(temp_filepath, format="tf_saved_model")
-            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            reloaded_layer = export.TFSMLayer(temp_filepath)
             self.assertAllClose(
                 reloaded_layer(ref_input), ref_output, atol=1e-7
             )
@@ -738,7 +738,7 @@ class DenseTest(testing.TestCase):
             ref_input = tf.random.normal((2, 8))
             ref_output = model(ref_input)
             model.export(temp_filepath, format="tf_saved_model")
-            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            reloaded_layer = export.TFSMLayer(temp_filepath)
             self.assertAllClose(reloaded_layer(ref_input), ref_output)
             self.assertLen(reloaded_layer.weights, len(model.weights))
             self.assertLen(

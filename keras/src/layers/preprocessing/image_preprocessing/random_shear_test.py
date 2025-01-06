@@ -183,9 +183,7 @@ class RandomShearTest(testing.TestCase):
         )
 
         transformation = {
-            "shear_factor": backend_utils.convert_tf_tensor(
-                np.array(translation)
-            ),
+            "shear_factor": np.array(translation),
             "input_shape": image_shape,
         }
 
