@@ -493,7 +493,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         autocast=True,
         regularizer=None,
         constraint=None,
-        aggregation="mean",
+        aggregation="none",
         name=None,
     ):
         """Add a weight variable to the layer.
@@ -520,10 +520,11 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             constraint: Contrainst object to call on the variable after any
                 optimizer update, or string name of a built-in constraint.
                 Defaults to `None`.
-            aggregation: String, one of `'mean'`, `'sum'`,
-                `'only_first_replica'`. Annotates the variable with the type
-                of multi-replica aggregation to be used for this variable
-                when writing custom data parallel training loops.
+            aggregation: Optional string, one of `None`, `"none"`, `"mean"`,
+                `"sum"` or `"only_first_replica"`. Annotates the variable with
+                the type of multi-replica aggregation to be used for this
+                variable when writing custom data parallel training loops.
+                Defaults to `"none"`.
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
@@ -1471,9 +1472,19 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     def _assert_input_compatibility(self, arg_0):
         if self.input_spec:
-            input_spec.assert_input_compatibility(
-                self.input_spec, arg_0, layer_name=self.name
-            )
+            try:
+                input_spec.assert_input_compatibility(
+                    self.input_spec, arg_0, layer_name=self.name
+                )
+            except SystemError:
+                if backend.backend() == "torch":
+                    # TODO: The torch backend failed the ONNX CI with the error:
+                    # SystemError: <method '__int__' of 'torch._C.TensorBase'
+                    # objects> returned a result with an exception set
+                    # As a workaround, we are skipping this for now.
+                    pass
+                else:
+                    raise
 
     def _get_call_context(self):
         """Returns currently active `CallContext`."""

@@ -8,16 +8,15 @@ from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
 try:
-    # pydot-ng is a fork of pydot that is better maintained.
-    import pydot_ng as pydot
+    import pydot
 except ImportError:
-    # pydotplus is an improved version of pydot
+    # pydot_ng and pydotplus are older forks of pydot
+    # which may still be used by some users
     try:
-        import pydotplus as pydot
+        import pydot_ng as pydot
     except ImportError:
-        # Fall back on pydot if necessary.
         try:
-            import pydot
+            import pydotplus as pydot
         except ImportError:
             pydot = None
 

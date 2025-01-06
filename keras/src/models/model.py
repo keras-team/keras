@@ -470,15 +470,12 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     ):
         """Export the model as an artifact for inference.
 
-        **Note:** This feature is currently supported only with TensorFlow and
-        JAX backends.
-        **Note:** Currently, only `format="tf_saved_model"` is supported.
-
         Args:
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
-            format: `str`. The export format. Supported value:
-                `"tf_saved_model"`.  Defaults to `"tf_saved_model"`.
+            format: `str`. The export format. Supported values:
+                `"tf_saved_model"` and `"onnx"`.  Defaults to
+                `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `True`.
             input_signature: Optional. Specifies the shape and dtype of the
@@ -487,7 +484,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 not provided, it will be automatically computed. Defaults to
                 `None`.
             **kwargs: Additional keyword arguments:
-                - Specific to the JAX backend:
+                - Specific to the JAX backend and `format="tf_saved_model"`:
                     - `is_static`: Optional `bool`. Indicates whether `fn` is
                         static. Set to `False` if `fn` involves state updates
                         (e.g., RNG seeds and counters).
@@ -498,7 +495,12 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                         If `native_serialization` and `polymorphic_shapes` are
                         not provided, they will be automatically computed.
 
-        Example:
+        **Note:** This feature is currently supported only with TensorFlow, JAX
+        and Torch backends.
+
+        Examples:
+
+        Here's how to export a TensorFlow SavedModel for inference.
 
         ```python
         # Export the model as a TensorFlow SavedModel artifact
@@ -508,10 +510,25 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         reloaded_artifact = tf.saved_model.load("path/to/location")
         predictions = reloaded_artifact.serve(input_data)
         ```
-        """
-        from keras.src.export import export_lib
 
-        available_formats = ("tf_saved_model",)
+        Here's how to export an ONNX for inference.
+
+        ```python
+        # Export the model as a ONNX artifact
+        model.export("path/to/location", format="onnx")
+
+        # Load the artifact in a different process/environment
+        ort_session = onnxruntime.InferenceSession("path/to/location")
+        ort_inputs = {
+            k.name: v for k, v in zip(ort_session.get_inputs(), input_data)
+        }
+        predictions = ort_session.run(None, ort_inputs)
+        ```
+        """
+        from keras.src.export import export_onnx
+        from keras.src.export import export_saved_model
+
+        available_formats = ("tf_saved_model", "onnx")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
@@ -519,7 +536,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             )
 
         if format == "tf_saved_model":
-            export_lib.export_saved_model(
+            export_saved_model(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "onnx":
+            export_onnx(
                 self,
                 filepath,
                 verbose,
