@@ -1,13 +1,15 @@
 # Tensorflow.
-tensorflow-cpu~=2.18.0;sys_platform != 'darwin'  # Pin to TF 2.16
+tensorflow-cpu~=2.18.0;sys_platform != 'darwin'
 tensorflow~=2.18.0;sys_platform == 'darwin'
 tf_keras
+tf2onnx
 
 # Torch.
 # TODO: Pin to < 2.3.0 (GitHub issue #19602)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.1.0
 torchvision>=0.16.0
+torch-xla
 
 # Jax.
 jax[cpu]

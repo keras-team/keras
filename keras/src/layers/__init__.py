@@ -99,6 +99,12 @@ from keras.src.layers.preprocessing.image_preprocessing.mix_up import MixUp
 from keras.src.layers.preprocessing.image_preprocessing.random_brightness import (
     RandomBrightness,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_color_degeneration import (
+    RandomColorDegeneration,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_color_jitter import (
+    RandomColorJitter,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_contrast import (
     RandomContrast,
 )
@@ -114,11 +120,20 @@ from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import 
 from keras.src.layers.preprocessing.image_preprocessing.random_hue import (
     RandomHue,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_posterization import (
+    RandomPosterization,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_saturation import (
     RandomSaturation,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_sharpness import (
+    RandomSharpness,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_shear import (
+    RandomShear,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_translation import (
     RandomTranslation,

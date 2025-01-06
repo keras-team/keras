@@ -179,6 +179,7 @@ to save the entire model as a single file. You can later recreate the same model
 from this file, even if the code that built the model is no longer available.
 
 This saved file includes the:
+
 - model architecture
 - model weight values (that were learned during training)
 - model training config, if any (as passed to `compile()`)
