@@ -133,12 +133,11 @@ def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
         raise ValueError("num_bits must be >= 2")
 
     n_steps = ops.cast(2**num_bits - 1, "float32")
-    if narrow_range:
-        n_steps -= 1.0
+    n_steps = n_steps if not narrow_range else n_steps - 1.0
 
     # Handle the case where min and max are too close
-    if abs(max_range - min_range) < 1e-10:
-        return min_range, max_range, 1.0
+    # if abs(max_range - min_range) < 1e-10:
+    #     return min_range, max_range, 1.0
 
     # Calculate the step size
     step_size = (max_range - min_range) / n_steps
@@ -192,108 +191,6 @@ def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     )  # Returning nudged values and scale
 
 
-@keras_export("keras.quantizers.fake_quant_with_min_max_args")
-def fake_quant_with_min_max_args(
-    inputs,
-    min_range=-6.0,
-    max_range=6.0,
-    num_bits=8,
-    narrow_range=False,
-):
-    """Fake quantization operation matching TensorFlow's implementation."""
-
-    inputs = ops.convert_to_tensor(inputs)
-
-    @ops.custom_gradient
-    def _fake_quant_with_min_max_args(x):
-        quant_min, quant_max, step_size = adjust_and_nudge(
-            min_range, max_range, num_bits, narrow_range
-        )
-
-        n_steps = 2**num_bits - 1
-        if narrow_range:
-            n_steps -= 1
-
-        # Clip and nudge input to the range
-        x_clipped = ops.clip(x, quant_min, quant_max)
-        x_norm = (x_clipped - quant_min) / step_size
-        x_quantized = ops.round(x_norm)
-        x_quantized = ops.clip(x_quantized, 0.0, n_steps)
-        result = x_quantized * step_size + quant_min
-
-        def grad(*args, upstream=None):
-            if upstream is None:
-                (upstream,) = args
-            # Gradient mask: valid within the range
-            mask = ops.cast(
-                (x >= quant_min) & (x <= quant_max), dtype=upstream.dtype
-            )
-            return ops.multiply(upstream, mask)
-
-        return result, grad
-
-    return _fake_quant_with_min_max_args(inputs)
-
-
-@keras_export("keras.quantizers.fake_quant_with_min_max_vars")
-def fake_quant_with_min_max_vars(
-    inputs,
-    min_range=-6.0,
-    max_range=6.0,
-    num_bits=8,
-    narrow_range=False,
-):
-    """Fake quantization operation matching TensorFlow's implementation."""
-    return fake_quant_with_min_max_args(
-        inputs, min_range, max_range, num_bits, narrow_range
-    )
-
-
-@keras_export("keras.quantizers.fake_quant_with_min_max_args_gradient")
-def fake_quant_with_min_max_args_gradient(
-    gradients,
-    inputs,
-    min_range=-6.0,
-    max_range=6.0,
-    num_bits=8,
-    narrow_range=False,
-):
-    """Fake quantization operation with gradient,
-    matching TensorFlow's implementation."""
-
-    inputs = ops.convert_to_tensor(inputs)
-
-    def _fake_quant_with_min_max_args_gradient(x):
-        quant_min, quant_max, step_size = adjust_and_nudge(
-            min_range, max_range, num_bits, narrow_range
-        )
-
-        n_steps = 2**num_bits - 1
-        if narrow_range:
-            n_steps -= 1
-
-        # Clip and nudge input to the range
-        x_clipped = ops.clip(x, quant_min, quant_max)
-        x_norm = (x_clipped - quant_min) / step_size
-        x_quantized = ops.round(x_norm)
-        x_quantized = ops.clip(x_quantized, 0.0, n_steps)
-        result = x_quantized * step_size + quant_min
-
-        def grad(*args, upstream=None):
-            if upstream is None:
-                (upstream,) = args
-            # Gradient mask: valid within the range
-            mask = ops.cast(
-                (x >= quant_min) & (x <= quant_max), dtype=upstream.dtype
-            )
-            return ops.multiply(upstream, mask)
-
-        return result, grad
-
-    output, grad = _fake_quant_with_min_max_args_gradient(inputs)
-    return output, grad(gradients)
-
-
 @keras_export("keras.quantizers.fake_quant_with_min_max_vars_per_channel")
 def fake_quant_with_min_max_vars_per_channel(
     inputs,
@@ -303,7 +200,8 @@ def fake_quant_with_min_max_vars_per_channel(
     narrow_range,
 ):
     """
-    Perform per-channel fake quantization with custom gradient.
+    Perform per-channel fake quantization with custom gradient using vectorized
+    operations.
 
     Args:
         inputs: Input tensor of float type
@@ -315,165 +213,93 @@ def fake_quant_with_min_max_vars_per_channel(
     Returns:
         Fake-quantized tensor
     """
-
     inputs = ops.convert_to_tensor(inputs)
     min_vals = ops.convert_to_tensor(min_vals)
     max_vals = ops.convert_to_tensor(max_vals)
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_vars_per_channel(x, min_val, max_val):
-        # Determine the number of channels
-        num_channels = min_val.shape[-1]
+        # Calculate quantization parameters for all channels at once
+        qnt_min, qnt_max, step_size = adjust_and_nudge(
+            min_val, max_val, num_bits, narrow_range
+        )
 
-        # Initialize an empty list to store quantized values for each channel
-        quantized_channels = []
-        masks = []
+        # Calculate number of steps
+        n_steps = 2**num_bits - 1
+        if narrow_range:
+            n_steps -= 1
 
-        # Iterate over each channel
-        for i in range(num_channels):
-            # Extract min/max values for current channel
-            current_min = min_val[..., i]
-            current_max = max_val[..., i]
+        # Expand dimensions to allow broadcasting
+        qnt_min = ops.expand_dims(qnt_min, axis=list(range(len(x.shape) - 1)))
+        qnt_max = ops.expand_dims(qnt_max, axis=list(range(len(x.shape) - 1)))
+        step_size = ops.expand_dims(
+            step_size, axis=list(range(len(x.shape) - 1))
+        )
 
-            # Calculate step size and quantized min/max using _adjust_range
-            qnt_min, qnt_max, step_size = adjust_and_nudge(
-                current_min, current_max, num_bits, narrow_range
-            )
-            # Calculate the number of steps
-            n_steps = 2**num_bits - 1
-            if narrow_range:
-                n_steps -= 1
+        # Clip and quantize all channels simultaneously
+        x_clipped = ops.clip(x, qnt_min, qnt_max)
+        x_norm = (x_clipped - qnt_min) / step_size
+        x_quantized = ops.round(x_norm)
+        x_quantized = ops.clip(x_quantized, 0.0, n_steps)
+        result = x_quantized * step_size + qnt_min
 
-            # Clip and nudge input to the range for the current channel
-            x_clipped = ops.clip(x[..., i], qnt_min, qnt_max)
-            x_norm = (x_clipped - qnt_min) / step_size
-            x_quantized = ops.round(x_norm)
-            x_quantized = ops.clip(x_quantized, 0.0, n_steps)
-            result_channel = x_quantized * step_size + qnt_min
-
-            quantized_channels.append(result_channel)
-            mask = ops.cast(
-                (x[..., i] >= qnt_min) & (x[..., i] <= qnt_max),
-                dtype=np.float32,
-            )
-            masks.append(mask)
-
-        # Concatenate quantized channels
-        result = ops.stack(quantized_channels, axis=-1)
+        # Create gradient mask for all channels
+        masks = ops.cast(
+            (x >= qnt_min) & (x <= qnt_max),
+            dtype=np.float32,
+        )
 
         def grad(*args, upstream=None):
             if upstream is None:
                 (upstream,) = args
 
-            # Gradient mask: valid within the range
-            return ops.multiply(upstream, mask)
+            # Gradient for x
+            dx = ops.multiply(upstream, masks)
+
+            # Gradient for min_val
+            # When x is clipped to min, the gradient flows to min_val
+            min_mask = ops.cast(x <= qnt_min, dtype=np.float32)
+            dims_to_reduce = list(range(len(x.shape) - 1))
+            grad_min = ops.sum(upstream * min_mask, axis=dims_to_reduce)
+
+            # Gradient for max_val
+            # When x is clipped to max, the gradient flows to max_val
+            max_mask = ops.cast(x >= qnt_max, dtype=np.float32)
+            grad_max = ops.sum(upstream * max_mask, axis=dims_to_reduce)
+
+            return dx, grad_min, grad_max
 
         return result, grad
 
     return _fake_quant_with_min_max_vars_per_channel(inputs, min_vals, max_vals)
 
 
-@keras_export(
-    "keras.quantizers.fake_quant_with_min_max_vars_per_channel_gradient"
-)
-def fake_quant_with_min_max_vars_per_channel_gradient(
-    gradients,
+@keras_export("keras.quantizers.fake_quant_with_min_max_args")
+def fake_quant_with_min_max_args(
     inputs,
     min_vals,
     max_vals,
-    num_bits,
-    narrow_range,
+    num_bits=8,
+    narrow_range=False,
 ):
-    """
-    Perform per-channel fake quantization with custom gradient.
-
-    Args:
-        inputs: Input tensor of float type
-        min_vals: Per-channel minimum values
-        max_vals: Per-channel maximum values
-        num_bits: Quantization bit width (2-16)
-        narrow_range: Whether to use narrow quantization range
-
-    Returns:
-        Fake-quantized tensor
-    """
-
-    if isinstance(inputs, np.ndarray):
-        inputs = ops.convert_to_tensor(inputs)
-    min_vals = ops.convert_to_tensor(min_vals)
-    max_vals = ops.convert_to_tensor(max_vals)
-
-    # @ops.custom_gradient
-    def _fake_quant_with_min_max_vars_per_channel_gradient(x, min_val, max_val):
-        # Determine the number of channels
-        num_channels = min_val.shape[-1]
-
-        # Initialize an empty list to store quantized values for each channel
-        quantized_channels = []
-        between_min_max_masks = []
-        below_min_masks = []
-        above_max_masks = []
-
-        # Iterate over each channel
-        for i in range(num_channels):
-            # Extract min/max values for current channel
-            current_min = min_val[..., i]
-            current_max = max_val[..., i]
-
-            # Calculate step size and quantized min/max using _adjust_range
-            qnt_min, qnt_max, step_size = adjust_and_nudge(
-                current_min, current_max, num_bits, narrow_range
-            )
-
-            # Calculate the number of steps
-            n_steps = 2**num_bits - 1
-            if narrow_range:
-                n_steps -= 1
-
-            # Clip and nudge input to the range for the current channel
-            x_clipped = ops.clip(x[..., i], qnt_min, qnt_max)
-            x_norm = (x_clipped - qnt_min) / step_size
-            x_quantized = ops.round(x_norm)
-            x_quantized = ops.clip(x_quantized, 0.0, n_steps)
-            result_channel = x_quantized * step_size + qnt_min
-            between_min_max_mask = ops.cast(
-                (x[..., i] >= qnt_min) & (x[..., i] <= qnt_max),
-                dtype=np.float32,
-            )
-            below_min_mask = ops.cast((x[..., i] < qnt_min), dtype=np.float32)
-            above_max_mask = ops.cast((x[..., i] > qnt_max), dtype=np.float32)
-            between_min_max_masks.append(between_min_max_mask)
-            below_min_masks.append(below_min_mask)
-            above_max_masks.append(above_max_mask)
-            quantized_channels.append(result_channel)
-
-        # Concatenate quantized channels
-        result = ops.stack(quantized_channels, axis=-1)
-        between_min_max_masks = ops.stack(between_min_max_masks, axis=-1)
-        below_min_masks = ops.stack(below_min_masks, axis=-1)
-        above_max_masks = ops.stack(above_max_masks, axis=-1)
-
-        def grad(*args, upstream=None):
-            if upstream is None:
-                (upstream,) = args
-            backprops_wrt_input = ops.multiply(upstream, between_min_max_masks)
-            backprops_wrt_min = ops.sum(
-                ops.multiply(upstream, below_min_masks), axis=0
-            )
-            backprops_wrt_max = ops.sum(
-                ops.multiply(upstream, above_max_masks), axis=0
-            )
-
-            return backprops_wrt_input, backprops_wrt_min, backprops_wrt_max
-
-        return result, grad
-
-    output, grad = _fake_quant_with_min_max_vars_per_channel_gradient(
-        inputs, min_vals, max_vals
+    """Fake quantization operation matching TensorFlow's implementation."""
+    return fake_quant_with_min_max_vars_per_channel(
+        inputs, min_vals, max_vals, num_bits, narrow_range
     )
-    backprops_wrt_input, backprops_wrt_min, backprops_wrt_max = grad(gradients)
 
-    return output, backprops_wrt_input, backprops_wrt_min, backprops_wrt_max
+
+@keras_export("keras.quantizers.fake_quant_with_min_max_vars")
+def fake_quant_with_min_max_vars(
+    inputs,
+    min_vals,
+    max_vals,
+    num_bits=8,
+    narrow_range=False,
+):
+    """Fake quantization operation matching TensorFlow's implementation."""
+    return fake_quant_with_min_max_vars_per_channel(
+        inputs, min_vals, max_vals, num_bits, narrow_range
+    )
 
 
 """Float8-related methods"""
