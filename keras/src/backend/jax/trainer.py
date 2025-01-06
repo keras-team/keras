@@ -998,7 +998,7 @@ def _distribute_data(data, layouts=None):
             )
         jax_dist_data_input = partial(
             jax_distribution_lib.distribute_data_input,
-            batch_dim_name=distribution._batch_dim_name,
+            batch_dim_name=distribution.batch_dim_name,
         )
         return tree.map_structure(jax_dist_data_input, data, layouts)
 

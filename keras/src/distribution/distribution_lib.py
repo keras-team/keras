@@ -287,8 +287,9 @@ class Distribution:
         device_mesh: A `DeviceMesh` instance.
     """
 
-    def __init__(self, device_mesh):
+    def __init__(self, device_mesh, batch_dim_name=None):
         self._device_mesh = device_mesh
+        self._batch_dim_name = batch_dim_name
 
     def get_data_layout(self, data_shape):
         """Retrieve the `TensorLayout` for the input data.
@@ -340,6 +341,10 @@ class Distribution:
     @property
     def device_mesh(self):
         return self._device_mesh
+
+    @property
+    def batch_dim_name(self):
+        return self._batch_dim_name
 
     def distribute_dataset(self, dataset):
         """Create a distributed dataset instance from the original user dataset.
@@ -395,7 +400,6 @@ class DataParallel(Distribution):
         else:
             self._initialize_mesh_from_list_devices()
 
-        self._batch_dim_name = self.device_mesh.axis_names[0]
         # Those following attributes might get convert to public methods.
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
@@ -408,7 +412,7 @@ class DataParallel(Distribution):
                 "Expect `mesh` to be an instance of `DeviceMesh`. "
                 f"Received: mesh={device_mesh} (of type {type(device_mesh)})"
             )
-        super().__init__(device_mesh)
+        super().__init__(device_mesh, device_mesh.axis_names[0])
         if self.device_mesh.devices.ndim != 1:
             warnings.warn(
                 "Expect the input mesh to be 1D, but received "
@@ -424,7 +428,7 @@ class DataParallel(Distribution):
             axis_names=[DEFAULT_BATCH_DIM_NAME],
             devices=devices,
         )
-        super().__init__(device_mesh)
+        super().__init__(device_mesh, DEFAULT_BATCH_DIM_NAME)
 
     def _initialize_mesh_from_list_devices(self):
         devices = np.array(list_devices())
@@ -433,11 +437,11 @@ class DataParallel(Distribution):
             axis_names=[DEFAULT_BATCH_DIM_NAME],
             devices=devices,
         )
-        super().__init__(device_mesh)
+        super().__init__(device_mesh, DEFAULT_BATCH_DIM_NAME)
 
     def get_data_layout(self, data_shape):
         data_shard_spec = [None] * len(data_shape)
-        data_shard_spec[0] = self._batch_dim_name  # Shard on the first dim
+        data_shard_spec[0] = self.batch_dim_name  # Shard on the first dim
         return TensorLayout(data_shard_spec, self.device_mesh)
 
     def get_variable_layout(self, variable):
@@ -581,7 +585,7 @@ class ModelParallel(Distribution):
         device_mesh = layout_map.device_mesh
         super().__init__(device_mesh)
         self._layout_map = layout_map
-        self._batch_dim_name = batch_dim_name or self.device_mesh.axis_names[0]
+        self.batch_dim_name = batch_dim_name or self.device_mesh.axis_names[0]
 
         # Those following attributes might get convert to public methods.
         self._num_process = distribution_lib.num_processes()
@@ -590,7 +594,7 @@ class ModelParallel(Distribution):
 
     def get_data_layout(self, data_shape):
         data_shard_spec = [None] * len(data_shape)
-        data_shard_spec[0] = self._batch_dim_name  # Shard on the first dim
+        data_shard_spec[0] = self.batch_dim_name  # Shard on the first dim
         return TensorLayout(data_shard_spec, self.device_mesh)
 
     def get_variable_layout(self, variable):
@@ -631,7 +635,7 @@ class ModelParallel(Distribution):
         # Note that this might be smaller than one if model replicas are sharded
         # across multiple processes.
         mesh_batch_dim_index = self.device_mesh.axis_names.index(
-            self._batch_dim_name
+            self.batch_dim_name
         )
         num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
         if num_model_replicas == 1:
