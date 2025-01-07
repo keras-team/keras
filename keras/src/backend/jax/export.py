@@ -119,7 +119,7 @@ class JaxExportArchive:
                     self._tf_trackable.non_trainable_variables,
                     non_trainable_variables,
                 ):
-                    var.assign(new_value)
+                    var.assign(tf.cast(new_value, var.dtype))
                 return output
 
             stateful_fn.__signature__ = inspect.Signature(

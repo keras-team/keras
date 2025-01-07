@@ -85,12 +85,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         trainable: Boolean, whether the layer's variables should be trainable.
         name: String name of the layer.
         dtype: The dtype of the layer's computations and weights. Can also be a
-            `keras.DTypePolicy`,
-            which allows the computation and
-            weight dtype to differ. Defaults to `None`. `None` means to use
-            `keras.config.dtype_policy()`,
-            which is a `float32` policy unless set to different value
-            (via `keras.config.set_dtype_policy()`).
+            `keras.DTypePolicy`, which allows the computation and weight dtype
+            to differ. Defaults to `None`. `None` means to use
+            `keras.config.dtype_policy()`, which is a `float32` policy unless
+            set to different value (via `keras.config.set_dtype_policy()`).
 
     Attributes:
         name: The name of the layer (string).
