@@ -30,6 +30,7 @@ from keras.src.ops.core import switch
 from keras.src.ops.core import unstack
 from keras.src.ops.core import vectorized_map
 from keras.src.ops.core import while_loop
+from keras.src.ops.einops import rearrange
 from keras.src.ops.linalg import cholesky
 from keras.src.ops.linalg import det
 from keras.src.ops.linalg import eig
