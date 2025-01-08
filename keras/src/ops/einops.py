@@ -87,21 +87,16 @@ def _compute_decomposed_shape(input_axes, axes_lengths, axes_map):
 
 
 class Rearrange(Operation):
-    def __init__(self, pattern, **axes_lengths):
-        super().__init__()
-        self.pattern = pattern
-        self.axes_lengths = axes_lengths
+    def call(self, tensor, pattern, **axes_lengths):
+        return rearrange(tensor, pattern, **axes_lengths)
 
-    def call(self, tensor, pattern, axes_lengths):
-        return rearrange(tensor, pattern, axes_lengths)
-
-    def compute_output_spec(self, tensor):
-        input_pattern, output_pattern = re.split(r"\s*->\s*", self.pattern)
+    def compute_output_spec(self, tensor, pattern, **axes_lengths):
+        input_pattern, output_pattern = re.split(r"\s*->\s*", pattern)
         input_axes = re.findall(r"\w+|\(.*?\)", input_pattern)
         output_axes = re.findall(r"\w+|\(.*?\)", output_pattern)
         input_shape = shape(tensor)
 
-        axes_map = _create_axes_map(input_axes, input_shape, self.axes_lengths)
+        axes_map = _create_axes_map(input_axes, input_shape, axes_lengths)
         grouped_output_axes = _create_grouped_axes(output_axes)
         output_shape = _compute_output_shape(axes_map, grouped_output_axes)
 
