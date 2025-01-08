@@ -92,7 +92,7 @@ class SeparableConv2D(BaseSeparableConv):
 
     >>> x = np.random.rand(4, 10, 10, 12)
     >>> y = SeparableConv2D(filters=4, kernel_size=(4, 4), 
-                strides=(2, 2), activation='relu')(x)
+            strides=(2, 2), activation='relu')(x)
     >>> print(y.shape)
     (4, 4, 4, 4)
     """
