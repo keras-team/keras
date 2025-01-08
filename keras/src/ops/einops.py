@@ -1,13 +1,15 @@
 import re
 
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
 from keras.src.ops.core import shape
 from keras.src.ops.numpy import prod
 from keras.src.ops.numpy import reshape
 from keras.src.ops.numpy import transpose
+from keras.src.ops.operation import Operation
 
 
-def __create_axes_map(axes, input_shape, axes_lengths):
+def _create_axes_map(axes, input_shape, axes_lengths):
     axes_map = {}
 
     for axis, dim in zip(axes, input_shape):
@@ -31,7 +33,7 @@ def __create_axes_map(axes, input_shape, axes_lengths):
     return axes_map
 
 
-def __create_grouped_axes(axes):
+def _create_grouped_axes(axes):
     grouped_output_axes = []
     for axis in axes:
         grouped_axes = re.match(r"\(([\w\s]+)\)", axis)
@@ -45,17 +47,17 @@ def __create_grouped_axes(axes):
     return grouped_output_axes
 
 
-def __flatten_group(axes):
+def _flatten_group(axes):
     return [x for xs in axes for x in xs]
 
 
-def __get_transpose_order(from_shape, to_shape):
-    flattened_from_shape = __flatten_group(__create_grouped_axes(from_shape))
+def _get_transpose_order(from_shape, to_shape):
+    flattened_from_shape = _flatten_group(_create_grouped_axes(from_shape))
 
     return [flattened_from_shape.index(dim) for dim in to_shape]
 
 
-def __compute_output_shape(axes_map, grouped_axes):
+def _compute_output_shape(axes_map, grouped_axes):
     output_shape = []
     for group in grouped_axes:
         size = 1
@@ -66,7 +68,7 @@ def __compute_output_shape(axes_map, grouped_axes):
     return tuple(output_shape)
 
 
-def __compute_decomposed_shape(input_axes, axes_lengths, axes_map):
+def _compute_decomposed_shape(input_axes, axes_lengths, axes_map):
     reshaped_input_axes = []
     reshaped_sizes = []
 
@@ -83,25 +85,48 @@ def __compute_decomposed_shape(input_axes, axes_lengths, axes_map):
     return reshaped_sizes
 
 
+class Rearrange(Operation):
+    def __init__(self, pattern, **axes_lengths):
+        super().__init__()
+        self.pattern = pattern
+        self.axes_lengths = axes_lengths
+
+    def call(self, tensor, pattern, axes_lengths):
+        return rearrange(tensor, pattern, axes_lengths)
+
+    def compute_output_spec(self, tensor):
+        input_pattern, output_pattern = re.split(r"\s*->\s*", self.pattern)
+        input_axes = re.findall(r"\w+|\(.*?\)", input_pattern)
+        output_axes = re.findall(r"\w+|\(.*?\)", output_pattern)
+        input_shape = shape(tensor)
+
+        axes_map = _create_axes_map(input_axes, input_shape, self.axes_lengths)
+        grouped_output_axes = _create_grouped_axes(output_axes)
+        output_shape = _compute_output_shape(axes_map, grouped_output_axes)
+
+        return KerasTensor(shape=output_shape, dtype=tensor.dtype)
+
+
 @keras_export("keras.ops.rearrange")
 def rearrange(tensor, pattern, **axes_lengths):
     """
     Rearranges the axes of a Keras tensor according to a specified pattern.
 
     Args:
-        tensor (Tensor): Input Keras tensor.
-        pattern (str): String describing the rearrangement in einops notation.
+        tensor: Input Keras tensor.
+        pattern: String describing the rearrangement in einops notation.
         **axes_lengths: Keyword arguments specifying lengths of axes
             when axes decomposition is used.
 
     Returns:
         Tensor: A Keras tensor with rearranged axes.
 
-    Follows the logic:
-        1. If decomposition is needed:
-            - Reshape to match dimension decomposition.
-        2. Permute axes to match the form of the output.
-        3. Reshape to match the desired output shape.
+    Follows the logic of:
+
+    1. If decomposition is needed:
+        - Reshape to match decomposed dimensions.
+    2. Permute known and inferred axes to match the form of the output.
+    3. Reshape to match the desired output shape.
     """
 
     # Split the input and output patterns
@@ -111,23 +136,23 @@ def rearrange(tensor, pattern, **axes_lengths):
     input_shape = shape(tensor)
 
     # Create axes map, and flattened output group
-    axes_map = __create_axes_map(input_axes, input_shape, axes_lengths)
-    grouped_output_axes = __create_grouped_axes(output_axes)
-    flattened_output_axes = __flatten_group(grouped_output_axes)
+    axes_map = _create_axes_map(input_axes, input_shape, axes_lengths)
+    grouped_output_axes = _create_grouped_axes(output_axes)
+    flattened_output_axes = _flatten_group(grouped_output_axes)
 
     # 1. Axes decomposition
-    decomposed_shapes = __compute_decomposed_shape(
+    decomposed_shapes = _compute_decomposed_shape(
         input_axes, axes_lengths, axes_map
     )
     if decomposed_shapes != tensor.shape:
         tensor = reshape(tensor, decomposed_shapes)
 
     # 2. Transpose to match target shape
-    permute_order = __get_transpose_order(input_axes, flattened_output_axes)
+    permute_order = _get_transpose_order(input_axes, flattened_output_axes)
     tensor = transpose(tensor, permute_order)
 
     # 3. Reshape to final target shape
-    output_shape = __compute_output_shape(axes_map, grouped_output_axes)
+    output_shape = _compute_output_shape(axes_map, grouped_output_axes)
     tensor = reshape(tensor, output_shape)
 
     return tensor
