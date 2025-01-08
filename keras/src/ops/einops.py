@@ -2,6 +2,7 @@ import re
 
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend import any_symbolic_tensors
 from keras.src.ops.core import shape
 from keras.src.ops.numpy import prod
 from keras.src.ops.numpy import reshape
@@ -128,6 +129,9 @@ def rearrange(tensor, pattern, **axes_lengths):
     2. Permute known and inferred axes to match the form of the output.
     3. Reshape to match the desired output shape.
     """
+
+    if any_symbolic_tensors((tensor,)):
+        return Rearrange().symbolic_call(tensor)
 
     # Split the input and output patterns
     input_pattern, output_pattern = re.split(r"\s*->\s*", pattern)
