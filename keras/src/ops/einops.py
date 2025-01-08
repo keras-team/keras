@@ -131,7 +131,7 @@ def rearrange(tensor, pattern, **axes_lengths):
     """
 
     if any_symbolic_tensors((tensor,)):
-        return Rearrange().symbolic_call(tensor)
+        return Rearrange().symbolic_call(tensor, pattern, **axes_lengths)
 
     # Split the input and output patterns
     input_pattern, output_pattern = re.split(r"\s*->\s*", pattern)
