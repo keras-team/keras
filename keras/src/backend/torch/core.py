@@ -658,6 +658,16 @@ def random_seed_dtype():
     return "int32"
 
 
+def remat(func, *args, **kwargs):
+    """
+    Implementation of rematerialization.
+
+    Args:
+        func: The function or operation to rematerialize.
+    """
+    return torch.utils.checkpoint.checkpoint(func)(*args, **kwargs)
+
+
 class custom_gradient:
     """Decorator for custom gradients.
 

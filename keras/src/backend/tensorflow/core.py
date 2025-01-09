@@ -637,6 +637,16 @@ def custom_gradient(fun):
     return tf.custom_gradient(f=fun)
 
 
+def remat(func, *args, **kwargs):
+    """
+    Implementation of rematerialization.
+
+    Args:
+        func (callable): The function or operation to rematerialize.
+    """
+    return tf.recompute_grad(func)(*args, **kwargs)
+
+
 class name_scope(base_name_scope):
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)

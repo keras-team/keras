@@ -362,6 +362,16 @@ def custom_gradient(fun):
     return jax.custom_gradient(fun=fun)
 
 
+def remat(func, *args, **kwargs):
+    """
+    Implementation of rematerialization.
+
+    Args:
+        func: The function or operation to rematerialize.
+    """
+    return jax.checkpoint(func)(*args, **kwargs)
+
+
 class name_scope(base_name_scope):
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
