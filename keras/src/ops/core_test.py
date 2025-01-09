@@ -1403,18 +1403,5 @@ class CoreOpsRematTest(testing.TestCase):
         time_without_remat, memory_without_remat = build_and_train_model(
             False, x_train, y_train, epochs, batch_size
         )
-
-        # Print results
-        print(
-            f"Time with remat: {time_with_remat:.2f}s, "
-            "Memory with remat: {memory_with_remat:.2f}MB"
-        )
-        print(
-            f"Time without remat: {time_without_remat:.2f}s, "
-            "Memory without remat: {memory_without_remat:.2f}MB"
-        )
-
         self.assertGreater(time_with_remat, time_without_remat)
-
-        # Assert that peak memory usage with remat is less than without remat
         self.assertLess(memory_with_remat, memory_without_remat)
