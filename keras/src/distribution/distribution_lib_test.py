@@ -186,7 +186,7 @@ class DataParallelDistributionTest(testing.TestCase):
         device_mesh = distribution.device_mesh
         self.assertEqual(len(device_mesh.devices), 8)
         self.assertEqual(device_mesh.axis_names, ["data"])
-        self.assertEqual(distribution._batch_dim_name, "data")
+        self.assertEqual(distribution.batch_dim_name, "data")
 
         self.assertFalse(distribution._is_multi_process)
         self.assertEqual(distribution._process_id, 0)
@@ -197,7 +197,7 @@ class DataParallelDistributionTest(testing.TestCase):
         device_mesh = distribution.device_mesh
         self.assertEqual(len(device_mesh.devices), 8)
         self.assertEqual(device_mesh.axis_names, ["batch"])
-        self.assertEqual(distribution._batch_dim_name, "batch")
+        self.assertEqual(distribution.batch_dim_name, "batch")
 
     @mock.patch.object(
         distribution_lib,
@@ -211,7 +211,7 @@ class DataParallelDistributionTest(testing.TestCase):
         device_mesh = distribution.device_mesh
         self.assertEqual(len(device_mesh.devices), 8)
         self.assertEqual(device_mesh.axis_names, ["batch"])
-        self.assertEqual(distribution._batch_dim_name, "batch")
+        self.assertEqual(distribution.batch_dim_name, "batch")
 
     def test_get_data_layout(self):
         distribution = distribution_lib.DataParallel(

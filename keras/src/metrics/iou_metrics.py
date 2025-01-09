@@ -474,7 +474,6 @@ class MeanIoU(IoU):
             is used to determine each sample's most likely associated label.
         axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
-    Example:
 
     Example:
 
