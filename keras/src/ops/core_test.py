@@ -1396,12 +1396,12 @@ class CoreOpsRematTest(testing.TestCase):
         # Train models with and without rematerialization
         epochs = 5
         batch_size = 512
-        time_without_remat, memory_without_remat = build_and_train_model(
-            False, x_train, y_train, epochs, batch_size
-        )
         # Train model with rematerialization
         time_with_remat, memory_with_remat = build_and_train_model(
             True, x_train, y_train, epochs, batch_size
+        )
+        time_without_remat, memory_without_remat = build_and_train_model(
+            False, x_train, y_train, epochs, batch_size
         )
 
         # Print results
@@ -1413,5 +1413,8 @@ class CoreOpsRematTest(testing.TestCase):
             f"Time without remat: {time_without_remat:.2f}s, "
             "Memory without remat: {memory_without_remat:.2f}MB"
         )
+
         self.assertGreater(time_with_remat, time_without_remat)
+
+        # Assert that peak memory usage with remat is less than without remat
         self.assertLess(memory_with_remat, memory_without_remat)
