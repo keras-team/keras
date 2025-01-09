@@ -182,12 +182,11 @@ class RandomRotation(BaseImagePreprocessingLayer):
             images = data
         shape = ops.core.shape(images)
         if len(shape) == 4:
+            batch_size = shape[0]
             if self.data_format == "channels_last":
-                batch_size = shape[0]
                 image_height = shape[1]
                 image_width = shape[2]
             else:
-                batch_size = shape[1]
                 image_height = shape[2]
                 image_width = shape[3]
         else:

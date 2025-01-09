@@ -273,6 +273,30 @@ class TestSpectrogram(testing.TestCase):
             supports_masking=False,
         )
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Backend does not support dynamic shapes",
+    )
+    def test_spectrogram_dynamic_shape(self):
+        model = Sequential(
+            [
+                Input(shape=(None, 1), dtype=TestSpectrogram.DTYPE),
+                layers.STFTSpectrogram(
+                    frame_length=500,
+                    frame_step=25,
+                    fft_length=1024,
+                    mode="stft",
+                    data_format="channels_last",
+                ),
+            ]
+        )
+
+        def generator():
+            yield (np.random.random((2, 16000, 1)),)
+            yield (np.random.random((3, 8000, 1)),)
+
+        model.predict(generator())
+
     @pytest.mark.requires_trainable_backend
     def test_spectrogram_error(self):
         rnd = np.random.RandomState(41)
@@ -310,10 +334,9 @@ class TestSpectrogram(testing.TestCase):
             init_args["mode"] = "angle"
             y_true, y = self._calc_spectrograms(x, **init_args)
 
-            pi = np.arccos(np.float128(-1)).astype(y_true.dtype)
             mask = np.isclose(y, y_true, **tol_kwargs)
-            mask |= np.isclose(y + 2 * pi, y_true, **tol_kwargs)
-            mask |= np.isclose(y - 2 * pi, y_true, **tol_kwargs)
+            mask |= np.isclose(y + 2 * np.pi, y_true, **tol_kwargs)
+            mask |= np.isclose(y - 2 * np.pi, y_true, **tol_kwargs)
             mask |= np.isclose(np.cos(y), np.cos(y_true), **tol_kwargs)
             mask |= np.isclose(np.sin(y), np.sin(y_true), **tol_kwargs)
 
