@@ -15,6 +15,7 @@ from keras.src import saving
 from keras.src import testing
 from keras.src import tree
 from keras.src import utils
+from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.saving import object_registration
 from keras.src.utils.jax_layer import FlaxLayer
 from keras.src.utils.jax_layer import JaxLayer
@@ -362,6 +363,18 @@ class TestJaxLayer(testing.TestCase):
             "non_trainable_weights": 1,
             "non_trainable_params": 1,
         },
+        {
+            "testcase_name": "training_state_dtype_policy",
+            "init_kwargs": {
+                "call_fn": jax_stateful_apply,
+                "init_fn": jax_stateful_init,
+                "dtype": DTypePolicy("mixed_float16"),
+            },
+            "trainable_weights": 6,
+            "trainable_params": 266610,
+            "non_trainable_weights": 1,
+            "non_trainable_params": 1,
+        },
     )
     def test_jax_layer(
         self,
@@ -413,6 +426,19 @@ class TestJaxLayer(testing.TestCase):
             "trainable_params": 354258,
             "non_trainable_weights": 8,
             "non_trainable_params": 536,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method_dtype_policy",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+                "dtype": DTypePolicy("mixed_float16"),
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
         },
     )
     @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
