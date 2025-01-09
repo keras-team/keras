@@ -1,8 +1,11 @@
 import contextlib
 import operator
+import threading
+import time
 from unittest.mock import Mock
 
 import numpy as np
+import psutil
 import pytest
 from absl.testing import parameterized
 
@@ -1322,3 +1325,93 @@ class CoreOpsBehaviorTests(testing.TestCase):
             core.associative_scan(
                 lambda x, y: (x[0] + y[0], x[1] + y[1]), x, axis=1
             )
+
+
+class CoreOpsRematTest(testing.TestCase):
+    def test_remat_basic_call(self):
+        def monitor_memory(memory_log, process, stop_event):
+            """Monitors memory usage during the training process."""
+            while not stop_event.is_set():
+                memory_log.append(process.memory_info().rss / (1024**2))
+                time.sleep(0.1)
+
+        def build_and_train_model(
+            use_remat, x_train, y_train, epochs, batch_size
+        ):
+            """Build and train a model, optionally using rematerialization."""
+
+            def my_intermediate_function(x):
+                for _ in range(2):
+                    x = x + x * 0.1
+                return x
+
+            if use_remat:
+                intermediate_function = lambda x: backend.core.remat(
+                    my_intermediate_function, x
+                )
+            else:
+                intermediate_function = my_intermediate_function
+
+            inputs = layers.Input(shape=(4,))
+            x = layers.Dense(4)(inputs)
+            x = layers.Lambda(intermediate_function)(x)
+            outputs = layers.Dense(1)(x)
+            model = models.Model(inputs=inputs, outputs=outputs)
+            model.compile(optimizer="sgd", loss="mse")
+
+            # Memory monitoring setup
+            process = psutil.Process()
+            memory_log = []
+            stop_event = threading.Event()
+            monitoring_thread = threading.Thread(
+                target=monitor_memory, args=(memory_log, process, stop_event)
+            )
+            monitoring_thread.start()
+
+            # Train model
+            start_time = time.time()
+            model.fit(
+                x_train,
+                y_train,
+                epochs=epochs,
+                batch_size=batch_size,
+                verbose=0,
+            )
+            end_time = time.time()
+
+            # Stop monitoring
+            stop_event.set()
+            monitoring_thread.join()
+
+            # Calculate time and memory
+            time_taken = end_time - start_time
+            peak_memory = max(memory_log) if memory_log else 0
+            return time_taken, peak_memory
+
+        # Generate dummy data
+        data_size = 10**5
+        x_train = np.random.normal(size=(data_size, 4))
+        y_train = np.random.normal(size=(data_size, 1))
+
+        # Train models with and without rematerialization
+        epochs = 5
+        batch_size = 512
+        time_without_remat, memory_without_remat = build_and_train_model(
+            False, x_train, y_train, epochs, batch_size
+        )
+        # Train model with rematerialization
+        time_with_remat, memory_with_remat = build_and_train_model(
+            True, x_train, y_train, epochs, batch_size
+        )
+
+        # Print results
+        print(
+            f"Time with remat: {time_with_remat:.2f}s, "
+            "Memory with remat: {memory_with_remat:.2f}MB"
+        )
+        print(
+            f"Time without remat: {time_without_remat:.2f}s, "
+            "Memory without remat: {memory_without_remat:.2f}MB"
+        )
+        self.assertGreater(time_with_remat, time_without_remat)
+        self.assertLess(memory_with_remat, memory_without_remat)

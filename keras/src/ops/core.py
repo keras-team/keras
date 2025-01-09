@@ -1165,3 +1165,30 @@ def custom_gradient(f):
     ```
     """
     return backend.core.custom_gradient(f)
+
+
+class Remat(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, func, *args, **kwargs):
+        remat_func = backend.core.remat(func)
+        return remat_func(*args, **kwargs)
+
+    def compute_output_spec(self, f, *args, **kwargs):
+        return backend.compute_output_spec(f, *args, **kwargs)
+
+
+@keras_export("keras.ops.remat")
+def remat(f, *args, mode=None, output_size=None, layer_names=None, **kwargs):
+    """
+    Applies rematerialization to a function or layer for memory optimization.
+    """
+    if any_symbolic_tensors(args) or any_symbolic_tensors(kwargs.values()):
+        return Remat().symbolic_call(f, *args, **kwargs)
+
+    return backend.core.remat(
+        f,
+        *args,
+        **kwargs,
+    )
