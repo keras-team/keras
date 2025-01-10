@@ -39,8 +39,7 @@ class LeakyReLU(Layer):
         if "alpha" in kwargs:
             negative_slope = kwargs.pop("alpha")
             warnings.warn(
-                "Argument `alpha` is deprecated. "
-                "Use `negative_slope` instead."
+                "Argument `alpha` is deprecated. Use `negative_slope` instead."
             )
         super().__init__(**kwargs)
         if negative_slope is None or negative_slope < 0:

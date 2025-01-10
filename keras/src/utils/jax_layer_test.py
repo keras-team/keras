@@ -324,7 +324,12 @@ class TestJaxLayer(testing.TestCase):
         model2.export(path, format="tf_saved_model")
         model4 = tf.saved_model.load(path)
         output4 = model4.serve(x_test)
-        self.assertAllClose(output1, output4)
+        self.assertAllClose(
+            output1,
+            output4,
+            # The output difference might be significant when using the GPU
+            atol=1e-2 if testing.jax_uses_gpu() else 1e-6,
+        )
 
         # test subclass model building without a build method
         class TestModel(models.Model):

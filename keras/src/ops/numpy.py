@@ -6754,7 +6754,7 @@ class Argpartition(Operation):
     def __init__(self, kth, axis=-1):
         super().__init__()
         if not isinstance(kth, int):
-            raise ValueError("kth must be an integer. Received:" f"kth = {kth}")
+            raise ValueError(f"kth must be an integer. Received:kth = {kth}")
         self.kth = kth
         self.axis = axis
 

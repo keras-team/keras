@@ -53,9 +53,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             return
         msg = msg or ""
         raise AssertionError(
-            f"The two values are close at all elements. \n"
-            f"{msg}.\n"
-            f"Values: {x1}"
+            f"The two values are close at all elements. \n{msg}.\nValues: {x1}"
         )
 
     def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
@@ -225,8 +223,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         """
         if input_shape is not None and input_data is not None:
             raise ValueError(
-                "input_shape and input_data cannot be passed "
-                "at the same time."
+                "input_shape and input_data cannot be passed at the same time."
             )
         if expected_output_shape is not None and expected_output is not None:
             raise ValueError(

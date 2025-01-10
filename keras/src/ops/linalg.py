@@ -596,12 +596,11 @@ class Lstsq(Operation):
     def compute_output_spec(self, a, b):
         if len(a.shape) != 2:
             raise ValueError(
-                "Expected a to have rank 2. " f"Received: a.shape={a.shape}"
+                f"Expected a to have rank 2. Received: a.shape={a.shape}"
             )
         if len(b.shape) not in (1, 2):
             raise ValueError(
-                "Expected b to have rank 1 or 2. "
-                f"Received: b.shape={b.shape}"
+                f"Expected b to have rank 1 or 2. Received: b.shape={b.shape}"
             )
         m, n = a.shape
         if b.shape[0] != m:
@@ -666,8 +665,7 @@ def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
             raise ValueError(
-                "Expected input to have rank >= 1. "
-                "Received scalar input {a}."
+                "Expected input to have rank >= 1. Received scalar input {a}."
             )
 
 
