@@ -500,7 +500,7 @@ class KerasFileEditor:
         if rich_style:
             version = f"{summary_utils.highlight_symbol(version)}"
             date = f"{summary_utils.highlight_symbol(date)}"
-        return f"Saved with Keras {version} " f"- date: {date}"
+        return f"Saved with Keras {version} - date: {date}"
 
     def _print_weights_structure(
         self, weights_dict, indent=0, is_first=True, prefix="", inner_path=""

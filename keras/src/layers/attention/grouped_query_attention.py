@@ -112,8 +112,7 @@ class GroupedQueryAttention(Layer):
         self.num_key_value_heads = num_key_value_heads
         if num_query_heads % num_key_value_heads != 0:
             raise ValueError(
-                "`num_query_heads` must be divisible"
-                " by `num_key_value_heads`."
+                "`num_query_heads` must be divisible by `num_key_value_heads`."
             )
         self.num_repeats = num_query_heads // num_key_value_heads
         self.dropout = dropout

@@ -163,8 +163,7 @@ class Embedding(Layer):
             )
         if self.lora_enabled:
             raise ValueError(
-                "lora is already enabled. "
-                "This can only be done once per layer."
+                "lora is already enabled. This can only be done once per layer."
             )
         self._tracker.unlock()
         self.lora_embeddings_a = self.add_weight(

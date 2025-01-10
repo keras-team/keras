@@ -644,7 +644,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         output = mha(query=query, value=value)
 
         assert output.shape == (2, 4, 8), (
-            f"Expected shape (2, 4, 8)," f" got {output.shape}"
+            f"Expected shape (2, 4, 8), got {output.shape}"
         )
 
     def test_multi_head_attention_output_shape_as_tuple(self):
@@ -657,7 +657,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         output = mha(query=query, value=value)
 
         assert output.shape == (2, 4, 8, 8), (
-            f"Expected shape (2, 4, 8, 8)," f" got {output.shape}"
+            f"Expected shape (2, 4, 8, 8), got {output.shape}"
         )
 
     def test_multi_head_attention_output_shape_error(self):

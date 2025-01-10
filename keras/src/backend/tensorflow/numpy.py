@@ -2469,8 +2469,7 @@ def squeeze(x, axis=None):
         for a in axis:
             if static_shape[a] != 1:
                 raise ValueError(
-                    f"Cannot squeeze axis={a}, because the "
-                    "dimension is not 1."
+                    f"Cannot squeeze axis={a}, because the dimension is not 1."
                 )
         axis = sorted([canonicalize_axis(a, len(static_shape)) for a in axis])
     if isinstance(x, tf.SparseTensor):

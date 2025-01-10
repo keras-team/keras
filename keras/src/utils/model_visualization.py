@@ -149,7 +149,7 @@ def make_layer_label(layer, **kwargs):
         cols.append(
             (
                 '<td bgcolor="white"><font point-size="14">'
-                f'Output dtype: <b>{dtype or "?"}</b>'
+                f"Output dtype: <b>{dtype or '?'}</b>"
                 "</font></td>"
             )
         )
