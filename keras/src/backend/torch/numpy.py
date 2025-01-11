@@ -36,43 +36,29 @@ def rot90(array, k=1, axes=(0, 1)):
     Returns:
         Rotated tensor
     """
-    x = convert_to_tensor(array)
-    
-    if x.ndim < 2:
+    if not isinstance(array, (np.ndarray, torch.Tensor)):
+        array = np.asarray(array)
+    if isinstance(array, np.ndarray):
+        array = torch.from_numpy(array)
+    if array.ndim < 2:
         raise ValueError(
-            f"Input array must have at least 2 dimensions. Received: array.ndim={x.ndim}"
+            f"Input array must have at least 2 dimensions. Received: array.ndim={array.ndim}"
         )
     if len(axes) != 2 or axes[0] == axes[1]:
         raise ValueError(
             f"Invalid axes: {axes}. Axes must be a tuple of two different dimensions."
         )
-
-    k = k % 4
-    if k == 0:
-        return x
     
-    axes = tuple(axis if axis >= 0 else x.ndim + axis for axis in axes)
+    axes = tuple(axis if axis >= 0 else array.ndim + axis for axis in axes)
+    # fix: all() method conflict, explicitly use builtins.all()
+    if not builtins.all(0 <= axis < array.ndim for axis in axes):
+        raise ValueError(f"Invalid axes {axes} for tensor with {array.ndim} dimensions")
     
-    if not all(0 <= axis < x.ndim for axis in axes):
-        raise ValueError(f"Invalid axes {axes} for tensor with {x.ndim} dimensions")
+    rotated = torch.rot90(array, k=k, dims=axes)
+    if isinstance(array, np.ndarray):
+        rotated = rotated.cpu().numpy()
     
-    for _ in range(k):
-        perm = list(range(x.ndim))
-        for i, axis in enumerate(axes):
-            perm.remove(axis)
-            perm.append(axis)
-        x = x.permute(perm)
-        
-        x = torch.flip(x, dims=[-1])
-        x = x.transpose(-2, -1)
-        
-        perm = list(range(x.ndim))
-        for i, axis in enumerate(axes):
-            perm.remove(x.ndim - 2 + i)
-            perm.insert(axis, x.ndim - 2 + i)
-        x = x.permute(perm)
-    
-    return x
+    return rotated
 
 
 def add(x1, x2):
