@@ -25,6 +25,56 @@ TORCH_INT_TYPES = (
 )
 
 
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the specified plane using PyTorch.
+    
+    Args:
+        array: Input tensor
+        k: Number of 90-degree rotations (default=1)
+        axes: Tuple of two axes that define the plane of rotation (default=(0,1))
+    
+    Returns:
+        Rotated tensor
+    """
+    x = convert_to_tensor(array)
+    
+    if x.ndim < 2:
+        raise ValueError(
+            f"Input array must have at least 2 dimensions. Received: array.ndim={x.ndim}"
+        )
+    if len(axes) != 2 or axes[0] == axes[1]:
+        raise ValueError(
+            f"Invalid axes: {axes}. Axes must be a tuple of two different dimensions."
+        )
+
+    k = k % 4
+    if k == 0:
+        return x
+    
+    axes = tuple(axis if axis >= 0 else x.ndim + axis for axis in axes)
+    
+    if not all(0 <= axis < x.ndim for axis in axes):
+        raise ValueError(f"Invalid axes {axes} for tensor with {x.ndim} dimensions")
+    
+    for _ in range(k):
+        perm = list(range(x.ndim))
+        for i, axis in enumerate(axes):
+            perm.remove(axis)
+            perm.append(axis)
+        x = x.permute(perm)
+        
+        x = torch.flip(x, dims=[-1])
+        x = x.transpose(-2, -1)
+        
+        perm = list(range(x.ndim))
+        for i, axis in enumerate(axes):
+            perm.remove(x.ndim - 2 + i)
+            perm.insert(axis, x.ndim - 2 + i)
+        x = x.permute(perm)
+    
+    return x
+
+
 def add(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

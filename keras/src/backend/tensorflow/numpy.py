@@ -23,6 +23,19 @@ from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.core import shape as shape_op
 
 
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the specified plane."""
+    if array.ndim < 2:
+        raise ValueError(
+            f"Input array must have at least 2 dimensions. Received: array.ndim={array.ndim}"
+        )
+    if len(axes) != 2 or axes[0] == axes[1]:
+        raise ValueError(
+            f"Invalid axes: {axes}. Axes must be a tuple of two different dimensions."
+        )
+    return tf.experimental.numpy.rot90(array, k=k, axes=axes)
+
+
 @sparse.elementwise_binary_union(tf.sparse.add)
 def add(x1, x2):
     if not isinstance(x1, (int, float)):

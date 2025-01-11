@@ -7,8 +7,6 @@ import tensorflow as tf
 from keras.src import backend
 from keras.src.backend.tensorflow.core import convert_to_tensor
 
-import numpy as np
-
 RESIZE_INTERPOLATIONS = (
     "bilinear",
     "nearest",
@@ -18,17 +16,6 @@ RESIZE_INTERPOLATIONS = (
     "area",
 )
 
-def rot90(array, k=1, axes=(0, 1)):
-    """Rotate an array by 90 degrees in the specified plane."""
-    if array.ndim < 2:
-        raise ValueError(
-            f"Input array must have at least 2 dimensions. Received: array.ndim={array.ndim}"
-        )
-    if len(axes) != 2 or axes[0] == axes[1]:
-        raise ValueError(
-            f"Invalid axes: {axes}. Axes must be a tuple of two different dimensions."
-        )
-    return np.rot90(array, k=k, axes=axes)
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
