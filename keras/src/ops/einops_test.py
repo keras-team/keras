@@ -1,10 +1,12 @@
 import numpy as np
 
+from conftest import skip_if_backend
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
 from keras.src.ops.einops import rearrange
 
 
+@skip_if_backend("openvino", "NumPy ops not supported with openvino backend")
 class RearrangeTest(testing.TestCase):
     def test_basic_rearrangement_symbolic(self):
         x = keras_tensor.KerasTensor((2, 3, 4))
