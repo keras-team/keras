@@ -105,8 +105,8 @@ class Rearrange(Operation):
 
 @keras_export("keras.ops.rearrange")
 def rearrange(tensor, pattern, **axes_lengths):
-    """
-    Rearranges the axes of a Keras tensor according to a specified pattern.
+    """Rearranges the axes of a Keras tensor according to a specified pattern,
+    einops-style.
 
     Args:
         tensor: Input Keras tensor.
@@ -119,11 +119,43 @@ def rearrange(tensor, pattern, **axes_lengths):
 
     Follows the logic of:
 
-    1. If decomposition is needed:
-        - Reshape to match decomposed dimensions.
+    1. If decomposition is needed, reshape to match decomposed dimensions.
     2. Permute known and inferred axes to match the form of the output.
     3. Reshape to match the desired output shape.
-    """
+
+
+    Example Usage:
+
+    ```
+    >>> import numpy as np
+    >>> from keras.ops import rearrange
+    >>> images = np.random.rand(32, 30, 40, 3) # BHWC format
+
+    # Reordering to BCHW
+    >>> rearrange(images, 'b h w c -> b c h w').shape
+    TensorShape([32, 3, 30, 40])
+
+    # "Merge" along first axis - concat images from a batch
+    >>> rearrange(images, 'b h w c -> (b h) w c').shape
+    TensorShape([960, 40, 3])
+
+    # "Merge" along second axis - concat images horizontally
+    >>> rearrange(images, 'b h w c -> h (b w) c').shape
+    TensorShape([30, 1280, 3])
+
+    # Flatten images into a CHW vector
+    >>> rearrange(images, 'b h w c -> b (c h w)').shape
+    TensorShape([32, 3600])
+
+    # Decompose H and W axes into 4 smaller patches
+    >>> rearrange(images, 'b (h1 h) (w1 w) c -> (b h1 w1) h w c', h1=2, w1=2).shape
+    TensorShape([128, 15, 20, 3])
+
+    # Space-to-depth decomposition of input axes
+    >>> rearrange(images, 'b (h h1) (w w1) c -> b h w (c h1 w1)', h1=2, w1=2).shape
+    TensorShape([32, 15, 20, 12])
+    ```
+    """  # noqa: E501
 
     if any_symbolic_tensors((tensor,)):
         return Rearrange().symbolic_call(tensor, pattern, **axes_lengths)
