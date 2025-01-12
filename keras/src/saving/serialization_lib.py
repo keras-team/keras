@@ -783,22 +783,18 @@ def _retrieve_class_or_fn(
 
         # Otherwise, attempt to retrieve the class object given the `module`
         # and `class_name`. Import the module, find the class.
-        try:
-            mod = importlib.import_module(module)
-        except ModuleNotFoundError:
-            raise TypeError(
-                f"Could not deserialize {obj_type} '{name}' because "
-                f"its parent module {module} cannot be imported. "
-                f"Full object config: {full_config}"
-            )
-        obj = vars(mod).get(name, None)
-
-        # Special case for keras.metrics.metrics
-        if obj is None and registered_name is not None:
-            obj = vars(mod).get(registered_name, None)
-
-        if obj is not None:
-            return obj
+        if module == "keras.src" or module.startswith("keras.src."):
+            try:
+                mod = importlib.import_module(module)
+                obj = vars(mod).get(name, None)
+                if obj is not None:
+                    return obj
+            except ModuleNotFoundError:
+                raise TypeError(
+                    f"Could not deserialize {obj_type} '{name}' because "
+                    f"its parent module {module} cannot be imported. "
+                    f"Full object config: {full_config}"
+                )
 
     raise TypeError(
         f"Could not locate {obj_type} '{name}'. "
