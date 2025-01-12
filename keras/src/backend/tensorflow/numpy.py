@@ -25,15 +25,45 @@ from keras.src.backend.tensorflow.core import shape as shape_op
 
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the specified plane."""
-    if array.ndim < 2:
+    array = convert_to_tensor(array)
+    
+    if array.shape.rank < 2:
         raise ValueError(
-            f"Input array must have at least 2 dimensions. Received: array.ndim={array.ndim}"
+            f"Input array must have at least 2 dimensions. Received: array.ndim={array.shape.rank}"
         )
+    
     if len(axes) != 2 or axes[0] == axes[1]:
         raise ValueError(
             f"Invalid axes: {axes}. Axes must be a tuple of two different dimensions."
         )
-    return tf.experimental.numpy.rot90(array, k=k, axes=axes)
+    
+    k = k % 4
+    if k == 0:
+        return array
+    
+    axes = tuple(axis if axis >= 0 else array.shape.rank + axis for axis in axes)
+    
+    perm = [i for i in range(array.shape.rank) if i not in axes]
+    perm.extend(axes)
+    array = tf.transpose(array, perm)
+    
+    shape = tf.shape(array)
+    non_rot_shape = shape[:-2]
+    rot_shape = shape[-2:]
+    
+    array = tf.reshape(array, tf.concat([[-1], rot_shape], axis=0))
+    
+    for _ in range(k):
+        array = tf.transpose(array, [0, 2, 1])
+        array = tf.reverse(array, axis=[1])
+    array = tf.reshape(array, tf.concat([non_rot_shape, rot_shape], axis=0))
+    
+    inv_perm = [0] * len(perm)
+    for i, p in enumerate(perm):
+        inv_perm[p] = i
+    array = tf.transpose(array, inv_perm)
+    
+    return array
 
 
 @sparse.elementwise_binary_union(tf.sparse.add)

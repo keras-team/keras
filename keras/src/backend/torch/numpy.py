@@ -36,10 +36,8 @@ def rot90(array, k=1, axes=(0, 1)):
     Returns:
         Rotated tensor
     """
-    if not isinstance(array, (np.ndarray, torch.Tensor)):
-        array = np.asarray(array)
-    if isinstance(array, np.ndarray):
-        array = torch.from_numpy(array)
+    array = convert_to_tensor(array)
+    
     if array.ndim < 2:
         raise ValueError(
             f"Input array must have at least 2 dimensions. Received: array.ndim={array.ndim}"
@@ -50,7 +48,7 @@ def rot90(array, k=1, axes=(0, 1)):
         )
     
     axes = tuple(axis if axis >= 0 else array.ndim + axis for axis in axes)
-    # fix: all() method conflict, explicitly use builtins.all()
+
     if not builtins.all(0 <= axis < array.ndim for axis in axes):
         raise ValueError(f"Invalid axes {axes} for tensor with {array.ndim} dimensions")
     
