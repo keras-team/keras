@@ -19,6 +19,7 @@ from keras.src.ops.function import _build_map
 from keras.src.ops.function import make_node_key
 from keras.src.ops.node import KerasHistory
 from keras.src.ops.node import Node
+from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
 
@@ -522,6 +523,11 @@ def functional_from_config(cls, config, custom_objects=None):
         else:
             layer = serialization_lib.deserialize_keras_object(
                 layer_data, custom_objects=custom_objects
+            )
+        if not isinstance(layer, Operation):
+            raise ValueError(
+                "Unexpected object from deserialization, expected a layer or "
+                f"operation, got a {type(layer)}"
             )
         created_layers[layer_name] = layer
 
