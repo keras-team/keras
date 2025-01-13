@@ -12,6 +12,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
+from keras.src.backend.common.remat_scope import RematScope
 
 
 class LayerTest(testing.TestCase):
@@ -164,6 +165,23 @@ class LayerTest(testing.TestCase):
                 getattr(layer, method)(**args)
             else:
                 getattr(layer, method)(args)
+
+    def test_layer_with_remat(self):
+        # Create some layer
+        class SomeLayer(layers.Layer):
+            def call(self, x):
+                return x + 1
+
+        input_tensor = backend.random.uniform((2, 4))
+        layer = SomeLayer()
+        # Case 1: Without rematerialization
+        output_no_remat = layer(input_tensor)
+
+        # Case 2: With rematerialization
+        with RematScope(mode="full"):
+            output_with_remat = layer(input_tensor)
+
+        self.assertAllClose(output_no_remat, output_with_remat)
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
