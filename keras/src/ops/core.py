@@ -1180,9 +1180,48 @@ class Remat(Operation):
 
 
 @keras_export("keras.ops.remat")
-def remat(f, *args, mode=None, output_size=None, layer_names=None, **kwargs):
-    """
-    Applies rematerialization to a function or layer for memory optimization.
+def remat(f, *args, **kwargs):
+    """Applies rematerialization to a function or layer for memory optimization.
+
+    Rematerialization is a memory optimization technique that trades off
+    computation for memory. Instead of storing intermediate results
+    (activations) for backpropagation, they are recomputed during the backward
+    pass. This reduces peak memory usage at the cost of increased computation
+    time, allowing the training of larger models or using larger batch sizes
+    within the same memory constraints.
+
+    Args:
+        f: The function, operation, or layer to which rematerialization is
+           applied. This is typically a computationally expensive operation
+           where intermediate states can be recomputed instead of stored.
+        *args: Positional arguments to be passed to the function `f`.
+        **kwargs: Keyword arguments to be passed to the function `f`.
+
+    Returns:
+        A wrapped function or layer that applies rematerialization. The returned
+        function defines a custom gradient, ensuring that during the backward
+        pass, the forward computation is recomputed as needed.
+
+    Example:
+        ```python
+        from keras import layers, models, ops
+
+        def intermediate_function(x):
+            for _ in range(2):
+                x = x + x * 0.1
+            return x
+
+        # Apply rematerialization
+        rematerialized_function = ops.remat(intermediate_function)
+
+        # Use the rematerialized function in a model
+        inputs = layers.Input(shape=(4,))
+        x = layers.Dense(4)(inputs)
+        x = layers.Lambda(rematerialized_function)(x)
+        outputs = layers.Dense(1)(x)
+        model = models.Model(inputs=inputs, outputs=outputs)
+        model.compile(optimizer="sgd", loss="mse")
+        ```
     """
     if any_symbolic_tensors(args) or any_symbolic_tensors(kwargs.values()):
         return Remat().symbolic_call(f, *args, **kwargs)

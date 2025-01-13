@@ -659,11 +659,13 @@ def random_seed_dtype():
 
 
 def remat(func, *args, **kwargs):
-    """
-    Implementation of rematerialization.
+    """Implementation of rematerialization.
 
     Args:
         func: The function or operation to rematerialize.
+    Returns:
+        A function wrapping func that defines a custom gradient, which
+        recomputes f on the backwards pass of a gradient call.
     """
     return torch.utils.checkpoint.checkpoint(func)(*args, **kwargs)
 
