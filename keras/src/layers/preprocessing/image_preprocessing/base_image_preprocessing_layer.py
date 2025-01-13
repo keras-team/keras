@@ -5,20 +5,15 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validatio
     densify_bounding_boxes,
 )
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
-import tensorflow as tf
+
 
 class BaseImagePreprocessingLayer(TFDataLayer):
     _USE_BASE_FACTOR = True
     _FACTOR_BOUNDS = (-1, 1)
 
     def __init__(
-        self, factor=None, bounding_box_format=None, data_format=None, seed=None, **kwargs
+        self, factor=None, bounding_box_format=None, data_format=None, **kwargs
     ):
-        if seed is None:
-            self.random_generator = tf.random.Generator.from_non_deterministic_state()
-        else:
-            self.random_generator = tf.random.Generator.from_seed(seed)
-        self.seed = seed
         super().__init__(**kwargs)
         self.bounding_box_format = bounding_box_format
         self.data_format = backend_config.standardize_data_format(data_format)
