@@ -24,9 +24,9 @@ class NumPyTestRot90(testing.TestCase):
         array = np.array([[1, 2], [3, 4]])
         rotated = knp.rot90(array)
         expected = np.array([[2, 4], [1, 3]])
-        assert np.array_equal(
-            rotated, expected
-        ), f"Failed basic 2D test: {rotated}"
+        assert np.array_equal(rotated, expected), (
+            f"Failed basic 2D test: {rotated}"
+        )
 
     def test_multiple_k(self):
         array = np.array([[1, 2], [3, 4]])
@@ -50,9 +50,9 @@ class NumPyTestRot90(testing.TestCase):
         array = np.arange(8).reshape((2, 2, 2))
         rotated = knp.rot90(array, k=1, axes=(1, 2))
         expected = np.array([[[1, 3], [0, 2]], [[5, 7], [4, 6]]])
-        assert np.array_equal(
-            rotated, expected
-        ), f"Failed custom axes test: {rotated}"
+        assert np.array_equal(rotated, expected), (
+            f"Failed custom axes test: {rotated}"
+        )
 
     def test_single_image(self):
         array = np.random.random((4, 4, 3))
@@ -83,9 +83,9 @@ class NumPyTestRot90(testing.TestCase):
         try:
             knp.rot90(array)
         except ValueError as e:
-            assert "Input array must have at least 2 dimensions." in str(
-                e
-            ), f"Failed invalid rank test: {e}"
+            assert "Input array must have at least 2 dimensions." in str(e), (
+                f"Failed invalid rank test: {e}"
+            )
         else:
             raise AssertionError("Failed to raise error for invalid input")
 
