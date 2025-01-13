@@ -24,9 +24,7 @@ class NumPyTestRot90(testing.TestCase):
         array = np.array([[1, 2], [3, 4]])
         rotated = knp.rot90(array)
         expected = np.array([[2, 4], [1, 3]])
-        assert np.array_equal(rotated, expected), (
-            f"Failed basic 2D test: {rotated}"
-        )
+        self.assertAllClose(rotated, expected)
 
     def test_multiple_k(self):
         array = np.array([[1, 2], [3, 4]])
@@ -34,60 +32,47 @@ class NumPyTestRot90(testing.TestCase):
         # k=2 (180 degrees rotation)
         rotated = knp.rot90(array, k=2)
         expected = np.array([[4, 3], [2, 1]])
-        assert np.array_equal(rotated, expected), f"Failed k=2 test: {rotated}"
+        self.assertAllClose(rotated, expected)
 
         # k=3 (270 degrees rotation)
         rotated = knp.rot90(array, k=3)
         expected = np.array([[3, 1], [4, 2]])
-        assert np.array_equal(rotated, expected), f"Failed k=3 test: {rotated}"
+        self.assertAllClose(rotated, expected)
 
         # k=4 (full rotation)
         rotated = knp.rot90(array, k=4)
         expected = array
-        assert np.array_equal(rotated, expected), f"Failed k=4 test: {rotated}"
+        self.assertAllClose(rotated, expected)
 
     def test_axes(self):
         array = np.arange(8).reshape((2, 2, 2))
         rotated = knp.rot90(array, k=1, axes=(1, 2))
         expected = np.array([[[1, 3], [0, 2]], [[5, 7], [4, 6]]])
-        assert np.array_equal(rotated, expected), (
-            f"Failed custom axes test: {rotated}"
-        )
+        self.assertAllClose(rotated, expected)
 
     def test_single_image(self):
         array = np.random.random((4, 4, 3))
         rotated = knp.rot90(array, k=1, axes=(0, 1))
         expected = np.rot90(array, k=1, axes=(0, 1))
-        assert np.allclose(rotated, expected), "Failed single image test"
+        self.assertAllClose(rotated, expected)
 
     def test_batch_images(self):
         array = np.random.random((2, 4, 4, 3))
         rotated = knp.rot90(array, k=1, axes=(1, 2))
         expected = np.rot90(array, k=1, axes=(1, 2))
-        assert np.allclose(rotated, expected), "Failed batch images test"
+        self.assertAllClose(rotated, expected)
 
     def test_invalid_axes(self):
         array = np.array([[1, 2], [3, 4]])
-        try:
+        with self.assertRaisesRegex(ValueError, "Invalid axes"):
             knp.rot90(array, axes=(0, 0))
-        except ValueError as e:
-            assert (
-                "Invalid axes: (0, 0). Axes must be a tuple of two different"
-                in str(e)
-            ), f"Failed invalid axes test: {e}"
-        else:
-            raise AssertionError("Failed to raise error for invalid axes")
 
     def test_invalid_rank(self):
         array = np.array([1, 2, 3])  # 1D array
-        try:
+        with self.assertRaisesRegex(
+            ValueError, "Input array must have at least 2 dimensions"
+        ):
             knp.rot90(array)
-        except ValueError as e:
-            assert "Input array must have at least 2 dimensions." in str(e), (
-                f"Failed invalid rank test: {e}"
-            )
-        else:
-            raise AssertionError("Failed to raise error for invalid input")
 
 
 class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
