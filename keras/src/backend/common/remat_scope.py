@@ -104,13 +104,24 @@ class RematScope:
 
 
 def get_current_remat_mode():
-    """Get the current rematerialization mode.
+    """Get the current rematerialization mode and associated settings.
 
     Returns:
-        Keras rematerialization mode.
+        dict: A dictionary containing the rematerialization mode and other
+            settings.
+            Example:
+                {
+                    "mode": "list_of_layers",
+                    "output_size_threshold": 1024,
+                    "layer_names": ["dense_1", "conv2d_1"]
+                }
     """
     remat_scope_stack = global_state.get_global_attribute("remat_scope_stack")
     if remat_scope_stack is None or not remat_scope_stack:
         return None
     active_scope = remat_scope_stack[-1]
-    return active_scope.mode
+    return {
+        "mode": active_scope.mode,
+        "output_size_threshold": active_scope.output_size_threshold,
+        "layer_names": active_scope.layer_names,
+    }
