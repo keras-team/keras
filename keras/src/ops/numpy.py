@@ -34,10 +34,14 @@ class Rot90(Operation):
             )
         if len(self.axes) != 2 or self.axes[0] == self.axes[1]:
             raise ValueError(
-                f"Invalid axes: {self.axes}. Axes must be a tuple of two different dimensions."
+                f"Invalid axes: {self.axes}. "
+                "Axes must be a tuple of two different dimensions."
             )
         axis1, axis2 = self.axes
-        array_shape[axis1], array_shape[axis2] = array_shape[axis2], array_shape[axis1]
+        array_shape[axis1], array_shape[axis2] = (
+            array_shape[axis2],
+            array_shape[axis1],
+        )
         return KerasTensor(shape=array_shape, dtype=array.dtype)
 
 
@@ -45,13 +49,15 @@ class Rot90(Operation):
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the plane specified by axes.
 
-    This function rotates an array counterclockwise by 90 degrees `k` times
-    in the plane specified by `axes`. Supports arrays of two or more dimensions.
+    This function rotates an array counterclockwise
+    by 90 degrees `k` times in the plane specified by `axes`.
+    Supports arrays of two or more dimensions.
 
     Args:
         array: Input array to rotate.
         k: Number of times the array is rotated by 90 degrees.
-        axes: A tuple of two integers specifying the plane for rotation.
+        axes: A tuple of two integers specifying the
+            plane of rotation (defaults to `(0, 1)`).
 
     Returns:
         Rotated array.
