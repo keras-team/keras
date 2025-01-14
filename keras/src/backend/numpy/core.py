@@ -15,6 +15,7 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
@@ -33,9 +34,11 @@ class Variable(KerasVariable):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with numpy backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with numpy backend")
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):

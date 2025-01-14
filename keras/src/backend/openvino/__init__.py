@@ -7,6 +7,7 @@ from keras.src.backend.openvino import nn
 from keras.src.backend.openvino import numpy
 from keras.src.backend.openvino import random
 from keras.src.backend.openvino.core import IS_THREAD_SAFE
+from keras.src.backend.openvino.core import SUPPORTS_RAGGED_TENSORS
 from keras.src.backend.openvino.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.openvino.core import Variable
 from keras.src.backend.openvino.core import cast

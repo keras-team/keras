@@ -19,6 +19,7 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
 
 SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 OPENVINO_DTYPES = {
@@ -367,9 +368,11 @@ def _get_first_element(x):
     return None
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with openvino backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with openvino backend")
     if isinstance(x, OpenVINOKerasTensor):
         return x
     elif isinstance(x, np.ndarray):
