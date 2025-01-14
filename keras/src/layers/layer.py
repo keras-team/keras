@@ -39,6 +39,7 @@ from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.core import remat
+from keras.src.ops.numpy import prod
 from keras.src.ops.operation import Operation
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -60,26 +61,6 @@ else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."
     )
-
-
-def remat_wrapper(layer_call):
-    """Wrap the layer's call method to enable rematerialization dynamically.
-
-    Args:
-        layer_call: The original `call` method of a layer.
-
-    Returns:
-        callable: The wrapped method with rematerialization logic applied.
-    """
-
-    def wrapped_call(*args, **kwargs):
-        remat_mode = get_current_remat_mode()
-        if remat_mode["mode"] == "full":
-            return remat(layer_call)(*args, **kwargs)
-        # TODO: implement other modes
-        return layer_call(*args, **kwargs)
-
-    return wrapped_call
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
@@ -1062,7 +1043,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             if self.dtype_policy.quantization_mode is not None:
                 outputs = self.quantized_call(*args, **kwargs)
             else:
-                outputs = remat_wrapper(self.call)(*args, **kwargs)
+                outputs = self.remat_wrapper(self.call)(*args, **kwargs)
             if return_losses:
                 losses = self.losses
 
@@ -1582,6 +1563,87 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         if self._parent_path is None:
             self._parent_path = current_path()
         return backend.name_scope(self.name, caller=self)
+
+    def remat_wrapper(self, layer_call):
+        """Wrap the layer's call method to enable rematerialization dynamically.
+
+        Args:
+            layer_call: The original `call` method of a layer.
+
+        Returns:
+            callable: The wrapped method with rematerialization logic applied.
+        """
+
+        def calculate_output_size(spec):
+            """Calculate the total output size from the output spec.
+
+            Args:
+                spec: The output spec returned by compute_output_spec.
+
+            Returns:
+                int: The total size of the output or None if dimensions are
+                unknown.
+            """
+            if isinstance(spec, KerasTensor):
+                shape = spec.shape
+                if None in shape:
+                    return None
+                return int(prod(shape))  # Using Keras ops to compute size
+
+            elif isinstance(spec, (list, tuple)):
+                total_size = 0
+                for s in spec:
+                    size = calculate_output_size(s)
+                    if size is None:
+                        return (
+                            None  # If any size is indeterminate, return None.
+                        )
+                    total_size += size
+                return total_size
+
+            elif isinstance(spec, dict):
+                total_size = 0
+                for k, v in spec.items():
+                    size = calculate_output_size(v)
+                    if size is None:
+                        return (
+                            None  # If any size is indeterminate, return None.
+                        )
+                    total_size += size
+                return total_size
+
+            return None
+
+        def wrapped_call(*args, **kwargs):
+            remat_mode = get_current_remat_mode()
+
+            if remat_mode:
+                # Full rematerialization
+                if remat_mode["mode"] == "full":
+                    return remat(layer_call)(*args, **kwargs)
+
+                # Apply rematerialization to specific layers
+                if remat_mode["mode"] == "list_of_layers" and (
+                    self.name in remat_mode["layer_names"]
+                ):
+                    return remat(layer_call)(*args, **kwargs)
+
+                # Apply rematerialization based on output size threshold
+                if remat_mode["mode"] == "larger_than":
+                    output_spec = self.compute_output_spec(*args, **kwargs)
+                    output_size = calculate_output_size(output_spec)
+                    if (
+                        output_size
+                        and output_size > remat_mode["output_size_threshold"]
+                    ):
+                        return remat(layer_call)(*args, **kwargs)
+
+            # TODO: Add activation layer mode or other modes here
+
+            # Default behavior: no rematerialization
+            return layer_call(*args, **kwargs)
+
+        return wrapped_call
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):

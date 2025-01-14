@@ -183,6 +183,44 @@ class LayerTest(testing.TestCase):
 
         self.assertAllClose(output_no_remat, output_with_remat)
 
+    def test_remat_wrapper_list_of_layers(self):
+        class TestLayer(layers.Layer):
+            def call(self, x):
+                return x + 1
+
+        class OtherLayer(layers.Layer):
+            def call(self, x):
+                return x * 2
+
+        remat_layers = ["test_layer"]
+        input_tensor = backend.random.uniform((4, 4))
+
+        test_layer = TestLayer(name="test_layer")
+        other_layer = OtherLayer(name="other_layer")
+
+        with RematScope(mode="list_of_layers", layer_names=remat_layers):
+            output_test = test_layer(input_tensor)
+            output_other = other_layer(input_tensor)
+
+        self.assertAllClose(output_test, input_tensor + 1)
+        self.assertAllClose(output_other, input_tensor * 2)
+
+    def test_remat_wrapper_larger_than_mode(self):
+        class TestLayer(layers.Layer):
+            def compute_output_shape(self, input_shape):
+                return input_shape
+
+            def call(self, x):
+                return x + 1
+
+        layer = TestLayer()
+        input_tensor = backend.random.uniform((100, 100))  # Large tensor
+
+        with RematScope(mode="larger_than", output_size_threshold=5000):
+            output = layer(input_tensor)
+
+        self.assertAllClose(output, input_tensor + 1)
+
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
             def __init__(self):
