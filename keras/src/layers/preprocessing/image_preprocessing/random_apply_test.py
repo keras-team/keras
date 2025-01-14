@@ -15,7 +15,6 @@
 import pytest
 from absl.testing import parameterized
 
-import keras.src.backend as K
 import keras.src.random as random
 from keras.src import layers
 from keras.src import ops
@@ -74,14 +73,6 @@ class RandomApplyTest(TestCase):
         self.assertLess(num_zero_outputs, batch_size)
         self.assertGreater(num_zero_outputs, 0)
 
-    # TODO: find the root cause of the error
-    @pytest.mark.skipif(
-        K.backend() == "jax",
-        reason="""
-        jax.errors.UnexpectedTracerError:
-        Encountered an unexpected tracer
-        """,
-    )
     def test_works_with_batchwise_layers(self):
         batch_size = 32
         dummy_inputs = random.uniform(shape=(batch_size, 224, 224, 3))

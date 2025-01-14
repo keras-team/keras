@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 
-import keras.src.backend as K
 import keras.src.random as random
 from keras.src import layers
 from keras.src import ops
@@ -88,13 +86,6 @@ class RandomChoiceTest(TestCase):
         self.assertAllClose(xs + 1, os)
         ops.all(ops.equal(layer.call_counter, 1))
 
-    # TODO: find the root cause of the error
-    @pytest.mark.skipif(
-        K.backend() == "jax",
-        reason=(
-            "jax.errors.UnexpectedTracerError: Encountered an unexpected tracer"
-        ),
-    )
     def test_works_with_random_flip(self):
         pipeline = layers.RandomChoice(
             layers=[

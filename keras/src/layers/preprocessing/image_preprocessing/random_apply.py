@@ -175,6 +175,13 @@ class RandomApply(BaseImagePreprocessingLayer):
         should_augment = random_value < self._rate
 
         def apply_layer():
+            if hasattr(self._layer, "get_random_transformation"):
+                transformation = self._layer.get_random_transformation(
+                    inputs, training=True, seed=seed
+                )
+                return self._layer.transform_images(
+                    inputs, transformation, training=True
+                )
             return self._layer(inputs)
 
         def return_inputs():
@@ -184,7 +191,17 @@ class RandomApply(BaseImagePreprocessingLayer):
 
     def _augment_batch(self, inputs, seed=None):
         should_augment = self._get_should_augment(inputs, seed=seed)
-        augmented = self._layer(inputs)
+
+        if hasattr(self._layer, "get_random_transformation"):
+            transformation = self._layer.get_random_transformation(
+                inputs, training=True, seed=seed
+            )
+            augmented = self._layer.transform_images(
+                inputs, transformation, training=True
+            )
+        else:
+            augmented = self._layer(inputs)
+
         return ops.where(should_augment, augmented, inputs)
 
     def call(self, inputs):

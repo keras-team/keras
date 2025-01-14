@@ -115,32 +115,33 @@ class RandomChoice(BaseImagePreprocessingLayer):
             self.seed_generator = random.SeedGenerator(seed)
 
     def _augment(self, inputs, seed=None):
-        if K.backend() == "jax":
-            selected_op = ops.floor(
-                random.uniform(
-                    shape=(),
-                    minval=0,
-                    maxval=len(self.layers),
-                    dtype="float32",
-                    seed=seed,
-                )
+        selected_op = ops.floor(
+            random.uniform(
+                shape=(),
+                minval=0,
+                maxval=len(self.layers),
+                dtype="float32",
+                seed=seed,
             )
-        else:
-            selected_op = ops.floor(
-                random.uniform(
-                    shape=(),
-                    minval=0,
-                    maxval=len(self.layers),
-                    dtype="float32",
-                    seed=self.seed,
-                )
-            )
+        )
+
         output = inputs
         for i, layer in enumerate(self.layers):
             condition = ops.equal(selected_op, float(i))
-            output = ops.cond(
-                condition, lambda l=layer: l(inputs), lambda: output
-            )
+            if hasattr(layer, "get_random_transformation"):
+                output = ops.cond(
+                    condition,
+                    lambda l=layer: l.transform_images(
+                        inputs,
+                        l.get_random_transformation(inputs, seed=seed),
+                        training=True,
+                    ),
+                    lambda: output,
+                )
+            else:
+                output = ops.cond(
+                    condition, lambda l=layer: l(inputs), lambda: output
+                )
         return output
 
     def call(self, inputs):
@@ -159,7 +160,7 @@ class RandomChoice(BaseImagePreprocessingLayer):
         if K.backend() == "jax":
             seed = self.seed_generator.next()
         else:
-            seed = None
+            seed = self.seed
 
         def augment_single():
             return self._augment(inputs, seed=seed)
