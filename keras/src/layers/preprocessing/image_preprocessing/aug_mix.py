@@ -1,9 +1,12 @@
+import random
+
 import keras.src.layers as layers
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
 from keras.src.random import SeedGenerator
+from keras.src.utils import backend_utils
 
 AUGMENT_LAYERS_ALL = [
     "random_shear",
@@ -83,13 +86,14 @@ class AugMix(BaseImagePreprocessingLayer):
         self.value_range = value_range
         self.num_chains = num_chains
         self.chain_depth = chain_depth
-        self.alpha = alpha
         self._set_factor(factor)
+        self.alpha = alpha
+        self.all_ops = all_ops
         self.interpolation = interpolation
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
-        if all_ops:
+        if self.all_ops:
             self._augment_layers = AUGMENT_LAYERS_ALL
         else:
             self._augment_layers = AUGMENT_LAYERS
@@ -145,7 +149,7 @@ class AugMix(BaseImagePreprocessingLayer):
             value_range=self.value_range, data_format=data_format, **kwargs
         )
 
-        if all_ops:
+        if self.all_ops:
             self.random_brightness = layers.RandomBrightness(
                 factor=self.factor,
                 value_range=self.value_range,
@@ -187,7 +191,7 @@ class AugMix(BaseImagePreprocessingLayer):
         gamma_sample = self.backend.random.gamma(
             shape=shape,
             alpha=alpha,
-            seed=self.seed,
+            seed=self._get_seed_generator(self.backend._backend),
         )
         return gamma_sample / self.backend.numpy.sum(
             gamma_sample, axis=-1, keepdims=True
@@ -197,38 +201,51 @@ class AugMix(BaseImagePreprocessingLayer):
         if not training:
             return None
 
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
+
+            for layer_name in self._augment_layers:
+                augmentation_layer = getattr(self, layer_name)
+                augmentation_layer.backend.set_backend("tensorflow")
+
         chain_mixing_weights = self._sample_from_dirichlet(
-            [self.chain_depth], self.alpha
+            [self.num_chains], self.alpha
         )
         weight_sample = self.backend.random.beta(
-            shape=(), alpha=self.alpha, beta=self.alpha, seed=self.seed
+            shape=(),
+            alpha=self.alpha,
+            beta=self.alpha,
+            seed=self._get_seed_generator(self.backend._backend),
         )
 
-        layer_indices = self.backend.random.randint(
-            (
-                self.num_chains,
-                self.chain_depth,
-            ),
-            -1,
-            len(self._augment_layers),
-        )
+        chain_transforms = []
+        for _ in range(self.num_chains):
+            depth_transforms = []
+            for _ in range(self.chain_depth):
+                layer_name = random.choice(self._augment_layers + [None])
+                if layer_name is None:
+                    continue
+                augmentation_layer = getattr(self, layer_name)
+                depth_transforms.append(
+                    {
+                        "layer_name": layer_name,
+                        "transformation": (
+                            augmentation_layer.get_random_transformation(
+                                data,
+                                seed=self._get_seed_generator(
+                                    self.backend._backend
+                                ),
+                            )
+                        ),
+                    }
+                )
+            chain_transforms.append(depth_transforms)
 
         transformation = {
             "chain_mixing_weights": chain_mixing_weights,
             "weight_sample": weight_sample,
-            "layer_indices": layer_indices,
+            "chain_transforms": chain_transforms,
         }
-
-        for layer_idx in self.backend.numpy.ravel(layer_indices):
-            if layer_idx == -1:
-                continue
-            layer_name = self._augment_layers[layer_idx]
-            augmentation_layer = getattr(self, layer_name)
-            transformation[layer_name] = (
-                augmentation_layer.get_random_transformation(
-                    data, seed=self._get_seed_generator(self.backend._backend)
-                )
-            )
 
         return transformation
 
@@ -236,20 +253,24 @@ class AugMix(BaseImagePreprocessingLayer):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
 
-            chain_mixing_weights = transformation["chain_mixing_weights"]
-            weight_sample = transformation["weight_sample"]
-            layer_indices = transformation["layer_indices"]
+            chain_mixing_weights = self.backend.cast(
+                transformation["chain_mixing_weights"], dtype=self.compute_dtype
+            )
+            weight_sample = self.backend.cast(
+                transformation["weight_sample"], dtype=self.compute_dtype
+            )
+            chain_transforms = transformation["chain_transforms"]
 
             aug_images = self.backend.numpy.zeros_like(images)
-            for idx in range(self.num_chains):
+            for idx, chain_transform in enumerate(chain_transforms):
                 copied_images = self.backend.numpy.copy(images)
-                for layer_idx in layer_indices[idx]:
-                    if layer_idx == -1:
-                        continue
-                    layer_name = self._augment_layers[layer_idx]
+                for depth_transform in chain_transform:
+                    layer_name = depth_transform["layer_name"]
+                    layer_transform = depth_transform["transformation"]
+
                     augmentation_layer = getattr(self, layer_name)
                     copied_images = augmentation_layer.transform_images(
-                        copied_images, transformation[layer_name]
+                        copied_images, layer_transform
                     )
                 aug_images += copied_images * chain_mixing_weights[idx]
             images = weight_sample * images + (1 - weight_sample) * aug_images
