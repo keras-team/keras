@@ -1,3 +1,5 @@
+from absl.testing import parameterized
+
 from keras.src import backend
 from keras.src import ops
 from keras.src import quantizers
@@ -102,7 +104,217 @@ class QuantizersTest(testing.TestCase):
         # A loose assertion due to an expected quantization error
         self.assertAllClose(qdq_values, values, atol=5e-1)
 
-    def _TestOp(
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "wide_8bits_input_mins_0.0_input_maxs_255.0",
+                "narrow_range": False,
+                "input_mins": [0.0],
+                "input_maxs": [255.0],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [255.0],
+                "expected_steps": [1.0],
+            },
+            {
+                "testcase_name": "wide_8bits_input_mins_0.5_input_maxs_128.0",
+                "narrow_range": False,
+                "input_mins": [0.5],
+                "input_maxs": [128.0],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [127.5],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "wide_8bits_input_mins_-128.0_input_maxs_-0.5",
+                "narrow_range": False,
+                "input_mins": [-128.0],
+                "input_maxs": [-0.5],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [-127.5],
+                "expected_nudged_input_maxs": [0.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "wide_8bits_input_mins_-0.1_input_maxs_127.4",
+                "narrow_range": False,
+                "input_mins": [-0.1],
+                "input_maxs": [127.4],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [127.5],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "narrow_8bits_input_mins_0.0_input_maxs_254.0",
+                "narrow_range": True,
+                "input_mins": [0.0],
+                "input_maxs": [254.0],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [254.0],
+                "expected_steps": [1.0],
+            },
+            {
+                "testcase_name": "narrow_8bits_input_mins_0.1_input_maxs_127.1",
+                "narrow_range": True,
+                "input_mins": [0.1],
+                "input_maxs": [127.1],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [127.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": (
+                    "narrow_8bits_input_mins_-127.1_input_maxs_-0.1"
+                ),
+                "narrow_range": True,
+                "input_mins": [-127.1],
+                "input_maxs": [-0.1],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [-127.0],
+                "expected_nudged_input_maxs": [0.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": (
+                    "narrow_8bits_input_mins_-0.1_input_maxs_126.9"
+                ),
+                "narrow_range": True,
+                "input_mins": [-0.1],
+                "input_maxs": [126.9],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [127.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "wide_7bits_input_mins_0.0_input_maxs_127.0",
+                "narrow_range": False,
+                "input_mins": [0.0],
+                "input_maxs": [127.0],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [127.0],
+                "expected_steps": [1.0],
+            },
+            {
+                "testcase_name": "wide_7bits_input_mins_0.5_input_maxs_64.0",
+                "narrow_range": False,
+                "input_mins": [0.5],
+                "input_maxs": [64.0],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [63.5],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "wide_7bits_input_mins_-64.0_input_maxs_-0.5",
+                "narrow_range": False,
+                "input_mins": [-64.0],
+                "input_maxs": [-0.5],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [-63.5],
+                "expected_nudged_input_maxs": [0.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "wide_7bits_input_mins_-0.1_input_maxs_63.4",
+                "narrow_range": False,
+                "input_mins": [-0.1],
+                "input_maxs": [63.4],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [63.5],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "narrow_7bits_input_mins_0.0_input_maxs_126.0",
+                "narrow_range": True,
+                "input_mins": [0.0],
+                "input_maxs": [126.0],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [126.0],
+                "expected_steps": [1.0],
+            },
+            {
+                "testcase_name": "narrow_7bits_input_mins_0.1_input_maxs_63.1",
+                "narrow_range": True,
+                "input_mins": [0.1],
+                "input_maxs": [63.1],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [63.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": (
+                    "narrow_7bits_input_mins_-63.1_input_maxs_-0.1"
+                ),
+                "narrow_range": True,
+                "input_mins": [-63.1],
+                "input_maxs": [-0.1],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [-63.0],
+                "expected_nudged_input_maxs": [0.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "narrow_7bits_input_mins_-0.1_input_maxs_62.9",
+                "narrow_range": True,
+                "input_mins": [-0.1],
+                "input_maxs": [62.9],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [63.0],
+                "expected_steps": [0.5],
+            },
+            {
+                "testcase_name": "wide_8bits_multi_channel",
+                "narrow_range": False,
+                "input_mins": [0.0, 0.5, -128.0, -0.1],
+                "input_maxs": [255.0, 128.0, -0.5, 127.4],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0, 0.0, -127.5, 0.0],
+                "expected_nudged_input_maxs": [255.0, 127.5, 0.0, 127.5],
+                "expected_steps": [1.0, 0.5, 0.5, 0.5],
+            },
+            {
+                "testcase_name": "narrow_8bits_multi_channel",
+                "narrow_range": True,
+                "input_mins": [0.0, 0.1, -127.1, -0.1],
+                "input_maxs": [254.0, 127.1, -0.1, 126.9],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0, 0.0, -127.0, 0.0],
+                "expected_nudged_input_maxs": [254.0, 127.0, 0.0, 127.0],
+                "expected_steps": [1.0, 0.5, 0.5, 0.5],
+            },
+            {
+                "testcase_name": "wide_7bits_multi_channel",
+                "narrow_range": False,
+                "input_mins": [0.0, 0.5, -64.0, -0.1],
+                "input_maxs": [127.0, 64.0, -0.5, 63.4],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0, 0.0, -63.5, 0.0],
+                "expected_nudged_input_maxs": [127.0, 63.5, 0.0, 63.5],
+                "expected_steps": [1.0, 0.5, 0.5, 0.5],
+            },
+            {
+                "testcase_name": "narrow_7bits_multi_channel",
+                "narrow_range": True,
+                "input_mins": [0.0, 0.1, -63.1, -0.1],
+                "input_maxs": [126.0, 63.1, -0.1, 62.9],
+                "num_bits": 7,
+                "expected_nudged_input_mins": [0.0, 0.0, -63.0, 0.0],
+                "expected_nudged_input_maxs": [126.0, 63.0, 0.0, 63.0],
+                "expected_steps": [1.0, 0.5, 0.5, 0.5],
+            },
+        ]
+    )
+    def test_op(
         self,
         input_mins,
         input_maxs,
@@ -195,7 +407,7 @@ class QuantizersTest(testing.TestCase):
         if backend.backend() == "torch":
             import torch
 
-            def test_op(inputs, input_min, input_max, num_bits, narrow_range):
+            def test_op(inputs, input_mins, input_maxs, num_bits, narrow_range):
                 # Create tensor and enable gradient tracking
                 inputs = torch.tensor(
                     inputs, dtype=torch.float32, requires_grad=True
@@ -227,13 +439,11 @@ class QuantizersTest(testing.TestCase):
                         x, input_mins, input_maxs, num_bits, narrow_range
                     )
 
-                # Get the gradient function
-                grad_fn = jax.jit(jax.grad(lambda x: ops.sum(quantize_fn(x))))
+                _, f_vjp = jax.vjp(quantize_fn, inputs)
+                # NOTE:python 3.10 input_gradients = f_vjp.args[0].args[0][0] !
+                input_gradients = f_vjp.args[0].args[0][1]
 
-                # Compute gradients
-                input_gradients = grad_fn(inputs)
-
-                return initial_gradients * input_gradients
+                return ops.multiply(initial_gradients, input_gradients)
 
             gradients = test_op(
                 inputs, input_min, input_max, num_bits, narrow_range
@@ -248,230 +458,3 @@ class QuantizersTest(testing.TestCase):
             narrow_range=narrow_range,
         )
         self.assertAllClose(outputs, expected)
-
-    def test_fakeQuantWithMinMax_8BitsNoSclngNoNdgng(self):
-        self._TestOp(
-            [0.0],
-            [255.0],
-            8,
-            False,
-            [0.0],
-            [255.0],
-            [1.0],
-        )
-
-    def test_fakeQuantWithMinMax_8BitsSclngAndNdgngDown(self):
-        self._TestOp(
-            [0.5],
-            [128.0],
-            8,
-            False,
-            [0.0],
-            [127.5],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_8BitsSclngAndNdgngUp(self):
-        self._TestOp(
-            [-128.0],
-            [-0.5],
-            8,
-            False,
-            [-127.5],
-            [0.0],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_8BitsSclngAndNdgngBtwn(self):
-        self._TestOp(
-            [-0.1],
-            [127.4],
-            8,
-            False,
-            [0.0],
-            [127.5],
-            [0.5],
-        )
-
-    # 8 bits, narrow range.
-    def test_fakeQuantWithMinMax_8BitsNrrwRangeNoSclngNoNdgng(self):
-        self._TestOp(
-            [0.0],
-            [254.0],
-            8,
-            True,
-            [0.0],
-            [254.0],
-            [1.0],
-        )
-
-    def test_fakeQuantWithMinMax_8BitsNrrwRangeSclngAndNdgngDown(self):
-        self._TestOp(
-            [0.1],
-            [127.1],
-            8,
-            True,
-            [0.0],
-            [127.0],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_8BitsNrrwRangeSclngAndNdgngUp(self):
-        self._TestOp(
-            [-127.1],
-            [-0.1],
-            8,
-            True,
-            [-127.0],
-            [0.0],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_8BitsNrrwRangeSclngAndNdgngBtwn(self):
-        self._TestOp(
-            [-0.1],
-            [126.9],
-            8,
-            True,
-            [0.0],
-            [127.0],
-            [0.5],
-        )
-
-    # 7 bits, wide range.
-    def test_fakeQuantWithMinMax_7BitsNoSclngNoNdgng(self):
-        self._TestOp(
-            [0.0],
-            [127.0],
-            7,
-            False,
-            [0.0],
-            [127.0],
-            [1.0],
-        )
-
-    def test_fakeQuantWithMinMax_7BitsSclngAndNdgngDown(self):
-        self._TestOp(
-            [0.5],
-            [64.0],
-            7,
-            False,
-            [0.0],
-            [63.5],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_7BitsSclngAndNdgngUp(self):
-        self._TestOp(
-            [-64.0],
-            [-0.5],
-            7,
-            False,
-            [-63.5],
-            [0.0],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_7BitsSclngAndNdgngBtwn(self):
-        self._TestOp(
-            [-0.1],
-            [63.4],
-            7,
-            False,
-            [0.0],
-            [63.5],
-            [0.5],
-        )
-
-    # 7 bits, narrow range.
-    def test_fakeQuantWithMinMax_7BitsNrrwRangeNoSclngNoNdgng(self):
-        self._TestOp(
-            [0.0],
-            [126.0],
-            7,
-            True,
-            [0.0],
-            [126.0],
-            [1.0],
-        )
-
-    def test_fakeQuantWithMinMax_7BitsNrrwRangeSclngAndNdgngDown(self):
-        self._TestOp(
-            [0.1],
-            [63.1],
-            7,
-            True,
-            [0.0],
-            [63.0],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_7BitsNrrwRangeSclngAndNdgngUp(self):
-        self._TestOp(
-            [-63.1],
-            [-0.1],
-            7,
-            True,
-            [-63.0],
-            [0.0],
-            [0.5],
-        )
-
-    def test_fakeQuantWithMinMax_7BitsNrrwRangeSclngAndNdgngBtwn(self):
-        self._TestOp(
-            [-0.1],
-            [62.9],
-            7,
-            True,
-            [0.0],
-            [63.0],
-            [0.5],
-        )
-
-    # 8 bits, wide range.
-    def test_fakeQuantWithMinMax_8Bits(self):
-        self._TestOp(
-            [0.0, 0.5, -128.0, -0.1],
-            [255.0, 128.0, -0.5, 127.4],
-            8,
-            False,
-            [0.0, 0.0, -127.5, 0.0],
-            [255.0, 127.5, 0.0, 127.5],
-            [1.0, 0.5, 0.5, 0.5],
-        )
-
-    # 8 bits, narrow range.
-    def test_fakeQuantWithMinMax_8BitsNarrowRange(self):
-        self._TestOp(
-            [0.0, 0.1, -127.1, -0.1],
-            [254.0, 127.1, -0.1, 126.9],
-            8,
-            True,
-            [0.0, 0.0, -127.0, 0.0],
-            [254.0, 127.0, 0.0, 127.0],
-            [1.0, 0.5, 0.5, 0.5],
-        )
-
-    # 7 bits, wide range.
-    def test_fakeQuantWithMinMax_7Bits(self):
-        self._TestOp(
-            [0.0, 0.5, -64.0, -0.1],
-            [127.0, 64.0, -0.5, 63.4],
-            7,
-            False,
-            [0.0, 0.0, -63.5, 0.0],
-            [127.0, 63.5, 0.0, 63.5],
-            [1.0, 0.5, 0.5, 0.5],
-        )
-
-    # 7 bits, narrow range.
-    def test_fakeQuantWithMinMax_7BitsNarrowRange(self):
-        self._TestOp(
-            [0.0, 0.1, -63.1, -0.1],
-            [126.0, 63.1, -0.1, 62.9],
-            7,
-            True,
-            [0.0, 0.0, -63.0, 0.0],
-            [126.0, 63.0, 0.0, 63.0],
-            [1.0, 0.5, 0.5, 0.5],
-        )
