@@ -1073,7 +1073,7 @@ class NpzIOStore:
                 self.f = archive.open(root_path, mode="r")
             else:
                 self.f = open(root_path, mode="rb")
-            self.contents = np.load(self.f, allow_pickle=True)
+            self.contents = np.load(self.f)
 
     def make(self, path, metadata=None):
         if not path:
