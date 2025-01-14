@@ -12,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from keras.src import ops
+import keras.src.backend as K
 import keras.src.random as random
+from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
-import keras.src.backend as K
 
 
 @keras_export("keras.layers.RandomChoice")
 class RandomChoice(BaseImagePreprocessingLayer):
-    """A preprocessing layer that randomly selects and applies one layer from a list of layers.
+    """A preprocessing layer that randomly selects and applies one layer from a
+    list of layers.
 
-    This layer is useful for creating randomized data augmentation pipelines. During training,
-    for each input (or batch of inputs), it randomly selects one layer from the provided list
-    and applies it to the input. This allows for diverse augmentations to be applied dynamically.
+    Useful for creating randomized data augmentation pipelines. During
+    training, for each input (or batch of inputs), it randomly selects one layer
+    from the provided list and applies it to the input. This allows for diverse
+    augmentations to be applied dynamically.
 
     **Example:**
     ```python
@@ -47,31 +49,33 @@ class RandomChoice(BaseImagePreprocessingLayer):
 
     **Args:**
         layers: A list of `keras.Layers` instances. Each layer should subclass
-            `BaseImagePreprocessingLayer`. During augmentation, one layer will be
+            `BaseImagePreprocessingLayer`. During augmentation, one layer is
             randomly selected and applied to the input.
-        auto_vectorize: Boolean, whether to use vectorized operations to apply the
-            augmentations. This can significantly improve performance but requires
-            that all layers in `layers` support vectorization. Defaults to `False`.
+        auto_vectorize: Boolean, whether to use vectorized operations to apply
+            augmentations. This can greatly improve performance but requires
+            that all layers in layers support vectorization. Defaults to False.
         batchwise: Boolean, whether to apply the same randomly selected layer to
-            the entire batch of inputs. When `True`, the entire batch is passed to
-            a single layer. When `False`, each input in the batch is processed by
-            an independently selected layer. Defaults to `False`.
-        seed: Integer, used to seed the random number generator for reproducibility.
+            the entire batch of inputs. When True, the entire batch is passed to
+            a single layer. When False, each input in the batch is processed by
+            an independently selected layer. Defaults to False.
+        seed: Integer to seed random number generator for reproducibility.
             Defaults to `None`.
 
     **Call Arguments:**
-        inputs: A single image tensor (rank 3), a batch of image tensors (rank 4),
-            or a dictionary of tensors. The input will be augmented by one randomly
+        inputs: Single image tensor (rank 3), batch of image tensors (rank 4),
+            or a dictionary of tensors. The input is augmented by one randomly
             selected layer from the `layers` list.
 
     **Returns:**
         Augmented inputs, with the same shape and structure as the input.
 
     **Notes:**
-        - When `batchwise=True`, the same layer is applied to all inputs in the batch.
-        - When `batchwise=False`, each input in the batch is processed by an independently
-          selected layer, which can lead to more diverse augmentations.
-        - All layers in the `layers` list must support the same input shape and dtype.
+        - When `batchwise=True`, the same layer is applied to all inputs in the
+        batch.
+        - When `batchwise=False`, each input in the batch is processed by an
+        independently selected layer, which can lead to diverse augmentations.
+        - All layers in the `layers` list must support the same input shape and
+        dtype.
 
     **Example with Batchwise Augmentation:**
     ```python
@@ -80,7 +84,7 @@ class RandomChoice(BaseImagePreprocessingLayer):
         keras_cv.layers.RandomRotation(factor=0.2),
     ]
     pipeline = keras_cv.layers.RandomChoice(layers=layers, batchwise=True)
-    augmented_images = pipeline(images)  # Same layer applied to the entire batch
+    augmented_images = pipeline(images)  # Same layer applied to entire batch
     ```
 
     **Example with Per-Image Augmentation:**
@@ -90,10 +94,10 @@ class RandomChoice(BaseImagePreprocessingLayer):
         keras_cv.layers.RandomRotation(factor=0.2),
     ]
     pipeline = keras_cv.layers.RandomChoice(layers=layers, batchwise=False)
-    augmented_images = pipeline(images)  # Each image processed by a random layer
+    augmented_images = pipeline(images)  # Each image processed by random layer
     ```
     """
-    
+
     def __init__(
         self,
         layers,
@@ -112,41 +116,44 @@ class RandomChoice(BaseImagePreprocessingLayer):
 
     def _augment(self, inputs, seed=None):
         if K.backend() == "jax":
-            selected_op = ops.floor(random.uniform(
-                shape=(),
-                minval=0,
-                maxval=len(self.layers),
-                dtype="float32",
-                seed=seed
-            ))
+            selected_op = ops.floor(
+                random.uniform(
+                    shape=(),
+                    minval=0,
+                    maxval=len(self.layers),
+                    dtype="float32",
+                    seed=seed,
+                )
+            )
         else:
-            selected_op = ops.floor(random.uniform(
-                shape=(),
-                minval=0,
-                maxval=len(self.layers),
-                dtype="float32",
-                seed=self.seed
-            ))
+            selected_op = ops.floor(
+                random.uniform(
+                    shape=(),
+                    minval=0,
+                    maxval=len(self.layers),
+                    dtype="float32",
+                    seed=self.seed,
+                )
+            )
         output = inputs
         for i, layer in enumerate(self.layers):
             condition = ops.equal(selected_op, float(i))
             output = ops.cond(
-                condition,
-                lambda l=layer: l(inputs),
-                lambda: output
+                condition, lambda l=layer: l(inputs), lambda: output
             )
         return output
 
     def call(self, inputs):
         if isinstance(inputs, dict):
-            return {key: self._call_single(input_tensor) for
-                    key, input_tensor in inputs.items()}
+            return {
+                key: self._call_single(input_tensor)
+                for key, input_tensor in inputs.items()
+            }
         else:
             return self._call_single(inputs)
 
     def _call_single(self, inputs):
         inputs_rank = len(inputs.shape)
-        is_single_sample = ops.equal(inputs_rank, 3)
         is_batch = ops.equal(inputs_rank, 4)
 
         if K.backend() == "jax":
@@ -183,22 +190,28 @@ class RandomChoice(BaseImagePreprocessingLayer):
             return labels
         return self.call(labels)
 
-    def transform_bounding_boxes(self, bboxes, transformation=None, training=True):
+    def transform_bounding_boxes(
+        self, bboxes, transformation=None, training=True
+    ):
         if not training:
             return bboxes
         return self.call(bboxes)
 
-    def transform_segmentation_masks(self, masks, transformation=None, training=True):
+    def transform_segmentation_masks(
+        self, masks, transformation=None, training=True
+    ):
         if not training:
             return masks
         return self.call(masks)
 
     def get_config(self):
         config = super().get_config()
-        config.update({
-            "layers": self.layers,
-            "auto_vectorize": self.auto_vectorize,
-            "batchwise": self.batchwise,
-            "seed": self.seed,
-        })
+        config.update(
+            {
+                "layers": self.layers,
+                "auto_vectorize": self.auto_vectorize,
+                "batchwise": self.batchwise,
+                "seed": self.seed,
+            }
+        )
         return config

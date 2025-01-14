@@ -12,23 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from keras.src import ops
+import keras.src.backend as K
 import keras.src.random as random
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
-import keras.src.backend as K
 
 
 @keras_export("keras.layers.RandomApply")
 class RandomApply(BaseImagePreprocessingLayer):
-    """A preprocessing layer that randomly applies a provided layer to elements in a batch.
+    """A preprocessing layer that randomly applies a provided layer to elements
+    in a batch.
 
-    This layer is useful for applying data augmentations or transformations with a specified
-    probability. During training, each input (or batch of inputs) has a chance to be transformed
-    by the provided layer, controlled by the `rate` parameter. This allows for stochastic
-    application of augmentations, which can improve model robustness.
+    This layer is useful for applying data augmentations or transformations
+    with a specified probability. During training, each input (or batch of
+    inputs) has to be transformed by the provided layer, controlled by the
+    `rate` parameter. This allows for stochastic application of augmentations
+    which can improve model robustness.
 
     **Example:**
     ```python
@@ -78,55 +80,57 @@ class RandomApply(BaseImagePreprocessingLayer):
     ```
 
     **Args:**
-        layer: A `keras.Layer` or `BaseImagePreprocessingLayer` instance. This layer will
-            be applied to randomly selected inputs in the batch. The layer should not
-            modify the shape of the input.
-        rate: A float between 0 and 1, controlling the probability of applying the layer.
+        layer: A `keras.Layer` or `BaseImagePreprocessingLayer` instance. This
+            will be applied to randomly selected inputs in the batch. The layer
+            should not modify the shape of the input.
+        rate: A float between 0 and 1, which is the probability of applying the
+            layer.
             - `1.0` means the layer is applied to all inputs.
             - `0.0` means the layer is never applied.
             Defaults to `0.5`.
-        batchwise: A boolean, indicating whether the decision to apply the layer should
-            be made for the entire batch at once (`True`) or for each input individually
-            (`False`). When `True`, the layer is either applied to the entire batch or
-            not at all. When `False`, the layer is applied independently to each input
-            in the batch. Defaults to `False`.
-        auto_vectorize: A boolean, indicating whether to use vectorized operations for
-            batched inputs. This can improve performance but may not work with XLA.
-            Defaults to `False`.
-        seed: An integer, used to seed the random number generator for reproducibility.
-            Defaults to `None`.
+        batchwise: A boolean, indicating whether the decision to apply the layer
+            should be made for the entire batch at once (True) or for each input
+            individually (False). When True, the layer is either applied to
+            entire batch or not at all. When False, the layer is applied
+            independently to each input in the batch. Defaults to False.
+        auto_vectorize: A boolean, for whether to use vectorized operations for
+            batched inputs. Can improve performance but may not work with XLA.
+            Defaults to False.
+        seed: An integer, used to seed the random number generator for
+            reproducibility. Defaults to None.
 
     **Call Arguments:**
-        inputs: A single input tensor (rank 3), a batch of input tensors (rank 4),
-            or a dictionary of tensors. The input will be transformed by the provided
+        inputs: Single input tensor (rank 3), a batch of input tensors (rank 4),
+            or a dictionary of tensors. Input will be transformed by provided
             layer with probability `rate`.
 
     **Returns:**
         Transformed inputs, with the same shape and structure as the input.
 
     **Notes:**
-        - When `batchwise=True`, the layer is applied to the entire batch or not at all,
-          based on a single random decision.
-        - When `batchwise=False`, the layer is applied independently to each input in
-          the batch, allowing for more fine-grained control.
-        - The provided `layer` should not modify the shape of the input, as this could
-          lead to inconsistencies in the output.
+        - When `batchwise=True`, layer is applied to the entire batch or not
+        at all, based on a single random decision.
+        - When `batchwise=False`, layer applied independently to each input in
+        the batch, allowing for more fine-grained control.
+        - The provided `layer` should not modify the shape of the input, as this
+        could lead to inconsistencies in the output.
 
     **Example with Batchwise Application:**
     ```python
     # Apply a layer to the entire batch with 50% probability
-    random_apply = RandomApply(layer=zero_out, rate=0.5, batchwise=True, seed=1234)
-    outputs = random_apply(images)  # Either all images are zeroed out or none are
+    random_apply = RandomApply(layer=zero_out, rate=0.5, batchwise=True)
+    outputs = random_apply(images)  # Either all images zeroed out or none are
     ```
 
     **Example with Per-Input Application:**
     ```python
     # Apply a layer to each input independently with 50% probability
-    random_apply = RandomApply(layer=zero_out, rate=0.5, batchwise=False, seed=1234)
-    outputs = random_apply(images)  # Each image is independently zeroed out or left unchanged
+    random_apply = RandomApply(layer=zero_out, rate=0.5, batchwise=False)
+    outputs = random_apply(images)  # Each image independently zeroed out or
+    # left unchanged
     ```
     """
-    
+
     def __init__(
         self,
         layer,
@@ -138,7 +142,9 @@ class RandomApply(BaseImagePreprocessingLayer):
     ):
         super().__init__(**kwargs)
         if not (0 <= rate <= 1.0):
-            raise ValueError(f"rate must be in range [0, 1]. Received rate: {rate}")
+            raise ValueError(
+                f"rate must be in range [0, 1]. Received rate: {rate}"
+            )
         self._layer = layer
         self._rate = rate
         self.auto_vectorize = auto_vectorize
@@ -150,30 +156,30 @@ class RandomApply(BaseImagePreprocessingLayer):
 
     def _get_should_augment(self, inputs, seed=None):
         input_shape = ops.shape(inputs)
-        
+
         if self.batchwise:
             return self._rate > random.uniform(shape=(), seed=seed)
-        
+
         batch_size = input_shape[0]
         random_values = random.uniform(shape=(batch_size,), seed=seed)
         should_augment = random_values < self._rate
-        
+
         ndims = len(inputs.shape)
         ones = [1] * (ndims - 1)
         broadcast_shape = tuple([batch_size] + ones)
-        
+
         return ops.reshape(should_augment, broadcast_shape)
 
     def _augment_single(self, inputs, seed=None):
         random_value = random.uniform(shape=(), seed=seed)
         should_augment = random_value < self._rate
-        
+
         def apply_layer():
             return self._layer(inputs)
-        
+
         def return_inputs():
             return inputs
-        
+
         return ops.cond(should_augment, apply_layer, return_inputs)
 
     def _augment_batch(self, inputs, seed=None):
@@ -183,8 +189,10 @@ class RandomApply(BaseImagePreprocessingLayer):
 
     def call(self, inputs):
         if isinstance(inputs, dict):
-            return {key: self._call_single(input_tensor) for
-                    key, input_tensor in inputs.items()}
+            return {
+                key: self._call_single(input_tensor)
+                for key, input_tensor in inputs.items()
+            }
         else:
             return self._call_single(inputs)
 
@@ -192,18 +200,18 @@ class RandomApply(BaseImagePreprocessingLayer):
         inputs_rank = len(inputs.shape)
         is_single_sample = ops.equal(inputs_rank, 3)
         is_batch = ops.equal(inputs_rank, 4)
-        
+
         if K.backend() == "jax":
             seed = self.seed_generator.next()
         else:
             seed = self.seed
-        
+
         def augment_single():
             return self._augment_single(inputs, seed=seed)
-        
+
         def augment_batch():
             return self._augment_batch(inputs, seed=seed)
-        
+
         condition = ops.logical_or(is_single_sample, is_batch)
         return ops.cond(ops.all(condition), augment_batch, augment_single)
 
@@ -226,23 +234,29 @@ class RandomApply(BaseImagePreprocessingLayer):
             return labels
         return self.call(labels)
 
-    def transform_bounding_boxes(self, bboxes, transformation=None, training=True):
+    def transform_bounding_boxes(
+        self, bboxes, transformation=None, training=True
+    ):
         if not training:
             return bboxes
         return self.call(bboxes)
 
-    def transform_segmentation_masks(self, masks, transformation=None, training=True):
+    def transform_segmentation_masks(
+        self, masks, transformation=None, training=True
+    ):
         if not training:
             return masks
         return self.call(masks)
 
     def get_config(self):
         config = super().get_config()
-        config.update({
-            "rate": self._rate,
-            "layer": self._layer,
-            "seed": self.seed,
-            "batchwise": self.batchwise,
-            "auto_vectorize": self.auto_vectorize,
-        })
+        config.update(
+            {
+                "rate": self._rate,
+                "layer": self._layer,
+                "seed": self.seed,
+                "batchwise": self.batchwise,
+                "auto_vectorize": self.auto_vectorize,
+            }
+        )
         return config

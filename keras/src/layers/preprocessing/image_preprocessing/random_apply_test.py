@@ -15,38 +15,42 @@
 import pytest
 from absl.testing import parameterized
 
+import keras.src.backend as K
+import keras.src.random as random
 from keras.src import layers
 from keras.src import ops
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
 from keras.src.testing import TestCase
-import keras.src.random as random
-import keras.src.backend as K
 
 
 class ZeroOut(BaseImagePreprocessingLayer):
     """Layer that zeros out tensors."""
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.built = True
-        
+
     def call(self, inputs):
         return ops.zeros_like(inputs)
-        
+
     def transform_images(self, images, transformation=None, training=True):
         return ops.zeros_like(images)
-        
-    def transform_segmentation_masks(self, masks, transformation=None, training=True):
+
+    def transform_segmentation_masks(
+        self, masks, transformation=None, training=True
+    ):
         return ops.zeros_like(masks)
-        
-    def transform_bounding_boxes(self, bboxes, transformation=None, training=True):
+
+    def transform_bounding_boxes(
+        self, bboxes, transformation=None, training=True
+    ):
         return ops.zeros_like(bboxes)
-        
+
     def transform_labels(self, labels, transformation=None, training=True):
         return ops.zeros_like(labels)
-        
+
     def get_config(self):
         return super().get_config()
 
@@ -70,10 +74,10 @@ class RandomApplyTest(TestCase):
         self.assertLess(num_zero_outputs, batch_size)
         self.assertGreater(num_zero_outputs, 0)
 
-    #TODO: find the root cause of the error
+    # TODO: find the root cause of the error
     @pytest.mark.skipif(
         K.backend() == "jax",
-        reason = """
+        reason="""
         jax.errors.UnexpectedTracerError:
         Encountered an unexpected tracer
         """,
@@ -82,9 +86,7 @@ class RandomApplyTest(TestCase):
         batch_size = 32
         dummy_inputs = random.uniform(shape=(batch_size, 224, 224, 3))
         random_flip_layer = layers.RandomFlip(
-            "vertical",
-            data_format="channels_last",
-            seed=42
+            "vertical", data_format="channels_last", seed=42
         )
         layer = layers.RandomApply(random_flip_layer, rate=0.5, batchwise=True)
         outputs = layer(dummy_inputs)
@@ -124,13 +126,16 @@ class RandomApplyTest(TestCase):
 
     @pytest.mark.skipif(
         ops.backend.backend() != "tensorflow",
-        reason="XLA compilation is only supported with TensorFlow backend"
+        reason="XLA compilation is only supported with TensorFlow backend",
     )
     def test_works_with_xla(self):
         dummy_inputs = random.uniform(shape=(32, 224, 224, 3))
-        layer = layers.RandomApply(rate=0.5, layer=ZeroOut(), auto_vectorize=False)
+        layer = layers.RandomApply(
+            rate=0.5, layer=ZeroOut(), auto_vectorize=False
+        )
+
         def apply(x):
             return layer(x)
-        
+
         outputs = apply(dummy_inputs)
         apply(outputs)
