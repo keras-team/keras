@@ -53,11 +53,16 @@ class AugMix(BaseImagePreprocessingLayer):
         chain_depth: an integer representing the maximum number of
             transformations to be applied in each chain. The actual number
             of transformations in each chain will be sampled randomly
-            from the range [0, `chain_depth`]. Defaults to 3.
+            from the range `[0, `chain_depth`]`. Defaults to 3.
         factor: The strength of the augmentation as a normalized value
-                    between 0 and 1. Default is 0.3.
+            between 0 and 1. Default is 0.3.
         alpha: a float value used as the probability coefficients for the
             Beta and Dirichlet distributions, defaults to 1.0.
+        all_ops: Use all operations (including random_brightness,
+            random_color_degeneration, random_contrast and random_sharpness).
+            Default is True.
+        interpolation: The interpolation method to use for resizing operations.
+            Options include `nearest`, `bilinear`. Default is `bilinear`.
         seed: Integer. Used to create a random seed.
 
     References:
