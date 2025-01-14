@@ -125,6 +125,7 @@ from keras.src.ops.numpy import repeat
 from keras.src.ops.numpy import reshape
 from keras.src.ops.numpy import right_shift
 from keras.src.ops.numpy import roll
+from keras.src.ops.numpy import rot90
 from keras.src.ops.numpy import round
 from keras.src.ops.numpy import select
 from keras.src.ops.numpy import sign

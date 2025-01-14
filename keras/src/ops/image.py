@@ -978,8 +978,7 @@ def _pad_images(
         )
     if left_padding < 0:
         raise ValueError(
-            "left_padding must be >= 0. "
-            f"Received: left_padding={left_padding}"
+            f"left_padding must be >= 0. Received: left_padding={left_padding}"
         )
     if right_padding < 0:
         raise ValueError(
@@ -1198,8 +1197,7 @@ def _crop_images(
 
     if top_cropping < 0:
         raise ValueError(
-            "top_cropping must be >= 0. "
-            f"Received: top_cropping={top_cropping}"
+            f"top_cropping must be >= 0. Received: top_cropping={top_cropping}"
         )
     if target_height < 0:
         raise ValueError(
@@ -1213,8 +1211,7 @@ def _crop_images(
         )
     if target_width < 0:
         raise ValueError(
-            "target_width must be >= 0. "
-            f"Received: target_width={target_width}"
+            f"target_width must be >= 0. Received: target_width={target_width}"
         )
 
     # Compute start_indices and shape

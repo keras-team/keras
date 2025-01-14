@@ -19,6 +19,62 @@ from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
 
 
+class NumPyTestRot90(testing.TestCase):
+    def test_basic(self):
+        array = np.array([[1, 2], [3, 4]])
+        rotated = knp.rot90(array)
+        expected = np.array([[2, 4], [1, 3]])
+        self.assertAllClose(rotated, expected)
+
+    def test_multiple_k(self):
+        array = np.array([[1, 2], [3, 4]])
+
+        # k=2 (180 degrees rotation)
+        rotated = knp.rot90(array, k=2)
+        expected = np.array([[4, 3], [2, 1]])
+        self.assertAllClose(rotated, expected)
+
+        # k=3 (270 degrees rotation)
+        rotated = knp.rot90(array, k=3)
+        expected = np.array([[3, 1], [4, 2]])
+        self.assertAllClose(rotated, expected)
+
+        # k=4 (full rotation)
+        rotated = knp.rot90(array, k=4)
+        expected = array
+        self.assertAllClose(rotated, expected)
+
+    def test_axes(self):
+        array = np.arange(8).reshape((2, 2, 2))
+        rotated = knp.rot90(array, k=1, axes=(1, 2))
+        expected = np.array([[[1, 3], [0, 2]], [[5, 7], [4, 6]]])
+        self.assertAllClose(rotated, expected)
+
+    def test_single_image(self):
+        array = np.random.random((4, 4, 3))
+        rotated = knp.rot90(array, k=1, axes=(0, 1))
+        expected = np.rot90(array, k=1, axes=(0, 1))
+        self.assertAllClose(rotated, expected)
+
+    def test_batch_images(self):
+        array = np.random.random((2, 4, 4, 3))
+        rotated = knp.rot90(array, k=1, axes=(1, 2))
+        expected = np.rot90(array, k=1, axes=(1, 2))
+        self.assertAllClose(rotated, expected)
+
+    def test_invalid_axes(self):
+        array = np.array([[1, 2], [3, 4]])
+        with self.assertRaisesRegex(ValueError, "Invalid axes"):
+            knp.rot90(array, axes=(0, 0))
+
+    def test_invalid_rank(self):
+        array = np.array([1, 2, 3])  # 1D array
+        with self.assertRaisesRegex(
+            ValueError, "Input array must have at least 2 dimensions"
+        ):
+            knp.rot90(array)
+
+
 class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
     def test_add(self):
         x = KerasTensor((None, 3))

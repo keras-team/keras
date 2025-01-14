@@ -407,7 +407,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
         raise ValueError(
             "The sum of `left_size` and `right_size` should "
             "be smaller than the {total_length}. "
-            f"Received: left_size + right_size = {left_size+right_size}"
+            f"Received: left_size + right_size = {left_size + right_size}"
             f"and total_length = {total_length}"
         )
 
@@ -682,7 +682,7 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
     num_val_samples = int(validation_split * len(samples))
     if subset == "training":
         io_utils.print_msg(
-            f"Using {len(samples) - num_val_samples} " f"files for training."
+            f"Using {len(samples) - num_val_samples} files for training."
         )
         samples = samples[:-num_val_samples]
         if labels is not None:

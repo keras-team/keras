@@ -16,6 +16,75 @@ from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.ops.operation_utils import reduce_shape
 
 
+class Rot90(Operation):
+    def __init__(self, k=1, axes=(0, 1)):
+        super().__init__()
+        self.k = k
+        self.axes = axes
+
+    def call(self, array):
+        return backend.numpy.rot90(array, k=self.k, axes=self.axes)
+
+    def compute_output_spec(self, array):
+        array_shape = list(array.shape)
+        if len(array_shape) < 2:
+            raise ValueError(
+                "Input array must have at least 2 dimensions. "
+                f"Received: array.shape={array_shape}"
+            )
+        if len(self.axes) != 2 or self.axes[0] == self.axes[1]:
+            raise ValueError(
+                f"Invalid axes: {self.axes}. "
+                "Axes must be a tuple of two different dimensions."
+            )
+        axis1, axis2 = self.axes
+        array_shape[axis1], array_shape[axis2] = (
+            array_shape[axis2],
+            array_shape[axis1],
+        )
+        return KerasTensor(shape=array_shape, dtype=array.dtype)
+
+
+@keras_export(["keras.ops.rot90", "keras.ops.numpy.rot90"])
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the plane specified by axes.
+
+    This function rotates an array counterclockwise
+    by 90 degrees `k` times in the plane specified by `axes`.
+    Supports arrays of two or more dimensions.
+
+    Args:
+        array: Input array to rotate.
+        k: Number of times the array is rotated by 90 degrees.
+        axes: A tuple of two integers specifying the
+            plane of rotation (defaults to `(0, 1)`).
+
+    Returns:
+        Rotated array.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> m = np.array([[1, 2], [3, 4]])
+    >>> rotated = ops.rot90(m)
+    >>> rotated
+    array([[2, 4],
+           [1, 3]])
+
+    >>> m = np.arange(8).reshape((2, 2, 2))
+    >>> rotated = ops.rot90(m, k=1, axes=(1, 2))
+    >>> rotated
+    array([[[1, 3],
+            [0, 2]],
+           [[5, 7],
+            [4, 6]]])
+    """
+    if any_symbolic_tensors((array,)):
+        return Rot90(k=k, axes=axes).symbolic_call(array)
+    return backend.numpy.rot90(array, k=k, axes=axes)
+
+
 def shape_equal(shape1, shape2, axis=None, allow_none=True):
     """Check if two shapes are equal.
 
@@ -6754,7 +6823,7 @@ class Argpartition(Operation):
     def __init__(self, kth, axis=-1):
         super().__init__()
         if not isinstance(kth, int):
-            raise ValueError("kth must be an integer. Received:" f"kth = {kth}")
+            raise ValueError(f"kth must be an integer. Received:kth = {kth}")
         self.kth = kth
         self.axis = axis
 

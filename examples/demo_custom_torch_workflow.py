@@ -74,8 +74,8 @@ def train(model, train_loader, num_epochs, optimizer, loss_fn):
             # Print loss statistics
             if (batch_idx + 1) % 10 == 0:
                 print(
-                    f"Epoch [{epoch+1}/{num_epochs}], "
-                    f"Batch [{batch_idx+1}/{len(train_loader)}], "
+                    f"Epoch [{epoch + 1}/{num_epochs}], "
+                    f"Batch [{batch_idx + 1}/{len(train_loader)}], "
                     f"Loss: {running_loss / 10}"
                 )
                 running_loss = 0.0
