@@ -20,7 +20,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         backend.set_image_data_format("channels_last")
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         backend.set_image_data_format(self.data_format)
         return super().tearDown()
 
@@ -171,7 +171,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         backend.set_image_data_format("channels_last")
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         backend.set_image_data_format(self.data_format)
         return super().tearDown()
 
@@ -396,7 +396,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         backend.set_image_data_format("channels_last")
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         backend.set_image_data_format(self.data_format)
         return super().tearDown()
 
@@ -1144,7 +1144,7 @@ class ImageOpsBehaviorTests(testing.TestCase):
         backend.set_image_data_format("channels_last")
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         backend.set_image_data_format(self.data_format)
         return super().tearDown()
 
