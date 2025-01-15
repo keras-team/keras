@@ -1,4 +1,4 @@
-import random
+import random as py_random
 
 import keras.src.layers as layers
 from keras.src.api_export import keras_export
@@ -62,7 +62,7 @@ class AugMix(BaseImagePreprocessingLayer):
             random_color_degeneration, random_contrast and random_sharpness).
             Default is True.
         interpolation: The interpolation method to use for resizing operations.
-            Options include `nearest`, `bilinear`. Default is `bilinear`.
+            Options include `"nearest"`, `"bilinear"`. Default is `"bilinear"`.
         seed: Integer. Used to create a random seed.
 
     References:
@@ -192,11 +192,11 @@ class AugMix(BaseImagePreprocessingLayer):
             augmentation_layer = getattr(self, layer_name)
             augmentation_layer.build(input_shape)
 
-    def _sample_from_dirichlet(self, shape, alpha):
+    def _sample_from_dirichlet(self, shape, alpha, seed):
         gamma_sample = self.backend.random.gamma(
             shape=shape,
             alpha=alpha,
-            seed=self._get_seed_generator(self.backend._backend),
+            seed=seed,
         )
         return gamma_sample / self.backend.numpy.sum(
             gamma_sample, axis=-1, keepdims=True
@@ -213,21 +213,23 @@ class AugMix(BaseImagePreprocessingLayer):
                 augmentation_layer = getattr(self, layer_name)
                 augmentation_layer.backend.set_backend("tensorflow")
 
+        seed = seed or self._get_seed_generator(self.backend._backend)
+
         chain_mixing_weights = self._sample_from_dirichlet(
-            [self.num_chains], self.alpha
+            [self.num_chains], self.alpha, seed
         )
         weight_sample = self.backend.random.beta(
             shape=(),
             alpha=self.alpha,
             beta=self.alpha,
-            seed=self._get_seed_generator(self.backend._backend),
+            seed=seed,
         )
 
         chain_transforms = []
         for _ in range(self.num_chains):
             depth_transforms = []
             for _ in range(self.chain_depth):
-                layer_name = random.choice(self._augment_layers + [None])
+                layer_name = py_random.choice(self._augment_layers + [None])
                 if layer_name is None:
                     continue
                 augmentation_layer = getattr(self, layer_name)
