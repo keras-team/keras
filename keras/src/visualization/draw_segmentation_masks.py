@@ -104,6 +104,6 @@ def draw_segmentation_masks(
     return outputs
 
 
-def _generate_color_palette(num_classes: int):
+def _generate_color_palette(num_classes):
     palette = np.array([2**25 - 1, 2**15 - 1, 2**21 - 1])
     return [((i * palette) % 255).tolist() for i in range(num_classes)]

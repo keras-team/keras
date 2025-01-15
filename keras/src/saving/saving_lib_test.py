@@ -253,7 +253,7 @@ class SavingTest(testing.TestCase):
         saving_lib._MEMORY_UPPER_BOUND = 0
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         saving_lib._MEMORY_UPPER_BOUND = self.original_value
         return super().tearDown()
 
@@ -621,7 +621,7 @@ class SavingTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_save_to_fileobj(self) -> None:
+    def test_save_to_fileobj(self):
         model = keras.Sequential(
             [keras.layers.Dense(1, input_shape=(1,)), keras.layers.Dense(1)]
         )
