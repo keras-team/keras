@@ -264,36 +264,6 @@ def fake_quant_with_min_max_vars(
     return _fake_quant_with_min_max_vars_per_channel(inputs, min_vals, max_vals)
 
 
-@keras_export("keras.quantizers.fake_quant_with_min_max_args")
-def fake_quant_with_min_max_args(
-    inputs,
-    min_vals,
-    max_vals,
-    num_bits=8,
-    narrow_range=False,
-    axis=None,
-):
-    """Fake quantization operation matching TensorFlow's implementation."""
-    return fake_quant_with_min_max_vars(
-        inputs, min_vals, max_vals, num_bits, narrow_range, axis
-    )
-
-
-@keras_export("keras.quantizers.fake_quant_with_min_max_args")
-def fake_quant_with_min_max_vars_per_channel(
-    inputs,
-    min_vals,
-    max_vals,
-    num_bits=8,
-    narrow_range=False,
-    axis=None,
-):
-    """Fake quantization operation matching TensorFlow's implementation."""
-    return fake_quant_with_min_max_vars(
-        inputs, min_vals, max_vals, num_bits, narrow_range, axis
-    )
-
-
 """Float8-related methods"""
 
 

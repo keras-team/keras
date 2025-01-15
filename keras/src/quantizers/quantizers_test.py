@@ -410,15 +410,13 @@ class QuantizersTest(testing.TestCase):
             ):
                 with tf.GradientTape() as tape:
                     tape.watch(inputs)
-                    result = (
-                        quantizers.fake_quant_with_min_max_vars_per_channel(
-                            inputs,
-                            input_mins,
-                            input_maxs,
-                            num_bits,
-                            narrow_range,
-                            axis,
-                        )
+                    result = quantizers.fake_quant_with_min_max_vars(
+                        inputs,
+                        input_mins,
+                        input_maxs,
+                        num_bits,
+                        narrow_range,
+                        axis,
                     )
                 return initial_gradients * tape.gradient(result, inputs)
 
@@ -438,7 +436,7 @@ class QuantizersTest(testing.TestCase):
                 )
 
                 # Apply the quantization operation
-                result = quantizers.fake_quant_with_min_max_vars_per_channel(
+                result = quantizers.fake_quant_with_min_max_vars(
                     inputs, input_mins, input_maxs, num_bits, narrow_range
                 )
 
@@ -459,7 +457,7 @@ class QuantizersTest(testing.TestCase):
             def test_op(inputs, input_mins, input_maxs, num_bits, narrow_range):
                 # Define the function to compute gradients for
                 def quantize_fn(x):
-                    return quantizers.fake_quant_with_min_max_vars_per_channel(
+                    return quantizers.fake_quant_with_min_max_vars(
                         x, input_mins, input_maxs, num_bits, narrow_range
                     )
 
@@ -474,7 +472,7 @@ class QuantizersTest(testing.TestCase):
             )
             # test gradients
             self.assertAllClose(gradients, expected_backprops_wrt_input)
-        outputs = quantizers.fake_quant_with_min_max_vars_per_channel(
+        outputs = quantizers.fake_quant_with_min_max_vars(
             inputs,
             input_min,
             input_max,
