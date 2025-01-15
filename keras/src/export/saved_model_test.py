@@ -782,25 +782,28 @@ class ExportArchiveTest(testing.TestCase):
             }
         )
 
-    # def test_model_with_lookup_table(self):
-    #     tf.debugging.disable_traceback_filtering()
-    #     temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-    #     text_vectorization = layers.TextVectorization()
-    #     text_vectorization.adapt(["one two", "three four", "five six"])
-    #     model = models.Sequential(
-    #         [
-    #             layers.Input(shape=(), dtype="string"),
-    #             text_vectorization,
-    #             layers.Embedding(10, 32),
-    #             layers.Dense(1),
-    #         ]
-    #     )
-    #     ref_input = tf.convert_to_tensor(["one two three four"])
-    #     ref_output = model(ref_input)
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="String lookup requires TensorFlow backend",
+    )
+    def test_model_with_lookup_table(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        text_vectorization = layers.TextVectorization()
+        text_vectorization.adapt(["one two", "three four", "five six"])
+        model = models.Sequential(
+            [
+                layers.Input(shape=(), dtype="string"),
+                text_vectorization,
+                layers.Embedding(10, 32),
+                layers.Dense(1),
+            ]
+        )
+        ref_input = tf.convert_to_tensor(["one two three four"])
+        ref_output = model(ref_input)
 
-    #     saved_model.export_saved_model(model, temp_filepath)
-    #     revived_model = tf.saved_model.load(temp_filepath)
-    #     self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        saved_model.export_saved_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(ref_input))
 
     def test_track_multiple_layers(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")

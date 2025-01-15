@@ -107,7 +107,7 @@ class SKLBase(BaseEstimator):
         )
 
     @property
-    def epoch_(self) -> int:
+    def epoch_(self):
         """The current training epoch."""
         return getattr(self, "history_", {}).get("epoch", 0)
 

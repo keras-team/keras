@@ -21,7 +21,7 @@ from keras.src.wrappers import SKLearnTransformer
 def wrapped_parametrize_with_checks(
     estimators,
     *,
-    legacy: bool = True,
+    legacy=True,
     expected_failed_checks=None,
 ):
     """Wrapped `parametrize_with_checks` handling backwards compat."""
@@ -77,7 +77,7 @@ def dynamic_model(X, y, loss, layers=[10]):
 
 
 @contextmanager
-def use_floatx(x: str):
+def use_floatx(x):
     """Context manager to temporarily
     set the keras backend precision.
     """

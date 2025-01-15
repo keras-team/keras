@@ -1003,7 +1003,7 @@ class MathDtypeTest(testing.TestCase):
         self.jax_enable_x64.__enter__()
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
         return super().tearDown()
 
