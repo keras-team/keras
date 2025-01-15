@@ -20,6 +20,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 # Some operators such as 'aten::_foreach_mul_.Scalar'
@@ -185,9 +186,11 @@ class Variable(KerasVariable):
             return False
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with torch backend")
     if isinstance(x, Variable):
         # TorchDynamo has bugs supporting nn.Parameter type check.
         # Return it directly instead of pass it to the rest of the logic in the

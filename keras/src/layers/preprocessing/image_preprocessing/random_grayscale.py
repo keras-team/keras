@@ -49,8 +49,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         super().__init__(**kwargs)
         if factor < 0 or factor > 1:
             raise ValueError(
-                "`factor` should be between 0 and 1. "
-                f"Received: factor={factor}"
+                f"`factor` should be between 0 and 1. Received: factor={factor}"
             )
         self.factor = factor
         self.data_format = backend.standardize_data_format(data_format)

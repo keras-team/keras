@@ -1433,8 +1433,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     def __repr__(self):
         return (
-            f"<{self.__class__.__name__} "
-            f"name={self.name}, built={self.built}>"
+            f"<{self.__class__.__name__} name={self.name}, built={self.built}>"
         )
 
     def __str__(self):

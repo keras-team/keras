@@ -22,8 +22,8 @@ class BoundingBox:
     def convert_format(
         self,
         boxes,
-        source: str,
-        target: str,
+        source,
+        target,
         height=None,
         width=None,
         dtype="float32",

@@ -15,6 +15,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
 SUPPORTS_SPARSE_TENSORS = True
+SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
@@ -46,7 +47,9 @@ class Variable(KerasVariable):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None, sparse=True):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with jax backend")
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, (jnp.ndarray, jax.Array)) and (

@@ -76,7 +76,7 @@ class SeedGenerator:
 
         if not isinstance(seed, int):
             raise ValueError(
-                "Argument `seed` must be an integer. " f"Received: seed={seed}"
+                f"Argument `seed` must be an integer. Received: seed={seed}"
             )
 
         def seed_initializer(*args, **kwargs):

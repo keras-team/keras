@@ -1,6 +1,3 @@
-from typing import Iterator
-from typing import Tuple
-
 import torch
 
 from keras.src.backend.common.stateless_scope import in_stateless_scope
@@ -30,10 +27,10 @@ class TorchLayer(torch.nn.Module):
 
     def named_parameters(
         self,
-        prefix: str = "",
-        recurse: bool = True,
-        remove_duplicate: bool = True,
-    ) -> Iterator[Tuple[str, torch.nn.Parameter]]:
+        prefix="",
+        recurse=True,
+        remove_duplicate=True,
+    ):
         if not hasattr(self, "_torch_params"):
             self._track_variables()
         return torch.nn.Module.named_parameters(

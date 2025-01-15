@@ -203,8 +203,7 @@ def lstsq(a, b, rcond=None):
         b = b[:, None]
     if a.ndim != 2:
         raise TypeError(
-            f"{a.ndim}-dimensional array given. "
-            "Array must be two-dimensional"
+            f"{a.ndim}-dimensional array given. Array must be two-dimensional"
         )
     if b.ndim != 2:
         raise TypeError(

@@ -11,11 +11,12 @@ class InputLayerTest(testing.TestCase):
     # Testing happy path for layer without input tensor
     @parameterized.named_parameters(
         [
-            {"testcase_name": "dense", "sparse": False},
+            {"testcase_name": "dense"},
             {"testcase_name": "sparse", "sparse": True},
+            {"testcase_name": "ragged", "ragged": True},
         ]
     )
-    def test_input_basic(self, sparse):
+    def test_input_basic(self, sparse=False, ragged=False):
         input_shape = (2, 3)
         batch_size = 4
         dtype = "float32"
@@ -26,11 +27,18 @@ class InputLayerTest(testing.TestCase):
             "batch_size": batch_size,
             "dtype": dtype,
             "sparse": sparse,
+            "ragged": ragged,
         }
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             with self.assertRaisesRegex(
                 ValueError, "`sparse=True` is not supported"
+            ):
+                InputLayer(**init_kwargs)
+            return
+        if ragged and not backend.SUPPORTS_RAGGED_TENSORS:
+            with self.assertRaisesRegex(
+                ValueError, "`ragged=True` is not supported"
             ):
                 InputLayer(**init_kwargs)
             return
@@ -41,11 +49,13 @@ class InputLayerTest(testing.TestCase):
         self.assertEqual(values.batch_shape[0], batch_size)
         self.assertEqual(values.batch_shape[1:], input_shape)
         self.assertEqual(values.sparse, sparse)
+        self.assertEqual(values.ragged, ragged)
         self.assertEqual(values.trainable, True)
         self.assertIsInstance(values.output, KerasTensor)
         self.assertEqual(values.output.ndim, ndim)
         self.assertEqual(values.output.dtype, dtype)
         self.assertEqual(values.output.sparse, sparse)
+        self.assertEqual(values.output.ragged, ragged)
 
     # Testing shape is not None and batch_shape is not None condition
     def test_input_error1(self):

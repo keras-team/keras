@@ -116,8 +116,7 @@ def _check_jax_kwargs(kwargs):
         }
     if kwargs["is_static"] is not True:
         raise ValueError(
-            "`is_static` must be `True` in `kwargs` when using the jax "
-            "backend."
+            "`is_static` must be `True` in `kwargs` when using the jax backend."
         )
     if kwargs["jax2tf_kwargs"]["enable_xla"] is not False:
         raise ValueError(

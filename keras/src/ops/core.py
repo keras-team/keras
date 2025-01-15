@@ -929,8 +929,11 @@ class ConvertToTensor(Operation):
 
 
 @keras_export("keras.ops.convert_to_tensor")
-def convert_to_tensor(x, dtype=None, sparse=None):
-    """Convert a NumPy array to a tensor.
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+    """Convert a NumPy array or Python array to a tensor.
+
+    Native tensors for the current backend or left unchanged unless the `dtype`,
+    `sparse` or `ragged` arguments are set.
 
     Args:
         x: A NumPy array, Python array (can be nested) or a backend tensor.
@@ -938,6 +941,9 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         sparse: Whether to keep sparse tensors. `False` will cause sparse
             tensors to be densified. The default value of `None` means that
             sparse tensors are kept only if the backend supports them.
+        ragged: Whether to keep ragged tensors. `False` will cause ragged
+            tensors to be densified. The default value of `None` means that
+            ragged tensors are kept only if the backend supports them.
 
     Returns:
         A backend tensor of the specified `dtype` and sparseness.
@@ -949,7 +955,9 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     """
     if any_symbolic_tensors((x,)):
         return ConvertToTensor(dtype=dtype, sparse=sparse)(x)
-    return backend.core.convert_to_tensor(x, dtype=dtype, sparse=sparse)
+    return backend.core.convert_to_tensor(
+        x, dtype=dtype, sparse=sparse, ragged=ragged
+    )
 
 
 @keras_export("keras.ops.convert_to_numpy")
