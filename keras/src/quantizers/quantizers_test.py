@@ -115,6 +115,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [255.0],
                 "expected_steps": [1.0],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_8bits_input_mins_0.5_input_maxs_128.0",
@@ -125,6 +126,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [127.5],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_8bits_input_mins_-128.0_input_maxs_-0.5",
@@ -135,6 +137,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [-127.5],
                 "expected_nudged_input_maxs": [0.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_8bits_input_mins_-0.1_input_maxs_127.4",
@@ -145,6 +148,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [127.5],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "narrow_8bits_input_mins_0.0_input_maxs_254.0",
@@ -155,6 +159,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [254.0],
                 "expected_steps": [1.0],
+                "axis": None,
             },
             {
                 "testcase_name": "narrow_8bits_input_mins_0.1_input_maxs_127.1",
@@ -165,6 +170,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [127.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": (
@@ -177,6 +183,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [-127.0],
                 "expected_nudged_input_maxs": [0.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": (
@@ -189,6 +196,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [127.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_7bits_input_mins_0.0_input_maxs_127.0",
@@ -199,6 +207,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [127.0],
                 "expected_steps": [1.0],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_7bits_input_mins_0.5_input_maxs_64.0",
@@ -209,6 +218,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [63.5],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_7bits_input_mins_-64.0_input_maxs_-0.5",
@@ -219,6 +229,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [-63.5],
                 "expected_nudged_input_maxs": [0.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_7bits_input_mins_-0.1_input_maxs_63.4",
@@ -229,6 +240,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [63.5],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "narrow_7bits_input_mins_0.0_input_maxs_126.0",
@@ -239,6 +251,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [126.0],
                 "expected_steps": [1.0],
+                "axis": None,
             },
             {
                 "testcase_name": "narrow_7bits_input_mins_0.1_input_maxs_63.1",
@@ -249,6 +262,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [63.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": (
@@ -261,6 +275,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [-63.0],
                 "expected_nudged_input_maxs": [0.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "narrow_7bits_input_mins_-0.1_input_maxs_62.9",
@@ -271,6 +286,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [63.0],
                 "expected_steps": [0.5],
+                "axis": None,
             },
             {
                 "testcase_name": "wide_8bits_multi_channel",
@@ -281,6 +297,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0, 0.0, -127.5, 0.0],
                 "expected_nudged_input_maxs": [255.0, 127.5, 0.0, 127.5],
                 "expected_steps": [1.0, 0.5, 0.5, 0.5],
+                "axis": 1,
             },
             {
                 "testcase_name": "narrow_8bits_multi_channel",
@@ -291,6 +308,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0, 0.0, -127.0, 0.0],
                 "expected_nudged_input_maxs": [254.0, 127.0, 0.0, 127.0],
                 "expected_steps": [1.0, 0.5, 0.5, 0.5],
+                "axis": 1,
             },
             {
                 "testcase_name": "wide_7bits_multi_channel",
@@ -301,6 +319,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0, 0.0, -63.5, 0.0],
                 "expected_nudged_input_maxs": [127.0, 63.5, 0.0, 63.5],
                 "expected_steps": [1.0, 0.5, 0.5, 0.5],
+                "axis": 1,
             },
             {
                 "testcase_name": "narrow_7bits_multi_channel",
@@ -311,6 +330,7 @@ class QuantizersTest(testing.TestCase):
                 "expected_nudged_input_mins": [0.0, 0.0, -63.0, 0.0],
                 "expected_nudged_input_maxs": [126.0, 63.0, 0.0, 63.0],
                 "expected_steps": [1.0, 0.5, 0.5, 0.5],
+                "axis": 1,
             },
         ]
     )
@@ -320,6 +340,7 @@ class QuantizersTest(testing.TestCase):
         input_maxs,
         num_bits,
         narrow_range,
+        axis,
         expected_nudged_input_mins,
         expected_nudged_input_maxs,
         expected_steps,
@@ -384,7 +405,9 @@ class QuantizersTest(testing.TestCase):
             import tensorflow as tf
 
             @tf.function(jit_compile=True)
-            def test_op(inputs, input_mins, input_maxs, num_bits, narrow_range):
+            def test_op(
+                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
+            ):
                 with tf.GradientTape() as tape:
                     tape.watch(inputs)
                     result = (
@@ -394,12 +417,13 @@ class QuantizersTest(testing.TestCase):
                             input_maxs,
                             num_bits,
                             narrow_range,
+                            axis,
                         )
                     )
                 return initial_gradients * tape.gradient(result, inputs)
 
             gradients = test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range
+                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
             )
             # test gradients
             self.assertAllClose(gradients, expected_backprops_wrt_input)
@@ -456,5 +480,6 @@ class QuantizersTest(testing.TestCase):
             input_max,
             num_bits=num_bits,
             narrow_range=narrow_range,
+            axis=axis,
         )
         self.assertAllClose(outputs, expected)

@@ -163,18 +163,19 @@ def fake_quant_with_min_max_vars_per_channel(
     min_vals,
     max_vals,
     num_bits,
-    narrow_range,
+    narrow_range=False,
+    axis=None,
 ):
     """
-    Perform per-channel fake quantization with custom gradient using vectorized
-    operations.
+    Perform per-channel fake quantization.
 
     Args:
         inputs: Input tensor of float type
         min_vals: Per-channel minimum values
         max_vals: Per-channel maximum values
-        num_bits: Quantization bit width (2-16)
+        num_bits: Quantization bit width (e.g., 8 for int8)
         narrow_range: Whether to use narrow quantization range
+        axis: Axis along which to perform per-channel quantization
 
     Returns:
         Fake-quantized tensor
@@ -219,16 +220,24 @@ def fake_quant_with_min_max_vars_per_channel(
 
             # Gradient for x
             dx = ops.multiply(upstream, masks)
-
+            axes = [i for i in range(len(dx.shape)) if i != axis]
             # Gradient for min_val
             # When x is clipped to min, the gradient flows to min_val
             min_mask = ops.cast(x <= nudged_min, dtype="float32")
-            grad_min = ops.sum(ops.multiply(upstream, min_mask))
+            grad_min = ops.multiply(upstream, min_mask)
+            if axis is not None:
+                grad_min = ops.sum(grad_min, axis=axes)
+            else:
+                grad_min = ops.sum(grad_min)
 
             # Gradient for max_val
             # When x is clipped to max, the gradient flows to max_val
             max_mask = ops.cast(x >= nudged_max, dtype="float32")
-            grad_max = ops.sum(ops.multiply(upstream, max_mask))
+            grad_max = ops.multiply(upstream, max_mask)
+            if axis is not None:
+                grad_max = ops.sum(grad_max, axis=axes)
+            else:
+                grad_max = ops.sum(grad_max)
 
             return dx, grad_min, grad_max
 
@@ -244,10 +253,11 @@ def fake_quant_with_min_max_args(
     max_vals,
     num_bits=8,
     narrow_range=False,
+    axis=None,
 ):
     """Fake quantization operation matching TensorFlow's implementation."""
     return fake_quant_with_min_max_vars_per_channel(
-        inputs, min_vals, max_vals, num_bits, narrow_range
+        inputs, min_vals, max_vals, num_bits, narrow_range, axis
     )
 
 
@@ -258,10 +268,11 @@ def fake_quant_with_min_max_vars(
     max_vals,
     num_bits=8,
     narrow_range=False,
+    axis=None,
 ):
     """Fake quantization operation matching TensorFlow's implementation."""
     return fake_quant_with_min_max_vars_per_channel(
-        inputs, min_vals, max_vals, num_bits, narrow_range
+        inputs, min_vals, max_vals, num_bits, narrow_range, axis
     )
 
 
