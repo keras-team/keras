@@ -5,7 +5,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.core.wrapper import Wrapper
 from keras.src.layers.layer import Layer
-
+import tensorflow as tf
 
 @keras_export("keras.layers.TimeDistributed")
 class TimeDistributed(Wrapper):
@@ -77,12 +77,20 @@ class TimeDistributed(Wrapper):
         batch_size = input_shape[0]
         timesteps = input_shape[1]
 
-        if mask_shape is not None and mask_shape[:2] != (batch_size, timesteps):
-            raise ValueError(
-                "`TimeDistributed` Layer should be passed a `mask` of shape "
-                f"({batch_size}, {timesteps}, ...), "
-                f"received: mask.shape={mask_shape}"
-            )
+        if backend.backend() == "tensorflow" and not tf.executing_eagerly():
+            if mask_shape is not None and mask_shape[1:2] != (timesteps,):
+                raise ValueError(
+                    "`TimeDistributed` Layer should be passed a `mask` of shape "
+                    f"({batch_size}, {timesteps}, ...), "
+                    f"received: mask.shape={mask_shape}"
+                )
+        else:
+            if mask_shape is not None and mask_shape[:2] != (batch_size, timesteps):
+                raise ValueError(
+                    "`TimeDistributed` Layer should be passed a `mask` of shape "
+                    f"({batch_size}, {timesteps}, ...), "
+                    f"received: mask.shape={mask_shape}"
+                )
 
         def time_distributed_transpose(data):
             """Swaps the timestep and batch dimensions of a tensor."""
