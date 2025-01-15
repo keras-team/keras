@@ -4,6 +4,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 
 """Int8-related classes and methods"""
@@ -158,7 +159,7 @@ def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
 
 
 @keras_export("keras.quantizers.fake_quant_with_min_max_vars_per_channel")
-def fake_quant_with_min_max_vars_per_channel(
+def fake_quant_with_min_max_vars(
     inputs,
     min_vals,
     max_vals,
@@ -167,15 +168,29 @@ def fake_quant_with_min_max_vars_per_channel(
     axis=None,
 ):
     """
-    Perform per-channel fake quantization.
+    Perform per-tensor or per-channel fake quantization.
+
+    `[min_vals, max_vals]` define the clamping range for the `inputs`.
+
+    The `inputs` are quantized into the quantization range:
+    - `[0, 2^num_bits - 1]` when `narrow_range=False`
+    - `[1, 2^num_bits - 1]` when `narrow_range=True`
+
+    After quantization, the values are dequantized and output as floats within
+    the `[min_vals, max_vals]` interval.
+
+    This operation supports gradient computation, allowing `min_vals` and
+    `max_vals` to be trained.
 
     Args:
-        inputs: Input tensor of float type
-        min_vals: Per-channel minimum values
-        max_vals: Per-channel maximum values
-        num_bits: Quantization bit width (e.g., 8 for int8)
-        narrow_range: Whether to use narrow quantization range
-        axis: Axis along which to perform per-channel quantization
+        inputs: Input tensor of float dtype.
+        min_vals: A global minimum scalar or a per-channel minimum tensor.
+        max_vals: A global maximum scalar or a per-channel maximum tensor.
+        num_bits: Quantization bit width (e.g., `8` for int8).
+        narrow_range: Whether to use narrow quantization range.
+        axis: Axis along which to perform per-channel quantization. If `None`,
+              per-tensor quantization is performed. Defaults to `None`.
+
 
     Returns:
         Fake-quantized tensor
@@ -183,6 +198,9 @@ def fake_quant_with_min_max_vars_per_channel(
     inputs = ops.convert_to_tensor(inputs)
     min_vals = ops.convert_to_tensor(min_vals)
     max_vals = ops.convert_to_tensor(max_vals)
+
+    if axis is not None:
+        axis = canonicalize_axis(axis, inputs.ndim)
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_vars_per_channel(x, min_val, max_val):
@@ -256,13 +274,13 @@ def fake_quant_with_min_max_args(
     axis=None,
 ):
     """Fake quantization operation matching TensorFlow's implementation."""
-    return fake_quant_with_min_max_vars_per_channel(
+    return fake_quant_with_min_max_vars(
         inputs, min_vals, max_vals, num_bits, narrow_range, axis
     )
 
 
-@keras_export("keras.quantizers.fake_quant_with_min_max_vars")
-def fake_quant_with_min_max_vars(
+@keras_export("keras.quantizers.fake_quant_with_min_max_args")
+def fake_quant_with_min_max_vars_per_channel(
     inputs,
     min_vals,
     max_vals,
@@ -271,7 +289,7 @@ def fake_quant_with_min_max_vars(
     axis=None,
 ):
     """Fake quantization operation matching TensorFlow's implementation."""
-    return fake_quant_with_min_max_vars_per_channel(
+    return fake_quant_with_min_max_vars(
         inputs, min_vals, max_vals, num_bits, narrow_range, axis
     )
 
