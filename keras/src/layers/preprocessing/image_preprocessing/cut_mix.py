@@ -30,17 +30,25 @@ class CutMix(BaseImagePreprocessingLayer):
         self.generator = SeedGenerator(seed)
 
     def get_random_transformation(self, data, training=True, seed=None):
+        if not training:
+            return None
+
         if isinstance(data, dict):
             images = data["images"]
         else:
             images = data
 
         images_shape = self.backend.shape(images)
-
         if len(images_shape) == 3:
-            batch_size = 1
+            return None
+
+        batch_size = images_shape[0]
+        if self.data_format == "channels_first":
+            image_height = images_shape[-2]
+            image_width = images_shape[-1]
         else:
-            batch_size = self.backend.shape(images)[0]
+            image_height = images_shape[-3]
+            image_width = images_shape[-2]
 
         seed = seed or self._get_seed_generator(self.backend._backend)
 
@@ -52,83 +60,8 @@ class CutMix(BaseImagePreprocessingLayer):
         mix_weight = self.backend.random.beta(
             (batch_size,), self.alpha, self.alpha, seed=seed
         )
-        return {
-            "mix_weight": mix_weight,
-            "permutation_order": permutation_order,
-        }
 
-    def transform_images(self, images, transformation=None, training=True):
-        if training:
-            images = self._cutmix(images)
-        return images
-
-    def _cutmix(self, images):
-        def _axis_mask(starts, ends, mask_len):
-            batch_size = self.backend.shape(starts)[0]
-            axis_indices = self.backend.numpy.arange(
-                0, mask_len, dtype=starts.dtype
-            )
-            axis_indices = self.backend.numpy.expand_dims(axis_indices, 0)
-            axis_indices = self.backend.numpy.tile(
-                axis_indices, [batch_size, 1]
-            )
-
-            axis_mask = self.backend.numpy.greater_equal(
-                axis_indices, starts
-            ) & self.backend.numpy.less(axis_indices, ends)
-            return axis_mask
-
-        def corners_to_mask(bounding_boxes, mask_shape):
-            mask_width, mask_height = mask_shape
-            x0, y0, x1, y1 = self.backend.numpy.split(
-                bounding_boxes, 4, axis=-1
-            )
-
-            w_mask = _axis_mask(x0, x1, mask_width)
-            h_mask = _axis_mask(y0, y1, mask_height)
-
-            w_mask = self.backend.numpy.expand_dims(w_mask, axis=1)
-            h_mask = self.backend.numpy.expand_dims(h_mask, axis=2)
-            masks = self.backend.numpy.logical_and(w_mask, h_mask)
-            return masks
-
-        def fill_rectangle(
-            images, centers_x, centers_y, widths, heights, fill_values
-        ):
-            images_shape = self.backend.cast(
-                self.backend.shape(images), dtype=self.compute_dtype
-            )
-            images_height = images_shape[1]
-            images_width = images_shape[2]
-
-            xywh = self.backend.numpy.stack(
-                [centers_x, centers_y, widths, heights], axis=1
-            )
-            corners = convert_format(xywh, source="center_xywh", target="xyxy")
-            mask_shape = (images_width, images_height)
-            is_rectangle = corners_to_mask(corners, mask_shape)
-            is_rectangle = self.backend.numpy.expand_dims(is_rectangle, -1)
-
-            images = self.backend.numpy.where(is_rectangle, fill_values, images)
-            return images
-
-        input_shape = self.backend.shape(images)
-        batch_size, image_height, image_width = (
-            input_shape[0],
-            input_shape[1],
-            input_shape[2],
-        )
-
-        permutation_order = self.backend.random.shuffle(
-            self.backend.numpy.arange(0, batch_size), seed=self.seed
-        )
-        lambda_sample = self.backend.random.beta(
-            (batch_size,),
-            self.alpha,
-            self.alpha,
-        )
-
-        ratio = self.backend.numpy.sqrt(1 - lambda_sample)
+        ratio = self.backend.numpy.sqrt(1 - mix_weight)
         cut_height = self.backend.cast(
             ratio * image_height, dtype=self.compute_dtype
         )
@@ -149,21 +82,78 @@ class CutMix(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        bounding_box_area = cut_height * cut_width
-        lambda_sample = 1.0 - bounding_box_area / (image_height * image_width)
-        lambda_sample = self.backend.cast(
-            lambda_sample, dtype=self.compute_dtype
+        return {
+            "permutation_order": permutation_order,
+            "cut_height": cut_height,
+            "cut_width": cut_width,
+            "random_center_height": random_center_height,
+            "random_center_width": random_center_width,
+            "input_shape": (batch_size, image_height, image_width),
+        }
+
+    def transform_images(self, images, transformation=None, training=True):
+        if training:
+            if transformation is not None:
+                images = self._cut_mix(images, transformation)
+        images = self.backend.cast(images, self.compute_dtype)
+        return images
+
+    def _cut_mix(self, images, transformation):
+        def _axis_mask(starts, ends, mask_len, batch_size):
+            axis_indices = self.backend.numpy.arange(0, mask_len)
+            axis_indices = self.backend.numpy.expand_dims(axis_indices, 0)
+            axis_indices = self.backend.numpy.tile(
+                axis_indices, [batch_size, 1]
+            )
+
+            axis_mask = self.backend.numpy.greater_equal(
+                axis_indices, starts
+            ) & self.backend.numpy.less(axis_indices, ends)
+            return axis_mask
+
+        def corners_to_mask(bounding_boxes, mask_shape):
+            batch_size, mask_height, mask_width = mask_shape
+            x0, y0, x1, y1 = self.backend.numpy.split(
+                bounding_boxes, 4, axis=-1
+            )
+
+            w_mask = _axis_mask(x0, x1, mask_width, batch_size)
+            h_mask = _axis_mask(y0, y1, mask_height, batch_size)
+
+            w_mask = self.backend.numpy.expand_dims(w_mask, axis=1)
+            h_mask = self.backend.numpy.expand_dims(h_mask, axis=2)
+            masks = self.backend.numpy.logical_and(w_mask, h_mask)
+            return masks
+
+        images = self.backend.cast(images, self.compute_dtype)
+
+        if self.data_format == "channels_first":
+            channel_axis = 1
+        else:
+            channel_axis = -1
+
+        permutation_order = transformation["permutation_order"]
+        random_center_width = transformation["random_center_width"]
+        random_center_height = transformation["random_center_height"]
+        cut_width = transformation["cut_width"]
+        cut_height = transformation["cut_height"]
+        input_shape = transformation["input_shape"]
+
+        xywh = self.backend.numpy.stack(
+            [random_center_width, random_center_height, cut_width, cut_height],
+            axis=1,
+        )
+        corners = convert_format(xywh, source="center_xywh", target="xyxy")
+        is_rectangle = corners_to_mask(corners, input_shape)
+        is_rectangle = self.backend.numpy.expand_dims(
+            is_rectangle, channel_axis
         )
 
-        images = fill_rectangle(
-            images,
-            random_center_width,
-            random_center_height,
-            cut_width,
-            cut_height,
+        images = self.backend.numpy.where(
+            is_rectangle,
             self.backend.numpy.take(images, permutation_order, axis=0),
+            images,
         )
-
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -175,12 +165,14 @@ class CutMix(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        return bounding_boxes
+        raise NotImplementedError()
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return segmentation_masks
+        return self.transform_images(
+            segmentation_masks, transformation, training
+        )
 
     def compute_output_shape(self, input_shape):
         return input_shape
