@@ -1,24 +1,9 @@
-# Copyright 2022 The KerasCV Authors
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import keras.src.backend as K
-import keras.src.random as random
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.random.seed_generator import SeedGenerator
 
 
 @keras_export("keras.layers.RandomChoice")
@@ -31,23 +16,7 @@ class RandomChoice(BaseImagePreprocessingLayer):
     from the provided list and applies it to the input. This allows for diverse
     augmentations to be applied dynamically.
 
-    **Example:**
-    ```python
-    # Construct a list of augmentation layers
-    layers = [
-        keras_cv.layers.RandomFlip("horizontal"),
-        keras_cv.layers.RandomRotation(factor=0.2),
-        keras_cv.layers.RandomZoom(height_factor=0.2, width_factor=0.2),
-    ]
-
-    # Create the RandomChoice pipeline
-    pipeline = keras_cv.layers.RandomChoice(layers=layers, batchwise=True)
-
-    # Apply the pipeline to a batch of images
-    augmented_images = pipeline(images)
-    ```
-
-    **Args:**
+    Args:
         layers: A list of `keras.Layers` instances. Each layer should subclass
             `BaseImagePreprocessingLayer`. During augmentation, one layer is
             randomly selected and applied to the input.
@@ -61,41 +30,13 @@ class RandomChoice(BaseImagePreprocessingLayer):
         seed: Integer to seed random number generator for reproducibility.
             Defaults to `None`.
 
-    **Call Arguments:**
+    Call Arguments:
         inputs: Single image tensor (rank 3), batch of image tensors (rank 4),
             or a dictionary of tensors. The input is augmented by one randomly
             selected layer from the `layers` list.
 
-    **Returns:**
+    Returns:
         Augmented inputs, with the same shape and structure as the input.
-
-    **Notes:**
-        - When `batchwise=True`, the same layer is applied to all inputs in the
-        batch.
-        - When `batchwise=False`, each input in the batch is processed by an
-        independently selected layer, which can lead to diverse augmentations.
-        - All layers in the `layers` list must support the same input shape and
-        dtype.
-
-    **Example with Batchwise Augmentation:**
-    ```python
-    layers = [
-        keras_cv.layers.RandomFlip("horizontal"),
-        keras_cv.layers.RandomRotation(factor=0.2),
-    ]
-    pipeline = keras_cv.layers.RandomChoice(layers=layers, batchwise=True)
-    augmented_images = pipeline(images)  # Same layer applied to entire batch
-    ```
-
-    **Example with Per-Image Augmentation:**
-    ```python
-    layers = [
-        keras_cv.layers.RandomFlip("horizontal"),
-        keras_cv.layers.RandomRotation(factor=0.2),
-    ]
-    pipeline = keras_cv.layers.RandomChoice(layers=layers, batchwise=False)
-    augmented_images = pipeline(images)  # Each image processed by random layer
-    ```
     """
 
     def __init__(
@@ -111,37 +52,82 @@ class RandomChoice(BaseImagePreprocessingLayer):
         self.auto_vectorize = auto_vectorize
         self.batchwise = batchwise
         self.seed = seed
-        if K.backend() == "jax":
-            self.seed_generator = random.SeedGenerator(seed)
+        self.generator = SeedGenerator(seed)
+        self._convert_input_args = False
+        self._allow_non_tensor_positional_args = True
 
-    def _augment(self, inputs, seed=None):
-        selected_op = ops.floor(
-            random.uniform(
-                shape=(),
-                minval=0,
-                maxval=len(self.layers),
-                dtype="float32",
-                seed=seed,
+    def get_random_transformation(self, data, training=True, seed=None):
+        if not training:
+            return None
+
+        if seed is None:
+            seed = self._get_seed_generator(self.backend._backend)
+
+        if isinstance(data, dict):
+            inputs = data["images"]
+        else:
+            inputs = data
+
+        input_shape = self.backend.shape(inputs)
+
+        if self.batchwise:
+            selected_op = ops.floor(
+                self.backend.random.uniform(
+                    shape=(),
+                    minval=0,
+                    maxval=len(self.layers),
+                    dtype="float32",
+                    seed=seed,
+                )
             )
-        )
+        else:
+            batch_size = input_shape[0]
+            selected_op = ops.floor(
+                self.backend.random.uniform(
+                    shape=(batch_size,),
+                    minval=0,
+                    maxval=len(self.layers),
+                    dtype="float32",
+                    seed=seed,
+                )
+            )
 
-        output = inputs
+            ndims = len(input_shape)
+            ones = [1] * (ndims - 1)
+            broadcast_shape = tuple([batch_size] + ones)
+            selected_op = self.backend.numpy.reshape(
+                selected_op, broadcast_shape
+            )
+
+        return {
+            "selected_op": selected_op,
+            "input_shape": input_shape,
+        }
+
+    def transform_images(self, images, transformation, training=True):
+        if not training or transformation is None:
+            return images
+
+        images = self.backend.cast(images, self.compute_dtype)
+        selected_op = transformation["selected_op"]
+        output = images
+
         for i, layer in enumerate(self.layers):
             condition = ops.equal(selected_op, float(i))
             if hasattr(layer, "get_random_transformation"):
-                output = ops.cond(
-                    condition,
-                    lambda l=layer: l.transform_images(
-                        inputs,
-                        l.get_random_transformation(inputs, seed=seed),
-                        training=True,
-                    ),
-                    lambda: output,
+                layer_transform = layer.get_random_transformation(
+                    images,
+                    training=True,
+                    seed=self._get_seed_generator(self.backend._backend),
+                )
+                augmented = layer.transform_images(
+                    images, layer_transform, training=True
                 )
             else:
-                output = ops.cond(
-                    condition, lambda l=layer: l(inputs), lambda: output
-                )
+                augmented = layer(images)
+
+            output = self.backend.numpy.where(condition, augmented, output)
+
         return output
 
     def call(self, inputs):
@@ -154,37 +140,8 @@ class RandomChoice(BaseImagePreprocessingLayer):
             return self._call_single(inputs)
 
     def _call_single(self, inputs):
-        inputs_rank = len(inputs.shape)
-        is_batch = ops.equal(inputs_rank, 4)
-
-        if K.backend() == "jax":
-            seed = self.seed_generator.next()
-        else:
-            seed = self.seed
-
-        def augment_single():
-            return self._augment(inputs, seed=seed)
-
-        def augment_batch():
-            if self.batchwise:
-                return self._augment(inputs, seed=seed)
-            else:
-                batch_size = ops.shape(inputs)[0]
-                augmented = []
-                for i in range(batch_size):
-                    if K.backend() == "jax":
-                        seed_i = self.seed_generator.next()
-                        augmented.append(self._augment(inputs[i], seed=seed_i))
-                    else:
-                        augmented.append(self._augment(inputs[i]))
-                return ops.stack(augmented)
-
-        return ops.cond(is_batch, augment_batch, augment_single)
-
-    def transform_images(self, images, transformation=None, training=True):
-        if not training:
-            return images
-        return self.call(images)
+        transformation = self.get_random_transformation(inputs, training=True)
+        return self.transform_images(inputs, transformation, training=True)
 
     def transform_labels(self, labels, transformation=None, training=True):
         if not training:
