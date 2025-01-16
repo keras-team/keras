@@ -130,17 +130,20 @@ class AbsMaxQuantizer(Quantizer):
 
 def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     """Adjusts and nudges the quantization range for better accuracy."""
+    # Use higher precision for the computation.
+    compute_dtype = backend.result_type(min_range.dtype, "float32")
+    min_range = ops.cast(min_range, compute_dtype)
+    max_range = ops.cast(max_range, compute_dtype)
 
-    quant_max = ops.cast(ops.subtract(ops.power(2, num_bits), 1.0), "float32")
-
-    quant_min = ops.cast(0.0 if not narrow_range else 1.0, "float32")
+    quant_max = (1 << num_bits) - 1
+    quant_min = 0 if not narrow_range else 1
+    diff_range = ops.subtract(max_range, min_range)
 
     # Calculate the scale and ensure it's positive
-    scale = ops.divide(
-        ops.subtract(max_range, min_range), ops.subtract(quant_max, quant_min)
-    )
+    scale = ops.divide(diff_range, quant_max - quant_min)
 
-    inv_scale = ops.reciprocal(scale)
+    # Re-calculate the inverse to avoid loss of precision
+    inv_scale = ops.divide(quant_max - quant_min, diff_range)
 
     # Calculate the zero point from the min range
     zero_point_from_min = quant_min - ops.divide(min_range, scale)
@@ -198,12 +201,15 @@ def fake_quant_with_min_max_vars(
     inputs = ops.convert_to_tensor(inputs)
     min_vals = ops.convert_to_tensor(min_vals)
     max_vals = ops.convert_to_tensor(max_vals)
+    num_bits = int(num_bits)
 
     if axis is not None:
         axis = canonicalize_axis(axis, inputs.ndim)
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_vars_per_channel(x, min_val, max_val):
+        dtype = backend.standardize_dtype(x.dtype)
+
         # Calculate quantization parameters for all channels at once
         nudged_min, nudged_max, scale, inv_scale = adjust_and_nudge(
             min_val, max_val, num_bits, narrow_range
@@ -212,7 +218,9 @@ def fake_quant_with_min_max_vars(
         quant_zero = ops.floor(
             ops.add(ops.multiply(-nudged_min, inv_scale), 0.5)
         )
-        x_clamped = ops.clip(x, nudged_min, nudged_max)
+        x_clamped = ops.clip(
+            x, ops.cast(nudged_min, x.dtype), ops.cast(nudged_max, x.dtype)
+        )
         x_clamped_shifted = ops.subtract(x_clamped, nudged_min)
         result = ops.multiply(
             ops.floor(
@@ -225,11 +233,11 @@ def fake_quant_with_min_max_vars(
             ),
             scale,
         )
+        result = ops.cast(result, dtype=dtype)
 
         # Create gradient mask for all channels
-        masks = ops.cast(
-            (x >= nudged_min) & (x <= nudged_max),
-            dtype="float32",
+        masks = ops.logical_and(
+            ops.greater_equal(x, nudged_min), ops.less_equal(x, nudged_max)
         )
 
         def grad(*args, upstream=None):
@@ -237,12 +245,13 @@ def fake_quant_with_min_max_vars(
                 (upstream,) = args
 
             # Gradient for x
-            dx = ops.multiply(upstream, masks)
+            dx = ops.where(masks, upstream, 0.0)
             axes = [i for i in range(len(dx.shape)) if i != axis]
+
             # Gradient for min_val
             # When x is clipped to min, the gradient flows to min_val
-            min_mask = ops.cast(x <= nudged_min, dtype="float32")
-            grad_min = ops.multiply(upstream, min_mask)
+            min_mask = ops.less_equal(x, nudged_min)
+            grad_min = ops.where(min_mask, upstream, 0.0)
             if axis is not None:
                 grad_min = ops.sum(grad_min, axis=axes)
             else:
@@ -250,8 +259,8 @@ def fake_quant_with_min_max_vars(
 
             # Gradient for max_val
             # When x is clipped to max, the gradient flows to max_val
-            max_mask = ops.cast(x >= nudged_max, dtype="float32")
-            grad_max = ops.multiply(upstream, max_mask)
+            max_mask = ops.greater_equal(x, nudged_max)
+            grad_max = ops.where(max_mask, upstream, 0.0)
             if axis is not None:
                 grad_max = ops.sum(grad_max, axis=axes)
             else:

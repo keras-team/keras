@@ -1,3 +1,6 @@
+import sys
+
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -334,7 +337,8 @@ class QuantizersTest(testing.TestCase):
             },
         ]
     )
-    def test_op(
+    @pytest.mark.requires_trainable_backend
+    def test_fake_quant_with_min_max_vars(
         self,
         input_mins,
         input_maxs,
@@ -401,6 +405,8 @@ class QuantizersTest(testing.TestCase):
         initial_gradients = ops.transpose(
             ops.array(initial_gradients_list, dtype="float32")
         )
+
+        # Test gradients.
         if backend.backend() == "tensorflow":
             import tensorflow as tf
 
@@ -420,16 +426,12 @@ class QuantizersTest(testing.TestCase):
                     )
                 return initial_gradients * tape.gradient(result, inputs)
 
-            gradients = test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-            )
-            # test gradients
-            self.assertAllClose(gradients, expected_backprops_wrt_input)
-
         if backend.backend() == "torch":
             import torch
 
-            def test_op(inputs, input_mins, input_maxs, num_bits, narrow_range):
+            def test_op(
+                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
+            ):
                 # Create tensor and enable gradient tracking
                 inputs = torch.tensor(
                     inputs, dtype=torch.float32, requires_grad=True
@@ -437,7 +439,7 @@ class QuantizersTest(testing.TestCase):
 
                 # Apply the quantization operation
                 result = quantizers.fake_quant_with_min_max_vars(
-                    inputs, input_mins, input_maxs, num_bits, narrow_range
+                    inputs, input_mins, input_maxs, num_bits, narrow_range, axis
                 )
 
                 # Compute gradients
@@ -445,33 +447,39 @@ class QuantizersTest(testing.TestCase):
 
                 return initial_gradients * inputs.grad
 
-            gradients = test_op(
-                inputs, input_min, input_max, num_bits, narrow_range
-            )
-            # test gradients
-            self.assertAllClose(gradients, expected_backprops_wrt_input)
-
         if backend.backend() == "jax":
             import jax
 
-            def test_op(inputs, input_mins, input_maxs, num_bits, narrow_range):
+            def test_op(
+                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
+            ):
                 # Define the function to compute gradients for
                 def quantize_fn(x):
                     return quantizers.fake_quant_with_min_max_vars(
-                        x, input_mins, input_maxs, num_bits, narrow_range
+                        x, input_mins, input_maxs, num_bits, narrow_range, axis
                     )
 
                 _, f_vjp = jax.vjp(quantize_fn, inputs)
-                # NOTE:python 3.10 input_gradients = f_vjp.args[0].args[0][0] !
-                input_gradients = f_vjp.args[0].args[0][1]
+
+                # NOTE: When python version >= 3.10, the gradients are at
+                # `f_vjp.args[0].args[0][0]`. Otherwise, they are at
+                # `f_vjp.args[0].args[0][1]`.
+                if sys.version_info >= (3, 10):
+                    input_gradients = f_vjp.args[0].args[0][0]
+                else:
+                    input_gradients = f_vjp.args[0].args[0][1]
 
                 return ops.multiply(initial_gradients, input_gradients)
 
-            gradients = test_op(
-                inputs, input_min, input_max, num_bits, narrow_range
-            )
-            # test gradients
+        gradients = test_op(
+            inputs, input_min, input_max, num_bits, narrow_range, axis
+        )
+        if backend.backend() != "jax" or not testing.jax_uses_gpu():
+            # JAX GPU produces less precise numbers, causing the CI to fail.
+            # For example, 127.5 / 255.0 results in 0.49999997 instead of 0.5.
             self.assertAllClose(gradients, expected_backprops_wrt_input)
+
+        # Test outputs.
         outputs = quantizers.fake_quant_with_min_max_vars(
             inputs,
             input_min,
@@ -480,4 +488,27 @@ class QuantizersTest(testing.TestCase):
             narrow_range=narrow_range,
             axis=axis,
         )
+        self.assertAllClose(outputs, expected)
+
+        # Test bfloat16 & float16 dtype
+        outputs = quantizers.fake_quant_with_min_max_vars(
+            ops.cast(inputs, "bfloat16"),
+            input_min,
+            input_max,
+            num_bits=num_bits,
+            narrow_range=narrow_range,
+            axis=axis,
+        )
+        self.assertDType(outputs, "bfloat16")
+        self.assertAllClose(outputs, expected)
+
+        outputs = quantizers.fake_quant_with_min_max_vars(
+            ops.cast(inputs, "float16"),
+            input_min,
+            input_max,
+            num_bits=num_bits,
+            narrow_range=narrow_range,
+            axis=axis,
+        )
+        self.assertDType(outputs, "float16")
         self.assertAllClose(outputs, expected)
