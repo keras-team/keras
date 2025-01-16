@@ -261,6 +261,58 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         out = kimage.map_coordinates(input, coordinates, 0)
         self.assertEqual(out.shape, coordinates.shape[1:])
 
+    def test_map_coordinates_uint8(self):
+        image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
+        coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
+
+        if backend.backend() != "tensorflow":
+            pytest.skip("Skipping test because the backend is not TensorFlow.")
+
+        out = kimage.map_coordinates(
+            image_uint8, coordinates, order=1, fill_mode="constant"
+        )
+        assert out.shape == coordinates.shape[1:]
+
+    def test_map_coordinates_float32(self):
+        image_float32 = tf.ones((1, 1, 3), dtype=tf.float32)
+        coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
+
+        if backend.backend() != "tensorflow":
+            pytest.skip("Skipping test because the backend is not TensorFlow.")
+
+        out = kimage.map_coordinates(
+            image_float32, coordinates, order=1, fill_mode="constant"
+        )
+        assert out.shape == coordinates.shape[1:]
+
+    def test_map_coordinates_nearest(self):
+        image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
+        coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
+
+        if backend.backend() != "tensorflow":
+            pytest.skip("Skipping test because the backend is not TensorFlow.")
+
+        out = kimage.map_coordinates(
+            image_uint8, coordinates, order=1, fill_mode="nearest"
+        )
+        assert out.shape == coordinates.shape[1:]
+
+    def test_map_coordinates_manual_cast(self):
+        image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
+        coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
+        image_uint8_casted = tf.cast(image_uint8, dtype=tf.float32)
+
+        if backend.backend() != "tensorflow":
+            pytest.skip("Skipping test because the backend is not TensorFlow.")
+
+        out = tf.cast(
+            kimage.map_coordinates(
+                image_uint8_casted, coordinates, order=1, fill_mode="constant"
+            ),
+            dtype=tf.uint8,
+        )
+        assert out.shape == coordinates.shape[1:]
+
     def test_pad_images(self):
         # Test channels_last
         x = KerasTensor([15, 25, 3])
