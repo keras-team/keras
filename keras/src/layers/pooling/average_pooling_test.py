@@ -174,6 +174,7 @@ class AveragePoolingBasicTest(testing.TestCase):
         (2, 1, "same", "channels_first", (3, 5, 5, 4), (3, 5, 5, 4)),
         ((2, 3), (2, 2), "valid", "channels_last", (3, 5, 5, 4), (3, 2, 2, 4)),
         ((2, 3), (2, 2), "same", "channels_last", (3, 5, 5, 4), (3, 3, 3, 4)),
+        ((2, 3), (3, 3), "same", "channels_first", (3, 5, 5, 4), (3, 5, 2, 2)),
     )
     def test_average_pooling2d(
         self,
