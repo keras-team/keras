@@ -4,8 +4,11 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
+from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
+from keras.src.ops.operation import Operation
 
 """Int8-related classes and methods"""
 
@@ -161,17 +164,37 @@ def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     return nudged_min, nudged_max, scale, inv_scale
 
 
-@keras_export("keras.quantizers.fake_quant_with_min_max_vars_per_channel")
+class FakeQuantWithMinMaxVars(Operation):
+    def __init__(self, num_bits=8, narrow_range=False, axis=None):
+        super().__init__()
+        self.num_bits = num_bits
+        self.narrow_range = narrow_range
+        self.axis = axis
+
+    def call(self, inputs, min_vals, max_vals):
+        return fake_quant_with_min_max_vars(
+            inputs,
+            min_vals,
+            max_vals,
+            num_bits=self.num_bits,
+            narrow_range=self.narrow_range,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, inputs, min_vals, max_vals):
+        return KerasTensor(inputs.shape, dtype=inputs.dtype)
+
+
+@keras_export("keras.quantizers.fake_quant_with_min_max_vars")
 def fake_quant_with_min_max_vars(
     inputs,
     min_vals,
     max_vals,
-    num_bits,
+    num_bits=8,
     narrow_range=False,
     axis=None,
 ):
-    """
-    Perform per-tensor or per-channel fake quantization.
+    """Perform per-tensor or per-channel fake quantization.
 
     `[min_vals, max_vals]` define the clamping range for the `inputs`.
 
@@ -186,18 +209,24 @@ def fake_quant_with_min_max_vars(
     `max_vals` to be trained.
 
     Args:
-        inputs: Input tensor of float dtype.
+        inputs: Input Keras tensor of float dtype.
         min_vals: A global minimum scalar or a per-channel minimum tensor.
         max_vals: A global maximum scalar or a per-channel maximum tensor.
-        num_bits: Quantization bit width (e.g., `8` for int8).
-        narrow_range: Whether to use narrow quantization range.
+        num_bits: Quantization bit width (e.g., `8` for int8). Defaults to `8`.
+        narrow_range: Whether to use narrow quantization range. Defaults to
+            `False`.
         axis: Axis along which to perform per-channel quantization. If `None`,
               per-tensor quantization is performed. Defaults to `None`.
 
 
     Returns:
-        Fake-quantized tensor
+        Tensor: A Keras tensor with fake quantization applied.
     """
+    if any_symbolic_tensors((inputs,)):
+        return FakeQuantWithMinMaxVars().symbolic_call(
+            inputs, min_vals, max_vals
+        )
+
     inputs = ops.convert_to_tensor(inputs)
     min_vals = ops.convert_to_tensor(min_vals)
     max_vals = ops.convert_to_tensor(max_vals)
@@ -205,6 +234,38 @@ def fake_quant_with_min_max_vars(
 
     if axis is not None:
         axis = canonicalize_axis(axis, inputs.ndim)
+
+    # Shortcut for TensorFlow backend by using `tf.quantization.fake_quant_*`
+    # apis. This is necessary to be recognizable for the TFLite converter.
+    if backend.backend() == "tensorflow":
+        import tensorflow as tf
+
+        # `tf.quantization.fake_quant_*` only supports float32.
+        dtype = backend.standardize_dtype(inputs.dtype)
+        if axis is None:
+            outputs = tf.quantization.fake_quant_with_min_max_vars(
+                ops.cast(inputs, "float32"),
+                ops.cast(ops.reshape(min_vals, ()), "float32"),
+                ops.cast(ops.reshape(max_vals, ()), "float32"),
+                num_bits=num_bits,
+                narrow_range=narrow_range,
+            )
+            return ops.cast(outputs, dtype=dtype)
+        else:
+            # `tf.quantization.fake_quant_with_min_max_vars_per_channel` only
+            # supports the last channel for the per-channel quantization. We
+            # use `ops.swapaxes` for the pre- and post-processing.
+            last_axis = inputs.ndim - 1
+            inputs = ops.swapaxes(inputs, axis, last_axis)
+            outputs = tf.quantization.fake_quant_with_min_max_vars_per_channel(
+                ops.cast(inputs, "float32"),
+                ops.cast(min_vals, "float32"),
+                ops.cast(max_vals, "float32"),
+                num_bits=num_bits,
+                narrow_range=narrow_range,
+            )
+            outputs = ops.cast(outputs, dtype=dtype)
+            return ops.swapaxes(outputs, last_axis, axis)
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_vars_per_channel(x, min_val, max_val):

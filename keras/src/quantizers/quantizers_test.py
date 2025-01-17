@@ -108,6 +108,17 @@ class QuantizersTest(testing.TestCase):
         self.assertAllClose(qdq_values, values, atol=5e-1)
 
     @parameterized.named_parameters(
+        ("per_tensor", None),
+        ("per_channel", -1),
+    )
+    def test_fake_quant_with_min_max_vars_symbolic(self, axis):
+        x = backend.KerasTensor((2, 3, 4))
+        y = quantizers.fake_quant_with_min_max_vars(x, -3.0, 3.0, axis=axis)
+
+        self.assertIsInstance(y, backend.KerasTensor)
+        self.assertEqual(y.shape, (2, 3, 4))
+
+    @parameterized.named_parameters(
         [
             {
                 "testcase_name": "wide_8bits_input_mins_0.0_input_maxs_255.0",
@@ -337,7 +348,10 @@ class QuantizersTest(testing.TestCase):
             },
         ]
     )
-    @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() not in ("tensorflow", "jax", "torch"),
+        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
+    )
     def test_fake_quant_with_min_max_vars(
         self,
         input_mins,
