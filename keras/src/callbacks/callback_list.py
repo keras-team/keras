@@ -241,3 +241,7 @@ class CallbackList(Callback):
         logs = python_utils.pythonify_logs(logs)
         for callback in self.callbacks:
             callback.on_predict_end(logs)
+
+    def __del__(self):
+        if self._executor is not None:
+            self._executor.shutdown(cancel_futures=True)
