@@ -83,6 +83,7 @@ from keras.src.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.src.layers.preprocessing.discretization import Discretization
 from keras.src.layers.preprocessing.hashed_crossing import HashedCrossing
 from keras.src.layers.preprocessing.hashing import Hashing
+from keras.src.layers.preprocessing.image_preprocessing.aug_mix import AugMix
 from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
     AutoContrast,
 )

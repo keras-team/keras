@@ -65,7 +65,7 @@ def make_input_spec(x):
     if isinstance(x, layers.InputSpec):
         if x.shape is None or x.dtype is None:
             raise ValueError(
-                "The `shape` and `dtype` must be provided. " f"Received: x={x}"
+                f"The `shape` and `dtype` must be provided. Received: x={x}"
             )
         input_spec = x
     elif isinstance(x, backend.KerasTensor):

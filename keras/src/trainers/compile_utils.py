@@ -542,8 +542,7 @@ class CompileLoss(losses_module.Loss):
 
         else:
             raise TypeError(
-                f"Unsupported type {type(loss)} "
-                f"in the `loss` configuration."
+                f"Unsupported type {type(loss)} in the `loss` configuration."
             )
 
         for key, _loss in iterator:

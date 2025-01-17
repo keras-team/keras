@@ -32,6 +32,7 @@ class KerasTensor:
         shape,
         dtype="float32",
         sparse=False,
+        ragged=False,
         record_history=True,
         name=None,
     ):
@@ -40,6 +41,12 @@ class KerasTensor:
         self._shape = backend.standardize_shape(shape)
         self._dtype = backend.standardize_dtype(dtype)
         self._sparse = bool(sparse)
+        self._ragged = bool(ragged)
+        if self._sparse and self._ragged:
+            raise ValueError(
+                "KerasTensor cannot have `sparse=True` and `ragged=True` at "
+                "the same time."
+            )
         self.name = name or auto_name(self.__class__.__name__)
         self.record_history = record_history
 
@@ -50,7 +57,7 @@ class KerasTensor:
     @shape.setter
     def shape(self, value):
         raise AttributeError(
-            f"The shape of {self.__class__.__name__} is immutable. One should "
+            "The `shape` attribute of KerasTensor is immutable. One should "
             "create a new instance of KerasTensor for this."
         )
 
@@ -61,7 +68,7 @@ class KerasTensor:
     @dtype.setter
     def dtype(self, value):
         raise AttributeError(
-            f"The dtype of {self.__class__.__name__} is immutable. One should "
+            "The `dtype` attribute of KerasTensor is immutable. One should "
             "create a new instance of KerasTensor for this."
         )
 
@@ -72,7 +79,18 @@ class KerasTensor:
     @sparse.setter
     def sparse(self, value):
         raise AttributeError(
-            f"The sparse of {self.__class__.__name__} is immutable. One should "
+            "The `sparse` attribute of KerasTensor is immutable. One should "
+            "create a new instance of KerasTensor for this."
+        )
+
+    @property
+    def ragged(self):
+        return self._ragged
+
+    @ragged.setter
+    def ragged(self, value):
+        raise AttributeError(
+            "The `ragged` attribute of KerasTensor is immutable. One should "
             "create a new instance of KerasTensor for this."
         )
 
@@ -160,7 +178,7 @@ class KerasTensor:
     def __repr__(self):
         return (
             f"<KerasTensor shape={self.shape}, dtype={self.dtype}, "
-            f"sparse={self.sparse}, name={self.name}>"
+            f"sparse={self.sparse}, ragged={self.ragged}, name={self.name}>"
         )
 
     def __iter__(self):

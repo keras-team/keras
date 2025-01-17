@@ -247,7 +247,7 @@ class Metric(KerasSaveable):
             )
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} " f"name={self.name}>"
+        return f"<{self.__class__.__name__} name={self.name}>"
 
     def __str__(self):
         return self.__repr__()

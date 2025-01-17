@@ -19,6 +19,7 @@ from keras.src.backend.tensorflow.sparse import sparse_to_dense
 from keras.src.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
+SUPPORTS_RAGGED_TENSORS = True
 # https://github.com/tensorflow/tensorflow/issues/78338
 IS_THREAD_SAFE = False
 
@@ -122,9 +123,11 @@ class Variable(
         return mapping[aggregation]
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
         x = sparse_to_dense(x)
+    if isinstance(x, tf.RaggedTensor) and ragged is not None and not ragged:
+        x = x.to_tensor()
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if not tf.is_tensor(x):

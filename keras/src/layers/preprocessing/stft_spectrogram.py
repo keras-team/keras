@@ -232,7 +232,7 @@ class STFTSpectrogram(layers.Layer):
         self.built = True
 
     def _adjust_shapes(self, outputs):
-        _, channels, freq_channels, time_seq = outputs.shape
+        _, channels, freq_channels, time_seq = ops.shape(outputs)
         batch_size = -1
         if self.data_format == "channels_last":
             if self.expand_dims:
@@ -258,11 +258,11 @@ class STFTSpectrogram(layers.Layer):
 
     def _apply_conv(self, inputs, kernel):
         if self.data_format == "channels_last":
-            _, time_seq, channels = inputs.shape
+            _, time_seq, channels = ops.shape(inputs)
             inputs = ops.transpose(inputs, [0, 2, 1])
             inputs = ops.reshape(inputs, [-1, time_seq, 1])
         else:
-            _, channels, time_seq = inputs.shape
+            _, channels, time_seq = ops.shape(inputs)
             inputs = ops.reshape(inputs, [-1, 1, time_seq])
 
         outputs = ops.conv(
@@ -274,14 +274,14 @@ class STFTSpectrogram(layers.Layer):
         )
         batch_size = -1
         if self.data_format == "channels_last":
-            _, time_seq, freq_channels = outputs.shape
+            _, time_seq, freq_channels = ops.shape(outputs)
             outputs = ops.transpose(outputs, [0, 2, 1])
             outputs = ops.reshape(
                 outputs,
                 [batch_size, channels, freq_channels, time_seq],
             )
         else:
-            _, freq_channels, time_seq = outputs.shape
+            _, freq_channels, time_seq = ops.shape(outputs)
             outputs = ops.reshape(
                 outputs,
                 [batch_size, channels, freq_channels, time_seq],

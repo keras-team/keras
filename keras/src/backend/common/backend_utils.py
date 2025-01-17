@@ -356,7 +356,7 @@ def _vectorize_parse_input_dimensions(
             f"expected {len(input_core_dims)}, got {len(args)}"
         )
     shapes = []
-    dim_sizes: dict[str, int] = {}
+    dim_sizes = {}
     for arg, core_dims in zip(args, input_core_dims):
         _vectorize_update_dim_sizes(
             dim_sizes, arg.shape, core_dims, is_input=True

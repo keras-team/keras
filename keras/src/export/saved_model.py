@@ -550,18 +550,13 @@ class ExportArchive(BackendExportArchive):
         # Next, track lookup tables.
         # Hopefully, one day this will be automated at the tf.function level.
         self._tf_trackable._misc_assets = []
-        from keras.src.layers import IntegerLookup
-        from keras.src.layers import StringLookup
-        from keras.src.layers import TextVectorization
+        from tensorflow.saved_model.experimental import TrackableResource
 
         if hasattr(self, "_tracked"):
             for root in self._tracked:
                 descendants = tf.train.TrackableView(root).descendants()
                 for trackable in descendants:
-                    if isinstance(
-                        trackable,
-                        (IntegerLookup, StringLookup, TextVectorization),
-                    ):
+                    if isinstance(trackable, TrackableResource):
                         self._tf_trackable._misc_assets.append(trackable)
 
 
