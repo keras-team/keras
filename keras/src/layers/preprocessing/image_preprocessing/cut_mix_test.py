@@ -36,31 +36,36 @@ class CutMixTest(testing.TestCase):
             image1 = np.ones((2, 2, 1))
             image2 = np.zeros((2, 2, 1))
             inputs = np.asarray([image1, image2])
-            expected_output = np.asarray(
+            expected_output = np.array(
                 [
-                    [[[1.0], [1.0]], [[1.0], [0.0]]],
-                    [[[0.0], [0.0]], [[0.0], [1.0]]],
+                    [[[1.0], [1.0]], [[1.0], [1.0]]],
+                    [[[0.0], [0.0]], [[0.0], [0.0]]],
                 ]
             )
-
         else:
             image1 = np.ones((1, 2, 2))
             image2 = np.zeros((1, 2, 2))
             inputs = np.asarray([image1, image2])
             expected_output = np.asarray(
-                [[[[1.0, 1.0], [1.0, 0.0]]], [[[0.0, 0.0], [0.0, 1.0]]]]
+                [
+                    [[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]],
+                    [[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                ]
             )
 
         layer = layers.CutMix(data_format=data_format)
 
         transformation = {
-            "cut_height": [1.0, 1.0],
-            "cut_width": [1.0, 1.0],
-            "input_shape": (2, 2, 2),
-            "permutation_order": [1, 0],
-            "random_center_height": [1.0, 1.0],
-            "random_center_width": [1.0, 1.0],
+            "batch_masks": np.asarray(
+                [
+                    [[[False], [True]], [[False], [False]]],
+                    [[[False], [False]], [[True], [False]]],
+                ]
+            ),
+            "mix_weight": np.asarray([[[[0.7826548]]], [[[0.8133545]]]]),
+            "permutation_order": np.asarray([0, 1]),
         }
+
         output = layer.transform_images(inputs, transformation)
 
         self.assertAllClose(expected_output, output)
