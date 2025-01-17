@@ -55,8 +55,8 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 def fft(x):
-    # TODO: https://ml-explore.github.io/mlx/build/html/python/fft.html#fft
-    raise NotImplementedError("fft not yet implemented in mlx")
+    x = convert_to_tensor(x)
+    return mx.fft(x)
 
 
 def fft2(x):
