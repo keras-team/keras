@@ -8,8 +8,7 @@ from keras.src.random.seed_generator import SeedGenerator
 
 @keras_export("keras.layers.RandomChoice")
 class RandomChoice(BaseImagePreprocessingLayer):
-    """A preprocessing layer that randomly selects and applies one layer from a
-    list of layers.
+    """A preprocessing layer that randomly applies a layer from a list.
 
     Useful for creating randomized data augmentation pipelines. During
     training, for each input (or batch of inputs), it randomly selects one layer
@@ -20,13 +19,10 @@ class RandomChoice(BaseImagePreprocessingLayer):
         layers: A list of `keras.Layers` instances. Each layer should subclass
             `BaseImagePreprocessingLayer`. During augmentation, one layer is
             randomly selected and applied to the input.
-        auto_vectorize: Boolean, whether to use vectorized operations to apply
-            augmentations. This can greatly improve performance but requires
-            that all layers in layers support vectorization. Defaults to False.
         batchwise: Boolean, whether to apply the same randomly selected layer to
-            the entire batch of inputs. When True, the entire batch is passed to
-            a single layer. When False, each input in the batch is processed by
-            an independently selected layer. Defaults to False.
+            the entire batch of inputs. If `True`, the entire batch is passed to
+            a single layer. If `False`, each input in the batch is processed by
+            an independently selected layer. Defaults to `False`.
         seed: Integer to seed random number generator for reproducibility.
             Defaults to `None`.
 
@@ -42,31 +38,21 @@ class RandomChoice(BaseImagePreprocessingLayer):
     def __init__(
         self,
         layers,
-        auto_vectorize=False,
         batchwise=False,
         seed=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.layers = layers
-        self.auto_vectorize = auto_vectorize
         self.batchwise = batchwise
         self.seed = seed
         self.generator = SeedGenerator(seed)
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
 
-    def get_random_transformation(self, data, training=True, seed=None):
+    def _curry_call_layer(self, inputs, training=True):
         if not training:
             return None
-
-        if seed is None:
-            seed = self._get_seed_generator(self.backend._backend)
-
-        if isinstance(data, dict):
-            inputs = data["images"]
-        else:
-            inputs = data
 
         input_shape = self.backend.shape(inputs)
 
@@ -77,7 +63,7 @@ class RandomChoice(BaseImagePreprocessingLayer):
                     minval=0,
                     maxval=len(self.layers),
                     dtype="float32",
-                    seed=seed,
+                    seed=self._get_seed_generator(self.backend._backend),
                 )
             )
         else:
@@ -88,7 +74,7 @@ class RandomChoice(BaseImagePreprocessingLayer):
                     minval=0,
                     maxval=len(self.layers),
                     dtype="float32",
-                    seed=seed,
+                    seed=self._get_seed_generator(self.backend._backend),
                 )
             )
 
@@ -99,33 +85,25 @@ class RandomChoice(BaseImagePreprocessingLayer):
                 selected_op, broadcast_shape
             )
 
-        return {
-            "selected_op": selected_op,
-            "input_shape": input_shape,
-        }
+        return selected_op
 
-    def transform_images(self, images, transformation, training=True):
-        if not training or transformation is None:
-            return images
-
-        images = self.backend.cast(images, self.compute_dtype)
-        selected_op = transformation["selected_op"]
-        output = images
+    def _call_single(self, inputs):
+        selected_op = self._curry_call_layer(inputs, training=True)
+        output = self.backend.cast(inputs, self.compute_dtype)
 
         for i, layer in enumerate(self.layers):
             condition = ops.equal(selected_op, float(i))
             if hasattr(layer, "get_random_transformation"):
                 layer_transform = layer.get_random_transformation(
-                    images,
+                    inputs,
                     training=True,
                     seed=self._get_seed_generator(self.backend._backend),
                 )
                 augmented = layer.transform_images(
-                    images, layer_transform, training=True
+                    inputs, layer_transform, training=True
                 )
             else:
-                augmented = layer(images)
-
+                augmented = layer(inputs)
             output = self.backend.numpy.where(condition, augmented, output)
 
         return output
@@ -139,35 +117,11 @@ class RandomChoice(BaseImagePreprocessingLayer):
         else:
             return self._call_single(inputs)
 
-    def _call_single(self, inputs):
-        transformation = self.get_random_transformation(inputs, training=True)
-        return self.transform_images(inputs, transformation, training=True)
-
-    def transform_labels(self, labels, transformation=None, training=True):
-        if not training:
-            return labels
-        return self.call(labels)
-
-    def transform_bounding_boxes(
-        self, bboxes, transformation=None, training=True
-    ):
-        if not training:
-            return bboxes
-        return self.call(bboxes)
-
-    def transform_segmentation_masks(
-        self, masks, transformation=None, training=True
-    ):
-        if not training:
-            return masks
-        return self.call(masks)
-
     def get_config(self):
         config = super().get_config()
         config.update(
             {
                 "layers": self.layers,
-                "auto_vectorize": self.auto_vectorize,
                 "batchwise": self.batchwise,
                 "seed": self.seed,
             }

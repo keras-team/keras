@@ -8,8 +8,7 @@ from keras.src.random.seed_generator import SeedGenerator
 
 @keras_export("keras.layers.RandomApply")
 class RandomApply(BaseImagePreprocessingLayer):
-    """A preprocessing layer that randomly applies a specified layer during
-    training.
+    """Preprocessing layer to randomly apply a specified layer during training.
 
     This layer randomly applies a given transformation layer to inputs based on
     the `rate` parameter. It is useful for stochastic data augmentation to
@@ -20,9 +19,9 @@ class RandomApply(BaseImagePreprocessingLayer):
         layer: A `keras.Layer` to apply. The layer must not modify input shape.
         rate: Float between 0.0 and 1.0, representing the probability of
             applying the layer. Defaults to 0.5.
-        batchwise: Boolean. If True, the decision to apply the layer is made for
-            the entire batch. If False, it is made independently for each input.
-            Defaults to False.
+        batchwise: Boolean. If `True`, the decision to apply the layer is made
+            for the entire batch. If `False`, it is made independently for each
+            input. Defaults to `False`.
         seed: Optional integer to ensure reproducibility.
 
     Inputs: A tensor (rank 3 for single input, rank 4 for batch input). The
@@ -37,7 +36,6 @@ class RandomApply(BaseImagePreprocessingLayer):
         layer,
         rate=0.5,
         batchwise=False,
-        auto_vectorize=False,
         seed=None,
         **kwargs,
     ):
@@ -48,7 +46,6 @@ class RandomApply(BaseImagePreprocessingLayer):
             )
         self._layer = layer
         self._rate = rate
-        self.auto_vectorize = auto_vectorize
         self.batchwise = batchwise
         self.seed = seed
         self.generator = SeedGenerator(seed)
@@ -131,21 +128,15 @@ class RandomApply(BaseImagePreprocessingLayer):
         return num_batches - num_non_zero_batches
 
     def transform_labels(self, labels, transformation, training=True):
-        if not training or transformation is None:
-            return labels
-        return self.transform_images(labels, transformation, training)
+        return labels
 
     def transform_bounding_boxes(self, bboxes, transformation, training=True):
-        if not training or transformation is None:
-            return bboxes
-        return self.transform_images(bboxes, transformation, training)
+        return bboxes
 
     def transform_segmentation_masks(
         self, masks, transformation, training=True
     ):
-        if not training or transformation is None:
-            return masks
-        return self.transform_images(masks, transformation, training)
+        return masks
 
     def get_config(self):
         config = super().get_config()
@@ -155,7 +146,6 @@ class RandomApply(BaseImagePreprocessingLayer):
                 "layer": self._layer,
                 "seed": self.seed,
                 "batchwise": self.batchwise,
-                "auto_vectorize": self.auto_vectorize,
             }
         )
         return config

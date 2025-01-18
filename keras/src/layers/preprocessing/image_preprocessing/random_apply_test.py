@@ -107,9 +107,7 @@ class RandomApplyTest(TestCase):
     )
     def test_works_with_xla(self):
         dummy_inputs = random.uniform(shape=(32, 224, 224, 3))
-        layer = layers.RandomApply(
-            rate=0.5, layer=ZeroOut(), auto_vectorize=False
-        )
+        layer = layers.RandomApply(rate=0.5, layer=ZeroOut())
 
         def apply(x):
             return layer(x)
