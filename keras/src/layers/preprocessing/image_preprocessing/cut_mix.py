@@ -167,7 +167,7 @@ class CutMix(BaseImagePreprocessingLayer):
             + 1e-6
         )
         mix_weight = self.backend.random.beta(
-            (batch_size,), alpha, alpha, seed=seed
+            (batch_size,), alpha, alpha, seed=seed, dtype=self.compute_dtype
         )
         return mix_weight
 
