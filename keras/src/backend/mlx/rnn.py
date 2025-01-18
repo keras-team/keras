@@ -1,3 +1,7 @@
+import mlx.core as mx
+
+from keras.src import tree
+
 def rnn(
     step_function,
     inputs,
@@ -11,6 +15,19 @@ def rnn(
     zero_output_for_mask=False,
     return_all_outputs=True,
 ):
+    def swap_batch_timestep(input_t):
+        # Swap the batch and timestep dim for the incoming tensor.
+        axes = list(range(len(input_t.shape)))
+        axes[0], axes[1] = 1, 0
+        return mx.transpose(input_t, axes)
+    
+    if not time_major:
+        inputs = tree.map_structure(swap_batch_timestep, inputs)
+
+    flattened_inputs = tree.flatten(inputs)
+    time_steps = flattened_inputs[0].shape[0]
+
+
     raise NotImplementedError("rnn not yet implemented in mlx")
 
 
