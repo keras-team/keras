@@ -7,24 +7,44 @@ from keras.src.random import SeedGenerator
 
 @keras_export("keras.layers.CutMix")
 class CutMix(BaseImagePreprocessingLayer):
-    """CutMix implements the CutMix data augmentation technique.
+    """
+    CutMix implements the CutMix data augmentation technique.
+
+    CutMix is a data augmentation method where patches are cut and pasted
+    between two images in the dataset, while the labels are also mixed
+    proportionally to the area of the patches.
 
     Args:
-        alpha: Float between 0 and 1. Inverse scale parameter for the gamma
-            distribution. This controls the shape of the distribution from which
-            the smoothing values are sampled. Defaults to 1.0, which is a
-            recommended value when training an imagenet1k classification model.
+        factor: A single float or a tuple of two floats between `0` and `1`.
+            If a tuple is used, a `factor` is sampled between the two values.
+            If a single float is used, a value between `0.0` and the passed
+            float is sampled. These values define the range from which the
+            mixing weight is sampled. A higher factor increases the variability
+            in patch sizes, leading to more diverse and larger mixed patches.
+            Defaults to `1.0`.
         seed: Integer. Used to create a random seed.
 
     References:
        - [CutMix paper]( https://arxiv.org/abs/1905.04899).
     """
 
-    def __init__(self, alpha=1.0, seed=None, data_format=None, **kwargs):
+    _USE_BASE_FACTOR = False
+    _FACTOR_BOUNDS = (0, 1)
+
+    def __init__(self, factor=1.0, seed=None, data_format=None, **kwargs):
         super().__init__(data_format=data_format, **kwargs)
-        self.alpha = alpha
+        self._set_factor(factor)
         self.seed = seed
         self.generator = SeedGenerator(seed)
+
+        if self.data_format == "channels_first":
+            self.height_axis = -2
+            self.width_axis = -1
+            self.channel_axis = -3
+        else:
+            self.height_axis = -3
+            self.width_axis = -2
+            self.channel_axis = -1
 
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
@@ -40,44 +60,22 @@ class CutMix(BaseImagePreprocessingLayer):
             return None
 
         batch_size = images_shape[0]
-        if self.data_format == "channels_first":
-            image_height = images_shape[-2]
-            image_width = images_shape[-1]
-            channel_axis = 1
-        else:
-            image_height = images_shape[-3]
-            image_width = images_shape[-2]
-            channel_axis = -1
+        image_height = images_shape[self.height_axis]
+        image_width = images_shape[self.width_axis]
 
         seed = seed or self._get_seed_generator(self.backend._backend)
 
-        r_x = self.backend.random.uniform(
-            shape=[batch_size],
-            minval=0,
-            maxval=image_width,
-            dtype=self.compute_dtype,
-            seed=seed,
-        )
-        r_y = self.backend.random.uniform(
-            shape=[batch_size],
-            minval=0,
-            maxval=image_height,
-            dtype=self.compute_dtype,
-            seed=seed,
+        mix_weight = self._generate_mix_weight(batch_size, seed)
+        ratio = self.backend.numpy.sqrt(1.0 - mix_weight)
+
+        x0, x1 = self._compute_crop_bounds(batch_size, image_width, ratio, seed)
+        y0, y1 = self._compute_crop_bounds(
+            batch_size, image_height, ratio, seed
         )
 
-        mix_weight = self.backend.random.beta(
-            (batch_size,), self.alpha, self.alpha, seed=seed
-        )
-
-        batch_masks, mix_weight = self.get_batch_mask(
-            channel_axis,
-            image_height,
-            image_width,
+        batch_masks, mix_weight = self._generate_batch_mask(
             images_shape,
-            r_x,
-            r_y,
-            mix_weight,
+            (x0, x1, y0, y1),
         )
 
         permutation_order = self.backend.random.shuffle(
@@ -91,60 +89,87 @@ class CutMix(BaseImagePreprocessingLayer):
             "mix_weight": mix_weight,
         }
 
-    def get_batch_mask(
-        self,
-        channel_axis,
-        image_height,
-        image_width,
-        images_shape,
-        r_x,
-        r_y,
-        mix_weight,
-    ):
-        ratio = 0.5 * self.backend.numpy.sqrt(1.0 - mix_weight)
-        r_w_half = self.backend.cast(
-            ratio * image_width, dtype=self.compute_dtype
-        )
-        r_h_half = self.backend.cast(
-            ratio * image_height, dtype=self.compute_dtype
-        )
-        x0 = self.backend.numpy.clip(r_x - r_w_half, 0, image_width)
-        y0 = self.backend.numpy.clip(r_y - r_h_half, 0, image_height)
-        x1 = self.backend.numpy.clip(r_x + r_w_half, 0, image_width)
-        y1 = self.backend.numpy.clip(r_y + r_h_half, 0, image_height)
-        grid_y, grid_x = self.backend.numpy.meshgrid(
-            self.backend.numpy.arange(image_height, dtype=self.compute_dtype),
-            self.backend.numpy.arange(image_width, dtype=self.compute_dtype),
-            indexing="ij",
-        )
+    def _generate_batch_mask(self, images_shape, box_corners):
+        def _generate_grid_xy(image_height, image_width):
+            grid_y, grid_x = self.backend.numpy.meshgrid(
+                self.backend.numpy.arange(
+                    image_height, dtype=self.compute_dtype
+                ),
+                self.backend.numpy.arange(
+                    image_width, dtype=self.compute_dtype
+                ),
+                indexing="ij",
+            )
+            if self.data_format == "channels_last":
+                grid_y = self.backend.cast(
+                    grid_y[None, :, :, None], dtype=self.compute_dtype
+                )
+                grid_x = self.backend.cast(
+                    grid_x[None, :, :, None], dtype=self.compute_dtype
+                )
+            else:
+                grid_y = self.backend.cast(
+                    grid_y[None, None, :, :], dtype=self.compute_dtype
+                )
+                grid_x = self.backend.cast(
+                    grid_x[None, None, :, :], dtype=self.compute_dtype
+                )
+            return grid_x, grid_y
 
-        if self.data_format == "channels_last":
-            grid_y = self.backend.cast(
-                grid_y[None, :, :, None], dtype=self.compute_dtype
-            )
-            grid_x = self.backend.cast(
-                grid_x[None, :, :, None], dtype=self.compute_dtype
-            )
-        else:
-            grid_y = self.backend.cast(
-                grid_y[None, None, :, :], dtype=self.compute_dtype
-            )
-            grid_x = self.backend.cast(
-                grid_x[None, None, :, :], dtype=self.compute_dtype
-            )
+        image_height, image_width = (
+            images_shape[self.height_axis],
+            images_shape[self.width_axis],
+        )
+        grid_x, grid_y = _generate_grid_xy(image_height, image_width)
+
+        x0, x1, y0, y1 = box_corners
 
         x0 = x0[:, None, None, None]
         y0 = y0[:, None, None, None]
         x1 = x1[:, None, None, None]
         y1 = y1[:, None, None, None]
+
         batch_masks = (
             (grid_x >= x0) & (grid_x < x1) & (grid_y >= y0) & (grid_y < y1)
         )
         batch_masks = self.backend.numpy.repeat(
-            batch_masks, images_shape[channel_axis], axis=channel_axis
+            batch_masks, images_shape[self.channel_axis], axis=self.channel_axis
         )
         mix_weight = 1.0 - (x1 - x0) * (y1 - y0) / (image_width * image_height)
         return batch_masks, mix_weight
+
+    def _compute_crop_bounds(self, batch_size, image_length, crop_ratio, seed):
+        crop_length = self.backend.cast(
+            crop_ratio * image_length, dtype=self.compute_dtype
+        )
+
+        start_pos = self.backend.random.uniform(
+            shape=[batch_size],
+            minval=0,
+            maxval=1,
+            dtype=self.compute_dtype,
+            seed=seed,
+        ) * (image_length - crop_length)
+
+        end_pos = start_pos + crop_length
+
+        return start_pos, end_pos
+
+    def _generate_mix_weight(self, batch_size, seed):
+        alpha = (
+            self.backend.random.uniform(
+                shape=(),
+                minval=self.factor[0],
+                maxval=self.factor[1],
+                dtype=self.compute_dtype,
+                seed=seed,
+            )
+            + 1e-6
+        )
+        mix_weight = self.backend.random.beta(
+            (batch_size,), alpha, alpha, seed=seed
+        )
+        return mix_weight
 
     def transform_images(self, images, transformation=None, training=True):
         if training and transformation is not None:
@@ -194,7 +219,7 @@ class CutMix(BaseImagePreprocessingLayer):
 
     def get_config(self):
         config = {
-            "alpha": self.alpha,
+            "factor": self.factor,
             "seed": self.seed,
         }
         base_config = super().get_config()

@@ -13,7 +13,7 @@ class CutMixTest(testing.TestCase):
         self.run_layer_test(
             layers.CutMix,
             init_kwargs={
-                "alpha": 1.0,
+                "factor": 1.0,
                 "seed": 1,
             },
             input_shape=(8, 3, 4, 3),
