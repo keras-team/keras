@@ -7,21 +7,21 @@ from keras.src.random import SeedGenerator
 
 @keras_export("keras.layers.CutMix")
 class CutMix(BaseImagePreprocessingLayer):
-    """
-    CutMix implements the CutMix data augmentation technique.
+    """CutMix data augmentation technique.
 
     CutMix is a data augmentation method where patches are cut and pasted
     between two images in the dataset, while the labels are also mixed
     proportionally to the area of the patches.
 
     Args:
-        factor: A single float or a tuple of two floats between `0` and `1`.
-            If a tuple is used, a `factor` is sampled between the two values.
-            If a single float is used, a value between `0.0` and the passed
+        factor: A single float or a tuple of two floats between 0 and 1.
+            If a tuple of numbers is passed, a `factor` is sampled
+            between the two values.
+            If a single float is passed, a value between 0 and the passed
             float is sampled. These values define the range from which the
             mixing weight is sampled. A higher factor increases the variability
             in patch sizes, leading to more diverse and larger mixed patches.
-            Defaults to `1.0`.
+            Defaults to 1.
         seed: Integer. Used to create a random seed.
 
     References:
