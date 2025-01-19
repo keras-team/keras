@@ -1,6 +1,9 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import metrics
+from keras.src import models
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.metrics import reduction_metrics
@@ -174,3 +177,17 @@ class MetricWrapperTest(testing.TestCase):
             KerasTensor((None, 5)),
         )
         self.assertAllEqual(result.shape, ())
+
+    def test_binary_accuracy_with_boolean_inputs(self):
+        inp = layers.Input(shape=(1,))
+        out = inp > 0.5
+        model = models.Model(inputs=inp, outputs=out)
+
+        x = np.random.rand(32, 1)
+        y = x > 0.5
+
+        res = model.predict(x)
+        metric = metrics.BinaryAccuracy()
+        metric.update_state(y, res)
+        result = metric.result()
+        assert result == 1.0
