@@ -1,11 +1,13 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import metrics
+from keras.src import models
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.metrics import reduction_metrics
 from keras.src.saving import register_keras_serializable
-from keras.src import metrics, layers, models
 
 
 class SumTest(testing.TestCase):

@@ -201,7 +201,7 @@ class MeanMetricWrapper(Mean):
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = backend.cast(y_true, backend.floatx())
         y_pred = backend.cast(y_pred, backend.floatx())
-    
+
         mask = backend.get_keras_mask(y_pred)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
         if sample_weight is not None and mask is not None:
