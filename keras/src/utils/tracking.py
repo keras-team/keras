@@ -147,7 +147,8 @@ class TrackedList(list):
     def append(self, value):
         if self.tracker:
             self.tracker.track(value)
-        if not self and not value:
+        #Check if an empty attr assigned with empty list and list them
+        if not self and isinstance(value, list) and not value:
             if self.tracker:
                 self.tracker._has_untracked_attrs = True
                 self.tracker._untracked_attrs_ids.append(id(self))
