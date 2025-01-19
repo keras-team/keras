@@ -226,14 +226,25 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 original_build_method(*args, **kwargs)
             # Check for any untracked attrs/vars
             if obj._tracker._has_untracked_attrs:
-                for attr in obj._tracked:
-                    if (
-                        id(getattr(obj, attr))
-                        in obj._tracker._untracked_attrs_ids
-                    ):
-                        untracked_attr = getattr(obj, attr)
-                        for var in untracked_attr:
-                            obj._tracker.track(var)
+                if backend.backend() == "tensorflow":
+                    for attr in obj._tracked:
+                        if (
+                            id(getattr(obj, attr))
+                            in obj._tracker._untracked_attrs_ids
+                        ):
+                            untracked_attr = getattr(obj, attr)
+                            for var in untracked_attr:
+                                obj._tracker.track(var)
+                else:
+                    for attr in obj.__dict__.keys():
+                        if (
+                            id(getattr(obj, attr))
+                            in obj._tracker._untracked_attrs_ids
+                        ):
+                            untracked_attr = getattr(obj, attr)
+                            for var in untracked_attr:
+                                obj._tracker.track(var)
+
             # Record build config.
             signature = inspect.signature(original_build_method)
             obj._build_shapes_dict = signature.bind(*args, **kwargs).arguments
