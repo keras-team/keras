@@ -267,9 +267,9 @@ def compute_ciou(boxes1, boxes2, bounding_box_format, image_shape=None):
     )
 
     v = ops.squeeze(
-        ops.power(
-            (4 / math.pi**2)
-            * (ops.arctan(width_2 / height_2) - ops.arctan(width_1 / height_1)),
+        (4 / math.pi**2)
+        * ops.power(
+            (ops.arctan(width_2 / height_2) - ops.arctan(width_1 / height_1)),
             2,
         ),
         axis=-1,
