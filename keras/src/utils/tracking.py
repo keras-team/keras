@@ -66,6 +66,9 @@ class Tracker:
         self.locked = False
         self._lock_violation_msg = None
         self.exclusions = exclusions or {}
+        # log untracked attrs if any
+        self._has_untracked_attrs = False
+        self._untracked_attrs_ids = []
 
     def track(self, attr):
         if not is_tracking_enabled():
@@ -144,6 +147,10 @@ class TrackedList(list):
     def append(self, value):
         if self.tracker:
             self.tracker.track(value)
+        if not self and not value:
+            if self.tracker:
+                self.tracker._has_untracked_attrs = True
+                self.tracker._untracked_attrs_ids.append(id(self))
         super().append(value)
 
     def insert(self, index, value):
