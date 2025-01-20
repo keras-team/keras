@@ -1,5 +1,3 @@
-import builtins
-
 import mlx.core as mx
 
 from keras.src.backend import config
@@ -409,14 +407,21 @@ def expm1(x):
 def flip(x, axis=None):
     x = convert_to_tensor(x)
     if axis is None:
-        axis = tuple(range(x.ndim))
+        indexer = tuple(slice(None, None, -1) for _ in range(x.ndim))
+        return x[indexer]
     if isinstance(axis, int):
         axis = (axis,)
-    indices = [slice(None)] * len(x.shape)
+    indexer = [slice(None)] * x.ndim
     for ax in axis:
-        indices[ax] = slice(None, None, -1)
+        if ax < 0:
+            ax = x.ndim + ax
+        if not 0 <= ax < x.ndim:
+            raise ValueError(
+                f"axis {ax} is out of bounds for array of dimension {x.ndim}"
+            )
+        indexer[ax] = slice(None, None, -1)
 
-    return x[indices]
+    return x[tuple(indexer)]
 
 
 def floor(x):
