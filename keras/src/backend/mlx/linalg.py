@@ -1,5 +1,7 @@
+import jax.numpy as jnp
 import mlx.core as mx
 
+from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.mlx.core import convert_to_tensor
 
@@ -29,7 +31,10 @@ def solve_triangular(a, b, lower=False):
 
 
 def qr(x, mode="reduced"):
-    return mx.linalg.qr(x)
+    # TODO: Swap to mlx.linalg.qr when it supports non-square matrices
+    x = jnp.array(x)
+    output = jnp.linalg.qr(x, mode=mode)
+    return mx.array(output[0]), mx.array(output[1])
 
 
 def svd(x, full_matrices=True, compute_uv=True):
