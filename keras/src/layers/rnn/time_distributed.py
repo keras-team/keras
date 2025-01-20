@@ -5,7 +5,10 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.core.wrapper import Wrapper
 from keras.src.layers.layer import Layer
-import tensorflow as tf
+
+if backend.backend() == "tensorflow":
+    import tensorflow as tf
+
 
 @keras_export("keras.layers.TimeDistributed")
 class TimeDistributed(Wrapper):
@@ -85,7 +88,10 @@ class TimeDistributed(Wrapper):
                     f"received: mask.shape={mask_shape}"
                 )
         else:
-            if mask_shape is not None and mask_shape[:2] != (batch_size, timesteps):
+            if mask_shape is not None and mask_shape[:2] != (
+                batch_size,
+                timesteps,
+            ):
                 raise ValueError(
                     "`TimeDistributed` Layer should be passed a `mask` of shape "
                     f"({batch_size}, {timesteps}, ...), "
