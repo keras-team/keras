@@ -935,9 +935,17 @@ def EfficientNetV2(
         num_channels = input_shape[bn_axis - 1]
         if name.split("-")[-1].startswith("b") and num_channels == 3:
             x = layers.Rescaling(scale=1.0 / 255)(x)
+            if backend.image_data_format() == "channels_first":
+                mean = [[[[0.485]], [[0.456]], [[0.406]]]]  # shape [1,3,1,1]
+                variance = [
+                    [[[0.229**2]], [[0.224**2]], [[0.225**2]]]
+                ]  # shape [1,3,1,1]
+            else:
+                mean = [0.485, 0.456, 0.406]
+                variance = [0.229**2, 0.224**2, 0.225**2]
             x = layers.Normalization(
-                mean=[0.485, 0.456, 0.406],
-                variance=[0.229**2, 0.224**2, 0.225**2],
+                mean=mean,
+                variance=variance,
                 axis=bn_axis,
             )(x)
         else:
