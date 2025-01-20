@@ -19,6 +19,8 @@ class CutMixTest(testing.TestCase):
             input_shape=(8, 3, 4, 3),
             supports_masking=False,
             expected_output_shape=(8, 3, 4, 3),
+            # StatelessRandomGammaV3 is not supported on XLA_GPU_JIT
+            run_training_check=not testing.tensorflow_uses_gpu(),
         )
 
     def test_cut_mix_inference(self):
