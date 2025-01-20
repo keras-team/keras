@@ -522,6 +522,30 @@ def ConvNeXt(
 
     model = Functional(inputs=inputs, outputs=x, name=name)
 
+    # Validate weights before requesting them from the API
+    if weights == "imagenet":
+        expected_config = MODEL_CONFIGS[weights_name.split("convnext_")[-1]]
+        if (
+            depths != expected_config["depths"]
+            or projection_dims != expected_config["projection_dims"]
+        ):
+            raise ValueError(
+                f"Architecture configuration does not match {weights_name} "
+                f"variant. When using pre-trained weights, the model "
+                f"architecture must match the pre-trained configuration "
+                f"exactly. Expected depths: {expected_config['depths']}, "
+                f"got: {depths}. Expected projection_dims: "
+                f"{expected_config['projection_dims']}, got: {projection_dims}."
+            )
+
+        if weights_name not in name:
+            raise ValueError(
+                f'Model name "{name}" does not match weights variant '
+                f'"{weights_name}". When using imagenet weights, model name '
+                f'must contain the weights variant (e.g., "convnext_'
+                f'{weights_name.split("convnext_")[-1]}").'
+            )
+
     # Load weights.
     if weights == "imagenet":
         if include_top:
