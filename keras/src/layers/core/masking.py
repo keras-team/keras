@@ -45,6 +45,8 @@ class Masking(Layer):
 
     def __init__(self, mask_value=0.0, **kwargs):
         super().__init__(**kwargs)
+        if isinstance(mask_value, dict) and mask_value.get("config", None):
+            mask_value = mask_value["config"]["value"]
         self.mask_value = mask_value
         self.supports_masking = True
         self.built = True
