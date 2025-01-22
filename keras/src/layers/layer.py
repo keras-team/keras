@@ -1637,9 +1637,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                     ):
                         return remat(layer_call)(*args, **kwargs)
 
-            # TODO: Add activation layer mode or other modes here
+                # Apply rematerialization to activation functions only
+                elif remat_mode == "activations":
+                    has_activation = (
+                        hasattr(self, "activation")
+                        and self.activation is not None
+                        and not utils.is_default(self.activation)
+                    )
+                    if has_activation:
+                        self.activation = remat(self.activation)
 
-            # Default behavior: no rematerialization
             return layer_call(*args, **kwargs)
 
         return wrapped_call
