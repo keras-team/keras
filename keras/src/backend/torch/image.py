@@ -276,7 +276,7 @@ def resize(
                         )
                         * fill_value,
                     ],
-                    axis=0,
+                    axis=1,
                 )
             else:
                 padded_img = images
@@ -295,7 +295,7 @@ def resize(
                         )
                         * fill_value,
                     ],
-                    axis=1,
+                    axis=2,
                 )
         images = padded_img
 
