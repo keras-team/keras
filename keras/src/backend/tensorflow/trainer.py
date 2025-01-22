@@ -465,7 +465,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -510,7 +509,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,

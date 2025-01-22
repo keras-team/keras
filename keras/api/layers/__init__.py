@@ -139,12 +139,14 @@ from keras.src.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.src.layers.preprocessing.discretization import Discretization
 from keras.src.layers.preprocessing.hashed_crossing import HashedCrossing
 from keras.src.layers.preprocessing.hashing import Hashing
+from keras.src.layers.preprocessing.image_preprocessing.aug_mix import AugMix
 from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
     AutoContrast,
 )
 from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
     CenterCrop,
 )
+from keras.src.layers.preprocessing.image_preprocessing.cut_mix import CutMix
 from keras.src.layers.preprocessing.image_preprocessing.equalization import (
     Equalization,
 )
@@ -178,6 +180,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import 
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_hue import (
     RandomHue,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_invert import (
+    RandomInvert,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_posterization import (
     RandomPosterization,

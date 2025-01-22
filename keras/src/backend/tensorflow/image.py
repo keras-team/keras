@@ -431,23 +431,9 @@ def map_coordinates(
             f" Received input with shape: {coordinate_arrs.shape}"
         )
 
-    # unstack into a list of tensors for following operations
+    fill_value = convert_to_tensor(fill_value, dtype=input_arr.dtype)
+
     coordinate_arrs = tf.unstack(coordinate_arrs, axis=0)
-    fill_value = convert_to_tensor(tf.cast(fill_value, input_arr.dtype))
-
-    index_fixer = _INDEX_FIXERS.get(fill_mode)
-    if index_fixer is None:
-        raise ValueError(
-            "Invalid value for argument `fill_mode`. Expected one of "
-            f"{set(_INDEX_FIXERS.keys())}. Received: "
-            f"fill_mode={fill_mode}"
-        )
-
-    def is_valid(index, size):
-        if fill_mode == "constant":
-            return (0 <= index) & (index < size)
-        else:
-            return True
 
     if order == 0:
         interp_fun = _nearest_indices_and_weights
@@ -456,14 +442,40 @@ def map_coordinates(
     else:
         raise NotImplementedError("map_coordinates currently requires order<=1")
 
+    def process_coordinates(coords, size):
+        if fill_mode == "constant":
+            valid = (coords >= 0) & (coords < size)
+            safe_coords = tf.clip_by_value(coords, 0, size - 1)
+            return safe_coords, valid
+        elif fill_mode == "nearest":
+            return tf.clip_by_value(coords, 0, size - 1), tf.ones_like(
+                coords, dtype=tf.bool
+            )
+        elif fill_mode in ["mirror", "reflect"]:
+            coords = tf.abs(coords)
+            size_2 = size * 2
+            mod = tf.math.mod(coords, size_2)
+            under = mod < size
+            over = ~under
+            # reflect mode is same as mirror for under
+            coords = tf.where(under, mod, size_2 - mod)
+            # for reflect mode, adjust the over case
+            if fill_mode == "reflect":
+                coords = tf.where(over, coords - 1, coords)
+            return coords, tf.ones_like(coords, dtype=tf.bool)
+        elif fill_mode == "wrap":
+            coords = tf.math.mod(coords, size)
+            return coords, tf.ones_like(coords, dtype=tf.bool)
+        else:
+            raise ValueError(f"Unknown fill_mode: {fill_mode}")
+
     valid_1d_interpolations = []
     for coordinate, size in zip(coordinate_arrs, input_arr.shape):
         interp_nodes = interp_fun(coordinate)
         valid_interp = []
         for index, weight in interp_nodes:
-            fixed_index = index_fixer(index, size)
-            valid = is_valid(index, size)
-            valid_interp.append((fixed_index, valid, weight))
+            safe_index, valid = process_coordinates(index, size)
+            valid_interp.append((safe_index, valid, weight))
         valid_1d_interpolations.append(valid_interp)
 
     outputs = []
@@ -471,23 +483,20 @@ def map_coordinates(
         indices, validities, weights = zip(*items)
         indices = tf.transpose(tf.stack(indices))
 
-        def fast_path():
-            return tf.transpose(tf.gather_nd(input_arr, indices))
+        gathered = tf.transpose(tf.gather_nd(input_arr, indices))
 
-        def slow_path():
-            all_valid = functools.reduce(operator.and_, validities)
-            return tf.where(
-                all_valid,
-                tf.transpose(tf.gather_nd(input_arr, indices)),
-                fill_value,
-            )
+        if fill_mode == "constant":
+            all_valid = tf.reduce_all(validities)
+            gathered = tf.where(all_valid, gathered, fill_value)
 
-        contribution = tf.cond(tf.reduce_all(validities), fast_path, slow_path)
+        contribution = gathered
         outputs.append(
             functools.reduce(operator.mul, weights)
             * tf.cast(contribution, weights[0].dtype)
         )
+
     result = functools.reduce(operator.add, outputs)
+
     if input_arr.dtype.is_integer:
-        result = result if result.dtype.is_integer else tf.round(result)
+        result = tf.round(result)
     return tf.cast(result, input_arr.dtype)
