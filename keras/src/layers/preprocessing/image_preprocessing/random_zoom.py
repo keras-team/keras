@@ -109,7 +109,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
         self,
         height_factor,
         width_factor=None,
-        fill_mode="reflect",
+        fill_mode="constant",
         interpolation="bilinear",
         seed=None,
         fill_value=0.0,
