@@ -1,11 +1,13 @@
 import mlx.core as mx
 import mlx.nn as nn
 
+from keras.src.backend import standardize_data_format
 from keras.src.backend import standardize_dtype
 from keras.src.backend.config import epsilon
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import to_mlx_dtype
 from keras.src.backend.mlx.numpy import clip
+from keras.src.utils.argument_validation import standardize_tuple
 
 
 def relu(x):
@@ -129,7 +131,67 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError("MLX backend doesn't support conv yet")
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    data_format = standardize_data_format(data_format)
+    num_spatial_dims = inputs.ndim - 2
+
+    strides = standardize_tuple(strides, num_spatial_dims, "strides")
+    dilation_rate = standardize_tuple(
+        dilation_rate, num_spatial_dims, "dilation_rate"
+    )
+
+    if data_format == "channels_first":
+        # mlx expects channels_last
+        inputs = inputs.transpose(0, *range(2, inputs.ndim), 1)
+
+    # mlx expects kernel with (out_channels, spatial..., in_channels)
+    kernel = kernel.transpose(-1, *range(kernel.ndim - 2), -2)
+
+    if padding == "valid":
+        mlx_padding = 0
+    elif padding == "same":
+        kernel_spatial_shape = kernel.shape[1:-1]
+        start_paddings = []
+        end_paddings = []
+        for dim_size, k_size, d_rate, s in zip(
+            inputs.shape[1:-1], kernel_spatial_shape, dilation_rate, strides
+        ):
+            out_size = (dim_size + s - 1) // s
+            effective_k_size = (k_size - 1) * d_rate + 1
+            total_pad = max(0, (out_size - 1) * s + effective_k_size - dim_size)
+            pad_start = total_pad // 2
+            pad_end = total_pad - pad_start
+            start_paddings.append(pad_start)
+            end_paddings.append(pad_end)
+        mlx_padding = (start_paddings, end_paddings)
+    else:
+        raise ValueError(f"Invalid padding value: {padding}")
+
+    channels = inputs.shape[-1]
+    kernel_in_channels = kernel.shape[-1]
+    if channels % kernel_in_channels > 0:
+        raise ValueError(
+            "The number of input channels must be evenly divisible by "
+            f"kernel's in_channels. Received input channels {channels} and "
+            f"kernel in_channels {kernel_in_channels}. "
+        )
+    groups = channels // kernel_in_channels
+
+    result = mx.conv_general(
+        inputs,
+        kernel,
+        stride=strides,
+        padding=mlx_padding,
+        kernel_dilation=dilation_rate,
+        input_dilation=1,
+        groups=groups,
+        flip=False,
+    )
+    if data_format == "channels_first":
+        result = result.transpose(0, -1, *range(1, result.ndim - 1))
+
+    return result
 
 
 def depthwise_conv(
