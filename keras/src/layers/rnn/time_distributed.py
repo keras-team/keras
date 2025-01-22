@@ -83,8 +83,8 @@ class TimeDistributed(Wrapper):
         if backend.backend() == "tensorflow" and not tf.executing_eagerly():
             if mask_shape is not None and mask_shape[1:2] != (timesteps,):
                 raise ValueError(
-                    "`TimeDistributed` Layer should be passed a `mask` of shape "
-                    f"({batch_size}, {timesteps}, ...), "
+                    "`TimeDistributed` Layer should be passed a `mask` of "
+                    f"shape ({batch_size}, {timesteps}, ...), "
                     f"received: mask.shape={mask_shape}"
                 )
         else:
@@ -93,8 +93,8 @@ class TimeDistributed(Wrapper):
                 timesteps,
             ):
                 raise ValueError(
-                    "`TimeDistributed` Layer should be passed a `mask` of shape "
-                    f"({batch_size}, {timesteps}, ...), "
+                    "`TimeDistributed` Layer should be passed a `mask` of "
+                    f"shape ({batch_size}, {timesteps}, ...), "
                     f"received: mask.shape={mask_shape}"
                 )
 
