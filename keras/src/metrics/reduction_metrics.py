@@ -199,8 +199,8 @@ class MeanMetricWrapper(Mean):
             self._direction = "down"
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = backend.cast(y_true, backend.floatx())
-        y_pred = backend.cast(y_pred, backend.floatx())
+        y_true = backend.cast(y_true, self.dtype)
+        y_pred = backend.cast(y_pred, self.dtype)
 
         mask = backend.get_keras_mask(y_pred)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
