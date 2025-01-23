@@ -167,8 +167,11 @@ class RandomErasing(BaseImagePreprocessingLayer):
     def _get_fill_value(self, images, images_shape):
         fill_value = self.fill_value
         if fill_value is None:
-            fill_value = self.backend.random.normal(
-                images_shape, dtype=self.compute_dtype
+            fill_value = (
+                self.backend.random.normal(
+                    images_shape, dtype=self.compute_dtype
+                )
+                * self.value_range[1]
             )
         else:
             error_msg = (
