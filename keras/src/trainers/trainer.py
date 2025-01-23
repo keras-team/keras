@@ -716,7 +716,7 @@ class Trainer:
         x=None,
         y=None,
         batch_size=None,
-        verbose="auto",
+        verbose=2,
         sample_weight=None,
         steps=None,
         callbacks=None,
