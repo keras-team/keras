@@ -278,7 +278,23 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError("MLX backend doesn't support separable conv yet")
+    data_format = standardize_data_format(data_format)
+    depthwise_conv_output = depthwise_conv(
+        inputs,
+        depthwise_kernel,
+        strides,
+        padding,
+        data_format,
+        dilation_rate,
+    )
+    return conv(
+        depthwise_conv_output,
+        pointwise_kernel,
+        strides=1,
+        padding="valid",
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+    )
 
 
 def conv_transpose(
