@@ -7,25 +7,36 @@ from keras.src.random import SeedGenerator
 
 @keras_export("keras.layers.RandomErasing")
 class RandomErasing(BaseImagePreprocessingLayer):
-    """CutMix data augmentation technique.
+    """Random Erasing data augmentation technique.
 
-    CutMix is a data augmentation method where patches are cut and pasted
-    between two images in the dataset, while the labels are also mixed
-    proportionally to the area of the patches.
+    Random Erasing is a data augmentation method where random patches of
+    an image are erased (replaced by a constant value or noise)
+    during training to improve generalization.
 
     Args:
-        factor: A single float or a tuple of two floats between 0 and 1.
-            If a tuple of numbers is passed, a `factor` is sampled
-            between the two values.
-            If a single float is passed, a value between 0 and the passed
-            float is sampled. These values define the range from which the
-            mixing weight is sampled. A higher factor increases the variability
-            in patch sizes, leading to more diverse and larger mixed patches.
-            Defaults to 1.
+        factor: A single float or a tuple of two floats.
+            `factor` controls the extent to which the image hue is impacted.
+            `factor=0.0` makes this layer perform a no-op operation,
+            while a value of `1.0` performs the most aggressive
+            erasing available. If a tuple is used, a `factor` is
+            sampled between the two values for every image augmented. If a
+            single float is used, a value between `0.0` and the passed float is
+            sampled. Default is 1.0.
+        scale: A tuple of two floats representing the aspect ratio range of
+            the erased patch. This defines the width-to-height ratio of
+            the patch to be erased. It can help control the rw shape of
+            the erased region. Default is (0.02, 0.33).
+        fill_value: A value to fill the erased region with. This can be set to
+            a constant value or `None` to sample a random value
+            from a normal distribution. Default is `None`.
+        value_range: the range of values the incoming images will have.
+            Represented as a two-number tuple written `[low, high]`. This is
+            typically either `[0, 1]` or `[0, 255]` depending on how your
+            preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
     References:
-       - [CutMix paper]( https://arxiv.org/abs/1905.04899).
+       - [Random Erasing paper](https://arxiv.org/abs/1708.04896).
     """
 
     _USE_BASE_FACTOR = False
@@ -34,7 +45,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
     def __init__(
         self,
         factor=1.0,
-        ratio=(0.02, 0.33),
+        scale=(0.02, 0.33),
         fill_value=None,
         value_range=(0, 255),
         seed=None,
@@ -43,7 +54,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
     ):
         super().__init__(data_format=data_format, **kwargs)
         self._set_factor(factor)
-        self.ratio = self._set_factor_by_name(ratio, "ratio")
+        self.scale = self._set_factor_by_name(scale, "scale")
         self.fill_value = fill_value
         self.value_range = value_range
         self.seed = seed
@@ -212,8 +223,8 @@ class RandomErasing(BaseImagePreprocessingLayer):
 
         mix_weight = self.backend.random.uniform(
             shape=(batch_size, 2),
-            minval=self.ratio[0],
-            maxval=self.ratio[1],
+            minval=self.scale[0],
+            maxval=self.scale[1],
             dtype=self.compute_dtype,
             seed=seed,
         )
@@ -299,7 +310,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
     def get_config(self):
         config = {
             "factor": self.factor,
-            "ratio": self.ratio,
+            "scale": self.scale,
             "fill_value": self.fill_value,
             "value_range": self.value_range,
             "seed": self.seed,
