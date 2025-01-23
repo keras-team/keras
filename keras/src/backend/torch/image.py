@@ -230,11 +230,14 @@ def resize(
                         torch.ones(
                             (batch_size, channels, img_box_hstart, width),
                             dtype=images.dtype,
+                            device=images.device,
                         )
                         * fill_value,
                         images,
                         torch.ones(
-                            (batch_size, channels, img_box_hstart, width)
+                            (batch_size, channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                            device=images.device,
                         )
                         * fill_value,
                     ],
@@ -249,10 +252,13 @@ def resize(
                         torch.ones(
                             (batch_size, channels, height, img_box_wstart),
                             dtype=images.dtype,
+                            device=images.device,
                         ),
                         padded_img,
                         torch.ones(
-                            (batch_size, channels, height, img_box_wstart)
+                            (batch_size, channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                            device=images.device,
                         )
                         * fill_value,
                     ],
