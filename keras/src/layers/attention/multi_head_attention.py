@@ -158,7 +158,6 @@ class MultiHeadAttention(Layer):
         self.seed = seed
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
-        self._return_attention_scores = False
 
         # Check for flash attention constraints
         if self._flash_attention and self._dropout > 0.0:
@@ -419,6 +418,7 @@ class MultiHeadAttention(Layer):
         value,
         attention_mask=None,
         training=None,
+        return_attention_scores=False,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -442,7 +442,7 @@ class MultiHeadAttention(Layer):
           attention_scores: Multi-headed attention weights.
         """
         # Check for flash attention constraints
-        if self._flash_attention and self._return_attention_scores:
+        if self._flash_attention and return_attention_scores:
             raise ValueError(
                 "Returning attention scores is not supported when flash "
                 "attention is enabled. Please disable flash attention to access"
@@ -452,7 +452,7 @@ class MultiHeadAttention(Layer):
         # Determine whether to use dot-product attention
         use_dot_product_attention = not (
             self._dropout > 0.0
-            or self._return_attention_scores
+            or return_attention_scores
             or (len(query.shape) != 4)
         )
 
@@ -525,7 +525,6 @@ class MultiHeadAttention(Layer):
         training=None,
         use_causal_mask=False,
     ):
-        self._return_attention_scores = return_attention_scores
         if key is None:
             key = value
 
@@ -562,6 +561,7 @@ class MultiHeadAttention(Layer):
             value,
             attention_mask,
             training,
+            return_attention_scores,
         )
         attention_output = self._output_dense(attention_output)
 
