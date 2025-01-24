@@ -231,72 +231,83 @@ def resize(
         pad_width = max(width, pad_width)
         img_box_hstart = int(float(pad_height - height) / 2)
         img_box_wstart = int(float(pad_width - width) / 2)
-        if data_format == "channels_last":
-            if len(images.shape) == 4:
-                padded_img = (
+        
+        if len(images.shape) == 4:
+            if img_box_hstart > 0:
+                padded_img = np.concatenate(
+                [
                     np.ones(
-                        (
-                            batch_size,
-                            pad_height + height,
-                            pad_width + width,
-                            channels,
-                        ),
+                        (batch_size, channels, img_box_hstart, width),
                         dtype=images.dtype,
                     )
-                    * fill_value
-                )
-                padded_img[
-                    :,
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                    :,
-                ] = images
+                    * fill_value,
+                    images,
+                    np.ones(
+                        (batch_size, channels, img_box_hstart, width),
+                        dtype=images.dtype,
+                    )
+                    * fill_value,
+                ],
+                axis=2,
+            )
             else:
-                padded_img = (
-                    np.ones(
-                        (pad_height + height, pad_width + width, channels),
-                        dtype=images.dtype,
-                    )
-                    * fill_value
-                )
-                padded_img[
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                    :,
-                ] = images
+                padded_img = images
+
+            if img_box_wstart > 0:
+                padded_img = np.cat(
+                    [
+                        np.ones(
+                            (batch_size, channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                        ),
+                        padded_img,
+                        np.ones(
+                            (batch_size, channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=3,
+            )
+
         else:
-            if len(images.shape) == 4:
-                padded_img = (
-                    np.ones(
-                        (
-                            batch_size,
-                            channels,
-                            pad_height + height,
-                            pad_width + width,
-                        ),
-                        dtype=images.dtype,
-                    )
-                    * fill_value
+            channels = images.shape[0]
+            if img_box_wstart > 0:
+                padded_img = np.concatenate(
+                    [
+                        np.ones(
+                            (channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                        )
+                        * fill_value,
+                        images,
+                        np.ones(
+                            (channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=1,
                 )
-                padded_img[
-                    :,
-                    :,
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                ] = images
             else:
-                padded_img = (
-                    np.ones(
-                        (channels, pad_height + height, pad_width + width),
-                        dtype=images.dtype,
-                    )
-                    * fill_value
+                padded_img = images
+            if img_box_wstart > 0:
+                np.concatenate(
+                    [
+                        np.ones(
+                            (channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                        )
+                        * fill_value,
+                        padded_img,
+                        np.ones(
+                            (channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=2,
                 )
-                padded_img[
-                    :,
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                ] = images
         images = padded_img
 
     return np.array(
