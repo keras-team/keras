@@ -231,25 +231,25 @@ def resize(
         pad_width = max(width, pad_width)
         img_box_hstart = int(float(pad_height - height) / 2)
         img_box_wstart = int(float(pad_width - width) / 2)
-        
+
         if len(images.shape) == 4:
             if img_box_hstart > 0:
                 padded_img = np.concatenate(
-                [
-                    np.ones(
-                        (batch_size, channels, img_box_hstart, width),
-                        dtype=images.dtype,
-                    )
-                    * fill_value,
-                    images,
-                    np.ones(
-                        (batch_size, channels, img_box_hstart, width),
-                        dtype=images.dtype,
-                    )
-                    * fill_value,
-                ],
-                axis=2,
-            )
+                    [
+                        np.ones(
+                            (batch_size, channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                        )
+                        * fill_value,
+                        images,
+                        np.ones(
+                            (batch_size, channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                        )
+                        * fill_value,
+                    ],
+                    axis=2,
+                )
             else:
                 padded_img = images
 
@@ -268,7 +268,7 @@ def resize(
                         * fill_value,
                     ],
                     axis=3,
-            )
+                )
 
         else:
             channels = images.shape[0]
