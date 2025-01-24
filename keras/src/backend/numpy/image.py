@@ -254,7 +254,7 @@ def resize(
                 padded_img = images
 
             if img_box_wstart > 0:
-                padded_img = np.cat(
+                padded_img = np.concatenate(
                     [
                         np.ones(
                             (batch_size, channels, height, img_box_wstart),
