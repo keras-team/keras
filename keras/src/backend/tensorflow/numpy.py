@@ -841,17 +841,20 @@ def argmax(x, axis=None, keepdims=False):
         x = tf.reshape(x, [-1])
     x_float = tf.cast(x, tf.float32)
     is_negative_zero = tf.logical_and(
-        tf.equal(x_float, 0.0), 
-        tf.less(tf.bitwise.bitwise_and(
-            tf.bitcast(x_float, tf.int32), 
-            # tf.float32 sign bit
-            tf.constant(0x80000000, dtype=tf.int32)
-        ), 0)
+        tf.equal(x_float, 0.0),
+        tf.less(
+            tf.bitwise.bitwise_and(
+                tf.bitcast(x_float, tf.int32),
+                # tf.float32 sign bit
+                tf.constant(0x80000000, dtype=tf.int32),
+            ),
+            0,
+        ),
     )
     x_adjusted = tf.where(
-        is_negative_zero, 
-        -tf.reduce_min(tf.abs(x_float[tf.not_equal(x_float, 0.0)])), 
-        x_float
+        is_negative_zero,
+        -tf.reduce_min(tf.abs(x_float[tf.not_equal(x_float, 0.0)])),
+        x_float,
     )
     if axis is None:
         x_adjusted = tf.reshape(x_adjusted, [-1])

@@ -357,7 +357,9 @@ def argmax(x, axis=None, keepdims=False):
         return jnp.argmax(x, axis=axis, keepdims=keepdims)
     x_float = x.astype(jnp.float32)
     is_negative_zero = (x_float == 0.0) & jnp.signbit(x_float)
-    x_adjusted = jnp.where(is_negative_zero, -jnp.finfo(x_float.dtype).tiny, x_float)
+    x_adjusted = jnp.where(
+        is_negative_zero, -jnp.finfo(x_float.dtype).tiny, x_float
+    )
     return jnp.argmax(x_adjusted, axis=axis, keepdims=keepdims)
 
 
