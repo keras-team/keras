@@ -837,8 +837,6 @@ def _keepdims(x, y, axis):
 
 
 def argmax(x, axis=None, keepdims=False):
-    if tf.rank(x) == 0:
-        x = tf.reshape(x, [-1])
     x_float = tf.cast(x, tf.float32)
     is_negative_zero = tf.logical_and(
         tf.equal(x_float, 0.0),
@@ -851,20 +849,27 @@ def argmax(x, axis=None, keepdims=False):
             0,
         ),
     )
-    x_adjusted = tf.where(
-        is_negative_zero,
-        -tf.reduce_min(tf.abs(x_float[tf.not_equal(x_float, 0.0)])),
-        x_float,
+    non_zero_mask = tf.not_equal(x_float, 0.0)
+    masked_abs = (
+        tf.abs(x_float)
+        + (1.0 - tf.cast(non_zero_mask, tf.float32)) * tf.float32.max
     )
+    min_non_zero = tf.reduce_min(masked_abs) - 1e-9
+    x_adjusted = tf.where(is_negative_zero, -min_non_zero, x_float)
     if axis is None:
         x_adjusted = tf.reshape(x_adjusted, [-1])
         y = tf.argmax(x_adjusted, axis=0, output_type=tf.int32)
         if keepdims:
             y = tf.reshape(y, [1, 1])
     else:
-        y = tf.argmax(x_adjusted, axis=axis, output_type=tf.int32)
+        rank = tf.rank(x_adjusted)
+        axis_tensor = tf.convert_to_tensor(axis, dtype=tf.int32)
+        positive_axis = tf.cond(
+            axis_tensor < 0, lambda: axis_tensor + rank, lambda: axis_tensor
+        )
+        y = tf.argmax(x_adjusted, axis=positive_axis, output_type=tf.int32)
         if keepdims:
-            y = tf.expand_dims(y, axis=axis)
+            y = tf.expand_dims(y, axis=positive_axis)
     return y
 
 
