@@ -187,6 +187,88 @@ def compute_conv_transpose_padding_args_for_torch(
     return torch_paddings, torch_output_paddings
 
 
+def _convert_conv_tranpose_padding_args_from_keras_to_mlx(
+    kernel_size, stride, dilation_rate, padding, output_padding
+):
+    effective_k_size = (kernel_size - 1) * dilation_rate + 1
+    if padding == "valid":
+        output_padding = (
+            max(effective_k_size, stride) - effective_k_size
+            if output_padding is None
+            else output_padding
+        )
+        pad_left = effective_k_size - 1
+        pad_right = effective_k_size - 1 + output_padding
+    elif padding == "same":
+        if output_padding is None:
+            total_pad = stride + effective_k_size - 2
+        else:
+            total_pad = (
+                effective_k_size + effective_k_size % 2 - 2 + output_padding
+            )
+        pad_left = min(total_pad // 2 + total_pad % 2, effective_k_size - 1)
+        pad_right = total_pad - pad_left
+    else:
+        raise ValueError(f"Invalid padding value: {padding}")
+    return pad_left, pad_right
+
+
+def compute_conv_transpose_padding_args_for_mlx(
+    padding,
+    num_spatial_dims,
+    kernel_spatial_shape,
+    dilation_rate,
+    strides,
+    output_padding,
+):
+    start_paddings = []
+    end_paddings = []
+    for i in range(num_spatial_dims):
+        kernel_size_i = kernel_spatial_shape[i]
+        stride_i = strides[i]
+        dilation_rate_i = dilation_rate[i]
+        output_padding_i = None if output_padding is None else output_padding[i]
+        pad_left, pad_right = (
+            _convert_conv_tranpose_padding_args_from_keras_to_mlx(
+                kernel_size_i,
+                stride_i,
+                dilation_rate_i,
+                padding,
+                output_padding_i,
+            )
+        )
+        start_paddings.append(pad_left)
+        end_paddings.append(pad_right)
+    return (start_paddings, end_paddings)
+
+
+def compute_transpose_padding_args_for_mlx(
+    padding,
+    input_spatial_shape,
+    kernel_spatial_shape,
+    dilation_rate,
+    strides,
+):
+    if padding == "valid":
+        return 0
+    elif padding == "same":
+        start_paddings = []
+        end_paddings = []
+        for dim_size, k_size, d_rate, s in zip(
+            input_spatial_shape, kernel_spatial_shape, dilation_rate, strides
+        ):
+            out_size = (dim_size + s - 1) // s
+            effective_k_size = (k_size - 1) * d_rate + 1
+            total_pad = max(0, (out_size - 1) * s + effective_k_size - dim_size)
+            pad_start = total_pad // 2
+            pad_end = total_pad - pad_start
+            start_paddings.append(pad_start)
+            end_paddings.append(pad_end)
+        return (start_paddings, end_paddings)
+    else:
+        raise ValueError(f"Invalid padding value: {padding}")
+
+
 def _get_output_shape_given_tf_padding(
     input_size, kernel_size, strides, padding, output_padding, dilation_rate
 ):
