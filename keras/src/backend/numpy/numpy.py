@@ -245,8 +245,12 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    axis = standardize_axis_for_numpy(axis)
-    return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
+    if x.ndim == 0:
+        return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
+    x_float = x.astype(np.float32)
+    is_negative_zero = (x_float == 0.0) & np.signbit(x_float)
+    x_adjusted = np.where(is_negative_zero, -np.finfo(x_float.dtype).tiny, x_float)
+    return np.argmax(x_adjusted, axis=axis, keepdims=keepdims).astype("int32")
 
 
 def argmin(x, axis=None, keepdims=False):

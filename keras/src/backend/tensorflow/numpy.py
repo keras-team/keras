@@ -837,12 +837,31 @@ def _keepdims(x, y, axis):
 
 
 def argmax(x, axis=None, keepdims=False):
-    _x = x
-    if axis is None:
+    if tf.rank(x) == 0:
         x = tf.reshape(x, [-1])
-    y = tf.argmax(x, axis=axis, output_type="int32")
-    if keepdims:
-        y = _keepdims(_x, y, axis)
+    x_float = tf.cast(x, tf.float32)
+    is_negative_zero = tf.logical_and(
+        tf.equal(x_float, 0.0), 
+        tf.less(tf.bitwise.bitwise_and(
+            tf.bitcast(x_float, tf.int32), 
+            # tf.float32 sign bit
+            tf.constant(0x80000000, dtype=tf.int32)
+        ), 0)
+    )
+    x_adjusted = tf.where(
+        is_negative_zero, 
+        -tf.reduce_min(tf.abs(x_float[tf.not_equal(x_float, 0.0)])), 
+        x_float
+    )
+    if axis is None:
+        x_adjusted = tf.reshape(x_adjusted, [-1])
+        y = tf.argmax(x_adjusted, axis=0, output_type=tf.int32)
+        if keepdims:
+            y = tf.reshape(y, [1, 1])
+    else:
+        y = tf.argmax(x_adjusted, axis=axis, output_type=tf.int32)
+        if keepdims:
+            y = tf.expand_dims(y, axis=axis)
     return y
 
 
