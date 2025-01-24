@@ -164,12 +164,14 @@ class RandomErasing(BaseImagePreprocessingLayer):
 
         return batch_masks
 
-    def _get_fill_value(self, images, images_shape):
+    def _get_fill_value(self, images, images_shape, seed):
         fill_value = self.fill_value
         if fill_value is None:
             fill_value = (
                 self.backend.random.normal(
-                    images_shape, dtype=self.compute_dtype
+                    images_shape,
+                    dtype=self.compute_dtype,
+                    seed=seed,
                 )
                 * self.value_range[1]
             )
@@ -261,7 +263,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
         )
         apply_erasing = random_threshold < erase_probability
 
-        fill_value = self._get_fill_value(images, images_shape)
+        fill_value = self._get_fill_value(images, images_shape, seed)
 
         return {
             "apply_erasing": apply_erasing,
