@@ -1150,8 +1150,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         input_data = np.array(
             [-1.0, -0.0, 1.401298464324817e-45], dtype=np.float32
         )
-        result = knp.argmax(input_data)
-        assert result == 2, f"Expected index 2, got {result}"
+        self.assertEqual(knp.argmax(input_data), 2)
 
     def test_argmin(self):
         x = KerasTensor((None, 3))
