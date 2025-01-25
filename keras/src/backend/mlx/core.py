@@ -308,3 +308,57 @@ def stop_gradient(variable):
 def unstack(x, num=None, axis=0):
     y = x.split(num or x.shape[axis], axis=axis)
     return [yi.squeeze(axis) for yi in y]
+
+
+def reverse_sequence(xs):
+    indices = mx.arange(xs.shape[0] - 1, -1, -1)
+    return mx.take(xs, indices, axis=0)
+
+
+def scan(f, init, xs, reverse=False, mask=None):
+    states = init
+    outputs_list = []
+
+    if mask is not None:
+        x, mask = xs
+        if reverse:
+            x = reverse_sequence(x)
+            mask = reverse_sequence(mask)
+        iterator = zip(x, mask)
+    else:
+        if reverse:
+            if isinstance(xs, tuple):
+                xs = tuple(reverse_sequence(x) for x in xs)
+            else:
+                xs = reverse_sequence(xs)
+        iterator = zip(*xs) if isinstance(xs, tuple) else xs
+
+    for x in iterator:
+        result = f(states, x)
+        if isinstance(result, tuple):
+            states, outputs = result
+            if outputs is not None:
+                outputs_list.append(outputs)
+        else:
+            states = result
+
+    if outputs_list:
+        if isinstance(outputs_list[0], tuple):
+            # Multiple outputs case
+            outputs = tuple(
+                mx.stack([out[i] for out in outputs_list])
+                for i in range(len(outputs_list[0]))
+            )
+        else:
+            # Single output case
+            outputs = mx.stack(outputs_list)
+
+        if reverse:
+            if isinstance(outputs, tuple):
+                outputs = tuple(reverse_sequence(out) for out in outputs)
+            else:
+                outputs = reverse_sequence(outputs)
+
+        return states, outputs
+
+    return states, None

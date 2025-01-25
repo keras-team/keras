@@ -52,7 +52,10 @@ def norm(x, ord=None, axis=None, keepdims=False):
     if "int" in dtype or dtype == "bool":
         dtype = dtypes.result_type(x.dtype, "float32")
     x = convert_to_tensor(x, dtype=dtype)
-    return mx.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+    # TODO: swap to mlx.linalg.norm when it support singular value norms
+    x = jnp.array(x)
+    output = jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+    return mx.array(output)
 
 
 def inv(a):
