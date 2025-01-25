@@ -4,6 +4,9 @@ import mlx.core as mx
 
 from keras.src import tree
 from keras.src.backend.common import stateless_scope
+from keras.src.backend.mlx.core import reverse_sequence
+from keras.src.backend.mlx.core import scan
+from keras.src.backend.mlx.core import unstack
 
 
 def rnn(
@@ -186,7 +189,7 @@ def rnn(
         else:
             scope = stateless_scope.StatelessScope()
         with scope:
-            new_states, outputs = mlx_scan(
+            new_states, outputs = scan(
                 f=_step,
                 init=initial_states,
                 xs=scan_xs,
@@ -203,44 +206,6 @@ def rnn(
         outputs = tree.map_structure(swap_batch_timestep, outputs)
 
     return last_output, outputs, new_states
-
-
-def reverse_sequence(xs):
-    indices = mx.arange(xs.shape[0] - 1, -1, -1)
-    return mx.take(xs, indices, axis=0)
-
-
-def unstack(x, axis=0):
-    return [mx.take(x, i, axis=axis) for i in range(x.shape[axis])]
-
-
-def mlx_scan(f, init, xs, reverse=False, mask=None):
-    states = init
-    outputs = []
-
-    if mask is not None:
-        x, mask = xs
-        if reverse:
-            x = reverse_sequence(x)
-            mask = reverse_sequence(mask)
-
-        for each_x, each_mask in zip(x, mask):
-            states, output = f(states, (each_x, each_mask))
-            outputs.append(output)
-    else:
-        if reverse:
-            xs = reverse_sequence(xs)
-
-        for x in xs:
-            states, output = f(states, x)
-            outputs.append(output)
-
-    outputs = mx.array(outputs)
-
-    if reverse:
-        outputs = reverse_sequence(outputs)
-
-    return states, outputs
 
 
 def cudnn_ok(*args, **kwargs):

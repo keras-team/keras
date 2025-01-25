@@ -1,6 +1,9 @@
+import builtins
+
 import mlx.core as mx
 import mlx.nn as nn
 
+from keras.src.backend import result_type
 from keras.src.backend import standardize_data_format
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common.backend_utils import (
@@ -10,9 +13,11 @@ from keras.src.backend.common.backend_utils import (
     compute_transpose_padding_args_for_mlx,
 )
 from keras.src.backend.config import epsilon
+from keras.src.backend.mlx.core import cast
 from keras.src.backend.mlx.core import convert_to_tensor
+from keras.src.backend.mlx.core import scan
 from keras.src.backend.mlx.core import to_mlx_dtype
-from keras.src.backend.mlx.numpy import clip
+from keras.src.backend.mlx.numpy import flip
 from keras.src.utils.argument_validation import standardize_tuple
 
 
@@ -348,9 +353,11 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x, dtype=mx.int32)
     dtype = to_mlx_dtype(standardize_dtype(dtype))
 
-    # TODO: Make this faster by instantiating 0s and using x as indices to
-    #       write the 1s (basically using scatter)
-    output = mx.eye(num_classes, dtype=dtype)[x]
+    r = mx.arange(num_classes, dtype=mx.int32)
+
+    x_expanded = mx.expand_dims(x, -1)
+    output = x_expanded == r
+    output = output.astype(dtype)
 
     if axis != -1 and axis != output.ndim:
         output = mx.moveaxis(output, -1, axis)
@@ -386,13 +393,13 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         )
 
     if from_logits:
-        log_prob = output - mx.logsumexp(output, axis=axis)
+        log_prob = log_softmax(output)
     else:
-        output = output / output.sum(axis=axis, keepdims=True)
-        output = clip(output, epsilon(), 1 - epsilon())
+        output = output / mx.sum(output, axis=axis, keepdims=True)
+        output = mx.clip(output, epsilon(), 1 - epsilon())
         log_prob = mx.log(output)
 
-    return -(target * log_prob).sum(axis=axis)
+    return -mx.sum(target * log_prob, axis=axis)
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -421,7 +428,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         )
 
     if from_logits:
-        log_prob = output - mx.logsumexp(output, axis=-1, keepdims=True)
+        log_prob = log_softmax(output)
     else:
         output = output / output.sum(axis=-1, keepdims=True)
         output = mx.minimum(mx.maximum(output, epsilon()), 1 - epsilon())
@@ -455,7 +462,6 @@ def moments(x, axes, keepdims=False, synchronized=False):
         )
 
     x = convert_to_tensor(x)
-
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
@@ -466,14 +472,18 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = x.astype(mx.float32)
 
     mean = mx.mean(x, axis=axes, keepdims=True)
-    variance = x.square().mean(axis=axes, keepdims=True) - mean.square()
+    variance = mx.var(x, axis=axes, keepdims=True)
 
     if not keepdims:
         mean = mean.squeeze(axes)
         variance = variance.squeeze(axes)
 
     if need_cast:
-        # TODO: Clip as is done in the pytorch backend
+        # clip values to avoid overflow/underflow when casting back to float16
+        mean = mx.clip(mean, mx.finfo(mx.float16).min, mx.finfo(mx.float16).max)
+        variance = mx.clip(
+            variance, mx.finfo(mx.float16).min, mx.finfo(mx.float16).max
+        )
         mean = mean.astype(ori_dtype)
         variance = variance.astype(ori_dtype)
 
@@ -484,7 +494,8 @@ def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
     x = convert_to_tensor(x)
-    mean = convert_to_tensor(x)
+    mean = convert_to_tensor(mean)
+    variance = convert_to_tensor(variance)
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
     mean = mx.reshape(mean, shape)
@@ -492,22 +503,441 @@ def batch_normalization(
 
     inv = mx.rsqrt(variance + epsilon)
     if scale is not None:
+        scale = convert_to_tensor(scale)
         scale = mx.reshape(scale, shape)
         inv = inv * scale
 
     res = -mean * inv
     if offset is not None:
+        offset = convert_to_tensor(offset)
         offset = mx.reshape(offset, shape)
         res = res + offset
 
     return mx.add(x * inv, res)
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
+    # Ref: https://github.com/google-deepmind/optax
+    # optax.ctc_loss_with_forward_probs
+    target = convert_to_tensor(target, dtype="int32")
+    output = convert_to_tensor(output)
+    target_length = convert_to_tensor(target_length, "int32")
+    output_length = convert_to_tensor(output_length, "int32")
+    batch_size, max_input_length, num_classes = output.shape
+    batch_size, max_label_length = target.shape
+    log_epsilon = -1e5
+
+    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    dtype = result_type(output.dtype, "float32")
+    dtype = to_mlx_dtype(standardize_dtype(dtype))
+    output = cast(output, dtype)
+
+    def _lengths_to_paddings(lengths, max_length):
+        indices = mx.arange(max_length).reshape(
+            (1,) * lengths.ndim + (max_length,)
+        )
+        lengths = mx.expand_dims(lengths, axis=-1)
+        elem_valid = indices < lengths
+        return mx.logical_not(elem_valid)
+
+    target_paddings = _lengths_to_paddings(target_length, max_label_length)
+    output_paddings = _lengths_to_paddings(output_length, max_input_length)
+    target_paddings = target_paddings.astype(output.dtype)
+    output_paddings = output_paddings.astype(output.dtype)
+
+    logprobs = log_softmax(output)
+    label_lengths = max_label_length - mx.sum(target_paddings, axis=1).astype(
+        mx.int32
+    )
+
+    # repeat[b, n] == 1.0 when label[b, n] == label[b, n+1].
+    repeat = (target[:, :-1] == target[:, 1:]).astype(mx.float32)
+    repeat = mx.pad(repeat, ((0, 0), (0, 1)))
+
+    logprobs_phi = logprobs[:, :, mask_index : mask_index + 1]  # [B, T, 1]
+    logprobs_phi = mx.transpose(logprobs_phi, (1, 0, 2))  # [T, B, 1]
+
+    _one_hot = one_hot(target, num_classes=num_classes)  # [B, N, K]
+    logprobs_emit = mx.einsum("btk,bnk->btn", logprobs, _one_hot)
+    logprobs_emit = mx.transpose(logprobs_emit, (1, 0, 2))  # [T, B, N]
+
+    # [B, N]
+    logalpha_phi_init = (
+        mx.ones((batch_size, max_label_length + 1), dtype=output.dtype)
+        * log_epsilon
+    )
+    logalpha_phi_init[:, 0] = 0.0
+    logalpha_emit_init = (
+        mx.ones((batch_size, max_label_length), dtype=output.dtype)
+        * log_epsilon
+    )
+
+    def update_phi_score(phi, added_score):
+        # Update `phi[:, 1:]`` with adding `added_score` in log space.
+        return mx.concatenate(
+            [phi[:, :1], mx.logaddexp(phi[:, 1:], added_score)], axis=-1
+        )
+
+    def loop_body(prev, x):
+        prev_phi, prev_emit = prev
+        # emit-to-phi epsilon transition, except if the next label is repetition
+        prev_phi_orig = prev_phi
+        prev_phi = update_phi_score(prev_phi, prev_emit + log_epsilon * repeat)
+
+        logprob_emit, logprob_phi, pad = x
+
+        # phi-to-emit transition
+        next_emit = mx.logaddexp(
+            prev_phi[:, :-1] + logprob_emit, prev_emit + logprob_emit
+        )
+        # self-loop transition
+        next_phi = prev_phi + logprob_phi
+        # emit-to-phi blank transition only when the next label is repetition
+        next_phi = update_phi_score(
+            next_phi, prev_emit + logprob_phi + log_epsilon * (1.0 - repeat)
+        )
+
+        pad = pad.reshape((batch_size, 1))
+        next_emit = pad * prev_emit + (1.0 - pad) * next_emit
+        next_phi = pad * prev_phi_orig + (1.0 - pad) * next_phi
+
+        return (next_phi, next_emit), (next_phi, next_emit)
+
+    xs = (logprobs_emit, logprobs_phi, output_paddings.transpose((1, 0)))
+
+    _, (logalpha_phi, logalpha_emit) = scan(
+        loop_body, (logalpha_phi_init, logalpha_emit_init), xs
+    )
+
+    # last row needs to be updated with the last epsilon transition
+    logalpha_phi_last = update_phi_score(logalpha_phi[-1], logalpha_emit[-1])
+    logalpha_phi[-1] = logalpha_phi_last
+
+    # extract per_seq_loss
+    # [B, N+1]
+    _one_hot = one_hot(label_lengths, num_classes=max_label_length + 1)
+    per_seq_loss = -mx.einsum("bn,bn->b", logalpha_phi_last, _one_hot)
+    return per_seq_loss
+
+
+def _ctc_greedy_decode(
+    inputs,
+    sequence_lengths,
+    merge_repeated=True,
+    mask_index=None,
+):
+    inputs = convert_to_tensor(inputs)
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
+    batch_size, max_length, num_classes = inputs.shape
+
+    if mask_index is None:
+        mask_index = num_classes - 1
+
+    indices = mx.argmax(inputs, axis=-1).astype(
+        mx.int32
+    )  # mlx argmax outputs uint32
+    scores = mx.max(inputs, axis=-1)
+
+    seqlen_mask = mx.arange(max_length)[None, :]
+    seqlen_mask = seqlen_mask >= sequence_lengths[:, None]
+
+    indices = mx.where(seqlen_mask, mask_index, indices)
+    scores = mx.where(seqlen_mask, 0.0, scores)
+
+    if merge_repeated:
+        repeat_mask = indices[:, 1:] == indices[:, :-1]
+        repeat_mask = mx.pad(repeat_mask, ((0, 0), (1, 0)))
+        indices = mx.where(repeat_mask, mask_index, indices)
+
+    # We set to -1 for blank labels
+    invalid_mask = indices == mask_index
+    indices = mx.where(invalid_mask, -1, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
+    order = mx.expand_dims(mx.arange(max_length), axis=0)  # [1, N]
+    order = mx.tile(order, (batch_size, 1))  # [B, N]
+    order = mx.where(invalid_mask, max_length, order)
+    order = mx.argsort(order, axis=-1)
+    indices = mx.take_along_axis(indices, order, axis=-1)
+
+    scores = -mx.sum(scores, axis=1)[:, None]
+    indices = mx.expand_dims(indices, axis=0)
+    return indices, scores
+
+
+def _unique_2d(arr, size=None, fill_value=0, return_inverse=True):
+    if arr.ndim != 2:
+        raise ValueError(
+            f"Invalid dimension: {arr.ndim}"
+            "unique_2d only supports 2 dimensional arrays"
+        )
+
+    unique_set = set()
+    indices = []
+
+    for i, row in enumerate(arr):
+        row_tuple = tuple(row.tolist())
+        if row_tuple not in unique_set:
+            unique_set.add(row_tuple)
+            indices.append(i)
+
+    unique_vals = mx.array([list(t) for t in sorted(unique_set)])
+
+    if size is not None:
+        pad_rows = size - len(unique_vals)
+        if pad_rows > 0:
+            padding = mx.full((pad_rows, arr.shape[1]), fill_value)
+            unique_vals = mx.concatenate([unique_vals, padding])
+
+    unique_dict = {tuple(row.tolist()): i for i, row in enumerate(unique_vals)}
+    inverse = mx.array([unique_dict[tuple(row.tolist())] for row in arr])
+    if return_inverse:
+        return unique_vals, inverse
+    else:
+        return unique_vals
+
+
+def _ctc_beam_search_decode(
+    inputs,
+    sequence_lengths,
+    beam_width=100,
+    top_paths=1,
+    mask_index=None,
+):
+    inputs = convert_to_tensor(inputs)
+    sequence_lengths = convert_to_tensor(sequence_lengths)
+
+    batch_size, max_seq_len, num_classes = inputs.shape
+    inputs = log_softmax(inputs)
+    seqlen_mask = mx.arange(max_seq_len)[None, :] >= sequence_lengths[:, None]
+
+    if mask_index is None:
+        mask_index = num_classes - 1
+
+    # This is a workaround for the fact that mlx.core.argsort does not support
+    # the order parameter which is used to break ties when scores are equal.
+    # For compatibility with the tensorflow implementation, we flip the inputs
+    # and the mask_index, and then flip the classes back to the correct indices
+    inputs = flip(inputs, axis=2)
+    mask_index = num_classes - mask_index - 1
+
+    _pad = -1
+
+    init_paths = mx.full(
+        (batch_size, 2 * beam_width, max_seq_len), _pad, dtype=mx.int32
+    )
+
+    num_init_paths = builtins.min(num_classes, beam_width)
+    max_classes = mx.argsort(inputs[:, 0], axis=1)[:, -num_init_paths:].astype(
+        mx.int32
+    )
+    init_classes = mx.where(max_classes == mask_index, _pad, max_classes)
+    init_paths[:, :num_init_paths, 0] = init_classes
+
+    init_scores = mx.full(
+        (batch_size, 2 * beam_width), -mx.inf, dtype=inputs.dtype
+    )
+    init_scores[:, :num_init_paths] = mx.take_along_axis(
+        inputs[:, 0], max_classes, axis=1
+    )
+    init_masked = init_paths[:, :, 0] == _pad
+
+    def _extend_paths(paths, scores, masked, x):
+        paths = mx.repeat(paths, num_classes, axis=0)
+        scores = mx.repeat(scores, num_classes)
+        masked = mx.repeat(masked, num_classes)
+
+        path_tail_index = mx.argmax(paths == _pad, axis=1).astype(mx.int32)
+        paths_arange = mx.arange(2 * beam_width * num_classes)
+        path_tails = paths[paths_arange, path_tail_index - 1]
+        path_tails = mx.where(path_tail_index == 0, _pad, path_tails)
+
+        classes = mx.arange(num_classes)
+        classes[mask_index] = _pad
+        classes = mx.tile(classes, 2 * beam_width)
+
+        prev_masked = masked
+        masked = classes == _pad
+
+        masked_repeat = ~prev_masked & (path_tails == classes)
+        classes = mx.where(masked_repeat, _pad, classes)
+        paths = (
+            paths.at[paths_arange, path_tail_index]
+            .multiply(0)
+            .at[paths_arange, path_tail_index]
+            .add(classes)
+        )
+
+        x = mx.tile(x, 2 * beam_width)
+        scores = scores + x
+
+        return paths, scores, masked
+
+    def _merge_scores(unique_inverse, scores):
+        scores_max = mx.max(scores)
+        scores_exp = mx.exp(scores - scores_max)
+        scores = mx.zeros_like(scores).at[unique_inverse].add(scores_exp)
+        scores = mx.log(scores) + scores_max
+        return scores
+
+    def _prune_paths(paths, scores, masked):
+        paths, unique_inverse = _unique_2d(
+            paths,
+            return_inverse=True,
+            size=2 * num_classes * beam_width,
+            fill_value=_pad,
+        )
+        if len(unique_inverse.shape) >= 2:
+            unique_inverse = mx.squeeze(unique_inverse, axis=1)
+
+        emit_scores = mx.where(masked, -mx.inf, scores)
+        mask_scores = mx.where(masked, scores, -mx.inf)
+
+        emit_scores = _merge_scores(unique_inverse, emit_scores)
+        mask_scores = _merge_scores(unique_inverse, mask_scores)
+
+        total_scores = mx.logaddexp(emit_scores, mask_scores)
+        top_indices = mx.argsort(total_scores)[-beam_width:]
+
+        paths = paths[top_indices]
+        emit_scores = emit_scores[top_indices]
+        mask_scores = mask_scores[top_indices]
+
+        paths = mx.tile(paths, (2, 1))
+        scores = mx.concatenate([emit_scores, mask_scores])
+        masked = mx.concatenate(
+            [
+                mx.zeros(beam_width, dtype=mx.bool_),
+                mx.ones(beam_width, dtype=mx.bool_),
+            ]
+        )
+
+        return paths, scores, masked
+
+    def _decode_step(paths, scores, masked, x):
+        paths, scores, masked = _extend_paths(paths, scores, masked, x)
+        paths, scores, masked = _prune_paths(paths, scores, masked)
+        return paths, scores, masked
+
+    def _step(prev, x):
+        paths, scores, masked = prev
+        x, seqlen_mask = x
+
+        new_paths, new_scores, new_masked = _decode_step(
+            paths, scores, masked, x
+        )
+
+        # Keep old values where seqlen_mask is True
+        mask_expanded = (
+            seqlen_mask[..., None]
+            if seqlen_mask.ndim < paths.ndim
+            else seqlen_mask
+        )
+        paths = mx.where(mask_expanded, paths, new_paths)
+        scores = mx.where(mask_expanded, scores, new_scores)
+        masked = mx.where(mask_expanded, masked, new_masked)
+        return (paths, scores, masked), None
+
+    def _decode_batch(
+        init_paths, init_scores, init_masked, inputs, seqlen_mask
+    ):
+        paths, scores, masked = (init_paths, init_scores, init_masked)
+        for i in range(len(inputs) - 1):
+            (paths, scores, masked), _ = _step(
+                (paths, scores, masked), (inputs[i + 1], seqlen_mask[i + 1])
+            )
+
+        paths, unique_inverse = _unique_2d(
+            paths,
+            return_inverse=True,
+            size=2 * num_classes * beam_width,
+            fill_value=_pad,
+        )
+        if len(unique_inverse.shape) >= 2:
+            unique_inverse = mx.squeeze(unique_inverse, axis=1)
+        scores = _merge_scores(unique_inverse, scores)
+
+        top_indices = mx.argsort(scores)[-top_paths:][::-1]
+        paths = paths[top_indices]
+        scores = scores[top_indices]
+
+        return paths, scores
+
+    def _decode_batch_loop(
+        init_paths, init_scores, init_masked, inputs, seqlen_mask
+    ):
+        batch_size = init_paths.shape[0]
+        all_paths = []
+        all_scores = []
+
+        for b in range(batch_size):
+            paths, scores = _decode_batch(
+                init_paths[b],
+                init_scores[b],
+                init_masked[b],
+                inputs[b],
+                seqlen_mask[b],
+            )
+            all_paths.append(paths)
+            all_scores.append(scores)
+
+        return mx.stack(all_paths), mx.stack(all_scores)
+
+    paths, scores = _decode_batch_loop(
+        init_paths, init_scores, init_masked, inputs, seqlen_mask
+    )
+
+    # convert classes back to the correct indices
+    paths = mx.where(paths == _pad, _pad, num_classes - paths - 1)
+    paths = mx.transpose(paths, [1, 0, 2])
+    return paths, scores
+
+
+def ctc_decode(
+    inputs,
+    sequence_lengths,
+    strategy="greedy",
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
     mask_index=0,
 ):
-    raise NotImplementedError("MLX backend doesn't support the ctc loss yet.")
+    inputs = convert_to_tensor(inputs)
+    dtype = result_type(inputs.dtype, "float32")
+    inputs = cast(inputs, dtype)
+
+    if strategy == "greedy":
+        return _ctc_greedy_decode(
+            inputs,
+            sequence_lengths,
+            merge_repeated=merge_repeated,
+            mask_index=mask_index,
+        )
+    elif strategy == "beam_search":
+        return _ctc_beam_search_decode(
+            inputs,
+            sequence_lengths,
+            beam_width=beam_width,
+            top_paths=top_paths,
+            mask_index=mask_index,
+        )
+    else:
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
+        )
+
+
+def psnr(x1, x2, max_val):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.shape != x2.shape:
+        raise ValueError(
+            f"Input shapes {x1.shape} and {x2.shape} must "
+            "match for PSNR calculation. "
+        )
+
+    max_val = convert_to_tensor(max_val, dtype=x2.dtype)
+    mse = mx.mean(mx.square(x1 - x2))
+    psnr = 20 * mx.log10(max_val) - 10 * mx.log10(mse)
+    return psnr
