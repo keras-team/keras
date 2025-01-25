@@ -1142,6 +1142,17 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3, 3))
 
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO doesn't support this change",
+    )
+    def test_argmax_negative_zero(self):
+        input_data = np.array(
+            [-1.0, -0.0, 1.401298464324817e-45], dtype=np.float32
+        )
+        result = knp.argmax(input_data)
+        assert result == 2, f"Expected index 2, got {result}"
+
     def test_argmin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argmin(x).shape, ())
