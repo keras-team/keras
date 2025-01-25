@@ -257,7 +257,20 @@ def argmax(x, axis=None, keepdims=False):
 
 def argmin(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
-    return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
+    x_64 = np.asarray(x, dtype=np.float64)
+    if axis is not None:
+        min_mask = x_64 == np.min(x_64, axis=axis, keepdims=True)
+        indices = np.argmin(
+            np.where(min_mask, x_64, np.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    else:
+        min_mask = (x_64 < x_64.min()) | (
+            (x_64 == x_64.min()) & (np.signbit(x_64))
+        )
+        indices = np.argmin(
+            np.where(min_mask, x_64, np.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    return indices
 
 
 def argsort(x, axis=-1):

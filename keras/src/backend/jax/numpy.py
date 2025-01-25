@@ -364,7 +364,20 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
-    return jnp.argmin(x, axis=axis, keepdims=keepdims)
+    x_64 = jnp.asarray(x, dtype=jnp.float64)
+    if axis is not None:
+        min_mask = x_64 == jnp.min(x_64, axis=axis, keepdims=True)
+        indices = jnp.argmin(
+            jnp.where(min_mask, x_64, jnp.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    else:
+        min_mask = (x_64 < x_64.min()) | (
+            (x_64 == x_64.min()) & (jnp.signbit(x_64))
+        )
+        indices = jnp.argmin(
+            jnp.where(min_mask, x_64, jnp.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    return indices
 
 
 def argsort(x, axis=-1):
