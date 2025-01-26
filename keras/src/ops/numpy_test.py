@@ -1152,6 +1152,28 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         )
         self.assertEqual(knp.argmax(input_data), 2)
 
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino"
+        or keras.config.backend() == "tensorflow",
+        reason="""
+        OpenVINO and TensorFlow don't support this 
+        change, TensorFlow behavior for this case is under
+        evaluation and may change within this PR
+        """,
+    )
+    def test_argmin_negative_zero(self):
+        input_data = np.array(
+            [
+                0.0,
+                1.1754943508222875e-38,
+                -1.401298464324817e-45,
+                0.0,
+                459367.0,
+            ],
+            dtype=np.float32,
+        )
+        self.assertEqual(knp.argmin(input_data), 2)
+
     def test_argmin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argmin(x).shape, ())
