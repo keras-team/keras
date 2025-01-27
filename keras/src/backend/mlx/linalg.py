@@ -7,7 +7,7 @@ from keras.src.backend.mlx.core import convert_to_tensor
 
 
 def det(a):
-    # TODO: Swap to mlx.linalg.det when it's implemented
+    # TODO: Swap to mlx.linalg.det when supported
     a = jnp.array(a)
     output = jnp.linalg.det(a)
     return mx.array(output)
