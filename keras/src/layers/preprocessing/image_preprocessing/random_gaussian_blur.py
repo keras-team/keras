@@ -7,23 +7,26 @@ from keras.src.random import SeedGenerator
 
 @keras_export("keras.layers.RandomGaussianBlur")
 class RandomGaussianBlur(BaseImagePreprocessingLayer):
-    """Randomly performs the sharpness operation on given images.
+    """Applies random Gaussian blur to images for data augmentation.
 
-    The sharpness operation first performs a blur, then blends between the
-    original image and the processed image. This operation adjusts the clarity
-    of the edges in an image, ranging from blurred to enhanced sharpness.
+    This layer performs a Gaussian blur operation on input images with a
+    randomly selected degree of blurring, controlled by the `factor` and
+    `sigma` arguments.
 
     Args:
-        factor: A tuple of two floats or a single float.
-            `factor` controls the extent to which the image sharpness
-            is impacted. `factor=0.0` results in a fully blurred image,
-            `factor=0.5` applies no operation (preserving the original image),
-            and `factor=1.0` enhances the sharpness beyond the original. Values
-            should be between `0.0` and `1.0`. If a tuple is used, a `factor`
-            is sampled between the two values for every image augmented.
-            If a single float is used, a value between `0.0` and the passed
-            float is sampled. To ensure the value is always the same,
-            pass a tuple with two identical floats: `(0.5, 0.5)`.
+        factor: A single float or a tuple of two floats.
+            `factor` controls the extent to which the image hue is impacted.
+            `factor=0.0` makes this layer perform a no-op operation,
+            while a value of `1.0` performs the most aggressive
+            blurring available. If a tuple is used, a `factor` is
+            sampled between the two values for every image augmented. If a
+            single float is used, a value between `0.0` and the passed float is
+            sampled. Default is 1.0.
+        kernel_size: Integer. Size of the Gaussian kernel used for blurring.
+            Must be an odd integer. Default is 3.
+        sigma: Float or tuple of two floats. Standard deviation of the Gaussian
+            kernel. Controls the intensity of the blur. If a tuple is provided,
+            a value is sampled between the two for each image. Default is 1.0.
         value_range: the range of values the incoming images will have.
             Represented as a two-number tuple written `[low, high]`. This is
             typically either `[0, 1]` or `[0, 255]` depending on how your
@@ -51,11 +54,6 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
         self.value_range = value_range
         self.seed = seed
         self.generator = SeedGenerator(seed)
-
-        if self.data_format == "channels_first":
-            self.channel_axis = -3
-        else:
-            self.channel_axis = -1
 
     def _set_kernel_size(self, factor, name):
         error_msg = f"{name} must be an odd number. Received: {name}={factor}"
@@ -108,6 +106,31 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             raise ValueError(error_msg)
         return lower, upper
 
+    def create_gaussian_kernel(self, kernel_size, sigma, num_channels):
+        def get_gaussian_kernel1d(size, sigma):
+            x = (
+                self.backend.numpy.arange(size, dtype=self.compute_dtype)
+                - (size - 1) / 2
+            )
+            kernel1d = self.backend.numpy.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / self.backend.numpy.sum(kernel1d)
+
+        def get_gaussian_kernel2d(size, sigma):
+            kernel1d_x = get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = get_gaussian_kernel1d(size[1], sigma[1])
+            return self.backend.numpy.tensordot(kernel1d_y, kernel1d_x, axes=0)
+
+        kernel = get_gaussian_kernel2d(kernel_size, sigma)
+
+        kernel = self.backend.numpy.reshape(
+            kernel, (kernel_size[0], kernel_size[1], 1, 1)
+        )
+        kernel = self.backend.numpy.tile(kernel, [1, 1, num_channels, 1])
+
+        kernel = self.backend.cast(kernel, self.compute_dtype)
+
+        return kernel
+
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None
@@ -146,11 +169,14 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
         )
         should_apply_blur = random_threshold < blur_probability
 
-        blur_factor = self.backend.random.uniform(
-            shape=(2,),
-            minval=self.sigma[0],
-            maxval=self.sigma[1],
-            seed=seed,
+        blur_factor = (
+            self.backend.random.uniform(
+                shape=(2,),
+                minval=self.sigma[0],
+                maxval=self.sigma[1],
+                seed=seed,
+            )
+            + 1e-6
         )
 
         return {
@@ -158,34 +184,9 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             "blur_factor": blur_factor,
         }
 
-    def create_gaussian_kernel(self, kernel_size, sigma, num_channels):
-        def get_gaussian_kernel1d(size, sigma):
-            x = (
-                self.backend.numpy.arange(size, dtype=self.compute_dtype)
-                - (size - 1) / 2
-            )
-            kernel1d = self.backend.numpy.exp(-0.5 * (x / sigma) ** 2)
-            return kernel1d / self.backend.numpy.sum(kernel1d)
-
-        def get_gaussian_kernel2d(size, sigma):
-            kernel1d_x = get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_y = get_gaussian_kernel1d(size[1], sigma[1])
-            return self.backend.numpy.tensordot(kernel1d_y, kernel1d_x, axes=0)
-
-        kernel = get_gaussian_kernel2d(kernel_size, sigma)
-
-        kernel = self.backend.numpy.reshape(
-            kernel, (kernel_size[0], kernel_size[1], 1, 1)
-        )
-        kernel = self.backend.numpy.tile(kernel, [1, 1, num_channels, 1])
-
-        kernel = self.backend.cast(kernel, self.compute_dtype)
-
-        return kernel
-
     def transform_images(self, images, transformation=None, training=True):
         images = self.backend.cast(images, self.compute_dtype)
-        if training:
+        if training and transformation is not None:
             if self.data_format == "channels_first":
                 images = self.backend.numpy.swapaxes(images, -3, -1)
 
@@ -195,7 +196,7 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             kernel = self.create_gaussian_kernel(
                 self.kernel_size,
                 blur_factor,
-                self.backend.shape(images)[self.channel_axis],
+                self.backend.shape(images)[-1],
             )
 
             blur_images = self.backend.nn.depthwise_conv(
@@ -206,9 +207,6 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
                 data_format="channels_last",
             )
 
-            if self.data_format == "channels_first":
-                images = self.backend.numpy.swapaxes(images, -3, -1)
-
             images = self.backend.numpy.where(
                 should_apply_blur[:, None, None, None],
                 blur_images,
@@ -218,6 +216,9 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             images = self.backend.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
+
+            if self.data_format == "channels_first":
+                images = self.backend.numpy.swapaxes(images, -3, -1)
 
             images = self.backend.cast(images, dtype=self.compute_dtype)
 
