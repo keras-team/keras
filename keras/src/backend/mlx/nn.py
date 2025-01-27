@@ -160,17 +160,18 @@ def _non_overlapping_sliding_windows(x, shape, window_shape):
 def _sliding_windows(x, window_shape, window_strides):
     if x.ndim < 3:
         raise ValueError(
-            f"To extract sliding windows at least 1 spatial dimension "
-            f"(3 total) is needed but the input only has {x.ndim} dimensions."
+            "To extract sliding windows at least 1 spatial dimension "
+            f"(3 total) is needed but the input only has {x.ndim} dimension(s)."
         )
 
     spatial_dims = x.shape[1:-1]
     if not (len(spatial_dims) == len(window_shape) == len(window_strides)):
         raise ValueError(
-            f"To extract sliding windows the window shapes and strides must "
-            f"have the same number of spatial dimensions as the signal but "
-            f"the signal has {len(spatial_dims)} dims and the window shape "
-            f"has {len(window_shape)} and strides have {len(window_strides)}."
+            "To extract sliding windows, the lengths of window_shape and "
+            "window_strides must be equal to the signal's spatial dimensions. "
+            f"However, the signal has spatial_dims={len(spatial_dims)} while "
+            f"len(window_shape)={len(window_shape)} and len(window_strides)="
+            f"{len(window_strides)}."
         )
 
     shape = x.shape
