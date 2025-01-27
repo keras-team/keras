@@ -318,15 +318,12 @@ class BatchNormalization(Layer):
                 synchronized=self.synchronized,
             )
 
-        mask_weights = ops.cast(
-            mask,
-            inputs.dtype,
+        mask_weights = ops.cast(mask, inputs.dtype)
+        mask_weights_broadcasted = ops.expand_dims(mask_weights, axis=-1)
+        broadcasted_mask = ops.broadcast_to(
+            mask_weights_broadcasted, ops.shape(inputs)
         )
-        mask_weights_broadcasted = ops.expand_dims(
-            mask_weights,
-            axis=-1,
-        )
-        weighted_inputs = mask_weights_broadcasted * inputs
+        weighted_inputs = broadcasted_mask * inputs
 
         weighted_input_sum = ops.sum(
             weighted_inputs,
@@ -334,7 +331,7 @@ class BatchNormalization(Layer):
             keepdims=True,
         )
         sum_of_weights = ops.sum(
-            mask_weights_broadcasted,
+            broadcasted_mask,
             self._reduction_axes,
             keepdims=True,
         )
@@ -343,7 +340,7 @@ class BatchNormalization(Layer):
         difference = weighted_inputs - mean
         squared_difference = ops.square(difference)
         weighted_distsq = ops.sum(
-            mask_weights_broadcasted * squared_difference,
+            broadcasted_mask * squared_difference,
             self._reduction_axes,
             keepdims=True,
         )
