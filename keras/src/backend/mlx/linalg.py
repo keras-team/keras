@@ -7,7 +7,10 @@ from keras.src.backend.mlx.core import convert_to_tensor
 
 
 def det(a):
-    raise NotImplementedError("det not yet implemented in mlx.")
+    # TODO: Swap to mlx.linalg.det when it's implemented
+    a = jnp.array(a)
+    output = jnp.linalg.det(a)
+    return mx.array(output)
 
 
 def eig(a):

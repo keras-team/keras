@@ -2839,7 +2839,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.where(x > 1), np.where(x > 1))
         self.assertAllClose(knp.Where()(x > 1), np.where(x > 1))
 
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             ValueError, "`x1` and `x2` either both should be `None`"
         ):
             knp.where(x > 1, x, None)
