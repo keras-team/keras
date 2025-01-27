@@ -175,6 +175,7 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
                 minval=self.sigma[0],
                 maxval=self.sigma[1],
                 seed=seed,
+                dtype=self.compute_dtype,
             )
             + 1e-6
         )
