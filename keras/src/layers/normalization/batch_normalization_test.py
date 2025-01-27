@@ -222,6 +222,13 @@ class BatchNormalizationTest(testing.TestCase):
             layer.moving_variance.assign(large_value)
             self.assertAllClose(layer.moving_variance.value, large_value)
 
+    @pytest.mark.skipif(
+        backend.backend() == "openvino",
+        reason="""
+        ops.mean() - TypeError: The necessary overload 
+        for constant was not found
+        """,
+    )
     def test_masked_broadcast_normalization(self):
         input_shape = (1, 2, 3, 4)
         mask_shape = (1, 2, 1)

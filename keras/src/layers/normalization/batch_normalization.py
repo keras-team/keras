@@ -335,7 +335,7 @@ class BatchNormalization(Layer):
             self._reduction_axes,
             keepdims=True,
         )
-        mean = weighted_input_sum / (sum_of_weights + backend.config.epsilon())
+        mean = weighted_input_sum / (sum_of_weights + backend.epsilon())
 
         difference = weighted_inputs - mean
         squared_difference = ops.square(difference)
@@ -344,6 +344,6 @@ class BatchNormalization(Layer):
             self._reduction_axes,
             keepdims=True,
         )
-        variance = weighted_distsq / (sum_of_weights + backend.config.epsilon())
+        variance = weighted_distsq / (sum_of_weights + backend.epsilon())
 
         return ops.squeeze(mean), ops.squeeze(variance)
