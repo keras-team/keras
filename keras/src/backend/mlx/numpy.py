@@ -1,3 +1,7 @@
+import builtins
+from copy import copy as builtin_copy
+
+import jax.numpy as jnp
 import mlx.core as mx
 
 from keras.src.backend import config
@@ -6,6 +10,7 @@ from keras.src.backend import standardize_dtype
 from keras.src.backend.mlx.core import cast
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import convert_to_tensors
+from keras.src.backend.mlx.core import slice
 from keras.src.backend.mlx.core import to_mlx_dtype
 
 
@@ -16,7 +21,8 @@ def add(x1, x2):
 
 
 def einsum(subscripts, *operands, **kwargs):
-    raise NotImplementedError()
+    operands = [convert_to_tensor(x) for x in operands]
+    return mx.einsum(subscripts, *operands)
 
 
 def subtract(x1, x2):
@@ -38,10 +44,20 @@ def multiply(x1, x2):
 
 def mean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    # `mx.mean` does not handle low precision (e.g., float16) overflow
+    # correctly, so we compute with float32 and cast back to the original type.
+    compute_dtype = result_type(x.dtype, "float32")
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = compute_dtype
+    else:
+        result_dtype = ori_dtype
 
-    # TODO: decide if we need special low precision handling
-
-    return mx.mean(x, axis=axis, keepdims=keepdims)
+    compute_dtype = to_mlx_dtype(compute_dtype)
+    result_dtype = to_mlx_dtype(result_dtype)
+    x = x.astype(compute_dtype)
+    output = mx.mean(x, axis=axis, keepdims=keepdims)
+    return cast(output, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -177,6 +193,8 @@ def argmin(x, axis=None, keepdims=False):
 
 def argsort(x, axis=-1):
     x = convert_to_tensor(x)
+    if x.ndim == 0:
+        return mx.argsort(x, axis=None)
     return mx.argsort(x, axis=axis)
 
 
@@ -220,8 +238,28 @@ def average(x, axis=None, weights=None):
     return mx.mean(x, axis=axis)
 
 
+def _bincount_1d(x, weights=None, minlength=0):
+    length = builtins.max(builtins.max(x) + 1, minlength or 0)
+    counts = mx.zeros(length)
+    w = weights if weights is not None else mx.ones_like(x)
+    return counts.at[x].add(w)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
-    raise NotImplementedError("The MLX backend doesn't support bincount yet")
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with mlx backend")
+
+    x = convert_to_tensor(x)
+
+    if len(x.shape) == 2:
+        batch_size = x.shape[0]
+        results = []
+        for i in range(batch_size):
+            w = None if weights is None else weights[i]
+            results.append(_bincount_1d(x[i], w, minlength))
+        return mx.stack(results)
+
+    return _bincount_1d(x, weights, minlength)
 
 
 def broadcast_to(x, shape):
@@ -245,7 +283,8 @@ def concatenate(xs, axis=0):
 
 
 def conjugate(x):
-    raise NotImplementedError("The MLX backend doesn't support conjugate yet")
+    x = convert_to_tensor(x)
+    return mx.conjugate(x)
 
 
 def conj(x):
@@ -254,7 +293,8 @@ def conj(x):
 
 
 def copy(x):
-    raise NotImplementedError("The MLX backend doesn't support copy yet")
+    x = convert_to_tensor(x)
+    return builtin_copy(x)
 
 
 def cos(x):
@@ -273,10 +313,28 @@ def count_nonzero(x, axis=None):
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    # TODO: Write it inline if necessary
-    raise NotImplementedError(
-        "The MLX backend doesn't support cross product yet"
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    if axis is not None:
+        axisa = axisb = axisc = axis
+
+    if axisa != -1:
+        x1 = mx.moveaxis(x1, axisa, -1)
+    if axisb != -1:
+        x2 = mx.moveaxis(x2, axisb, -1)
+
+    result = mx.linalg.cross(x1, x2)
+
+    if x1.shape[-1] == 2:
+        result = result[
+            ..., 2
+        ]  # if inputs are 2D vectors, take only scalar result
+
+    if axisc != -1:
+        result = mx.moveaxis(result, -1, axisc)
+
+    return result
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -299,19 +357,6 @@ def cumsum(x, axis=None, dtype=None):
     return mx.cumsum(x, axis=axis)
 
 
-def _diagonal_indices(H, W, k):
-    if k >= 0:
-        N = min(W - k, H)
-        idx1 = mx.arange(0, N)
-        idx2 = mx.arange(k, k + N)
-    elif k < 0:
-        k = -k
-        N = min(H - k, W)
-        idx1 = mx.arange(k, k + N)
-        idx2 = mx.arange(0, N)
-    return idx1, idx2
-
-
 def diag(x, k=0):
     x = convert_to_tensor(x)
     if x.dtype in [mx.int64, mx.uint64]:
@@ -324,18 +369,23 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     return mx.diagonal(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-def diff(x, n=1, axis=-1):
-    x = convert_to_tensor(x)
-    ndim = x.ndim
-    axis = (ndim + axis) % ndim
-    indices = [slice(None) for _ in range(axis)]
-    index_a = indices + [slice(None, -1)]
-    index_b = indices + [slice(1)]
+def diff(a, n=1, axis=-1):
+    a = convert_to_tensor(a)
+    if n <= 0:
+        return a
 
-    y = x
-    for i in range(n):
-        y = y[index_b] - y[index_a]
-    return y
+    if axis < 0:
+        axis = a.ndim + axis
+
+    start1 = [0] * a.ndim
+    start2 = [0] * a.ndim
+    shape = list(a.shape)
+    shape[axis] -= 1
+
+    start1[axis] = 1
+    out = slice(a, start1, shape) - slice(a, start2, shape)
+
+    return diff(out, n - 1, axis) if n > 1 else out
 
 
 def digitize(x, bins):
@@ -354,7 +404,7 @@ def dot(x, y):
     ndimy = y.ndim
 
     if ndimx == ndimy == 1:
-        return (x[None] @ y[:, None]).reshape()
+        return (x[None] @ y[:, None]).reshape(())
 
     if ndimx == ndimy == 2:
         return x @ y
@@ -364,14 +414,12 @@ def dot(x, y):
 
     if ndimy == 1:
         r = x @ y
-        return r.squeeze(-1)
+        return r
 
-    if ndimy >= 2:
-        x = x.reshape(x.shape + [1] * ndimy - 1)
-        r = x @ y
-        return r.squeeze(-2)
-
-    raise RuntimeError("This should be unreachable")
+    # else if ndimy >= 2:
+    x = x.reshape(x.shape[:-1] + (x.shape[-1],) + (1,) * (ndimy - 2))
+    r = x @ y
+    return r
 
 
 def empty(shape, dtype=None):
@@ -407,11 +455,11 @@ def expm1(x):
 def flip(x, axis=None):
     x = convert_to_tensor(x)
     if axis is None:
-        indexer = tuple(slice(None, None, -1) for _ in range(x.ndim))
+        indexer = tuple(builtins.slice(None, None, -1) for _ in range(x.ndim))
         return x[indexer]
     if isinstance(axis, int):
         axis = (axis,)
-    indexer = [slice(None)] * x.ndim
+    indexer = [builtins.slice(None)] * x.ndim
     for ax in axis:
         if ax < 0:
             ax = x.ndim + ax
@@ -419,7 +467,7 @@ def flip(x, axis=None):
             raise ValueError(
                 f"axis {ax} is out of bounds for array of dimension {x.ndim}"
             )
-        indexer[ax] = slice(None, None, -1)
+        indexer[ax] = builtins.slice(None, None, -1)
 
     return x[tuple(indexer)]
 
@@ -471,19 +519,14 @@ def identity(n, dtype=None):
 
 
 def imag(x):
-    raise NotImplementedError("MLX doesn't support imag yet")
+    x = convert_to_tensor(x)
+    return mx.imag(x)
 
 
 def isclose(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    result_dtype = result_type(x1.dtype, x2.dtype)
-    x1 = cast(x1, result_dtype)
-    x2 = cast(x2, result_dtype)
-
-    rtol = 1e-5
-    atol = 1e-8
-    return absolute(x1 - x2) <= (atol + rtol * absolute(x2))
+    return mx.isclose(x1, x2)
 
 
 def isfinite(x):
@@ -498,7 +541,7 @@ def isinf(x):
 
 def isnan(x):
     x = convert_to_tensor(x)
-    return x != x
+    return mx.isnan(x)
 
 
 def less(x1, x2):
@@ -518,20 +561,34 @@ def linspace(
 ):
     if axis != 0:
         raise NotImplementedError(
-            "MLX doesn't support linspace with an `axis` argument. "
+            "MLX doesn't support linspace with `axis` argument"
             f"Received axis={axis}"
         )
+
     start = convert_to_tensor(start)
     stop = convert_to_tensor(stop)
-    zero_one = mx.arange(num) / ((num - 1) if endpoint else num)
-    direction = stop - start
-    zero_one = zero_one.reshape([-1] + [1] * direction.ndim)
-    rs = zero_one * direction[None] + start[None]
+    if dtype is not None:
+        dtype = to_mlx_dtype(dtype)
+
+    if start.ndim == 0 and stop.ndim == 0:
+        result = mx.linspace(
+            start, stop, num=num if endpoint else num + 1, dtype=dtype
+        )
+    else:
+        zero_one = mx.linspace(
+            0, 1, num=num if endpoint else num + 1, dtype=dtype
+        )
+        zero_one = zero_one.reshape([-1] + [1] * start.ndim)
+        result = zero_one * (stop - start)[None] + start[None]
+
+    if not endpoint:
+        result = result[:-1]
 
     if retstep:
-        return rs, rs[1] - rs[0]
-    else:
-        return rs
+        step = (stop - start) / (num - 1 if endpoint else num)
+        return result, step
+
+    return result
 
 
 def log(x):
@@ -562,17 +619,17 @@ def logaddexp(x1, x2):
 
 def logical_and(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return x1.astype(mx.bool_) * x2.astype(mx.bool_)
+    return mx.logical_and(x1, x2)
 
 
 def logical_not(x):
     x = convert_to_tensor(x)
-    return True - x.astype(mx.bool_)
+    return mx.logical_not(x)
 
 
 def logical_or(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return x1.astype(mx.bool_) + x2.astype(mx.bool_)
+    return mx.logical_or(x1, x2)
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
@@ -591,8 +648,10 @@ def maximum(x1, x2):
     return mx.maximum(x1, x2)
 
 
-def median(x, axis=-1, keepdims=False):
+def median(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    axis_arg = axis
+    x_dim = x.ndim
 
     if axis is None:
         x = x.flatten()
@@ -629,6 +688,10 @@ def median(x, axis=-1, keepdims=False):
     else:
         medians = medians.squeeze()
 
+    if keepdims and axis_arg is None:
+        while medians.ndim < x_dim:
+            medians = mx.expand_dims(medians, axis=-1)
+
     return medians
 
 
@@ -645,7 +708,7 @@ def min(x, axis=None, keepdims=False, initial=None):
         elif keepdims:
             return mx.full((1,) * len(x.shape), initial)
         else:
-            return mx.tensor(initial)
+            return mx.array(initial)
 
     result = mx.min(x, axis=axis, keepdims=keepdims)
     if initial is not None:
@@ -674,18 +737,20 @@ def moveaxis(x, source, destination):
     if not isinstance(destination, (list, tuple)):
         destination = [destination]
 
-    ndim = x.ndim
-    axes = list(range(ndim))
+    source = [axis if axis >= 0 else x.ndim + axis for axis in source]
+    destination = [axis if axis >= 0 else x.ndim + axis for axis in destination]
+
+    perm = [i for i in range(x.ndim)]
     for s, d in zip(source, destination):
-        s = (ndim + s) % ndim
-        d = (ndim + d) % ndim
-        axes.insert(d, axes.pop(s))
+        perm.remove(s)
+        perm.insert(d, s)
 
-    return mx.transpose(x, axes)
+    return mx.transpose(x, perm)
 
 
-def nan_to_num(x):
-    raise NotImplementedError("The MLX backend doesn't support nan_to_num yet")
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
+    x = convert_to_tensor(x)
+    return mx.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ndim(x):
@@ -694,7 +759,11 @@ def ndim(x):
 
 
 def nonzero(x):
-    raise NotImplementedError("The MLX backend doesn't support nonzero yet")
+    # TODO: swap to mlx when nonzero is implemented
+    x = convert_to_tensor(x)
+    x = jnp.array(x)
+    output = jnp.nonzero(x)
+    return tuple(mx.array(x) for x in output)
 
 
 def not_equal(x1, x2):
@@ -718,28 +787,74 @@ def outer(x1, x2):
 
 
 def pad(x, pad_width, mode="constant", constant_values=None):
-    if mode != "constant":
-        raise NotImplementedError(
-            "MLX pad supports only `mode == 'constant'`"
-            f"Received: mode={mode}"
-        )
-
     if isinstance(pad_width, mx.array):
         pad_width = pad_width.tolist()
-
     x = convert_to_tensor(x)
-    return mx.pad(x, pad_width, constant_values=constant_values or 0)
+
+    if constant_values is not None:
+        if mode != "constant":
+            raise ValueError(
+                "Argument `constant_values` can only be "
+                "provided when `mode == 'constant'`. "
+                f"Received: mode={mode}"
+            )
+    elif mode == "constant":
+        constant_values = 0
+
+    if mode == "constant":
+        return mx.pad(x, pad_width, constant_values=constant_values)
+
+    if mode in ["symmetric", "reflect"]:
+        result = x
+        for axis, (pad_before, pad_after) in enumerate(pad_width):
+            if pad_before == 0 and pad_after == 0:
+                continue
+
+            size = x.shape[axis]
+            if mode == "symmetric":
+                before_idx = mx.arange(pad_before - 1, -1, -1) % size
+                after_idx = mx.arange(size - 1, size - pad_after - 1, -1) % size
+            else:  # reflect
+                before_idx = mx.arange(pad_before - 1, -1, -1) % (size - 1)
+                after_idx = mx.arange(size - 2, size - pad_after - 2, -1) % (
+                    size - 1
+                )
+
+            indices = mx.concatenate([before_idx, mx.arange(size), after_idx])
+            result = mx.take(result, indices, axis=axis)
+
+        return result
+
+    raise ValueError(f"Unsupported padding mode: {mode}")
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is not None:
         x = cast(x, dtype)
-    return mx.prod(x, axis=axis, keepdims=keepdims)
+    output = mx.prod(x, axis=axis, keepdims=keepdims)
+    return output
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    raise NotImplementedError("MLX doesn't support quantile yet")
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    if standardize_dtype(x.dtype) == "int64":
+        x = cast(x, config.floatx())
+
+    # TODO: swap to mlx when quantile is supported
+    x = jnp.array(x)
+    q = jnp.array(q)
+    result = jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+    # TODO: with jax < 0.4.26 jnp.quantile failed to keepdims when axis is None
+    if keepdims is True and axis is None:
+        result_ndim = x.ndim + (1 if len(q.shape) > 0 else 0)
+        while result.ndim < result_ndim:
+            result = jnp.expand_dims(result, axis=-1)
+
+    result = mx.array(result)
+    return result
 
 
 def ravel(x):
@@ -748,7 +863,8 @@ def ravel(x):
 
 
 def real(x):
-    raise NotImplementedError("MLX doesn't support real yet")
+    x = convert_to_tensor(x)
+    return mx.real(x)
 
 
 def reciprocal(x):
@@ -758,7 +874,23 @@ def reciprocal(x):
 
 def repeat(x, repeats, axis=None):
     x = convert_to_tensor(x)
-    return mx.repeat(x, repeats, axis=axis)
+    repeats = convert_to_tensor(repeats)
+
+    if repeats.size == 1:
+        return mx.repeat(x, repeats, axis=axis)
+
+    if axis is None:
+        x = mx.reshape(x, (-1,))
+        axis = 0
+
+    if repeats.size != x.shape[axis]:
+        raise ValueError(
+            "repeats must have same length as axis: "
+            f"got {repeats.size} vs {x.shape[axis]}"
+        )
+
+    indices = mx.concatenate([mx.full(r, i) for i, r in enumerate(repeats)])
+    return mx.take(x, indices, axis=axis)
 
 
 def reshape(x, new_shape):
@@ -769,8 +901,8 @@ def reshape(x, new_shape):
 
 
 def roll(x, shift, axis=None):
-    # TODO: Implement using concatenate
-    raise NotImplementedError("The MLX backend doesn't support roll yet")
+    x = convert_to_tensor(x)
+    return mx.roll(x, shift, axis=axis)
 
 
 def sign(x):
@@ -805,8 +937,7 @@ def split(x, indices_or_sections, axis=0):
 
 def stack(xs, axis=0):
     xs = [convert_to_tensor(x) for x in xs]
-    xs = [mx.expand_dims(x, axis) for x in xs]
-    return mx.concatenate(xs, axis=axis)
+    return mx.stack(xs, axis=axis)
 
 
 def std(x, axis=None, keepdims=False):
@@ -816,9 +947,7 @@ def std(x, axis=None, keepdims=False):
 
 def swapaxes(x, axis1, axis2):
     x = convert_to_tensor(x)
-    axes = list(range(x.ndim))
-    axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
-    return x.transpose(axes)
+    return mx.swapaxes(x, axis1=axis1, axis2=axis2)
 
 
 def take(x, indices, axis=None):
@@ -846,7 +975,17 @@ def tanh(x):
 def tensordot(x1, x2, axes=2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return mx.tensordot(x1, x2, axes=axes)
+
+    if isinstance(axes, int):
+        return mx.tensordot(x1, x2, axes)
+    elif isinstance(axes, (list, tuple)):
+        if not isinstance(axes[0], (list, tuple)):
+            axes = [[axes[0]], [axes[1]]]
+        return mx.tensordot(x1, x2, axes)
+
+    raise ValueError(
+        "`axes` must be an integer or sequence " f"Received: axes={axes}"
+    )
 
 
 def round(x, decimals=0):
@@ -856,30 +995,7 @@ def round(x, decimals=0):
 
 def tile(x, repeats):
     x = convert_to_tensor(x)
-    ndim = x.ndim
-    if not isinstance(repeats, (tuple, list)):
-        repeats = [repeats]
-
-    if ndim > len(repeats):
-        repeats = [1] * (ndim - len(repeats))
-    elif ndim < len(repeats):
-        shape = [1] * (len(repeats) - ndim) + x.shape
-        x = x.reshape(shape)
-
-    shape = []
-    for s in x.shape:
-        shape.append(s)
-        shape.append(1)
-    x = x.reshape(shape)
-    for i, r in enumerate(repeats):
-        shape[2 * i] = r
-    x = mx.broadcast_to(x, shape)
-    final_shape = []
-    for i in range(len(shape) // 2):
-        final_shape.append(shape[i] * shape[i + 1])
-    x = x.reshape(final_shape)
-
-    return x
+    return mx.tile(x, repeats)
 
 
 def trace(x, offset=None, axis1=None, axis2=None):
@@ -916,7 +1032,10 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
-    raise NotImplementedError("The MLX backend doesn't support vdot yet")
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1_conj = mx.conj(mx.reshape(x1, (x1.size,)))
+    return mx.sum(x1_conj * mx.reshape(x2, (x2.size,)))
 
 
 def vstack(xs):
@@ -926,7 +1045,16 @@ def vstack(xs):
     return mx.concatenate(xs, axis=0)
 
 
-def where(condition, x1, x2):
+def where(condition, x1=None, x2=None):
+    condition = convert_to_tensor(condition)
+
+    if x1 is None and x2 is None:
+        return nonzero(condition)
+    elif x1 is None or x2 is None:
+        raise ValueError("`x1` and `x2` either both should be `None`")
+
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return mx.where(condition, x1, x2)
 
 
@@ -1016,3 +1144,83 @@ def maybe_convert_to_tensor(x):
     if isinstance(x, (int, float, bool)):
         return x
     return convert_to_tensor(x)
+
+
+def correlate(x1, x2, mode="valid"):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    if x1.ndim != 1 or x2.ndim != 1:
+        raise ValueError("correlate() only supports 1-dimensional inputs")
+    if len(x1) == 0 or len(x2) == 0:
+        raise ValueError(
+            f"inputs cannot be empty, got shapes {x1.shape} and {x2.shape}"
+        )
+
+    x2 = mx.conj(x2)
+    if len(x1) < len(x2):
+        x1, x2 = x2, x1
+        reverse_output = True
+    else:
+        reverse_output = False
+
+    if mode == "valid":
+        pad_width = [(0, 0)]
+    elif mode == "same":
+        pad_size = x2.shape[0] // 2
+        pad_width = [(pad_size, x2.shape[0] - pad_size - 1)]
+    elif mode == "full":
+        pad_size = x2.shape[0] - 1
+        pad_width = [(pad_size, pad_size)]
+    else:
+        raise ValueError("mode must be one of ['full', 'same', 'valid']")
+
+    if mode != "valid":
+        x1 = mx.pad(x1, pad_width)
+
+    output_size = len(x1) - len(x2) + 1
+    result = mx.zeros(output_size)
+
+    for i in range(output_size):
+        result = result.at[i].add(mx.sum(x1[i : i + len(x2)] * x2))
+
+    return result[::-1] if reverse_output else result
+
+
+def select(condlist, choicelist, default=0):
+    x = convert_to_tensor(default)
+
+    for condition, choice in zip(reversed(condlist), reversed(choicelist)):
+        x = mx.where(condition, choice, x)
+
+    return x
+
+
+def slogdet(x):
+    # TODO: Swap to mlx.linalg.slogdet when supported (or with determinant)
+    x = convert_to_tensor(x)
+    x = jnp.array(x)
+    output = jnp.linalg.slogdet(x)
+    return (mx.array(output[0]), mx.array(output[1]))
+
+
+def vectorize(pyfunc, *, excluded=None, signature=None):
+    if excluded is not None:
+        raise NotImplementedError("excluded parameter not supported yet")
+
+    if signature is None:
+        return lambda *args: mx.vmap(pyfunc)(*args)
+
+    def wrapped(*args):
+        array_args = [
+            mx.array(arg) if not isinstance(arg, mx.array) else arg
+            for arg in args
+        ]
+        if signature == "(d,d)->()":
+            return pyfunc(*array_args)
+        elif signature == "(d,d)->(d)":
+            return pyfunc(*array_args)
+        vmapped = mx.vmap(pyfunc, in_axes=0, out_axes=0)
+        return vmapped(*array_args)
+
+    return wrapped
