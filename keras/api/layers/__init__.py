@@ -155,8 +155,14 @@ from keras.src.layers.preprocessing.image_preprocessing.mix_up import MixUp
 from keras.src.layers.preprocessing.image_preprocessing.rand_augment import (
     RandAugment,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_apply import (
+    RandomApply,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_brightness import (
     RandomBrightness,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_choice import (
+    RandomChoice,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_color_degeneration import (
     RandomColorDegeneration,

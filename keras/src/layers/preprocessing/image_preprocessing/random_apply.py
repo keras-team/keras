@@ -51,92 +51,156 @@ class RandomApply(BaseImagePreprocessingLayer):
         self.generator = SeedGenerator(seed)
         self.built = True
 
-    def get_random_transformation(self, data, training=True, seed=None):
+    def _should_augment(self, batch_size=None):
+        if batch_size is None:
+            return (
+                self.backend.random.uniform(
+                    shape=(),
+                    seed=self._get_seed_generator(self.backend._backend),
+                )
+                > 1.0 - self._rate
+            )
+        else:
+            return (
+                self.backend.random.uniform(
+                    shape=(batch_size,),
+                    seed=self._get_seed_generator(self.backend._backend),
+                )
+                > 1.0 - self._rate
+            )
+
+    def get_random_transformation(self, inputs=None, training=True):
         if not training:
             return None
+        if inputs is None:
+            return {"should_augment": False}
 
-        if seed is None:
-            seed = self._get_seed_generator(self.backend._backend)
-
-        if isinstance(data, dict):
-            inputs = data["images"]
+        if isinstance(inputs, dict):
+            images = inputs["images"]
         else:
-            inputs = data
+            images = inputs
 
-        input_shape = self.backend.shape(inputs)
+        batch_size = ops.shape(images)[0]
         if self.batchwise:
-            should_augment = self._rate > self.backend.random.uniform(
-                shape=(), seed=seed
-            )
+            do_augment = self._should_augment()
+            should_augment = ops.full((batch_size,), do_augment)
         else:
-            batch_size = input_shape[0]
-            random_values = self.backend.random.uniform(
-                shape=(batch_size,), seed=seed
-            )
-            should_augment = random_values < self._rate
+            should_augment = self._should_augment(batch_size)
 
-            ndims = len(input_shape)
-            ones = [1] * (ndims - 1)
-            broadcast_shape = tuple([batch_size] + ones)
-            should_augment = self.backend.numpy.reshape(
-                should_augment, broadcast_shape
-            )
+        should_augment = ops.reshape(should_augment, (batch_size, 1))
+        return {"should_augment": should_augment}
 
-        return {
-            "should_augment": should_augment,
-            "input_shape": input_shape,
-        }
+    def _batch_augment(self, inputs):
+        if self.batchwise:
+            if self._should_augment():
+                return self._layer(inputs)
+            else:
+                return inputs
+
+    def _augment(self, inputs):
+        if self._should_augment():
+            return self._layer(inputs)
+        else:
+            return inputs
 
     def transform_images(self, images, transformation, training=True):
         if not training or transformation is None:
             return images
 
         should_augment = transformation["should_augment"]
+        should_augment = ops.reshape(should_augment, (-1, 1, 1, 1))
 
         if hasattr(self._layer, "get_random_transformation"):
             layer_transform = self._layer.get_random_transformation(
-                images, training=True
+                images, training=training
             )
             augmented = self._layer.transform_images(
-                images, layer_transform, training=True
+                images, layer_transform, training=training
             )
         else:
             augmented = self._layer(images)
 
         return self.backend.numpy.where(should_augment, augmented, images)
 
-    def call(self, inputs):
+    def call(self, inputs, training=True):
         if isinstance(inputs, dict):
-            return {
-                key: self._call_single(input_tensor)
-                for key, input_tensor in inputs.items()
+            data = {
+                "images": self.transform_images(
+                    inputs["images"],
+                    self.get_random_transformation(inputs, training),
+                    training=training,
+                )
             }
+            if "labels" in inputs:
+                data["labels"] = self.transform_labels(
+                    inputs["labels"],
+                    self.get_random_transformation(inputs, training),
+                    training=training,
+                )
+            return data
         else:
-            return self._call_single(inputs)
-
-    def _call_single(self, inputs):
-        transformation = self.get_random_transformation(inputs, training=True)
-        return self.transform_images(inputs, transformation, training=True)
-
-    @staticmethod
-    def _num_zero_batches(images):
-        """Count number of all-zero batches in the input."""
-        num_batches = ops.shape(images)[0]
-        flattened = ops.reshape(images, (num_batches, -1))
-        any_nonzero = ops.any(ops.not_equal(flattened, 0), axis=1)
-        num_non_zero_batches = ops.sum(ops.cast(any_nonzero, dtype="int32"))
-        return num_batches - num_non_zero_batches
+            return self.transform_images(
+                inputs,
+                self.get_random_transformation(inputs, training),
+                training=training,
+            )
 
     def transform_labels(self, labels, transformation, training=True):
-        return labels
+        if not training or transformation is None:
+            return labels
+
+        should_augment = transformation["should_augment"]
+        should_augment = ops.reshape(should_augment, (-1, 1))
+
+        if hasattr(self._layer, "transform_labels"):
+            layer_transform = self._layer.get_random_transformation(
+                labels, training=training
+            )
+            augmented = self._layer.transform_labels(
+                labels, layer_transform, training=training
+            )
+        else:
+            augmented = self._layer(labels)
+
+        return self.backend.numpy.where(should_augment, augmented, labels)
 
     def transform_bounding_boxes(self, bboxes, transformation, training=True):
-        return bboxes
+        if not training or transformation is None:
+            return bboxes
+
+        should_augment = transformation["should_augment"]
+
+        if hasattr(self._layer, "transform_bounding_boxes"):
+            layer_transform = self._layer.get_random_transformation(
+                bboxes, training=training
+            )
+            augmented = self._layer.transform_bounding_boxes(
+                bboxes, layer_transform, training=training
+            )
+        else:
+            augmented = self._layer(bboxes)
+
+        return self.backend.numpy.where(should_augment, augmented, bboxes)
 
     def transform_segmentation_masks(
         self, masks, transformation, training=True
     ):
-        return masks
+        if not training or transformation is None:
+            return masks
+
+        should_augment = transformation["should_augment"]
+
+        if hasattr(self._layer, "transform_segmentation_masks"):
+            layer_transform = self._layer.get_random_transformation(
+                masks, training=True
+            )
+            augmented = self._layer.transform_segmentation_masks(
+                masks, layer_transform, training=True
+            )
+        else:
+            augmented = self._layer(masks)
+
+        return self.backend.numpy.where(should_augment, augmented, masks)
 
     def get_config(self):
         config = super().get_config()

@@ -40,6 +40,15 @@ class ZeroOut(BaseImagePreprocessingLayer):
         return super().get_config()
 
 
+# Utility function to count number of all-zero batches in the input.
+def _num_zero_batches(images):
+    num_batches = ops.shape(images)[0]
+    flattened = ops.reshape(images, (num_batches, -1))
+    any_nonzero = ops.any(ops.not_equal(flattened, 0), axis=1)
+    num_non_zero_batches = ops.sum(ops.cast(any_nonzero, dtype="int32"))
+    return num_batches - num_non_zero_batches
+
+
 class RandomApplyTest(TestCase):
     @parameterized.parameters([-0.5, 1.7])
     def test_raises_error_on_invalid_rate_parameter(self, invalid_rate):
@@ -52,8 +61,8 @@ class RandomApplyTest(TestCase):
         layer = layers.RandomApply(rate=0.5, layer=ZeroOut(), seed=1234)
 
         outputs = layer(dummy_inputs)
-        num_zero_inputs = layers.RandomApply._num_zero_batches(dummy_inputs)
-        num_zero_outputs = layers.RandomApply._num_zero_batches(outputs)
+        num_zero_inputs = _num_zero_batches(dummy_inputs)
+        num_zero_outputs = _num_zero_batches(outputs)
 
         self.assertEqual(num_zero_inputs, 0)
         self.assertLess(num_zero_outputs, batch_size)
