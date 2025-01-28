@@ -227,4 +227,13 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
         return custom_objects[name]
     elif module_objects and name in module_objects:
         return module_objects[name]
+    # Check if there are objects without Package name appended to them.
+    # For Backward compatibility of custom_loss functions in versions <3.7
+    elif name is not None and any(
+        lambda key: key.contains(name)
+        for key in custom_objects_scope_dict.keys()
+    ):
+        for key in custom_objects_scope_dict.keys():
+            if name in key:
+                return custom_objects_scope_dict[key]
     return None
