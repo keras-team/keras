@@ -24,11 +24,11 @@ class RandomApply(BaseImagePreprocessingLayer):
             input. Defaults to `False`.
         seed: Optional integer to ensure reproducibility.
 
-    Inputs: A tensor (rank 3 for single input, rank 4 for batch input). The
-        input can have any dtype and range.
+    Inputs: A tensor or dictionary of tensors. The input type must be compatible
+        with the wrapped layer.
 
-    Output: A tensor with the same shape and dtype as the input, with the
-        transformation layer applied to selected inputs.
+    Output: A tensor or dictionary of tensors matching the input structure, with
+        the transformation layer randomly applied according to a specified rate.
     """
 
     def __init__(
@@ -69,39 +69,18 @@ class RandomApply(BaseImagePreprocessingLayer):
                 > 1.0 - self._rate
             )
 
-    def get_random_transformation(self, inputs=None, training=True):
-        if not training:
-            return None
-        if inputs is None:
-            return {"should_augment": False}
-
-        if isinstance(inputs, dict):
-            images = inputs["images"]
-        else:
-            images = inputs
-
-        batch_size = ops.shape(images)[0]
-        if self.batchwise:
-            do_augment = self._should_augment()
-            should_augment = ops.full((batch_size,), do_augment)
-        else:
-            should_augment = self._should_augment(batch_size)
-
-        should_augment = ops.reshape(should_augment, (batch_size, 1))
-        return {"should_augment": should_augment}
-
     def _batch_augment(self, inputs):
         if self.batchwise:
             if self._should_augment():
                 return self._layer(inputs)
-            else:
-                return inputs
-
-    def _augment(self, inputs):
-        if self._should_augment():
-            return self._layer(inputs)
-        else:
             return inputs
+
+        batch_size = ops.shape(inputs)[0]
+        should_augment = self._should_augment(batch_size)
+        should_augment = ops.reshape(should_augment, (-1, 1, 1, 1))
+
+        augmented = self._layer(inputs)
+        return self.backend.numpy.where(should_augment, augmented, inputs)
 
     def transform_images(self, images, transformation, training=True):
         if not training or transformation is None:
@@ -123,27 +102,15 @@ class RandomApply(BaseImagePreprocessingLayer):
         return self.backend.numpy.where(should_augment, augmented, images)
 
     def call(self, inputs, training=True):
+        if not training:
+            return inputs
         if isinstance(inputs, dict):
-            data = {
-                "images": self.transform_images(
-                    inputs["images"],
-                    self.get_random_transformation(inputs, training),
-                    training=training,
-                )
-            }
-            if "labels" in inputs:
-                data["labels"] = self.transform_labels(
-                    inputs["labels"],
-                    self.get_random_transformation(inputs, training),
-                    training=training,
-                )
-            return data
-        else:
-            return self.transform_images(
-                inputs,
-                self.get_random_transformation(inputs, training),
-                training=training,
-            )
+            result = {}
+            for key, value in inputs.items():
+                result[key] = self._batch_augment(value)
+            return result
+
+        return self._batch_augment(inputs)
 
     def transform_labels(self, labels, transformation, training=True):
         if not training or transformation is None:
@@ -192,10 +159,10 @@ class RandomApply(BaseImagePreprocessingLayer):
 
         if hasattr(self._layer, "transform_segmentation_masks"):
             layer_transform = self._layer.get_random_transformation(
-                masks, training=True
+                masks, training=training
             )
             augmented = self._layer.transform_segmentation_masks(
-                masks, layer_transform, training=True
+                masks, layer_transform, training=training
             )
         else:
             augmented = self._layer(masks)
