@@ -214,7 +214,7 @@ class BatchNormalization(Layer):
 
         reduction_axes = list(range(len(input_shape)))
         del reduction_axes[self.axis]
-        self._reduction_axes = list(reduction_axes)
+        self._reduction_axes = reduction_axes
         self.built = True
 
     def compute_output_shape(self, input_shape):
