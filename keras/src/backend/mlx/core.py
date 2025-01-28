@@ -104,7 +104,7 @@ def convert_to_tensor(x, dtype=None, sparse=None):
     if _is_h5py_dataset(x):
         if h5py is None:
             raise ImportError(
-                "h5py must be installed in order to load a model."
+                "h5py must be installed in order to load HDF5 datasets."
             )
         # load h5py._hl.dataset.Dataset object with numpy
         x = np.array(x)
