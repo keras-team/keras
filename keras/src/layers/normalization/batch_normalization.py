@@ -214,7 +214,7 @@ class BatchNormalization(Layer):
 
         reduction_axes = list(range(len(input_shape)))
         del reduction_axes[self.axis]
-        self._reduction_axes = reduction_axes
+        self._reduction_axes = list(reduction_axes)
         self.built = True
 
     def compute_output_shape(self, input_shape):
@@ -314,9 +314,7 @@ class BatchNormalization(Layer):
         if mask is None:
             return ops.moments(
                 inputs,
-                axes=self._reduction_axes
-                if isinstance(self._reduction_axes, list)
-                else list(self._reduction_axes),
+                axes=self._reduction_axes,
                 synchronized=self.synchronized,
             )
 
@@ -327,20 +325,14 @@ class BatchNormalization(Layer):
         )
         weighted_inputs = broadcasted_mask * inputs
 
-        reduction_axes = (
-            self._reduction_axes
-            if isinstance(self._reduction_axes, list)
-            else list(self._reduction_axes)
-        )
-
         weighted_input_sum = ops.sum(
             weighted_inputs,
-            reduction_axes,
+            self._reduction_axes,
             keepdims=True,
         )
         sum_of_weights = ops.sum(
             broadcasted_mask,
-            reduction_axes,
+            self._reduction_axes,
             keepdims=True,
         )
         mean = weighted_input_sum / (sum_of_weights + backend.epsilon())
@@ -349,7 +341,7 @@ class BatchNormalization(Layer):
         squared_difference = ops.square(difference)
         weighted_distsq = ops.sum(
             broadcasted_mask * squared_difference,
-            reduction_axes,
+            self._reduction_axes,
             keepdims=True,
         )
         variance = weighted_distsq / (sum_of_weights + backend.epsilon())
