@@ -169,9 +169,8 @@ def _sliding_windows(x, window_shape, window_strides):
         raise ValueError(
             "To extract sliding windows, the lengths of window_shape and "
             "window_strides must be equal to the signal's spatial dimensions. "
-            f"However, the signal has spatial_dims={len(spatial_dims)} while "
-            f"len(window_shape)={len(window_shape)} and len(window_strides)="
-            f"{len(window_strides)}."
+            f"However, the signal has spatial_dims={spatial_dims} while "
+            f"window_shape={window_shape} and window_strides={window_strides}."
         )
 
     shape = x.shape
