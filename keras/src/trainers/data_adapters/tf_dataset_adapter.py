@@ -7,7 +7,7 @@ class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
 
     def __init__(self, dataset, class_weight=None, distribution=None):
-        """Iniitialize the TFDatasetAdapter.
+        """Initialize the TFDatasetAdapter.
 
         Args:
             dataset: The input `tf.data.Dataset` instance.
@@ -41,20 +41,15 @@ class TFDatasetAdapter(DataAdapter):
             yield tree.map_structure(convert_to_numpy, batch)
 
     def get_jax_iterator(self):
-        import jax.experimental.sparse as jax_sparse
-
-        from keras.src.backend.jax.core import convert_to_tensor
         from keras.src.backend.tensorflow.core import convert_to_numpy
         from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_jax(x):
-            # We use numpy as an intermediary because the conversion
-            # tf -> numpy -> jax is more than 2x faster than tf -> jax.
             if isinstance(x, tf.SparseTensor):
-                values = convert_to_numpy(x.values)
-                indices = convert_to_numpy(x.indices)
-                return jax_sparse.BCOO((values, indices), shape=x.shape)
-            return convert_to_tensor(convert_to_numpy(x))
+                return data_adapter_utils.tf_sparse_to_jax_sparse(x)
+            else:
+                # We use numpy as an intermediary because it is faster.
+                return convert_to_numpy(x)
 
         for batch in self._dataset:
             yield tree.map_structure(convert_to_jax, batch)
@@ -133,7 +128,7 @@ def make_class_weight_map_fn(class_weight):
         if y.shape.rank >= 2:
             y_classes = tf.__internal__.smart_cond.smart_cond(
                 tf.shape(y)[-1] > 1,
-                lambda: tf.argmax(y, axis=-1),
+                lambda: tf.argmax(y, axis=-1, output_type=tf.int32),
                 lambda: tf.cast(tf.round(tf.squeeze(y, axis=-1)), tf.int32),
             )
         else:

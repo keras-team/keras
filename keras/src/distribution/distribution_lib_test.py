@@ -186,7 +186,7 @@ class DataParallelDistributionTest(testing.TestCase):
         device_mesh = distribution.device_mesh
         self.assertEqual(len(device_mesh.devices), 8)
         self.assertEqual(device_mesh.axis_names, ["data"])
-        self.assertEqual(distribution._batch_dim_name, "data")
+        self.assertEqual(distribution.batch_dim_name, "data")
 
         self.assertFalse(distribution._is_multi_process)
         self.assertEqual(distribution._process_id, 0)
@@ -197,7 +197,7 @@ class DataParallelDistributionTest(testing.TestCase):
         device_mesh = distribution.device_mesh
         self.assertEqual(len(device_mesh.devices), 8)
         self.assertEqual(device_mesh.axis_names, ["batch"])
-        self.assertEqual(distribution._batch_dim_name, "batch")
+        self.assertEqual(distribution.batch_dim_name, "batch")
 
     @mock.patch.object(
         distribution_lib,
@@ -211,7 +211,7 @@ class DataParallelDistributionTest(testing.TestCase):
         device_mesh = distribution.device_mesh
         self.assertEqual(len(device_mesh.devices), 8)
         self.assertEqual(device_mesh.axis_names, ["batch"])
-        self.assertEqual(distribution._batch_dim_name, "batch")
+        self.assertEqual(distribution.batch_dim_name, "batch")
 
     def test_get_data_layout(self):
         distribution = distribution_lib.DataParallel(
@@ -223,6 +223,7 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(data_layout.device_mesh, self.device_mesh)
         self.assertEqual(data_layout.axes, ("data", None, None))
 
+    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_get_variable_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh
@@ -267,13 +268,14 @@ class ModelParallelDistributionTest(testing.TestCase):
             shape, axis_names, self.devices
         )
 
+    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_distribute_weights(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
         layout_map[".*bias"] = distribution_lib.TensorLayout(["model"])
 
         distribution = distribution_lib.ModelParallel(
-            self.device_mesh, layout_map, batch_dim_name="data"
+            layout_map=layout_map, batch_dim_name="data"
         )
         kernel = backend.Variable(initializer=np.arange(8, 4), name="kernel")
         bias = backend.Variable(initializer=np.arange(4), name="bias")
@@ -294,7 +296,7 @@ class ModelParallelDistributionTest(testing.TestCase):
     def test_distribute_data(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         distribution = distribution_lib.ModelParallel(
-            self.device_mesh, layout_map, batch_dim_name="data"
+            layout_map=layout_map, batch_dim_name="data"
         )
 
         data = np.arange(16).reshape((4, 2, 2))
@@ -309,7 +311,7 @@ class ModelParallelDistributionTest(testing.TestCase):
         layout_map["/model/layer/tensor"] = ("data", None)
 
         distribution = distribution_lib.ModelParallel(
-            self.device_mesh, layout_map, batch_dim_name="data"
+            layout_map=layout_map, batch_dim_name="data"
         )
         layout = distribution.get_tensor_layout("/model/layer/tensor")
         self.assertIs(layout.device_mesh, self.device_mesh)
@@ -321,8 +323,9 @@ class ModelParallelDistributionTest(testing.TestCase):
     def test_distribute_dataset(self):
         # We can only verify the single worker/process case in OSS for now.
         dataset = tf.data.Dataset.range(8)
-        distribution = distribution = distribution_lib.ModelParallel(
-            self.device_mesh, {}, batch_dim_name="data"
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map, batch_dim_name="data"
         )
         distributed_dataset = distribution.distribute_dataset(dataset)
         self.assertIs(dataset, distributed_dataset)

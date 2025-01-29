@@ -8,7 +8,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class NormalizationTest(testing.TestCase, parameterized.TestCase):
+class NormalizationTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_normalization_basics(self):
         self.run_layer_test(
@@ -65,6 +65,8 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
             data = backend.convert_to_tensor(x)
         elif input_type == "tf.data":
             data = tf_data.Dataset.from_tensor_slices(x).batch(8)
+        else:
+            raise NotImplementedError(input_type)
 
         layer = layers.Normalization()
         layer.adapt(data)
@@ -96,12 +98,10 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         reason="Test symbolic call for torch meta device.",
     )
     def test_call_on_meta_device_after_built(self):
-        from keras.src.backend.torch import core
-
         layer = layers.Normalization()
         data = np.random.random((32, 4))
         layer.adapt(data)
-        with core.device_scope("meta"):
+        with backend.device("meta"):
             layer(data)
 
     def test_normalization_with_mean_only_raises_error(self):
@@ -144,3 +144,28 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         new_shape_data = np.random.random((10, 3))
         with self.assertRaisesRegex(ValueError, "an incompatible shape"):
             layer.adapt(new_shape_data)
+
+    def test_tf_data_compatibility(self):
+        x = np.random.random((32, 3))
+        ds = tf_data.Dataset.from_tensor_slices(x).batch(1)
+
+        # With built-in values
+        layer = layers.Normalization(
+            mean=[0.1, 0.2, 0.3], variance=[0.1, 0.2, 0.3], axis=-1
+        )
+        layer.build((None, 3))
+        for output in ds.map(layer).take(1):
+            output.numpy()
+
+        # With adapt flow
+        layer = layers.Normalization(axis=-1)
+        layer.adapt(
+            np.random.random((32, 3)),
+        )
+        for output in ds.map(layer).take(1):
+            output.numpy()
+
+    def test_normalization_with_scalar_mean_var(self):
+        input_data = np.array([[1, 2, 3]], dtype="float32")
+        layer = layers.Normalization(mean=3.0, variance=2.0)
+        layer(input_data)

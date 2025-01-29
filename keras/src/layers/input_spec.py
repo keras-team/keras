@@ -30,6 +30,8 @@ class InputSpec:
             as long as the last axis of the spec is 1.
         name: Expected key corresponding to this input when passing data as
             a dictionary.
+        optional: Boolean, whether the input is optional or not.
+            An optional input can accept `None` values.
 
     Example:
 
@@ -56,6 +58,7 @@ class InputSpec:
         axes=None,
         allow_last_axis_squeeze=False,
         name=None,
+        optional=False,
     ):
         self.dtype = (
             backend.standardize_dtype(dtype) if dtype is not None else None
@@ -69,6 +72,7 @@ class InputSpec:
         self.max_ndim = max_ndim
         self.min_ndim = min_ndim
         self.name = name
+        self.optional = optional
         self.allow_last_axis_squeeze = allow_last_axis_squeeze
         try:
             axes = axes or {}
@@ -152,22 +156,6 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
             inputs = list_inputs
 
     inputs = tree.flatten(inputs)
-    if len(input_spec) != len(inputs):
-        raise ValueError(
-            f"Layer '{layer_name}' expected {len(input_spec)} input(s). "
-            f"Received {len(inputs)} instead."
-        )
-    for x in inputs:
-        # Having a shape/dtype is the only commonality of the various
-        # tensor-like objects that may be passed. The most common kind of
-        # invalid type we are guarding for is a Layer instance (Functional API),
-        # which does not have a `shape` attribute.
-        if not hasattr(x, "shape"):
-            raise ValueError(
-                f"Inputs to a layer should be tensors. Got '{x}' "
-                f"(of type {type(x)}) as input for layer '{layer_name}'."
-            )
-
     if len(inputs) != len(input_spec):
         raise ValueError(
             f'Layer "{layer_name}" expects {len(input_spec)} input(s),'
@@ -177,6 +165,18 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     for input_index, (x, spec) in enumerate(zip(inputs, input_spec)):
         if spec is None:
             continue
+        if x is None and spec.optional:
+            continue
+
+        # Having a shape/dtype is the only commonality of the various
+        # tensor-like objects that may be passed. The most common kind of
+        # invalid type we are guarding for is a Layer instance (Functional API),
+        # which does not have a `shape` attribute.
+        if not hasattr(x, "shape"):
+            raise ValueError(
+                f"Inputs to a layer should be tensors. Got '{x}' "
+                f"(of type {type(x)}) as input for layer '{layer_name}'."
+            )
 
         shape = backend.standardize_shape(x.shape)
         ndim = len(shape)

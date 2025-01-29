@@ -8,7 +8,7 @@ from keras.src import ops
 from keras.src import testing
 
 
-class Cropping3DTest(testing.TestCase, parameterized.TestCase):
+class Cropping3DTest(testing.TestCase):
     @parameterized.product(
         (
             {"dim1_cropping": (1, 2), "dim1_expected": (1, 5)},  # both

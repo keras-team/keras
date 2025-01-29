@@ -27,6 +27,7 @@ class ActivityRegularization(Layer):
         self.supports_masking = True
         self.l1 = l1
         self.l2 = l2
+        self.built = True
 
     def call(self, inputs):
         return inputs
@@ -36,5 +37,6 @@ class ActivityRegularization(Layer):
 
     def get_config(self):
         base_config = super().get_config()
+        base_config.pop("activity_regularizer", None)
         config = {"l1": self.l1, "l2": self.l2}
         return {**base_config, **config}

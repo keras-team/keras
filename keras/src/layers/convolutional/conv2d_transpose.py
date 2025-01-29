@@ -59,12 +59,14 @@ class Conv2DTranspose(BaseConvTranspose):
             bias after being updated by an `Optimizer`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         A 4D tensor with shape: `(batch_size, height, width, channels)`
     - If `data_format="channels_first"`:
         A 4D tensor with shape: `(batch_size, channels, height, width)`
 
     Output shape:
+
     - If `data_format="channels_last"`:
         A 4D tensor with shape: `(batch_size, new_height, new_width, filters)`
     - If `data_format="channels_first"`:
@@ -108,7 +110,7 @@ class Conv2DTranspose(BaseConvTranspose):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=2,
@@ -127,5 +129,5 @@ class Conv2DTranspose(BaseConvTranspose):
             activity_regularizer=activity_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
-            **kwargs
+            **kwargs,
         )

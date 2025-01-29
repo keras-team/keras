@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+from absl.testing import parameterized
 from tensorflow.python.eager import context
 
 from keras.src import backend
@@ -39,20 +40,32 @@ class OptimizerDistributeTest(testing.TestCase):
             )
         self.run_class_serialization_test(optimizer)
 
-    def test_single_step(self):
+    @parameterized.parameters([("keras_sgd",), ("tf_keras_sgd",)])
+    def test_single_step(self, optimizer_type):
+        if optimizer_type == "tf_keras_sgd":
+            try:
+                import tf_keras
+
+                optimizer_fn = tf_keras.optimizers.SGD
+            except (ImportError, AttributeError):
+                self.skipTest("tf_keras not installed")
+        else:
+            optimizer_fn = SGD
         with self.strategy.scope():
-            optimizer = SGD(
+            optimizer = optimizer_fn(
                 learning_rate=0.5,
                 momentum=0.06,
             )
-            grads = tf.constant([1.0, 6.0, 7.0, 2.0])
-            vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
+            # use tf variable to work both in k2 & k3.
+            vars = tf.Variable([1.0, 2.0, 3.0, 4.0])
 
-            self.strategy.run(
-                lambda: optimizer.apply_gradients(zip([grads], [vars]))
-            )
+            def update():
+                grads = tf.constant([1.0, 6.0, 7.0, 2.0])
+                optimizer.apply_gradients(zip([grads], [vars]))
+
+            self.strategy.run(update)
             self.assertAllClose(
-                vars, [0.5, -1.0, -0.5, 3.0], rtol=1e-4, atol=1e-4
+                vars, [0.0, -4.0, -4.0, 2.0], rtol=1e-4, atol=1e-4
             )
 
     def test_weight_decay(self):
@@ -91,31 +104,32 @@ class OptimizerDistributeTest(testing.TestCase):
     def test_correctness_with_golden(self):
         with self.strategy.scope():
             optimizer = SGD(nesterov=True)
-
             x = backend.Variable(np.ones([10]))
-            grads = np.arange(0.1, 1.1, 0.1)
-            first_grads = np.full((10,), 0.01)
+
+            def update_grads():
+                grads = backend.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
+                optimizer.apply_gradients(zip([grads], [x]))
+
+            def update_first_grads():
+                first_grads = backend.convert_to_tensor(np.full((10,), 0.01))
+                optimizer.apply_gradients(zip([first_grads], [x]))
 
         # fmt: off
         golden = np.array(
-            [[0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999, 0.9999,
-            0.9999, 0.9999], [0.9989, 0.9979, 0.9969, 0.9959, 0.9949, 0.9939,
-            0.9929, 0.9919, 0.9909, 0.9899], [0.9979, 0.9959, 0.9939, 0.9919,
-            0.9899, 0.9879, 0.9859, 0.9839, 0.9819, 0.9799], [0.9969, 0.9939,
-            0.9909, 0.9879, 0.9849, 0.9819, 0.9789, 0.9759, 0.9729, 0.9699],
-            [0.9959, 0.9919, 0.9879, 0.9839, 0.9799, 0.9759, 0.9719, 0.9679,
-            0.9639, 0.9599]]
+            [
+                [0.9980, 0.9960, 0.9940, 0.9920, 0.9900, 0.9880, 0.9860, 0.9840, 0.9820, 0.9800],
+                [0.9978, 0.9958, 0.9938, 0.9918, 0.9898, 0.9878, 0.9858, 0.9838, 0.9818, 0.9798],
+                [0.9976, 0.9956, 0.9936, 0.9916, 0.9896, 0.9876, 0.9856, 0.9836, 0.9816, 0.9796],
+                [0.9974, 0.9954, 0.9934, 0.9914, 0.9894, 0.9874, 0.9854, 0.9834, 0.9814, 0.9794],
+                [0.9972, 0.9952, 0.9932, 0.9912, 0.9892, 0.9872, 0.9852, 0.9832, 0.9812, 0.9792],
+            ]
         )
         # fmt: on
 
-        self.strategy.run(
-            lambda: optimizer.apply_gradients(zip([first_grads], [x]))
-        )
+        self.strategy.run(update_grads)
         for i in range(5):
             self.assertAllClose(x, golden[i], rtol=5e-4, atol=5e-4)
-            self.strategy.run(
-                lambda: optimizer.apply_gradients(zip([grads], [x]))
-            )
+            self.strategy.run(update_first_grads)
 
     def test_clip_norm(self):
         with self.strategy.scope():
@@ -180,16 +194,19 @@ class OptimizerDistributeTest(testing.TestCase):
             self.assertAllClose(
                 optimizer._accumulated_gradients[0], [[1.0, 1.0], [2.0, 2.0]]
             )
-            self.assertAllClose(optimizer.iterations, 1)
+            self.assertAllClose(optimizer._iterations, 1)
+            self.assertAllClose(optimizer.iterations, 0)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
             self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
             self.assertAllClose(
                 optimizer._accumulated_gradients[0], [[2.0, 2.0], [4.0, 4.0]]
             )
-            self.assertAllClose(optimizer.iterations, 2)
+            self.assertAllClose(optimizer._iterations, 2)
+            self.assertAllClose(optimizer.iterations, 0)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))
-            self.assertAllClose(v, [[0.0, 1.0], [1.0, 2.0]])
+            self.assertAllClose(v, [[-1.0, 0.0], [-1.0, 0.0]])
             self.assertAllClose(
                 optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
             )
-            self.assertAllClose(optimizer.iterations, 3)
+            self.assertAllClose(optimizer._iterations, 3)
+            self.assertAllClose(optimizer.iterations, 1)

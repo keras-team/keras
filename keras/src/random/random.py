@@ -15,14 +15,19 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             supported. If not specified, `keras.config.floatx()` is used,
             which defaults to `float32` unless you configured it otherwise (via
             `keras.config.set_floatx(float_dtype)`).
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value `seed=None`
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.normal(
         shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
@@ -45,20 +50,25 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
 
     Args:
         logits: 2-D Tensor with shape (batch_size, num_classes). Each row
-            should define a categorical distibution with the unnormalized
+            should define a categorical distribution with the unnormalized
             log-probabilities for all classes.
         num_samples: Int, the number of independent samples to draw for each
             row of the input. This will be the second dimension of the output
             tensor's shape.
         dtype: Optional dtype of the output tensor.
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
 
     Returns:
         A 2-D tensor with (batch_size, num_samples).
@@ -94,14 +104,19 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
             supported. If not specified, `keras.config.floatx()` is used,
             which defaults to `float32` unless you configured it otherwise (via
             `keras.config.set_floatx(float_dtype)`)
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
     """
     if dtype and not backend.is_float_dtype(dtype):
         raise ValueError(
@@ -133,14 +148,19 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
             supported. If not specified, `keras.config.floatx()` is used,
             which defaults to `float32` unless you configured it otherwise (via
             `keras.config.set_floatx(float_dtype)`)
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
     """
     if dtype and not backend.is_int_dtype(dtype):
         raise ValueError(
@@ -169,14 +189,19 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             supported. If not specified, `keras.config.floatx()` is used,
             which defaults to `float32` unless you configured it otherwise (via
             `keras.config.set_floatx(float_dtype)`)
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.truncated_normal(
         shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
@@ -198,14 +223,19 @@ def shuffle(x, axis=0, seed=None):
         x: The tensor to be shuffled.
         axis: An integer specifying the axis along which to shuffle. Defaults to
             `0`.
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.shuffle(x, axis=axis, seed=seed)
 
@@ -221,14 +251,19 @@ def gamma(shape, alpha, dtype=None, seed=None):
             supported. If not specified, `keras.config.floatx()` is used,
             which defaults to `float32` unless you configured it otherwise (via
             `keras.config.set_floatx(float_dtype)`).
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.gamma(shape, alpha=alpha, dtype=dtype, seed=seed)
 
@@ -251,14 +286,19 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
             supported. If not specified, `keras.config.floatx()` is used,
             which defaults to `float32` unless you configured it otherwise (via
             `keras.config.set_floatx(float_dtype)`).
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.binomial(
         shape,
@@ -273,7 +313,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 def beta(shape, alpha, beta, dtype=None, seed=None):
     """Draw samples from a Beta distribution.
 
-    The values are drawm from a Beta distribution parametrized
+    The values are drawn from a Beta distribution parametrized
     by alpha and beta.
 
     Args:
@@ -286,14 +326,19 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
             supported. If not specified, `keras.config.floatx()` is used,
             which defaults to `float32` unless you configured it otherwise (via
             `keras.config.set_floatx(float_dtype)`).
-        seed: A Python integer or instance of
-            `keras.random.SeedGenerator`.
-            Used to make the behavior of the initializer
-            deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
-            across multiple calls. To get different random values
-            across multiple calls, use as seed an instance
-            of `keras.random.SeedGenerator`.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            By default, the `seed` argument is `None`, and an internal global
+            `keras.random.SeedGenerator` is used. The `seed` argument can be
+            used to ensure deterministic (repeatable) random number generation.
+            Note that passing an integer as the `seed` value will produce the
+            same random values for each call. To generate different random
+            values for repeated calls, an instance of
+            `keras.random.SeedGenerator` must be provided as the `seed` value.
+            Remark concerning the JAX backend: When tracing functions with the
+            JAX backend the global `keras.random.SeedGenerator` is not
+            supported. Therefore, during tracing the default value seed=None
+            will produce an error, and a `seed` argument must be provided.
     """
     return backend.random.beta(
         shape=shape, alpha=alpha, beta=beta, dtype=dtype, seed=seed

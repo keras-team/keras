@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 **Transfer learning** consists of taking features learned on one problem, and
 leveraging them on a new, similar problem. For instance, features from a model that has
-learned to identify racoons may be useful to kick-start a model meant to identify
+learned to identify raccoons may be useful to kick-start a model meant to identify
  tanukis.
 
 Transfer learning is usually done for tasks where your dataset has too little data to
@@ -314,11 +314,13 @@ the case for other layers in general, as
 [weight trainability & inference/training modes are two orthogonal concepts](
   https://keras.io/getting_started/faq/#whats-the-difference-between-the-training-argument-in-call-and-the-trainable-attribute).
 But the two are tied in the case of the `BatchNormalization` layer.
-- When you unfreeze a model that contains `BatchNormalization` layers in order to do
-fine-tuning, you should keep the `BatchNormalization` layers in inference mode by
- passing `training=False` when calling the base model.
-Otherwise the updates applied to the non-trainable weights will suddenly destroy
-what the model has learned.
+- When you unfreeze a model for finetuning by setting `base_model.trainable=True` that 
+contains `BatchNormalization` layers, then all layers of the base model become
+trainable along with `BatchNormalization` layers. It's a good idea to keep
+`BatchNormalization` either frozen during fine-tuning, or running in inference mode,
+so remember to set `layer.trainable = False`
+on those layers specifically after unfreezing the outer model, or otherwise
+call the model with `training=False` to keep it inference mode.
 
 You'll see this pattern in action in the end-to-end example at the end of this guide.
 """

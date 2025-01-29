@@ -1,4 +1,5 @@
 import contextlib
+import operator
 from unittest.mock import Mock
 
 import numpy as np
@@ -16,9 +17,59 @@ from keras.src import tree
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import core
+from keras.src.testing.test_utils import named_product
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):
+    def test_map(self):
+        def f(x):
+            return x**2
+
+        xs = KerasTensor((6,))
+        ys = core.map(f, xs)
+        self.assertEqual(ys.shape, (6,))
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = KerasTensor((6,))
+        ys = core.map(f2, xs)
+        self.assertEqual(ys["a"].shape, (6,))
+        self.assertEqual(ys["b"].shape, (6,))
+
+    def test_scan(self):
+        def f(carry, xs):
+            xs = xs + carry
+            return carry, carry
+
+        init = KerasTensor(())
+        xs = KerasTensor((6,))
+        carry, result = core.scan(f, init, xs)
+        self.assertEqual(carry.shape, ())
+        self.assertEqual(result.shape, (6,))
+
+        def f2(carry, _):
+            return carry, carry
+
+        carry, result = core.scan(f2, init, xs=None, length=3)
+        self.assertEqual(carry.shape, ())
+        self.assertEqual(result.shape, (3,))
+
+    def test_associative_scan(self):
+        xs = (KerasTensor((5, None)), KerasTensor((5, None)))
+        ys = core.associative_scan(
+            f=lambda x, y: (x[0] + y[0], x[1] + y[1]), elems=xs, axis=0
+        )
+        self.assertEqual(ys[0].shape, (5, None))
+
+        # sum two tuples of unknown (but same) length at axis
+        def _fn(x, y):
+            return tuple([x[i] + y[i] for i in range(len(x))])
+
+        ys = core.associative_scan(f=_fn, elems=xs, axis=1)
+        self.assertEqual(ys[0].shape, (5, None))
+
     def test_scatter(self):
         indices = KerasTensor((5, 2))
         values = KerasTensor((5,))
@@ -55,6 +106,16 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.slice_update(inputs, start_indices, updates).shape, (4, 4, 4)
         )
 
+    def test_switch(self):
+        def fn(x, y):
+            return x[:, 0], y[0, :]
+
+        index = KerasTensor(())
+        x = KerasTensor((5, 2))
+        y = KerasTensor((5, 2))
+        self.assertEqual(core.switch(index, [fn], x, y)[0].shape, (5,))
+        self.assertEqual(core.switch(index, [fn], x, y)[1].shape, (2,))
+
     def test_fori_loop(self):
         def body_fun(i, x):
             return x + i
@@ -83,8 +144,200 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         ):
             core.unstack(x, axis=axis)
 
+    def test_convert_to_tensor(self):
+        x = KerasTensor((2, 3))
+        out = core.convert_to_tensor(x)
+        self.assertEqual(out.shape, x.shape)
+        self.assertEqual(out.dtype, x.dtype)
+        self.assertFalse(out.sparse)
 
-class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+        out = core.convert_to_tensor(x, dtype="int32")
+        self.assertEqual(out.dtype, "int32")
+
+        out = core.convert_to_tensor(x, sparse=True)
+        self.assertFalse(out.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        out = core.convert_to_tensor(x)
+        self.assertTrue(out.sparse)
+
+        out = core.convert_to_tensor(x, sparse=True)
+        self.assertTrue(out.sparse)
+
+        out = core.convert_to_tensor(x, sparse=False)
+        self.assertFalse(out.sparse)
+
+
+class CoreOpsCorrectnessTest(testing.TestCase):
+    def test_map(self):
+        def f(x):
+            return x**2
+
+        xs = np.arange(10)
+        self.assertAllClose(ops.map(f, xs), xs**2)
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = np.random.rand(2, 3, 4).astype("float32")
+        outputs = ops.map(f2, xs)
+        self.assertAllClose(outputs["a"], xs**2)
+        self.assertAllClose(outputs["b"], xs * 10)
+
+        # Test with nested structures
+        def dict_input_fn(inputs):
+            x = inputs["x"][:, 0]
+            y = inputs["y"] + 1
+            return {"x": x, "y": y}
+
+        def list_input_fn(inputs):
+            return [x**2 for x in inputs]
+
+        xs = {
+            "x": ops.convert_to_tensor(
+                np.random.rand(4, 100, 3), dtype="float32"
+            ),
+            "y": ops.convert_to_tensor(
+                np.random.randint(0, 10, size=(4, 1)), dtype="int32"
+            ),
+        }
+        xs1 = [
+            ops.convert_to_tensor(np.random.rand(4, 100, 3), dtype="float32"),
+            ops.convert_to_tensor(
+                np.random.randint(0, 10, size=(4, 1)), dtype="int32"
+            ),
+        ]
+        ys = ops.map(dict_input_fn, xs)
+        self.assertEqual(ys["x"].shape, (4, 100))
+        self.assertEqual(
+            ops.convert_to_numpy(ys["y"]).all(),
+            ops.convert_to_numpy(xs["y"] + 1).all(),
+        )
+        ys = ops.map(list_input_fn, xs1)
+        for x, y in zip(xs1, ys):
+            self.assertEqual(
+                (ops.convert_to_numpy(y)).all(),
+                (ops.convert_to_numpy(x) ** 2).all(),
+            )
+
+    def test_scan(self):
+        # Test cumsum
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+        carry, result = core.scan(cumsum, init, xs)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, ops.cumsum(xs))
+
+        # Test reverse=True
+        carry, result = core.scan(cumsum, init, xs, reverse=True)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, [40, 39, 37, 34, 30, 20])
+
+        # Test unroll
+        for unroll in (True, False, 2):
+            carry, result = core.scan(cumsum, init, xs, unroll=unroll)
+            self.assertAllClose(carry, 40.0)
+            self.assertAllClose(result, ops.cumsum(xs))
+
+        # Test xs is None
+        def fibonaccis(carry, _):
+            return (carry[1], carry[0] + carry[1]), None
+
+        init = (np.array(0, dtype="float32"), np.array(1, dtype="float32"))
+        carry, _ = core.scan(fibonaccis, init, length=6)
+        self.assertAllClose(carry, [8, 13])
+
+        # Test nested init
+        if backend.backend() != "tensorflow":
+            # tensorflow doesn't support arbitrary shape/dtype of the output of
+            # `f`. It must be the same as `init`.
+            def multiply_two(carry, _):
+                value1 = carry["value1"]
+                value2 = carry["value2"]
+                return (
+                    {"value1": value1 * 2, "value2": value2 * 2},
+                    value1 * 2 + value2 * 2,
+                )
+
+            init = {"value1": 2.0, "value2": 3.0}
+            carry, result = core.scan(multiply_two, init, length=3)
+            self.assertAllClose(carry["value1"], 16)
+            self.assertAllClose(carry["value2"], 24)
+            self.assertAllClose(result, [10, 20, 40])
+
+        # Test nested xs
+        def reduce_add(carry, xs):
+            value1 = xs["value1"]
+            value2 = xs["value2"]
+            return carry, value1 + value2
+
+        init = np.array(0, dtype="float32")
+        xs = {
+            "value1": np.array([1, 2, 3], dtype="float32"),
+            "value2": np.array([10, 20, 30], dtype="float32"),
+        }
+        _, result = core.scan(reduce_add, init, xs)
+        self.assertAllClose(result, [11, 22, 33])
+
+    def test_associative_scan(self):
+        # Test prefix sum
+        arr = np.arange(5)
+        result = core.associative_scan(f=operator.add, elems=arr)
+        self.assertAllEqual(result, [0, 1, 3, 6, 10])
+        # Test reverse
+        result = core.associative_scan(f=operator.add, elems=arr, reverse=True)
+        self.assertAllEqual(result, [10, 10, 9, 7, 4])
+
+        # Test multiple dimensions, across different axes
+        batched_arr = np.stack([arr, arr + 1, arr + 2])
+        result = core.associative_scan(
+            f=operator.add, elems=batched_arr, axis=1
+        )
+        self.assertAllEqual(result[2], [2, 5, 9, 14, 20])
+        result = core.associative_scan(
+            f=operator.add, elems=batched_arr, axis=0
+        )
+        self.assertAllEqual(result[:, 0], [0, 1, 3])
+
+        # Test structured input
+        elems = {
+            "a": np.array([[0, 1, 2], [3, 4, 5]]),
+            "b": np.array([[6, 7, 8], [9, 10, 11]]),
+        }
+
+        def _dict_add(x, y):
+            return {"a": x["a"] + y["b"], "b": x["b"] + y["b"]}
+
+        ax0 = core.associative_scan(f=_dict_add, elems=elems, axis=0)
+        self.assertAllEqual(
+            ax0["b"],
+            [[6, 7, 8], [15, 17, 19]],
+        )
+
+        # Test parallel scan op used in mamba
+        b, l, d, n = 1, 2, 3, 4
+        DB = np.random.rand(b, l, d, n)
+        DA = np.random.rand(b, l, d, n)
+
+        H_seq = np.zeros((b, d, n))
+        for i in range(l):
+            H_seq = DA[:, i] * H_seq + DB[:, i]
+
+        def scan_op(ci, cj):
+            a = cj[0] * ci[0]
+            b = cj[0] * ci[1] + cj[1]
+            return (a, b)
+
+        inputs = (DA.transpose(1, 0, 2, 3), DB.transpose(1, 0, 2, 3))
+        H_par = core.associative_scan(f=scan_op, elems=inputs)[-1][-1]
+
+        self.assertAllClose(H_seq, H_par)
+
     def test_scatter(self):
         # Test 1D
         indices = np.array([[1], [3], [4], [7]])
@@ -222,6 +475,23 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
 
+    def test_switch(self):
+        def fn1(x, y):
+            return x + y
+
+        def fn2(x, y):
+            return x - y
+
+        x = np.random.rand(2, 3, 4).astype("float32")
+        y = np.random.rand(2, 3, 4).astype("float32")
+        branches = [fn1, fn2]
+        self.assertAllClose(core.switch(0, branches, x, y), x + y)
+        self.assertAllClose(core.switch(1, branches, x, y), x - y)
+
+        # Test out-of-bound index
+        self.assertAllClose(core.switch(-100, branches, x, y), x + y)
+        self.assertAllClose(core.switch(100, branches, x, y), x - y)
+
     @parameterized.named_parameters(
         [
             {
@@ -319,7 +589,7 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 self.b = self.add_weight(shape=(1,), initializer="zeros")
 
             def call(self, x, training=False):
-                return x * ops.stop_gradient(self.w.value) + self.b
+                return x * ops.stop_gradient(self.w) + self.b
 
         model = models.Sequential([ExampleLayer()])
         model.compile(
@@ -336,6 +606,15 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = ops.random.uniform(shape=(2, 4), dtype="float32")
         y = ops.stop_gradient(x)
         self.assertAllClose(x, y)
+
+    def test_stop_gradient_functional(self):
+        a = layers.Input(shape=(2,))
+        b = layers.Dense(4, kernel_initializer="ones", use_bias=False)(a)
+        c = layers.Dense(4, kernel_initializer="ones", use_bias=False)(b)
+        d = ops.stop_gradient(b) + c
+        model = models.Model(inputs=a, outputs=d)
+        output = model(ops.convert_to_tensor([[1.0, 2.0]]))
+        self.assertAllClose(ops.convert_to_numpy(output), 15.0)
 
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
@@ -364,6 +643,19 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllEqual(core.shape(x), (2, 3))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_shape_ragged(self):
+        import tensorflow as tf
+
+        x = tf.ragged.constant([[3, 1, 4, 1], [], [5, 9, 2], [6], []])
+        self.assertAllEqual(core.shape(x), (5, None))
+
+        x = tf.RaggedTensor.from_row_lengths(tf.zeros([15, 2]), [4, 5, 6])
+        self.assertAllEqual(core.shape(x), (3, None, 2))
+
     def test_convert_to_tensor(self):
         x = np.ones((2,))
         x = ops.convert_to_tensor(x)
@@ -381,9 +673,6 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
         self.assertAllEqual(x, (1, 2, 3))
-
-        with self.assertRaises(ValueError):
-            ops.convert_to_numpy(KerasTensor((2,)))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -409,6 +698,29 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(x, x_sparse)
         x_dense = ops.convert_to_tensor(x, sparse=False)
         self.assertSparse(x_dense, False)
+        self.assertAllClose(x, x_dense)
+
+        x_numpy = ops.convert_to_numpy(x)
+        self.assertIsInstance(x_numpy, np.ndarray)
+        self.assertAllClose(x_numpy, x_dense)
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_RAGGED_TENSORS,
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_convert_to_tensor_ragged(self):
+        import tensorflow as tf
+
+        x = tf.ragged.constant([[3, 1, 4, 1], [], [5, 9, 2], [6], []])
+
+        x_default = ops.convert_to_tensor(x)
+        self.assertIsInstance(x_default, tf.RaggedTensor)
+        self.assertAllClose(x, x_default)
+        x_ragged = ops.convert_to_tensor(x, ragged=True)
+        self.assertIsInstance(x_ragged, tf.RaggedTensor)
+        self.assertAllClose(x, x_ragged)
+        x_dense = ops.convert_to_tensor(x, ragged=False)
+        self.assertNotIsInstance(x_dense, tf.RaggedTensor)
         self.assertAllClose(x, x_dense)
 
         x_numpy = ops.convert_to_numpy(x)
@@ -443,6 +755,19 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 lambda: ops.ones((3,)),
                 lambda: ops.zeros((4,)),
             )
+
+    def test_cond_raw_bool_compile(self):
+        class ExampleLayer(layers.Layer):
+            def call(self, x, training=False):
+                return ops.cond(training, lambda: x, lambda: x * 2.0)
+
+        model = models.Sequential([ExampleLayer()])
+        model.compile(
+            optimizer=optimizers.SGD(), loss=losses.MeanSquaredError()
+        )
+        x = np.ones((2, 4), dtype=np.float32)
+        y = np.zeros((2, 4), dtype=np.float32)
+        model.evaluate(x, y, batch_size=2)
 
     def test_unstack(self):
         rng = np.random.default_rng(0)
@@ -492,6 +817,17 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(x.shape, y.shape)
         self.assertTrue(hasattr(x, "_keras_history"))
 
+    def test_saturate_cast(self):
+        x = ops.ones((2,), dtype="float32")
+        y = ops.saturate_cast(x, "float16")
+        self.assertIn("float16", str(y.dtype))
+
+        x = ops.KerasTensor((2,), dtype="float32")
+        y = ops.saturate_cast(x, "float16")
+        self.assertEqual("float16", y.dtype)
+        self.assertEqual(x.shape, y.shape)
+        self.assertTrue(hasattr(y, "_keras_history"))
+
     def test_vectorized_map(self):
         def fn(x):
             return x + 1
@@ -530,7 +866,6 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         reason=f"{backend.backend()} doesn't support `custom_gradient`.",
     )
     def test_custom_gradient(self):
-
         # function to test custom_gradient on
         @ops.custom_gradient
         def log1pexp(x):
@@ -575,25 +910,41 @@ class CoreOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
 
 
-class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
-    import jax  # enable bfloat16 for numpy
-
+class CoreOpsDtypeTest(testing.TestCase):
     # TODO: Using uint64 will lead to weak type promotion (`float`),
     # resulting in different behavior between JAX and Keras. Currently, we
     # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x not in ["string", "uint64", "complex64", "complex128"]
     ] + [None]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
+    FLOAT_DTYPES = dtypes.FLOAT_TYPES
 
     if backend.backend() == "torch":
         # TODO: torch doesn't support uint16, uint32 and uint64
         ALL_DTYPES = [
             x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+        INT_DTYPES = [
+            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
     elif backend.backend() == "mlx":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ["float64"]]
     # Remove float8 dtypes for the following tests
     ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self):
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
 
     @parameterized.parameters(
         ((), None, backend.floatx()),
@@ -601,6 +952,9 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         (bool(0), None, "bool"),
         (int(0), None, "int32"),
         (float(0), None, backend.floatx()),
+        (1, "bool", "bool"),
+        (1.0, "int32", "int32"),
+        (1.0, "float32", "float32"),
         ([False, True, False], None, "bool"),
         ([1, 2, 3], None, "int32"),
         ([1.0, 2.0, 3.0], None, backend.floatx()),
@@ -632,15 +986,47 @@ class CoreOpsDtypeTest(testing.TestCase, parameterized.TestCase):
             jax_disable_x64 = contextlib.nullcontext()
 
         with jax_disable_x64:
-            self.assertEqual(
-                backend.standardize_dtype(
-                    ops.convert_to_tensor(x, dtype=dtype).dtype
-                ),
-                expected_dtype,
+            self.assertDType(
+                ops.convert_to_tensor(x, dtype=dtype), expected_dtype
             )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_saturate_cast(self, dtype):
+        x = np.ones((1,))
+
+        self.assertDType(core.saturate_cast(x, dtype), dtype)
+        self.assertDType(core.SaturateCast(dtype).symbolic_call(x), dtype)
 
 
 class CoreOpsCallsTests(testing.TestCase):
+    def test_map_basic_call(self):
+        def f(x):
+            return x**2
+
+        xs = np.arange(10)
+        map_op = core.Map()
+        ys = map_op.call(f, xs)
+        self.assertAllClose(ys, xs**2)
+
+    def test_scan_basic_call(self):
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+        scan_op = core.Scan()
+        carry, result = scan_op.call(cumsum, init, xs, None)
+        self.assertAllClose(carry, 40.0)
+        self.assertAllClose(result, ops.cumsum(xs))
+
+    def test_associative_scan_basic_call(self):
+        xs = np.arange(5, dtype="float32")
+        op = core.AssociativeScan()
+        ys = op.call(operator.add, xs)
+        self.assertAllClose(ys, [0.0, 1.0, 3.0, 6.0, 10.0])
+        self.assertAllClose(ys, ops.cumsum(xs))
+
     def test_scatter_basic_call(self):
         indices = np.array([[1, 0], [0, 1]])
         values = np.array([10, 20])
@@ -700,6 +1086,25 @@ class CoreOpsCallsTests(testing.TestCase):
         result = slice_update.call(inputs, start_indices, updates)
         expected_output = np.array([[1, 2, 3], [4, 10, 11], [7, 12, 13]])
         self.assertAllClose(core.convert_to_numpy(result), expected_output)
+
+    def test_switch_basic_call(self):
+        def fn1(x, y):
+            return x + y
+
+        def fn2(x, y):
+            return x - y
+
+        x = np.random.rand(2, 3, 4).astype("float32")
+        y = np.random.rand(2, 3, 4).astype("float32")
+        branches = [fn1, fn2]
+        switch_op = core.Switch()
+        index = 0
+        outputs = switch_op.call(index, branches, x, y)
+        self.assertAllClose(outputs, x + y)
+
+        index = 1
+        outputs = switch_op.call(index, branches, x, y)
+        self.assertAllClose(outputs, x - y)
 
     def test_while_loop_basic_functionality(self):
         # Loop condition: continue if i < 5
@@ -818,6 +1223,19 @@ class CoreOpsCallsTests(testing.TestCase):
         expected_values = x.astype(target_dtype)
         self.assertTrue(np.array_equal(result, expected_values))
 
+    def test_saturate_cast_basic_functionality(self):
+        x = np.array([-256, 1.0, 257.0], dtype=np.float32)
+        target_dtype = np.uint8
+        cast = core.SaturateCast(target_dtype)
+        result = cast.call(x)
+        result = core.convert_to_numpy(result)
+        self.assertEqual(result.dtype, target_dtype)
+        # Check that the values are the same
+        expected_values = np.clip(x, 0, 255).astype(target_dtype)
+        print(result)
+        print(expected_values)
+        self.assertTrue(np.array_equal(result, expected_values))
+
     def test_cond_check_output_spec_list_tuple(self):
         cond_op = core.Cond()
         mock_spec = Mock(dtype="float32", shape=(2, 2))
@@ -883,3 +1301,53 @@ class CoreOpsCallsTests(testing.TestCase):
                 (mock_spec,), (mock_spec, mock_spec_different)
             )
         )
+
+
+class CoreOpsBehaviorTests(testing.TestCase):
+    def test_convert_to_numpy(self):
+        x = ops.array([1, 2, 3], dtype="float32")
+        y = ops.convert_to_numpy(x)
+        self.assertIsInstance(y, np.ndarray)
+        # Test assignment -- should not fail.
+        y[0] = 1.0
+
+        with self.assertRaises(ValueError):
+            ops.convert_to_numpy(KerasTensor((2,)))
+
+    def test_scan_invalid_arguments(self):
+        def cumsum(carry, xs):
+            carry = carry + xs
+            return carry, carry
+
+        init = np.array(0, dtype="float32")
+        xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
+
+        # Test non-callable
+        with self.assertRaisesRegex(TypeError, "should be a callable."):
+            core.scan(123, init, xs)
+
+        # Test bad unroll
+        with self.assertRaisesRegex(
+            ValueError, "must be an positive integer or boolean."
+        ):
+            core.scan(cumsum, init, xs, unroll=-1)
+
+        # Test both xs and length are None
+        with self.assertRaisesRegex(ValueError, "to scan over and"):
+            core.scan(cumsum, init, xs=None, length=None)
+
+    def test_associative_scan_invalid_arguments(self):
+        # varying dimension at scan axis
+        x = (np.array([1, 2]), np.array([3, 4]), np.array([5, 6, 7]))
+        with self.assertRaisesRegex(ValueError, " first dimension"):
+            core.associative_scan(lambda x, y: (x[0] + y[0], x[1] + y[1]), x)
+
+        # same error, symbolic
+        x = (
+            KerasTensor((None, 5)),
+            KerasTensor((None, 4)),
+        )
+        with self.assertRaisesRegex(ValueError, " first dimension"):
+            core.associative_scan(
+                lambda x, y: (x[0] + y[0], x[1] + y[1]), x, axis=1
+            )

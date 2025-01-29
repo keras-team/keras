@@ -103,7 +103,7 @@ class SaveModelTests(test_case.TestCase):
         )
 
 
-class LoadModelTests(test_case.TestCase, parameterized.TestCase):
+class LoadModelTests(test_case.TestCase):
     def get_model(self, dtype=None):
         return Sequential(
             [
@@ -167,8 +167,31 @@ class LoadModelTests(test_case.TestCase, parameterized.TestCase):
         self.assertIsInstance(loaded_model.layers[0], CustomLayer)
         os.remove(filepath)
 
+    def test_save_unzipped(self):
+        """Test saving/loading an unzipped model dir."""
+        model = self.get_model()
 
-class LoadWeightsTests(test_case.TestCase, parameterized.TestCase):
+        # Test error with keras extension
+        bad_filepath = os.path.join(self.get_temp_dir(), "test_model.keras")
+        with self.assertRaisesRegex(ValueError, "should not end in"):
+            saving_api.save_model(model, bad_filepath, zipped=False)
+
+        filepath = os.path.join(self.get_temp_dir(), "test_model_dir")
+        saving_api.save_model(model, filepath, zipped=False)
+
+        self.assertTrue(os.path.exists(filepath))
+        self.assertTrue(os.path.isdir(filepath))
+        config_filepath = os.path.join(filepath, "config.json")
+        weights_filepath = os.path.join(filepath, "model.weights.h5")
+        self.assertTrue(os.path.exists(config_filepath))
+        self.assertTrue(os.path.exists(weights_filepath))
+
+        loaded_model = saving_api.load_model(filepath)
+        x = np.random.uniform(size=(10, 3))
+        self.assertTrue(np.allclose(model.predict(x), loaded_model.predict(x)))
+
+
+class LoadWeightsTests(test_case.TestCase):
     def get_model(self, dtype=None):
         return Sequential(
             [

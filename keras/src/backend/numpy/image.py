@@ -1,6 +1,8 @@
 import jax
+import ml_dtypes
 import numpy as np
 
+from keras.src import backend
 from keras.src.backend.numpy.core import convert_to_tensor
 from keras.src.utils.module_utils import scipy
 
@@ -13,31 +15,120 @@ RESIZE_INTERPOLATIONS = (
 )
 
 
-def rgb_to_grayscale(image, data_format="channels_last"):
-    if data_format == "channels_first":
-        if len(image.shape) == 4:
-            image = np.transpose(image, (0, 2, 3, 1))
-        elif len(image.shape) == 3:
-            image = np.transpose(image, (1, 2, 0))
-        else:
-            raise ValueError(
-                "Invalid input rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"image.shape={image.shape}"
-            )
-    red, green, blue = image[..., 0], image[..., 1], image[..., 2]
-    grayscale_image = 0.2989 * red + 0.5870 * green + 0.1140 * blue
-    grayscale_image = np.expand_dims(grayscale_image, axis=-1)
-    if data_format == "channels_first":
-        if len(image.shape) == 4:
-            grayscale_image = np.transpose(grayscale_image, (0, 3, 1, 2))
-        elif len(image.shape) == 3:
-            grayscale_image = np.transpose(grayscale_image, (2, 0, 1))
-    return np.array(grayscale_image)
+def rgb_to_grayscale(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    # Convert to floats
+    original_dtype = images.dtype
+    compute_dtype = backend.result_type(images.dtype, float)
+    images = images.astype(compute_dtype)
+
+    # Ref: tf.image.rgb_to_grayscale
+    rgb_weights = np.array([0.2989, 0.5870, 0.1140], dtype=images.dtype)
+    grayscales = np.tensordot(images, rgb_weights, axes=(channels_axis, -1))
+    grayscales = np.expand_dims(grayscales, axis=channels_axis)
+    return grayscales.astype(original_dtype)
+
+
+def rgb_to_hsv(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = backend.standardize_dtype(images.dtype)
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={dtype}"
+        )
+    eps = ml_dtypes.finfo(dtype).eps
+    images = np.where(np.abs(images) < eps, 0.0, images)
+    red, green, blue = np.split(images, 3, channels_axis)
+    red = np.squeeze(red, channels_axis)
+    green = np.squeeze(green, channels_axis)
+    blue = np.squeeze(blue, channels_axis)
+
+    def rgb_planes_to_hsv_planes(r, g, b):
+        value = np.maximum(np.maximum(r, g), b)
+        minimum = np.minimum(np.minimum(r, g), b)
+        range_ = value - minimum
+
+        safe_value = np.where(value > 0, value, 1.0)
+        safe_range = np.where(range_ > 0, range_, 1.0)
+
+        saturation = np.where(value > 0, range_ / safe_value, 0.0)
+        norm = 1.0 / (6.0 * safe_range)
+
+        hue = np.where(
+            value == g,
+            norm * (b - r) + 2.0 / 6.0,
+            norm * (r - g) + 4.0 / 6.0,
+        )
+        hue = np.where(value == r, norm * (g - b), hue)
+        hue = np.where(range_ > 0, hue, 0.0) + (hue < 0.0).astype(hue.dtype)
+        return hue, saturation, value
+
+    images = np.stack(
+        rgb_planes_to_hsv_planes(red, green, blue), axis=channels_axis
+    )
+    return images.astype(dtype)
+
+
+def hsv_to_rgb(images, data_format=None):
+    # Ref: dm_pix
+    images = convert_to_tensor(images)
+    dtype = images.dtype
+    data_format = backend.standardize_data_format(data_format)
+    channels_axis = -1 if data_format == "channels_last" else -3
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if not backend.is_float_dtype(dtype):
+        raise ValueError(
+            "Invalid images dtype: expected float dtype. "
+            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+        )
+    hue, saturation, value = np.split(images, 3, channels_axis)
+    hue = np.squeeze(hue, channels_axis)
+    saturation = np.squeeze(saturation, channels_axis)
+    value = np.squeeze(value, channels_axis)
+
+    def hsv_planes_to_rgb_planes(hue, saturation, value):
+        dh = np.mod(hue, 1.0) * 6.0
+        dr = np.clip(np.abs(dh - 3.0) - 1.0, 0.0, 1.0)
+        dg = np.clip(2.0 - np.abs(dh - 2.0), 0.0, 1.0)
+        db = np.clip(2.0 - np.abs(dh - 4.0), 0.0, 1.0)
+        one_minus_s = 1.0 - saturation
+
+        red = value * (one_minus_s + saturation * dr)
+        green = value * (one_minus_s + saturation * dg)
+        blue = value * (one_minus_s + saturation * db)
+        return red, green, blue
+
+    images = np.stack(
+        hsv_planes_to_rgb_planes(hue, saturation, value), axis=channels_axis
+    )
+    return images.astype(dtype)
 
 
 def resize(
-    image,
+    images,
     size,
     interpolation="bilinear",
     antialias=False,
@@ -45,8 +136,9 @@ def resize(
     pad_to_aspect_ratio=False,
     fill_mode="constant",
     fill_value=0.0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -69,66 +161,66 @@ def resize(
         )
     size = tuple(size)
     target_height, target_width = size
-    if len(image.shape) == 4:
+    if len(images.shape) == 4:
         if data_format == "channels_last":
-            size = (image.shape[0],) + size + (image.shape[-1],)
+            size = (images.shape[0],) + size + (images.shape[-1],)
         else:
-            size = (image.shape[0], image.shape[1]) + size
-    elif len(image.shape) == 3:
+            size = (images.shape[0], images.shape[1]) + size
+    elif len(images.shape) == 3:
         if data_format == "channels_last":
-            size = size + (image.shape[-1],)
+            size = size + (images.shape[-1],)
         else:
-            size = (image.shape[0],) + size
+            size = (images.shape[0],) + size
     else:
         raise ValueError(
-            "Invalid input rank: expected rank 3 (single image) "
+            "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
-            f"image.shape={image.shape}"
+            f"images.shape={images.shape}"
         )
 
     if crop_to_aspect_ratio:
-        shape = image.shape
+        shape = images.shape
         if data_format == "channels_last":
             height, width = shape[-3], shape[-2]
         else:
             height, width = shape[-2], shape[-1]
         crop_height = int(float(width * target_height) / target_width)
-        crop_height = min(height, crop_height)
+        crop_height = max(min(height, crop_height), 1)
         crop_width = int(float(height * target_width) / target_height)
-        crop_width = min(width, crop_width)
+        crop_width = max(min(width, crop_width), 1)
         crop_box_hstart = int(float(height - crop_height) / 2)
         crop_box_wstart = int(float(width - crop_width) / 2)
         if data_format == "channels_last":
-            if len(image.shape) == 4:
-                image = image[
+            if len(images.shape) == 4:
+                images = images[
                     :,
                     crop_box_hstart : crop_box_hstart + crop_height,
                     crop_box_wstart : crop_box_wstart + crop_width,
                     :,
                 ]
             else:
-                image = image[
+                images = images[
                     crop_box_hstart : crop_box_hstart + crop_height,
                     crop_box_wstart : crop_box_wstart + crop_width,
                     :,
                 ]
         else:
-            if len(image.shape) == 4:
-                image = image[
+            if len(images.shape) == 4:
+                images = images[
                     :,
                     :,
                     crop_box_hstart : crop_box_hstart + crop_height,
                     crop_box_wstart : crop_box_wstart + crop_width,
                 ]
             else:
-                image = image[
+                images = images[
                     :,
                     crop_box_hstart : crop_box_hstart + crop_height,
                     crop_box_wstart : crop_box_wstart + crop_width,
                 ]
     elif pad_to_aspect_ratio:
-        shape = image.shape
-        batch_size = image.shape[0]
+        shape = images.shape
+        batch_size = images.shape[0]
         if data_format == "channels_last":
             height, width, channels = shape[-3], shape[-2], shape[-1]
         else:
@@ -139,76 +231,143 @@ def resize(
         pad_width = max(width, pad_width)
         img_box_hstart = int(float(pad_height - height) / 2)
         img_box_wstart = int(float(pad_width - width) / 2)
+
         if data_format == "channels_last":
-            if len(image.shape) == 4:
-                padded_img = (
-                    np.ones(
-                        (
-                            batch_size,
-                            pad_height + height,
-                            pad_width + width,
-                            channels,
-                        ),
-                        dtype=image.dtype,
+            if img_box_hstart > 0:
+                if len(images.shape) == 4:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones(
+                                (batch_size, img_box_hstart, width, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                            images,
+                            np.ones(
+                                (batch_size, img_box_hstart, width, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=1,
                     )
-                    * fill_value
-                )
-                padded_img[
-                    :,
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                    :,
-                ] = image
+                else:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones(
+                                (img_box_hstart, width, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                            images,
+                            np.ones(
+                                (img_box_hstart, width, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=0,
+                    )
+            elif img_box_wstart > 0:
+                if len(images.shape) == 4:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones(
+                                (batch_size, height, img_box_wstart, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                            images,
+                            np.ones(
+                                (batch_size, height, img_box_wstart, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=2,
+                    )
+                else:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones(
+                                (height, img_box_wstart, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                            images,
+                            np.ones(
+                                (height, img_box_wstart, channels),
+                                dtype=images.dtype,
+                            )
+                            * fill_value,
+                        ],
+                        axis=1,
+                    )
             else:
-                padded_img = (
-                    np.ones(
-                        (pad_height + height, pad_width + width, channels),
-                        dtype=image.dtype,
-                    )
-                    * fill_value
-                )
-                padded_img[
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                    :,
-                ] = image
+                padded_img = images
         else:
-            if len(image.shape) == 4:
-                padded_img = (
-                    np.ones(
-                        (
-                            batch_size,
-                            channels,
-                            pad_height + height,
-                            pad_width + width,
-                        ),
-                        dtype=image.dtype,
+            if img_box_hstart > 0:
+                if len(images.shape) == 4:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones(
+                                (batch_size, channels, img_box_hstart, width)
+                            )
+                            * fill_value,
+                            images,
+                            np.ones(
+                                (batch_size, channels, img_box_hstart, width)
+                            )
+                            * fill_value,
+                        ],
+                        axis=2,
                     )
-                    * fill_value
-                )
-                padded_img[
-                    :,
-                    :,
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                ] = image
+                else:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones((channels, img_box_hstart, width))
+                            * fill_value,
+                            images,
+                            np.ones((channels, img_box_hstart, width))
+                            * fill_value,
+                        ],
+                        axis=1,
+                    )
+            elif img_box_wstart > 0:
+                if len(images.shape) == 4:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones(
+                                (batch_size, channels, height, img_box_wstart)
+                            )
+                            * fill_value,
+                            images,
+                            np.ones(
+                                (batch_size, channels, height, img_box_wstart)
+                            )
+                            * fill_value,
+                        ],
+                        axis=3,
+                    )
+                else:
+                    padded_img = np.concatenate(
+                        [
+                            np.ones((channels, height, img_box_wstart))
+                            * fill_value,
+                            images,
+                            np.ones((channels, height, img_box_wstart))
+                            * fill_value,
+                        ],
+                        axis=2,
+                    )
             else:
-                padded_img = (
-                    np.ones(
-                        (channels, pad_height + height, pad_width + width),
-                        dtype=image.dtype,
-                    )
-                    * fill_value
-                )
-                padded_img[
-                    :,
-                    img_box_hstart : img_box_hstart + height,
-                    img_box_wstart : img_box_wstart + width,
-                ] = image
-        image = padded_img
+                padded_img = images
+        images = padded_img
 
     return np.array(
-        jax.image.resize(image, size, method=interpolation, antialias=antialias)
+        jax.image.resize(
+            images, size, method=interpolation, antialias=antialias
+        )
     )
 
 
@@ -226,13 +385,14 @@ AFFINE_TRANSFORM_FILL_MODES = {
 
 
 def affine_transform(
-    image,
+    images,
     transform,
     interpolation="bilinear",
     fill_mode="constant",
     fill_value=0,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -247,11 +407,11 @@ def affine_transform(
 
     transform = convert_to_tensor(transform)
 
-    if len(image.shape) not in (3, 4):
+    if len(images.shape) not in (3, 4):
         raise ValueError(
-            "Invalid image rank: expected rank 3 (single image) "
+            "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
-            f"image.shape={image.shape}"
+            f"images.shape={images.shape}"
         )
     if len(transform.shape) not in (1, 2):
         raise ValueError(
@@ -261,26 +421,26 @@ def affine_transform(
         )
 
     # scipy.ndimage.map_coordinates lacks support for half precision.
-    input_dtype = image.dtype
+    input_dtype = images.dtype
     if input_dtype == "float16":
-        image = image.astype("float32")
+        images = images.astype("float32")
 
     # unbatched case
     need_squeeze = False
-    if len(image.shape) == 3:
-        image = np.expand_dims(image, axis=0)
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
         need_squeeze = True
     if len(transform.shape) == 1:
         transform = np.expand_dims(transform, axis=0)
 
     if data_format == "channels_first":
-        image = np.transpose(image, (0, 2, 3, 1))
+        images = np.transpose(images, (0, 2, 3, 1))
 
-    batch_size = image.shape[0]
+    batch_size = images.shape[0]
 
     # get indices
     meshgrid = np.meshgrid(
-        *[np.arange(size) for size in image.shape[1:]], indexing="ij"
+        *[np.arange(size) for size in images.shape[1:]], indexing="ij"
     )
     indices = np.concatenate(
         [np.expand_dims(x, axis=-1) for x in meshgrid], axis=-1
@@ -313,7 +473,7 @@ def affine_transform(
     affined = np.stack(
         [
             map_coordinates(
-                image[i],
+                images[i],
                 coordinates[i],
                 order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
                 fill_mode=fill_mode,
@@ -343,8 +503,22 @@ MAP_COORDINATES_FILL_MODES = {
 
 
 def map_coordinates(
-    input, coordinates, order, fill_mode="constant", fill_value=0.0
+    inputs, coordinates, order, fill_mode="constant", fill_value=0.0
 ):
+    inputs = convert_to_tensor(inputs)
+    coordinates = convert_to_tensor(coordinates)
+    if coordinates.shape[0] != len(inputs.shape):
+        raise ValueError(
+            "First dim of `coordinates` must be the same as the rank of "
+            "`inputs`. "
+            f"Received inputs with shape: {inputs.shape} and coordinate "
+            f"leading dim of {coordinates.shape[0]}"
+        )
+    if len(coordinates.shape) < 2:
+        raise ValueError(
+            "Invalid coordinates rank: expected at least rank 2."
+            f" Received input with shape: {coordinates.shape}"
+        )
     if fill_mode not in MAP_COORDINATES_FILL_MODES:
         raise ValueError(
             "Invalid value for argument `fill_mode`. Expected one of "
@@ -365,7 +539,7 @@ def map_coordinates(
             max(-np.floor(c.min()).astype(int) + 1, 0),
             max(np.ceil(c.max()).astype(int) + 1 - size, 0),
         )
-        for c, size in zip(coordinates, input.shape)
+        for c, size in zip(coordinates, inputs.shape)
     ]
     shifted_coords = [c + p[0] for p, c in zip(padding, coordinates)]
     pad_mode = {
@@ -375,10 +549,10 @@ def map_coordinates(
     }.get(fill_mode, fill_mode)
     if fill_mode == "constant":
         padded = np.pad(
-            input, padding, mode=pad_mode, constant_values=fill_value
+            inputs, padding, mode=pad_mode, constant_values=fill_value
         )
     else:
-        padded = np.pad(input, padding, mode=pad_mode)
+        padded = np.pad(inputs, padding, mode=pad_mode)
     result = scipy.ndimage.map_coordinates(
         padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
     )

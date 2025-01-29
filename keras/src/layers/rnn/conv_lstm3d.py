@@ -148,7 +148,7 @@ class ConvLSTM3D(ConvLSTM):
         return_state=False,
         go_backwards=False,
         stateful=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=3,
@@ -179,5 +179,5 @@ class ConvLSTM3D(ConvLSTM):
             dropout=dropout,
             recurrent_dropout=recurrent_dropout,
             seed=seed,
-            **kwargs
+            **kwargs,
         )

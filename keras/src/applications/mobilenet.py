@@ -30,6 +30,7 @@ def MobileNet(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name=None,
 ):
     """Instantiates the MobileNet architecture.
 
@@ -101,6 +102,7 @@ def MobileNet(
             Set `classifier_activation=None` to return the logits of the "top"
             layer. When loading pretrained weights, `classifier_activation`
             can only be `None` or `"softmax"`.
+        name: String, the name of the model.
 
     Returns:
         A model instance.
@@ -237,7 +239,9 @@ def MobileNet(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name=f"mobilenet_{alpha:0.2f}_{rows}")
+    if name is None:
+        name = f"mobilenet_{alpha:0.2f}_{rows}"
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":

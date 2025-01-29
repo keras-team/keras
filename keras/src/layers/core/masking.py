@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.saving.serialization_lib import deserialize_keras_object
 
 
 @keras_export("keras.layers.Masking")
@@ -32,7 +33,7 @@ class Masking(Layer):
     inputs[:, 5, :] = 0.
 
     model = keras.models.Sequential()
-    model.add(keras.layers.Masking(mask_value=0.)
+    model.add(keras.layers.Masking(mask_value=0.0))
     model.add(keras.layers.LSTM(32))
     output = model(inputs)
     # The time step 3 and 5 will be skipped from LSTM calculation.
@@ -45,8 +46,12 @@ class Masking(Layer):
 
     def __init__(self, mask_value=0.0, **kwargs):
         super().__init__(**kwargs)
-        self.supports_masking = True
+        # `mask_value` can be a serialized tensor, hence verify it
+        if isinstance(mask_value, dict) and mask_value.get("config", None):
+            mask_value = deserialize_keras_object(mask_value)
         self.mask_value = mask_value
+        self.supports_masking = True
+        self.built = True
 
     def compute_mask(self, inputs, mask=None):
         return ops.any(ops.not_equal(inputs, self.mask_value), axis=-1)
@@ -58,11 +63,7 @@ class Masking(Layer):
         # Set masked outputs to 0
         outputs = inputs * backend.cast(boolean_mask, dtype=inputs.dtype)
         # Compute the mask and outputs simultaneously.
-        try:
-            outputs._keras_mask = ops.squeeze(boolean_mask, axis=-1)
-        except AttributeError:
-            # tensor is a C type.
-            pass
+        backend.set_keras_mask(outputs, mask=ops.squeeze(boolean_mask, axis=-1))
         return outputs
 
     def compute_output_shape(self, input_shape):

@@ -5,6 +5,8 @@ import numpy as np
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common.variables import is_float_dtype
+from keras.src.backend.common.variables import standardize_dtype
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
@@ -192,7 +194,7 @@ class JaxLayer(Layer):
         call_fn: The function to call the model. See description above for the
             list of arguments it takes and the outputs it returns.
         init_fn: the function to call to initialize the model. See description
-            above for the list of arguments it takes and the ouputs it returns.
+            above for the list of arguments it takes and the outputs it returns.
             If `None`, then `params` and/or `state` must be provided.
       params: A `PyTree` containing all the model trainable parameters. This
             allows passing trained parameters or controlling the initialization.
@@ -204,6 +206,8 @@ class JaxLayer(Layer):
             argument, then `init_fn` is called at build time to initialize the
             non-trainable state of the model.
       seed: Seed for random number generator. Optional.
+      dtype: The dtype of the layer's computations and weights. Can also be a
+            `keras.DTypePolicy`. Optional. Defaults to the default policy.
     """
 
     def __init__(
@@ -291,18 +295,28 @@ class JaxLayer(Layer):
         """
 
         def create_variable(value):
-            if backend.is_tensor(value) or isinstance(value, np.ndarray):
-                variable = self.add_weight(
-                    value.shape, initializer="zeros", trainable=trainable
+            if backend.is_tensor(value) or isinstance(
+                value, (np.ndarray, np.generic)
+            ):
+                dtype = value.dtype
+                if is_float_dtype(dtype):
+                    dtype = None  # Use the layer dtype policy
+                return self.add_weight(
+                    value.shape,
+                    initializer=value,
+                    dtype=dtype,
+                    trainable=trainable,
                 )
-                variable.assign(value)
-                return variable
-            elif isinstance(value, (np.generic, int, float)):
-                variable = self.add_weight(
-                    (), initializer="zeros", trainable=trainable
+            elif isinstance(value, (bool, int, float)):
+                dtype = standardize_dtype(type(value))
+                if is_float_dtype(dtype):
+                    dtype = None  # Use the layer dtype policy
+                return self.add_weight(
+                    (),
+                    initializer=backend.convert_to_tensor(value),
+                    dtype=dtype,
+                    trainable=trainable,
                 )
-                variable.assign(value)
-                return variable
             else:
                 return value
 

@@ -1,6 +1,6 @@
 {
     "image": "mcr.microsoft.com/vscode/devcontainers/python:3.10",
-    "postCreateCommand": "sh ./.devcontainer/setup.sh",
+    "postCreateCommand": "sh ./.devcontainer/setup.sh && pip install -r requirements.txt",
     "customizations": {
         "vscode": {
             "settings": {
@@ -10,17 +10,15 @@
                     "source.organizeImports": true
                 },
                 "[python]": {
-                    "editor.defaultFormatter": "ms-python.black-formatter"
+                    "editor.defaultFormatter": "charliermarsh.ruff"
                 },
                 "editor.rulers": [
                     80
                 ]
             },
             "extensions": [
-                "ms-python.python",
-                "ms-python.isort",
-                "ms-python.flake8",
-                "ms-python.black-formatter"
+                "charliermarsh.ruff",
+                "ms-python.python"
             ]
         }
     },

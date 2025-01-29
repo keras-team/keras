@@ -1,15 +1,17 @@
 # Tensorflow cpu-only version (needed for testing).
-tensorflow-cpu~=2.16.1  # Pin to TF 2.16
+tensorflow-cpu~=2.18.0
+tf2onnx
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.1.0, <2.3.0
+torch>=2.1.0
 torchvision>=0.16.0
+torch-xla
 
 # Jax with cuda support.
-# TODO: 0.4.24 has an updated Cuda version breaks Jax CI.
+# TODO: Higher version breaks CI.
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-jax[cuda12_pip]==0.4.23
+jax[cuda12]==0.4.28
 flax
 
 -r requirements-common.txt

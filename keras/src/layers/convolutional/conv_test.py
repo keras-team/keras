@@ -276,7 +276,7 @@ def np_conv3d(
     return out
 
 
-class ConvBasicTest(testing.TestCase, parameterized.TestCase):
+class ConvBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,
@@ -717,7 +717,6 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_lora_weight_name(self):
-
         class MyModel(models.Model):
             def __init__(self):
                 super().__init__(name="mymodel")
@@ -758,7 +757,7 @@ class ConvBasicTest(testing.TestCase, parameterized.TestCase):
         )
 
 
-class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class ConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {
             "filters": 5,

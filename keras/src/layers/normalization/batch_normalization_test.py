@@ -10,7 +10,7 @@ from keras.src.losses import MeanSquaredError
 from keras.src.models import Model
 
 
-class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
+class BatchNormalizationTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_bn_basics(self):
         # vector case
@@ -221,3 +221,21 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
         with backend.AutocastScope("float16"):
             layer.moving_variance.assign(large_value)
             self.assertAllClose(layer.moving_variance.value, large_value)
+
+    def test_masked_broadcast_normalization(self):
+        input_shape = (1, 2, 3, 4)
+        mask_shape = (1, 2, 1)
+        x = ops.ones(input_shape)
+        mask = ops.ones(mask_shape)
+
+        layer = layers.BatchNormalization(axis=-1, momentum=0.0, epsilon=1e-3)
+
+        y = layer(x, training=True, mask=mask)
+
+        mean_y = ops.mean(y, axis=[0, 1, 2])
+
+        self.assertAllClose(mean_y, ops.zeros((4,)), atol=1e-6)
+        self.assertAllClose(y, ops.zeros_like(y), atol=1e-6)
+
+        self.assertAllClose(layer.moving_mean, ops.ones((4,)), atol=1e-6)
+        self.assertAllClose(layer.moving_variance, ops.zeros((4,)), atol=1e-6)

@@ -2,6 +2,7 @@ import io
 
 from packaging.version import parse
 
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers import Layer
 from keras.src.ops import convert_to_numpy
@@ -16,6 +17,9 @@ class TorchModuleWrapper(Layer):
     `torch.nn.Module` into a Keras layer, in particular by making its
     parameters trackable by Keras.
 
+    `TorchModuleWrapper` is only compatible with the PyTorch backend and
+    cannot be used with the TensorFlow or JAX backends.
+
     Args:
         module: `torch.nn.Module` instance. If it's a `LazyModule`
             instance, then its parameters must be initialized before
@@ -29,11 +33,12 @@ class TorchModuleWrapper(Layer):
     PyTorch modules.
 
     ```python
+    import torch
     import torch.nn as nn
     import torch.nn.functional as F
 
     import keras
-    from keras.src.layers import TorchModuleWrapper
+    from keras.layers import TorchModuleWrapper
 
     class Classifier(keras.Model):
         def __init__(self, **kwargs):
@@ -98,18 +103,20 @@ class TorchModuleWrapper(Layer):
         return self.module.parameters(recurse=recurse)
 
     def _track_module_parameters(self):
-        from keras.src.backend.torch import Variable
-
         for param in self.module.parameters():
             # The Variable will reuse the raw `param`
             # and simply wrap it.
-            variable = Variable(
+            variable = backend.Variable(
                 initializer=param, trainable=param.requires_grad
             )
             self._track_variable(variable)
         self.built = True
 
-    def call(self, *args, **kwargs):
+    def call(self, *args, training=None, **kwargs):
+        if training is False:
+            self.eval()
+        else:
+            self.train()
         return self.module(*args, **kwargs)
 
     def save_own_variables(self, store):

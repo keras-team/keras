@@ -49,7 +49,6 @@ def ResNet(
     stack_fn,
     preact,
     use_bias,
-    model_name="resnet",
     include_top=True,
     weights="imagenet",
     input_tensor=None,
@@ -57,6 +56,8 @@ def ResNet(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="resnet",
+    weights_name=None,
 ):
     """Instantiates the ResNet, ResNetV2, and ResNeXt architecture.
 
@@ -67,7 +68,7 @@ def ResNet(
             `False` for ResNet and ResNeXt.
         use_bias: Whether to use biases for convolutional layers or not.
             `True` for ResNet and ResNetV2, `False` for ResNeXt.
-        model_name: Name of the model.
+        name: Name of the model.
         include_top: Whether to include the fully-connected
             layer at the top of the network.
         weights: One of `None` (random initialization),
@@ -100,6 +101,7 @@ def ResNet(
             return the logits of the "top" layer. When loading
             pretrained weights, `classifier_activation` can only be
             `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A Model instance.
@@ -189,18 +191,18 @@ def ResNet(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name=model_name)
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
-    if (weights == "imagenet") and (model_name in WEIGHTS_HASHES):
+    if (weights == "imagenet") and (weights_name in WEIGHTS_HASHES):
         if include_top:
-            file_name = model_name + "_weights_tf_dim_ordering_tf_kernels.h5"
-            file_hash = WEIGHTS_HASHES[model_name][0]
+            file_name = weights_name + "_weights_tf_dim_ordering_tf_kernels.h5"
+            file_hash = WEIGHTS_HASHES[weights_name][0]
         else:
             file_name = (
-                model_name + "_weights_tf_dim_ordering_tf_kernels_notop.h5"
+                weights_name + "_weights_tf_dim_ordering_tf_kernels_notop.h5"
             )
-            file_hash = WEIGHTS_HASHES[model_name][1]
+            file_hash = WEIGHTS_HASHES[weights_name][1]
         weights_path = file_utils.get_file(
             file_name,
             BASE_WEIGHTS_PATH + file_name,
@@ -394,6 +396,7 @@ def ResNet50(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="resnet50",
 ):
     """Instantiates the ResNet50 architecture."""
 
@@ -405,15 +408,16 @@ def ResNet50(
 
     return ResNet(
         stack_fn,
-        False,
-        True,
-        "resnet50",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
+        preact=False,
+        use_bias=True,
+        weights_name="resnet50",
+        name=name,
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
         classifier_activation=classifier_activation,
     )
 
@@ -432,6 +436,7 @@ def ResNet101(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="resnet101",
 ):
     """Instantiates the ResNet101 architecture."""
 
@@ -443,15 +448,16 @@ def ResNet101(
 
     return ResNet(
         stack_fn,
-        False,
-        True,
-        "resnet101",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
+        preact=False,
+        use_bias=True,
+        name=name,
+        weights_name="resnet101",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
         classifier_activation=classifier_activation,
     )
 
@@ -470,6 +476,7 @@ def ResNet152(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="resnet152",
 ):
     """Instantiates the ResNet152 architecture."""
 
@@ -481,15 +488,16 @@ def ResNet152(
 
     return ResNet(
         stack_fn,
-        False,
-        True,
-        "resnet152",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
+        preact=False,
+        use_bias=True,
+        name=name,
+        weights_name="resnet152",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
         classifier_activation=classifier_activation,
     )
 
@@ -566,12 +574,13 @@ Args:
         - `max` means that global max pooling will be applied.
     classes: optional number of classes to classify images into, only to be
         specified if `include_top` is `True`, and if no `weights` argument is
-        specified.
+        specified. Defaults to `1000`.
     classifier_activation: A `str` or callable. The activation function to
         use on the "top" layer. Ignored unless `include_top=True`. Set
         `classifier_activation=None` to return the logits of the "top" layer.
         When loading pretrained weights, `classifier_activation` can only
         be `None` or `"softmax"`.
+    name: The name of the model (string).
 
 Returns:
     A Model instance.

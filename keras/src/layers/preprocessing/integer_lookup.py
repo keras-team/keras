@@ -328,7 +328,7 @@ class IntegerLookup(IndexLookup):
             )
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse=True` can only be used with the " "TensorFlow backend."
+                "`sparse=True` can only be used with the TensorFlow backend."
             )
         if vocabulary_dtype != "int64":
             raise ValueError(

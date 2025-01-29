@@ -8,16 +8,15 @@ from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
 try:
-    # pydot-ng is a fork of pydot that is better maintained.
-    import pydot_ng as pydot
+    import pydot
 except ImportError:
-    # pydotplus is an improved version of pydot
+    # pydot_ng and pydotplus are older forks of pydot
+    # which may still be used by some users
     try:
-        import pydotplus as pydot
+        import pydot_ng as pydot
     except ImportError:
-        # Fall back on pydot if necessary.
         try:
-            import pydot
+            import pydotplus as pydot
         except ImportError:
             pydot = None
 
@@ -36,7 +35,7 @@ def check_graphviz():
         # to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
         return True
-    except (OSError, pydot.InvocationException):
+    except (OSError, pydot.PydotException):
         return False
 
 
@@ -150,7 +149,7 @@ def make_layer_label(layer, **kwargs):
         cols.append(
             (
                 '<td bgcolor="white"><font point-size="14">'
-                f'Output dtype: <b>{dtype or "?"}</b>'
+                f"Output dtype: <b>{dtype or '?'}</b>"
                 "</font></td>"
             )
         )
@@ -188,6 +187,14 @@ def make_node(layer, **kwargs):
     node.set("border", "0")
     node.set("margin", "0")
     return node
+
+
+def remove_unused_edges(dot):
+    nodes = [v.get_name() for v in dot.get_nodes()]
+    for edge in dot.get_edges():
+        if edge.get_destination() not in nodes:
+            dot.del_edge(edge.get_source(), edge.get_destination())
+    return dot
 
 
 @keras_export("keras.utils.model_to_dot")
@@ -460,6 +467,7 @@ def plot_model(
     to_file = str(to_file)
     if dot is None:
         return
+    dot = remove_unused_edges(dot)
     _, extension = os.path.splitext(to_file)
     if not extension:
         extension = "png"

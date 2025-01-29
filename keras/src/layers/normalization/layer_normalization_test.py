@@ -87,10 +87,7 @@ class LayerNormalizationTest(testing.TestCase):
     def test_invalid_axis(self):
         with self.assertRaisesRegex(
             TypeError,
-            (
-                "Expected an int or a list/tuple of ints for the argument "
-                "'axis'"
-            ),
+            ("Expected an int or a list/tuple of ints for the argument 'axis'"),
         ):
             layers.LayerNormalization(axis={"axis": -1})
 

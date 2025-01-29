@@ -27,9 +27,9 @@ Classic MNIST, loaded using tf.data
 
 BATCH_SIZE = 192
 
-(x_train, train_labels), (
-    x_eval,
-    eval_labels,
+(
+    (x_train, train_labels),
+    (x_eval, eval_labels),
 ) = keras.datasets.mnist.load_data()
 x_train = np.expand_dims(x_train, axis=-1).astype(
     np.float32
@@ -287,6 +287,7 @@ EPOCHS = 5
 print("\nTraining:")
 data_iter = iter(train_data)
 for epoch in range(EPOCHS):
+    loss_value = None  # default
     for i in tqdm(range(STEPS_PER_EPOCH)):
         x, y = next(data_iter)
         sharded_x = jax.device_put(x.numpy(), data_sharding)

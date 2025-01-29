@@ -8,7 +8,7 @@ from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.optimizers.sgd import SGD
 
 
-class LossScaleOptimizerTest(testing.TestCase, parameterized.TestCase):
+class LossScaleOptimizerTest(testing.TestCase):
     def _skip_test_for_stateless(self, stateless):
         if not stateless and backend.backend() == "jax":
             self.skipTest(

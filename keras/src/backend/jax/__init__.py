@@ -6,6 +6,9 @@ from keras.src.backend.jax import math
 from keras.src.backend.jax import nn
 from keras.src.backend.jax import numpy
 from keras.src.backend.jax import random
+from keras.src.backend.jax import tensorboard
+from keras.src.backend.jax.core import IS_THREAD_SAFE
+from keras.src.backend.jax.core import SUPPORTS_RAGGED_TENSORS
 from keras.src.backend.jax.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.jax.core import Variable
 from keras.src.backend.jax.core import cast
@@ -15,6 +18,8 @@ from keras.src.backend.jax.core import convert_to_numpy
 from keras.src.backend.jax.core import convert_to_tensor
 from keras.src.backend.jax.core import device_scope
 from keras.src.backend.jax.core import is_tensor
+from keras.src.backend.jax.core import name_scope
+from keras.src.backend.jax.core import random_seed_dtype
 from keras.src.backend.jax.core import scatter
 from keras.src.backend.jax.core import shape
 from keras.src.backend.jax.core import stop_gradient

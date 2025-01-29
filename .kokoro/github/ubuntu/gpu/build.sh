@@ -36,7 +36,8 @@ then
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
    pytest keras --ignore keras/src/applications \
                --ignore keras/src/layers/merging/merging_test.py \
-               --cov=keras
+               --cov=keras \
+               --cov-config=pyproject.toml
 fi
 
 if [ "$KERAS_BACKEND" == "jax" ]
@@ -56,7 +57,10 @@ then
                --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
                --ignore keras/src/backend/jax/distribution_lib_test.py \
                --ignore keras/src/distribution/distribution_lib_test.py \
-               --cov=keras
+               --cov=keras \
+               --cov-config=pyproject.toml
+
+   pytest keras/src/distribution/distribution_lib_test.py --cov=keras --cov-config=pyproject.toml
 fi
 
 if [ "$KERAS_BACKEND" == "torch" ]
@@ -69,5 +73,7 @@ then
    python3 -c 'import torch;assert torch.cuda.is_available()'
 
    pytest keras --ignore keras/src/applications \
-               --cov=keras
+               --cov=keras \
+               --cov-config=pyproject.toml
+
 fi

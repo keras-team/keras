@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
@@ -9,7 +10,10 @@ from keras.src.trainers import epoch_iterator
 
 
 class TestEpochIterator(testing.TestCase):
-    def test_basic_flow(self):
+    @parameterized.named_parameters(
+        [("iterator", "iterator"), ("enumerate_epoch", "enumerate_epoch")]
+    )
+    def test_basic_flow(self, call_type):
         x = np.random.random((100, 16))
         y = np.random.random((100, 4))
         sample_weight = np.random.random((100,))
@@ -23,7 +27,11 @@ class TestEpochIterator(testing.TestCase):
             shuffle=shuffle,
         )
         steps_seen = []
-        for step, batch in iterator.enumerate_epoch():
+        if call_type == "iterator":
+            generator = iterator
+        else:
+            generator = iterator.enumerate_epoch()
+        for step, batch in generator:
             batch = batch[0]
             steps_seen.append(step)
             self.assertEqual(len(batch), 3)
@@ -43,12 +51,12 @@ class TestEpochIterator(testing.TestCase):
             steps_per_epoch=steps_per_epoch,
         )
         steps_seen = []
-        for step, _ in iterator.enumerate_epoch():
-            steps_seen.append(step)
+        with pytest.warns(match="Your input ran out of data"):
+            for step, _ in iterator:
+                steps_seen.append(step)
         self.assertLen(steps_seen, steps_per_epoch - 2)
 
         self.assertIsInstance(iterator, epoch_iterator.EpochIterator)
-        self.assertTrue(iterator._insufficient_data)
 
     def test_unsupported_y_arg_tfdata(self):
         with self.assertRaisesRegex(ValueError, "`y` should not be passed"):
@@ -88,7 +96,7 @@ class TestEpochIterator(testing.TestCase):
             torch_dataset, batch_size=8, shuffle=True
         )
         iterator = epoch_iterator.EpochIterator(torch_dataloader)
-        for _, batch in iterator.enumerate_epoch():
+        for _, batch in iterator:
             batch = batch[0]
             self.assertEqual(batch[0].shape, (8, 2))
             self.assertEqual(batch[1].shape, (8, 1))
@@ -171,3 +179,54 @@ class TestEpochIterator(testing.TestCase):
         x = "unsupported_data"
         with self.assertRaisesRegex(ValueError, "Unrecognized data type"):
             _ = epoch_iterator.EpochIterator(x=x)
+
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "infinite", "infinite": True},
+            {"testcase_name": "finite", "infinite": False},
+        ]
+    )
+    def test_epoch_callbacks(self, infinite):
+        class TestPyDataset(data_adapters.py_dataset_adapter.PyDataset):
+            def __init__(
+                self,
+                workers=1,
+                use_multiprocessing=False,
+                max_queue_size=10,
+                infinite=False,
+            ):
+                super().__init__(workers, use_multiprocessing, max_queue_size)
+                self.data = np.random.rand(64, 2)
+                self.batch_size = 16
+                self.infinite = infinite
+
+                # check that callbacks are called in the correct order
+                self.tracker = []
+
+            @property
+            def num_batches(self):
+                if self.infinite:
+                    return None
+                return len(self.data) // self.batch_size
+
+            def on_epoch_begin(self):
+                self.tracker.append(1)
+
+            def __getitem__(self, index):
+                idx = index % 2
+                return self.data[
+                    idx * self.batch_size : (idx + 1) * self.batch_size
+                ]
+
+            def on_epoch_end(self):
+                self.tracker.append(2)
+
+        ds = TestPyDataset(infinite=infinite)
+        epoch_iter = epoch_iterator.EpochIterator(x=ds, steps_per_epoch=10)
+
+        num_epochs = 5
+        for epoch in range(num_epochs):
+            for step, batch in epoch_iter:
+                pass
+
+        self.assertAllEqual(ds.tracker, [1, 2] * num_epochs)

@@ -1,8 +1,8 @@
 from keras.src.backend.common.backend_utils import (
-    _convert_conv_tranpose_padding_args_from_keras_to_jax,
+    _convert_conv_transpose_padding_args_from_keras_to_jax,
 )
 from keras.src.backend.common.backend_utils import (
-    _convert_conv_tranpose_padding_args_from_keras_to_torch,
+    _convert_conv_transpose_padding_args_from_keras_to_torch,
 )
 from keras.src.backend.common.backend_utils import (
     _get_output_shape_given_tf_padding,
@@ -22,7 +22,7 @@ class ConvertConvTransposePaddingArgsJAXTest(test_case.TestCase):
         (
             left_pad,
             right_pad,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_jax(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_jax(
             kernel_size=3,
             stride=2,
             dilation_rate=1,
@@ -37,7 +37,7 @@ class ConvertConvTransposePaddingArgsJAXTest(test_case.TestCase):
         (
             left_pad,
             right_pad,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_jax(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_jax(
             kernel_size=3,
             stride=2,
             dilation_rate=1,
@@ -54,7 +54,7 @@ class ConvertConvTransposePaddingArgsTorchTest(test_case.TestCase):
         (
             torch_padding,
             torch_output_padding,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
             kernel_size=3,
             stride=2,
             dilation_rate=1,
@@ -69,7 +69,7 @@ class ConvertConvTransposePaddingArgsTorchTest(test_case.TestCase):
         (
             torch_padding,
             torch_output_padding,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
             kernel_size=3,
             stride=2,
             dilation_rate=1,
@@ -145,7 +145,7 @@ class ComputeConvTransposePaddingArgsForTorchTest(test_case.TestCase):
         (
             torch_padding,
             torch_output_padding,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
             kernel_size=3,
             stride=2,
             dilation_rate=1,
@@ -160,7 +160,7 @@ class ComputeConvTransposePaddingArgsForTorchTest(test_case.TestCase):
         (
             torch_padding,
             torch_output_padding,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
             kernel_size=3,
             stride=2,
             dilation_rate=1,
@@ -211,7 +211,7 @@ class GetOutputShapeGivenTFPaddingTest(test_case.TestCase):
     def test_warning_for_inconsistencies(self):
         """Test that a warning is raised for potential inconsistencies"""
         with self.assertWarns(Warning):
-            _convert_conv_tranpose_padding_args_from_keras_to_torch(
+            _convert_conv_transpose_padding_args_from_keras_to_torch(
                 kernel_size=3,
                 stride=2,
                 dilation_rate=1,
@@ -224,7 +224,7 @@ class GetOutputShapeGivenTFPaddingTest(test_case.TestCase):
         (
             torch_padding,
             torch_output_padding,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
             kernel_size=3,
             stride=2,
             dilation_rate=1,

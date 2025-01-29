@@ -8,7 +8,7 @@ from keras.src import ops
 from keras.src import testing
 
 
-class PermuteTest(testing.TestCase, parameterized.TestCase):
+class PermuteTest(testing.TestCase):
     @parameterized.named_parameters(
         [
             {"testcase_name": "dense", "sparse": False},

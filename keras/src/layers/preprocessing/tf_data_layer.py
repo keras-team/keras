@@ -3,6 +3,7 @@ from keras.src import tree
 from keras.src.layers.layer import Layer
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.utils import backend_utils
+from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 
 
@@ -20,8 +21,11 @@ class TFDataLayer(Layer):
         self._allow_non_tensor_positional_args = True
 
     def __call__(self, inputs, **kwargs):
-        if backend_utils.in_tf_graph() and not isinstance(
-            inputs, keras.KerasTensor
+        sample_input = tree.flatten(inputs)[0]
+        if (
+            not isinstance(sample_input, keras.KerasTensor)
+            and backend_utils.in_tf_graph()
+            and not jax_utils.is_in_jax_tracing_scope(sample_input)
         ):
             # We're in a TF graph, e.g. a tf.data pipeline.
             self.backend.set_backend("tensorflow")
@@ -55,3 +59,11 @@ class TFDataLayer(Layer):
         seed_generator = SeedGenerator(self.seed, backend=self.backend)
         self._backend_generators[backend] = seed_generator
         return seed_generator
+
+    def convert_weight(self, weight):
+        """Convert the weight if it is from the a different backend."""
+        if self.backend.name == keras.backend.backend():
+            return weight
+        else:
+            weight = keras.ops.convert_to_numpy(weight)
+            return self.backend.convert_to_tensor(weight)

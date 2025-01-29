@@ -148,3 +148,30 @@ def remove_by_id(lst, value):
         if id(v) == id(value):
             del lst[i]
             return
+
+
+def pythonify_logs(logs):
+    """Flatten and convert log values to Python-native types.
+
+    This function attempts to convert dict value by `float(value)` and skips
+    the conversion if it fails.
+
+    Args:
+        logs: A dict containing log values.
+
+    Returns:
+        A flattened dict with values converted to Python-native types if
+        possible.
+    """
+    logs = logs or {}
+    result = {}
+    for key, value in sorted(logs.items()):
+        if isinstance(value, dict):
+            result.update(pythonify_logs(value))
+        else:
+            try:
+                value = float(value)
+            except:
+                pass
+            result[key] = value
+    return result

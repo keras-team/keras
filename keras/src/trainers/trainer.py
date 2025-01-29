@@ -1,3 +1,4 @@
+import inspect
 import platform
 import warnings
 
@@ -11,6 +12,7 @@ from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.trainers.data_adapters import data_adapter_utils
+from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
@@ -25,6 +27,14 @@ class Trainer:
         self.steps_per_execution = 1
         # Can be set by callbacks in on_train_begin
         self._initial_epoch = None
+        self._compute_loss_has_training_arg = (
+            "training" in inspect.signature(self.compute_loss).parameters
+        )
+
+        # Placeholders used in `compile`
+        self._compile_loss = None
+        self._compile_metrics = None
+        self._loss_tracker = None
 
     @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking
@@ -150,14 +160,10 @@ class Trainer:
                 loss, loss_weights, output_names=output_names
             )
             self.loss = loss
-        else:
-            self._compile_loss = None
         if metrics is not None or weighted_metrics is not None:
             self._compile_metrics = CompileMetrics(
                 metrics, weighted_metrics, output_names=output_names
             )
-        else:
-            self._compile_metrics = None
         if jit_compile == "auto":
             if run_eagerly:
                 jit_compile = False
@@ -242,10 +248,23 @@ class Trainer:
 
     @property
     def metrics(self):
-        metrics = [self._loss_tracker] if self.compiled else []
-        metrics.extend(super().metrics)
-        if self.compiled and self._compile_metrics is not None:
-            metrics += [self._compile_metrics]
+        # Order: loss tracker, individual loss trackers, compiled metrics,
+        # custom metrcis, sublayer metrics.
+        metrics = []
+        if self.compiled:
+            if self._loss_tracker is not None:
+                metrics.append(self._loss_tracker)
+            if self._compile_metrics is not None:
+                metrics.append(self._compile_metrics)
+            if self._compile_loss is not None:
+                metrics.extend(self._compile_loss.metrics)
+        metrics.extend(self._metrics)
+        for layer in self._flatten_layers(include_self=False):
+            if isinstance(layer, Trainer):
+                # All Trainer-related metrics in sublayers should be ignored
+                # because a new Trainer has been instantiated.
+                continue
+            metrics.extend(layer.metrics)
         return metrics
 
     @property
@@ -256,12 +275,24 @@ class Trainer:
         for m in self.metrics:
             m.reset_state()
 
+    def _get_own_metrics(self):
+        metrics = []
+        if self._loss_tracker is not None:
+            metrics.append(self._loss_tracker)
+        if self._compile_metrics is not None:
+            metrics.append(self._compile_metrics)
+        if self._compile_loss is not None:
+            metrics.extend(self._compile_loss.metrics)
+        metrics.extend(self._metrics)
+        return metrics
+
     def compute_loss(
         self,
         x=None,
         y=None,
         y_pred=None,
         sample_weight=None,
+        training=True,
     ):
         """Compute the total loss, validate it, and return it.
 
@@ -276,8 +307,8 @@ class Trainer:
                 super().__init__(*args, **kwargs)
                 self.loss_tracker = metrics.Mean(name='loss')
 
-            def compute_loss(self, x, y, y_pred, sample_weight):
-                loss = ops.means((y_pred - y) ** 2)
+            def compute_loss(self, x, y, y_pred, sample_weight, training=True):
+                loss = ops.mean((y_pred - y) ** 2)
                 loss += ops.sum(self.losses)
                 self.loss_tracker.update_state(loss)
                 return loss
@@ -306,19 +337,22 @@ class Trainer:
             y: Target data.
             y_pred: Predictions returned by the model (output of `model(x)`)
             sample_weight: Sample weights for weighting the loss function.
+            training: Whether we are training or evaluating the model.
 
         Returns:
             The total loss as a scalar tensor, or `None` if no loss results
             (which is the case when called by `Model.test_step`).
         """
-        del x  # The default implementation does not use `x`.
+        # The default implementation does not use `x` or `training`.
+        del x
+        del training
         losses = []
         if self._compile_loss is not None:
             loss = self._compile_loss(y, y_pred, sample_weight)
             if loss is not None:
                 losses.append(loss)
         for loss in self.losses:
-            losses.append(ops.sum(ops.cast(loss, dtype=backend.floatx())))
+            losses.append(self._aggregate_additional_loss(loss))
         if backend.backend() not in ["jax", "mlx"] and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
@@ -331,6 +365,41 @@ class Trainer:
             total_loss = ops.sum(losses)
         return total_loss
 
+    def _compute_loss(
+        self,
+        x=None,
+        y=None,
+        y_pred=None,
+        sample_weight=None,
+        training=True,
+    ):
+        """Backwards compatibility wrapper for `compute_loss`.
+
+        This should be used instead `compute_loss` within `train_step` and
+        `test_step` to support overrides of `compute_loss` that may not have
+        the `training` argument, as this argument was added in Keras 3.3.
+        """
+        if self._compute_loss_has_training_arg:
+            return self.compute_loss(
+                x, y, y_pred, sample_weight, training=training
+            )
+        else:
+            return self.compute_loss(x, y, y_pred, sample_weight)
+
+    def _aggregate_additional_loss(self, loss):
+        """Aggregates losses from `add_loss`, regularizers and sublayers.
+
+        Args:
+            loss: A tensor representing the additional loss to aggregate.
+
+        Returns:
+            A tensor representing the summed loss, cast to the `floatx()` if
+            necessary.
+        """
+        if not backend.is_float_dtype(loss.dtype):
+            loss = ops.cast(loss, dtype=backend.floatx())
+        return ops.sum(loss)
+
     def stateless_compute_loss(
         self,
         trainable_variables,
@@ -340,6 +409,7 @@ class Trainer:
         y=None,
         y_pred=None,
         sample_weight=None,
+        training=True,
     ):
         var_mapping = list(zip(self.trainable_variables, trainable_variables))
         var_mapping.extend(
@@ -349,11 +419,12 @@ class Trainer:
         with backend.StatelessScope(state_mapping=var_mapping) as scope:
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
-            loss = self.compute_loss(
+            loss = self._compute_loss(
                 x,
                 y,
                 y_pred,
                 sample_weight=sample_weight,
+                training=training,
             )
 
         # Update non trainable vars (may have been updated in compute_loss)
@@ -377,22 +448,28 @@ class Trainer:
         """Update metric states and collect all metrics to be returned.
 
         Subclasses can optionally override this method to provide custom metric
-        updating and collection logic.
+        updating and collection logic. Custom metrics are not passed in
+        `compile()`, they can be created in `__init__` or `build`. They are
+        automatically tracked and returned by `self.metrics`.
 
         Example:
 
         ```python
         class MyModel(Sequential):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.custom_metric = MyMetric(name="custom_metric")
+
             def compute_metrics(self, x, y, y_pred, sample_weight):
-                # This super call updates `self.compiled_metrics` and returns
+                # This super call updates metrics from `compile` and returns
                 # results for all metrics listed in `self.metrics`.
                 metric_results = super().compute_metrics(
                     x, y, y_pred, sample_weight)
 
-                # Note that `self.custom_metric` is not listed
-                # in `self.metrics`.
+                # `metric_results` contains the previous result for
+                # `custom_metric`, this is where we update it.
                 self.custom_metric.update_state(x, y, y_pred, sample_weight)
-                metric_results['metric_name'] = self.custom_metric.result()
+                metric_results['custom_metric'] = self.custom_metric.result()
                 return metric_results
         ```
 
@@ -430,7 +507,7 @@ class Trainer:
                 return_metrics.update(result)
             else:
                 return_metrics[metric.name] = result
-        return self._pythonify_logs(return_metrics)
+        return python_utils.pythonify_logs(return_metrics)
 
     def fit(
         self,
@@ -454,29 +531,34 @@ class Trainer:
         """Trains the model for a fixed number of epochs (dataset iterations).
 
         Args:
-            x: Input data. It could be:
+            x: Input data. It can be:
                 - A NumPy array (or array-like), or a list of arrays
                 (in case the model has multiple inputs).
-                - A tensor, or a list of tensors
+                - A backend-native tensor, or a list of tensors
                 (in case the model has multiple inputs).
                 - A dict mapping input names to the corresponding array/tensors,
                 if the model has named inputs.
-                - A `tf.data.Dataset`. Should return a tuple
-                of either `(inputs, targets)` or
+                - A `keras.utils.PyDataset` returning `(inputs, targets)` or
                 `(inputs, targets, sample_weights)`.
-                - A `keras.utils.PyDataset` returning `(inputs,
-                targets)` or `(inputs, targets, sample_weights)`.
-            y: Target data. Like the input data `x`,
-                it could be either NumPy array(s) or backend-native tensor(s).
-                If `x` is a dataset, generator,
-                or `keras.utils.PyDataset` instance, `y` should
-                not be specified (since targets will be obtained from `x`).
+                - A `tf.data.Dataset` yielding `(inputs, targets)` or
+                `(inputs, targets, sample_weights)`.
+                - A `torch.utils.data.DataLoader` yielding `(inputs, targets)`
+                or `(inputs, targets, sample_weights)`.
+                - A Python generator function yielding `(inputs, targets)` or
+                `(inputs, targets, sample_weights)`.
+            y: Target data. Like the input data `x`, it can be either NumPy
+                array(s) or backend-native tensor(s). If `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or a Python generator function,
+                `y` should not be specified since targets will be obtained from
+                `x`.
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, `batch_size` will default to 32.
-                Do not specify the `batch_size` if your data is in the
-                form of datasets, generators, or `keras.utils.PyDataset`
-                instances (since they generate batches).
+                Do not specify the `batch_size` if your input data `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function
+                since they generate batches.
             epochs: Integer. Number of epochs to train the model.
                 An epoch is an iteration over the entire `x` and `y`
                 data provided
@@ -505,13 +587,12 @@ class Trainer:
             validation_split: Float between 0 and 1.
                 Fraction of the training data to be used as validation data.
                 The model will set apart this fraction of the training data,
-                will not train on it, and will evaluate
-                the loss and any model metrics
-                on this data at the end of each epoch.
-                The validation data is selected from the last samples
-                in the `x` and `y` data provided, before shuffling. This
-                argument is not supported when `x` is a dataset, generator or
-                `keras.utils.PyDataset` instance.
+                will not train on it, and will evaluate the loss and any model
+                metrics on this data at the end of each epoch. The validation
+                data is selected from the last samples in the `x` and `y` data
+                provided, before shuffling.
+                This argument is only supported when `x` and `y` are made of
+                NumPy arrays or tensors.
                 If both `validation_data` and `validation_split` are provided,
                 `validation_data` will override `validation_split`.
             validation_data: Data on which to evaluate
@@ -521,16 +602,18 @@ class Trainer:
                 `validation_split` or `validation_data` is not affected by
                 regularization layers like noise and dropout.
                 `validation_data` will override `validation_split`.
-                It could be:
+                It can be:
                 - A tuple `(x_val, y_val)` of NumPy arrays or tensors.
                 - A tuple `(x_val, y_val, val_sample_weights)` of NumPy
                 arrays.
-                - A `tf.data.Dataset`.
-                - A Python generator or `keras.utils.PyDataset` returning
-                `(inputs, targets)` or `(inputs, targets, sample_weights)`.
-            shuffle: Boolean, whether to shuffle the training data
-                before each epoch. This argument is
-                ignored when `x` is a generator or a `tf.data.Dataset`.
+                - A `keras.utils.PyDataset`, a `tf.data.Dataset`, a
+                `torch.utils.data.DataLoader` yielding `(inputs, targets)` or a
+                Python generator function yielding `(x_val, y_val)` or
+                `(inputs, targets, sample_weights)`.
+            shuffle: Boolean, whether to shuffle the training data before each
+                epoch. This argument is ignored when `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function.
             class_weight: Optional dictionary mapping class indices (integers)
                 to a weight (float) value, used for weighting the loss function
                 (during training only).
@@ -540,18 +623,18 @@ class Trainer:
                 and targets have a rank of 2 or greater, either `y` must be
                 one-hot encoded, or an explicit final dimension of `1` must
                 be included for sparse class labels.
-            sample_weight: Optional NumPy array of weights for
+            sample_weight: Optional NumPy array or tensor of weights for
                 the training samples, used for weighting the loss function
                 (during training only). You can either pass a flat (1D)
-                NumPy array with the same length as the input samples
-                (1:1 mapping between weights and samples),
-                or in the case of temporal data,
-                you can pass a 2D array with shape
-                `(samples, sequence_length)`,
-                to apply a different weight to every timestep of every sample.
-                This argument is not supported when `x` is a dataset, generator,
-                or `keras.utils.PyDataset` instance, instead provide the
-                sample_weights as the third element of `x`.
+                NumPy array or tensor with the same length as the input samples
+                (1:1 mapping between weights and samples), or in the case of
+                temporal data, you can pass a 2D NumPy array or tensor with
+                shape `(samples, sequence_length)` to apply a different weight
+                to every timestep of every sample.
+                This argument is not supported when `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function.
+                Instead, provide `sample_weights` as the third element of `x`.
                 Note that sample weighting does not apply to metrics specified
                 via the `metrics` argument in `compile()`. To apply sample
                 weighting to your metrics, you can specify them via the
@@ -560,35 +643,35 @@ class Trainer:
                 Epoch at which to start training
                 (useful for resuming a previous training run).
             steps_per_epoch: Integer or `None`.
-                Total number of steps (batches of samples)
-                before declaring one epoch finished and starting the
-                next epoch. When training with input tensors such as
-                backend-native tensors, the default `None` is equal to
-                the number of samples in your dataset divided by
-                the batch size, or 1 if that cannot be determined. If `x` is a
-                `tf.data.Dataset`, and `steps_per_epoch`
-                is `None`, the epoch will run until the input dataset is
-                exhausted.  When passing an infinitely repeating dataset, you
-                must specify the `steps_per_epoch` argument. If
-                `steps_per_epoch=-1` the training will run indefinitely with an
-                infinitely repeating dataset.
-            validation_steps: Only relevant if `validation_data` is provided.
-                Total number of steps (batches of
-                samples) to draw before stopping when performing validation
-                at the end of every epoch. If `validation_steps` is `None`,
-                validation will run until the `validation_data` dataset is
-                exhausted. In the case of an infinitely repeated dataset, it
-                will run into an infinite loop. If `validation_steps` is
-                specified and only part of the dataset will be consumed, the
-                evaluation will start from the beginning of the dataset at each
-                epoch. This ensures that the same validation samples are used
-                every time.
+                Total number of steps (batches of samples) before declaring one
+                epoch finished and starting the next epoch. When training with
+                input tensors or NumPy arrays, the default `None` means that the
+                value used is the number of samples in your dataset divided by
+                the batch size, or 1 if that cannot be determined.
+                If `x` is a `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function, the
+                epoch will run until the input dataset is exhausted. When
+                passing an infinitely repeating dataset, you must specify the
+                `steps_per_epoch` argument, otherwise the training will run
+                indefinitely.
+            validation_steps: Integer or `None`.
+                Only relevant if `validation_data` is provided.
+                Total number of steps (batches of samples) to draw before
+                stopping when performing validation at the end of every epoch.
+                If `validation_steps` is `None`, validation will run until the
+                `validation_data` dataset is exhausted. In the case of an
+                infinitely repeating dataset, it will run indefinitely. If
+                `validation_steps` is specified and only part of the dataset
+                is consumed, the evaluation will start from the beginning of the
+                dataset at each epoch. This ensures that the same validation
+                samples are used every time.
             validation_batch_size: Integer or `None`.
                 Number of samples per validation batch.
                 If unspecified, will default to `batch_size`.
-                Do not specify the `validation_batch_size` if your data is in
-                the form of datasets or `keras.utils.PyDataset`
-                instances (since they generate batches).
+                Do not specify the `validation_batch_size` if your data is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function
+                since they generate batches.
             validation_freq: Only relevant if validation data is provided.
                 Specifies how many training epochs to run
                 before a new validation run is performed,
@@ -645,28 +728,34 @@ class Trainer:
         Computation is done in batches (see the `batch_size` arg.)
 
         Args:
-            x: Input data. It could be:
+            x: Input data. It can be:
                 - A NumPy array (or array-like), or a list of arrays
-                    (in case the model has multiple inputs).
-                - A tensor, or a list of tensors
-                    (in case the model has multiple inputs).
+                (in case the model has multiple inputs).
+                - A backend-native tensor, or a list of tensors
+                (in case the model has multiple inputs).
                 - A dict mapping input names to the corresponding array/tensors,
-                    if the model has named inputs.
-                - A `tf.data.Dataset`. Should return a tuple
-                    of either `(inputs, targets)` or
-                    `(inputs, targets, sample_weights)`.
-                - A generator or `keras.utils.PyDataset` returning
-                    `(inputs, targets)` or `(inputs, targets, sample_weights)`.
-            y: Target data. Like the input data `x`, it could be either NumPy
-                array(s) or backend-native tensor(s).
-                If `x` is a `tf.data.Dataset` or `keras.utils.PyDataset`
-                instance, `y` should not be specified
-                (since targets will be obtained from the iterator/dataset).
-            batch_size: Integer or `None`. Number of samples per batch of
-                computation. If unspecified, `batch_size` will default to 32. Do
-                not specify the `batch_size` if your data is in the form of a
-                dataset, generators, or `keras.utils.PyDataset` instances
-                (since they generate batches).
+                if the model has named inputs.
+                - A `keras.utils.PyDataset` returning `(inputs, targets)` or
+                `(inputs, targets, sample_weights)`.
+                - A `tf.data.Dataset` yielding `(inputs, targets)` or
+                `(inputs, targets, sample_weights)`.
+                - A `torch.utils.data.DataLoader` yielding `(inputs, targets)`
+                or `(inputs, targets, sample_weights)`.
+                - A Python generator function yielding `(inputs, targets)` or
+                `(inputs, targets, sample_weights)`.
+            y: Target data. Like the input data `x`, it can be either NumPy
+                array(s) or backend-native tensor(s). If `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or a Python generator function,
+                `y` should not be specified since targets will be obtained from
+                `x`.
+            batch_size: Integer or `None`.
+                Number of samples per batch of computation.
+                If unspecified, `batch_size` will default to 32.
+                Do not specify the `batch_size` if your input data `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function
+                since they generate batches.
             verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = single line.
                 `"auto"` becomes 1 for most cases.
@@ -674,20 +763,27 @@ class Trainer:
                 particularly useful when logged to a file, so `verbose=2` is
                 recommended when not running interactively
                 (e.g. in a production environment). Defaults to `"auto"`.
-            sample_weight: Optional NumPy array of weights for the test samples,
-                used for weighting the loss function. You can either pass a flat
-                (1D) NumPy array with the same length as the input samples
+            sample_weight: Optional NumPy array or tensor of weights for
+                the training samples, used for weighting the loss function
+                (during training only). You can either pass a flat (1D)
+                NumPy array or tensor with the same length as the input samples
                 (1:1 mapping between weights and samples), or in the case of
-                temporal data, you can pass a 2D array with shape `(samples,
-                sequence_length)`, to apply a different weight to every
-                timestep of every sample. This argument is not supported when
-                `x` is a dataset, instead pass sample weights as the third
-                element of `x`.
-            steps: Integer or `None`. Total number of steps (batches of samples)
-                before declaring the evaluation round finished. Ignored with the
-                default value of `None`. If `x` is a `tf.data.Dataset` and
-                `steps` is `None`, evaluation will run until the dataset
-                is exhausted.
+                temporal data, you can pass a 2D NumPy array or tensor with
+                shape `(samples, sequence_length)` to apply a different weight
+                to every timestep of every sample.
+                This argument is not supported when `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function.
+                Instead, provide `sample_weights` as the third element of `x`.
+                Note that sample weighting does not apply to metrics specified
+                via the `metrics` argument in `compile()`. To apply sample
+                weighting to your metrics, you can specify them via the
+                `weighted_metrics` in `compile()` instead.
+            steps: Integer or `None`.
+                Total number of steps (batches of samples) to draw before
+                declaring the evaluation round finished. If `steps` is `None`,
+                it will run until `x` is exhausted. In the case of an infinitely
+                repeating dataset, it will run indefinitely.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during evaluation.
             return_dict: If `True`, loss and metric results are returned as a
@@ -724,30 +820,34 @@ class Trainer:
         `predict()` and `__call__()`.
 
         Args:
-            x: Input samples. It could be:
+            x: Input data. It can be:
                 - A NumPy array (or array-like), or a list of arrays
-                    (in case the model has multiple inputs).
-                - A tensor, or a list of tensors
-                    (in case the model has multiple inputs).
+                (in case the model has multiple inputs).
+                - A backend-native tensor, or a list of tensors
+                (in case the model has multiple inputs).
+                - A dict mapping input names to the corresponding array/tensors,
+                if the model has named inputs.
+                - A `keras.utils.PyDataset`.
                 - A `tf.data.Dataset`.
-                - A `keras.utils.PyDataset` instance.
+                - A `torch.utils.data.DataLoader`.
+                - A Python generator function.
             batch_size: Integer or `None`.
-                Number of samples per batch.
+                Number of samples per batch of computation.
                 If unspecified, `batch_size` will default to 32.
-                Do not specify the `batch_size` if your data is in the
-                form of dataset, generators, or `keras.utils.PyDataset`
-                instances (since they generate batches).
+                Do not specify the `batch_size` if your input data `x` is a
+                `keras.utils.PyDataset`, `tf.data.Dataset`,
+                `torch.utils.data.DataLoader` or Python generator function
+                since they generate batches.
             verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = single line.
                 `"auto"` becomes 1 for most cases. Note that the progress bar
                 is not particularly useful when logged to a file,
                 so `verbose=2` is recommended when not running interactively
                 (e.g. in a production environment). Defaults to `"auto"`.
-            steps: Total number of steps (batches of samples)
-                before declaring the prediction round finished.
-                Ignored with the default value of `None`.
-                If `x` is a `tf.data.Dataset` and `steps` is `None`,
-                `predict()` will run until the input dataset is exhausted.
+            steps: Total number of steps (batches of samples) to draw before
+                declaring the prediction round finished. If `steps` is `None`,
+                it will run until `x` is exhausted. In the case of an infinitely
+                repeating dataset, it will run indefinitely.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during prediction.
 
@@ -887,23 +987,10 @@ class Trainer:
                 f"type {type(validation_freq)}."
             )
 
-    def _pythonify_logs(self, logs):
-        result = {}
-        for key, value in sorted(logs.items()):
-            if isinstance(value, dict):
-                result.update(self._pythonify_logs(value))
-            else:
-                try:
-                    value = float(value)
-                except:
-                    pass
-                result[key] = value
-        return result
-
     def _get_metrics_result_or_logs(self, logs):
         """Returns model metrics as a dict if the keys match with input logs.
 
-        When the training / evalution is performed with an asynchronous steps,
+        When the training / evaluation is performed with an asynchronous steps,
         the last scheduled `train / test_step` may not give the latest metrics
         because it is not guaranteed to be executed the last. This method gets
         metrics from the model directly instead of relying on the return from
@@ -967,16 +1054,13 @@ class Trainer:
             self._compile_metrics is not None
             and not self._compile_metrics.built
         )
+        compile_loss_unbuilt = (
+            self._compile_loss is not None and not self._compile_loss.built
+        )
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
-        if model_unbuilt or compile_metrics_unbuilt or optimizer_unbuilt:
-            if data_batch is None:
-                for _, data in iterator.enumerate_epoch():
-                    data_batch = data[0]
-                    break
-
-        if model_unbuilt or compile_metrics_unbuilt:
+        if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
             def to_symbolic_input(v):
@@ -986,6 +1070,13 @@ class Trainer:
                     v.shape, backend.standardize_dtype(v.dtype)
                 )
 
+            if data_batch is None:
+                for _, data_or_iterator in iterator:
+                    if isinstance(data_or_iterator, (list, tuple)):
+                        data_batch = data_or_iterator[0]
+                    else:
+                        data_batch = next(data_or_iterator)
+                    break
             data_batch = tree.map_structure(to_symbolic_input, data_batch)
             (
                 x,
@@ -995,7 +1086,7 @@ class Trainer:
 
             # Build all model state with `backend.compute_output_spec`.
             try:
-                y_pred = backend.compute_output_spec(self, x)
+                y_pred = backend.compute_output_spec(self, x, training=False)
             except Exception as e:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
@@ -1017,6 +1108,16 @@ class Trainer:
                     y_pred,
                     sample_weight=sample_weight,
                 )
+            if compile_loss_unbuilt:
+                # Build `CompileLoss` state with `backend.compute_output_spec`.
+                backend.compute_output_spec(
+                    self._compute_loss,
+                    x,
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                    training=False,
+                )
         if optimizer_unbuilt:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
@@ -1033,5 +1134,14 @@ def model_supports_jit(model):
                 return False
     # XLA not supported by some layers
     if all(x.supports_jit for x in model._flatten_layers()):
+        if backend.backend() == "tensorflow":
+            from tensorflow.python.framework.config import (
+                is_op_determinism_enabled,
+            )
+
+            if is_op_determinism_enabled():
+                # disable XLA with determinism enabled since not all ops are
+                # supported by XLA with determinism enabled.
+                return False
         return True
     return False

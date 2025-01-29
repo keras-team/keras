@@ -135,7 +135,7 @@ def np_avgpool3d(x, pool_size, strides, padding, data_format):
 
 
 @pytest.mark.requires_trainable_backend
-class AveragePoolingBasicTest(testing.TestCase, parameterized.TestCase):
+class AveragePoolingBasicTest(testing.TestCase):
     @parameterized.parameters(
         (2, 1, "valid", "channels_last", (3, 5, 4), (3, 4, 4)),
         (2, 1, "same", "channels_first", (3, 5, 4), (3, 5, 4)),
@@ -164,12 +164,17 @@ class AveragePoolingBasicTest(testing.TestCase, parameterized.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            assert_built_after_instantiation=True,
         )
 
     @parameterized.parameters(
         (2, 1, "valid", "channels_last", (3, 5, 5, 4), (3, 4, 4, 4)),
+        (2, 1, "same", "channels_last", (3, 5, 5, 4), (3, 5, 5, 4)),
+        (2, 1, "valid", "channels_first", (3, 5, 5, 4), (3, 5, 4, 3)),
         (2, 1, "same", "channels_first", (3, 5, 5, 4), (3, 5, 5, 4)),
         ((2, 3), (2, 2), "valid", "channels_last", (3, 5, 5, 4), (3, 2, 2, 4)),
+        ((2, 3), (2, 2), "same", "channels_last", (3, 5, 5, 4), (3, 3, 3, 4)),
+        ((2, 3), (3, 3), "same", "channels_first", (3, 5, 5, 4), (3, 5, 2, 2)),
     )
     def test_average_pooling2d(
         self,
@@ -194,6 +199,7 @@ class AveragePoolingBasicTest(testing.TestCase, parameterized.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            assert_built_after_instantiation=True,
         )
 
     @parameterized.parameters(
@@ -233,10 +239,11 @@ class AveragePoolingBasicTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
             # Incomplete op support on tensorflow.
             run_mixed_precision_check=False,
+            assert_built_after_instantiation=True,
         )
 
 
-class AveragePoolingCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class AveragePoolingCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         (2, 1, "valid", "channels_last"),
         (2, 1, "valid", "channels_first"),

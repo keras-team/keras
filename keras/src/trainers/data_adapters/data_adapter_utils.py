@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
 
@@ -115,15 +116,20 @@ def check_data_cardinality(data):
 
 
 def class_weight_to_sample_weights(y, class_weight):
-    sample_weight = np.ones(shape=(y.shape[0],), dtype=backend.floatx())
-    if len(y.shape) > 1:
-        if y.shape[-1] != 1:
-            y = np.argmax(y, axis=-1)
+    # Convert to numpy to ensure consistent handling of operations
+    # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
+
+    y_numpy = ops.convert_to_numpy(y)
+    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=backend.floatx())
+    if len(y_numpy.shape) > 1:
+        if y_numpy.shape[-1] != 1:
+            y_numpy = np.argmax(y_numpy, axis=-1)
         else:
-            y = np.squeeze(y, axis=-1)
-    y = np.round(y).astype("int32")
-    for i in range(y.shape[0]):
-        sample_weight[i] = class_weight.get(int(y[i]), 1.0)
+            y_numpy = np.squeeze(y_numpy, axis=-1)
+    y_numpy = np.round(y_numpy).astype("int32")
+
+    for i in range(y_numpy.shape[0]):
+        sample_weight[i] = class_weight.get(int(y_numpy[i]), 1.0)
     return sample_weight
 
 
@@ -176,10 +182,21 @@ def get_tensor_spec(batches):
 
 
 def get_jax_iterator(iterable):
-    from keras.src.backend.jax.core import convert_to_tensor
+    import jax
+    import jax.experimental.sparse as jax_sparse
+
+    def convert_to_jax_compatible(x):
+        if isinstance(x, (jax.Array, jax_sparse.JAXSparse, np.ndarray)):
+            return x
+        elif is_scipy_sparse(x):
+            return scipy_sparse_to_jax_sparse(x)
+        elif is_tensorflow_sparse(x):
+            return tf_sparse_to_jax_sparse(x)
+        else:
+            return np.asarray(x)
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_tensor, batch)
+        yield tree.map_structure(convert_to_jax_compatible, batch)
 
 
 def get_numpy_iterator(iterable):
@@ -298,17 +315,21 @@ def scipy_sparse_to_tf_sparse(x):
 
 
 def scipy_sparse_to_jax_sparse(x):
+    import jax
     import jax.experimental.sparse as jax_sparse
 
-    return jax_sparse.BCOO.from_scipy_sparse(x)
+    with jax.default_device(jax.local_devices(backend="cpu")[0]):
+        return jax_sparse.BCOO.from_scipy_sparse(x)
 
 
 def tf_sparse_to_jax_sparse(x):
+    import jax
     import jax.experimental.sparse as jax_sparse
 
     values = np.asarray(x.values)
     indices = np.asarray(x.indices)
-    return jax_sparse.BCOO((values, indices), shape=x.shape)
+    with jax.default_device(jax.local_devices(backend="cpu")[0]):
+        return jax_sparse.BCOO((values, indices), shape=x.shape)
 
 
 def jax_sparse_to_tf_sparse(x):

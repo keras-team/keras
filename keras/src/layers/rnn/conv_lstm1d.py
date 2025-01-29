@@ -149,7 +149,7 @@ class ConvLSTM1D(ConvLSTM):
         return_state=False,
         go_backwards=False,
         stateful=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=1,
@@ -180,5 +180,5 @@ class ConvLSTM1D(ConvLSTM):
             dropout=dropout,
             recurrent_dropout=recurrent_dropout,
             seed=seed,
-            **kwargs
+            **kwargs,
         )

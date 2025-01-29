@@ -13,6 +13,7 @@ BACKEND_REQ = {
     ),
     "jax": ("jax[cpu]", ""),
     "mlx": ("mlx", ""),
+    "openvino": ("openvino", ""),
 }
 
 
@@ -58,7 +59,9 @@ def manage_venv_installs(whl_path):
         "pip uninstall -y "
         + BACKEND_REQ[other_backends[0]][0]
         + " "
-        + BACKEND_REQ[other_backends[1]][0],
+        + BACKEND_REQ[other_backends[1]][0]
+        + " "
+        + BACKEND_REQ[other_backends[2]][0],
         # Install `.whl` package
         "pip install " + whl_path,
     ]

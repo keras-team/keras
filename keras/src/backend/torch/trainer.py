@@ -49,8 +49,8 @@ class TorchTrainer(base_trainer.Trainer):
         # for the weights from the previous train step.
         self.zero_grad()
 
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -85,8 +85,8 @@ class TorchTrainer(base_trainer.Trainer):
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -195,10 +195,9 @@ class TorchTrainer(base_trainer.Trainer):
             # for TF/numpy/jax arrays.
             # TODO: Support torch tensors for validation data.
             (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = array_slicing.train_validation_split(
+                (x, y, sample_weight),
+                validation_data,
+            ) = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -222,6 +221,7 @@ class TorchTrainer(base_trainer.Trainer):
         )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -236,6 +236,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         self.stop_training = False
+        training_logs = {}
         self.make_train_function()
         callbacks.on_train_begin()
         initial_epoch = self._initial_epoch or initial_epoch
@@ -247,12 +248,13 @@ class TorchTrainer(base_trainer.Trainer):
             # do training behavior in case the user did not use `self.training`
             # when implementing a custom layer with torch layers.
             self.train()
-            for step, data in epoch_iterator.enumerate_epoch():
+
+            logs = {}
+            for step, data in epoch_iterator:
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
                 logs = self.train_function(data)
-                logs = self._pythonify_logs(logs)
 
                 # Callbacks
                 callbacks.on_train_batch_end(step, logs)
@@ -345,12 +347,12 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -364,12 +366,11 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
-            logs = self._pythonify_logs(logs)
             callbacks.on_test_batch_end(step, logs)
             if self.stop_evaluating:
                 break
@@ -397,7 +398,6 @@ class TorchTrainer(base_trainer.Trainer):
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -427,7 +427,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_predict_batch_begin(step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)

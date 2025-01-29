@@ -5,9 +5,12 @@ since your modifications would be overwritten.
 """
 
 from keras.src.backend.config import backend
+from keras.src.backend.config import disable_flash_attention
+from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import epsilon
 from keras.src.backend.config import floatx
 from keras.src.backend.config import image_data_format
+from keras.src.backend.config import is_flash_attention_enabled
 from keras.src.backend.config import set_epsilon
 from keras.src.backend.config import set_floatx
 from keras.src.backend.config import set_image_data_format

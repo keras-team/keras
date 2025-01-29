@@ -28,8 +28,8 @@ class NumpyTrainer(base_trainer.Trainer):
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -97,7 +97,10 @@ class NumpyTrainer(base_trainer.Trainer):
             self._compile_metrics is not None
             and not self._compile_metrics.built
         )
-        if model_unbuilt or compile_metrics_unbuilt:
+        compile_loss_unbuilt = (
+            self._compile_loss is not None and not self._compile_loss.built
+        )
+        if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
             def to_symbolic_input(v):
@@ -128,6 +131,15 @@ class NumpyTrainer(base_trainer.Trainer):
                 # Build all metric state with `backend.compute_output_spec`.
                 backend.compute_output_spec(
                     self.compute_metrics,
+                    x,
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                )
+            if compile_loss_unbuilt:
+                # Build `CompileLoss` state with `backend.compute_output_spec`.
+                backend.compute_output_spec(
+                    self._compute_loss,
                     x,
                     y,
                     y_pred,
@@ -173,7 +185,6 @@ class NumpyTrainer(base_trainer.Trainer):
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -200,7 +211,7 @@ class NumpyTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_predict_batch_begin(step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
@@ -244,7 +255,7 @@ class NumpyTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch():
+            for _, data in epoch_iterator:
                 data_batch = data[0]
                 self._symbolic_build(data_batch)
                 break
@@ -253,7 +264,6 @@ class NumpyTrainer(base_trainer.Trainer):
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -264,12 +274,11 @@ class NumpyTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator.enumerate_epoch():
+        for step, data in epoch_iterator:
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
-            logs = self._pythonify_logs(logs)
             callbacks.on_test_batch_end(step, logs)
             if self.stop_evaluating:
                 break

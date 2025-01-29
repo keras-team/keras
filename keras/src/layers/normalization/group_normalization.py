@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -166,6 +167,12 @@ class GroupNormalization(Layer):
         return reshaped_inputs
 
     def _apply_normalization(self, reshaped_inputs, input_shape):
+        inputs_dtype = reshaped_inputs.dtype
+        compute_dtype = backend.result_type(inputs_dtype, "float32")
+        # GN is prone to overflow with float16/bfloat16 inputs, so we upcast to
+        # float32 for the subsequent computations.
+        reshaped_inputs = ops.cast(reshaped_inputs, compute_dtype)
+
         group_reduction_axes = list(range(1, len(reshaped_inputs.shape)))
 
         axis = -2 if self.axis == -1 else self.axis - 1
@@ -190,6 +197,8 @@ class GroupNormalization(Layer):
             res = res + beta
 
         normalized_inputs = reshaped_inputs * inv + res
+        normalized_inputs = ops.cast(normalized_inputs, inputs_dtype)
+
         return normalized_inputs
 
     def _create_broadcast_shape(self, input_shape):
@@ -199,6 +208,18 @@ class GroupNormalization(Layer):
         return broadcast_shape
 
     def compute_output_shape(self, input_shape):
+        if isinstance(self.axis, int):
+            axes = [self.axis]
+        else:
+            axes = self.axis
+
+        for axis in axes:
+            if axis >= len(input_shape) or axis < -len(input_shape):
+                raise ValueError(
+                    f"Axis {axis} is out of bounds for "
+                    f"input shape {input_shape}. "
+                    f"Received: axis={self.axis}"
+                )
         return input_shape
 
     def get_config(self):

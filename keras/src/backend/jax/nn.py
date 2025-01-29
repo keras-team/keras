@@ -6,6 +6,9 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 from jax import lax
 from jax import nn as jnn
+from jax.experimental.pallas.ops.tpu import (
+    flash_attention as flash_attention_tpu,
+)
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
@@ -35,6 +38,11 @@ def tanh(x):
     return jnn.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - jnp.tanh(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
     return jnn.softplus(x)
@@ -45,9 +53,28 @@ def softsign(x):
     return jnn.soft_sign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(
+        x > threshold,
+        x - threshold,
+        jnp.where(x < -threshold, x + threshold, 0.0),
+    )
+
+
+def sparse_plus(x):
+    x = convert_to_tensor(x)
+    return jnn.sparse_plus(x)
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return jnn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    return jnn.squareplus(x, b=b)
 
 
 def log_sigmoid(x):
@@ -85,6 +112,31 @@ def gelu(x, approximate=True):
     return jnn.gelu(x, approximate)
 
 
+def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    return jnn.celu(x, alpha=alpha)
+
+
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return jnn.glu(x, axis=axis)
+
+
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return jnn.hard_tanh(x)
+
+
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(jnp.abs(x) > threshold, x, 0.0)
+
+
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return jnp.where(x > threshold, x, default_value)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)
@@ -93,6 +145,24 @@ def softmax(x, axis=-1):
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.log_softmax(x, axis=axis)
+
+
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted = -1.0 * jnp.sort(logits * -1.0, axis=axis)
+    logits_cumsum = jnp.cumsum(logits_sorted, axis=axis)  # find cumulative sum
+    r = jnp.arange(1, logits.shape[axis] + 1)  # Determine the sparsity
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.reshape(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = jnp.sum(support, axis=axis, keepdims=True)
+    logits_cumsum_safe = jnp.where(support, logits_cumsum, 0.0)
+    tau = (jnp.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = jnp.maximum(logits - tau, 0.0)
+    return output
 
 
 def _convert_to_spatial_operand(
@@ -273,9 +343,11 @@ def conv(
             f"kernel in_channels {kernel_in_channels}. "
         )
     feature_group_count = channels // kernel_in_channels
+    kernel = convert_to_tensor(kernel)
+    inputs = convert_to_tensor(inputs, dtype=kernel.dtype)
     return jax.lax.conv_general_dilated(
-        convert_to_tensor(inputs),
-        convert_to_tensor(kernel),
+        inputs,
+        kernel,
         strides,
         padding,
         rhs_dilation=dilation_rate,
@@ -597,7 +669,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     batch_size, max_label_length = target.shape
     log_epsilon = -1e5
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
@@ -940,3 +1012,186 @@ def psnr(x1, x2, max_val):
     mse = jnp.mean(jnp.square(x1 - x2))
     psnr = 20 * jnp.log10(max_val) - 10 * jnp.log10(mse)
     return psnr
+
+
+def _can_use_flash_attention(query, key, value, bias, raise_error=False):
+    """Verify the availability of flash attention."""
+    try:
+        from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_compute_capability,
+        )
+        from jax._src.cudnn.fused_attention_stablehlo import check_cudnn_version
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_is_flash_attention,
+        )
+        from jax._src.cudnn.fused_attention_stablehlo import check_layout
+        from jax.nn import dot_product_attention as dot_product_attention
+    except ImportError:
+        if raise_error:
+            raise ImportError(
+                "Flash attention is not supported in your current JAX version. "
+                "Please update it by following the official guide: "
+                "https://jax.readthedocs.io/en/latest/installation.html"
+            )
+        return False
+
+    try:
+        # Check if cuDNN is installed and raise RuntimeError if cuDNN is not
+        # detected
+        cudnn_version = check_cudnn_version()
+        # Only support at least Ampere
+        if not check_compute_capability("8.0"):
+            raise RuntimeError("Require at least Ampere arch to run")
+        # Check inputs layout
+        check_layout(
+            query,
+            key,
+            value,
+            bias,
+            q_seqlen=None,
+            kv_seqlen=None,
+            layout=_normalize_layout("BTNH"),
+        )
+        check_is_flash_attention(
+            query,
+            key,
+            _normalize_layout("BTNH"),
+            cudnn_version,
+            bias is not None,
+            is_training=False,
+        )
+        return True
+    except:
+        if raise_error:
+            raise
+        return False
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = jnp.ones_like(logits, dtype="bool")
+    if mask is not None:
+        combined_mask = jnp.logical_and(combined_mask, mask)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        mask = jnp.tril(jnp.ones((T, S), dtype="bool"))
+        mask = mask[None, None, :, :]
+        combined_mask = jnp.logical_and(combined_mask, mask)
+
+    large_negative_number = jnp.asarray(
+        -0.7 * jnp.finfo(logits.dtype).max, dtype=logits.dtype
+    )
+    padded_logits = jnp.where(combined_mask, logits, large_negative_number)
+    return padded_logits
+
+
+def _dot_product_attention_core(
+    query, key, value, bias, mask, is_causal, scale
+):
+    logits_dtype = jnp.promote_types(query.dtype, jnp.float32)
+    logits = jnp.einsum(
+        "BTNH,BSNH->BNTS", query, key, preferred_element_type=logits_dtype
+    )
+    logits *= jnp.array(scale, dtype=logits.dtype)
+
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax and it is always carried out in fp32.
+    padded_logits = padded_logits.astype(jnp.float32)
+    probs = jax.nn.softmax(padded_logits, axis=-1).astype(key.dtype)
+    return jnp.einsum("BNTS,BSNH->BTNH", probs, value)
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+):
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(query, key, value, bias, raise_error=True)
+    if jax.devices()[0].platform == "tpu" and flash_attention:
+        # Use TPU-optimized flash attention from Pallas
+        return flash_attention_tpu(
+            query,
+            key,
+            value,
+            ab=bias,
+            segment_ids=mask,
+            causal=is_causal,
+            sm_scale=scale,
+        )
+    # `dot_product_attention` is only available in jax>=0.4.31
+    if hasattr(jax.nn, "dot_product_attention"):
+        return jax.nn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+            implementation="cudnn" if flash_attention else "xla",
+        )
+
+    if flash_attention:
+        raise RuntimeError(
+            "Flash attention is not supported in your current JAX version. "
+            "Please update it by following the official guide: "
+            "https://jax.readthedocs.io/en/latest/installation.html"
+        )
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.33/jax/_src/nn/functions.py#L886
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+    output_shape = query.shape
+    _, _, K, H = key.shape
+    scale = (1.0 / jnp.sqrt(H)) if scale is None else scale
+
+    # _dot_product_attention_xla
+    B, T, N, H = query.shape
+    G = N // K
+    query = jnp.reshape(query, (B, T, K, G, H))
+
+    def _reshape_to_grouped(t):
+        if t is not None:
+            tB, tN, tT, tS = t.shape
+            if tN == 1:
+                t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
+            else:
+                assert tN == N
+                t = jnp.reshape(t, (tB, K, G, tT, tS))
+        return t
+
+    bias = _reshape_to_grouped(bias)
+    mask = _reshape_to_grouped(mask)
+    vmapped_fn = jax.vmap(
+        _dot_product_attention_core,
+        in_axes=(3, None, None, 2, 2, None, None),
+        out_axes=3,
+    )
+    encoded = vmapped_fn(query, key, value, bias, mask, is_causal, scale)
+    return jnp.reshape(encoded, output_shape)

@@ -40,9 +40,7 @@ class SymbolicArguments:
 
         def switch_fn(x):
             if isinstance(x, KerasTensor):
-                val = tensor_dict.get(id(x), None)
-                if val is not None:
-                    return val
+                return tensor_dict.get(id(x), None)
             return x
 
         return self.convert(switch_fn)

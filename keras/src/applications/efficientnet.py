@@ -195,6 +195,7 @@ Args:
         Defaults to `'softmax'`.
         When loading pretrained weights, `classifier_activation` can only
         be `None` or `"softmax"`.
+    name: The name of the model (string).
 
 Returns:
     A model instance.
@@ -213,7 +214,7 @@ def EfficientNet(
     depth_divisor=8,
     activation="swish",
     blocks_args="default",
-    model_name="efficientnet",
+    name="efficientnet",
     include_top=True,
     weights="imagenet",
     input_tensor=None,
@@ -221,6 +222,7 @@ def EfficientNet(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    weights_name=None,
 ):
     """Instantiates the EfficientNet architecture.
 
@@ -233,7 +235,7 @@ def EfficientNet(
       depth_divisor: integer, a unit of network width.
       activation: activation function.
       blocks_args: list of dicts, parameters to construct block modules.
-      model_name: string, model name.
+      name: string, model name.
       include_top: whether to include the fully-connected
           layer at the top of the network.
       weights: one of `None` (random initialization),
@@ -322,10 +324,11 @@ def EfficientNet(
     x = img_input
     x = layers.Rescaling(1.0 / 255.0)(x)
     x = layers.Normalization(axis=bn_axis)(x)
+
     if weights == "imagenet":
-        # Note that the normaliztion layer uses square value of STDDEV as the
+        # Note that the normalization layer uses square value of STDDEV as the
         # variance for the layer: result = (input - mean) / sqrt(var)
-        # However, the original implemenetation uses (input - mean) / var to
+        # However, the original implementation uses (input - mean) / var to
         # normalize the input, we need to divide another sqrt(var) to match the
         # original implementation.
         # See https://github.com/tensorflow/tensorflow/issues/49930 for more
@@ -411,17 +414,17 @@ def EfficientNet(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name=model_name)
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":
         if include_top:
             file_suffix = ".h5"
-            file_hash = WEIGHTS_HASHES[model_name[-2:]][0]
+            file_hash = WEIGHTS_HASHES[weights_name][0]
         else:
             file_suffix = "_notop.h5"
-            file_hash = WEIGHTS_HASHES[model_name[-2:]][1]
-        file_name = model_name + file_suffix
+            file_hash = WEIGHTS_HASHES[weights_name][1]
+        file_name = name + file_suffix
         weights_path = file_utils.get_file(
             file_name,
             BASE_WEIGHTS_PATH + file_name,
@@ -563,14 +566,14 @@ def EfficientNetB0(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb0",
 ):
     return EfficientNet(
         1.0,
         1.0,
         224,
         0.2,
-        model_name="efficientnetb0",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -578,7 +581,7 @@ def EfficientNetB0(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b0",
     )
 
 
@@ -596,14 +599,14 @@ def EfficientNetB1(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb1",
 ):
     return EfficientNet(
         1.0,
         1.1,
         240,
         0.2,
-        model_name="efficientnetb1",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -611,7 +614,7 @@ def EfficientNetB1(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b1",
     )
 
 
@@ -629,14 +632,14 @@ def EfficientNetB2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb2",
 ):
     return EfficientNet(
         1.1,
         1.2,
         260,
         0.3,
-        model_name="efficientnetb2",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -644,7 +647,7 @@ def EfficientNetB2(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b2",
     )
 
 
@@ -662,14 +665,14 @@ def EfficientNetB3(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb3",
 ):
     return EfficientNet(
         1.2,
         1.4,
         300,
         0.3,
-        model_name="efficientnetb3",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -677,7 +680,7 @@ def EfficientNetB3(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b3",
     )
 
 
@@ -695,14 +698,14 @@ def EfficientNetB4(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb4",
 ):
     return EfficientNet(
         1.4,
         1.8,
         380,
         0.4,
-        model_name="efficientnetb4",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -710,7 +713,7 @@ def EfficientNetB4(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b4",
     )
 
 
@@ -728,14 +731,14 @@ def EfficientNetB5(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb5",
 ):
     return EfficientNet(
         1.6,
         2.2,
         456,
         0.4,
-        model_name="efficientnetb5",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -743,7 +746,7 @@ def EfficientNetB5(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b5",
     )
 
 
@@ -761,14 +764,14 @@ def EfficientNetB6(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb6",
 ):
     return EfficientNet(
         1.8,
         2.6,
         528,
         0.5,
-        model_name="efficientnetb6",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -776,7 +779,7 @@ def EfficientNetB6(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b6",
     )
 
 
@@ -794,14 +797,14 @@ def EfficientNetB7(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs,
+    name="efficientnetb7",
 ):
     return EfficientNet(
         2.0,
         3.1,
         600,
         0.5,
-        model_name="efficientnetb7",
+        name=name,
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
@@ -809,7 +812,7 @@ def EfficientNetB7(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs,
+        weights_name="b7",
     )
 
 
