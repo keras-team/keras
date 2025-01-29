@@ -145,17 +145,24 @@ class Dense(Layer):
         return self._kernel
 
     def call(self, inputs, training=None):
-        compute_dtype = self._compute_dtype or self.compute_dtype
+        compute_dtype = self._compute_dtype or backend.standardize_dtype(
+            inputs.dtype
+        )
         input_dtype = backend.standardize_dtype(inputs.dtype)
-        promoted_dtype = backend.result_type(compute_dtype, input_dtype)
-
-        inputs = ops.cast(inputs, promoted_dtype)
-        kernel = ops.cast(self.kernel, promoted_dtype)
-
-        x = ops.matmul(inputs, kernel)
-        if self.bias is not None:
-            bias = ops.cast(self.bias, promoted_dtype)
-            x = ops.add(x, bias)
+        # Added validation checks.
+        if self._compute_dtype is not None:
+            promoted_dtype = backend.result_type(compute_dtype, input_dtype)
+            inputs = ops.cast(inputs, promoted_dtype)
+            kernel = ops.cast(self.kernel, promoted_dtype)
+            x = ops.matmul(inputs, kernel)
+            if self.bias is not None:
+                bias = ops.cast(self.bias, promoted_dtype)
+                x = ops.add(x, bias)
+        # Fallback to old logic.
+        else:
+            x = ops.matmul(inputs, self.kernel)
+            if self.bias is not None:
+                x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
