@@ -500,7 +500,7 @@ def update_confusion_matrix_variables(
             )
         thresh_label_tile = ops.where(one_thresh, num_labels, 1)
     else:
-        pred_shape = y_pred.shape
+        pred_shape = ops.shape(y_pred)
         num_predictions = pred_shape[0]
         if len(y_pred.shape) == 1:
             num_labels = 1

@@ -166,7 +166,7 @@ def np_depthwise_conv2d(
     return out
 
 
-class DepthwiseConvBasicTest(testing.TestCase, parameterized.TestCase):
+class DepthwiseConvBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
             "depth_multiplier": 5,
@@ -336,7 +336,7 @@ class DepthwiseConvBasicTest(testing.TestCase, parameterized.TestCase):
             )
 
 
-class DepthwiseConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
+class DepthwiseConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {
             "depth_multiplier": 5,

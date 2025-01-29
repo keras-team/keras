@@ -98,7 +98,7 @@ def clone_model(
             config["seed"] = 1337
         return layer.__class__.from_config(config)
 
-    new_model = clone_model(model)
+    new_model = clone_model(model, clone_function=clone_function)
     ```
 
     Using a `call_function` to add a `Dropout` layer after each `Dense` layer
@@ -228,7 +228,7 @@ def _wrap_clone_function(
             return cache[id(layer)]
         if recursive:
             if isinstance(layer, Sequential):
-                # Note: Sequential doens't support call_function.
+                # Note: Sequential doesn't support call_function.
                 clone = clone_model(
                     layer,
                     clone_function=clone_function,
@@ -298,7 +298,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
         input_dtype = None
         input_batch_shape = None
 
-    if input_tensors:
+    if input_tensors is not None:
         if isinstance(input_tensors, (list, tuple)):
             if len(input_tensors) != 1:
                 raise ValueError(
@@ -310,12 +310,14 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
                 "Argument `input_tensors` must be a KerasTensor. "
                 f"Received invalid value: input_tensors={input_tensors}"
             )
-        inputs = Input(tensor=input_tensors, name=input_name)
+        inputs = Input(
+            tensor=input_tensors,
+            name=input_name,
+        )
         new_layers = [inputs] + new_layers
     else:
         if input_batch_shape is not None:
             inputs = Input(
-                tensor=input_tensors,
                 batch_shape=input_batch_shape,
                 dtype=input_dtype,
                 name=input_name,
@@ -372,7 +374,7 @@ def _clone_functional_model(
             )
         try:
             tree.assert_same_structure(input_tensors, model.input)
-        except (ValueError, TypeError) as e:
+        except ValueError as e:
             raise ValueError(
                 "`input_tensors` must have the same structure as model.input"
                 f"\nReference structure: {model.input}"

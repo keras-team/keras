@@ -27,7 +27,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
     scaling to it. This loss scale is dynamically updated over time as follows:
     - On any train step, if a nonfinite gradient is encountered, the loss scale
       is halved, and the train step is skipped.
-    - If `dynamic_growth_steps` have ocurred since the last time the loss scale
+    - If `dynamic_growth_steps` have occurred since the last time the loss scale
       was updated, and no nonfinite gradients have occurred, the loss scale
       is doubled.
 
@@ -52,7 +52,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
     ):
         if not kwargs.pop("dynamic", True):
             raise ValueError(
-                "LossScaleOptimizer no longer suports `dynamic=False`. "
+                "LossScaleOptimizer no longer supports `dynamic=False`. "
                 "Instead, simply set `loss_scale_factor` directly on the "
                 "`inner_optimizer`."
             )
@@ -67,12 +67,14 @@ class LossScaleOptimizer(optimizer.Optimizer):
             shape=(),
             dtype="int",
             initializer=initializers.Zeros(),
+            aggregation="none",
             name="step_counter",
         )
         self.dynamic_scale = self.add_variable(
             shape=(),
             dtype="float32",
             initializer=initializers.Constant(self.initial_scale),
+            aggregation="none",
             name="dynamic_scale",
         )
         self.inner_optimizer.build(var_list)

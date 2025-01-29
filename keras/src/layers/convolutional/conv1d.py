@@ -63,12 +63,14 @@ class Conv1D(BaseConv):
             bias after being updated by an `Optimizer`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         A 3D tensor with shape: `(batch_shape, steps, channels)`
     - If `data_format="channels_first"`:
         A 3D tensor with shape: `(batch_shape, channels, steps)`
 
     Output shape:
+
     - If `data_format="channels_last"`:
         A 3D tensor with shape: `(batch_shape, new_steps, filters)`
     - If `data_format="channels_first"`:
@@ -108,7 +110,7 @@ class Conv1D(BaseConv):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=1,
@@ -128,7 +130,7 @@ class Conv1D(BaseConv):
             activity_regularizer=activity_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
-            **kwargs
+            **kwargs,
         )
 
     def _compute_causal_padding(self):
@@ -161,7 +163,7 @@ class Conv1D(BaseConv):
             else:
                 bias_shape = (1, self.filters) + (1,) * self.rank
             bias = ops.reshape(self.bias, bias_shape)
-            outputs += bias
+            outputs = ops.add(outputs, bias)
 
         if self.activation is not None:
             return self.activation(outputs)

@@ -40,6 +40,10 @@ def _ref_hard_sigmoid(x):
     return z
 
 
+def _ref_log_sigmoid(x):
+    return -1 * _ref_softplus(-x)
+
+
 def _ref_hard_silu(x):
     return x * np.minimum(np.maximum(0.0, x + 3.0), 6.0) * (1.0 / 6.0)
 
@@ -337,6 +341,45 @@ class ActivationsTest(testing.TestCase):
             result_positive_above_1, expected_positive_above_1, rtol=1e-05
         )
 
+    def test_log_sigmoid(self):
+        # Basic test for random values between 0 and 1
+        x = np.random.uniform(0, 1, (2, 5))
+        result = activations.log_sigmoid(x[np.newaxis, :])[0]
+        expected = np.vectorize(_ref_log_sigmoid)(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        # Test with 1D array
+        x_1d = np.random.uniform(-10, 10, 5)
+        result_1d = activations.log_sigmoid(x_1d)
+        expected_1d = np.vectorize(_ref_log_sigmoid)(x_1d)
+        self.assertAllClose(result_1d, expected_1d, rtol=1e-05)
+
+        # Test with 3D array
+        x_3d = np.random.uniform(-10, 10, (3, 3, 3))
+        result_3d = activations.log_sigmoid(x_3d)
+        expected_3d = np.vectorize(_ref_log_sigmoid)(x_3d)
+        self.assertAllClose(result_3d, expected_3d, rtol=1e-05)
+
+        # Test large positive values
+        x_large_positive = np.random.uniform(10, 100, (2, 5))
+        result_large_positive = activations.log_sigmoid(x_large_positive)
+        expected_large_positive = np.vectorize(_ref_log_sigmoid)(
+            x_large_positive
+        )
+        self.assertAllClose(
+            result_large_positive, expected_large_positive, rtol=1e-05
+        )
+
+        # Test large negative values
+        x_large_negative = np.random.uniform(-100, -10, (2, 5))
+        result_large_negative = activations.log_sigmoid(x_large_negative)
+        expected_large_negative = np.vectorize(_ref_log_sigmoid)(
+            x_large_negative
+        )
+        self.assertAllClose(
+            result_large_negative, expected_large_negative, rtol=1e-05
+        )
+
     def test_hard_silu(self):
         # Basic test for random values between -3 and 3
         x = np.random.uniform(-3, 3, (2, 5)).astype("float32")
@@ -582,6 +625,111 @@ class ActivationsTest(testing.TestCase):
         expected = gelu(x, True)
         self.assertAllClose(result, expected, rtol=1e-05)
 
+    def test_celu(self):
+        def celu(x, alpha=1.0):
+            return np.maximum(x, 0.0) + alpha * np.expm1(
+                np.minimum(x, 0.0) / alpha
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.celu(x[np.newaxis, :])[0]
+        expected = celu(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        x = np.random.random((2, 5))
+        result = activations.celu(x[np.newaxis, :], alpha=0.5)[0]
+        expected = celu(x, alpha=0.5)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_glu(self):
+        def glu(x, axis=-1):
+            x1, x2 = np.split(x, 2, axis)
+            return x1 * (1 / (1 + np.exp(-x2)))
+
+        x = np.random.random((2, 4))
+        result = activations.glu(x[np.newaxis, :])[0]
+        expected = glu(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        x = np.random.random((2, 4))
+        result = activations.glu(x[np.newaxis, :], axis=-2)[0]
+        expected = glu(x, axis=-2)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_tanh_shrink(self):
+        def tanh_shrink(x):
+            return x - np.tanh(x)
+
+        x = np.random.random((2, 5))
+        result = activations.tanh_shrink(x[np.newaxis, :])[0]
+        expected = tanh_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_hard_tanh(self):
+        def hard_tanh(x):
+            return np.clip(x, -1.0, 1.0)
+
+        x = np.random.random((2, 5))
+        result = activations.hard_tanh(x[np.newaxis, :])[0]
+        expected = hard_tanh(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_hard_shrink(self):
+        def hard_shrink(x):
+            return np.where(np.abs(x) > 0.5, x, 0.0)
+
+        x = np.random.random((2, 5))
+        result = activations.hard_shrink(x[np.newaxis, :])[0]
+        expected = hard_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_threshold(self):
+        def threshold(x, threshold_value, value):
+            return np.where(
+                x > threshold_value, x, np.array(value, dtype=x.dtype)
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.threshold(x[np.newaxis, :], 0, 0)[0]
+        expected = threshold(x, 0, 0)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_squareplus(self):
+        def squareplus(x, b=4):
+            y = x + np.sqrt(x**2 + b)
+            return y / 2
+
+        x = np.random.random((2, 5))
+        result = activations.squareplus(x[np.newaxis, :])[0]
+        expected = squareplus(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_soft_shrink(self):
+        def soft_shrink(x, threshold=0.5):
+            return np.where(
+                x > threshold,
+                x - threshold,
+                np.where(x < -threshold, x + threshold, 0.0),
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.soft_shrink(x[np.newaxis, :])[0]
+        expected = soft_shrink(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_sparse_plus(self):
+        def sparse_plus(x):
+            return np.where(
+                x <= -1,
+                np.zeros_like(x),
+                np.where(x < 1, (1 / 4) * (x + 1) ** 2, x),
+            )
+
+        x = np.random.random((2, 5))
+        result = activations.sparse_plus(x[np.newaxis, :])[0]
+        expected = sparse_plus(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
     def test_elu(self):
         x = np.random.random((2, 5))
         result = activations.elu(x[np.newaxis, :])[0]
@@ -758,6 +906,55 @@ class ActivationsTest(testing.TestCase):
         # Test with int32 data type
         x_int32 = np.random.randint(-10, 10, (10, 5)).astype(np.int32)
         self.assertAllClose(x_int32, activations.linear(x_int32))
+
+    def test_sparsemax(self):
+        # result check with 1d
+        x_1d = np.linspace(1, 12, num=12)
+        expected_result = np.zeros_like(x_1d)
+        expected_result[-1] = 1.0
+        self.assertAllClose(expected_result, activations.sparsemax(x_1d))
+
+        # result check with 2d
+        x_2d = np.linspace(1, 12, num=12).reshape(-1, 2)
+        expected_result = np.zeros_like(x_2d)
+        expected_result[:, -1] = 1.0
+        self.assertAllClose(expected_result, activations.sparsemax(x_2d))
+
+        # result check with 3d
+        x_3d = np.linspace(1, 12, num=12).reshape(-1, 1, 3)
+        expected_result = np.zeros_like(x_3d)
+        expected_result[:, :, -1] = 1.0
+        self.assertAllClose(expected_result, activations.sparsemax(x_3d))
+
+        # result check with axis=-2 with 2d input
+        x_2d = np.linspace(1, 12, num=12).reshape(-1, 2)
+        expected_result = np.zeros_like(x_2d)
+        expected_result[-1, :] = 1.0
+        self.assertAllClose(
+            expected_result, activations.sparsemax(x_2d, axis=-2)
+        )
+
+        # result check with axis=-2 with 3d input
+        x_3d = np.linspace(1, 12, num=12).reshape(-1, 1, 3)
+        expected_result = np.ones_like(x_3d)
+        self.assertAllClose(
+            expected_result, activations.sparsemax(x_3d, axis=-2)
+        )
+
+        # result check with axis=-3 with 3d input
+        x_3d = np.linspace(1, 12, num=12).reshape(-1, 1, 3)
+        expected_result = np.zeros_like(x_3d)
+        expected_result[-1, :, :] = 1.0
+        self.assertAllClose(
+            expected_result, activations.sparsemax(x_3d, axis=-3)
+        )
+
+        # result check with axis=-3 with 4d input
+        x_4d = np.linspace(1, 12, num=12).reshape(-1, 1, 1, 2)
+        expected_result = np.ones_like(x_4d)
+        self.assertAllClose(
+            expected_result, activations.sparsemax(x_4d, axis=-3)
+        )
 
     def test_get_method(self):
         obj = activations.get("relu")

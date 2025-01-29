@@ -59,7 +59,7 @@ class CSVLogger(Callback):
                 isinstance(k, collections.abc.Iterable)
                 and not is_zero_dim_ndarray
             ):
-                return f"\"[{', '.join(map(str, k))}]\""
+                return f'"[{", ".join(map(str, k))}]"'
             else:
                 return k
 

@@ -7,7 +7,7 @@ from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 
 
-class ReshapeTest(testing.TestCase, parameterized.TestCase):
+class ReshapeTest(testing.TestCase):
     @parameterized.named_parameters(
         [
             {"testcase_name": "dense", "sparse": False},

@@ -63,7 +63,7 @@ class RNN(Layer):
             merging bidirectional RNNs.
 
     Call arguments:
-        inputs: Input tensor.
+        sequences: A 3-D tensor with shape `(batch_size, timesteps, features)`.
         initial_state: List of initial state tensors to be passed to the first
             call of the cell.
         mask: Binary tensor of shape `[batch_size, timesteps]`
@@ -75,9 +75,6 @@ class RNN(Layer):
             training mode or in inference mode. This argument is passed
             to the cell when calling it.
             This is for use with cells that use dropout.
-
-    Input shape:
-        3-D tensor with shape `(batch_size, timesteps, features)`.
 
     Output shape:
 
@@ -106,16 +103,15 @@ class RNN(Layer):
 
     - Specify `stateful=True` in the layer constructor.
     - Specify a fixed batch size for your model, by passing
-    If sequential model:
-        `batch_input_shape=(...)` to the first layer in your model.
-    Else for functional model with 1 or more Input layers:
-        `batch_shape=(...)` to all the first layers in your model.
-    This is the expected shape of your inputs
-    *including the batch size*.
-    It should be a tuple of integers, e.g. `(32, 10, 100)`.
-    - Specify `shuffle=False` when calling `fit()`.
+        `batch_size=...` to the `Input` layer(s) of your model.
+        Remember to also specify the same `batch_size=...` when
+        calling `fit()`, or otherwise use a generator-like
+        data source like a `keras.utils.PyDataset` or a
+        `tf.data.Dataset`.
+    - Specify `shuffle=False` when calling `fit()`, since your
+        batches are expected to be temporally ordered.
 
-    To reset the states of your model, call `.reset_states()` on either
+    To reset the states of your model, call `.reset_state()` on either
     a specific layer, or on your entire model.
 
     Note on specifying the initial state of RNNs:
@@ -126,18 +122,18 @@ class RNN(Layer):
     the initial state of the RNN layer.
 
     You can specify the initial state of RNN layers numerically by
-    calling `reset_states` with the keyword argument `states`. The value of
+    calling `reset_state()` with the keyword argument `states`. The value of
     `states` should be a numpy array or list of numpy arrays representing
     the initial state of the RNN layer.
 
     Examples:
 
     ```python
-    from keras.src.layers import RNN
-    from keras.src import ops
+    from keras.layers import RNN
+    from keras import ops
 
     # First, let's define a RNN Cell, as a layer subclass.
-    class MinimalRNNCell(keras.layers.Layer):
+    class MinimalRNNCell(keras.Layer):
 
         def __init__(self, units, **kwargs):
             super().__init__(**kwargs)
@@ -428,9 +424,6 @@ class RNN(Layer):
             output = last_output
 
         if self.return_state:
-            if len(states) == 1:
-                state = states[0]
-                return output, state
             return output, *states
         return output
 

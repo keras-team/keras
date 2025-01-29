@@ -358,3 +358,74 @@ class AttentionTest(testing.TestCase):
             ),
             output.shape,
         )
+
+    def test_return_attention_scores_true(self):
+        """Test that the layer returns attention scores along with outputs."""
+        # Generate dummy input data
+        query = np.random.random((2, 8, 16)).astype(np.float32)
+        value = np.random.random((2, 4, 16)).astype(np.float32)
+
+        # Initialize the Attention layer
+        layer = layers.Attention()
+
+        # Call the layer with return_attention_scores=True
+        output, attention_scores = layer(
+            [query, value], return_attention_scores=True
+        )
+
+        # Check the shape of the outputs
+        self.assertEqual(output.shape, (2, 8, 16))  # Output shape
+        self.assertEqual(
+            attention_scores.shape, (2, 8, 4)
+        )  # Attention scores shape
+
+    def test_return_attention_scores_true_and_tuple(self):
+        """Test that the layer outputs are a tuple when
+        return_attention_scores=True."""
+        # Generate dummy input data
+        query = np.random.random((2, 8, 16)).astype(np.float32)
+        value = np.random.random((2, 4, 16)).astype(np.float32)
+
+        # Initialize the Attention layer
+        layer = layers.Attention()
+
+        # Call the layer with return_attention_scores=True
+        outputs = layer([query, value], return_attention_scores=True)
+
+        # Check that outputs is a tuple
+        self.assertIsInstance(
+            outputs, tuple, "Expected the outputs to be a tuple"
+        )
+
+    def test_return_attention_scores_true_tuple_then_unpack(self):
+        """Test that outputs can be unpacked correctly."""
+        # Generate dummy input data
+        query = np.random.random((2, 8, 16)).astype(np.float32)
+        value = np.random.random((2, 4, 16)).astype(np.float32)
+
+        # Initialize the Attention layer
+        layer = layers.Attention()
+
+        # Call the layer with return_attention_scores=True
+        outputs = layer([query, value], return_attention_scores=True)
+
+        # Unpack the outputs
+        output, attention_scores = outputs
+
+        # Check the shape of the unpacked outputs
+        self.assertEqual(output.shape, (2, 8, 16))  # Output shape
+        self.assertEqual(
+            attention_scores.shape, (2, 8, 4)
+        )  # Attention scores shape
+
+    def test_return_attention_scores_with_symbolic_tensors(self):
+        """Test to check outputs with symbolic tensors with
+        return_attention_scores = True"""
+        attention = layers.Attention()
+        x = layers.Input(shape=(3, 5))
+        y = layers.Input(shape=(4, 5))
+        output, attention_scores = attention(
+            [x, y], return_attention_scores=True
+        )
+        self.assertEqual(output.shape, (None, 3, 5))  # Output shape
+        self.assertEqual(attention_scores.shape, (None, 3, 4))

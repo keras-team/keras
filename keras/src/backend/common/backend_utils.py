@@ -4,7 +4,7 @@ import re
 import warnings
 
 
-def _convert_conv_tranpose_padding_args_from_keras_to_jax(
+def _convert_conv_transpose_padding_args_from_keras_to_jax(
     kernel_size, stride, dilation_rate, padding, output_padding
 ):
     """Convert the padding arguments from Keras to the ones used by JAX.
@@ -45,7 +45,7 @@ def _convert_conv_tranpose_padding_args_from_keras_to_jax(
     return left_pad, right_pad
 
 
-def _convert_conv_tranpose_padding_args_from_keras_to_torch(
+def _convert_conv_transpose_padding_args_from_keras_to_torch(
     kernel_size, stride, dilation_rate, padding, output_padding
 ):
     """Convert the padding arguments from Keras to the ones used by Torch.
@@ -134,7 +134,7 @@ def compute_conv_transpose_padding_args_for_jax(
         (
             pad_left,
             pad_right,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_jax(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_jax(
             kernel_size=kernel_spatial_shape[i],
             stride=strides_i,
             dilation_rate=dilation_rate_i,
@@ -174,7 +174,7 @@ def compute_conv_transpose_padding_args_for_torch(
         (
             torch_padding,
             torch_output_padding,
-        ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+        ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
             kernel_size=kernel_spatial_shape[i],
             stride=strides_i,
             dilation_rate=dilation_rate_i,
@@ -438,7 +438,7 @@ def _vectorize_parse_input_dimensions(
             f"expected {len(input_core_dims)}, got {len(args)}"
         )
     shapes = []
-    dim_sizes: dict[str, int] = {}
+    dim_sizes = {}
     for arg, core_dims in zip(args, input_core_dims):
         _vectorize_update_dim_sizes(
             dim_sizes, arg.shape, core_dims, is_input=True
@@ -593,3 +593,15 @@ def vectorize_impl(pyfunc, vmap_fn, *, excluded=None, signature=None):
             return ops.expand_dims(result, axis=dims_to_expand)
 
     return wrapped
+
+
+def slice_along_axis(x, start=0, stop=None, step=1, axis=0):
+    """Slice a Tensor along the given axis."""
+    # Ref: same util function defined in tfp.math.scan_associative
+    if axis >= 0:
+        slices = [slice(None)] * axis + [slice(start, stop, step)]
+    else:
+        slices = [Ellipsis, slice(start, stop, step)] + [slice(None)] * (
+            -1 - axis
+        )
+    return x[tuple(slices)]

@@ -8,18 +8,43 @@ from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
 
 
-class SegmentSum(Operation):
+def _segment_reduce_validation(data, segment_ids):
+    data_shape = data.shape
+    segment_ids_shape = segment_ids.shape
+    if len(segment_ids_shape) > 1:
+        raise ValueError(
+            "Argument `segment_ids` should be an 1-D vector, got shape: "
+            f"{len(segment_ids_shape)}. Consider either flatten input with "
+            "segment_ids.reshape((-1)) and "
+            "data.reshape((-1, ) + data.shape[len(segment_ids.shape):]) or "
+            "vectorize with vmap."
+        )
+    if (
+        segment_ids_shape[0] is not None
+        and data_shape[0] is not None
+        and segment_ids_shape[0] != data_shape[0]
+    ):
+        raise ValueError(
+            "Argument `segment_ids` and `data` should have same leading "
+            f"dimension. Got {segment_ids_shape} v.s. "
+            f"{data_shape}."
+        )
+
+
+class SegmentReduction(Operation):
     def __init__(self, num_segments=None, sorted=False):
         super().__init__()
         self.num_segments = num_segments
         self.sorted = sorted
 
-    def compute_output_spec(self, data, segment_ids):
-        num_segments = self.num_segments
-        output_shape = (num_segments,) + tuple(data.shape[1:])
+    def compute_output_spec(self, data, _):
+        output_shape = (self.num_segments,) + tuple(data.shape[1:])
         return KerasTensor(shape=output_shape, dtype=data.dtype)
 
+
+class SegmentSum(SegmentReduction):
     def call(self, data, segment_ids):
+        _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_sum(
             data,
             segment_ids,
@@ -34,13 +59,14 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
     Args:
         data: Input tensor.
-        segment_ids: A 1-D tensor containing segment indices for each
-            element in `data`.
+        segment_ids: A N-D tensor containing segment indices for each
+            element in `data`. Num dims for segment ids should be strictly
+            smaller or equal to number of dims in data.
         num_segments: An integer representing the total number of
             segments. If not specified, it is inferred from the maximum
             value in `segment_ids`.
         sorted: A boolean indicating whether `segment_ids` is sorted.
-            Defaults to`False`.
+            Defaults to `False`.
 
     Returns:
         A tensor containing the sum of segments, where each element
@@ -54,6 +80,7 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     >>> keras.ops.segment_sum(data, segment_ids,num_segments)
     array([3, 30, 300], dtype=int32)
     """
+    _segment_reduce_validation(data, segment_ids)
     if any_symbolic_tensors((data,)):
         return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
     return backend.math.segment_sum(
@@ -61,18 +88,9 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
-class SegmentMax(Operation):
-    def __init__(self, num_segments=None, sorted=False):
-        super().__init__()
-        self.num_segments = num_segments
-        self.sorted = sorted
-
-    def compute_output_spec(self, data, segment_ids):
-        num_segments = self.num_segments
-        output_shape = (num_segments,) + tuple(data.shape[1:])
-        return KerasTensor(shape=output_shape, dtype=data.dtype)
-
+class SegmentMax(SegmentReduction):
     def call(self, data, segment_ids):
+        _segment_reduce_validation(data, segment_ids)
         return backend.math.segment_max(
             data,
             segment_ids,
@@ -87,13 +105,13 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
     Args:
         data: Input tensor.
-        segment_ids: A 1-D tensor containing segment indices for each
-            element in `data`.
+        segment_ids: A N-D tensor containing segment indices for each
+            element in `data`. data.shape[:len(segment_ids.shape)] should match.
         num_segments: An integer representing the total number of
             segments. If not specified, it is inferred from the maximum
             value in `segment_ids`.
         sorted: A boolean indicating whether `segment_ids` is sorted.
-            Defaults to`False`.
+            Defaults to `False`.
 
     Returns:
         A tensor containing the max of segments, where each element
@@ -107,6 +125,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     >>> keras.ops.segment_max(data, segment_ids, num_segments)
     array([2, 20, 200], dtype=int32)
     """
+    _segment_reduce_validation(data, segment_ids)
     if any_symbolic_tensors((data,)):
         return SegmentMax(num_segments, sorted).symbolic_call(data, segment_ids)
     return backend.math.segment_max(
@@ -141,7 +160,7 @@ def top_k(x, k, sorted=True):
         x: Input tensor.
         k: An integer representing the number of top elements to retrieve.
         sorted: A boolean indicating whether to sort the output in
-        descending order. Defaults to`True`.
+        descending order. Defaults to `True`.
 
     Returns:
         A tuple containing two tensors. The first tensor contains the
@@ -225,9 +244,9 @@ def logsumexp(x, axis=None, keepdims=False):
         x: Input tensor.
         axis: An integer or a tuple of integers specifying the axis/axes
             along which to compute the sum. If `None`, the sum is computed
-            over all elements. Defaults to`None`.
+            over all elements. Defaults to `None`.
         keepdims: A boolean indicating whether to keep the dimensions of
-            the input tensor when computing the sum. Defaults to`False`.
+            the input tensor when computing the sum. Defaults to `False`.
 
     Returns:
         A tensor containing the logarithm of the sum of exponentials of
@@ -452,6 +471,81 @@ def fft2(x):
     if any_symbolic_tensors(x):
         return FFT2().symbolic_call(x)
     return backend.math.fft2(x)
+
+
+class IFFT2(Operation):
+    def __init__(self):
+        super().__init__()
+        self.axes = (-2, -1)
+
+    def compute_output_spec(self, x):
+        if not isinstance(x, (tuple, list)) or len(x) != 2:
+            raise ValueError(
+                "Input `x` should be a tuple of two tensors - real and "
+                f"imaginary. Received: x={x}"
+            )
+
+        real, imag = x
+        # Both real and imaginary parts should have the same shape.
+        if real.shape != imag.shape:
+            raise ValueError(
+                "Input `x` should be a tuple of two tensors - real and "
+                "imaginary. Both the real and imaginary parts should have the "
+                f"same shape. Received: x[0].shape = {real.shape}, "
+                f"x[1].shape = {imag.shape}"
+            )
+        # We are calculating 2D IFFT. Hence, rank >= 2.
+        if len(real.shape) < 2:
+            raise ValueError(
+                f"Input should have rank >= 2. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        # The axes along which we are calculating IFFT should be fully-defined.
+        m = real.shape[self.axes[0]]
+        n = real.shape[self.axes[1]]
+        if m is None or n is None:
+            raise ValueError(
+                f"Input should have its {self.axes} axes fully-defined. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        return (
+            KerasTensor(shape=real.shape, dtype=real.dtype),
+            KerasTensor(shape=imag.shape, dtype=imag.dtype),
+        )
+
+    def call(self, x):
+        return backend.math.ifft2(x)
+
+
+@keras_export("keras.ops.ifft2")
+def ifft2(x):
+    """Computes the 2D Inverse Fast Fourier Transform along the last two axes of
+        input.
+
+    Args:
+        x: Tuple of the real and imaginary parts of the input tensor. Both
+            tensors in the tuple should be of floating type.
+
+    Returns:
+        A tuple containing two tensors - the real and imaginary parts of the
+        output.
+
+    Example:
+
+    >>> x = (
+    ...     keras.ops.convert_to_tensor([[1., 2.], [2., 1.]]),
+    ...     keras.ops.convert_to_tensor([[0., 1.], [1., 0.]]),
+    ... )
+    >>> ifft2(x)
+    (array([[ 6.,  0.],
+        [ 0., -2.]], dtype=float32), array([[ 2.,  0.],
+        [ 0., -2.]], dtype=float32))
+    """
+    if any_symbolic_tensors(x):
+        return IFFT2().symbolic_call(x)
+    return backend.math.ifft2(x)
 
 
 class RFFT(Operation):
@@ -794,7 +888,7 @@ def istft(
         sequence_length: An integer representing the sequence length.
         sequence_stride: An integer representing the sequence hop size.
         fft_length: An integer representing the size of the FFT that produced
-            `stft`.
+            `stft`. Should be of type `int32`.
         length: An integer representing the output is clipped to exactly length.
             If not specified, no padding or clipping take place. Defaults to
             `None`.
@@ -924,3 +1018,29 @@ def erfinv(x):
         return Erfinv().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.erfinv(x)
+
+
+class Logdet(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.math.logdet(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape[:-2], dtype=x.dtype)
+
+
+@keras_export(["keras.ops.logdet"])
+def logdet(x):
+    """Computes log of the determinant of a hermitian positive definite matrix.
+
+    Args:
+        x: Input matrix. It must 2D and square.
+
+    Returns:
+        The natural log of the determinant of matrix.
+    """
+    if any_symbolic_tensors((x,)):
+        return Logdet().symbolic_call(x)
+    return backend.math.logdet(x)

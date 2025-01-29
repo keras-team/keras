@@ -109,8 +109,7 @@ section of the README.
 
 ## Code style
 
-Keras uses [Black](https://black.readthedocs.io/en/stable/) and
-[isort](https://pycqa.github.io/isort/) to format the code. Please refer to
+Keras uses [Ruff](https://docs.astral.sh/ruff/) to format the code. Please refer to
 [requirements-common.txt](https://github.com/keras-team/keras/blob/master/requirements-common.txt)
 for the required versions. Run the following command **at the root directory of
 the repo** to format your code.
@@ -163,11 +162,11 @@ We use [pytest](https://pytest.org/) to run the tests.
 
 ### Run a test file
 
-To run the tests in `keras/losses/losses_test.py`, use the following command
+To run the tests in `keras/src/losses/losses_test.py`, use the following command
 at the root directory of the repo.
 
 ```shell
-pytest keras/losses/losses_test.py
+pytest keras/src/losses/losses_test.py
 ```
 
 ### Run a single test case
@@ -175,13 +174,13 @@ pytest keras/losses/losses_test.py
 You can specify a single test class to run within a file.
 
 ```shell
-pytest keras/losses/losses_test.py::MeanSquaredErrorTest
+pytest keras/src/losses/losses_test.py::MeanSquaredErrorTest
 ```
 
 You can also specify a single test method to run within a class.
 
 ```shell
-pytest keras/losses/losses_test.py::MeanSquaredErrorTest::test_sample_weighted
+pytest keras/src/losses/losses_test.py::MeanSquaredErrorTest::test_sample_weighted
 ```
 
 ### Run all tests

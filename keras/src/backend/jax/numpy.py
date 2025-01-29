@@ -15,6 +15,21 @@ from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
 
 
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the specified plane."""
+    if array.ndim < 2:
+        raise ValueError(
+            f"Input array must have at least 2 dimensions. "
+            f"Received: array.ndim={array.ndim}"
+        )
+    if len(axes) != 2 or axes[0] == axes[1]:
+        raise ValueError(
+            f"Invalid axes: {axes}. Axes must be a tuple of "
+            "two different dimensions."
+        )
+    return jnp.rot90(array, k=k, axes=axes)
+
+
 @sparse.elementwise_binary_union(linear=True, use_sparsify=True)
 def add(x1, x2):
     x1 = convert_to_tensor(x1)
@@ -338,11 +353,31 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    return jnp.argmax(x, axis=axis, keepdims=keepdims)
+    if x.ndim == 0:
+        return jnp.argmax(x, axis=axis, keepdims=keepdims)
+    x_float = x.astype(jnp.float32)
+    is_negative_zero = (x_float == 0.0) & jnp.signbit(x_float)
+    x_adjusted = jnp.where(
+        is_negative_zero, -jnp.finfo(x_float.dtype).tiny, x_float
+    )
+    return jnp.argmax(x_adjusted, axis=axis, keepdims=keepdims)
 
 
 def argmin(x, axis=None, keepdims=False):
-    return jnp.argmin(x, axis=axis, keepdims=keepdims)
+    x_64 = jnp.asarray(x, dtype=jnp.float64)
+    if axis is not None:
+        min_mask = x_64 == jnp.min(x_64, axis=axis, keepdims=True)
+        indices = jnp.argmin(
+            jnp.where(min_mask, x_64, jnp.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    else:
+        min_mask = (x_64 < x_64.min()) | (
+            (x_64 == x_64.min()) & (jnp.signbit(x_64))
+        )
+        indices = jnp.argmin(
+            jnp.where(min_mask, x_64, jnp.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    return indices
 
 
 def argsort(x, axis=-1):
@@ -369,6 +404,53 @@ def average(x, axis=None, weights=None):
     return jnp.average(x, weights=weights, axis=axis)
 
 
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return jnp.invert(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return jnp.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def broadcast_to(x, shape):
     x = convert_to_tensor(x)
     return jnp.broadcast_to(x, shape)
@@ -381,7 +463,8 @@ def ceil(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    return cast(jnp.ceil(x), dtype)
+    x = cast(x, dtype)
+    return jnp.ceil(x)
 
 
 def clip(x, x_min, x_max):
@@ -477,6 +560,11 @@ def diag(x, k=0):
     return jnp.diag(x, k=k)
 
 
+def diagflat(x, k=0):
+    x = convert_to_tensor(x)
+    return jnp.diagflat(x, k=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     return jnp.diagonal(
@@ -525,6 +613,15 @@ def exp(x):
     return jnp.exp(x)
 
 
+@sparse.densifying_unary
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
+    return jnp.exp2(x)
+
+
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
     if isinstance(x, jax_sparse.BCOO):
@@ -558,7 +655,10 @@ def flip(x, axis=None):
 def floor(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
     return jnp.floor(x)
 
 
@@ -598,10 +698,10 @@ def imag(x):
     return jnp.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.isclose(x1, x2)
+    return jnp.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 @sparse.densifying_unary
@@ -839,6 +939,11 @@ def ravel(x):
     return jnp.ravel(x)
 
 
+def unravel_index(x, shape):
+    x = convert_to_tensor(x)
+    return jnp.unravel_index(x, shape)
+
+
 @sparse.elementwise_unary(linear=True)
 def real(x):
     x = convert_to_tensor(x)
@@ -872,6 +977,17 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     return jnp.roll(x, shift, axis=axis)
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    return jnp.searchsorted(sorted_sequence, values, side=side)
 
 
 @sparse.elementwise_unary(linear=False)
@@ -993,7 +1109,11 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = None
-    if standardize_dtype(x.dtype) == "bool":
+    # TODO: Remove the condition of uint8 and uint16 once we have jax>=0.4.27
+    # for both CPU & GPU environments.
+    # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to int32
+    # otherwise.
+    if standardize_dtype(x.dtype) in ("bool", "uint8", "uint16"):
         dtype = "int32"
     return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
@@ -1013,10 +1133,24 @@ def triu(x, k=0):
     return jnp.triu(x, k=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or "bool" == dtype:
+        return x
+    return jnp.trunc(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.vdot(x1, x2)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.inner(x1, x2)
 
 
 def vstack(xs):
@@ -1043,7 +1177,8 @@ def divide(x1, x2):
 def divide_no_nan(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.where(x2 == 0, 0, jnp.divide(x1, x2))
+    safe_x2 = jnp.where(x2 == 0, 1, x2)
+    return jnp.where(x2 == 0, 0, jnp.divide(x1, safe_x2))
 
 
 def true_divide(x1, x2):
@@ -1171,3 +1306,7 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     return jnp.argpartition(x, kth, axis)
+
+
+def histogram(x, bins, range):
+    return jnp.histogram(x, bins=bins, range=range)

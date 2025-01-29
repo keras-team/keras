@@ -31,6 +31,10 @@ class ModelCheckpointTest(testing.TestCase):
         h5py is None,
         reason="`h5py` is a required dependency for `ModelCheckpoint` tests.",
     )
+    @pytest.mark.skipif(
+        testing.jax_uses_gpu(),
+        reason="Mysterious core dump on CI after upgrading JAX",
+    )
     @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_options(self):
         def get_model():
@@ -397,7 +401,8 @@ class ModelCheckpointTest(testing.TestCase):
         self.assertTrue(os.path.exists(filepath))
         os.remove(filepath)
 
-        # Case 13: ModelCheckpoint doesnt save model if loss was minimum earlier
+        # Case 13: ModelCheckpoint doesn't save model if loss was minimum
+        # earlier
         mode = "min"
         monitor = "val_loss"
         initial_value_threshold = 0
@@ -422,7 +427,7 @@ class ModelCheckpointTest(testing.TestCase):
         )
         self.assertFalse(os.path.exists(filepath))
 
-        # Case 14: ModelCheckpoint doesnt save model if loss was min earlier in
+        # Case 14: ModelCheckpoint doesn't save model if loss was min earlier in
         # auto mode
         mode = "auto"
         monitor = "val_loss"

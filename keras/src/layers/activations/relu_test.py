@@ -17,6 +17,7 @@ class ReLUTest(testing.TestCase):
             },
             input_shape=(2, 3, 4),
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )
 
     def test_normal_relu_correctness(self):

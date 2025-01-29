@@ -25,4 +25,5 @@ class ActivityRegularizationTest(test_case.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=1,
             supports_masking=True,
+            assert_built_after_instantiation=True,
         )

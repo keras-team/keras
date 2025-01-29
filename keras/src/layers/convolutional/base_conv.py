@@ -250,7 +250,7 @@ class BaseConv(Layer):
             else:
                 bias_shape = (1, self.filters) + (1,) * self.rank
             bias = ops.reshape(self.bias, bias_shape)
-            outputs += bias
+            outputs = ops.add(outputs, bias)
 
         if self.activation is not None:
             return self.activation(outputs)
@@ -282,8 +282,7 @@ class BaseConv(Layer):
             )
         if self.lora_enabled:
             raise ValueError(
-                "lora is already enabled. "
-                "This can only be done once per layer."
+                "lora is already enabled. This can only be done once per layer."
             )
         self._tracker.unlock()
         self.lora_kernel_a = self.add_weight(

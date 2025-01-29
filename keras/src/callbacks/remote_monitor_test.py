@@ -3,6 +3,7 @@ from unittest import mock
 
 import numpy as np
 
+from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import callbacks
 from keras.src import layers
@@ -57,6 +58,9 @@ class TerminateOnNaNTest(testing.TestCase):
                 monitor.root + monitor.path, json=send, headers=monitor.headers
             )
 
+    @skip_if_backend(
+        "openvino", "openvino backend does not support `fit` method"
+    )
     def test_RemoteMonitorWithJsonPayload(self):
         if requests is None:
             self.skipTest("`requests` required to run this test")

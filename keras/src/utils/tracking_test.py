@@ -16,8 +16,8 @@ class TrackingTest(testing.TestCase):
                 ),
             }
         )
-        v1 = backend.Variable(1)
-        v2 = backend.Variable(2)
+        v1 = backend.Variable(1.0)
+        v2 = backend.Variable(2.0)
         lst = tracking.TrackedList([], tracker)
         lst.append(v1)
         lst.append(None)
@@ -67,8 +67,8 @@ class TrackingTest(testing.TestCase):
                 ),
             }
         )
-        v1 = backend.Variable(1)
-        v2 = backend.Variable(2)
+        v1 = backend.Variable(1.0)
+        v2 = backend.Variable(2.0)
         tup = (v1, v2)
         tup = tracker.track(tup)
         self.assertIsInstance(tup, tuple)
@@ -86,8 +86,8 @@ class TrackingTest(testing.TestCase):
                 ),
             }
         )
-        v1 = backend.Variable(1)
-        v2 = backend.Variable(2)
+        v1 = backend.Variable(1.0)
+        v2 = backend.Variable(2.0)
         nt = collections.namedtuple("NT", ["x", "y"])
         tup = nt(x=v1, y=v2)
         tup = tracker.track(tup)

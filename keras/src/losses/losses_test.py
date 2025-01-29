@@ -78,11 +78,28 @@ class MeanSquaredErrorTest(testing.TestCase):
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
         self.assertAlmostEqual(loss, 227.69998)
 
+    def test_mean_with_sample_weight_reduction(self):
+        mse_obj = losses.MeanSquaredError(reduction="mean_with_sample_weight")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(
+            loss, (110 / 3 * 1.2 + 187 / 3 * 3.4) / (1.2 + 3.4)
+        )
+
+    def test_dtype_arg(self):
+        mse_obj = losses.MeanSquaredError(dtype="bfloat16")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        loss = mse_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
 
 class MeanAbsoluteErrorTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            losses.MeanAbsoluteError(name="mymae")
+            losses.MeanAbsoluteError(name="myname")
         )
 
     def test_all_correct_unweighted(self):
@@ -146,6 +163,23 @@ class MeanAbsoluteErrorTest(testing.TestCase):
         loss = mae_obj(y_true, y_pred, sample_weight=2.3)
         self.assertAlmostEqual(loss, 25.29999)
 
+    def test_mean_with_sample_weight_reduction(self):
+        mae_obj = losses.MeanAbsoluteError(reduction="mean_with_sample_weight")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(
+            loss, (14 / 3 * 1.2 + 19 / 3 * 3.4) / (1.2 + 3.4)
+        )
+
+    def test_dtype_arg(self):
+        mae_obj = losses.MeanAbsoluteError(dtype="bfloat16")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        loss = mae_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
 
 class MeanAbsolutePercentageErrorTest(testing.TestCase):
     def test_config(self):
@@ -207,6 +241,23 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
         loss = mape_obj(y_true, y_pred, sample_weight=2.3)
         self.assertAlmostEqual(loss, [621.8518, 352.6666])
 
+    def test_mean_with_sample_weight_reduction(self):
+        mape_obj = losses.MeanAbsolutePercentageError(
+            reduction="mean_with_sample_weight"
+        )
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = mape_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 183.865)
+
+    def test_dtype_arg(self):
+        mape_obj = losses.MeanAbsolutePercentageError(dtype="bfloat16")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        loss = mape_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
 
 class MeanSquaredLogarithmicErrorTest(testing.TestCase):
     def test_config(self):
@@ -254,6 +305,23 @@ class MeanSquaredLogarithmicErrorTest(testing.TestCase):
         y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
         loss = msle_obj(y_true, y_pred, sample_weight=0)
         self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_mean_with_sample_weight_reduction(self):
+        msle_obj = losses.MeanSquaredLogarithmicError(
+            reduction="mean_with_sample_weight"
+        )
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        sample_weight = np.array([[1.2], [3.4]])
+        loss = msle_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 1.646)
+
+    def test_dtype_arg(self):
+        msle_obj = losses.MeanSquaredLogarithmicError(dtype="bfloat16")
+        y_true = np.array([[1, 9, 2], [-5, -2, 6]])
+        y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
+        loss = msle_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertDType(loss, "bfloat16")
 
 
 class HingeTest(testing.TestCase):
@@ -309,6 +377,13 @@ class HingeTest(testing.TestCase):
         loss = hinge_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(loss, 0.0)
 
+    def test_dtype_arg(self):
+        hinge_obj = losses.Hinge(dtype="bfloat16")
+        y_true = np.array([[0.0, 1.0], [0.0, 0.0]])
+        y_pred = np.array([[0.6, 0.4], [0.4, 0.6]])
+        loss = hinge_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
 
 class SquaredHingeTest(testing.TestCase):
     def test_unweighted(self):
@@ -363,6 +438,13 @@ class SquaredHingeTest(testing.TestCase):
         loss = hinge_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(loss, 0.0)
 
+    def test_dtype_arg(self):
+        hinge_obj = losses.SquaredHinge(dtype="bfloat16")
+        y_true = np.array([[0.0, 1.0], [0.0, 0.0]])
+        y_pred = np.array([[0.6, 0.4], [0.4, 0.6]])
+        loss = hinge_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
 
 class CategoricalHingeTest(testing.TestCase):
     def test_unweighted(self):
@@ -416,6 +498,13 @@ class CategoricalHingeTest(testing.TestCase):
         hinge_obj = losses.CategoricalHinge()
         loss = hinge_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(loss, 0.0)
+
+    def test_dtype_arg(self):
+        hinge_obj = losses.CategoricalHinge(dtype="bfloat16")
+        y_true = np.array([[0.0, 1.0], [0.0, 0.0]])
+        y_pred = np.array([[0.6, 0.4], [0.4, 0.6]])
+        loss = hinge_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class CosineSimilarityTest(testing.TestCase):
@@ -498,6 +587,12 @@ class CosineSimilarityTest(testing.TestCase):
         loss = cosine_obj(self.y_true, self.y_pred)
         expected_loss = -np.mean(self.expected_loss)
         self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_dtype_arg(self):
+        self.setup()
+        cosine_obj = losses.CosineSimilarity(dtype="bfloat16")
+        loss = cosine_obj(self.y_true, self.y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class HuberLossTest(testing.TestCase):
@@ -605,11 +700,11 @@ class HuberLossTest(testing.TestCase):
         )
         self.assertAlmostEqual(loss, actual_loss, 3)
 
-    def test_loss_with_non_default_dtype(self):
-        # Test case for GitHub issue:
-        # https://github.com/tensorflow/tensorflow/issues/39004
-        # TODO
-        pass
+    def test_dtype_arg(self):
+        self.setup()
+        h_obj = losses.Huber(dtype="bfloat16")
+        loss = h_obj(self.y_true, self.y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class LogCoshTest(testing.TestCase):
@@ -702,6 +797,12 @@ class LogCoshTest(testing.TestCase):
         )
         self.assertAlmostEqual(loss, 0.0, 3)
 
+    def test_dtype_arg(self):
+        self.setup()
+        logcosh_obj = losses.LogCosh(dtype="bfloat16")
+        loss = logcosh_obj(self.y_true, self.y_pred)
+        self.assertDType(loss, "bfloat16")
+
 
 class KLDivergenceTest(testing.TestCase):
     def setup(self):
@@ -782,6 +883,12 @@ class KLDivergenceTest(testing.TestCase):
         k_obj = losses.KLDivergence()
         loss = k_obj(self.y_true, self.y_pred, sample_weight=0)
         self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_dtype_arg(self):
+        self.setup()
+        k_obj = losses.KLDivergence(dtype="bfloat16")
+        loss = k_obj(self.y_true, self.y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class PoissonTest(testing.TestCase):
@@ -869,6 +976,12 @@ class PoissonTest(testing.TestCase):
         poisson_obj = losses.Poisson()
         loss = poisson_obj(self.y_true, self.y_pred, sample_weight=0)
         self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_dtype_arg(self):
+        self.setup()
+        poisson_obj = losses.Poisson(dtype="bfloat16")
+        loss = poisson_obj(self.y_true, self.y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class BinaryCrossentropyTest(testing.TestCase):
@@ -974,6 +1087,19 @@ class BinaryCrossentropyTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "must have the same shape"):
             cce_obj(y_true, y_pred)
 
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="Torch doesn't support bfloat16 for BinaryCrossentropy",
+    )
+    def test_dtype_arg(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="float32")
+        y_pred = np.array(
+            [[0.9, 0.1, 0.2], [0.3, 0.8, 0.1], [0.1, 0.2, 0.7]], dtype="float32"
+        )
+        bce_obj = losses.BinaryCrossentropy(dtype="bfloat16")
+        loss = bce_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
 
 class CategoricalCrossentropyTest(testing.TestCase):
     def test_config(self):
@@ -1055,7 +1181,7 @@ class CategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose((0.001822, 0.000459, 0.169846), loss, 3)
+        self.assertAllClose((0.001822, 0.000459, 0.169846), loss)
 
     def test_label_smoothing(self):
         logits = np.array([[100.0, -100.0, -100.0]])
@@ -1088,6 +1214,16 @@ class CategoricalCrossentropyTest(testing.TestCase):
         cce_obj = losses.CategoricalCrossentropy()
         with self.assertRaisesRegex(ValueError, "must have the same shape"):
             cce_obj(y_true, y_pred)
+
+    def test_dtype_arg(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="int64")
+        y_pred = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            dtype="float32",
+        )
+        cce_obj = losses.CategoricalCrossentropy(dtype="bfloat16")
+        loss = cce_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class SparseCategoricalCrossentropyTest(testing.TestCase):
@@ -1170,7 +1306,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose((0.001822, 0.000459, 0.169846), loss, 3)
+        self.assertAllClose((0.001822, 0.000459, 0.169846), loss)
 
     def test_ignore_class(self):
         y_true = np.array([[-1, 2]])
@@ -1179,7 +1315,25 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, ignore_class=-1, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose([[0.0, 1.48012]], loss, 3)
+        self.assertAllClose([[0.0, 1.480129]], loss)
+
+        y_true = np.array([[[-1], [2]]])
+        logits = np.array([[[0.854, 0.698, 0.598], [0.088, 0.86, 0.018]]])
+        cce_obj = losses.SparseCategoricalCrossentropy(
+            from_logits=True, ignore_class=-1, reduction=None
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAllClose([[0.0, 1.480129]], loss)
+
+    def test_dtype_arg(self):
+        y_true = np.array([[0], [1], [2]], dtype="int64")
+        y_pred = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            dtype="float32",
+        )
+        cce_obj = losses.SparseCategoricalCrossentropy(dtype="bfloat16")
+        loss = cce_obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class BinaryFocalCrossentropyTest(testing.TestCase):
@@ -1272,7 +1426,20 @@ class BinaryFocalCrossentropyTest(testing.TestCase):
             reduction=None,
         )
         loss = obj(y_true, y_pred)
-        self.assertAllClose(loss, (0.5155, 0.0205), 3)
+        self.assertAllClose(loss, (0.515547, 0.020513))
+
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="Torch doesn't support bfloat16 for BinaryFocalCrossentropy",
+    )
+    def test_dtype_arg(self):
+        y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape(
+            [2, 2]
+        )
+        obj = losses.BinaryFocalCrossentropy(dtype="bfloat16")
+        loss = obj(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
 
 
 class CategoricalFocalCrossentropyTest(testing.TestCase):
@@ -1358,7 +1525,6 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
         self.assertAllClose(
             (1.5096224e-09, 2.4136547e-11, 1.0360638e-03),
             loss,
-            3,
         )
 
     def test_label_smoothing(self):
@@ -1374,20 +1540,31 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
         expected_value = 0.06685
         self.assertAlmostEqual(loss, expected_value, 3)
 
+    def test_dtype_arg(self):
+        logits = np.array([[4.9, -0.5, 2.05]])
+        y_true = np.array([[1, 0, 0]])
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            from_logits=True, dtype="bfloat16"
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertDType(loss, "bfloat16")
+
 
 class CTCTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(losses.CTC(name="myctc"))
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy does not support CTC loss",
-    )
     def test_correctness(self):
         logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
         y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
         output = losses.CTC()(y_true, logits)
         self.assertAllClose(output, 2.448645)
+
+    def test_dtype_arg(self):
+        logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
+        y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
+        output = losses.CTC(dtype="bfloat16")(y_true, logits)
+        self.assertDType(output, "bfloat16")
 
 
 class DiceTest(testing.TestCase):
@@ -1409,6 +1586,22 @@ class DiceTest(testing.TestCase):
         )
         output = losses.Dice()(y_true, y_pred)
         self.assertAllClose(output, 0.77777773)
+
+    def test_binary_segmentation_with_axis(self):
+        y_true = np.array(
+            [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+        )
+        y_pred = np.array(
+            [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+        )
+        output = losses.Dice(axis=(1, 2, 3), reduction=None)(y_true, y_pred)
+        self.assertAllClose(output, [0.5, 0.75757575])
+
+    def test_dtype_arg(self):
+        y_true = np.array(([[1, 2], [1, 2]]))
+        y_pred = np.array(([[4, 1], [6, 1]]))
+        output = losses.Dice(dtype="bfloat16")(y_true, y_pred)
+        self.assertDType(output, "bfloat16")
 
 
 class TverskyTest(testing.TestCase):
@@ -1437,6 +1630,16 @@ class TverskyTest(testing.TestCase):
         output = losses.Tversky()(y_true, y_pred)
         self.assertAllClose(output, 0.77777773)
 
+    def test_binary_segmentation_with_axis(self):
+        y_true = np.array(
+            [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+        )
+        y_pred = np.array(
+            [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+        )
+        output = losses.Tversky(axis=(1, 2, 3), reduction=None)(y_true, y_pred)
+        self.assertAllClose(output, [0.5, 0.75757575])
+
     def test_binary_segmentation_custom_coefficients(self):
         y_true = np.array(
             ([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])
@@ -1446,3 +1649,117 @@ class TverskyTest(testing.TestCase):
         )
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
         self.assertAllClose(output, 0.7916667)
+
+    def test_binary_segmentation_custom_coefficients_with_axis(self):
+        y_true = np.array(
+            [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+        )
+        y_pred = np.array(
+            [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+        )
+        output = losses.Tversky(
+            alpha=0.2, beta=0.8, axis=(1, 2, 3), reduction=None
+        )(y_true, y_pred)
+        self.assertAllClose(output, [0.5, 0.7222222])
+
+    def test_dtype_arg(self):
+        y_true = np.array(([[1, 2], [1, 2]]))
+        y_pred = np.array(([[4, 1], [6, 1]]))
+        output = losses.Tversky(dtype="bfloat16")(y_true, y_pred)
+        self.assertDType(output, "bfloat16")
+
+
+class CircleTest(testing.TestCase):
+    def setup(self):
+        self.y_true = np.array([1, 1, 2, 2, 3])
+        self.y_pred = np.array(
+            [
+                [0.70014004, -0.42008403, 0.14002801, 0.56011203],
+                [0.17609018, 0.70436073, -0.52827054, 0.44022545],
+                [-0.34050261, 0.25537696, -0.68100522, 0.59587957],
+                [0.32163376, -0.75047877, 0.53605627, -0.21442251],
+                [0.51261459, -0.34174306, 0.17087153, 0.76892189],
+            ]
+        )
+        self.ref_labels = np.array([1, 1, 2, 2, 3, 4])
+        self.ref_embeddings = np.array(
+            [
+                [0.40824829, -0.54433105, 0.27216553, 0.68041382],
+                [0.76376261, 0.10910895, -0.54554473, 0.32732684],
+                [-0.74420841, 0.24806947, 0.49613894, -0.3721042],
+                [0.52981294, -0.13245324, 0.79471941, -0.26490647],
+                [0.54554473, -0.32732684, 0.10910895, 0.76376261],
+                [-0.27216553, 0.68041382, 0.40824829, -0.54433105],
+            ]
+        )
+
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.Circle(name="mycircle", gamma=80.0, margin=0.4)
+        )
+
+    def test_correctness(self):
+        self.setup()
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4)
+        loss = circle_loss(self.y_true, self.y_pred)
+        self.assertAlmostEqual(loss, 188.3883)
+
+        circle_loss = losses.Circle(gamma=256, margin=0.25)
+        loss = circle_loss(self.y_true, self.y_pred)
+        self.assertAlmostEqual(loss, 652.7617)
+
+        loss = losses.circle(
+            self.y_true,
+            self.y_pred,
+            ref_labels=self.ref_labels,
+            ref_embeddings=self.ref_embeddings,
+            gamma=80.0,
+            margin=0.4,
+            remove_diagonal=False,
+        )
+
+        self.assertAllClose(
+            loss, (61.5844, 94.3465, 276.9344, 90.9873, 48.8963)
+        )
+
+    def test_correctness_weighted(self):
+        self.setup()
+        sample_weight = np.array([2.0, 2.0, 1.0, 1.0, 0.5])
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4)
+        loss = circle_loss(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(loss, 244.91918)
+
+    def test_no_reduction(self):
+        self.setup()
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4, reduction=None)
+        loss = circle_loss(self.ref_labels, self.ref_embeddings)
+
+        self.assertAllClose(
+            loss, [82.9116, 36.7942, 92.4590, 52.6798, 0.0, 0.0]
+        )
+
+    def test_sum_reduction(self):
+        self.setup()
+        circle_loss = losses.Circle(gamma=80.0, margin=0.4, reduction="sum")
+        loss = circle_loss(self.ref_labels, self.ref_embeddings)
+
+        self.assertAlmostEqual(loss, 264.845)
+
+    def test_mean_with_sample_weight_reduction(self):
+        self.setup()
+        sample_weight = np.array([2.0, 2.0, 1.0, 1.0, 0.5])
+        circle_loss = losses.Circle(
+            gamma=80.0, margin=0.4, reduction="mean_with_sample_weight"
+        )
+        loss = circle_loss(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(loss, 163.27948)
+
+    def test_dtype_arg(self):
+        self.setup()
+        circle_loss = losses.Circle(dtype="bfloat16")
+        loss = circle_loss(self.y_true, self.y_pred)
+        self.assertDType(loss, "bfloat16")

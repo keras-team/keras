@@ -100,9 +100,9 @@ class Discretization(TFDataLayer):
 
         super().__init__(name=name, dtype=dtype)
 
-        if sparse and backend.backend() != "tensorflow":
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             raise ValueError(
-                "`sparse=True` can only be used with the " "TensorFlow backend."
+                f"`sparse=True` cannot be used with backend {backend.backend()}"
             )
         if sparse and output_mode == "int":
             raise ValueError(
@@ -226,16 +226,14 @@ class Discretization(TFDataLayer):
 
     def call(self, inputs):
         indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
-        outputs = numerical_utils.encode_categorical_inputs(
+        return numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
             dtype=self.compute_dtype,
+            sparse=self.sparse,
             backend_module=self.backend,
         )
-        if self.sparse:
-            return tf.sparse.from_dense(outputs)
-        return outputs
 
     def get_config(self):
         return {

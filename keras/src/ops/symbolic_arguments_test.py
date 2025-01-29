@@ -99,8 +99,7 @@ class SymbolicArgumentsTest(testing.TestCase):
 
         # Call the method to be tested
         result, _ = sym_args.fill_in(tensor_dict)
-
-        self.assertEqual(result, ((a, 2),))
+        self.assertEqual(result, ((None, 2),))
 
     # Testing fill in function for args and kwargs
     def test_fill_in(self):
@@ -115,9 +114,8 @@ class SymbolicArgumentsTest(testing.TestCase):
                 a,
                 b,
             ),
-            {1: c},
+            {"1": c},
         )
 
         (values, _) = sym_args.fill_in(dictionary)
-
-        self.assertEqual(values, ((3, b), {1: 2}))
+        self.assertEqual(values, ((3, None), {"1": 2}))

@@ -1,18 +1,27 @@
+import builtins
+import contextlib
+import functools
+import warnings
+
 import numpy as np
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_RAGGED_TENSORS = False
+IS_THREAD_SAFE = True
 
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = np.array(value, dtype=self._dtype)
+        self._value = value
 
     def _direct_assign(self, value):
         self._value = np.array(value, dtype=self._dtype)
@@ -25,9 +34,11 @@ class Variable(KerasVariable):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with numpy backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with numpy backend")
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):
@@ -82,14 +93,16 @@ def vectorized_map(function, elements):
 
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
-    with StatelessScope():
+    with StatelessScope(), SymbolicScope():
 
         def has_none_shape(x):
             if isinstance(x, KerasTensor):
                 return None in x.shape
             return False
 
-        none_in_shape = any(map(has_none_shape, tree.flatten((args, kwargs))))
+        none_in_shape = any(
+            builtins.map(has_none_shape, tree.flatten((args, kwargs)))
+        )
 
         def convert_keras_tensor_to_numpy(x, fill_value=None):
             if isinstance(x, KerasTensor):
@@ -138,6 +151,173 @@ def compute_output_spec(fn, *args, **kwargs):
 
         output_spec = tree.map_structure(convert_numpy_to_keras_tensor, outputs)
     return output_spec
+
+
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
+
+
+def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
+    # Ref: jax.lax.scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    if not isinstance(unroll, bool):
+        if not isinstance(unroll, int) or unroll < 1:
+            raise ValueError(
+                "`unroll` must be an positive integer or boolean. "
+                f"Received: unroll={unroll}"
+            )
+    if xs is None and length is None:
+        raise ValueError("Got no `xs` to scan over and `length` not provided.")
+
+    input_is_sequence = tree.is_nested(xs)
+    output_is_sequence = tree.is_nested(init)
+
+    def pack_input(x):
+        return tree.pack_sequence_as(xs, x) if input_is_sequence else x[0]
+
+    def pack_output(x):
+        return tree.pack_sequence_as(init, x) if output_is_sequence else x[0]
+
+    if xs is None:
+        xs_flat = []
+        n = int(length)
+    else:
+        xs_flat = tree.flatten(xs)
+        xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
+        n = int(length) if length is not None else shape(xs_flat[0])[0]
+
+    init_flat = tree.flatten(init)
+    init_flat = [convert_to_tensor(init) for init in init_flat]
+    init = pack_output(init_flat)
+    dummy_y = [np.zeros_like(init) for init in init_flat]
+
+    carry = init
+    ys = []
+    maybe_reversed = reversed if reverse else lambda x: x
+    for i in maybe_reversed(range(n)):
+        xs_slice = [x[i] for x in xs_flat]
+        packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
+        carry, y = f(carry, packed_xs)
+        ys.append(y if y is not None else dummy_y)
+    stacked_y = tree.map_structure(
+        lambda *ys: np.stack(ys), *maybe_reversed(ys)
+    )
+    return carry, stacked_y
+
+
+def associative_scan(f, elems, reverse=False, axis=0):
+    # Ref: jax.lax.associative_scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    elems_flat = tree.flatten(elems)
+    elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
+    if reverse:
+        elems_flat = [np.flip(elem, (axis,)) for elem in elems_flat]
+
+    def _combine(a_flat, b_flat):
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
+        c = f(a, b)
+        c_flat = tree.flatten(c)
+        return c_flat
+
+    num_elems = int(elems_flat[0].shape[axis])
+    if not all(int(elem.shape[axis]) == num_elems for elem in elems_flat[1:]):
+        raise ValueError(
+            "Array inputs to associative_scan must have the same "
+            "first dimension. (saw: {})".format(
+                [elem.shape for elem in elems_flat]
+            )
+        )
+
+    def _interleave(a, b, axis):
+        """Given two Tensors of static shape, interleave them along axis."""
+        assert (
+            a.shape[axis] == b.shape[axis] or a.shape[axis] == b.shape[axis] + 1
+        )
+
+        # we want to get a: [a1, a2], b: [b1, b2]
+        # to a: [a1, 0, a2, 0], b: [0, b1, 0, b2]
+        a_shape = list(a.shape)
+        a_shape[axis] = a.shape[axis] * 2 - 1
+
+        b_shape = list(b.shape)
+        b_shape[axis] = b.shape[axis] * 2 - 1
+
+        a_dil = np.zeros(a_shape)
+        np.copyto(slice_along_axis(a_dil, 0, None, 2, axis), a)
+        b_dil = np.zeros(b_shape)
+        np.copyto(slice_along_axis(b_dil, 0, None, 2, axis), b)
+
+        a_pad = [[0, 0] for _ in range(a.ndim)]
+        a_pad[axis][-1] = 1 if a.shape[axis] == b.shape[axis] else 0
+
+        b_pad = [[0, 0] for _ in range(b.ndim)]
+        b_pad[axis] = [1, 0] if a.shape[axis] == b.shape[axis] else [1, 1]
+
+        op = np.bitwise_or if a.dtype == np.bool_ else np.add
+        return op(
+            np.pad(a_dil, a_pad),
+            np.pad(b_dil, b_pad),
+        )
+
+    def _scan(elems):
+        num_elems = elems[0].shape[axis]
+        if num_elems < 2:
+            return elems
+
+        reduced_elems = _combine(
+            [
+                slice_along_axis(elem, 0, -1, step=2, axis=axis)
+                for elem in elems
+            ],
+            [
+                slice_along_axis(elem, 1, None, step=2, axis=axis)
+                for elem in elems
+            ],
+        )
+
+        odd_elems = _scan(reduced_elems)
+        if num_elems % 2 == 0:
+            even_elems = _combine(
+                [slice_along_axis(e, 0, -1, axis=axis) for e in odd_elems],
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
+            )
+        else:
+            even_elems = _combine(
+                odd_elems,
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
+            )
+
+        even_elems = [
+            np.concatenate(
+                [slice_along_axis(elem, 0, 1, axis=axis), result],
+                axis=axis,
+            )
+            for (elem, result) in zip(elems, even_elems)
+        ]
+        return list(
+            builtins.map(
+                functools.partial(_interleave, axis=axis), even_elems, odd_elems
+            )
+        )
+
+    scans = _scan(elems_flat)
+    if reverse:
+        scans = [np.flip(scanned, (axis,)) for scanned in scans]
+
+    return tree.pack_sequence_as(elems, scans)
 
 
 def scatter(indices, values, shape):
@@ -192,6 +372,12 @@ def slice_update(inputs, start_indices, updates):
     return inputs
 
 
+def switch(index, branches, *operands):
+    index = convert_to_tensor(index, "int32")
+    index = np.clip(index, 0, len(branches) - 1)
+    return branches[index](*operands)
+
+
 def while_loop(
     cond,
     body,
@@ -230,7 +416,30 @@ def unstack(x, num=None, axis=0):
     return [x[i] for i in range(x.shape[0])]
 
 
-def custom_gradient(fun):
-    raise NotImplementedError(
-        "`custom_gradient` is not supported with numpy backend"
-    )
+def random_seed_dtype():
+    return "uint32"
+
+
+class custom_gradient:
+    """Decorator for custom gradients.
+
+    Args:
+        fun: Forward pass function.
+    """
+
+    def __init__(self, fun):
+        warnings.warn(
+            "`custom_gradient` for the numpy backend acts as a pass-through to "
+            "support the forward pass. No gradient computation or modification "
+            "takes place."
+        )
+        self.fun = fun
+
+    def __call__(self, *args, **kwargs):
+        outputs, _ = self.fun(*args, **kwargs)
+        return outputs
+
+
+@contextlib.contextmanager
+def device_scope(device_name):
+    yield

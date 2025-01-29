@@ -1,6 +1,7 @@
 import builtins
 import math
 
+import numpy as np
 import torch
 
 from keras.src.backend import KerasTensor
@@ -22,6 +23,45 @@ TORCH_INT_TYPES = (
     torch.int32,
     torch.int64,
 )
+
+
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the specified plane using PyTorch.
+
+    Args:
+        array: Input tensor
+        k: Number of 90-degree rotations (default=1)
+        axes: Tuple of two axes that define the
+            plane of rotation (defaults to `(0, 1)`).
+
+    Returns:
+        Rotated tensor
+    """
+    array = convert_to_tensor(array)
+
+    if array.ndim < 2:
+        raise ValueError(
+            "Input array must have at least 2 dimensions. "
+            f"Received: array.ndim={array.ndim}"
+        )
+    if len(axes) != 2 or axes[0] == axes[1]:
+        raise ValueError(
+            f"Invalid axes: {axes}. Axes must be a tuple "
+            "of two different dimensions."
+        )
+
+    axes = tuple(axis if axis >= 0 else array.ndim + axis for axis in axes)
+
+    if not builtins.all(0 <= axis < array.ndim for axis in axes):
+        raise ValueError(
+            f"Invalid axes {axes} for tensor with {array.ndim} dimensions"
+        )
+
+    rotated = torch.rot90(array, k=k, dims=axes)
+    if isinstance(array, np.ndarray):
+        rotated = rotated.cpu().numpy()
+
+    return rotated
 
 
 def add(x1, x2):
@@ -410,6 +450,53 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     return cast(torch.bincount(x, weights, minlength), dtype)
 
 
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return torch.bitwise_not(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return torch.bitwise_right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def broadcast_to(x, shape):
     x = convert_to_tensor(x)
     return torch.broadcast_to(x, shape)
@@ -550,6 +637,11 @@ def diag(x, k=0):
     return torch.diag(x, diagonal=k)
 
 
+def diagflat(x, k=0):
+    x = convert_to_tensor(x)
+    return torch.diagflat(x, offset=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     return torch.diagonal(
@@ -607,6 +699,14 @@ def exp(x):
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
     return torch.exp(x)
+
+
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
+    return torch.exp2(x)
 
 
 def expand_dims(x, axis):
@@ -697,13 +797,13 @@ def imag(x):
     return torch.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
-    return torch.isclose(x1, x2)
+    return torch.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 def isfinite(x):
@@ -1007,7 +1107,7 @@ def ndim(x):
 
 def nonzero(x):
     x = convert_to_tensor(x)
-    return tuple(cast(indices, "int32") for indices in torch.nonzero(x).T)
+    return cast(torch.nonzero(x).T, "int32")
 
 
 def not_equal(x1, x2):
@@ -1153,6 +1253,12 @@ def ravel(x):
     return torch.ravel(x)
 
 
+def unravel_index(x, shape):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype)
+    return tuple(cast(idx, dtype) for idx in torch.unravel_index(x, shape))
+
+
 def real(x):
     if not isinstance(x, torch.Tensor):
         x = torch.from_numpy(x)  # needed for complex type conversion
@@ -1192,6 +1298,20 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
     return torch.roll(x, shift, dims=axis)
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_int32 = len(sorted_sequence) <= np.iinfo(np.int32).max
+    return torch.searchsorted(
+        sorted_sequence, values, side=side, out_int32=out_int32
+    )
 
 
 def sign(x):
@@ -1251,8 +1371,8 @@ def split(x, indices_or_sections, axis=0):
         dim=axis,
     )
     if dim == 0 and isinstance(indices_or_sections, int):
-        out = tuple(out[0].clone() for _ in range(indices_or_sections))
-    return out
+        out = [out[0].clone() for _ in range(indices_or_sections)]
+    return list(out)
 
 
 def stack(x, axis=0):
@@ -1359,6 +1479,8 @@ def round(x, decimals=0):
 def tile(x, repeats):
     if is_tensor(repeats):
         repeats = tuple(repeats.int().numpy())
+    if isinstance(repeats, int):
+        repeats = (repeats,)
     x = convert_to_tensor(x)
     return torch.tile(x, dims=repeats)
 
@@ -1392,6 +1514,13 @@ def triu(x, k=0):
     return torch.triu(x, diagonal=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        return x
+    return torch.trunc(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1406,6 +1535,20 @@ def vdot(x1, x2):
     x1 = cast(x1, compute_dtype)
     x2 = cast(x2, compute_dtype)
     return cast(torch.vdot(x1, x2), result_dtype)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, float)
+
+    if get_device() == "cpu" and compute_dtype == "float16":
+        compute_dtype = "float32"
+
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.inner(x1, x2), result_dtype)
 
 
 def vstack(xs):
@@ -1630,3 +1773,8 @@ def argpartition(x, kth, axis=-1):
     top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
     out = torch.cat([bottom_ind, top_ind], dim=x.dim() - 1)
     return cast(torch.transpose(out, -1, axis), "int32")
+
+
+def histogram(x, bins, range):
+    hist_result = torch.histogram(x, bins=bins, range=range)
+    return hist_result.hist, hist_result.bin_edges

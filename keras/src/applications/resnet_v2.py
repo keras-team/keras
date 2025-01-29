@@ -17,6 +17,7 @@ def ResNet50V2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="resnet50v2",
 ):
     """Instantiates the ResNet50V2 architecture."""
 
@@ -32,13 +33,14 @@ def ResNet50V2(
         stack_fn,
         True,
         True,
-        "resnet50v2",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
+        name=name,
+        weights_name="resnet50v2",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
         classifier_activation=classifier_activation,
     )
 
@@ -57,6 +59,7 @@ def ResNet101V2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="resnet101v2",
 ):
     """Instantiates the ResNet101V2 architecture."""
 
@@ -72,13 +75,14 @@ def ResNet101V2(
         stack_fn,
         True,
         True,
-        "resnet101v2",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
+        name=name,
+        weights_name="resnet101v2",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
         classifier_activation=classifier_activation,
     )
 
@@ -97,6 +101,7 @@ def ResNet152V2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="resnet152v2",
 ):
     """Instantiates the ResNet152V2 architecture."""
 
@@ -112,13 +117,14 @@ def ResNet152V2(
         stack_fn,
         True,
         True,
-        "resnet152v2",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
+        name=name,
+        weights_name="resnet152v2",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
         classifier_activation=classifier_activation,
     )
 
@@ -191,6 +197,7 @@ Args:
         `classifier_activation=None` to return the logits of the "top" layer.
         When loading pretrained weights, `classifier_activation` can only
         be `None` or `"softmax"`.
+    name: The name of the model (string).
 
 Returns:
     A Model instance.

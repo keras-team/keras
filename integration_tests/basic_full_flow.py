@@ -24,8 +24,8 @@ class MyModel(keras.Model):
         return self.dense3(x)
 
 
-@pytest.mark.requires_trainable_backend
 class BasicFlowTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_basic_fit(self):
         model = MyModel(hidden_dim=2, output_dim=1)
 
@@ -46,3 +46,9 @@ class BasicFlowTest(testing.TestCase):
         output_after_fit = model(x)
 
         self.assertNotAllClose(output_before_fit, output_after_fit)
+
+    def test_basic_fit_no_training(self):
+        model = MyModel(hidden_dim=2, output_dim=1)
+        x = np.random.random((128, 4))
+        model.predict(x)
+        model(x)

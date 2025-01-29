@@ -147,6 +147,55 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
             self.assertEqual(hist.epoch[-1], 4)
             self.assertEqual(int(model.layers[0].counter.value), 5 * 3)
 
+    # Checking if after interruption and weights corruption, previous model
+    # params and weights are loaded
+    @pytest.mark.requires_trainable_backend
+    def test_backup_corrupted(self):
+        temp_dir = self.get_temp_dir()
+        backup_dir = file_utils.join(temp_dir, "subdir")
+        self.assertFalse(file_utils.exists(backup_dir))
+
+        model = self.make_model()
+        self.assertEqual(int(model.layers[0].counter.value), 0)
+        cbk = callbacks.BackupAndRestore(
+            backup_dir=backup_dir, save_freq="epoch", double_checkpoint=True
+        )
+
+        x_train = np.random.random((10, 3))
+        y_train = np.random.random((10, 1))
+
+        try:
+            model.fit(
+                x_train,
+                y_train,
+                batch_size=4,
+                callbacks=[
+                    cbk,
+                    InterruptingCallback(steps_int=None, epoch_int=2),
+                ],
+                epochs=6,
+                verbose=0,
+            )
+        except RuntimeError:
+            self.assertEqual(cbk._current_epoch, 2)
+            self.assertTrue(file_utils.exists(backup_dir))
+            self.assertTrue(file_utils.exists(cbk._weights_path))
+            self.assertTrue(file_utils.exists(cbk._training_metadata_path))
+            self.assertTrue(file_utils.exists(cbk._prev_weights_path))
+            self.assertTrue(file_utils.exists(cbk._prev_training_metadata_path))
+            self.assertEqual(int(model.layers[0].counter.value), 6)
+
+            # Corruption weights
+            with file_utils.File(cbk._weights_path, "w") as f:
+                f.write("0")
+
+            hist = model.fit(
+                x_train, y_train, batch_size=4, callbacks=[cbk], epochs=5
+            )
+            self.assertEqual(cbk._current_epoch, 5)
+            self.assertEqual(hist.epoch[-1], 4)
+            self.assertEqual(int(model.layers[0].counter.value), 5 * 3)
+
     # Checking if after interruption, when model is deleted
     @pytest.mark.requires_trainable_backend
     def test_model_deleted_case_epoch(self):

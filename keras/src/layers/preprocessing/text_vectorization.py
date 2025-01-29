@@ -226,11 +226,11 @@ class TextVectorization(Layer):
             )
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse=True` can only be used with the " "TensorFlow backend."
+                "`sparse=True` can only be used with the TensorFlow backend."
             )
         if ragged and backend.backend() != "tensorflow":
             raise ValueError(
-                "`ragged=True` can only be used with the " "TensorFlow backend."
+                "`ragged=True` can only be used with the TensorFlow backend."
             )
 
         # 'standardize' must be one of
@@ -330,7 +330,7 @@ class TextVectorization(Layer):
         self._encoding = encoding
 
         # We save this hidden option to persist the fact
-        # that we have have a non-adaptable layer with a
+        # that we have a non-adaptable layer with a
         # manually set vocab.
         self._has_input_vocabulary = kwargs.pop(
             "has_input_vocabulary", (vocabulary is not None)
@@ -508,7 +508,7 @@ class TextVectorization(Layer):
         Args:
             vocabulary: Either an array or a string path to a text file.
                 If passing an array, can pass a tuple, list, 1D NumPy array,
-                or 1D tensor containing the vocbulary terms.
+                or 1D tensor containing the vocabulary terms.
                 If passing a file path, the file should contain one line
                 per term in the vocabulary.
             idf_weights: A tuple, list, 1D NumPy array, or 1D tensor of inverse

@@ -68,7 +68,7 @@ used before a patch is released.
 
 You may submit the report in the following ways:
 
-- send an email to fchollet@google.com; and/or
+- send an email to francois.chollet@gmail.com; and/or
 - send a [private vulnerability report](https://github.com/keras-team/keras/security/advisories/new)
 
 Please provide the following information in your report:

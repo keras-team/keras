@@ -700,7 +700,7 @@ class RecallTest(testing.TestCase):
         self.assertAlmostEqual(3, r_obj.false_negatives)
 
 
-class SensitivityAtSpecificityTest(testing.TestCase, parameterized.TestCase):
+class SensitivityAtSpecificityTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.SensitivityAtSpecificity(
             0.4,
@@ -788,7 +788,7 @@ class SensitivityAtSpecificityTest(testing.TestCase, parameterized.TestCase):
             metrics.SensitivityAtSpecificity(0.4, num_thresholds=-1)
 
 
-class SpecificityAtSensitivityTest(testing.TestCase, parameterized.TestCase):
+class SpecificityAtSensitivityTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.SpecificityAtSensitivity(
             0.4,
@@ -877,7 +877,7 @@ class SpecificityAtSensitivityTest(testing.TestCase, parameterized.TestCase):
             metrics.SpecificityAtSensitivity(0.4, num_thresholds=-1)
 
 
-class PrecisionAtRecallTest(testing.TestCase, parameterized.TestCase):
+class PrecisionAtRecallTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.PrecisionAtRecall(
             0.4, num_thresholds=100, class_id=12, name="precision_at_recall_1"
@@ -965,7 +965,7 @@ class PrecisionAtRecallTest(testing.TestCase, parameterized.TestCase):
             metrics.PrecisionAtRecall(0.4, num_thresholds=-1)
 
 
-class RecallAtPrecisionTest(testing.TestCase, parameterized.TestCase):
+class RecallAtPrecisionTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.RecallAtPrecision(
             0.4, num_thresholds=100, class_id=12, name="recall_at_precision_1"

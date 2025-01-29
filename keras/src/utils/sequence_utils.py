@@ -69,7 +69,7 @@ def pad_sequences(
         truncating: String, "pre" or "post" (optional, defaults to `"pre"`):
             remove values from sequences larger than
             `maxlen`, either at the beginning or at the end of the sequences.
-        value: Float or String, padding value. (Optional, defaults to 0.)
+        value: Float or String, padding value. (Optional, defaults to `0.`)
 
     Returns:
         NumPy array with shape `(len(sequences), maxlen)`
@@ -101,9 +101,9 @@ def pad_sequences(
         maxlen = np.max(lengths)
 
     is_dtype_str = np.issubdtype(dtype, np.str_) or np.issubdtype(
-        dtype, np.unicode_
+        dtype, np.str_
     )
-    if isinstance(value, str) and dtype != object and not is_dtype_str:
+    if isinstance(value, str) and dtype is not object and not is_dtype_str:
         raise ValueError(
             f"`dtype` {dtype} is not compatible with `value`'s type: "
             f"{type(value)}\nYou should set `dtype=object` for variable length "

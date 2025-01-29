@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as tnn
 
 from keras.src import backend
-from keras.src import tree
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_torch,
 )
@@ -35,6 +34,11 @@ def tanh(x):
     return tnn.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return tnn.tanhshrink(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
     return tnn.softplus(x)
@@ -45,9 +49,30 @@ def softsign(x):
     return tnn.softsign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return tnn.softshrink(x, lambd=threshold)
+
+
+def sparse_plus(x):
+    x = convert_to_tensor(x)
+    return torch.where(
+        x <= -1,
+        torch.zeros_like(x),
+        torch.where(x < 1, (1 / 4) * (x + 1) ** 2, x),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return tnn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b)
+    y = x + torch.sqrt(x**2 + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -86,6 +111,31 @@ def gelu(x, approximate=True):
     if approximate:
         return tnn.gelu(x, approximate="tanh")
     return tnn.gelu(x)
+
+
+def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    return tnn.celu(x, alpha=alpha)
+
+
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return tnn.glu(x, dim=axis)
+
+
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return tnn.hardtanh(x, min_val=-1.0, max_val=1.0)
+
+
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return tnn.hardshrink(x, lambd=threshold)
+
+
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return tnn.threshold(x, threshold=threshold, value=default_value)
 
 
 def softmax(x, axis=-1):
@@ -128,20 +178,52 @@ def log_softmax(x, axis=-1):
     return cast(output, dtype)
 
 
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted, _ = torch.sort(logits, dim=axis, descending=True)
+    logits_cumsum = torch.cumsum(logits_sorted, dim=axis)
+    r = torch.arange(
+        1, logits.size(axis) + 1, device=logits.device, dtype=logits.dtype
+    )
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.view(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = torch.sum(support, dim=axis, keepdim=True)
+    logits_cumsum_safe = torch.where(
+        support, logits_cumsum, torch.tensor(0.0, device=logits.device)
+    )
+    tau = (torch.sum(logits_cumsum_safe, dim=axis, keepdim=True) - 1) / k
+    output = torch.clamp(logits - tau, min=0.0)
+    return output
+
+
 def _compute_padding_length(
     input_length, kernel_length, stride, dilation_rate=1
 ):
-    """Compute padding length along one dimension."""
-    total_padding_length = (
-        dilation_rate * (kernel_length - 1) - (input_length - 1) % stride
-    )
-    left_padding = total_padding_length // 2
-    right_padding = (total_padding_length + 1) // 2
+    """Compute padding length along one dimension with support
+    for asymmetric padding."""
+    effective_k_size = (kernel_length - 1) * dilation_rate + 1
+    if stride == 1:
+        # total padding is kernel_size - 1
+        total_padding = effective_k_size - 1
+    else:
+        # calc. needed padding for case with stride involved
+        output_size = (input_length + stride - 1) // stride
+        total_padding = max(
+            0, (output_size - 1) * stride + effective_k_size - input_length
+        )
+
+    # divide padding evenly, with extra pixel going at the end if needed
+    left_padding = total_padding // 2
+    right_padding = total_padding - left_padding
     return (left_padding, right_padding)
 
 
 def _apply_same_padding(
-    inputs, kernel_size, strides, operation_type, dilation_rate=1
+    inputs, kernel_size, strides, data_format, operation_type, dilation_rate=1
 ):
     """Apply same padding to the input tensor.
 
@@ -158,50 +240,49 @@ def _apply_same_padding(
     """
     spatial_shape = inputs.shape[2:]
     num_spatial_dims = len(spatial_shape)
-    padding = ()
+    padding = []
+
+    if operation_type != "pooling":
+        dilation_rate = standardize_tuple(
+            dilation_rate, num_spatial_dims, "dilation_rate"
+        )
 
     for i in range(num_spatial_dims):
-        if operation_type == "pooling":
-            padding_size = _compute_padding_length(
-                spatial_shape[i], kernel_size[i], strides[i]
-            )
-            mode = "replicate"
-        else:
-            dilation_rate = standardize_tuple(
-                dilation_rate, num_spatial_dims, "dilation_rate"
-            )
-            padding_size = _compute_padding_length(
-                spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
-            )
-            mode = "constant"
-        padding = (padding_size,) + padding
+        dil = 1 if operation_type == "pooling" else dilation_rate[i]
+        pad = _compute_padding_length(
+            spatial_shape[i], kernel_size[i], strides[i], dil
+        )
+        padding.append(pad)
 
-    if all([left == right for left, right in padding]):
+    # convert padding to torch format
+    if all(left == right for left, right in padding):
         return inputs, [left for left, _ in padding]
 
-    flattened_padding = tuple(
-        value for left_and_right in padding for value in left_and_right
-    )
-    return tnn.pad(inputs, pad=flattened_padding, mode=mode), 0
+    # else, need to pad manually
+    flattened_padding = []
+    for pad in reversed(padding):
+        flattened_padding.extend(pad)
+
+    mode = "replicate" if operation_type == "pooling" else "constant"
+    return tnn.pad(inputs, pad=tuple(flattened_padding), mode=mode), 0
 
 
 def _transpose_spatial_inputs(inputs):
-    num_spatial_dims = inputs.ndim - 2
+    """Transpose inputs from channels_last to channels_first format."""
     # Torch pooling does not support `channels_last` format, so
     # we need to transpose to `channels_first` format.
-    if num_spatial_dims == 1:
-        inputs = torch.permute(inputs, (0, 2, 1))
-    elif num_spatial_dims == 2:
-        inputs = torch.permute(inputs, (0, 3, 1, 2))
-    elif num_spatial_dims == 3:
-        inputs = torch.permute(inputs, (0, 4, 1, 2, 3))
-    else:
-        raise ValueError(
-            "Inputs must have ndim=3, 4 or 5, "
-            "corresponding to 1D, 2D and 3D inputs. "
-            f"Received input shape: {inputs.shape}."
-        )
-    return inputs
+    ndim = inputs.ndim - 2
+    if ndim == 1:  # 1D case
+        return torch.permute(inputs, (0, 2, 1))
+    elif ndim == 2:  # 2D case
+        return torch.permute(inputs, (0, 3, 1, 2))
+    elif ndim == 3:  # 3D case
+        return torch.permute(inputs, (0, 4, 1, 2, 3))
+    raise ValueError(
+        "Inputs must have ndim=3, 4 or 5, "
+        "corresponding to 1D, 2D and 3D inputs. "
+        f"Received input shape: {inputs.shape}."
+    )
 
 
 def _transpose_spatial_outputs(outputs):
@@ -236,6 +317,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
+    """Fixed max pooling implementation."""
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
     pool_size = standardize_tuple(pool_size, num_spatial_dims, "pool_size")
@@ -252,7 +334,7 @@ def max_pool(
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
-            inputs, pool_size, strides, operation_type="pooling"
+            inputs, pool_size, strides, data_format, "pooling"
         )
     else:
         padding = 0
@@ -297,46 +379,42 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
+    """Fixed average pooling with correct padding calculation."""
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
     pool_size = standardize_tuple(pool_size, num_spatial_dims, "pool_size")
-    if strides is None:
-        strides = pool_size
-    else:
-        strides = standardize_tuple(strides, num_spatial_dims, "strides")
+    strides = (
+        pool_size
+        if strides is None
+        else standardize_tuple(strides, num_spatial_dims, "strides")
+    )
 
     data_format = backend.standardize_data_format(data_format)
+    orig_format = data_format
+
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
-    padding_value = 0
+
     if padding == "same":
-        spatial_shape = inputs.shape[2:]
-        num_spatial_dims = len(spatial_shape)
-        padding_value = []
-        uneven_padding = []
+        # Torch does not natively support `"same"` padding, we need to manually
+        # apply the right amount of padding to `inputs`.
+        inputs, padding = _apply_same_padding(
+            inputs,
+            pool_size,
+            strides,
+            "channels_first",  # we're in channels_first here
+            "pooling",
+        )
+    else:
+        padding = 0
 
-        for i in range(num_spatial_dims):
-            padding_size = _compute_padding_length(
-                spatial_shape[i], pool_size[i], strides[i]
-            )
-            # Torch only supports even padding on each dim, to replicate the
-            # behavior of "same" padding of `tf.keras` as much as possible,
-            # we need to pad evenly using the shorter padding.
-            padding_value.append(padding_size[0])
-            if padding_size[0] != padding_size[1]:
-                # Handle unequal padding.
-                # `torch.nn.pad` sets padding value in the reverse order.
-                uneven_padding = [0, 1] + uneven_padding
-        # Only call tnn.pad when needed.
-        if len(uneven_padding) > 0:
-            inputs = tnn.pad(inputs, uneven_padding)
-
+    # apply pooling
     if num_spatial_dims == 1:
         outputs = tnn.avg_pool1d(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     elif num_spatial_dims == 2:
@@ -344,7 +422,7 @@ def average_pool(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     elif num_spatial_dims == 3:
@@ -352,7 +430,7 @@ def average_pool(
             inputs,
             kernel_size=pool_size,
             stride=strides,
-            padding=padding_value,
+            padding=padding,
             count_include_pad=False,
         )
     else:
@@ -361,8 +439,10 @@ def average_pool(
             "corresponding to 1D, 2D and 3D inputs. "
             f"Received input shape: {inputs.shape}."
         )
-    if data_format == "channels_last":
+
+    if orig_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
+
     return outputs
 
 
@@ -374,6 +454,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
+    """Convolution with fixed group handling."""
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial_dims = inputs.ndim - 2
@@ -382,53 +463,59 @@ def conv(
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
-    # Transpose kernel from keras format to torch format.
+
     kernel = _transpose_conv_kernel(kernel)
-    if padding == "same" and any(d != 1 for d in tree.flatten(strides)):
-        # Torch does not support this case in conv2d().
-        # Manually pad the tensor.
+
+    # calc. groups snippet
+    in_channels = inputs.shape[1]
+    kernel_in_channels = kernel.shape[1]
+    if in_channels % kernel_in_channels != 0:
+        raise ValueError(
+            f"Input channels ({in_channels}) must be divisible by "
+            f"kernel input channels ({kernel_in_channels})"
+        )
+    groups = in_channels // kernel_in_channels
+
+    # handle padding
+    if padding == "same":
         inputs, padding = _apply_same_padding(
             inputs,
             kernel.shape[2:],
             strides,
-            operation_type="conv",
-            dilation_rate=dilation_rate,
+            data_format,
+            "conv",
+            dilation_rate,
         )
-    channels = inputs.shape[1]
-    kernel_in_channels = kernel.shape[1]
-    if channels % kernel_in_channels > 0:
-        raise ValueError(
-            "The number of input channels must be evenly divisible by "
-            f"kernel.shape[1]. Received: inputs.shape={inputs.shape}, "
-            f"kernel.shape={kernel.shape}"
-        )
-    groups = channels // kernel_in_channels
+    else:
+        padding = 0
+
+    # apply convolution
     if num_spatial_dims == 1:
         outputs = tnn.conv1d(
             inputs,
             kernel,
             stride=strides,
+            padding=padding,
             dilation=dilation_rate,
             groups=groups,
-            padding=padding,
         )
     elif num_spatial_dims == 2:
         outputs = tnn.conv2d(
             inputs,
             kernel,
             stride=strides,
+            padding=padding,
             dilation=dilation_rate,
             groups=groups,
-            padding=padding,
         )
     elif num_spatial_dims == 3:
         outputs = tnn.conv3d(
             inputs,
             kernel,
             stride=strides,
+            padding=padding,
             dilation=dilation_rate,
             groups=groups,
-            padding=padding,
         )
     else:
         raise ValueError(
@@ -562,13 +649,14 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     # Axis is the output axis. By default, PyTorch, outputs to last axis.
     # If axis is not last, change output to axis and shift remaining elements.
     x = convert_to_tensor(x, dtype=torch.long)
+    zero = convert_to_tensor(0, dtype=torch.long)
 
     # Torch one_hot does not natively handle negative values, so we add some
     # manual handling for negatives in the input to one_hot by using max(x, 0).
     # The output will have some invalid results, so we set them back to 0 using
     # `where` afterwards.
     output = tnn.one_hot(maximum(x, 0), num_classes)
-    output = where(expand_dims(x, axis=-1) >= 0, output, 0)
+    output = where(expand_dims(x, axis=-1) >= 0, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
     if axis != -1 and axis != dims:
@@ -756,7 +844,7 @@ def ctc_loss(
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
@@ -866,3 +954,126 @@ def psnr(x1, x2, max_val):
     mse = torch.mean((x1 - x2) ** 2)
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    if dtype == "float16":
+        val = 65500.0
+    else:
+        val = 3.38953e38
+    return convert_to_tensor(val * -0.7, dtype=dtype)
+
+
+def _can_use_flash_attention(
+    query, key, value, mask=None, is_causal=False, raise_error=False
+):
+    """Verify the availability of flash attention."""
+    try:
+        from torch.backends.cuda import SDPAParams
+        from torch.backends.cuda import can_use_flash_attention
+    except ImportError:
+        if raise_error:
+            raise ImportError(
+                "Flash attention is not supported in your current PyTorch "
+                "version. Please update it by following the official guide: "
+                "https://pytorch.org/get-started/locally/"
+            )
+        return False
+
+    try:
+        spda_params = SDPAParams(
+            query,
+            key,
+            value,
+            mask,
+            0.0,  # dropout_p
+            is_causal,
+            False,  # enable_gqa
+        )
+    except TypeError:
+        # The old function signature for the older version of PyTorch
+        spda_params = SDPAParams(
+            query,
+            key,
+            value,
+            mask,
+            0.0,  # dropout_p
+            is_causal,
+        )
+    if raise_error and can_use_flash_attention(spda_params, True) is False:
+        raise RuntimeError(
+            "Flash attention is not supported with the provided inputs. "
+            "Please check the warnings for more details."
+        )
+    return can_use_flash_attention(spda_params, False)
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+):
+    if bias is not None:
+        raise ValueError(
+            "torch's `dot_product_attention` doesn't support `bias`."
+        )
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
+    if mask is not None:
+        # Explicit set `is_causal` to `False` when `mask` is not `None`.
+        is_causal = False
+        mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
+
+    axis0, axis1 = 1, 2
+    query = torch.transpose(query, axis0, axis1)
+    key = torch.transpose(key, axis0, axis1)
+    value = torch.transpose(value, axis0, axis1)
+
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(
+            query, key, value, mask, is_causal
+        )
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(
+            query, key, value, mask, is_causal, raise_error=True
+        )
+    if flash_attention:
+        with torch.nn.attention.sdpa_kernel(
+            backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
+        ):
+            attention_output = torch.nn.functional.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=mask,
+                is_causal=is_causal,
+                scale=scale,
+            )
+    else:
+        if mask is not None:
+            mask = mask.contiguous()
+        attention_output = torch.nn.functional.scaled_dot_product_attention(
+            query.contiguous(),
+            key.contiguous(),
+            value.contiguous(),
+            attn_mask=mask,
+            is_causal=is_causal,
+            scale=scale,
+        )
+    return torch.transpose(attention_output, axis1, axis0)

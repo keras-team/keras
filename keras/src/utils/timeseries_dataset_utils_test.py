@@ -88,7 +88,7 @@ class TimeseriesDatasetTest(testing.TestCase):
         # results
         for x, _ in dataset.take(1):
             self.assertNotAllClose(x, first_seq)
-        # Check determism with same seed
+        # Check determinism with same seed
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
             data,
             targets,

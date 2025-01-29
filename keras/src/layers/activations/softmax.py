@@ -22,9 +22,10 @@ class Softmax(Layer):
     ```
 
     Example:
-    >>>softmax_layer = keras.layers.activations.Softmax()
-    >>>input = np.array([1.0, 2.0, 1.0])
-    >>>result = softmax_layer(input)
+    >>> softmax_layer = keras.layers.Softmax()
+    >>> input = np.array([1.0, 2.0, 1.0])
+    >>> result = softmax_layer(input)
+    >>> result
     [0.21194157, 0.5761169, 0.21194157]
 
 
@@ -44,8 +45,8 @@ class Softmax(Layer):
 
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
-        self.supports_masking = True
         self.axis = axis
+        self.supports_masking = True
         self.built = True
 
     def call(self, inputs, mask=None):

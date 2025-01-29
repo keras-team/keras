@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
@@ -9,6 +10,24 @@ from keras.src.utils.naming import auto_name
 @keras_export(["keras.Loss", "keras.losses.Loss"])
 class Loss(KerasSaveable):
     """Loss base class.
+
+    This is the class to subclass in order to create new custom losses.
+
+    Args:
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
 
     To be implemented by subclasses:
 
@@ -27,10 +46,15 @@ class Loss(KerasSaveable):
     def __init__(self, name=None, reduction="sum_over_batch_size", dtype=None):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
-        self.dtype = dtype or backend.floatx()
+        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
+        self._dtype = self._dtype_policy.compute_dtype
+
+    @property
+    def dtype(self):
+        return self._dtype
 
     def __call__(self, y_true, y_pred, sample_weight=None):
-        in_mask = getattr(y_pred, "_keras_mask", None)
+        in_mask = backend.get_keras_mask(y_pred)
 
         with ops.name_scope(self.name):
             y_pred = tree.map_structure(
@@ -41,7 +65,7 @@ class Loss(KerasSaveable):
             )
 
             losses = self.call(y_true, y_pred)
-            out_mask = getattr(losses, "_keras_mask", None)
+            out_mask = backend.get_keras_mask(losses)
 
             if in_mask is not None and out_mask is not None:
                 mask = in_mask & out_mask
@@ -75,7 +99,14 @@ class Loss(KerasSaveable):
 
 
 def standardize_reduction(reduction):
-    allowed = {"sum_over_batch_size", "sum", None, "none"}
+    allowed = {
+        "sum_over_batch_size",
+        "sum",
+        None,
+        "none",
+        "mean",
+        "mean_with_sample_weight",
+    }
     if reduction not in allowed:
         raise ValueError(
             "Invalid value for argument `reduction`. "
@@ -106,7 +137,7 @@ def squeeze_or_expand_to_same_rank(x1, x2, expand_rank_1=True):
     return x1, x2
 
 
-def reduce_values(values, reduction="sum_over_batch_size"):
+def reduce_values(values, sample_weight=None, reduction="sum_over_batch_size"):
     if (
         reduction is None
         or reduction == "none"
@@ -115,11 +146,18 @@ def reduce_values(values, reduction="sum_over_batch_size"):
     ):
         return values
     loss = ops.sum(values)
-    if reduction == "sum_over_batch_size":
-        loss /= ops.cast(
-            ops.prod(ops.convert_to_tensor(ops.shape(values), dtype="int32")),
-            loss.dtype,
-        )
+    if reduction in ("sum_over_batch_size", "mean", "mean_with_sample_weight"):
+        if reduction == "mean_with_sample_weight" and sample_weight is not None:
+            divisor = ops.cast(ops.sum(sample_weight), loss.dtype)
+        else:
+            divisor = ops.cast(
+                ops.prod(
+                    ops.convert_to_tensor(ops.shape(values), dtype="int32")
+                ),
+                loss.dtype,
+            )
+        loss = ops.divide_no_nan(loss, divisor)
+        loss = scale_loss_for_distribution(loss)
     return loss
 
 
@@ -152,7 +190,7 @@ def reduce_weighted_values(
         values = values * sample_weight
 
     # Apply reduction function to the individual weighted losses.
-    loss = reduce_values(values, reduction)
+    loss = reduce_values(values, sample_weight, reduction)
     return loss
 
 
@@ -160,7 +198,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
     """Applies any mask on predictions to sample weights."""
     if mask is not None:
         mask = ops.cast(mask, dtype=dtype)
-        if reduction == "sum_over_batch_size":
+        if reduction in ("mean", "sum_over_batch_size"):
             # Valid entries have weight `total/valid`, while invalid ones
             # have 0. When summed over batch, they will be reduced to:
             #
@@ -184,3 +222,35 @@ def apply_mask(sample_weight, mask, dtype, reduction):
         else:
             sample_weight = mask
     return sample_weight
+
+
+def scale_loss_for_distribution(value):
+    """Scales the given value by the number of replicas in the strategy.
+
+    Currently, this function is only effective when using the tensorflow backend
+    and `tf.distribute`.
+    """
+    if backend.backend() == "tensorflow":
+        import tensorflow as tf
+
+        num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+        if num_replicas > 1:
+            value = ops.multiply(
+                value, ops.cast(1.0 / num_replicas, value.dtype)
+            )
+    return value
+
+
+def unscale_loss_for_distribution(value):
+    """Unscales the given value by the number of replicas in the strategy.
+
+    Currently, this function is only effective when using the tensorflow backend
+    and `tf.distribute`.
+    """
+    if backend.backend() == "tensorflow":
+        import tensorflow as tf
+
+        num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+        if num_replicas > 1:
+            value = ops.multiply(value, ops.cast(num_replicas, value.dtype))
+    return value

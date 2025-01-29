@@ -14,8 +14,8 @@ class Initializer:
         # containing values drawn from a distribution of your choice.
     ```
 
-    Optionally, you an also implement the method `get_config()` and the class
-    method `from_config` in order to support serialization -- just like with
+    Optionally, you can also implement the method `get_config()` and the class
+    method `from_config` in order to support serialization, just like with
     any Keras object.
 
     Here's a simple example: a random normal initializer.

@@ -3,6 +3,7 @@ from keras.src import layers
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras.src.saving import saving_lib
 from keras.src.saving import serialization_lib
 from keras.src.utils import backend_utils
@@ -277,12 +278,8 @@ class FeatureSpace(Layer):
 
     @classmethod
     def float(cls, name=None):
-        from keras.src.layers.core import identity
-
         name = name or auto_name("float")
-        preprocessor = identity.Identity(
-            dtype="float32", name=f"{name}_preprocessor"
-        )
+        preprocessor = TFDIdentity(dtype="float32", name=f"{name}_preprocessor")
         return Feature(
             dtype="float32", preprocessor=preprocessor, output_mode="float"
         )
@@ -493,6 +490,10 @@ class FeatureSpace(Layer):
             if isinstance(preprocessor, layers.Normalization):
                 if preprocessor.input_mean is not None:
                     continue
+            # Special case: a TextVectorization layer with provided vocabulary.
+            elif isinstance(preprocessor, layers.TextVectorization):
+                if preprocessor._has_input_vocabulary:
+                    continue
             if hasattr(preprocessor, "adapt"):
                 adaptable_preprocessors.append(name)
         return adaptable_preprocessors
@@ -516,8 +517,7 @@ class FeatureSpace(Layer):
             preprocessor = self.preprocessors[name]
             # TODO: consider adding an adapt progress bar.
             # Sample 1 element to check the rank
-            for x in feature_dataset.take(1):
-                pass
+            x = next(iter(feature_dataset))
             if len(x.shape) == 0:
                 # The dataset yields unbatched scalars; batch it.
                 feature_dataset = feature_dataset.batch(32)
@@ -667,7 +667,7 @@ class FeatureSpace(Layer):
                 output_dict[name] = feature
 
         if self.output_mode == "concat":
-            self.concat = layers.Concatenate(axis=-1)
+            self.concat = TFDConcat(axis=-1)
             return self.concat(features_to_concat)
         else:
             return output_dict
@@ -734,7 +734,10 @@ class FeatureSpace(Layer):
         if rebatched:
             if self.output_mode == "concat":
                 assert merged_data.shape[0] == 1
-                if backend.backend() != "tensorflow":
+                if (
+                    backend.backend() != "tensorflow"
+                    and not backend_utils.in_tf_graph()
+                ):
                     merged_data = backend.convert_to_numpy(merged_data)
                 merged_data = tf.squeeze(merged_data, axis=0)
             else:
@@ -796,3 +799,17 @@ class FeatureSpace(Layer):
 
     def load_own_variables(self, store):
         return
+
+
+class TFDConcat(TFDataLayer):
+    def __init__(self, axis, **kwargs):
+        super().__init__(**kwargs)
+        self.axis = axis
+
+    def call(self, xs):
+        return self.backend.numpy.concatenate(xs, axis=self.axis)
+
+
+class TFDIdentity(TFDataLayer):
+    def call(self, x):
+        return x

@@ -79,7 +79,7 @@ def hashing_trick(
 
 
 @keras_export("keras._legacy.preprocessing.text.Tokenizer")
-class Tokenizer(object):
+class Tokenizer:
     """DEPRECATED."""
 
     def __init__(
@@ -91,7 +91,7 @@ class Tokenizer(object):
         char_level=False,
         oov_token=None,
         analyzer=None,
-        **kwargs
+        **kwargs,
     ):
         # Legacy support
         if "nb_words" in kwargs:

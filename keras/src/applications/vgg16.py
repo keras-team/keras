@@ -26,6 +26,7 @@ def VGG16(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="vgg16",
 ):
     """Instantiates the VGG16 model.
 
@@ -86,9 +87,10 @@ def VGG16(
             `classifier_activation=None` to return the logits of the "top"
             layer.  When loading pretrained weights, `classifier_activation`
             can only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
-        A model instance.
+        A `Model` instance.
     """
     if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
@@ -201,7 +203,7 @@ def VGG16(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name="vgg16")
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":

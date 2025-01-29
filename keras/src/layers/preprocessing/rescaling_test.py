@@ -72,8 +72,7 @@ class RescalingTest(testing.TestCase):
         layer = layers.Rescaling(scale=1.0 / 255, offset=0.5)
         x = np.random.random((3, 10, 10, 3)) * 255
         ds = tf_data.Dataset.from_tensor_slices(x).batch(3).map(layer)
-        for output in ds.take(1):
-            output.numpy()
+        next(iter(ds)).numpy()
 
     def test_rescaling_with_channels_first_and_vector_scale(self):
         config = backend.image_data_format()
@@ -84,3 +83,21 @@ class RescalingTest(testing.TestCase):
         x = np.random.random((2, 3, 10, 10)) * 255
         layer(x)
         backend.set_image_data_format(config)
+
+    @pytest.mark.requires_trainable_backend
+    def test_numpy_args(self):
+        # https://github.com/keras-team/keras/issues/20072
+        self.run_layer_test(
+            layers.Rescaling,
+            init_kwargs={
+                "scale": np.array(1.0 / 255.0),
+                "offset": np.array(0.5),
+            },
+            input_shape=(2, 3),
+            expected_output_shape=(2, 3),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+        )

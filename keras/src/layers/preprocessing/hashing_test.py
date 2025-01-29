@@ -23,7 +23,7 @@ class ArrayLike:
 @pytest.mark.skipif(
     backend.backend() == "numpy", reason="Broken with NumPy backend."
 )
-class HashingTest(testing.TestCase, parameterized.TestCase):
+class HashingTest(testing.TestCase):
     def test_config(self):
         layer = layers.Hashing(
             num_bins=8,
@@ -60,8 +60,7 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
         layer = layers.Hashing(num_bins=3)
         inp = [["A"], ["B"], ["C"], ["D"], ["E"]]
         ds = tf.data.Dataset.from_tensor_slices(inp).batch(5).map(layer)
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([[1], [0], [1], [1], [2]]))
 
     @parameterized.named_parameters(
@@ -269,7 +268,7 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
-        self.assertAllEqual(expected_output, output_data)
+        self.assertAllClose(expected_output, output_data)
 
     def test_multi_hot_output(self):
         input_array = np.array([[0, 1, 2, 3, 4]])
@@ -284,7 +283,7 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
-        self.assertAllEqual(expected_output, output_data)
+        self.assertAllClose(expected_output, output_data)
 
     @parameterized.named_parameters(
         (
@@ -306,6 +305,8 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
             symbolic_sample_shape = ()
         elif input_array.ndim == 2:
             symbolic_sample_shape = (None,)
+        else:
+            raise TypeError("Unknown `symbolic_sample_shape`")
         inputs = layers.Input(shape=symbolic_sample_shape, dtype="int32")
         layer = layers.Hashing(num_bins=3, output_mode="count")
         outputs = layer(inputs)

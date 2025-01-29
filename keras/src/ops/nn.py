@@ -174,6 +174,86 @@ def softsign(x):
     return backend.nn.softsign(x)
 
 
+class SoftShrink(Operation):
+    def __init__(self, threshold=0.5):
+        super().__init__()
+        self.threshold = threshold
+
+    def call(self, x):
+        return backend.nn.soft_shrink(x, self.threshold)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.soft_shrink", "keras.ops.nn.soft_shrink"])
+def soft_shrink(x, threshold=0.5):
+    """Soft Shrink activation function.
+
+    It is defined as
+
+    `f(x) = x - threshold` if `x > threshold`,
+    `f(x) = x + threshold` if `x < -threshold`,
+    `f(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_soft_shrink = keras.ops.soft_shrink(x)
+    >>> print(x_soft_shrink)
+    array([-0.5  0.   0.5], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return SoftShrink(threshold).symbolic_call(x)
+    return backend.nn.soft_shrink(x, threshold)
+
+
+class SparsePlus(Operation):
+    def call(self, x):
+        return backend.nn.sparse_plus(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.sparse_plus", "keras.ops.nn.sparse_plus"])
+def sparse_plus(x):
+    """SparsePlus activation function.
+
+    It is defined as
+
+    `f(x) = 0` for `x <= -1`.
+    `f(x) = (1/4) * (x + 1)^2` for `-1 < x < 1`.
+    `f(x) = x` for `x >= 1`.
+
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_sparse_plus = keras.ops.sparse_plus(x)
+    >>> print(x_sparse_plus)
+    Array([0.   0.25 1.  ], shape=(3,), dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return SparsePlus().symbolic_call(x)
+    return backend.nn.sparse_plus(x)
+
+
 class Silu(Operation):
     def call(self, x):
         return backend.nn.silu(x)
@@ -214,6 +294,46 @@ def silu(x):
     if any_symbolic_tensors((x,)):
         return Silu().symbolic_call(x)
     return backend.nn.silu(x)
+
+
+class Squareplus(Operation):
+    def __init__(self, b=4):
+        super().__init__()
+        self.b = b
+
+    def call(self, x):
+        return backend.nn.squareplus(x, self.b)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.squareplus", "keras.ops.nn.squareplus"])
+def squareplus(x, b=4):
+    """Squareplus activation function.
+
+    The Squareplus activation function is defined as:
+
+    `f(x) = (x + sqrt(x^2 + b)) / 2`
+
+    Args:
+        x: Input tensor.
+        b: Smoothness parameter. Defaults to 4.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0])
+    >>> x_squareplus = keras.ops.squareplus(x)
+    >>> print(x_squareplus)
+    array([0.6180, 1.0000, 1.6180], dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Squareplus(b).symbolic_call(x)
+    return backend.nn.squareplus(x, b)
 
 
 class LogSigmoid(Operation):
@@ -498,6 +618,248 @@ def gelu(x, approximate=True):
     return backend.nn.gelu(x, approximate)
 
 
+class Celu(Operation):
+    def __init__(self, alpha=1.0):
+        super().__init__()
+        self.alpha = alpha
+
+    def call(self, x):
+        return backend.nn.celu(x, self.alpha)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.celu", "keras.ops.nn.celu"])
+def celu(x, alpha=1.0):
+    """Continuously-differentiable exponential linear unit.
+
+    It is defined as:
+
+    `f(x) =  alpha * (exp(x / alpha) - 1) for x < 0`, `f(x) = x for x >= 0`.
+
+    Args:
+        x: Input tensor.
+        alpha: the α value for the CELU formulation. Defaults to `1.0`.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1.])
+    >>> x_celu = keras.ops.celu(x)
+    >>> print(x_celu)
+    array([-0.63212056, 0. , 1. ], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Celu(alpha).symbolic_call(x)
+    return backend.nn.celu(x, alpha)
+
+
+class Glu(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        return backend.nn.glu(x, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.glu", "keras.ops.nn.glu"])
+def glu(x, axis=-1):
+    """Gated Linear Unit (GLU) activation function.
+
+    It is defined as:
+
+    `f(x) = a * sigmoid(b)`
+    where `x` is split into `a` and `b` along the given axis.
+
+    Args:
+        x: Input tensor.
+        axis: The axis along which to split the input tensor. Defaults to `-1`.
+
+    Returns:
+        A tensor with the same shape as half of the input.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1. , 1.])
+    >>> x_glu = keras.ops.glu(x)
+    >>> print(x_glu)
+    array([-0.73105858, 0. ], shape=(2,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Glu(axis).symbolic_call(x)
+    return backend.nn.glu(x, axis=axis)
+
+
+class TanhShrink(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.nn.tanh_shrink(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.tanh_shrink", "keras.ops.nn.tanh_shrink"])
+def tanh_shrink(x):
+    """Applies the tanh shrink function element-wise.
+
+    It is defined as:
+
+    `f(x) = x - tanh(x)`.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of the same shape as `x`, where each element is
+        transformed according to the tanh shrink operation.
+
+    Example:
+
+    >>> x = np.array([ -1., 0., 1.])
+    >>> x_tanh_shrink = keras.ops.tanh_shrink(x)
+    >>> print(x_tanh_shrink)
+    array([-0.23840584  0.  0.23840584], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return TanhShrink().symbolic_call(x)
+    return backend.nn.tanh_shrink(x)
+
+
+class HardTanh(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def call(self, x):
+        return backend.nn.hard_tanh(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.hard_tanh", "keras.ops.nn.hard_tanh"])
+def hard_tanh(x):
+    """Applies the HardTanh function element-wise.
+
+    It is defined as:
+
+    `f(x) = -1 for x < -1`, `f(x) = x for -1 <= x <= 1`, `f(x) = 1 for x > 1`.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of same shape as `x`
+        where values are clamped between -1 and 1.
+
+    Example:
+
+    >>> x = np.array([-2., -1., 0., 1., 2.])
+    >>> x_hard_tanh = keras.ops.hard_tanh(x)
+    >>> print(x_hard_tanh)
+    array([-1. -1.  0.  1.  1.], shape=(5,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return HardTanh().symbolic_call(x)
+    return backend.nn.hard_tanh(x)
+
+
+class HardShrink(Operation):
+    def __init__(self, threshold=0.5):
+        super().__init__()
+        self.threshold = threshold
+
+    def call(self, x):
+        return backend.nn.hard_shrink(x, self.threshold)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.hard_shrink", "keras.ops.nn.hard_shrink"])
+def hard_shrink(x, threshold=0.5):
+    """Hard Shrink activation function.
+
+    The Hard Shrink function is a thresholding operation defined as:
+
+    `f(x) = x` if `|x| > threshold`,
+    `f(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-0.5, 0., 1.])
+    >>> x_hard_shrink = keras.ops.hard_shrink(x)
+    >>> print(x_hard_shrink)
+    array([0. 0. 1.], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return HardShrink(threshold).symbolic_call(x)
+    return backend.nn.hard_shrink(x, threshold)
+
+
+class Threshold(Operation):
+    def __init__(self, threshold_value, value):
+        super().__init__()
+        self.threshold_value = threshold_value
+        self.value = value
+
+    def call(self, x):
+        return backend.nn.threshold(x, self.threshold_value, self.value)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.threshold", "keras.ops.nn.threshold"])
+def threshold(x, threshold, default_value):
+    """Threshold activation function.
+
+    The function thresholds the input `x` as follows:
+    `f(x) = x` if `x > threshold`,
+    `f(x) = default_value` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: The value that decides when to retain or replace x.
+        default_value: Value to assign when `x <= threshold`.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1.0, 0.0, 1.0, 2.0])
+    >>> x_threshold = keras.ops.threshold(x, 1, 0)
+    >>> print(x_threshold)
+    array([0., 0., 0., 2.], shape=(4,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Threshold(threshold, default_value).symbolic_call(x)
+    return backend.nn.threshold(x, threshold, default_value)
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1):
         super().__init__()
@@ -552,23 +914,19 @@ def softmax(x, axis=-1):
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
     if isinstance(axis, tuple):
-        original_shape = x.shape
-        new_shape = []
-        skip_dims = set(axis)
-        i = 0
-        while i < len(original_shape):
-            if i in skip_dims:
-                size = 1
-                while i in skip_dims:
-                    size *= original_shape[i]
-                    i += 1
-                new_shape.append(size)
-            else:
-                new_shape.append(original_shape[i])
-                i += 1
-        x = backend.numpy.reshape(x, new_shape)
-        x = backend.nn.softmax(x, axis=-1)
-        x = backend.numpy.reshape(x, original_shape)
+        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
+
+        x_transposed = backend.numpy.transpose(x, axes=(*axis_to_keep, *axis))
+        x_reshaped = backend.numpy.reshape(
+            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
+        )
+
+        x = backend.nn.softmax(x_reshaped, axis=-1)
+
+        x = backend.numpy.reshape(x, x_transposed.shape)
+        x = backend.numpy.transpose(
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+        )
         return x
     else:
         return backend.nn.softmax(x, axis=axis)
@@ -617,26 +975,64 @@ def log_softmax(x, axis=-1):
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
     if isinstance(axis, tuple):
-        original_shape = x.shape
-        new_shape = []
-        skip_dims = set(axis)
-        i = 0
-        while i < len(original_shape):
-            if i in skip_dims:
-                size = 1
-                while i in skip_dims:
-                    size *= original_shape[i]
-                    i += 1
-                new_shape.append(size)
-            else:
-                new_shape.append(original_shape[i])
-                i += 1
-        x = backend.numpy.reshape(x, new_shape)
-        x = backend.nn.log_softmax(x, axis=-1)
-        x = backend.numpy.reshape(x, original_shape)
+        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
+
+        x_transposed = backend.numpy.transpose(x, axes=(*axis_to_keep, *axis))
+        x_reshaped = backend.numpy.reshape(
+            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
+        )
+
+        x = backend.nn.log_softmax(x_reshaped, axis=-1)
+
+        x = backend.numpy.reshape(x, x_transposed.shape)
+        x = backend.numpy.transpose(
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+        )
         return x
     else:
         return backend.nn.log_softmax(x, axis=axis)
+
+
+class Sparsemax(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        return backend.nn.sparsemax(x, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.sparsemax", "keras.ops.nn.sparsemax"])
+def sparsemax(x, axis=-1):
+    """Sparsemax activation function.
+
+    For each batch `i`, and class `j`,
+    sparsemax activation function is defined as:
+
+    `sparsemax(x)[i, j] = max(x[i, j] - τ(x[i, :]), 0).`
+
+    Args:
+        x: Input tensor.
+        axis: `int`, axis along which the sparsemax operation is applied.
+
+    Returns:
+        A tensor, output of sparsemax transformation. Has the same type and
+        shape as `x`.
+
+    Example:
+
+    >>> x = np.array([-1., 0., 1.])
+    >>> x_sparsemax = keras.ops.sparsemax(x)
+    >>> print(x_sparsemax)
+    array([0., 0., 1.], shape=(3,), dtype=float64)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Sparsemax(axis).symbolic_call(x)
+    return backend.nn.sparsemax(x, axis=axis)
 
 
 class MaxPool(Operation):
@@ -1298,8 +1694,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         x: Integer tensor to be encoded. The shape can be
             arbitrary, but the dtype should be integer.
         num_classes: Number of classes for the one-hot encoding.
-        axis: Axis along which the encoding is performed. Defaults to
-            `-1`, which represents the last axis.
+        axis: Axis along which the encoding is performed.
+            `-1` represents the last axis. Defaults to `-1`.
         dtype: (Optional) Data type of the output tensor. If not
             provided, it defaults to the default data type of the backend.
         sparse: Whether to return a sparse tensor; for backends that support
@@ -1377,7 +1773,7 @@ def binary_crossentropy(target, output, from_logits=False):
             probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
 
     Returns:
         Integer tensor: The computed binary cross-entropy loss between
@@ -1452,7 +1848,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
         axis: (optional) The axis along which the categorical cross-entropy
             is computed.
             Defaults to `-1`, which corresponds to the last dimension of
@@ -1540,7 +1936,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             or probabilities.
             Set it to `True` if `output` represents logits; otherwise,
             set it to `False` if `output` represents probabilities.
-            Defaults to`False`.
+            Defaults to `False`.
         axis: (optional) The axis along which the sparse categorical
             cross-entropy is computed.
             Defaults to `-1`, which corresponds to the last dimension
@@ -1953,7 +2349,7 @@ def ctc_decode(
         A tuple containing:
         - The tensor representing the list of decoded sequences. If
             `strategy="greedy"`, the shape is `(1, batch_size, max_length)`. If
-            `strategy="beam_seatch"`, the shape is
+            `strategy="beam_search"`, the shape is
             `(top_paths, batch_size, max_length)`. Note that: `-1` indicates the
             blank label.
         - If `strategy="greedy"`, a tensor of shape `(batch_size, 1)`
@@ -1983,16 +2379,19 @@ def ctc_decode(
 
 
 class Normalize(Operation):
-    def __init__(self, axis=-1, order=2):
+    def __init__(self, axis=-1, order=2, epsilon=None):
         super().__init__()
         self.axis = axis
         self.order = order
+        self.epsilon = epsilon
 
     def compute_output_spec(self, x):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
-        return _normalize(x, axis=self.axis, order=self.order)
+        return _normalize(
+            x, axis=self.axis, order=self.order, epsilon=self.epsilon
+        )
 
 
 @keras_export(
@@ -2001,7 +2400,7 @@ class Normalize(Operation):
         "keras.ops.nn.normalize",
     ]
 )
-def normalize(x, axis=-1, order=2):
+def normalize(x, axis=-1, order=2, epsilon=None):
     """Normalizes `x` over the specified axis.
 
     It is defined as: `normalize(x) = x / max(norm(x), epsilon)`.
@@ -2012,6 +2411,8 @@ def normalize(x, axis=-1, order=2):
             Default to -1.
         order: The exponent value in the norm formulation.
             Defaults to 2.
+        epsilon: A lower bound value for the norm.
+            Defaults to `backend.epsilon()`.
 
     Returns:
         The normalized array.
@@ -2026,11 +2427,13 @@ def normalize(x, axis=-1, order=2):
 
     """
     if any_symbolic_tensors((x,)):
-        return Normalize(axis=axis, order=order).symbolic_call(x)
-    return _normalize(x, axis=axis, order=order)
+        return Normalize(axis=axis, order=order, epsilon=epsilon).symbolic_call(
+            x
+        )
+    return _normalize(x, axis=axis, order=order, epsilon=epsilon)
 
 
-def _normalize(x, axis=-1, order=2):
+def _normalize(x, axis=-1, order=2, epsilon=None):
     if not isinstance(order, int) or not order >= 1:
         raise ValueError(
             f"Argument `order` must be an int >= 1. Received: order={order}"
@@ -2038,7 +2441,17 @@ def _normalize(x, axis=-1, order=2):
     x = backend.convert_to_tensor(x)
     if len(x.shape) == 0:
         x = backend.numpy.expand_dims(x, axis=0)
-    epsilon = backend.epsilon()
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    if 2 == order:
+        # A special case: L2 normalization with `x * rsqrt(...)`
+        # instead of `x / sqrt(...)`
+        square_sum = backend.numpy.sum(
+            backend.numpy.square(x), axis=axis, keepdims=True
+        )
+        inv_norm = backend.math.rsqrt(square_sum)
+        inv_norm = backend.numpy.minimum(inv_norm, 1.0 / epsilon)
+        return x * inv_norm
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
     return backend.numpy.divide(x, denom)
@@ -2114,4 +2527,127 @@ def psnr(
         x1,
         x2,
         max_val,
+    )
+
+
+class DotProductAttention(Operation):
+    def __init__(self, is_causal=False):
+        super().__init__()
+        self.is_causal = is_causal
+
+    def call(
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=None,
+    ):
+        return backend.nn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=self.is_causal,
+            flash_attention=flash_attention,
+        )
+
+    def compute_output_spec(
+        self,
+        query,
+        key,
+        value,
+        bias=None,
+        mask=None,
+        scale=None,
+        flash_attention=None,
+    ):
+        return KerasTensor(query.shape, dtype=query.dtype)
+
+
+@keras_export(
+    ["keras.ops.dot_product_attention", "keras.ops.nn.dot_product_attention"]
+)
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+):
+    """Scaled dot product attention function.
+
+    Computes the attention function on Q (`query`), K (`key`), and V(`value`):
+    `attention(Q, K, V) = softmax(Q * K / sqrt(d)) * V`. If we define `logits`
+    as the output of `Q * K` and the `probs` as the output of `softmax`.
+
+    Throughout this function, we utilize the following notation to represent the
+    shape of array:
+    - B: batch size
+    - S: length of the key/value
+    - T: length of the query
+    - N: number of attention heads
+    - H: dimensions of each attention head
+    - K: number of key/value heads
+    - G: number of groups, which equals to `N // K`
+
+    Args:
+        query: The query array with the shape of `(B, T, N, H)`.
+        key: The key array with the shape of `(B, S, K, H)`. When `K` equals
+            `N`, multi-headed attention (MHA) is performed. Otherwise, grouped
+            query attention (GQA) is performed if `N` is a multiple of `K`. and
+            multi-query attention (MQA) is performed if `K==1` (a special case
+            of GQA).
+        value: The value array with the same shape of `key`.
+        bias: Optional bias array to be added to logits. The shape must be
+            broadcastable to `(B, N, T, S)`.
+        mask: Optional mask array used to filter out logits. It is a boolean
+            mask where `True` indicates the element should take part in
+            attention. For an additive mask, users should pass it to bias. The
+            shape must be broadcastable to `(B, N, T, S)`.
+        scale: Optional scale for the logits. If `None`, the scale will be set
+            to `1.0 / sqrt(H)`.
+        is_causal: Whether to apply causal mask.
+        flash_attention: Whether to use flash attention. If `None`, it will
+            attempt to use flash attention if the required conditions are met.
+            Typically, the inputs must be in float16 and bfloat16 dtype and the
+            input layout requirements may vary depending on the backend.
+
+    Returns:
+        An array of the attention output with the same shape of `query`.
+
+    Example:
+
+    >>> query = keras.random.normal((2, 4, 8, 16))
+    >>> key = keras.random.normal((2, 6, 8, 16))
+    >>> value = keras.random.normal((2, 6, 8, 16))
+    >>> keras.ops.nn.dot_product_attention(query, key, value).shape
+    (2, 4, 8, 16)
+    """
+    if any_symbolic_tensors((query, key, value)):
+        return DotProductAttention(is_causal=is_causal).symbolic_call(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            flash_attention=flash_attention,
+        )
+    return backend.nn.dot_product_attention(
+        query,
+        key,
+        value,
+        bias=bias,
+        mask=mask,
+        scale=scale,
+        is_causal=is_causal,
+        flash_attention=flash_attention,
     )

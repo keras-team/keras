@@ -1,10 +1,12 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.testing.test_utils import named_product
 
 
 class HashedCrossingTest(testing.TestCase):
@@ -41,17 +43,27 @@ class HashedCrossingTest(testing.TestCase):
             run_mixed_precision_check=False,
         )
 
-    def test_correctness(self):
+    @parameterized.named_parameters(
+        named_product(
+            sparse=(
+                [True, False] if backend.backend() == "tensorflow" else [False]
+            )
+        )
+    )
+    def test_correctness(self, sparse):
         layer = layers.HashedCrossing(num_bins=5)
         feat1 = np.array(["A", "B", "A", "B", "A"])
         feat2 = np.array([101, 101, 101, 102, 102])
         output = layer((feat1, feat2))
         self.assertAllClose(tf.constant([1, 4, 1, 1, 3]), output)
 
-        layer = layers.HashedCrossing(num_bins=5, output_mode="one_hot")
+        layer = layers.HashedCrossing(
+            num_bins=5, output_mode="one_hot", sparse=sparse
+        )
         feat1 = np.array(["A", "B", "A", "B", "A"])
         feat2 = np.array([101, 101, 101, 102, 102])
         output = layer((feat1, feat2))
+        self.assertSparse(output, sparse)
         self.assertAllClose(
             np.array(
                 [
@@ -74,11 +86,10 @@ class HashedCrossingTest(testing.TestCase):
             .batch(5)
             .map(lambda x1, x2: layer((x1, x2)))
         )
-        for output in ds.take(1):
-            output = output.numpy()
+        output = next(iter(ds)).numpy()
         self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)
 
-    def test_upsupported_shape_input_fails(self):
+    def test_unsupported_shape_input_fails(self):
         with self.assertRaisesRegex(ValueError, "inputs should have shape"):
             layers.HashedCrossing(num_bins=10)(
                 (np.array([[[1.0]]]), np.array([[[1.0]]]))

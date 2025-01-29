@@ -8,6 +8,21 @@ from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.backend.numpy.core import convert_to_tensor
 
 
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the specified plane."""
+    if array.ndim < 2:
+        raise ValueError(
+            "Input array must have at least 2 dimensions. "
+            f"Received: array.ndim={array.ndim}"
+        )
+    if len(axes) != 2 or axes[0] == axes[1]:
+        raise ValueError(
+            f"Invalid axes: {axes}. Axes must be a tuple "
+            "of two different dimensions."
+        )
+    return np.rot90(array, k=k, axes=axes)
+
+
 def add(x1, x2):
     if not isinstance(x1, (int, float)):
         x1 = convert_to_tensor(x1)
@@ -65,6 +80,8 @@ def matmul(x1, x2):
         dtype = "int32"
     else:
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.matmul(x1, x2).astype(dtype)
 
 
@@ -228,13 +245,32 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    axis = standardize_axis_for_numpy(axis)
-    return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
+    if x.ndim == 0:
+        return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
+    x_float = x.astype(np.float32)
+    is_negative_zero = (x_float == 0.0) & np.signbit(x_float)
+    x_adjusted = np.where(
+        is_negative_zero, -np.finfo(x_float.dtype).tiny, x_float
+    )
+    return np.argmax(x_adjusted, axis=axis, keepdims=keepdims).astype("int32")
 
 
 def argmin(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
-    return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
+    x_64 = np.asarray(x, dtype=np.float64)
+    if axis is not None:
+        min_mask = x_64 == np.min(x_64, axis=axis, keepdims=True)
+        indices = np.argmin(
+            np.where(min_mask, x_64, np.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    else:
+        min_mask = (x_64 < x_64.min()) | (
+            (x_64 == x_64.min()) & (np.signbit(x_64))
+        )
+        indices = np.argmin(
+            np.where(min_mask, x_64, np.inf), axis=axis, keepdims=keepdims
+        ).astype("int32")
+    return indices
 
 
 def argsort(x, axis=-1):
@@ -289,6 +325,53 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
         return np.stack(bincounts).astype(dtype)
     return np.bincount(x, weights, minlength).astype(dtype)
+
+
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return np.bitwise_not(x)
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return np.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
 
 
 def broadcast_to(x, shape):
@@ -400,6 +483,10 @@ def diag(x, k=0):
     return np.diag(x, k=k)
 
 
+def diagflat(x, k=0):
+    return np.diagflat(x, k=k)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     axis1 = standardize_axis_for_numpy(axis1)
     axis2 = standardize_axis_for_numpy(axis2)
@@ -438,6 +525,14 @@ def exp(x):
     if "int" in ori_dtype or ori_dtype == "bool":
         x = x.astype(config.floatx())
     return np.exp(x)
+
+
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    return np.exp2(x)
 
 
 def expand_dims(x, axis):
@@ -505,8 +600,8 @@ def imag(x):
     return np.imag(x)
 
 
-def isclose(x1, x2):
-    return np.isclose(x1, x2)
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    return np.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 def isfinite(x):
@@ -767,6 +862,13 @@ def ravel(x):
     return np.ravel(x)
 
 
+def unravel_index(x, shape):
+    dtype = dtypes.result_type(x.dtype)
+    return tuple(
+        indices.astype(dtype) for indices in np.unravel_index(x, shape)
+    )
+
+
 def real(x):
     return np.real(x)
 
@@ -785,6 +887,20 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     return np.roll(x, shift, axis=axis)
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    if ndim(sorted_sequence) != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    out_type = (
+        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+    )
+    return np.searchsorted(sorted_sequence, values, side=side).astype(out_type)
 
 
 def sign(x):
@@ -918,6 +1034,14 @@ def triu(x, k=0):
     return np.triu(x, k=k)
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or "bool" == dtype:
+        return x
+    return np.trunc(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -925,6 +1049,15 @@ def vdot(x1, x2):
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.vdot(x1, x2)
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
+    return np.inner(x1, x2)
 
 
 def vstack(xs):
@@ -985,7 +1118,9 @@ def divide_no_nan(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return np.where(x2 == 0, 0, np.divide(x1, x2))
+    # No need for the double-where trick since we don't calculate gradients in
+    # numpy backend.
+    return np.where(x2 == 0, np.array(0, dtype=dtype), np.divide(x1, x2))
 
 
 def true_divide(x1, x2):
@@ -1106,3 +1241,7 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     return np.argpartition(x, kth, axis).astype("int32")
+
+
+def histogram(x, bins, range):
+    return np.histogram(x, bins=bins, range=range)

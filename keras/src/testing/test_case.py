@@ -2,8 +2,10 @@ import json
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import distribution
@@ -18,7 +20,7 @@ from keras.src.models import Model
 from keras.src.utils import traceback_utils
 
 
-class TestCase(unittest.TestCase):
+class TestCase(parameterized.TestCase, unittest.TestCase):
     maxDiff = None
 
     def __init__(self, *args, **kwargs):
@@ -42,7 +44,7 @@ class TestCase(unittest.TestCase):
             x1 = backend.convert_to_numpy(x1)
         if not isinstance(x2, np.ndarray):
             x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol)
+        np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol, err_msg=msg)
 
     def assertNotAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
         try:
@@ -51,17 +53,16 @@ class TestCase(unittest.TestCase):
             return
         msg = msg or ""
         raise AssertionError(
-            f"The two values are close at all elements. \n"
-            f"{msg}.\n"
-            f"Values: {x1}"
+            f"The two values are close at all elements. \n{msg}.\nValues: {x1}"
         )
 
     def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
+        msg = msg or ""
         if not isinstance(x1, np.ndarray):
             x1 = backend.convert_to_numpy(x1)
         if not isinstance(x2, np.ndarray):
             x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_almost_equal(x1, x2, decimal=decimal)
+        np.testing.assert_almost_equal(x1, x2, decimal=decimal, err_msg=msg)
 
     def assertAllEqual(self, x1, x2, msg=None):
         self.assertEqual(len(x1), len(x2), msg=msg)
@@ -113,6 +114,10 @@ class TestCase(unittest.TestCase):
         msg = msg or default_msg
         self.assertEqual(x_dtype, standardized_dtype, msg=msg)
 
+    def assertFileExists(self, path):
+        if not Path(path).is_file():
+            raise AssertionError(f"File {path} does not exist")
+
     def run_class_serialization_test(self, instance, custom_objects=None):
         from keras.src.saving import custom_object_scope
         from keras.src.saving import deserialize_keras_object
@@ -121,28 +126,24 @@ class TestCase(unittest.TestCase):
         # get_config roundtrip
         cls = instance.__class__
         config = instance.get_config()
-        config_json = json.dumps(config, sort_keys=True, indent=4)
+        config_json = to_json_with_tuples(config)
         ref_dir = dir(instance)[:]
         with custom_object_scope(custom_objects):
             revived_instance = cls.from_config(config)
         revived_config = revived_instance.get_config()
-        revived_config_json = json.dumps(
-            revived_config, sort_keys=True, indent=4
-        )
+        revived_config_json = to_json_with_tuples(revived_config)
         self.assertEqual(config_json, revived_config_json)
         self.assertEqual(set(ref_dir), set(dir(revived_instance)))
 
         # serialization roundtrip
         serialized = serialize_keras_object(instance)
-        serialized_json = json.dumps(serialized, sort_keys=True, indent=4)
+        serialized_json = to_json_with_tuples(serialized)
         with custom_object_scope(custom_objects):
             revived_instance = deserialize_keras_object(
-                json.loads(serialized_json)
+                from_json_with_tuples(serialized_json)
             )
         revived_config = revived_instance.get_config()
-        revived_config_json = json.dumps(
-            revived_config, sort_keys=True, indent=4
-        )
+        revived_config_json = to_json_with_tuples(revived_config)
         self.assertEqual(config_json, revived_config_json)
         new_dir = dir(revived_instance)[:]
         for lst in [ref_dir, new_dir]:
@@ -174,6 +175,7 @@ class TestCase(unittest.TestCase):
         custom_objects=None,
         run_training_check=True,
         run_mixed_precision_check=True,
+        assert_built_after_instantiation=False,
     ):
         """Run basic checks on a layer.
 
@@ -216,11 +218,12 @@ class TestCase(unittest.TestCase):
                 (if an input shape or input data was provided).
             run_mixed_precision_check: Whether to test the layer with a mixed
                 precision dtype policy.
+            assert_built_after_instantiation: Whether to assert `built=True`
+                after the layer's instantiation.
         """
         if input_shape is not None and input_data is not None:
             raise ValueError(
-                "input_shape and input_data cannot be passed "
-                "at the same time."
+                "input_shape and input_data cannot be passed at the same time."
             )
         if expected_output_shape is not None and expected_output is not None:
             raise ValueError(
@@ -270,6 +273,33 @@ class TestCase(unittest.TestCase):
             input_dtype = tree.map_shape_structure(
                 lambda _: "float32", input_shape
             )
+
+        # Estimate actual number of weights, variables, seed generators if
+        # expected ones not set. When using layers uses composition it should
+        # build each sublayer manually.
+        if input_data is not None or input_shape is not None:
+            if input_data is None:
+                input_data = create_eager_tensors(
+                    input_shape, input_dtype, input_sparse
+                )
+            layer = layer_cls(**init_kwargs)
+            if isinstance(input_data, dict):
+                layer(**input_data, **call_kwargs)
+            else:
+                layer(input_data, **call_kwargs)
+
+            if expected_num_trainable_weights is None:
+                expected_num_trainable_weights = len(layer.trainable_weights)
+            if expected_num_non_trainable_weights is None:
+                expected_num_non_trainable_weights = len(
+                    layer.non_trainable_weights
+                )
+            if expected_num_non_trainable_variables is None:
+                expected_num_non_trainable_variables = len(
+                    layer.non_trainable_variables
+                )
+            if expected_num_seed_generators is None:
+                expected_num_seed_generators = len(get_seed_generators(layer))
 
         # Serialization test.
         layer = layer_cls(**init_kwargs)
@@ -524,6 +554,17 @@ class TestCase(unittest.TestCase):
                 output_mask = layer.compute_mask(keras_tensor_inputs)
                 self.assertEqual(expected_mask_shape, output_mask.shape)
 
+            # The stateless layers should be built after instantiation.
+            if assert_built_after_instantiation:
+                layer = layer_cls(**init_kwargs)
+                self.assertTrue(
+                    layer.built,
+                    msg=(
+                        f"{type(layer)} is stateless, so it should be built "
+                        "after instantiation."
+                    ),
+                )
+
         # Eager call test and compiled training test.
         if input_data is not None or input_shape is not None:
             if input_data is None:
@@ -570,7 +611,11 @@ class TestCase(unittest.TestCase):
                     tree.flatten(output_data), tree.flatten(output_spec)
                 ):
                     dtype = standardize_dtype(tensor.dtype)
-                    self.assertEqual(dtype, spec.dtype)
+                    self.assertEqual(
+                        dtype,
+                        spec.dtype,
+                        f"expected output dtype {spec.dtype}, got {dtype}",
+                    )
                 for weight in layer.weights:
                     dtype = standardize_dtype(weight.dtype)
                     if is_float_dtype(dtype):
@@ -586,7 +631,11 @@ def jax_uses_gpu():
 
 
 def torch_uses_gpu():
-    return backend.backend() == "torch" and uses_gpu()
+    if backend.backend() != "torch":
+        return False
+    from keras.src.backend.torch.core import get_device
+
+    return get_device() == "cuda"
 
 
 def uses_gpu():
@@ -616,7 +665,19 @@ def create_eager_tensors(input_shape, dtype, sparse):
     from keras.src.backend import random
 
     if set(tree.flatten(dtype)).difference(
-        ["float16", "float32", "float64", "int16", "int32", "int64"]
+        [
+            "float16",
+            "float32",
+            "float64",
+            "int8",
+            "uint8",
+            "int16",
+            "uint16",
+            "int32",
+            "uint32",
+            "int64",
+            "uint64",
+        ]
     ):
         raise ValueError(
             "dtype must be a standard float or int dtype. "
@@ -701,3 +762,32 @@ def get_seed_generators(layer):
                 seed_generators.append(sg)
                 seen_ids.add(id(sg))
     return seed_generators
+
+
+def to_json_with_tuples(value):
+    def _tuple_encode(obj):
+        if isinstance(obj, tuple):
+            return {"__class__": "tuple", "__value__": list(obj)}
+        if isinstance(obj, list):
+            return [_tuple_encode(e) for e in obj]
+        if isinstance(obj, dict):
+            return {key: _tuple_encode(value) for key, value in obj.items()}
+        return obj
+
+    class _PreserveTupleJsonEncoder(json.JSONEncoder):
+        def encode(self, obj):
+            obj = _tuple_encode(obj)
+            return super().encode(obj)
+
+    return _PreserveTupleJsonEncoder(sort_keys=True, indent=4).encode(value)
+
+
+def from_json_with_tuples(value):
+    def _tuple_decode(obj):
+        if not isinstance(obj, dict):
+            return obj
+        if "__class__" not in obj or "__value__" not in obj:
+            return obj
+        return tuple(obj["__value__"])
+
+    return json.loads(value, object_hook=_tuple_decode)

@@ -6,6 +6,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import export
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -14,10 +15,9 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
-from keras.src.export import export_lib
 
 
-class DenseTest(testing.TestCase, parameterized.TestCase):
+class DenseTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_dense_basics(self):
         # 2D case, no bias.
@@ -273,7 +273,6 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_lora_weight_name(self):
-
         class MyModel(models.Model):
             def __init__(self):
                 super().__init__(name="mymodel")
@@ -332,12 +331,8 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
-    """Test quantization-related (int8 and float8) methods"""
+    # Test quantization-related (int8 and float8) methods
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason=f"{backend.backend()} does not support ops.custom_gradient.",
-    )
     def test_quantize_int8(self):
         layer = layers.Dense(units=16)
         layer.build((None, 8))
@@ -412,6 +407,8 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaises(NotImplementedError):
             layer.quantize(mode)
 
+        layer.quantize(mode, type_check=False)  # No error
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
@@ -426,12 +423,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             ):
                 layer.quantize(m)
 
-    @parameterized.named_parameters(
-        ("int8", "int8_from_float32"),
-        ("float8", "float8_from_float32"),
-    )
-    def test_quantize_when_already_quantized_using_dtype_argument(self, mode):
-        layer = layers.Dense(units=2, dtype=mode)
+        layer = layers.Dense(units=2, dtype=f"{mode}_from_float32")
         layer.build((None, 2))
         for m in ["int8", "float8"]:
             with self.assertRaisesRegex(
@@ -443,6 +435,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         ("int8", "int8_from_float32", 3),
         ("float8", "float8_from_float32", 8),
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
     ):
@@ -451,24 +444,61 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
         layer.dtype_policy = policy
         self.assertLen(layer.variables, expected_num_variables)
 
+    @parameterized.named_parameters(
+        ("int7", "int7"),
+        ("float7", "float7"),
+    )
+    def test_quantize_invalid_mode(self, mode):
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        x = np.random.random((1, 2))
+        # dtype_policy should not be altered by failed quantization
+        original_dtype_policy = layer.dtype_policy
+
+        # Test quantize
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode."):
+            layer.quantize(mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_build
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            layer.quantized_build((None, 2), mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_call
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            # Explicitly set quantization_mode
+            layer._dtype_policy._quantization_mode = mode
+            layer.quantized_call(x)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+    @parameterized.named_parameters(
+        ("int8", "int8_from_mixed_bfloat16", 1, 2),
+        ("float8", "float8_from_mixed_bfloat16", 8, 0),
+    )
     @pytest.mark.requires_trainable_backend
-    def test_quantize_int8_dtype_argument(self):
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
+    def test_quantize_dtype_argument(
+        self, dtype, num_trainable_weights, num_non_trainable_weights
+    ):
         self.run_layer_test(
             layers.Dense,
-            init_kwargs={
-                "units": 5,
-                "dtype": "int8_from_mixed_bfloat16",
-            },
+            init_kwargs={"units": 5, "dtype": dtype},
             input_shape=(2, 3, 4),
             expected_output_shape=(2, 3, 5),
-            expected_num_trainable_weights=1,
-            expected_num_non_trainable_weights=2,
+            expected_num_trainable_weights=num_trainable_weights,
+            expected_num_non_trainable_weights=num_non_trainable_weights,
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
         )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_int8_when_lora_enabled(self):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
@@ -535,8 +565,8 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
             ref_input = tf.random.normal((2, 8))
             ref_output = model(ref_input)
-            export_lib.export_model(model, temp_filepath)
-            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            model.export(temp_filepath, format="tf_saved_model")
+            reloaded_layer = export.TFSMLayer(temp_filepath)
             self.assertAllClose(
                 reloaded_layer(ref_input), ref_output, atol=1e-7
             )
@@ -550,23 +580,7 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             )
 
     @pytest.mark.requires_trainable_backend
-    def test_quantize_float8_dtype_argument(self):
-        self.run_layer_test(
-            layers.Dense,
-            init_kwargs={
-                "units": 5,
-                "dtype": "float8_from_mixed_bfloat16",
-            },
-            input_shape=(2, 3, 4),
-            expected_output_shape=(2, 3, 5),
-            expected_num_trainable_weights=8,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            expected_num_losses=0,
-            supports_masking=True,
-        )
-
-    @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_float8(self):
         import ml_dtypes
 
@@ -597,7 +611,9 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             import jax
 
             def stateless_loss_fn(trainable_variables, x, dy):
-                y = layer.stateless_call(trainable_variables, [], x)[0]
+                y = layer.stateless_call(
+                    trainable_variables, [], x, training=True
+                )[0]
                 loss = y * ops.cast(dy, y.dtype)
                 return ops.sum(loss)
 
@@ -721,8 +737,8 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
             ref_input = tf.random.normal((2, 8))
             ref_output = model(ref_input)
-            export_lib.export_model(model, temp_filepath)
-            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            model.export(temp_filepath, format="tf_saved_model")
+            reloaded_layer = export.TFSMLayer(temp_filepath)
             self.assertAllClose(reloaded_layer(ref_input), ref_output)
             self.assertLen(reloaded_layer.weights, len(model.weights))
             self.assertLen(
@@ -732,3 +748,16 @@ class DenseTest(testing.TestCase, parameterized.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_quantize_float8_inference(self):
+        config = dict(units=16)
+        layer = layers.Dense(**config)
+        layer.build((None, 8))
+        layer.quantize("float8")
+
+        # Try calling with `training=False` and the result must match
+        # `training=True` because there is no update.
+        x = np.random.random((64, 8))
+        y_inference = layer(x, training=False)
+        y_training = layer(x, training=True)
+        self.assertAllClose(y_inference, y_training)

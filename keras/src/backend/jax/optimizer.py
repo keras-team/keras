@@ -1,3 +1,11 @@
+"""A class for JAX specific optimizer logic.
+
+Its purpose is to route around statelessness
+requirements in cond ops used for EMA handling
+and gradient accumulation handling. We do this
+by skipping conditionals entirely.
+"""
+
 import jax
 from jax import numpy as jnp
 
@@ -5,18 +13,10 @@ from keras.src.optimizers import base_optimizer
 
 
 class JaxOptimizer(base_optimizer.BaseOptimizer):
-    """A class for JAX specific optimizer logic.
-
-    Its purpose is to route around statelessness
-    requirements in cond ops used for EMA handling
-    and gradient accumulation handling. We do this
-    by skipping conditionals entirely.
-    """
-
     def _backend_apply_gradients(self, grads, trainable_variables):
         if self.gradient_accumulation_steps:
             is_update_step = (
-                self.iterations + 1
+                self._iterations + 1
             ) % self.gradient_accumulation_steps == 0
             steps = self.gradient_accumulation_steps
 
@@ -47,6 +47,10 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                 lambda: list(grads),
             )
 
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
@@ -71,6 +75,10 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                 g_acc.assign(n_g_acc)
 
         else:
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
@@ -101,4 +109,4 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                         + var.value * should_not_overwrite_model_vars_int
                     )
 
-        self.iterations.assign_add(1)
+        self._iterations.assign_add(1)

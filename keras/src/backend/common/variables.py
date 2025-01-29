@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
@@ -11,7 +12,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
 
 
-class KerasVariable:
+class Variable:
     """Represents a backend-agnostic variable in Keras.
 
     A `Variable` acts as a container for state. It holds a tensor value and can
@@ -29,17 +30,27 @@ class KerasVariable:
             dtype type (`"float32"` if never configured).
         trainable: Optional. Boolean indicating if variable is trainable.
             Defaults to `True`.
+        autocast: Optional. Boolean indicating whether the variable supports
+            autocasting. If `True`, the layer may first convert the variable
+            to the compute data type when accessed. Defaults to `True`.
+        aggregation: Optional string, one of `None`, `"none"`, `"mean"`,
+            `"sum"` or `"only_first_replica"` specifying how a distributed
+            variable will be aggregated. This serves as a semantic annotation,
+            to be taken into account by downstream backends or users. Defaults
+            to `"none"`.
         name: Optional. A unique name for the variable. Automatically generated
             if not set.
 
     Attributes:
-        name: The name of the variable (string).
-        path: The path of the variable within the Keras model or layer (string).
-        dtype: The data type of the variable (string).
         shape: The shape of the variable (tuple of integers).
         ndim: The number of dimensions of the variable (integer).
+        dtype: The data type of the variable (string).
         trainable: Whether the variable is trainable (boolean).
+        autocast: Whether the variable supports autocasting (boolean).
+        aggregation: How a distributed variable will be aggregated (string).
         value: The current value of the variable (NumPy array or tensor).
+        name: The name of the variable (string).
+        path: The path of the variable within the Keras model or layer (string).
 
     Examples:
 
@@ -84,7 +95,7 @@ class KerasVariable:
         dtype=None,
         trainable=True,
         autocast=True,
-        aggregation="mean",
+        aggregation="none",
         name=None,
     ):
         name = name or auto_name(self.__class__.__name__)
@@ -94,26 +105,33 @@ class KerasVariable:
                 "cannot contain character `/`. "
                 f"Received: name={name}"
             )
-        if aggregation not in ("mean", "sum", "only_first_replica"):
+        if aggregation not in (
+            None,
+            "none",
+            "mean",
+            "sum",
+            "only_first_replica",
+        ):
             raise ValueError(
                 "Invalid valid for argument `aggregation`. Expected "
-                "one of {'mean', 'sum', 'only_first_replica'}. "
+                "one of `None`, `'none'`, `'mean'`, `'sum'`, "
+                "`'only_first_replica'`. "
                 f"Received: aggregation={aggregation}"
             )
-        self.name = name
+        if aggregation is None:
+            aggregation = "none"
+        self._name = name
         parent_path = current_path()
         if parent_path:
-            self.path = current_path() + "/" + self.name
+            self._path = current_path() + "/" + name
         else:
-            self.path = self.name
-        dtype = standardize_dtype(dtype)
-        self._dtype = dtype
+            self._path = name
         self._shape = None
         self._initializer = None
         self._regularizer = None
         self._constraint = None
-        self._trainable = trainable
-        self._autocast = autocast
+        self._trainable = bool(trainable)
+        self._autocast = bool(autocast)
         self._aggregation = aggregation
         # `self._overwrite_with_gradient` is an internal property to determine
         # whether this variable should be overwritten by the computed gradient.
@@ -131,6 +149,12 @@ class KerasVariable:
                     f"Received: initializer={initializer} "
                     f"and shape={shape}"
                 )
+        else:
+            initializer = self._convert_to_tensor(initializer, dtype=dtype)
+            # If dtype is None and `initializer` is an array, use its dtype.
+            if dtype is None:
+                dtype = initializer.dtype
+        self._dtype = standardize_dtype(dtype)
 
         if in_stateless_scope():
             if callable(initializer):
@@ -158,12 +182,11 @@ class KerasVariable:
                 )
         else:
             if callable(initializer):
-                shape = self._validate_shape(shape)
-                value = initializer(shape, dtype=dtype)
+                self._shape = self._validate_shape(shape)
+                self._initialize_with_initializer(initializer)
             else:
-                value = initializer
-            self._initialize(value)
-            self._shape = tuple(self._value.shape)
+                self._initialize(initializer)
+                self._shape = self._validate_shape(self._value.shape)
         self._ndim = len(self._shape)
 
     def _deferred_initialize(self):
@@ -177,8 +200,8 @@ class KerasVariable:
                 "Make sure that all variables are initialized "
                 "before you start using your layer/model objects."
             )
-        value = self._initializer(self._shape, dtype=self._dtype)
-        self._initialize(value)
+        self._initialize_with_initializer(self._initializer)
+        self._initializer = None
 
     def _validate_shape(self, shape):
         shape = standardize_shape(shape)
@@ -201,10 +224,12 @@ class KerasVariable:
 
     @property
     def aggregation(self):
+        """The strategy for aggregating this variable."""
         return self._aggregation
 
     @property
     def value(self):
+        """The current value of the variable (numpy array or backend tensor)."""
         if in_stateless_scope():
             scope = get_stateless_scope()
             value = scope.get_current_value(self)
@@ -236,39 +261,56 @@ class KerasVariable:
             scope.add_update((self, value))
         else:
             self._direct_assign(value)
+        return value
 
     def assign_add(self, value):
-        self.assign(self + value)
+        return self.assign(self + value)
 
     def assign_sub(self, value):
-        self.assign(self - value)
+        return self.assign(self - value)
 
     @property
     def dtype(self):
+        """The data type of the variable."""
         autocast_scope = get_autocast_scope()
         if (
             self._autocast
             and autocast_scope is not None
             and is_float_dtype(self._dtype)
         ):
-            return autocast_scope.dtype
-        return self._dtype
+            dtype = autocast_scope.dtype
+        else:
+            dtype = self._dtype
+        return backend.standardize_dtype(dtype)
 
     @property
     def shape(self):
+        """The shape of the variable."""
         return self._shape
 
     @property
     def ndim(self):
+        """The number of dimensions of the variable."""
         return self._ndim
 
     @property
     def trainable(self):
+        """Whether the variable is trainable."""
         return self._trainable
 
     @trainable.setter
     def trainable(self, value):
-        self._trainable = value
+        self._trainable = bool(value)
+
+    @property
+    def name(self):
+        """The name of the variable."""
+        return self._name
+
+    @property
+    def path(self):
+        """The path of the variable within the Keras model or layer."""
+        return self._path
 
     @property
     def overwrite_with_gradient(self):
@@ -325,19 +367,45 @@ class KerasVariable:
         self._constraint = value
 
     def __repr__(self):
+        value = None
+        if hasattr(self, "_value") and self._value is not None:
+            value = backend.core.convert_to_numpy(self._value)
+        value_str = f", value={value}" if value is not None else ""
         return (
-            f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
-            f"path={self.path}>"
+            f"<Variable path={self.path}, shape={self.shape}, "
+            f"dtype={self.dtype}{value_str}>"
         )
 
     def _initialize(self, value):
         raise NotImplementedError
+
+    def _initialize_with_initializer(self, initializer):
+        value = self._convert_to_tensor(
+            initializer(self._shape, dtype=self._dtype)
+        )
+        self._initialize(value)
 
     def _convert_to_tensor(self, value, dtype=None):
         raise NotImplementedError
 
     def __getitem__(self, idx):
         return self.value.__getitem__(idx)
+
+    def __int__(self):
+        if self.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={self.shape}"
+            )
+        return int(self.value)
+
+    def __float__(self):
+        if self.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={self.shape}"
+            )
+        return float(self.value)
 
     def __array__(self, dtype=None):
         # We can't directly use self.value.__array__ here because of scalar.
@@ -362,128 +430,92 @@ class KerasVariable:
         return self.value.__invert__()
 
     def __eq__(self, other):
-        value = self.value
-        return value.__eq__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.equal(self.value, other)
 
     def __ne__(self, other):
-        value = self.value
-        return value.__ne__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.not_equal(self.value, other)
 
     def __lt__(self, other):
-        value = self.value
-        return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.less(self.value, other)
 
     def __le__(self, other):
-        value = self.value
-        return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.less_equal(self.value, other)
 
     def __gt__(self, other):
-        value = self.value
-        return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.greater(self.value, other)
 
     def __ge__(self, other):
-        value = self.value
-        return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.greater_equal(self.value, other)
 
     def __add__(self, other):
-        value = self.value
-        return value.__add__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.add(self.value, other)
 
     def __radd__(self, other):
-        value = self.value
-        return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.add(other, self.value)
 
     def __sub__(self, other):
-        value = self.value
-        return value.__sub__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.subtract(self.value, other)
 
     def __rsub__(self, other):
-        value = self.value
-        return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.subtract(other, self.value)
 
     def __mul__(self, other):
-        value = self.value
-        return value.__mul__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.multiply(self.value, other)
 
     def __rmul__(self, other):
-        value = self.value
-        return value.__rmul__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.multiply(other, self.value)
 
     def __truediv__(self, other):
-        value = self.value
-        return value.__truediv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
+        return backend.numpy.true_divide(self.value, other)
 
     def __rtruediv__(self, other):
-        value = self.value
-        return value.__rtruediv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
+        return backend.numpy.true_divide(other, self.value)
 
     def __floordiv__(self, other):
-        value = self.value
-        return value.__floordiv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
+        return backend.numpy.floor_divide(self.value, other)
 
     def __rfloordiv__(self, other):
-        value = self.value
-        return value.__rfloordiv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
+        return backend.numpy.floor_divide(other, self.value)
 
     def __mod__(self, other):
-        value = self.value
-        return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.mod(self.value, other)
 
     def __rmod__(self, other):
-        value = self.value
-        return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.mod(other, self.value)
 
     def __pow__(self, other):
-        value = self.value
-        return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.power(self.value, other)
 
     def __rpow__(self, other):
-        value = self.value
-        return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.power(other, self.value)
 
     def __matmul__(self, other):
-        value = self.value
-        return value.__matmul__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
+        return backend.numpy.matmul(self.value, other)
 
     def __rmatmul__(self, other):
-        value = self.value
-        return value.__rmatmul__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
+        return backend.numpy.matmul(other, self.value)
 
     def __and__(self, other):
-        value = self.value
-        return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.logical_and(self.value, other)
 
     def __rand__(self, other):
-        value = self.value
-        return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.logical_and(other, self.value)
 
     def __or__(self, other):
-        value = self.value
-        return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.logical_or(self.value, other)
 
     def __ror__(self, other):
-        value = self.value
-        return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.logical_or(other, self.value)
 
     def __xor__(self, other):
-        value = self.value
-        return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.logical_xor(self.value, other)
 
     def __rxor__(self, other):
-        value = self.value
-        return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
+        return backend.numpy.logical_xor(other, self.value)
+
+    def __round__(self, ndigits=None):
+        decimals = ndigits or 0
+        return backend.numpy.round(self.value, decimals=decimals)
 
 
 def register_uninitialized_variable(variable):
@@ -590,7 +622,7 @@ def get_autocast_scope():
 class AutocastScope:
     """Context manager that enables the autocasting of float variables.
 
-    Under this context manager, float `KerasVariables`s will be cast to `dtype`
+    Under this context manager, float `Variables`s will be cast to `dtype`
     (note that `dtype` must also be float).
     """
 
