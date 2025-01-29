@@ -4333,8 +4333,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_signbit(self):
         x = np.array([[0.0, -0.0, -1.1e-45], [1.1e-38, 2, -1]])
-        self.assertAllClose(knp.sign(x), np.sign(x))
-        self.assertAllClose(knp.Sign()(x), np.sign(x))
+        self.assertAllClose(knp.signbit(x), np.signbit(x))
+        self.assertAllClose(knp.Signbit()(x), np.signbit(x))
 
     def test_sin(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])

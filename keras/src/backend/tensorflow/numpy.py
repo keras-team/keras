@@ -2060,8 +2060,7 @@ def signbit(x):
     elif "int" in ori_dtype:
         return x < 0
     else:
-        compute_dtype = dtypes.result_type(ori_dtype, "float32")
-        x = cast(x, compute_dtype)
+        x = cast(x, "float32")
         return tf.less(
             tf.bitwise.bitwise_and(
                 tf.bitcast(x, tf.int32),
