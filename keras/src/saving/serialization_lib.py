@@ -780,7 +780,15 @@ def _retrieve_class_or_fn(
                 )
                 if obj is not None:
                     return obj
-
+            # Fall back code for reloading saved models of versions <=3.6
+            # into versions >=3.7
+            filtered_dict = {
+                k: v
+                for k, v in custom_objects.items()
+                if k.endswith(full_config["config"])
+            }
+            if filtered_dict:
+                return next(iter(filtered_dict.values()))
         # Otherwise, attempt to retrieve the class object given the `module`
         # and `class_name`. Import the module, find the class.
         package = module.split(".", maxsplit=1)[0]
