@@ -23,6 +23,25 @@ from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.core import shape as shape_op
 
 
+def tf_uses_cpu():
+    tf_devices = tf.config.list_logical_devices()
+    cpu_devices = []
+    other_devices = []
+    for device in tf_devices:
+        if device.device_type.lower() == "cpu":
+            cpu_devices.append(device)
+        else:
+            other_devices.append(device)
+    tf_devices = other_devices if len(other_devices) > 0 else cpu_devices
+    devices = [
+        f"{device.device_type.lower()}:{device.name.split(':')[-1]}"
+        for device in tf_devices
+    ]
+    if builtins.any(d.startswith("cpu") for d in devices):
+        return True
+    return False
+
+
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the specified plane."""
     array = convert_to_tensor(array)
@@ -837,43 +856,48 @@ def _keepdims(x, y, axis):
 
 
 def argmax(x, axis=None, keepdims=False):
-    x_float = tf.cast(x, tf.float32)
-    is_negative_zero = tf.logical_and(
-        tf.equal(x_float, 0.0),
-        tf.less(
-            tf.bitwise.bitwise_and(
-                tf.bitcast(x_float, tf.int32),
-                # tf.float32 sign bit
-                tf.constant(0x80000000, dtype=tf.int32),
-            ),
-            0,
-        ),
+    x = convert_to_tensor(x)
+    if not tf_uses_cpu() or x.ndim == 0:
+        _x = x
+        if axis is None:
+            x = tf.reshape(x, [-1])
+        y = tf.argmax(x, axis=axis, output_type="int32")
+        if keepdims:
+            y = _keepdims(_x, y, axis)
+        return y
+
+    dtype = dtypes.result_type(x.dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
+    x = tf.where(
+        is_negative_zero, -np.finfo(standardize_dtype(x.dtype)).tiny, x
     )
-    non_zero_mask = tf.not_equal(x_float, 0.0)
-    masked_abs = (
-        tf.abs(x_float)
-        + (1.0 - tf.cast(non_zero_mask, tf.float32)) * tf.float32.max
-    )
-    min_non_zero = tf.reduce_min(masked_abs) - 1e-9
-    x_adjusted = tf.where(is_negative_zero, -min_non_zero, x_float)
+    _x = x
     if axis is None:
-        x_adjusted = tf.reshape(x_adjusted, [-1])
-        y = tf.argmax(x_adjusted, axis=0, output_type=tf.int32)
-        if keepdims:
-            y = tf.reshape(y, [1, 1])
-    else:
-        rank = tf.rank(x_adjusted)
-        axis_tensor = tf.convert_to_tensor(axis, dtype=tf.int32)
-        positive_axis = tf.cond(
-            axis_tensor < 0, lambda: axis_tensor + rank, lambda: axis_tensor
-        )
-        y = tf.argmax(x_adjusted, axis=positive_axis, output_type=tf.int32)
-        if keepdims:
-            y = tf.expand_dims(y, axis=positive_axis)
+        x = tf.reshape(x, [-1])
+    y = tf.argmax(x, axis=axis, output_type="int32")
+    if keepdims:
+        y = _keepdims(_x, y, axis)
     return y
 
 
 def argmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if not tf_uses_cpu() or x.ndim == 0:
+        _x = x
+        if axis is None:
+            x = tf.reshape(x, [-1])
+        y = tf.argmin(x, axis=axis, output_type="int32")
+        if keepdims:
+            y = _keepdims(_x, y, axis)
+        return y
+
+    dtype = dtypes.result_type(x.dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
+    x = tf.where(
+        is_negative_zero, -np.finfo(standardize_dtype(x.dtype)).tiny, x
+    )
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
@@ -2025,6 +2049,27 @@ def sign(x):
         x = tf.cast(x, "int32")
         return tf.cast(tf.sign(x), ori_dtype)
     return tf.sign(x)
+
+
+@sparse.elementwise_unary
+def signbit(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        return tf.fill(tf.shape(x), False)
+    elif "int" in ori_dtype:
+        return x < 0
+    else:
+        compute_dtype = dtypes.result_type(ori_dtype, "float32")
+        x = cast(x, compute_dtype)
+        return tf.less(
+            tf.bitwise.bitwise_and(
+                tf.bitcast(x, tf.int32),
+                # tf.float32 sign bit
+                tf.constant(0x80000000, dtype=tf.int32),
+            ),
+            0,
+        )
 
 
 @sparse.elementwise_unary

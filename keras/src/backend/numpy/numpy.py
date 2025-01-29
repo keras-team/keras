@@ -245,32 +245,29 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    axis = standardize_axis_for_numpy(axis)
     if x.ndim == 0:
         return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
-    x_float = x.astype(np.float32)
-    is_negative_zero = (x_float == 0.0) & np.signbit(x_float)
-    x_adjusted = np.where(
-        is_negative_zero, -np.finfo(x_float.dtype).tiny, x_float
-    )
-    return np.argmax(x_adjusted, axis=axis, keepdims=keepdims).astype("int32")
+
+    dtype = dtypes.result_type(x.dtype, "float32")
+    x = x.astype(dtype)
+    is_negative_zero = (x == 0.0) & np.signbit(x)
+    x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
+    return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
 
 
 def argmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     axis = standardize_axis_for_numpy(axis)
-    x_64 = np.asarray(x, dtype=np.float64)
-    if axis is not None:
-        min_mask = x_64 == np.min(x_64, axis=axis, keepdims=True)
-        indices = np.argmin(
-            np.where(min_mask, x_64, np.inf), axis=axis, keepdims=keepdims
-        ).astype("int32")
-    else:
-        min_mask = (x_64 < x_64.min()) | (
-            (x_64 == x_64.min()) & (np.signbit(x_64))
-        )
-        indices = np.argmin(
-            np.where(min_mask, x_64, np.inf), axis=axis, keepdims=keepdims
-        ).astype("int32")
-    return indices
+    if x.ndim == 0:
+        return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
+
+    dtype = dtypes.result_type(x.dtype, "float32")
+    x = x.astype(dtype)
+    is_negative_zero = (x == 0.0) & np.signbit(x)
+    x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
+    return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
 
 
 def argsort(x, axis=-1):
@@ -905,6 +902,10 @@ def searchsorted(sorted_sequence, values, side="left"):
 
 def sign(x):
     return np.sign(x)
+
+
+def signbit(x):
+    return np.signbit(x)
 
 
 def sin(x):

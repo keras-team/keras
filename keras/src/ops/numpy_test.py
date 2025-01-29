@@ -1597,6 +1597,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.sign(x).shape, (None, 3))
 
+    def test_signbit(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.signbit(x).shape, (None, 3))
+
     def test_sin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.sin(x).shape, (None, 3))
@@ -2160,6 +2164,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_sign(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.sign(x).shape, (2, 3))
+
+    def test_signbit(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.signbit(x).shape, (2, 3))
 
     def test_sin(self):
         x = KerasTensor((2, 3))
@@ -4320,6 +4328,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
+        self.assertAllClose(knp.sign(x), np.sign(x))
+        self.assertAllClose(knp.Sign()(x), np.sign(x))
+
+    def test_signbit(self):
+        x = np.array([[0.0, -0.0, -1.1e-45], [1.1e-38, 2, -1]])
         self.assertAllClose(knp.sign(x), np.sign(x))
         self.assertAllClose(knp.Sign()(x), np.sign(x))
 
@@ -8036,6 +8049,23 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Sign().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_signbit(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.signbit(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.signbit(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Signbit().symbolic_call(x).dtype),
             expected_dtype,
         )
 

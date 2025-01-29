@@ -1319,6 +1319,11 @@ def sign(x):
     return torch.sign(x)
 
 
+def signbit(x):
+    x = convert_to_tensor(x)
+    return torch.signbit(x)
+
+
 def sin(x):
     x = convert_to_tensor(x)
     return torch.sin(x)

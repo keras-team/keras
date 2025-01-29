@@ -1,6 +1,7 @@
 import builtins
 import math
 
+import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 
@@ -13,6 +14,14 @@ from keras.src.backend.jax import nn
 from keras.src.backend.jax import sparse
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
+
+
+def jax_uses_cpu():
+    # Condition used to skip tests when using the GPU
+    devices = [f"{device.platform}:{device.id}" for device in jax.devices()]
+    if builtins.any(d.startswith("cpu") for d in devices):
+        return True
+    return False
 
 
 def rot90(array, k=1, axes=(0, 1)):
@@ -353,31 +362,27 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    if x.ndim == 0:
+    x = convert_to_tensor(x)
+    if not jax_uses_cpu() or x.ndim == 0:
         return jnp.argmax(x, axis=axis, keepdims=keepdims)
-    x_float = x.astype(jnp.float32)
-    is_negative_zero = (x_float == 0.0) & jnp.signbit(x_float)
-    x_adjusted = jnp.where(
-        is_negative_zero, -jnp.finfo(x_float.dtype).tiny, x_float
-    )
-    return jnp.argmax(x_adjusted, axis=axis, keepdims=keepdims)
+
+    dtype = dtypes.result_type(x.dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = (x == 0.0) & jnp.signbit(x)
+    x = jnp.where(is_negative_zero, -jnp.finfo(x.dtype).tiny, x)
+    return jnp.argmax(x, axis=axis, keepdims=keepdims)
 
 
 def argmin(x, axis=None, keepdims=False):
-    x_64 = jnp.asarray(x, dtype=jnp.float64)
-    if axis is not None:
-        min_mask = x_64 == jnp.min(x_64, axis=axis, keepdims=True)
-        indices = jnp.argmin(
-            jnp.where(min_mask, x_64, jnp.inf), axis=axis, keepdims=keepdims
-        ).astype("int32")
-    else:
-        min_mask = (x_64 < x_64.min()) | (
-            (x_64 == x_64.min()) & (jnp.signbit(x_64))
-        )
-        indices = jnp.argmin(
-            jnp.where(min_mask, x_64, jnp.inf), axis=axis, keepdims=keepdims
-        ).astype("int32")
-    return indices
+    x = convert_to_tensor(x)
+    if not jax_uses_cpu() or x.ndim == 0:
+        return jnp.argmin(x, axis=axis, keepdims=keepdims)
+
+    dtype = dtypes.result_type(x.dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = (x == 0.0) & jnp.signbit(x)
+    x = jnp.where(is_negative_zero, -jnp.finfo(x.dtype).tiny, x)
+    return jnp.argmin(x, axis=axis, keepdims=keepdims)
 
 
 def argsort(x, axis=-1):
@@ -994,6 +999,12 @@ def searchsorted(sorted_sequence, values, side="left"):
 def sign(x):
     x = convert_to_tensor(x)
     return jnp.sign(x)
+
+
+@sparse.elementwise_unary(linear=False)
+def signbit(x):
+    x = convert_to_tensor(x)
+    return jnp.signbit(x)
 
 
 @sparse.elementwise_unary(linear=False)
