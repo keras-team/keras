@@ -56,6 +56,94 @@ class DenseTest(testing.TestCase):
             supports_masking=True,
         )
 
+    # Complex Tests:
+    def test_dense_complex_input_basic(self):
+        dense = layers.Dense(units=4)
+        complex_input = ops.convert_to_tensor(
+            np.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], dtype=np.complex64)
+        )
+        output = dense(complex_input)
+        self.assertEqual(output.dtype, complex_input.dtype)
+        self.assertEqual(ops.shape(output), (2, 4))
+
+    def test_dense_complex_compute_dtype(self):
+        dense = layers.Dense(
+            units=3, dtype="complex64", compute_dtype="complex64"
+        )
+        complex_input = ops.convert_to_tensor(
+            np.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], dtype=np.complex64)
+        )
+        output = dense(complex_input)
+        self.assertEqual(backend.standardize_dtype(output.dtype), "complex64")
+
+    def test_dense_complex_weights(self):
+        dense = layers.Dense(units=2)
+        complex_input = ops.convert_to_tensor(
+            np.array([[1 + 1j, 2 + 2j]], dtype=np.complex64)
+        )
+        dense.build(ops.shape(complex_input))
+        self.assertIsNotNone(dense.kernel)
+        self.assertIsNotNone(dense.bias)
+        output = dense(complex_input)
+        self.assertEqual(ops.shape(output), (1, 2))
+
+    @pytest.mark.requires_trainable_backend
+    def test_dense_complex_training(self):
+        dense = layers.Dense(units=1)
+        complex_input = ops.convert_to_tensor(
+            np.array([[1 + 1j]], dtype=np.complex64)
+        )
+        target = ops.convert_to_tensor(np.array([[2 + 2j]], dtype=np.complex64))
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            with tf.GradientTape() as tape:
+                output = dense(complex_input)
+                loss = ops.mean(ops.abs(output - target))
+            gradients = tape.gradient(loss, dense.trainable_variables)
+        elif backend.backend() == "jax":
+            import jax
+
+            dense.build((1,))
+
+            def stateless_loss(trainable_vars, x, y_true):
+                y_pred = dense.stateless_call(
+                    trainable_vars, [], x, training=True
+                )[0]
+                return ops.mean(ops.abs(y_pred - y_true))
+
+            grad_fn = jax.grad(stateless_loss)
+            trainable_vars = [v.value for v in dense.trainable_variables]
+            gradients = grad_fn(trainable_vars, complex_input, target)
+        elif backend.backend() == "torch":
+            output = dense(complex_input)
+            loss = ops.mean(ops.abs(output - target))
+            loss.backward()
+            gradients = [v.value.grad for v in dense.trainable_variables]
+        else:
+            raise ValueError(f"Unsupported backend: {backend.backend()}")
+
+        self.assertIsNotNone(gradients)
+        self.assertTrue(all(g is not None for g in gradients))
+
+    def test_dense_mixed_dtype_computation(self):
+        dense = layers.Dense(units=2)
+        real_input = ops.convert_to_tensor(
+            np.array([[1.0, 2.0]], dtype=np.float32)
+        )
+        real_output = dense(real_input)
+        self.assertEqual(
+            backend.standardize_dtype(real_output.dtype), "float32"
+        )
+        complex_input = ops.convert_to_tensor(
+            np.array([[1 + 1j, 2 + 2j]], dtype=np.complex64)
+        )
+        complex_output = dense(complex_input)
+        self.assertEqual(
+            backend.standardize_dtype(complex_output.dtype), "complex64"
+        )
+
     def test_dense_correctness(self):
         # With bias and activation.
         layer = layers.Dense(units=2, activation="relu")

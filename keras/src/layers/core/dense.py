@@ -1,11 +1,13 @@
 import ml_dtypes
 
+import keras.src.backend as backend
 from keras.src import activations
 from keras.src import constraints
 from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
+from keras.src import random
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
@@ -84,6 +86,7 @@ class Dense(Layer):
         lora_rank=None,
         **kwargs,
     ):
+        self._compute_dtype = kwargs.pop("compute_dtype", None)
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
         self.units = units
         self.activation = activations.get(activation)
@@ -104,12 +107,13 @@ class Dense(Layer):
         if self.quantization_mode:
             self.quantized_build(input_shape, mode=self.quantization_mode)
         if self.quantization_mode != "int8":
-            # If the layer is quantized to int8, `self._kernel` will be added
-            # in `self._int8_build`. Therefore, we skip it here.
+            wrapped_initializer = random.initializer_for_complex(
+                self.kernel_initializer
+            )
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=(input_dim, self.units),
-                initializer=self.kernel_initializer,
+                initializer=wrapped_initializer,
                 regularizer=self.kernel_regularizer,
                 constraint=self.kernel_constraint,
             )
@@ -141,9 +145,17 @@ class Dense(Layer):
         return self._kernel
 
     def call(self, inputs, training=None):
-        x = ops.matmul(inputs, self.kernel)
+        compute_dtype = self._compute_dtype or self.compute_dtype
+        input_dtype = backend.standardize_dtype(inputs.dtype)
+        promoted_dtype = backend.result_type(compute_dtype, input_dtype)
+
+        inputs = ops.cast(inputs, promoted_dtype)
+        kernel = ops.cast(self.kernel, promoted_dtype)
+
+        x = ops.matmul(inputs, kernel)
         if self.bias is not None:
-            x = ops.add(x, self.bias)
+            bias = ops.cast(self.bias, promoted_dtype)
+            x = ops.add(x, bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
