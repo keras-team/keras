@@ -5,11 +5,11 @@ tf_keras
 tf2onnx
 
 # Torch.
-# TODO: Pin to < 2.3.0 (GitHub issue #19602)
+# TODO: torch-xla needs to support a higher version of Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.1.0
-torchvision>=0.16.0
-torch-xla;sys_platform != 'darwin'
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+torch-xla==2.5.1;sys_platform != 'darwin'
 
 # Jax.
 jax[cpu]
