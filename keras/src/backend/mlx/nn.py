@@ -115,6 +115,11 @@ def gelu(x, approximate=True):
     return f(x)
 
 
+def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    return nn.celu(x, alpha=alpha)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return mx.softmax(x, axis=axis)

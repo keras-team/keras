@@ -29,6 +29,10 @@ elif backend.backend() == "openvino":
     from keras.src.backend.openvino.export import (
         OpenvinoExportArchive as BackendExportArchive,
     )
+elif backend.backend() == "mlx":
+    from keras.src.backend.mlx.export import (
+        MlxExportArchive as BackendExportArchive,
+    )
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."
