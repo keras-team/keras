@@ -1352,10 +1352,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     def __setattr__(self, name, value):
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
-        if hasattr(self, "_tracker"):
+        if name != "_tracker":
+            if not hasattr(self, "_tracker"):
+                self._initialize_tracker()
             value = self._tracker.track(value)
-        elif name != "_tracker":
-            self._initialize_tracker()
         return super().__setattr__(name, value)
 
     def _check_super_called(self):

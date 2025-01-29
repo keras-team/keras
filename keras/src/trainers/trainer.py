@@ -130,7 +130,8 @@ class Trainer:
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
         """
-        self.optimizer = optimizers.get(optimizer)
+        optimizer = optimizers.get(optimizer)
+        self.optimizer = optimizer
         if (
             auto_scale_loss
             and self.dtype_policy.name == "mixed_float16"
@@ -317,7 +318,7 @@ class Trainer:
             if loss is not None:
                 losses.append(loss)
         for loss in self.losses:
-            losses.append(ops.cast(loss, dtype=backend.floatx()))
+            losses.append(ops.sum(ops.cast(loss, dtype=backend.floatx())))
         if backend.backend() not in ["jax", "mlx"] and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."

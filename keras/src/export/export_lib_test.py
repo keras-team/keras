@@ -96,6 +96,56 @@ class ExportArchiveTest(testing.TestCase, parameterized.TestCase):
         revived_model.serve(tf.random.normal((6, 10)))
 
     @parameterized.named_parameters(
+        named_product(struct_type=["tuple", "array", "dict"])
+    )
+    def test_model_with_input_structure(self, struct_type):
+
+        class TupleModel(models.Model):
+
+            def call(self, inputs):
+                x, y = inputs
+                return ops.add(x, y)
+
+        class ArrayModel(models.Model):
+
+            def call(self, inputs):
+                x = inputs[0]
+                y = inputs[1]
+                return ops.add(x, y)
+
+        class DictModel(models.Model):
+
+            def call(self, inputs):
+                x = inputs["x"]
+                y = inputs["y"]
+                return ops.add(x, y)
+
+        if struct_type == "tuple":
+            model = TupleModel()
+            ref_input = (tf.random.normal((3, 10)), tf.random.normal((3, 10)))
+        elif struct_type == "array":
+            model = ArrayModel()
+            ref_input = [tf.random.normal((3, 10)), tf.random.normal((3, 10))]
+        elif struct_type == "dict":
+            model = DictModel()
+            ref_input = {
+                "x": tf.random.normal((3, 10)),
+                "y": tf.random.normal((3, 10)),
+            }
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        ref_output = model(tree.map_structure(ops.convert_to_tensor, ref_input))
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        # Test with a different batch size
+        bigger_input = tree.map_structure(
+            lambda x: tf.concat([x, x], axis=0), ref_input
+        )
+        revived_model.serve(bigger_input)
+
+    @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
     )
     def test_low_level_model_export(self, model_type):

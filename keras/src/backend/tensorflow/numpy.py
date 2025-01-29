@@ -1950,6 +1950,10 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
+    from keras.src.ops.operation_utils import (
+        compute_take_along_axis_output_shape,
+    )
+
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices, "int64")
     if axis is None:
@@ -1959,7 +1963,13 @@ def take_along_axis(x, indices, axis=None):
                 f"Received: indices.shape={indices.shape}"
             )
         return take_along_axis(tf.reshape(x, [-1]), indices, 0)
-    rank = tf.rank(x)
+
+    # Compute the static output shape as later on, all shapes manipulations
+    # use dynamic shapes.
+    static_output_shape = compute_take_along_axis_output_shape(
+        x.shape, indices.shape, axis
+    )
+    rank = x.ndim
     static_axis = axis
     axis = axis + rank if axis < 0 else axis
 
@@ -1981,9 +1991,6 @@ def take_along_axis(x, indices, axis=None):
     x = tf.broadcast_to(x, x_shape)
     indices = tf.broadcast_to(indices, indices_shape)
 
-    # Save indices shape so we can restore it later.
-    possible_result_shape = indices.shape
-
     # Correct the indices using "fill" mode which is the same as in jax
     indices = tf.where(indices < 0, indices + x_shape[static_axis], indices)
 
@@ -1998,7 +2005,7 @@ def take_along_axis(x, indices, axis=None):
     result = tf.gather(x, indices, batch_dims=1)
     result = tf.reshape(result, indices_shape)
     result = swapaxes(result, static_axis, -1)
-    result.set_shape(possible_result_shape)
+    result.set_shape(static_output_shape)
     return result
 
 

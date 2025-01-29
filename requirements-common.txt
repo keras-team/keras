@@ -17,3 +17,4 @@ rich
 build
 optree
 pytest-cov
+packaging
