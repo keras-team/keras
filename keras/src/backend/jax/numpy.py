@@ -363,10 +363,11 @@ def arctanh(x):
 
 def argmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if not jax_uses_cpu() or x.ndim == 0:
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not jax_uses_cpu() or x.ndim == 0:
         return jnp.argmax(x, axis=axis, keepdims=keepdims)
 
-    dtype = dtypes.result_type(x.dtype, "float32")
+    dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = (x == 0.0) & jnp.signbit(x)
     x = jnp.where(is_negative_zero, -jnp.finfo(x.dtype).tiny, x)
@@ -375,10 +376,11 @@ def argmax(x, axis=None, keepdims=False):
 
 def argmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if not jax_uses_cpu() or x.ndim == 0:
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not jax_uses_cpu() or x.ndim == 0:
         return jnp.argmin(x, axis=axis, keepdims=keepdims)
 
-    dtype = dtypes.result_type(x.dtype, "float32")
+    dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = (x == 0.0) & jnp.signbit(x)
     x = jnp.where(is_negative_zero, -jnp.finfo(x.dtype).tiny, x)

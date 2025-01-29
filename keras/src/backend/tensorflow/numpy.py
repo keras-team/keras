@@ -857,7 +857,8 @@ def _keepdims(x, y, axis):
 
 def argmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if not tf_uses_cpu() or x.ndim == 0:
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not tf_uses_cpu() or x.ndim == 0:
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
@@ -866,7 +867,7 @@ def argmax(x, axis=None, keepdims=False):
             y = _keepdims(_x, y, axis)
         return y
 
-    dtype = dtypes.result_type(x.dtype, "float32")
+    dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
     x = tf.where(
@@ -883,7 +884,8 @@ def argmax(x, axis=None, keepdims=False):
 
 def argmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if not tf_uses_cpu() or x.ndim == 0:
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not tf_uses_cpu() or x.ndim == 0:
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
@@ -892,7 +894,7 @@ def argmin(x, axis=None, keepdims=False):
             y = _keepdims(_x, y, axis)
         return y
 
-    dtype = dtypes.result_type(x.dtype, "float32")
+    dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
     x = tf.where(

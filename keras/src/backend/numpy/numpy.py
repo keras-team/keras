@@ -247,10 +247,11 @@ def arctanh(x):
 def argmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     axis = standardize_axis_for_numpy(axis)
-    if x.ndim == 0:
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or x.ndim == 0:
         return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
 
-    dtype = dtypes.result_type(x.dtype, "float32")
+    dtype = dtypes.result_type(dtype, "float32")
     x = x.astype(dtype)
     is_negative_zero = (x == 0.0) & np.signbit(x)
     x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
@@ -260,10 +261,11 @@ def argmax(x, axis=None, keepdims=False):
 def argmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     axis = standardize_axis_for_numpy(axis)
-    if x.ndim == 0:
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or x.ndim == 0:
         return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
 
-    dtype = dtypes.result_type(x.dtype, "float32")
+    dtype = dtypes.result_type(dtype, "float32")
     x = x.astype(dtype)
     is_negative_zero = (x == 0.0) & np.signbit(x)
     x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
