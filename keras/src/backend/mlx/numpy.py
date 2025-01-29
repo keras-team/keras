@@ -984,7 +984,7 @@ def tensordot(x1, x2, axes=2):
         return mx.tensordot(x1, x2, axes)
 
     raise ValueError(
-        "`axes` must be an integer or sequence " f"Received: axes={axes}"
+        f"`axes` must be an integer or sequence Received: axes={axes}"
     )
 
 

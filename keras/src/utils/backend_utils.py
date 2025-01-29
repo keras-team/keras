@@ -82,18 +82,11 @@ class DynamicBackend:
             module = importlib.import_module("keras.src.backend.jax")
             return getattr(module, name)
         if self._backend == "torch":
-<<<<<<< HEAD
-            from keras.src.backend import torch as torch_backend
-
-            return getattr(torch_backend, name)
-        if self._backend == "mlx":
-            from keras.src.backend import mlx as mlx_backend
-
-            return getattr(mlx_backend, name)
-=======
             module = importlib.import_module("keras.src.backend.torch")
             return getattr(module, name)
->>>>>>> upstream/master
+        if self._backend == "mlx":
+            module = importlib.import_module("keras.src.backend.mlx")
+            return getattr(module, name)
         if self._backend == "numpy":
             if backend_module.backend() == "numpy":
                 return getattr(backend_module, name)
