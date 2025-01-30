@@ -8,6 +8,7 @@ import pytest
 import keras
 from keras.src import ops
 from keras.src import testing
+from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
 
 
@@ -342,6 +343,29 @@ class SerializationLibTest(testing.TestCase):
         func = keras.Model(inputs=seq.inputs, outputs=seq.outputs)
         serialized, deserialized, reserialized = self.roundtrip(func)
         self.assertLen(deserialized.layers, 3)
+
+    def test_keras36_custom_function_reloading(self):
+        @object_registration.register_keras_serializable(package="serial_test")
+        def custom_registered_fn(x):
+            return x**2
+
+        config36 = {
+            "module": "builtins",
+            "class_name": "function",
+            "config": "custom_registered_fn",
+            "registered_name": "function",
+        }
+        obj = serialization_lib.deserialize_keras_object(config36)
+        self.assertIs(obj, custom_registered_fn)
+
+        config = {
+            "module": "builtins",
+            "class_name": "function",
+            "config": "serial_test>custom_registered_fn",
+            "registered_name": "function",
+        }
+        obj = serialization_lib.deserialize_keras_object(config)
+        self.assertIs(obj, custom_registered_fn)
 
 
 @keras.saving.register_keras_serializable()
