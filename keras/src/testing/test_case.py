@@ -646,6 +646,13 @@ def uses_gpu():
     return False
 
 
+def uses_cpu():
+    devices = distribution.list_devices()
+    if any(d.startswith("cpu") for d in devices):
+        return True
+    return False
+
+
 def create_keras_tensors(input_shape, dtype, sparse):
     if isinstance(input_shape, dict):
         return {

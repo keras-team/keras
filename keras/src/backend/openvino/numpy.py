@@ -751,6 +751,12 @@ def sign(x):
     return OpenVINOKerasTensor(ov_opset.sign(x).output(0))
 
 
+def signbit(x):
+    raise NotImplementedError(
+        "`signbit` is not supported with openvino backend"
+    )
+
+
 def sin(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()

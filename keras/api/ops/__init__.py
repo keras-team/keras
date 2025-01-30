@@ -231,6 +231,7 @@ from keras.src.ops.numpy import round
 from keras.src.ops.numpy import searchsorted
 from keras.src.ops.numpy import select
 from keras.src.ops.numpy import sign
+from keras.src.ops.numpy import signbit
 from keras.src.ops.numpy import sin
 from keras.src.ops.numpy import sinh
 from keras.src.ops.numpy import size
