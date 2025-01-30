@@ -234,6 +234,24 @@ class LayerTest(testing.TestCase):
             def call(self, x):
                 return self.inner_layer(x)
 
+        class LayerWithLazyTracker(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+            def build(self, input_shape):
+                self.l1 = []
+                for i in range(2):
+                    l2 = []
+                    self.l1.append(l2)
+                    for j in range(2):
+                        l2.append(layers.Dense(1, name=f"dense_{i}_{j}"))
+
+            def call(self, x):
+                for l in self.l1:
+                    for d in l:
+                        x = d(x)
+                return x
+
         layer = LayerWithDenseLayers(3)
         layer.build((1, 3))
         self.assertLen(layer._layers, 4)
@@ -251,6 +269,10 @@ class LayerTest(testing.TestCase):
         self.assertLen(layer._layers, 1)
         layer(np.zeros((1, 3)))
         self.assertLen(layer.variables, 9)
+        self.assertLen(layer.weights, 8)
+
+        layer = LayerWithLazyTracker()
+        layer(np.ones((4, 1)))
         self.assertLen(layer.weights, 8)
 
     def test_metric_tracking(self):
