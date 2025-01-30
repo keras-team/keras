@@ -1,7 +1,6 @@
 import builtins
 import math
 
-import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 
@@ -14,14 +13,6 @@ from keras.src.backend.jax import nn
 from keras.src.backend.jax import sparse
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
-
-
-def jax_uses_cpu():
-    # Condition used to skip tests when using the GPU
-    devices = [f"{device.platform}:{device.id}" for device in jax.devices()]
-    if builtins.any(d.startswith("cpu") for d in devices):
-        return True
-    return False
 
 
 def rot90(array, k=1, axes=(0, 1)):
@@ -362,11 +353,15 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
+    from keras.src.testing.test_case import uses_cpu
+
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not jax_uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
         return jnp.argmax(x, axis=axis, keepdims=keepdims)
 
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
     dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = (x == 0.0) & jnp.signbit(x)
@@ -375,11 +370,15 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
+    from keras.src.testing.test_case import uses_cpu
+
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not jax_uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
         return jnp.argmin(x, axis=axis, keepdims=keepdims)
 
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
     dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = (x == 0.0) & jnp.signbit(x)

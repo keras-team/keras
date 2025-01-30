@@ -23,25 +23,6 @@ from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.core import shape as shape_op
 
 
-def tf_uses_cpu():
-    tf_devices = tf.config.list_logical_devices()
-    cpu_devices = []
-    other_devices = []
-    for device in tf_devices:
-        if device.device_type.lower() == "cpu":
-            cpu_devices.append(device)
-        else:
-            other_devices.append(device)
-    tf_devices = other_devices if len(other_devices) > 0 else cpu_devices
-    devices = [
-        f"{device.device_type.lower()}:{device.name.split(':')[-1]}"
-        for device in tf_devices
-    ]
-    if builtins.any(d.startswith("cpu") for d in devices):
-        return True
-    return False
-
-
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the specified plane."""
     array = convert_to_tensor(array)
@@ -858,7 +839,7 @@ def _keepdims(x, y, axis):
 def argmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not tf_uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or x.ndim == 0:
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
@@ -867,6 +848,8 @@ def argmax(x, axis=None, keepdims=False):
             y = _keepdims(_x, y, axis)
         return y
 
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
     dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
@@ -883,9 +866,11 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
+    from keras.src.testing.test_case import uses_cpu
+
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not tf_uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
@@ -894,6 +879,8 @@ def argmin(x, axis=None, keepdims=False):
             y = _keepdims(_x, y, axis)
         return y
 
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
     dtype = dtypes.result_type(dtype, "float32")
     x = cast(x, dtype)
     is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
