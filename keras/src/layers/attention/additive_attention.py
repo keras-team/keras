@@ -10,7 +10,7 @@ class AdditiveAttention(Attention):
     Inputs are a list with 2 or 3 elements:
     1. A `query` tensor of shape `(batch_size, Tq, dim)`.
     2. A `value` tensor of shape `(batch_size, Tv, dim)`.
-    3. A optional `key` tensor of shape `(batch_size, Tv, dim)`. If none
+    3. An optional `key` tensor of shape `(batch_size, Tv, dim)`. If none
         supplied, `value` will be used as `key`.
 
     The calculation follows the steps:
@@ -33,7 +33,7 @@ class AdditiveAttention(Attention):
             - `query`: Query tensor of shape `(batch_size, Tq, dim)`.
             - `value`: Value tensor of shape `(batch_size, Tv, dim)`.
             - `key`: Optional key tensor of shape `(batch_size, Tv, dim)`. If
-                not given, will use `value` for both `key` and `value`, which is
+                not given, will use the`value` for both `key` and `value`, which is
                 the most common case.
         mask: List of the following tensors:
             - `query_mask`: A boolean mask tensor of shape `(batch_size, Tq)`.
