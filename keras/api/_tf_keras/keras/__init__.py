@@ -48,6 +48,7 @@ from keras.src.losses.loss import Loss
 from keras.src.metrics.metric import Metric
 from keras.src.models.model import Model
 from keras.src.models.sequential import Sequential
+from keras.src.ops.core import remat
 from keras.src.ops.function import Function
 from keras.src.ops.operation import Operation
 from keras.src.optimizers.optimizer import Optimizer

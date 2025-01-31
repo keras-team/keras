@@ -45,6 +45,7 @@ from keras.api import preprocessing
 from keras.api import quantizers
 from keras.api import random
 from keras.api import regularizers
+from keras.api import remat
 from keras.api import saving
 from keras.api import tree
 from keras.api import utils
