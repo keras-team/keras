@@ -1175,7 +1175,7 @@ def custom_gradient(f):
     return backend.core.custom_gradient(f)
 
 
-@keras_export("keras.ops.remat")
+@keras_export("keras.remat")
 def remat(f):
     """Applies rematerialization to a function or layer for memory optimization.
 
