@@ -670,7 +670,13 @@ def remat(func, *args, **kwargs):
         A function wrapping func that defines a custom gradient, which
         recomputes f on the backwards pass of a gradient call.
     """
-    return torch.utils.checkpoint.checkpoint(func)(*args, **kwargs)
+
+    def wrapped(*args, **kwargs):
+        return torch.utils.checkpoint.checkpoint(
+            func, *args, **kwargs
+        )  # Correctly wraps func
+
+    return wrapped  # Returns a new function instead of applying it immediately
 
 
 class custom_gradient:

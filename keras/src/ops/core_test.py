@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.src import activations
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
@@ -1353,23 +1354,23 @@ class CoreOpsRematTest(testing.TestCase):
         def build_and_train_model(
             use_remat, x_train, y_train, epochs, batch_size
         ):
-            def my_intermediate_function(x):
-                for _ in range(2):
-                    x = x + x * 0.1
-                return x
-
             if use_remat:
-                intermediate_function = lambda x: backend.core.remat(
-                    my_intermediate_function, x
-                )
+
+                def relu_fn(x):
+                    return activations.relu(x)  # Explicitly pass x
+
+                intermediate_function = backend.core.remat(relu_fn)
             else:
-                intermediate_function = my_intermediate_function
+                intermediate_function = (
+                    activations.relu
+                )  # Just use relu normally
 
             inputs = layers.Input(shape=(4,))
             x = layers.Dense(4)(inputs)
-            x = layers.Lambda(intermediate_function)(x)
+            x = intermediate_function(x)  # Ensure x is passed
             outputs = layers.Dense(1)(x)
             model = models.Model(inputs=inputs, outputs=outputs)
+            model.predict(x_train)
             model.compile(optimizer="sgd", loss="mse")
 
             # Train model
