@@ -649,7 +649,7 @@ def remat(func, *args, **kwargs):
         A function wrapping func that defines a custom gradient, which
         recomputes f on the backwards pass of a gradient call.
     """
-    return tf.recompute_grad(func)(*args, **kwargs)
+    return tf.recompute_grad(func)
 
 
 class name_scope(base_name_scope):

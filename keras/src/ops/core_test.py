@@ -1372,7 +1372,7 @@ class CoreOpsRematTest(testing.TestCase):
 
             inputs = layers.Input(shape=(4,))
             x = layers.Dense(4)(inputs)
-            x = intermediate_function(x)  # Ensure x is passed
+            x = layers.Lambda(lambda x: intermediate_function(x))(x)
             outputs = layers.Dense(1)(x)
             model = models.Model(inputs=inputs, outputs=outputs)
             model.predict(x_train)
