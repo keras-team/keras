@@ -1004,6 +1004,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ```
         """
         self._check_super_called()
+        remat_mode = get_current_remat_mode()
 
         if not self.built:
             raise ValueError(
@@ -1042,8 +1043,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ) as scope:
             if self.dtype_policy.quantization_mode is not None:
                 outputs = self.quantized_call(*args, **kwargs)
-            else:
+            if remat_mode:
                 outputs = self.remat_wrapper(self.call)(*args, **kwargs)
+            else:
+                outputs = self.call(*args, **kwargs)
             if return_losses:
                 losses = self.losses
 
@@ -1615,39 +1618,35 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         def wrapped_call(*args, **kwargs):
             remat_mode = get_current_remat_mode()
+            # Full rematerialization
+            if remat_mode["mode"] == "full":
+                return remat(layer_call)(*args, **kwargs)
 
-            if remat_mode:
-                # Full rematerialization
-                if remat_mode["mode"] == "full":
-                    return remat(layer_call)(*args, **kwargs)
+            # Apply rematerialization to specific layers
+            if remat_mode["mode"] == "list_of_layers" and (
+                self.name in remat_mode["layer_names"]
+            ):
+                return remat(layer_call)(*args, **kwargs)
 
-                # Apply rematerialization to specific layers
-                if remat_mode["mode"] == "list_of_layers" and (
-                    self.name in remat_mode["layer_names"]
+            # Apply rematerialization based on output size threshold
+            if remat_mode["mode"] == "larger_than":
+                output_spec = self.compute_output_spec(*args, **kwargs)
+                output_size = calculate_output_size(output_spec)
+                if (
+                    output_size
+                    and output_size > remat_mode["output_size_threshold"]
                 ):
                     return remat(layer_call)(*args, **kwargs)
 
-                # Apply rematerialization based on output size threshold
-                if remat_mode["mode"] == "larger_than":
-                    output_spec = self.compute_output_spec(*args, **kwargs)
-                    output_size = calculate_output_size(output_spec)
-                    if (
-                        output_size
-                        and output_size > remat_mode["output_size_threshold"]
-                    ):
-                        return remat(layer_call)(*args, **kwargs)
-
-                # Apply rematerialization to activation functions only
-                elif remat_mode == "activations":
-                    has_activation = (
-                        hasattr(self, "activation")
-                        and self.activation is not None
-                        and not utils.is_default(self.activation)
-                    )
-                    if has_activation:
-                        self.activation = remat(self.activation)
-
-            return layer_call(*args, **kwargs)
+            # Apply rematerialization to activation functions only
+            elif remat_mode == "activations":
+                has_activation = (
+                    hasattr(self, "activation")
+                    and self.activation is not None
+                    and not utils.is_default(self.activation)
+                )
+                if has_activation:
+                    self.activation = remat(self.activation)
 
         return wrapped_call
 
