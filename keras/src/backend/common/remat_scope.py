@@ -27,44 +27,44 @@ class RematScope:
             `"list_of_layers"` mode. Default is an empty list.
 
     Examples:
-        Using "list_of_layers" mode:
+    Using "list_of_layers" mode:
 
-        ```python
-        from keras.src.backend.common.remat_scope import RematScope
+    ```python
+    from keras.src.backend.common.remat_scope import RematScope
 
-        with RematScope(mode="list_of_layers", layer_names=["dense_1",
-        "conv2d_1"]):
-            layer1 = keras.layers.Dense(128, name="dense_1")
-            layer2 = keras.layers.Conv2D(64, (3, 3), name="conv2d_1")
-            layer3 = keras.layers.Dense(64, name="dense_2")
+    with RematScope(mode="list_of_layers", layer_names=["dense_1",
+    "conv2d_1"]):
+        layer1 = keras.layers.Dense(128, name="dense_1")
+        layer2 = keras.layers.Conv2D(64, (3, 3), name="conv2d_1")
+        layer3 = keras.layers.Dense(64, name="dense_2")
 
-            # Only layer1 and layer2 will apply rematerialization
-            output1 = layer1(input_tensor)
-            output2 = layer2(output1)
-            output3 = layer3(output2)
-        ```
+        # Only layer1 and layer2 will apply rematerialization
+        output1 = layer1(input_tensor)
+        output2 = layer2(output1)
+        output3 = layer3(output2)
+    ```
 
-        Using "larger_than" mode with a specific output size threshold:
+    Using "larger_than" mode with a specific output size threshold:
 
-        ```python
-        from keras.src.backend.common.remat_scope import RematScope
+    ```python
+    from keras.src.backend.common.remat_scope import RematScope
 
-        with RematScope(mode="larger_than", output_size_threshold=2048):
-            layer = keras.layers.Conv2D(64, (3, 3))
-            output = layer(input_tensor)  # Conv2D outputs larger than 2048
-        ```
+    with RematScope(mode="larger_than", output_size_threshold=2048):
+        layer = keras.layers.Conv2D(64, (3, 3))
+        output = layer(input_tensor)  # Conv2D outputs larger than 2048
+    ```
 
-        Nested scopes for fine-grained control:
+    Nested scopes for fine-grained control:
 
-        ```python
-        from keras.src.backend.common.remat_scope import RematScope
+    ```python
+    from keras.src.backend.common.remat_scope import RematScope
 
-        with RematScope(mode="full"):
-            layer1 = keras.layers.Dense(128, activation='relu')
-            with RematScope(mode="larger_than", output_size_threshold=512):
-                layer2 = keras.layers.Conv2D(32, (3, 3))
-                output = layer2(layer1(input_tensor))
-        ```
+    with RematScope(mode="full"):
+        layer1 = keras.layers.Dense(128, activation='relu')
+        with RematScope(mode="larger_than", output_size_threshold=512):
+            layer2 = keras.layers.Conv2D(32, (3, 3))
+            output = layer2(layer1(input_tensor))
+    ```
     """
 
     def __init__(
