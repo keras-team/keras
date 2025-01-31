@@ -1350,12 +1350,12 @@ class CoreOpsBehaviorTests(testing.TestCase):
 
 
 class CoreOpsRematTest(testing.TestCase):
-    pytest.mark.skipif(
-        backend.backend() in ("numpy", "openvino"),
-        reason="remat not supported in numpy and openvino",
-    )
-
     def test_remat_basic_call(self):
+        if backend.backend() in ("openvino", "numpy"):
+            self.skipTest(
+                "remat is not supported in openvino and numpy backends."
+            )
+
         def build_and_train_model(
             use_remat, x_train, y_train, epochs, batch_size
         ):
