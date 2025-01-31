@@ -623,4 +623,4 @@ def remat(func, *args, **kwargs):
         "OpenVino backend. Please switch to JAX, TensorFlow, or PyTorch to "
         "utilize this feature."
     )
-    return func(*args, **kwargs)
+    return func
