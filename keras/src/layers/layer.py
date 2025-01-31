@@ -320,7 +320,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._parent_path = None
         self._initialize_tracker()
         remat_mode = get_current_remat_mode()
-        if remat_mode is not None and remat_mode["mode"] == "activation":
+        if remat_mode is not None and remat_mode.mode == "activation":
             if hasattr(self, "activation") and self.activation is not None:
                 self.activation = remat(self.activation)
 
@@ -1594,25 +1594,22 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         remat_mode = get_current_remat_mode()
         # Full rematerialization
-        if remat_mode["mode"] == "full":
+        if remat_mode.mode == "full":
             return remat(layer_call)(*args, **kwargs)
 
         # Apply rematerialization to specific layers
-        elif remat_mode["mode"] == "list_of_layers" and (
-            self.name in remat_mode["layer_names"]
+        elif remat_mode.mode == "list_of_layers" and (
+            self.name in remat_mode.layer_names
         ):
             return remat(layer_call)(*args, **kwargs)
 
         # Apply rematerialization based on output size threshold
-        elif remat_mode["mode"] == "larger_than":
+        elif remat_mode.mode == "larger_than":
             output_spec = self.compute_output_spec(*args, **kwargs)
             output_size = sum(
                 tree.flatten(tree.map_structure(compute_size, output_spec))
             )
-            if (
-                output_size
-                and output_size > remat_mode["output_size_threshold"]
-            ):
+            if output_size and output_size > remat_mode.output_size_threshold:
                 return remat(layer_call)(*args, **kwargs)
 
         return layer_call(*args, **kwargs)

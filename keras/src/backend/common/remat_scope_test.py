@@ -16,7 +16,7 @@ class TestRematScope(testing.TestCase):
 
         with RematScope(mode="full"):
             self.assertEqual(
-                get_current_remat_mode()["mode"], "full"
+                get_current_remat_mode().mode, "full"
             )  # Mode is set to "full"
 
         self.assertIsNone(
@@ -27,16 +27,16 @@ class TestRematScope(testing.TestCase):
         """Test nested scopes with different rematerialization modes."""
         with RematScope(mode="full"):
             self.assertEqual(
-                get_current_remat_mode()["mode"], "full"
+                get_current_remat_mode().mode, "full"
             )  # Outer scope is "full"
 
             with RematScope(mode="activations"):
                 self.assertEqual(
-                    get_current_remat_mode()["mode"], "activations"
+                    get_current_remat_mode().mode, "activations"
                 )  # Inner scope is "activations"
 
             self.assertEqual(
-                get_current_remat_mode()["mode"], "full"
+                get_current_remat_mode().mode, "full"
             )  # Back to outer scope
 
         self.assertIsNone(
