@@ -1198,7 +1198,9 @@ def remat(f):
 
     Example:
         ```python
-        from keras import layers, models, ops
+        from keras import layers
+        from keras import layers
+        from keras import remat
 
         def intermediate_function(x):
             for _ in range(2):
@@ -1206,7 +1208,7 @@ def remat(f):
             return x
 
         # Apply rematerialization
-        rematerialized_function = ops.remat(intermediate_function)
+        rematerialized_function = remat(intermediate_function)
 
         # Use the rematerialized function in a model
         inputs = layers.Input(shape=(4,))
