@@ -1227,10 +1227,17 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             )
 
     def quantized_call(self, *args, **kwargs):
+        remat_mode = get_current_remat_mode()
         if self.quantization_mode == "int8":
-            return self._int8_call(*args, **kwargs)
+            if remat_mode:
+                return self._remat_wrapper(self._int8_call)(*args, **kwargs)
+            else:
+                return self._int8_call(*args, **kwargs)
         elif self.quantization_mode == "float8":
-            return self._float8_call(*args, **kwargs)
+            if remat_mode:
+                return self._remat_wrapper(self._float8_call)(*args, **kwargs)
+            else:
+                return self._float8_call(*args, **kwargs)
         else:
             raise self._quantization_mode_error(self.quantization_mode)
 
