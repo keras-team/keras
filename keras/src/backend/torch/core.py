@@ -661,7 +661,7 @@ def random_seed_dtype():
     return "int32"
 
 
-def remat(func, *args, **kwargs):
+def remat(func):
     """Implementation of rematerialization.
 
     Args:

@@ -640,7 +640,7 @@ def custom_gradient(fun):
     return tf.custom_gradient(f=fun)
 
 
-def remat(f, *args, **kwargs):
+def remat(f):
     """Implementation of rematerialization.
 
     Args:

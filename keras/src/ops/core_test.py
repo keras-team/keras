@@ -1361,15 +1361,15 @@ class CoreOpsRematTest(testing.TestCase):
 
         epochs = 5
         batch_size = 512
-
-        def relu_fn(x):
-            return activations.relu(x)  # Explicitly pass x
-
-        intermediate_function = backend.core.remat(relu_fn)
-
+        # test applying remat
+        output_with_remat = backend.core.remat(activations.relu)(x_train)
+        output_without_remat = activations.relu(x_train)
+        self.assertAllClose(output_with_remat, output_without_remat)
+        # test remat in a model
+        intermediate_function = backend.core.remat(activations.relu)
         inputs = layers.Input(shape=(4,))
         x = layers.Dense(4)(inputs)
-        x = intermediate_function(x)
+        x = layers.Lambda(lambda y: intermediate_function(y))(x)
         outputs = layers.Dense(1)(x)
         model = models.Model(inputs=inputs, outputs=outputs)
         model.predict(x_train)
@@ -1383,5 +1383,3 @@ class CoreOpsRematTest(testing.TestCase):
             batch_size=batch_size,
             verbose=0,
         )
-
-        # Train model with rematerialization

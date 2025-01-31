@@ -319,6 +319,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # Parent path
         self._parent_path = None
         self._initialize_tracker()
+        remat_mode = get_current_remat_mode()
+        if remat_mode is not None and remat_mode["mode"] == "activation":
+            if hasattr(self, "activation") and self.activation is not None:
+                self.activation = remat(self.activation)
 
     @tracking.no_automatic_dependency_tracking
     def _initialize_tracker(self):
@@ -1594,13 +1598,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             return remat(layer_call)(*args, **kwargs)
 
         # Apply rematerialization to specific layers
-        if remat_mode["mode"] == "list_of_layers" and (
+        elif remat_mode["mode"] == "list_of_layers" and (
             self.name in remat_mode["layer_names"]
         ):
             return remat(layer_call)(*args, **kwargs)
 
         # Apply rematerialization based on output size threshold
-        if remat_mode["mode"] == "larger_than":
+        elif remat_mode["mode"] == "larger_than":
             output_spec = self.compute_output_spec(*args, **kwargs)
             output_size = sum(
                 tree.flatten(tree.map_structure(compute_size, output_spec))
@@ -1610,14 +1614,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 and output_size > remat_mode["output_size_threshold"]
             ):
                 return remat(layer_call)(*args, **kwargs)
-
-        # Apply rematerialization to activation functions only
-        elif remat_mode == "activations":
-            has_activation = (
-                hasattr(self, "activation") and self.activation is not None
-            )
-            if has_activation:
-                self.activation = remat(self.activation)
 
         return layer_call(*args, **kwargs)
 

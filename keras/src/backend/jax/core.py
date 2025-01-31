@@ -365,7 +365,7 @@ def custom_gradient(fun):
     return jax.custom_gradient(fun=fun)
 
 
-def remat(f, *args, **kwargs):
+def remat(f):
     """Implementation of rematerialization.
 
     Args:

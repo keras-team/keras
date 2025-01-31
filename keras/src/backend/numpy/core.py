@@ -445,7 +445,7 @@ def device_scope(device_name):
     yield
 
 
-def remat(f, *args, **kwargs):
+def remat(f):
     warnings.warn(
         "Rematerialization memory optimization is not supported by the "
         "Numpy backend. Please switch to JAX, TensorFlow, or PyTorch to "

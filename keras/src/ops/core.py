@@ -1175,21 +1175,8 @@ def custom_gradient(f):
     return backend.core.custom_gradient(f)
 
 
-class Remat(Operation):
-    def __init__(self, func):
-        super().__init__()
-        self.func = func
-
-    def call(self, *args, **kwargs):
-        remat_func = backend.core.remat(self.func)
-        return remat_func(*args, **kwargs)
-
-    def compute_output_spec(self, *args, **kwargs):
-        return backend.compute_output_spec(self.func, *args, **kwargs)
-
-
 @keras_export("keras.ops.remat")
-def remat(f, *args, **kwargs):
+def remat(f):
     """Applies rematerialization to a function or layer for memory optimization.
 
     Rematerialization is a memory optimization technique that trades off
@@ -1203,8 +1190,6 @@ def remat(f, *args, **kwargs):
         f: The function, operation, or layer to which rematerialization is
            applied. This is typically a computationally expensive operation
            where intermediate states can be recomputed instead of stored.
-        *args: Positional arguments to be passed to the function `f`.
-        **kwargs: Keyword arguments to be passed to the function `f`.
 
     Returns:
         A wrapped function or layer that applies rematerialization. The returned
@@ -1232,7 +1217,4 @@ def remat(f, *args, **kwargs):
         model.compile(optimizer="sgd", loss="mse")
         ```
     """
-    if any_symbolic_tensors(args) or any_symbolic_tensors(kwargs.values()):
-        return Remat(f).symbolic_call(*args, **kwargs)
-
-    return backend.core.remat(f, *args, **kwargs)
+    return backend.core.remat(f)
