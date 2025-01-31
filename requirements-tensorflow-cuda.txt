@@ -3,7 +3,8 @@ tensorflow[and-cuda]~=2.18.0
 tf2onnx
 
 # Torch cpu-only version (needed for testing).
-# TODO: Pinned to a version that is compatible with torch-xla
+# - torch is pinned to a version that is compatible with torch-xla
+# - torch-xla is pinned to a version that supports GPU (2.6 doesn't)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.5.1+cpu
 torchvision==0.20.1+cpu
