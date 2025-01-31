@@ -1042,8 +1042,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
             if self.dtype_policy.quantization_mode is not None:
-                outputs = self.quantized_call(*args, **kwargs)
-            if remat_mode:
+                if remat_mode:
+                    outputs = self.remat_wrapper(self.quantized_call)(
+                        *args, **kwargs
+                    )
+                else:
+                    outputs = self.quantized_call(*args, **kwargs)
+            elif remat_mode:
                 outputs = self.remat_wrapper(self.call)(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
@@ -1227,17 +1232,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             )
 
     def quantized_call(self, *args, **kwargs):
-        remat_mode = get_current_remat_mode()
         if self.quantization_mode == "int8":
-            if remat_mode:
-                return self._remat_wrapper(self._int8_call)(*args, **kwargs)
-            else:
-                return self._int8_call(*args, **kwargs)
+            return self._int8_call(*args, **kwargs)
         elif self.quantization_mode == "float8":
-            if remat_mode:
-                return self._remat_wrapper(self._float8_call)(*args, **kwargs)
-            else:
-                return self._float8_call(*args, **kwargs)
+            return self._float8_call(*args, **kwargs)
         else:
             raise self._quantization_mode_error(self.quantization_mode)
 
