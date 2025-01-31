@@ -1176,15 +1176,16 @@ def custom_gradient(f):
 
 
 class Remat(Operation):
-    def __init__(self):
+    def __init__(self, func):
         super().__init__()
+        self.func = func
 
-    def call(self, func, *args, **kwargs):
-        remat_func = backend.core.remat(func)
+    def call(self, *args, **kwargs):
+        remat_func = backend.core.remat(self.func)
         return remat_func(*args, **kwargs)
 
-    def compute_output_spec(self, f, *args, **kwargs):
-        return backend.compute_output_spec(f, *args, **kwargs)
+    def compute_output_spec(self, *args, **kwargs):
+        return backend.compute_output_spec(self.func, *args, **kwargs)
 
 
 @keras_export("keras.ops.remat")
@@ -1193,10 +1194,10 @@ def remat(f, *args, **kwargs):
 
     Rematerialization is a memory optimization technique that trades off
     computation for memory. Instead of storing intermediate results
-    (activations) for backpropagation, they are recomputed during the backward
-    pass. This reduces peak memory usage at the cost of increased computation
-    time, allowing the training of larger models or using larger batch sizes
-    within the same memory constraints.
+    (e.g.activations) for backpropagation, they are recomputed during the
+    backward pass. This reduces peak memory usage at the cost of increased
+    computation time, allowing the training of larger models or using larger
+    batch sizes within the same memory constraints.
 
     Args:
         f: The function, operation, or layer to which rematerialization is
@@ -1232,10 +1233,6 @@ def remat(f, *args, **kwargs):
         ```
     """
     if any_symbolic_tensors(args) or any_symbolic_tensors(kwargs.values()):
-        return Remat().symbolic_call(f, *args, **kwargs)
+        return Remat(f).symbolic_call(*args, **kwargs)
 
-    return backend.core.remat(
-        f,
-        *args,
-        **kwargs,
-    )
+    return backend.core.remat(f, *args, **kwargs)
