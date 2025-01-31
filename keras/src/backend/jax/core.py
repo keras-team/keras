@@ -365,16 +365,16 @@ def custom_gradient(fun):
     return jax.custom_gradient(fun=fun)
 
 
-def remat(func, *args, **kwargs):
+def remat(f, *args, **kwargs):
     """Implementation of rematerialization.
 
     Args:
-        func: The function or operation to rematerialize.
+        f: The function or operation to rematerialize.
     Returns:
-        A function wrapping func that defines a custom gradient, which
+        A function wrapping f that defines a custom gradient, which
         recomputes f on the backwards pass of a gradient call.
     """
-    return jax.checkpoint(func)
+    return jax.checkpoint(f)
 
 
 class name_scope(base_name_scope):

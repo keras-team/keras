@@ -1,6 +1,5 @@
 import contextlib
 import operator
-import time
 from unittest.mock import Mock
 
 import numpy as np
@@ -1355,51 +1354,34 @@ class CoreOpsRematTest(testing.TestCase):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )
-
-        def build_and_train_model(
-            use_remat, x_train, y_train, epochs, batch_size
-        ):
-            if use_remat:
-
-                def relu_fn(x):
-                    return activations.relu(x)  # Explicitly pass x
-
-                intermediate_function = backend.core.remat(relu_fn)
-            else:
-                intermediate_function = (
-                    activations.relu
-                )  # Just use relu normally
-
-            inputs = layers.Input(shape=(4,))
-            x = layers.Dense(4)(inputs)
-            x = layers.Lambda(lambda x: intermediate_function(x))(x)
-            outputs = layers.Dense(1)(x)
-            model = models.Model(inputs=inputs, outputs=outputs)
-            model.predict(x_train)
-            model.compile(optimizer="sgd", loss="mse")
-
-            # Train model
-            start_time = time.time()
-            model.fit(
-                x_train,
-                y_train,
-                epochs=epochs,
-                batch_size=batch_size,
-                verbose=0,
-            )
-            end_time = time.time()
-
-            # Calculate time and memory
-            time_taken = end_time - start_time
-            return time_taken
-
         # Generate dummy data
         data_size = 10**5
         x_train = np.random.normal(size=(data_size, 4))
         y_train = np.random.normal(size=(data_size, 1))
 
-        # Train models with and without rematerialization
         epochs = 5
         batch_size = 512
+
+        def relu_fn(x):
+            return activations.relu(x)  # Explicitly pass x
+
+        intermediate_function = backend.core.remat(relu_fn)
+
+        inputs = layers.Input(shape=(4,))
+        x = layers.Dense(4)(inputs)
+        x = intermediate_function(x)
+        outputs = layers.Dense(1)(x)
+        model = models.Model(inputs=inputs, outputs=outputs)
+        model.predict(x_train)
+        model.compile(optimizer="sgd", loss="mse")
+
+        # Train model
+        model.fit(
+            x_train,
+            y_train,
+            epochs=epochs,
+            batch_size=batch_size,
+            verbose=0,
+        )
+
         # Train model with rematerialization
-        build_and_train_model(True, x_train, y_train, epochs, batch_size)

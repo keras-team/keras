@@ -18,6 +18,7 @@ And some more magic:
 
 import collections
 import inspect
+import math
 import warnings
 from functools import wraps
 
@@ -39,7 +40,6 @@ from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.core import remat
-from keras.src.ops.numpy import prod
 from keras.src.ops.operation import Operation
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -1043,13 +1043,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ) as scope:
             if self.dtype_policy.quantization_mode is not None:
                 if remat_mode:
-                    outputs = self.remat_wrapper(self.quantized_call)(
+                    outputs = self.rematerialized_call(self.quantized_call)(
                         *args, **kwargs
                     )
                 else:
                     outputs = self.quantized_call(*args, **kwargs)
             elif remat_mode:
-                outputs = self.remat_wrapper(self.call)(*args, **kwargs)
+                outputs = self.rematerialized_call(self.call)(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
             if return_losses:
@@ -1571,7 +1571,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             self._parent_path = current_path()
         return backend.name_scope(self.name, caller=self)
 
-    def remat_wrapper(self, layer_call):
+    def rematerialized_call(self, layer_call, *args, **kwargs):
         """Wrap the layer's call method to enable rematerialization dynamically.
 
         Args:
@@ -1581,79 +1581,45 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             callable: The wrapped method with rematerialization logic applied.
         """
 
-        def calculate_output_size(spec):
-            """Calculate the total output size from the output spec.
+        def compute_size(x):
+            return (
+                math.prod([d or 1 for d in x.shape])
+                if isinstance(x, KerasTensor)
+                else 0
+            )
 
-            Args:
-                spec: The output spec returned by compute_output_spec.
+        remat_mode = get_current_remat_mode()
+        # Full rematerialization
+        if remat_mode["mode"] == "full":
+            return remat(layer_call)(*args, **kwargs)
 
-            Returns:
-                int: The total size of the output or None if dimensions are
-                unknown.
-            """
-            if isinstance(spec, KerasTensor):
-                shape = spec.shape
-                if None in shape:
-                    return None
-                return int(prod(shape))  # Using Keras ops to compute size
+        # Apply rematerialization to specific layers
+        if remat_mode["mode"] == "list_of_layers" and (
+            self.name in remat_mode["layer_names"]
+        ):
+            return remat(layer_call)(*args, **kwargs)
 
-            elif isinstance(spec, (list, tuple)):
-                total_size = 0
-                for s in spec:
-                    size = calculate_output_size(s)
-                    if size is None:
-                        return (
-                            None  # If any size is indeterminate, return None.
-                        )
-                    total_size += size
-                return total_size
-
-            elif isinstance(spec, dict):
-                total_size = 0
-                for k, v in spec.items():
-                    size = calculate_output_size(v)
-                    if size is None:
-                        return (
-                            None  # If any size is indeterminate, return None.
-                        )
-                    total_size += size
-                return total_size
-
-            return None
-
-        def wrapped_call(*args, **kwargs):
-            remat_mode = get_current_remat_mode()
-            # Full rematerialization
-            if remat_mode["mode"] == "full":
-                return remat(layer_call)(*args, **kwargs)
-
-            # Apply rematerialization to specific layers
-            if remat_mode["mode"] == "list_of_layers" and (
-                self.name in remat_mode["layer_names"]
+        # Apply rematerialization based on output size threshold
+        if remat_mode["mode"] == "larger_than":
+            output_spec = self.compute_output_spec(*args, **kwargs)
+            output_size = sum(
+                tree.flatten(tree.map_structure(compute_size, output_spec))
+            )
+            if (
+                output_size
+                and output_size > remat_mode["output_size_threshold"]
             ):
                 return remat(layer_call)(*args, **kwargs)
 
-            # Apply rematerialization based on output size threshold
-            if remat_mode["mode"] == "larger_than":
-                output_spec = self.compute_output_spec(*args, **kwargs)
-                output_size = calculate_output_size(output_spec)
-                if (
-                    output_size
-                    and output_size > remat_mode["output_size_threshold"]
-                ):
-                    return remat(layer_call)(*args, **kwargs)
+        # Apply rematerialization to activation functions only
+        elif remat_mode == "activations":
+            has_activation = (
+                hasattr(self, "activation") and self.activation is not None
+            )
+            if has_activation:
+                self.activation = remat(self.activation)
 
-            # Apply rematerialization to activation functions only
-            elif remat_mode == "activations":
-                has_activation = (
-                    hasattr(self, "activation")
-                    and self.activation is not None
-                    and not utils.is_default(self.activation)
-                )
-                if has_activation:
-                    self.activation = remat(self.activation)
-
-        return wrapped_call
+        return layer_call(*args, **kwargs)
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
