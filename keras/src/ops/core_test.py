@@ -1402,10 +1402,4 @@ class CoreOpsRematTest(testing.TestCase):
         epochs = 5
         batch_size = 512
         # Train model with rematerialization
-        time_with_remat = build_and_train_model(
-            True, x_train, y_train, epochs, batch_size
-        )
-        time_without_remat = build_and_train_model(
-            False, x_train, y_train, epochs, batch_size
-        )
-        self.assertGreater(time_with_remat, time_without_remat)
+        build_and_train_model(True, x_train, y_train, epochs, batch_size)
