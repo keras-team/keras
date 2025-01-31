@@ -139,6 +139,7 @@ def is_tf_dataset(x):
             if parent.__name__ in (
                 "DatasetV2",
                 "DistributedDataset",
+                "DistributedDatasetsFromFunction",
             ) and "tensorflow.python." in str(parent.__module__):
                 return True
     return False
