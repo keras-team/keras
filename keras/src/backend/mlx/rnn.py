@@ -194,7 +194,6 @@ def rnn(
                 init=initial_states,
                 xs=scan_xs,
                 reverse=go_backwards,
-                mask=mask,
             )
 
         if go_backwards:

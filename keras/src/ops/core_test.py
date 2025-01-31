@@ -1232,8 +1232,6 @@ class CoreOpsCallsTests(testing.TestCase):
         self.assertEqual(result.dtype, target_dtype)
         # Check that the values are the same
         expected_values = np.clip(x, 0, 255).astype(target_dtype)
-        print(result)
-        print(expected_values)
         self.assertTrue(np.array_equal(result, expected_values))
 
     def test_cond_check_output_spec_list_tuple(self):
