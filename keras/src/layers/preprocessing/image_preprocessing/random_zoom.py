@@ -58,7 +58,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
             directions by preserving the aspect ratio. Defaults to `None`.
         fill_mode: Points outside the boundaries of the input are filled
             according to the given mode. Available methods are `"constant"`,
-            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"constant"`.
+            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"reflect"`.
             - `"reflect"`: `(d c b a | a b c d | d c b a)`
                 The input is extended by reflecting about the edge of the last
                 pixel.

@@ -85,6 +85,28 @@ class JAXTrainer(base_trainer.Trainer):
             metrics_variables,
         )
 
+    def _update_metrics_variables(
+        self, metrics_variables, unscaled_loss, x, y, y_pred, sample_weight
+    ):
+        with backend.StatelessScope(
+            state_mapping=[
+                (ref_v, v)
+                for ref_v, v in zip(self.metrics_variables, metrics_variables)
+            ]
+        ) as scope:
+            self._loss_tracker.update_state(
+                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
+            )
+            logs = self.compute_metrics(x, y, y_pred, sample_weight)
+
+        new_metrics_variables = []
+        for ref_v in self.metrics_variables:
+            new_v = scope.get_current_value(ref_v)
+            if new_v is None:
+                new_v = ref_v.value
+            new_metrics_variables.append(new_v)
+        return logs, new_metrics_variables
+
     def train_step(self, state, data):
         (
             trainable_variables,
@@ -117,24 +139,9 @@ class JAXTrainer(base_trainer.Trainer):
             optimizer_variables, grads, trainable_variables
         )
 
-        with backend.StatelessScope(
-            state_mapping=[
-                (ref_v, v)
-                for ref_v, v in zip(self.metrics_variables, metrics_variables)
-            ]
-        ) as scope:
-            self._loss_tracker.update_state(
-                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
-            )
-            logs = self.compute_metrics(x, y, y_pred, sample_weight)
-
-        new_metrics_variables = []
-        for ref_v in self.metrics_variables:
-            new_v = scope.get_current_value(ref_v)
-            if new_v is None:
-                new_v = ref_v.value
-            new_metrics_variables.append(new_v)
-        metrics_variables = new_metrics_variables
+        logs, metrics_variables = self._update_metrics_variables(
+            metrics_variables, unscaled_loss, x, y, y_pred, sample_weight
+        )
 
         state = self._enforce_jax_state_sharding(
             trainable_variables,
@@ -164,24 +171,9 @@ class JAXTrainer(base_trainer.Trainer):
             aux
         )
 
-        with backend.StatelessScope(
-            state_mapping=[
-                (ref_v, v)
-                for ref_v, v in zip(self.metrics_variables, metrics_variables)
-            ]
-        ) as scope:
-            self._loss_tracker.update_state(
-                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
-            )
-            logs = self.compute_metrics(x, y, y_pred, sample_weight)
-
-        new_metrics_variables = []
-        for ref_v in self.metrics_variables:
-            new_v = scope.get_current_value(ref_v)
-            if new_v is None:
-                new_v = ref_v.value
-            new_metrics_variables.append(new_v)
-        metrics_variables = new_metrics_variables
+        logs, metrics_variables = self._update_metrics_variables(
+            metrics_variables, unscaled_loss, x, y, y_pred, sample_weight
+        )
 
         (
             trainable_variables,

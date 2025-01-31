@@ -245,12 +245,30 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     axis = standardize_axis_for_numpy(axis)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or x.ndim == 0:
+        return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
+
+    dtype = dtypes.result_type(dtype, "float32")
+    x = x.astype(dtype)
+    is_negative_zero = (x == 0.0) & np.signbit(x)
+    x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
     return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
 
 
 def argmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     axis = standardize_axis_for_numpy(axis)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or x.ndim == 0:
+        return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
+
+    dtype = dtypes.result_type(dtype, "float32")
+    x = x.astype(dtype)
+    is_negative_zero = (x == 0.0) & np.signbit(x)
+    x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
     return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
 
 
@@ -886,6 +904,10 @@ def searchsorted(sorted_sequence, values, side="left"):
 
 def sign(x):
     return np.sign(x)
+
+
+def signbit(x):
+    return np.signbit(x)
 
 
 def sin(x):

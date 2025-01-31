@@ -353,10 +353,36 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
+    from keras.src.testing.test_case import uses_cpu
+
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+        return jnp.argmax(x, axis=axis, keepdims=keepdims)
+
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
+    dtype = dtypes.result_type(dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = (x == 0.0) & jnp.signbit(x)
+    x = jnp.where(is_negative_zero, -jnp.finfo(x.dtype).tiny, x)
     return jnp.argmax(x, axis=axis, keepdims=keepdims)
 
 
 def argmin(x, axis=None, keepdims=False):
+    from keras.src.testing.test_case import uses_cpu
+
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+        return jnp.argmin(x, axis=axis, keepdims=keepdims)
+
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
+    dtype = dtypes.result_type(dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = (x == 0.0) & jnp.signbit(x)
+    x = jnp.where(is_negative_zero, -jnp.finfo(x.dtype).tiny, x)
     return jnp.argmin(x, axis=axis, keepdims=keepdims)
 
 
@@ -974,6 +1000,12 @@ def searchsorted(sorted_sequence, values, side="left"):
 def sign(x):
     x = convert_to_tensor(x)
     return jnp.sign(x)
+
+
+@sparse.elementwise_unary(linear=False)
+def signbit(x):
+    x = convert_to_tensor(x)
+    return jnp.signbit(x)
 
 
 @sparse.elementwise_unary(linear=False)

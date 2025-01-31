@@ -791,6 +791,31 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         self.assertEqual(out.shape, (2, 3, 25, 25))
 
+        x = np.ones((2, 3, 10, 10)) * 128
+        out = kimage.resize(
+            x, size=(4, 4), pad_to_aspect_ratio=True, fill_value=fill_value
+        )
+        self.assertEqual(out.shape, (2, 3, 4, 4))
+        self.assertAllClose(out[:, 0, :, :], np.ones((2, 4, 4)) * 128)
+
+        x = np.ones((2, 3, 10, 8)) * 128
+        out = kimage.resize(
+            x, size=(4, 4), pad_to_aspect_ratio=True, fill_value=fill_value
+        )
+        self.assertEqual(out.shape, (2, 3, 4, 4))
+        self.assertAllClose(
+            out,
+            np.concatenate(
+                [
+                    np.ones((2, 3, 4, 1)) * 96.25,
+                    np.ones((2, 3, 4, 2)) * 128.0,
+                    np.ones((2, 3, 4, 1)) * 96.25,
+                ],
+                axis=3,
+            ),
+            atol=1.0,
+        )
+
     @parameterized.named_parameters(
         named_product(
             interpolation=["bilinear", "nearest"],

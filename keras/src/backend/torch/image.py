@@ -224,38 +224,89 @@ def resize(
         if len(images.shape) == 4:
             batch_size = images.shape[0]
             channels = images.shape[1]
-            padded_img = (
-                torch.ones(
-                    (
-                        batch_size,
-                        channels,
-                        pad_height + height,
-                        pad_width + width,
-                    ),
-                    dtype=images.dtype,
+            if img_box_hstart > 0:
+                padded_img = torch.cat(
+                    [
+                        torch.ones(
+                            (batch_size, channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                            device=images.device,
+                        )
+                        * fill_value,
+                        images,
+                        torch.ones(
+                            (batch_size, channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                            device=images.device,
+                        )
+                        * fill_value,
+                    ],
+                    axis=2,
                 )
-                * fill_value
-            )
-            padded_img[
-                :,
-                :,
-                img_box_hstart : img_box_hstart + height,
-                img_box_wstart : img_box_wstart + width,
-            ] = images
+            else:
+                padded_img = images
+
+            if img_box_wstart > 0:
+                padded_img = torch.cat(
+                    [
+                        torch.ones(
+                            (batch_size, channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                            device=images.device,
+                        ),
+                        padded_img,
+                        torch.ones(
+                            (batch_size, channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                            device=images.device,
+                        )
+                        * fill_value,
+                    ],
+                    axis=3,
+                )
+
         else:
             channels = images.shape[0]
-            padded_img = (
-                torch.ones(
-                    (channels, pad_height + height, pad_width + width),
-                    dtype=images.dtype,
+            if img_box_wstart > 0:
+                padded_img = torch.cat(
+                    [
+                        torch.ones(
+                            (channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                            device=images.device,
+                        )
+                        * fill_value,
+                        images,
+                        torch.ones(
+                            (channels, img_box_hstart, width),
+                            dtype=images.dtype,
+                            device=images.device,
+                        )
+                        * fill_value,
+                    ],
+                    axis=1,
                 )
-                * fill_value
-            )
-            padded_img[
-                :,
-                img_box_hstart : img_box_hstart + height,
-                img_box_wstart : img_box_wstart + width,
-            ] = images
+            else:
+                padded_img = images
+            if img_box_wstart > 0:
+                torch.cat(
+                    [
+                        torch.ones(
+                            (channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                            device=images.device,
+                        )
+                        * fill_value,
+                        padded_img,
+                        torch.ones(
+                            (channels, height, img_box_wstart),
+                            dtype=images.dtype,
+                            device=images.device,
+                        )
+                        * fill_value,
+                    ],
+                    axis=2,
+                )
         images = padded_img
 
     resized = torchvision.transforms.functional.resize(

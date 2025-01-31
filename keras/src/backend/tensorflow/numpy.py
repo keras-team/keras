@@ -837,6 +837,25 @@ def _keepdims(x, y, axis):
 
 
 def argmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or x.ndim == 0:
+        _x = x
+        if axis is None:
+            x = tf.reshape(x, [-1])
+        y = tf.argmax(x, axis=axis, output_type="int32")
+        if keepdims:
+            y = _keepdims(_x, y, axis)
+        return y
+
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
+    dtype = dtypes.result_type(dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
+    x = tf.where(
+        is_negative_zero, -np.finfo(standardize_dtype(x.dtype)).tiny, x
+    )
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
@@ -847,6 +866,27 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
+    from keras.src.testing.test_case import uses_cpu
+
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+        _x = x
+        if axis is None:
+            x = tf.reshape(x, [-1])
+        y = tf.argmin(x, axis=axis, output_type="int32")
+        if keepdims:
+            y = _keepdims(_x, y, axis)
+        return y
+
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
+    dtype = dtypes.result_type(dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
+    x = tf.where(
+        is_negative_zero, -np.finfo(standardize_dtype(x.dtype)).tiny, x
+    )
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
@@ -1998,6 +2038,26 @@ def sign(x):
         x = tf.cast(x, "int32")
         return tf.cast(tf.sign(x), ori_dtype)
     return tf.sign(x)
+
+
+@sparse.elementwise_unary
+def signbit(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        return tf.fill(tf.shape(x), False)
+    elif "int" in ori_dtype:
+        return x < 0
+    else:
+        x = cast(x, "float32")
+        return tf.less(
+            tf.bitwise.bitwise_and(
+                tf.bitcast(x, tf.int32),
+                # tf.float32 sign bit
+                tf.constant(0x80000000, dtype=tf.int32),
+            ),
+            0,
+        )
 
 
 @sparse.elementwise_unary

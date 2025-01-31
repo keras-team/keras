@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.saving.serialization_lib import deserialize_keras_object
 
 
 @keras_export("keras.layers.Masking")
@@ -45,6 +46,9 @@ class Masking(Layer):
 
     def __init__(self, mask_value=0.0, **kwargs):
         super().__init__(**kwargs)
+        # `mask_value` can be a serialized tensor, hence verify it
+        if isinstance(mask_value, dict) and mask_value.get("config", None):
+            mask_value = deserialize_keras_object(mask_value)
         self.mask_value = mask_value
         self.supports_masking = True
         self.built = True

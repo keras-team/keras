@@ -5067,6 +5067,33 @@ def sign(x):
     return backend.numpy.sign(x)
 
 
+class Signbit(Operation):
+    def call(self, x):
+        return backend.numpy.signbit(x)
+
+    def compute_output_spec(self, x):
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype="bool", sparse=sparse)
+
+
+@keras_export(["keras.ops.signbit", "keras.ops.numpy.signbit"])
+def signbit(x):
+    """Return the sign bit of the elements of `x`.
+
+    The output boolean tensor contains `True` where the sign of `x` is negative,
+    and `False` otherwise.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor of same shape as `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Signbit().symbolic_call(x)
+    return backend.numpy.signbit(x)
+
+
 class Sin(Operation):
     def call(self, x):
         return backend.numpy.sin(x)

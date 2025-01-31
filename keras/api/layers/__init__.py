@@ -172,8 +172,14 @@ from keras.src.layers.preprocessing.image_preprocessing.random_contrast import (
 from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
     RandomCrop,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_erasing import (
+    RandomErasing,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_flip import (
     RandomFlip,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_gaussian_blur import (
+    RandomGaussianBlur,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_grayscale import (
     RandomGrayscale,

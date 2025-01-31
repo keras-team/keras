@@ -1142,6 +1142,38 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3, 3))
 
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO doesn't support this change",
+    )
+    def test_argmax_negative_zero(self):
+        input_data = np.array(
+            [-1.0, -0.0, 1.401298464324817e-45], dtype=np.float32
+        )
+        self.assertEqual(knp.argmax(input_data), 2)
+
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino"
+        or keras.config.backend() == "tensorflow",
+        reason="""
+        OpenVINO and TensorFlow don't support this 
+        change, TensorFlow behavior for this case is under
+        evaluation and may change within this PR
+        """,
+    )
+    def test_argmin_negative_zero(self):
+        input_data = np.array(
+            [
+                0.0,
+                1.1754943508222875e-38,
+                -1.401298464324817e-45,
+                0.0,
+                459367.0,
+            ],
+            dtype=np.float32,
+        )
+        self.assertEqual(knp.argmin(input_data), 2)
+
     def test_argmin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argmin(x).shape, ())
@@ -1564,6 +1596,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_sign(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.sign(x).shape, (None, 3))
+
+    def test_signbit(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.signbit(x).shape, (None, 3))
 
     def test_sin(self):
         x = KerasTensor((None, 3))
@@ -2128,6 +2164,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_sign(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.sign(x).shape, (2, 3))
+
+    def test_signbit(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.signbit(x).shape, (2, 3))
 
     def test_sin(self):
         x = KerasTensor((2, 3))
@@ -4290,6 +4330,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
         self.assertAllClose(knp.sign(x), np.sign(x))
         self.assertAllClose(knp.Sign()(x), np.sign(x))
+
+    def test_signbit(self):
+        x = np.array([[0.0, -0.0, -1.1e-45], [1.1e-38, 2, -1]])
+        self.assertAllClose(knp.signbit(x), np.signbit(x))
+        self.assertAllClose(knp.Signbit()(x), np.signbit(x))
 
     def test_sin(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
@@ -8004,6 +8049,23 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Sign().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_signbit(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.signbit(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.signbit(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Signbit().symbolic_call(x).dtype),
             expected_dtype,
         )
 
