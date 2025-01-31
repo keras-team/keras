@@ -1,6 +1,8 @@
+from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
 
+@keras_export("keras.RematScope")
 class RematScope:
     """A context manager for enabling rematerialization in Keras.
 
@@ -14,7 +16,9 @@ class RematScope:
             Options:
             - "full": Apply rematerialization globally to all supported
               operations.
-            - "activations": Apply rematerialization only to activation layers.
+            - "activations": Apply rematerialization to activations on any
+              layers that contain `keras.activations` (e.g., `Dense(...,
+              activation=relu)`).
             - "larger_than": Apply rematerialization to layers with output sizes
               larger than `output_size_threshold`.
             - "list_of_layers": Apply rematerialization to a specific list of
@@ -30,7 +34,7 @@ class RematScope:
     Using "list_of_layers" mode:
 
     ```python
-    from keras.src.backend.common.remat_scope import RematScope
+    from keras import RematScope
 
     with RematScope(mode="list_of_layers", layer_names=["dense_1",
     "conv2d_1"]):
@@ -47,8 +51,6 @@ class RematScope:
     Using "larger_than" mode with a specific output size threshold:
 
     ```python
-    from keras.src.backend.common.remat_scope import RematScope
-
     with RematScope(mode="larger_than", output_size_threshold=2048):
         layer = keras.layers.Conv2D(64, (3, 3))
         output = layer(input_tensor)  # Conv2D outputs larger than 2048
@@ -57,8 +59,6 @@ class RematScope:
     Nested scopes for fine-grained control:
 
     ```python
-    from keras.src.backend.common.remat_scope import RematScope
-
     with RematScope(mode="full"):
         layer1 = keras.layers.Dense(128, activation='relu')
         with RematScope(mode="larger_than", output_size_threshold=512):
