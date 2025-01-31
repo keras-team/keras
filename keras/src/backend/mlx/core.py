@@ -1,11 +1,17 @@
+import builtins
+import functools
+import warnings
+
 import mlx.core as mx
 import numpy as np
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 try:
     import h5py
@@ -13,6 +19,8 @@ except ImportError:
     h5py = None
 
 SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_RAGGED_TENSORS = False
+IS_THREAD_SAFE = True
 
 MLX_DTYPES = {
     "float16": mx.float16,
@@ -67,9 +75,11 @@ def _is_h5py_dataset(obj):
     )
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with mlx backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with mlx backend")
     mlx_dtype = to_mlx_dtype(dtype) if dtype is not None else None
 
     if is_tensor(x):
@@ -83,7 +93,13 @@ def convert_to_tensor(x, dtype=None, sparse=None):
         return x.value
 
     if isinstance(x, np.ndarray):
-        x = x.astype(standardize_dtype(x.dtype))
+        if x.dtype == np.float64:
+            # mlx backend does not support float64
+            x = x.astype(np.float32)
+        if standardize_dtype(x.dtype) == "bfloat16" and mlx_dtype is None:
+            # if a bfloat16 np.ndarray is passed to mx.array with dtype=None
+            # it casts the output to complex64, so we force cast to bfloat16
+            mlx_dtype = mx.bfloat16
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
@@ -191,10 +207,12 @@ def compute_output_spec(fn, *args, **kwargs):
         )
         return fn(*arr_args, **arr_kwargs)
 
-    with StatelessScope():
+    with StatelessScope(), SymbolicScope():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
 
-        none_in_shape = any(map(has_none_shape, tree.flatten((args, kwargs))))
+        none_in_shape = any(
+            builtins.map(has_none_shape, tree.flatten((args, kwargs)))
+        )
         if none_in_shape:
             outputs_1 = outputs
             outputs_2 = symbolic_call(fn, args, kwargs, fill_value=89)
@@ -293,6 +311,13 @@ def slice_update(inputs, start_indices, updates):
     return inputs
 
 
+def switch(index, branches, *operands):
+    index = convert_to_tensor(index, "int32")
+    index = mx.clip(index, 0, len(branches) - 1).tolist()
+    operands = tuple(convert_to_tensor(o) for o in operands)
+    return branches[index](*operands)
+
+
 def while_loop(
     cond,
     body,
@@ -336,6 +361,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
+    if isinstance(variable, Variable):
+        variable = variable.value
     return mx.stop_gradient(variable)
 
 
@@ -344,55 +371,223 @@ def unstack(x, num=None, axis=0):
     return [yi.squeeze(axis) for yi in y]
 
 
+def random_seed_dtype():
+    # mlx random seed uses uint32.
+    return "uint32"
+
+
 def reverse_sequence(xs):
     indices = mx.arange(xs.shape[0] - 1, -1, -1)
     return mx.take(xs, indices, axis=0)
 
 
-def scan(f, init, xs, reverse=False, mask=None):
-    states = init
-    outputs_list = []
-
-    if mask is not None:
-        x, mask = xs
-        if reverse:
-            x = reverse_sequence(x)
-            mask = reverse_sequence(mask)
-        iterator = zip(x, mask)
+def flip(x, axis=None):
+    if axis is None:
+        # flip all axes
+        axes = range(x.ndim)
     else:
-        if reverse:
-            if isinstance(xs, tuple):
-                xs = tuple(reverse_sequence(x) for x in xs)
-            else:
-                xs = reverse_sequence(xs)
-        iterator = zip(*xs) if isinstance(xs, tuple) else xs
+        axes = [axis] if isinstance(axis, int) else axis
 
-    for x in iterator:
-        result = f(states, x)
-        if isinstance(result, tuple):
-            states, outputs = result
-            if outputs is not None:
-                outputs_list.append(outputs)
-        else:
-            states = result
+    for axis in axes:
+        indices = mx.arange(x.shape[axis] - 1, -1, -1)
+        x = mx.take(x, indices, axis=axis)
 
-    if outputs_list:
-        if isinstance(outputs_list[0], tuple):
-            # Multiple outputs case
-            outputs = tuple(
-                mx.stack([out[i] for out in outputs_list])
-                for i in range(len(outputs_list[0]))
+    return x
+
+
+def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
+    # Ref: jax.lax.scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    if not isinstance(unroll, bool):
+        if not isinstance(unroll, int) or unroll < 1:
+            raise ValueError(
+                "`unroll` must be an positive integer or boolean. "
+                f"Received: unroll={unroll}"
+            )
+    if xs is None and length is None:
+        raise ValueError("Got no `xs` to scan over and `length` not provided.")
+
+    input_is_sequence = tree.is_nested(xs)
+    output_is_sequence = tree.is_nested(init)
+
+    def pack_input(x):
+        return tree.pack_sequence_as(xs, x) if input_is_sequence else x[0]
+
+    def pack_output(x):
+        return tree.pack_sequence_as(init, x) if output_is_sequence else x[0]
+
+    if xs is None:
+        xs_flat = []
+        n = int(length)
+    else:
+        xs_flat = tree.flatten(xs)
+        xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
+        n = int(length) if length is not None else shape(xs_flat[0])[0]
+
+    init_flat = tree.flatten(init)
+    init_flat = [convert_to_tensor(init) for init in init_flat]
+    init = pack_output(init_flat)
+    dummy_y = [mx.zeros_like(init) for init in init_flat]
+
+    carry = init
+    ys = []
+    maybe_reversed = reversed if reverse else lambda x: x
+    for i in maybe_reversed(range(n)):
+        xs_slice = [x[i] for x in xs_flat]
+        packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
+        carry, y = f(carry, packed_xs)
+        ys.append(y if y is not None else dummy_y)
+    stacked_y = tree.map_structure(
+        lambda *ys: mx.stack(ys), *maybe_reversed(ys)
+    )
+    return carry, stacked_y
+
+
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
+
+
+def dilate(x, axis, dilation_rate):
+    x_shape = list(x.shape)
+    x_shape[axis] = x.shape[axis] * dilation_rate - 1
+
+    result = mx.zeros(x_shape, dtype=x.dtype)
+
+    if axis >= 0:
+        slices = [builtins.slice(None)] * axis + [
+            builtins.slice(0, None, dilation_rate)
+        ]
+    else:
+        slices = [Ellipsis, builtins.slice(0, None, dilation_rate)] + [
+            builtins.slice(None)
+        ] * (-1 - axis)
+    result[tuple(slices)] = x
+
+    return result
+
+
+def associative_scan(f, elems, reverse=False, axis=0):
+    # Ref: jax.lax.associative_scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    elems_flat = tree.flatten(elems)
+    elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
+    if reverse:
+        elems_flat = [flip(elem, (axis,)) for elem in elems_flat]
+
+    def _combine(a_flat, b_flat):
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
+        c = f(a, b)
+        c_flat = tree.flatten(c)
+        return c_flat
+
+    num_elems = int(elems_flat[0].shape[axis])
+    if not all(int(elem.shape[axis]) == num_elems for elem in elems_flat[1:]):
+        raise ValueError(
+            "Array inputs to associative_scan must have the same "
+            "first dimension. (saw: {})".format(
+                [elem.shape for elem in elems_flat]
+            )
+        )
+
+    def _interleave(a, b, axis):
+        """Given two Tensors of static shape, interleave them along axis."""
+        assert (
+            a.shape[axis] == b.shape[axis] or a.shape[axis] == b.shape[axis] + 1
+        )
+
+        # we want to get a: [a1, a2], b: [b1, b2]
+        # to a: [a1, 0, a2, 0], b: [0, b1, 0, b2]
+        a_dil = dilate(a, axis, 2)
+        b_dil = dilate(b, axis, 2)
+
+        a_pad = [[0, 0] for _ in range(a.ndim)]
+        a_pad[axis][-1] = 1 if a.shape[axis] == b.shape[axis] else 0
+
+        b_pad = [[0, 0] for _ in range(b.ndim)]
+        b_pad[axis] = [1, 0] if a.shape[axis] == b.shape[axis] else [1, 1]
+
+        op = mx.bitwise_or if a.dtype == mx.bool_ else mx.add
+        return op(
+            mx.pad(a_dil, a_pad),
+            mx.pad(b_dil, b_pad),
+        )
+
+    def _scan(elems):
+        num_elems = elems[0].shape[axis]
+        if num_elems < 2:
+            return elems
+
+        reduced_elems = _combine(
+            [
+                slice_along_axis(elem, 0, -1, step=2, axis=axis)
+                for elem in elems
+            ],
+            [
+                slice_along_axis(elem, 1, None, step=2, axis=axis)
+                for elem in elems
+            ],
+        )
+
+        odd_elems = _scan(reduced_elems)
+        if num_elems % 2 == 0:
+            even_elems = _combine(
+                [slice_along_axis(e, 0, -1, axis=axis) for e in odd_elems],
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
             )
         else:
-            # Single output case
-            outputs = mx.stack(outputs_list)
+            even_elems = _combine(
+                odd_elems,
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
+            )
 
-        if reverse:
-            if isinstance(outputs, tuple):
-                outputs = tuple(reverse_sequence(out) for out in outputs)
-            else:
-                outputs = reverse_sequence(outputs)
+        even_elems = [
+            mx.concatenate(
+                [slice_along_axis(elem, 0, 1, axis=axis), result],
+                axis=axis,
+            )
+            for (elem, result) in zip(elems, even_elems)
+        ]
+        return list(
+            builtins.map(
+                functools.partial(_interleave, axis=axis), even_elems, odd_elems
+            )
+        )
 
-        return states, outputs
+    scans = _scan(elems_flat)
+    if reverse:
+        scans = [flip(scanned, (axis,)) for scanned in scans]
 
-    return states, None
+    return tree.pack_sequence_as(elems, scans)
+
+
+class custom_gradient:
+    """Decorator for custom gradients.
+
+    Args:
+        fun: Forward pass function.
+    """
+
+    def __init__(self, fun):
+        warnings.warn(
+            "`custom_gradient` for the mlx backend acts as a pass-through to "
+            "support the forward pass. No gradient computation or modification "
+            "takes place."
+        )
+        self.fun = fun
+
+    def __call__(self, *args, **kwargs):
+        outputs, _ = self.fun(*args, **kwargs)
+        return outputs

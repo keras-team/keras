@@ -44,14 +44,41 @@ def tanh(x):
     return mx.tanh(x)
 
 
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - mx.tanh(x)
+
+
 def softplus(x):
     x = convert_to_tensor(x)
-    return nn.softplus(x)
+    return mx.logaddexp(x, 0.0)
 
 
 def softsign(x):
     x = convert_to_tensor(x)
     return x / (1 + mx.abs(x))
+
+
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return mx.where(
+        x > threshold,
+        x - threshold,
+        mx.where(
+            x < -threshold,
+            x + threshold,
+            0.0,
+        ),
+    )
+
+
+def sparse_plus(x):
+    x = convert_to_tensor(x)
+    return mx.where(
+        x <= -1,
+        mx.zeros_like(x),
+        mx.where(x < 1, (1 / 4) * (x + 1) ** 2, x),
+    )
 
 
 def silu(x, beta=1.0):
@@ -60,6 +87,13 @@ def silu(x, beta=1.0):
         return nn.silu(x)
     else:
         return x * mx.sigmoid(beta * x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + mx.sqrt(x**2 + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -94,30 +128,47 @@ def elu(x, alpha=1.0):
     return xneg + xpos
 
 
-def selu(x):
+def selu(
+    x,
+    alpha=1.6732632423543772848170429916717,
+    scale=1.0507009873554804934193349852946,
+):
     x = convert_to_tensor(x)
-    a = 1.6732631921768188
-    scale = 1.0507009873554805
     xneg = mx.minimum(x, 0)
     xpos = mx.maximum(x, 0)
-    return scale * (xpos + a * (mx.exp(xneg) - 1))
+    return scale * (xpos + alpha * (mx.exp(xneg) - 1))
 
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
-
-    def gelu_tanh_approx(x):
-        return (
-            0.5 * x * (1 + mx.tanh(0.7978846 * (x + 0.044715 * x * x.square())))
-        )
-
-    f = gelu_tanh_approx if approximate else nn.gelu
-    return f(x)
+    if approximate:
+        return nn.gelu_approx(x)
+    return nn.gelu(x)
 
 
 def celu(x, alpha=1.0):
     x = convert_to_tensor(x)
     return nn.celu(x, alpha=alpha)
+
+
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return nn.glu(x, axis=axis)
+
+
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return nn.hard_tanh(x)
+
+
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return nn.hard_shrink(x, lambd=threshold)
+
+
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return mx.where(x > threshold, x, default_value)
 
 
 def softmax(x, axis=-1):
@@ -128,6 +179,24 @@ def softmax(x, axis=-1):
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return x - mx.logsumexp(x, axis=axis, keepdims=True)
+
+
+def sparsemax(logits, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(logits)
+    logits_sorted = -1.0 * mx.sort(logits * -1.0, axis=axis)
+    logits_cumsum = mx.cumsum(logits_sorted, axis=axis)  # find cumulative sum
+    r = mx.arange(1, logits.shape[axis] + 1)  # Determine the sparsity
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.reshape(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = mx.sum(support, axis=axis, keepdims=True)
+    logits_cumsum_safe = mx.where(support, logits_cumsum, 0.0)
+    tau = (mx.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = mx.maximum(logits - tau, 0.0)
+    return output
 
 
 def _calculate_padding(input_shape, pool_size, strides):
@@ -1105,3 +1174,91 @@ def psnr(x1, x2, max_val):
     mse = mx.mean(mx.square(x1 - x2))
     psnr = 20 * mx.log10(max_val) - 10 * mx.log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    val = 65500.0 if dtype == mx.float16 else 3.38953e38
+    return mx.array(val * -0.7, dtype=dtype)
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = mx.ones_like(logits).astype(mx.bool_)
+    if mask is not None:
+        combined_mask = mx.logical_and(combined_mask, mask)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        mask = mx.tril(mx.ones((T, S), dtype=mx.bool_))
+        mask = mask[None, None, :, :]
+        combined_mask = mx.logical_and(combined_mask, mask)
+
+    padded_logits = mx.where(
+        combined_mask, logits, _get_large_negative(logits.dtype)
+    )
+    return padded_logits
+
+
+def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
+    original_dtype = key.dtype
+    # logits_dtype = mx.promote_types(query.dtype, np.float32)
+    logits_dtype = mx.float32
+    # if standardize_dtype(key.dtype) == "bfloat16":
+    #     # `np.einsum` doesn't support bfloat16
+    #     key = key.astype("float32")
+    #     value = value.astype("float32")
+    logits = mx.einsum("BTNH,BSNH->BNTS", query, key)
+    logits = logits.astype(logits_dtype)
+    logits *= mx.array(scale, dtype=logits.dtype)
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+    # Softmax and it is always carried out in fp32.
+    padded_logits = padded_logits.astype(mx.float32)
+    probs = softmax(padded_logits, axis=-1).astype(original_dtype)
+    encoded_dtype = probs.dtype
+    # if backend.standardize_dtype(probs.dtype) == "bfloat16":
+    #     # `np.einsum` doesn't support bfloat16
+    #     probs = probs.astype("float32")
+    #     value = value.astype("float32")
+    encoded = mx.einsum("BNTS,BSNH->BTNH", probs, value)
+    encoded = encoded.astype(encoded_dtype)
+    return encoded
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+):
+    if flash_attention is None:
+        flash_attention = False
+    if flash_attention:
+        raise ValueError("Flash attention is not supported in mlx backend.")
+
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    _, _, _, H = key.shape
+    scale = (1.0 / mx.sqrt(H)) if scale is None else scale
+    return _dot_product_attention(
+        query, key, value, bias, mask, is_causal, scale
+    )
