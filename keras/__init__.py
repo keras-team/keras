@@ -14,6 +14,7 @@ from keras.api import Operation
 from keras.api import Optimizer
 from keras.api import Quantizer
 from keras.api import Regularizer
+from keras.api import RematScope
 from keras.api import Sequential
 from keras.api import StatelessScope
 from keras.api import SymbolicScope
