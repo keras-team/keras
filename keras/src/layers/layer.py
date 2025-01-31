@@ -18,6 +18,7 @@ And some more magic:
 
 import collections
 import inspect
+import math
 import warnings
 from functools import wraps
 
@@ -32,11 +33,13 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
+from keras.src.backend.common.remat_scope import get_current_remat_mode
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
+from keras.src.ops.core import remat
 from keras.src.ops.operation import Operation
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -316,6 +319,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # Parent path
         self._parent_path = None
         self._initialize_tracker()
+        remat_mode = get_current_remat_mode()
+        if remat_mode is not None and remat_mode.mode == "activation":
+            if hasattr(self, "activation") and self.activation is not None:
+                self.activation = remat(self.activation)
 
     @tracking.no_automatic_dependency_tracking
     def _initialize_tracker(self):
@@ -1001,6 +1008,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ```
         """
         self._check_super_called()
+        remat_mode = get_current_remat_mode()
 
         if not self.built:
             raise ValueError(
@@ -1038,7 +1046,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
             if self.dtype_policy.quantization_mode is not None:
-                outputs = self.quantized_call(*args, **kwargs)
+                if remat_mode:
+                    outputs = self.rematerialized_call(self.quantized_call)(
+                        *args, **kwargs
+                    )
+                else:
+                    outputs = self.quantized_call(*args, **kwargs)
+            elif remat_mode:
+                outputs = self.rematerialized_call(self.call)(*args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
             if return_losses:
@@ -1559,6 +1574,45 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         if self._parent_path is None:
             self._parent_path = current_path()
         return backend.name_scope(self.name, caller=self)
+
+    def rematerialized_call(self, layer_call, *args, **kwargs):
+        """Wrap the layer's call method to enable rematerialization dynamically.
+
+        Args:
+            layer_call: The original `call` method of a layer.
+
+        Returns:
+            callable: The wrapped method with rematerialization logic applied.
+        """
+
+        def compute_size(x):
+            return (
+                math.prod([d or 1 for d in x.shape])
+                if isinstance(x, KerasTensor)
+                else 0
+            )
+
+        remat_mode = get_current_remat_mode()
+        # Full rematerialization
+        if remat_mode.mode == "full":
+            return remat(layer_call)(*args, **kwargs)
+
+        # Apply rematerialization to specific layers
+        elif remat_mode.mode == "list_of_layers" and (
+            self.name in remat_mode.layer_names
+        ):
+            return remat(layer_call)(*args, **kwargs)
+
+        # Apply rematerialization based on output size threshold
+        elif remat_mode.mode == "larger_than":
+            output_spec = self.compute_output_spec(*args, **kwargs)
+            output_size = sum(
+                tree.flatten(tree.map_structure(compute_size, output_spec))
+            )
+            if output_size and output_size > remat_mode.output_size_threshold:
+                return remat(layer_call)(*args, **kwargs)
+
+        return layer_call(*args, **kwargs)
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
