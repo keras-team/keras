@@ -1,6 +1,6 @@
 import builtins
-import warnings
 import functools
+import warnings
 
 import mlx.core as mx
 import numpy as np
@@ -96,13 +96,14 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if x.dtype == np.float64:
             # mlx backend does not support float64
             x = x.astype(np.float32)
-        if standardize_dtype(x.dtype) == 'bfloat16' and mlx_dtype is None:
+        if standardize_dtype(x.dtype) == "bfloat16" and mlx_dtype is None:
             # if a bfloat16 np.ndarray is passed to mx.array with dtype=None
             # it casts the output to complex64, so we force cast to bfloat16
             mlx_dtype = mx.bfloat16
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
+
         def to_scalar_list(x):
             if isinstance(x, list):
                 return [to_scalar_list(xi) for xi in x]
@@ -209,7 +210,9 @@ def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope(), SymbolicScope():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
 
-        none_in_shape = any(builtins.map(has_none_shape, tree.flatten((args, kwargs))))
+        none_in_shape = any(
+            builtins.map(has_none_shape, tree.flatten((args, kwargs)))
+        )
         if none_in_shape:
             outputs_1 = outputs
             outputs_2 = symbolic_call(fn, args, kwargs, fill_value=89)
@@ -384,11 +387,11 @@ def flip(x, axis=None):
         axes = range(x.ndim)
     else:
         axes = [axis] if isinstance(axis, int) else axis
-        
+
     for axis in axes:
         indices = mx.arange(x.shape[axis] - 1, -1, -1)
         x = mx.take(x, indices, axis=axis)
-    
+
     return x
 
 
@@ -456,11 +459,13 @@ def dilate(x, axis, dilation_rate):
     result = mx.zeros(x_shape, dtype=x.dtype)
 
     if axis >= 0:
-        slices = [builtins.slice(None)] * axis + [builtins.slice(0, None, dilation_rate)]
+        slices = [builtins.slice(None)] * axis + [
+            builtins.slice(0, None, dilation_rate)
+        ]
     else:
-        slices = [Ellipsis, builtins.slice(0, None, dilation_rate)] + [builtins.slice(None)] * (
-            -1 - axis
-        )
+        slices = [Ellipsis, builtins.slice(0, None, dilation_rate)] + [
+            builtins.slice(None)
+        ] * (-1 - axis)
     result[tuple(slices)] = x
 
     return result
@@ -566,6 +571,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
         scans = [flip(scanned, (axis,)) for scanned in scans]
 
     return tree.pack_sequence_as(elems, scans)
+
 
 class custom_gradient:
     """Decorator for custom gradients.

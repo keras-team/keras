@@ -72,7 +72,6 @@ def soft_shrink(x, threshold=0.5):
     )
 
 
-
 def sparse_plus(x):
     x = convert_to_tensor(x)
     return mx.where(
@@ -88,7 +87,7 @@ def silu(x, beta=1.0):
         return nn.silu(x)
     else:
         return x * mx.sigmoid(beta * x)
-    
+
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
@@ -133,7 +132,7 @@ def selu(
     x,
     alpha=1.6732632423543772848170429916717,
     scale=1.0507009873554804934193349852946,
-):    
+):
     x = convert_to_tensor(x)
     xneg = mx.minimum(x, 0)
     xpos = mx.maximum(x, 0)
@@ -165,7 +164,6 @@ def hard_tanh(x):
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
     return nn.hard_shrink(x, lambd=threshold)
-
 
 
 def threshold(x, threshold, default_value):

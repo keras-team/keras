@@ -3016,7 +3016,7 @@ class NNOpsDtypeTest(testing.TestCase):
     def test_ctc_loss(self, dtype):
         if backend.backend() == "mlx" and dtype == "float64":
             pytest.skip("Backend does not support float64")
-            
+
         labels = knp.array([[1, 2, 1]], dtype="int32")
         outputs = knp.array(
             [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
