@@ -58,6 +58,14 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         self.generator = SeedGenerator(seed)
         self.supports_jit = False
 
+        if scale < 0.0 or scale > 1.0:
+            raise ValueError(
+                "The `scale` argument should be a number "
+                "in the range "
+                f"[0,1]. "
+                f"Received: scale={scale}"
+            )
+
         if interpolation not in self._SUPPORTED_INTERPOLATION:
             raise NotImplementedError(
                 f"Unknown `interpolation` {interpolation}. Expected of one "
