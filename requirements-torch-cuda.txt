@@ -6,9 +6,9 @@ tf2onnx
 # - torch is pinned to a version that is compatible with torch-xla
 # - torch-xla is pinned to a version that supports GPU (2.6 doesn't)
 --extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.5.1+cu121
-torchvision==0.20.1+cu121
-torch-xla==2.5.1;sys_platform != 'darwin'
+torch==2.6.0+cpu
+torchvision==0.21.0+cpu
+torch-xla==2.6.0;sys_platform != 'darwin'
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]
