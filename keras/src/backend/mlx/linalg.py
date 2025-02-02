@@ -18,7 +18,8 @@ def eig(a):
 
 
 def eigh(a):
-    raise NotImplementedError("eigh not yet implemented in mlx.")
+    with mx.stream(mx.cpu):
+        return mx.linalg.eigh(a)
 
 
 def lu_factor(a):
