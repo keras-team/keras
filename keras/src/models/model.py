@@ -146,32 +146,33 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
-        print("DEBUG: Model.__init__ called")
+        print('DEBUG: Model.__init__ called')
         from keras.src.models import functional
-
+        self.compiled = False
+        self._compile_config = None
         if functional_init_arguments(args, kwargs):
-            print("DEBUG: Detected Functional API model creation")
+            print('DEBUG: Detected Functional API model creation')
             inject_functional_model_class(self.__class__)
             functional.Functional.__init__(self, *args, **kwargs)
         else:
-            print("DEBUG: Creating model via non-Functional API")
+            print('DEBUG: Creating model via non-Functional API')
             Layer.__init__(self, *args, **kwargs)
             if args:
-                print("DEBUG: Processing args for inputs and outputs")
+                print('DEBUG: Processing args for inputs and outputs')
                 inputs = args[0]
                 outputs = args[1] if len(args) > 1 else None
             else:
-                print("DEBUG: Processing kwargs for inputs and outputs")
-                inputs = kwargs.get("inputs")
-                outputs = kwargs.get("outputs")
+                print('DEBUG: Processing kwargs for inputs and outputs')
+                inputs = kwargs.get('inputs')
+                outputs = kwargs.get('outputs')
             if isinstance(inputs, dict):
-                print("DEBUG: Inputs is a dictionary")
+                print('DEBUG: Inputs is a dictionary')
                 self._input_names = list(inputs.keys())
             else:
-                print("DEBUG: Inputs is not a dictionary")
+                print('DEBUG: Inputs is not a dictionary')
                 self._input_names = None
-            print(f"DEBUG: _input_names set to {self._input_names}")
-        print("DEBUG: Exiting Model.__init__")
+            print(f'DEBUG: _input_names set to {self._input_names}')
+        print('DEBUG: Exiting Model.__init__')
 
     def call(self, *args, **kwargs):
         raise NotImplementedError(
@@ -858,15 +859,11 @@ def model_from_json(json_string, custom_objects=None):
 
 
 def functional_init_arguments(args, kwargs):
-    if args:
-        if len(args) >= 2 and isinstance(args[0], dict):
-            return True
-    if kwargs:
-        if "inputs" in kwargs and "outputs" in kwargs:
-            inputs = kwargs["inputs"]
-            if isinstance(inputs, dict):
-                return True
-    return False
+    return (
+        (len(args) == 2)
+        or (len(args) == 1 and "outputs" in kwargs)
+        or ("inputs" in kwargs and "outputs" in kwargs)
+    )
 
 
 def inject_functional_model_class(cls):

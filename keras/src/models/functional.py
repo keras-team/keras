@@ -106,6 +106,7 @@ class Functional(Function, Model):
         if isinstance(inputs, dict):
             print("DEBUG: Inputs dictionary keys:", list(inputs.keys()))
             self._input_names = list(inputs.keys())
+            self._inputs_struct = inputs
             for k, v in inputs.items():
                 if isinstance(v, backend.KerasTensor) and k != v.name:
                     warnings.warn(
@@ -117,6 +118,7 @@ class Functional(Function, Model):
                     )
         else:
             self._input_names = None
+            self._inputs_struct = inputs
         print("DEBUG: _input_names set to:", self._input_names)
 
         trainable = kwargs.pop("trainable", None)
@@ -292,6 +294,20 @@ class Functional(Function, Model):
         return adjusted
 
     def _standardize_inputs(self, inputs):
+        if isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
+            if set(inputs.keys()) != set(self._inputs_struct.keys()):
+                raise ValueError(
+                    f"Input keys don't match model input keys. "
+                    f"Model expects: {list(self._inputs_struct.keys())}, "
+                    f"but got: {list(inputs.keys())}"
+                )
+            return {k: ops.convert_to_tensor(v) for k, v in inputs.items()}
+
+        if (not isinstance(inputs, dict)) and isinstance(self._inputs_struct, dict):
+            if isinstance(inputs, (list, tuple)) and len(inputs) == len(self._inputs_struct):
+                sorted_keys = sorted(self._inputs_struct.keys())
+                return {k: ops.convert_to_tensor(v) for k, v in zip(sorted_keys, inputs)}
+
         raise_exception = False
         if isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
