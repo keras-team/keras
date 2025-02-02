@@ -25,16 +25,6 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    requires_trainable_backend = pytest.mark.skipif(
-        backend() == "numpy" or backend() == "openvino",
-        reason="Trainer not implemented for NumPy and OpenVINO backend.",
-    )
-    for item in items:
-        if "requires_trainable_backend" in item.keywords:
-            item.add_marker(requires_trainable_backend)
-
-    # also, skip concrete tests for openvino, listed in the special file
-    # this is more granular mechanism to exclude tests rather than using --ignore option
     with open(
         "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
     ) as file:
@@ -44,14 +34,22 @@ def pytest_collection_modifyitems(config, items):
         openvino_skipped_tests = [
             line.strip() for line in openvino_skipped_tests if line.strip()
         ]
+
+    requires_trainable_backend = pytest.mark.skipif(
+        backend() == "numpy" or backend() == "openvino",
+        reason="Trainer not implemented for NumPy and OpenVINO backend.",
+    )
     for item in items:
+        if "requires_trainable_backend" in item.keywords:
+            item.add_marker(requires_trainable_backend)
+        # also, skip concrete tests for openvino, listed in the special file
+        # this is more granular mechanism to exclude tests rather
+        # than using --ignore option
         for skipped_test in openvino_skipped_tests:
             if skipped_test in item.nodeid:
                 item.add_marker(
-                    pytest.mark.skipif(
-                        backend() == "openvino",
-                        reason="Not supported operation by openvino backend",
-                    )
+                    skip_if_backend("openvino", "Not supported operation"
+                                                " by openvino backend")
                 )
 
 
