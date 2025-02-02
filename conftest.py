@@ -48,8 +48,10 @@ def pytest_collection_modifyitems(config, items):
         for skipped_test in openvino_skipped_tests:
             if skipped_test in item.nodeid:
                 item.add_marker(
-                    skip_if_backend("openvino", "Not supported operation"
-                                                " by openvino backend")
+                    skip_if_backend(
+                        "openvino",
+                        "Not supported operation by openvino backend",
+                    )
                 )
 
 
