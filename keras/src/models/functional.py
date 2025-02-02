@@ -101,7 +101,11 @@ class Functional(Function, Model):
 
     @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
+        print("DEBUG: Functional.__init__ called")
+        print("DEBUG: Inputs provided as dictionary:", isinstance(inputs, dict))
         if isinstance(inputs, dict):
+            print("DEBUG: Inputs dictionary keys:", list(inputs.keys()))
+            self._input_names = list(inputs.keys())
             for k, v in inputs.items():
                 if isinstance(v, backend.KerasTensor) and k != v.name:
                     warnings.warn(
@@ -111,6 +115,9 @@ class Functional(Function, Model):
                         f"which has name '{v.name}'. Change the tensor name to "
                         f"'{k}' (via `Input(..., name='{k}')`)"
                     )
+        else:
+            self._input_names = None
+        print("DEBUG: _input_names set to:", self._input_names)
 
         trainable = kwargs.pop("trainable", None)
         flat_inputs = tree.flatten(inputs)
@@ -131,7 +138,9 @@ class Functional(Function, Model):
                 )
 
         if not all(is_input_keras_tensor(t) for t in flat_inputs):
+            print("DEBUG: Cloning graph nodes.")
             inputs, outputs = clone_graph_nodes(inputs, outputs)
+            print("DEBUG: After cloning, inputs structure:", inputs)
 
         Function.__init__(self, inputs, outputs, name=name)
 
@@ -140,7 +149,6 @@ class Functional(Function, Model):
 
         self._layers = self.layers
         self.build(None)
-        # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         output_layers = [x._keras_history[0] for x in self.outputs]
@@ -470,6 +478,7 @@ def functional_from_config(cls, config, custom_objects=None):
     Returns:
         An instance of `cls`.
     """
+    print("DEBUG: functional_from_config called")
     # Layer instances created during
     # the graph reconstruction process
     created_layers = {}

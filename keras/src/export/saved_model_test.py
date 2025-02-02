@@ -1002,3 +1002,16 @@ class ExportArchiveTest(testing.TestCase):
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
+
+    def test_export_with_dict_input(self):
+        inputs = {
+            "foo": layers.Input(shape=()),
+            "bar": layers.Input(shape=()),
+        }
+        # input_signature = {
+        #     "foo": tf.TensorSpec(shape=(None,), dtype=tf.float32),
+        #     "bar": tf.TensorSpec(shape=(None,), dtype=tf.float32),
+        # }
+        outputs = layers.Add()([inputs["foo"], inputs["bar"]])
+        model = models.Model(inputs, outputs)
+        model.export("test/", format="tf_saved_model")
