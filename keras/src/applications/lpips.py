@@ -10,7 +10,7 @@ from keras.src.utils import file_utils
 WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/"
     "lpips/lpips_vgg16_weights.h5"
-)
+)  # TODO: store weights at this location
 
 
 def vgg_backbone(layer_names):
