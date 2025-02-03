@@ -219,18 +219,16 @@ class LayerTest(testing.TestCase):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )
-
         with patch(
             "keras.src.backend.common.remat.remat", wraps=remat.remat
         ) as mock_remat:
             # Define model inputs
             inputs = Input(shape=(32, 32, 3))
-            flattened_inputs = layers.Flatten()(inputs)
 
-            # Just one layer in remat scope
+            # just one layer in remat scope
             with RematScope(mode="full"):
-                layer = layers.Dense(64, activation="relu")
-                output = layer(flattened_inputs)
+                layer = layers.Conv2D(64, (3, 3), activation="relu")
+                output = layer(inputs)
 
             # Build the functional model
             model = Model(inputs=inputs, outputs=output)
@@ -240,7 +238,8 @@ class LayerTest(testing.TestCase):
 
             # Generate dummy data for testing
             x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
-            y_train = np.random.random((10, 64)).astype(np.float32)
+            y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
+
             # Run training to ensure `RematScope` is applied correctly
             model.fit(x_train, y_train, epochs=1, batch_size=2)
             self.assertGreater(mock_remat.call_count, 1)
