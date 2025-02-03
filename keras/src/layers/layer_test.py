@@ -215,6 +215,10 @@ class LayerTest(testing.TestCase):
             mock_remat.assert_called()
 
     def test_functional_model_with_remat(self):
+        if backend.backend() in ("openvino", "numpy"):
+            self.skipTest(
+                "remat is not supported in openvino and numpy backends."
+            )
         with patch(
             "keras.src.backend.common.remat.remat", wraps=remat.remat
         ) as mock_remat:
