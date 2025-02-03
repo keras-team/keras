@@ -781,14 +781,22 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
-        if get_current_remat_mode() != self._remat_mode:
-            raise ValueError(
-                "The RematScope at call time differs from the one set during "
-                "layer initialization. Ensure that the rematerialization mode "
-                "remains consistent across model execution."
-            )
         self._check_super_called()
         self._called = True
+        current_remat_mode = get_current_remat_mode()
+
+        if (
+            current_remat_mode != self._remat_mode
+            and current_remat_mode is not None
+        ):
+            warnings.warn(
+                f"The RematScope at call time ({current_remat_mode}) differs "
+                f"the one set during layer initialization "
+                f"({self._remat_mode}). "
+                f"Restoring the correct rematerialization mode "
+                f"{self._remat_mode}for this layer."
+            )
+        # Restore rematerialization mode before calling the layer
 
         #####################################
         # 1. Convert any array arguments to tensors of correct dtype.
@@ -908,7 +916,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 elif self.compute_dtype != self.variable_dtype:
                     # Enter a new scope if our dtypes are "mixed".
                     new_scope = backend.AutocastScope(self.compute_dtype)
-
                 if new_scope is not None:
                     with new_scope:
                         if self._remat_mode is not None:
@@ -1021,11 +1028,18 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ```
         """
         self._check_super_called()
-        if get_current_remat_mode() != self._remat_mode:
-            raise ValueError(
-                "The RematScope at call time differs from the one set during "
-                "layer initialization. Ensure that the rematerialization mode "
-                "remains consistent across model execution."
+        current_remat_mode = get_current_remat_mode()
+
+        if (
+            current_remat_mode != self._remat_mode
+            and current_remat_mode is not None
+        ):
+            warnings.warn(
+                f"The RematScope at call time ({current_remat_mode}) differs "
+                f"the one set during layer initialization "
+                f"({self._remat_mode}). "
+                f"Restoring the correct rematerialization mode "
+                f"{self._remat_mode}for this layer."
             )
         if not self.built:
             raise ValueError(
@@ -1601,6 +1615,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         Returns:
             Rematerialized layer's `call` method.
         """
+        if any(isinstance(x, KerasTensor) for x in tree.flatten(args)):
+            # Bypass rematerialization when in symbolic mode.
+            return layer_call(*args, **kwargs)
 
         def compute_size(x):
             return (

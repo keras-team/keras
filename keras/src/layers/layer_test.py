@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.src import Input
 from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import layers
@@ -15,6 +16,7 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common import remat
 from keras.src.backend.common.remat import RematScope
+from keras.src.models import Model
 
 
 class LayerTest(testing.TestCase):
@@ -211,6 +213,32 @@ class LayerTest(testing.TestCase):
 
             # Ensure remat was applied
             mock_remat.assert_called()
+
+    def test_functional_model_with_remat(self):
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+            # Define model inputs
+            inputs = Input(shape=(32, 32, 3))
+
+            # just one layer in remat scope
+            with RematScope(mode="full"):
+                layer = layers.Conv2D(64, (3, 3), activation="relu")
+                output = layer(inputs)
+
+            # Build the functional model
+            model = Model(inputs=inputs, outputs=output)
+
+            # Compile the model
+            model.compile(optimizer="adam", loss="mse")
+
+            # Generate dummy data for testing
+            x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
+            y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
+
+            # Run training to ensure `RematScope` is applied correctly
+            model.fit(x_train, y_train, epochs=1, batch_size=2)
+            self.assertGreater(mock_remat.call_count, 1)
 
     def test_remat_wrapper_list_of_layers(self):
         """Test rematerialization using list_of_layers mode."""
