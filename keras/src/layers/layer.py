@@ -781,7 +781,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
-        self._remat_mode = get_current_remat_mode()
+        if get_current_remat_mode() != self._remat_mode:
+            raise ValueError(
+                "The RematScope at call time differs from the one set during "
+                "layer initialization. Ensure that the rematerialization mode "
+                "remains consistent across model execution."
+            )
         self._check_super_called()
         self._called = True
 
@@ -1016,7 +1021,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ```
         """
         self._check_super_called()
-
+        if get_current_remat_mode() != self._remat_mode:
+            raise ValueError(
+                "The RematScope at call time differs from the one set during "
+                "layer initialization. Ensure that the rematerialization mode "
+                "remains consistent across model execution."
+            )
         if not self.built:
             raise ValueError(
                 f"To call stateless_call, {self.__class__.__name__} must be "
@@ -1621,12 +1631,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             ):
                 return remat.remat(layer_call)(*args, **kwargs)
         elif self._remat_mode.mode == "activations":
-            not_rematted_activation = self.activation
-            try:
-                self.activation = remat.remat(not_rematted_activation)
-                return layer_call(*args, **kwargs)
-            finally:
-                self.activation = not_rematted_activation
+            has_activation = (
+                hasattr(self, "activation") and self.activation is not None
+            )
+            if has_activation:
+                not_rematted_activation = self.activation
+                try:
+                    self.activation = remat.remat(not_rematted_activation)
+                    return layer_call(*args, **kwargs)
+                finally:
+                    self.activation = not_rematted_activation
 
         return layer_call(*args, **kwargs)
 

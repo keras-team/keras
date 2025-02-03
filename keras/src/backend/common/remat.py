@@ -149,12 +149,12 @@ def remat(f):
     batch sizes within the same memory constraints.
 
     Args:
-        f: The function, operation, or layer to which rematerialization is
+        f: A callable function, to which rematerialization is
            applied. This is typically a computationally expensive operation
            where intermediate states can be recomputed instead of stored.
 
     Returns:
-        A wrapped function or layer that applies rematerialization. The returned
+        A wrapped function that applies rematerialization. The returned
         function defines a custom gradient, ensuring that during the backward
         pass, the forward computation is recomputed as needed.
 

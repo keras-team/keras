@@ -186,6 +186,7 @@ class LayerTest(testing.TestCase):
 
             # Case 2: With rematerialization
             with RematScope(mode="full"):
+                layer = SomeLayer()
                 output_with_remat = layer(input_tensor)
 
             # Assert outputs are the same
@@ -209,6 +210,9 @@ class LayerTest(testing.TestCase):
 
             # Case 2: With rematerialization
             with RematScope(mode="full"):
+                layer = layers.Dense(3)
+                layer.build((2, 4))
+                layer.quantize("float8")
                 output_with_remat = layer(input_tensor)
 
             # Assert outputs are the same
@@ -234,10 +238,9 @@ class LayerTest(testing.TestCase):
             remat_layers = ["test_layer"]
             input_tensor = backend.random.uniform((4, 4))
 
-            test_layer = TestLayer(name="test_layer")
-            other_layer = OtherLayer(name="other_layer")
-
             with RematScope(mode="list_of_layers", layer_names=remat_layers):
+                test_layer = TestLayer(name="test_layer")
+                other_layer = OtherLayer(name="other_layer")
                 output_test = test_layer(input_tensor)
                 output_other = other_layer(input_tensor)
 
@@ -245,9 +248,9 @@ class LayerTest(testing.TestCase):
             self.assertAllClose(output_other, input_tensor * 2)
 
             # Ensure remat was applied to the correct layer
-            mock_remat.assert_called()
+            mock_remat.assert_called_once()
 
-    def test_remat_wrapper_larger_than_mode(self):
+    def test_remat_larger_than_mode(self):
         """Test rematerialization using larger_than mode."""
         with patch(
             "keras.src.backend.common.remat.remat", wraps=remat.remat
@@ -260,16 +263,40 @@ class LayerTest(testing.TestCase):
                 def call(self, x):
                     return x + 1
 
-            layer = TestLayer()
             input_tensor = backend.random.uniform((100, 100))  # Large tensor
 
             with RematScope(mode="larger_than", output_size_threshold=5000):
+                layer = TestLayer()
                 output = layer(input_tensor)
 
             self.assertAllClose(output, input_tensor + 1)
 
             # Ensure remat was applied
             mock_remat.assert_called()
+
+    def test_remat_larger_than_mode_high_threshold(self):
+        """Test rematerialization using larger_than mode."""
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+
+            class TestLayer(layers.Layer):
+                def compute_output_shape(self, input_shape):
+                    return input_shape
+
+                def call(self, x):
+                    return x + 1
+
+            input_tensor = backend.random.uniform((100, 100))  # Large tensor
+
+            with RematScope(mode="larger_than", output_size_threshold=50000):
+                layer = TestLayer()
+                output = layer(input_tensor)
+
+            self.assertAllClose(output, input_tensor + 1)
+
+            # Ensure remat was applied
+            mock_remat.assert_not_called()
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
