@@ -32,9 +32,9 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
+from keras.src.backend.common import remat
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
-from keras.src.backend.common.remat import remat
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
@@ -318,11 +318,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._build_shapes_dict = None
         # Parent path
         self._parent_path = None
+        self._remat_mode = get_current_remat_mode()
         self._initialize_tracker()
-        remat_mode = get_current_remat_mode()
-        if remat_mode is not None and remat_mode.mode == "activation":
-            if hasattr(self, "activation") and self.activation is not None:
-                self.activation = remat(self.activation)
 
     @tracking.no_automatic_dependency_tracking
     def _initialize_tracker(self):
@@ -784,6 +781,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        self._remat_mode = get_current_remat_mode()
         self._check_super_called()
         self._called = True
 
@@ -908,9 +906,19 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
                 if new_scope is not None:
                     with new_scope:
-                        outputs = super().__call__(*args, **kwargs)
+                        if self._remat_mode is not None:
+                            outputs = self.rematerialized_call(
+                                super().__call__, *args, **kwargs
+                            )
+                        else:
+                            outputs = super().__call__(*args, **kwargs)
                 else:
-                    outputs = super().__call__(*args, **kwargs)
+                    if self._remat_mode is not None:
+                        outputs = self.rematerialized_call(
+                            super().__call__, *args, **kwargs
+                        )
+                    else:
+                        outputs = super().__call__(*args, **kwargs)
                 # Change the layout for the layer output if needed.
                 # This is useful for relayout intermediate tensor in the model
                 # to achieve the optimal performance.
@@ -1008,7 +1016,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ```
         """
         self._check_super_called()
-        remat_mode = get_current_remat_mode()
 
         if not self.built:
             raise ValueError(
@@ -1046,13 +1053,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             state_mapping=mapping, collect_losses=return_losses
         ) as scope:
             if self.dtype_policy.quantization_mode is not None:
-                if remat_mode:
+                if self._remat_mode is not None:
                     outputs = self.rematerialized_call(
                         self.quantized_call, *args, **kwargs
                     )
                 else:
                     outputs = self.quantized_call(*args, **kwargs)
-            elif remat_mode:
+            elif self._remat_mode is not None:
                 outputs = self.rematerialized_call(self.call, *args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
@@ -1592,25 +1599,34 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 else 0
             )
 
-        remat_mode = get_current_remat_mode()
         # Full rematerialization
-        if remat_mode.mode == "full":
-            return remat(layer_call)(*args, **kwargs)
+        if self._remat_mode.mode == "full":
+            return remat.remat(layer_call)(*args, **kwargs)
 
         # Apply rematerialization to specific layers
-        elif remat_mode.mode == "list_of_layers" and (
-            self.name in remat_mode.layer_names
+        elif self._remat_mode.mode == "list_of_layers" and (
+            self.name in self._remat_mode.layer_names
         ):
-            return remat(layer_call)(*args, **kwargs)
+            return remat.remat(layer_call)(*args, **kwargs)
 
         # Apply rematerialization based on output size threshold
-        elif remat_mode.mode == "larger_than":
+        elif self._remat_mode.mode == "larger_than":
             output_spec = self.compute_output_spec(*args, **kwargs)
             output_size = sum(
                 tree.flatten(tree.map_structure(compute_size, output_spec))
             )
-            if output_size and output_size > remat_mode.output_size_threshold:
-                return remat(layer_call)(*args, **kwargs)
+            if (
+                output_size
+                and output_size > self._remat_mode.output_size_threshold
+            ):
+                return remat.remat(layer_call)(*args, **kwargs)
+        elif self._remat_mode.mode == "activations":
+            not_rematted_activation = self.activation
+            try:
+                self.activation = remat.remat(not_rematted_activation)
+                return layer_call(*args, **kwargs)
+            finally:
+                self.activation = not_rematted_activation
 
         return layer_call(*args, **kwargs)
 
