@@ -14,7 +14,7 @@ class RematScope:
     particularly useful for training large models or large batch sizes within
     limited memory constraints.
 
-    This should be used when calling the layer (e.g., `layer(input)`).
+    This should be used when initializing the layer (e.g., `layer(input)`).
     Rematerialization applies at execution time, not at creation time.
 
     Args:
@@ -42,11 +42,11 @@ class RematScope:
     ```python
     from keras import RematScope
     input_tensor = tf.random.normal((1, 32, 32, 3))
-    layer1 = keras.layers.Dense(128, name="dense_1")
-    layer2 = keras.layers.Conv2D(64, (3, 3), name="conv2d_1")
-    layer3 = keras.layers.Dense(64, name="dense_2")
     with RematScope(mode="list_of_layers", layer_names=["dense_1",
     "conv2d_1"]):
+        layer1 = keras.layers.Dense(128, name="dense_1")
+        layer2 = keras.layers.Conv2D(64, (3, 3), name="conv2d_1")
+        layer3 = keras.layers.Dense(64, name="dense_2")
         # Only layer1 and layer2 will apply rematerialization
         output1 = layer1(input_tensor)
         output2 = layer2(output1)
@@ -56,25 +56,22 @@ class RematScope:
     Using "larger_than" mode with a specific output size threshold:
 
     ```python
-    layer = keras.layers.Conv2D(64, (3, 3))
     with RematScope(mode="larger_than", output_size_threshold=2048):
+        layer = keras.layers.Conv2D(64, (3, 3))
         output = layer(input_tensor)  # Conv2D outputs larger than 2048
     ```
 
     Nested scopes for fine-grained control:
 
     ```python
-    # Create layers
-    layer1 = keras.layers.Dense(128, activation='relu')
-    layer2 = keras.layers.Conv2D(32, (3, 3))
-
     with RematScope(mode="full"):
+        # Create layers
+        layer1 = keras.layers.Dense(128, activation='relu')
         output1 = layer1(input_tensor)  # layer1 is fully rematerialized
-
         with RematScope(mode="larger_than", output_size_threshold=512):
+            layer2 = keras.layers.Conv2D(32, (3, 3))
             output2 = layer2(output1) # layer2 is conditionally rematerialized
             # if output > 512
-
     ```
     """
 
