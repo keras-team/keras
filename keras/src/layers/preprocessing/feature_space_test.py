@@ -339,6 +339,7 @@ class FeatureSpaceTest(testing.TestCase):
         backend.backend() != "tensorflow", reason="Requires string dtype."
     )
     def test_functional_api_sync_processing(self):
+        print("DEBUG: Entering test_functional_api_sync_processing")
         fs = feature_space.FeatureSpace(
             features={
                 "float_1": "float",
@@ -353,17 +354,27 @@ class FeatureSpaceTest(testing.TestCase):
             crosses=[("float_3", "string_1"), ("string_2", "int_2")],
             output_mode="concat",
         )
+        print("DEBUG: FeatureSpace initialized")
         fs.adapt(self._get_train_data_dict(as_dataset=True))
+        print("DEBUG: FeatureSpace adapted")
         inputs = fs.get_inputs()
+        print("DEBUG: Inputs:", inputs)
         features = fs.get_encoded_features()
+        print("DEBUG: Encoded features shape:", features.shape)
         outputs = layers.Dense(1)(features)
+        print("DEBUG: Dense layer output shape:", outputs.shape)
         model = models.Model(inputs=inputs, outputs=outputs)
+        print("DEBUG: Model created")
         model.compile("adam", "mse")
+        print("DEBUG: Model compiled")
         ds = self._get_train_data_dict(as_labeled_dataset=True)
         model.fit(ds.batch(4))
+        print("DEBUG: Model fit complete")
         model.evaluate(ds.batch(4))
+        print("DEBUG: Model evaluation complete")
         ds = self._get_train_data_dict(as_dataset=True)
         model.predict(ds.batch(4))
+        print("DEBUG: Model prediction complete")
 
     @pytest.mark.requires_trainable_backend
     def test_tf_data_async_processing(self):
@@ -534,6 +545,7 @@ class FeatureSpaceTest(testing.TestCase):
         ),
     )
     def test_saving(self):
+        print("DEBUG: Entering test_saving")
         cls = feature_space.FeatureSpace
         fs = feature_space.FeatureSpace(
             features={
@@ -552,20 +564,33 @@ class FeatureSpaceTest(testing.TestCase):
             ],
             output_mode="concat",
         )
+        print("DEBUG: FeatureSpace initialized")
+        print("FeatureSpace configuration before adaptation:")
+        print("Features:", fs.features)
+        print("Crosses:", fs.crosses)
+        print("Inputs:", fs.inputs)
+        print("Preprocessors:", fs.preprocessors)
         fs.adapt(
             self._get_train_data_dict(as_dataset=True, include_strings=False)
         )
+        print("FeatureSpace configuration after adaptation:")
+        print("One-hot encoders:", fs.one_hot_encoders)
+        print("Concat layer:", fs.concat)
+        print("DEBUG: FeatureSpace adapted")
         data = {
             key: value[0]
             for key, value in self._get_train_data_dict(
                 include_strings=False
             ).items()
         }
+        print("DEBUG: Test data created:", data)
         ref_out = fs(data)
-
+        print("DEBUG: Reference output:", ref_out)
         temp_filepath = os.path.join(self.get_temp_dir(), "fs.keras")
         fs.save(temp_filepath)
+        print("DEBUG: FeatureSpace saved to", temp_filepath)
         fs = saving_api.load_model(temp_filepath)
+        print("DEBUG: FeatureSpace loaded from", temp_filepath)
 
         # Save again immediately after loading to test idempotency
         temp_filepath = os.path.join(self.get_temp_dir(), "fs2.keras")
@@ -581,6 +606,10 @@ class FeatureSpaceTest(testing.TestCase):
         ds = self._get_train_data_dict(as_dataset=True, include_strings=False)
         out = model.predict(ds.batch(4))
         self.assertAllClose(out[0], ref_out)
+
+        print("Reloaded FeatureSpace configuration:")
+        print("Inputs:", inputs)
+        print("Encoded features:", outputs)
 
         # Test correctness of the re-saved FS
         fs = saving_api.load_model(temp_filepath)
