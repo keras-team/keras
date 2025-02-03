@@ -330,7 +330,8 @@ class Functional(Function, Model):
                     else:
                         missing = set(expected_names) - input_keys
                         raise ValueError(
-                            f"Missing input keys: {missing}. Expected keys: {expected_names}, "
+                            f"Missing input keys: {missing}. "
+                            f"Expected keys: {expected_names}, "
                             f"received keys: {list(inputs.keys())}"
                         )
                 else:

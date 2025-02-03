@@ -236,9 +236,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     return self.get_layer(index=self._input_names.index(name))
             # Fallback to standard name lookup.
             for layer in self.layers:
-                print(
-                    f"DEBUG: Checking layer {layer.name} for match with '{name}'"
-                )
                 if layer.name == name:
                     print(f"DEBUG: Found matching layer '{name}'")
                     return layer
