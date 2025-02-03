@@ -27,8 +27,8 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         scale: A float defining the relative amount of perspective shift.
             Determines how much the image corners are displaced, affecting
             the intensity of the perspective effect.
-        interpolation: Interpolation mode. Supported values: `nearest`,
-            `bilinear`.
+        interpolation: Interpolation mode. Supported values: `"nearest"`,
+            `"bilinear"`.
         fill_value: a float represents the value to be filled outside the
             boundaries when `fill_mode="constant"`.
         seed: Integer. Used to create a random seed.
