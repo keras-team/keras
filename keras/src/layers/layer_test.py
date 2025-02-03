@@ -12,7 +12,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
-from keras.src.backend.common.remat_scope import RematScope
+from keras.src.backend.common.remat import RematScope
 
 
 class LayerTest(testing.TestCase):
@@ -174,6 +174,20 @@ class LayerTest(testing.TestCase):
 
         input_tensor = backend.random.uniform((2, 4))
         layer = SomeLayer()
+        # Case 1: Without rematerialization
+        output_no_remat = layer(input_tensor)
+
+        # Case 2: With rematerialization
+        with RematScope(mode="full"):
+            output_with_remat = layer(input_tensor)
+
+        self.assertAllClose(output_no_remat, output_with_remat)
+
+    def test_quantized_layer_with_remat(self):
+        input_tensor = backend.random.uniform((2, 4))
+        layer = layers.Dense(3)
+        layer.build((2, 4))
+        layer.quantize("float8")
         # Case 1: Without rematerialization
         output_no_remat = layer(input_tensor)
 

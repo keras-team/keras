@@ -644,7 +644,7 @@ def remat(f):
     """Implementation of rematerialization.
 
     Args:
-        f (callable): The function or operation to rematerialize.
+        f: The function or operation to rematerialize.
     Returns:
         A function wrapping f that defines a custom gradient, which
         recomputes f on the backwards pass of a gradient call.

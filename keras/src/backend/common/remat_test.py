@@ -1,7 +1,13 @@
+import numpy as np
+
+from keras.src import backend
+from keras.src import layers
+from keras.src import models
 from keras.src import testing
 from keras.src.backend.common import global_state
-from keras.src.backend.common.remat_scope import RematScope
-from keras.src.backend.common.remat_scope import get_current_remat_mode
+from keras.src.backend.common.remat import RematScope
+from keras.src.backend.common.remat import get_current_remat_mode
+from keras.src.layers import activations
 
 
 class TestRematScope(testing.TestCase):
@@ -73,3 +79,40 @@ class TestRematScope(testing.TestCase):
         """Test that invalid rematerialization modes raise an error."""
         with self.assertRaises(ValueError):
             RematScope(mode="invalid")  # Invalid mode should raise ValueError
+
+
+class RematTest(testing.TestCase):
+    def test_remat_basic_call(self):
+        if backend.backend() in ("openvino", "numpy"):
+            self.skipTest(
+                "remat is not supported in openvino and numpy backends."
+            )
+        # Generate dummy data
+        data_size = 10**5
+        x_train = np.random.normal(size=(data_size, 4))
+        y_train = np.random.normal(size=(data_size, 1))
+
+        epochs = 5
+        batch_size = 512
+        # test applying remat
+        output_with_remat = backend.core.remat(activations.ReLU())(x_train)
+        output_without_remat = activations.ReLU()(x_train)
+        self.assertAllClose(output_with_remat, output_without_remat)
+        # test remat in a model
+        intermediate_function = backend.core.remat(activations.ReLU())
+        inputs = layers.Input(shape=(4,))
+        x = layers.Dense(4)(inputs)
+        x = layers.Lambda(intermediate_function)(x)
+        outputs = layers.Dense(1)(x)
+        model = models.Model(inputs=inputs, outputs=outputs)
+        model.predict(x_train)
+        model.compile(optimizer="sgd", loss="mse")
+
+        # Train model
+        model.fit(
+            x_train,
+            y_train,
+            epochs=epochs,
+            batch_size=batch_size,
+            verbose=0,
+        )

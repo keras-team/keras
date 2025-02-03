@@ -33,13 +33,13 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
-from keras.src.backend.common.remat_scope import get_current_remat_mode
+from keras.src.backend.common.remat import get_current_remat_mode
+from keras.src.backend.common.remat import remat
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
-from keras.src.ops.core import remat
 from keras.src.ops.operation import Operation
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -1047,13 +1047,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ) as scope:
             if self.dtype_policy.quantization_mode is not None:
                 if remat_mode:
-                    outputs = self.rematerialized_call(self.quantized_call)(
-                        *args, **kwargs
+                    outputs = self.rematerialized_call(
+                        self.quantized_call, *args, **kwargs
                     )
                 else:
                     outputs = self.quantized_call(*args, **kwargs)
             elif remat_mode:
-                outputs = self.rematerialized_call(self.call)(*args, **kwargs)
+                outputs = self.rematerialized_call(self.call, *args, **kwargs)
             else:
                 outputs = self.call(*args, **kwargs)
             if return_losses:
@@ -1576,13 +1576,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return backend.name_scope(self.name, caller=self)
 
     def rematerialized_call(self, layer_call, *args, **kwargs):
-        """Wrap the layer's call method to enable rematerialization dynamically.
+        """Enable rematerialization dynamically for layer's call method.
 
         Args:
             layer_call: The original `call` method of a layer.
 
         Returns:
-            callable: The wrapped method with rematerialization logic applied.
+            Rematerialized layer's `call` method.
         """
 
         def compute_size(x):

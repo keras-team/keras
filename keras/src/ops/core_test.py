@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import activations
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
@@ -1346,40 +1345,3 @@ class CoreOpsBehaviorTests(testing.TestCase):
             core.associative_scan(
                 lambda x, y: (x[0] + y[0], x[1] + y[1]), x, axis=1
             )
-
-
-class CoreOpsRematTest(testing.TestCase):
-    def test_remat_basic_call(self):
-        if backend.backend() in ("openvino", "numpy"):
-            self.skipTest(
-                "remat is not supported in openvino and numpy backends."
-            )
-        # Generate dummy data
-        data_size = 10**5
-        x_train = np.random.normal(size=(data_size, 4))
-        y_train = np.random.normal(size=(data_size, 1))
-
-        epochs = 5
-        batch_size = 512
-        # test applying remat
-        output_with_remat = backend.core.remat(activations.relu)(x_train)
-        output_without_remat = activations.relu(x_train)
-        self.assertAllClose(output_with_remat, output_without_remat)
-        # test remat in a model
-        intermediate_function = backend.core.remat(activations.relu)
-        inputs = layers.Input(shape=(4,))
-        x = layers.Dense(4)(inputs)
-        x = layers.Lambda(lambda y: intermediate_function(y))(x)
-        outputs = layers.Dense(1)(x)
-        model = models.Model(inputs=inputs, outputs=outputs)
-        model.predict(x_train)
-        model.compile(optimizer="sgd", loss="mse")
-
-        # Train model
-        model.fit(
-            x_train,
-            y_train,
-            epochs=epochs,
-            batch_size=batch_size,
-            verbose=0,
-        )

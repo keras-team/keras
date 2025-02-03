@@ -1,5 +1,6 @@
 from collections import namedtuple
 
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
@@ -12,6 +13,9 @@ class RematScope:
     recomputing intermediate activations during the backward pass. This is
     particularly useful for training large models or large batch sizes within
     limited memory constraints.
+
+    This should be used when calling the layer (e.g., `layer(input)`).
+    Rematerialization applies at execution time, not at creation time.
 
     Args:
         mode: Rematerialization mode to apply.
@@ -37,13 +41,12 @@ class RematScope:
 
     ```python
     from keras import RematScope
-
+    input_tensor = tf.random.normal((1, 32, 32, 3))
+    layer1 = keras.layers.Dense(128, name="dense_1")
+    layer2 = keras.layers.Conv2D(64, (3, 3), name="conv2d_1")
+    layer3 = keras.layers.Dense(64, name="dense_2")
     with RematScope(mode="list_of_layers", layer_names=["dense_1",
     "conv2d_1"]):
-        layer1 = keras.layers.Dense(128, name="dense_1")
-        layer2 = keras.layers.Conv2D(64, (3, 3), name="conv2d_1")
-        layer3 = keras.layers.Dense(64, name="dense_2")
-
         # Only layer1 and layer2 will apply rematerialization
         output1 = layer1(input_tensor)
         output2 = layer2(output1)
@@ -53,19 +56,25 @@ class RematScope:
     Using "larger_than" mode with a specific output size threshold:
 
     ```python
+    layer = keras.layers.Conv2D(64, (3, 3))
     with RematScope(mode="larger_than", output_size_threshold=2048):
-        layer = keras.layers.Conv2D(64, (3, 3))
         output = layer(input_tensor)  # Conv2D outputs larger than 2048
     ```
 
     Nested scopes for fine-grained control:
 
     ```python
+    # Create layers
+    layer1 = keras.layers.Dense(128, activation='relu')
+    layer2 = keras.layers.Conv2D(32, (3, 3))
+
     with RematScope(mode="full"):
-        layer1 = keras.layers.Dense(128, activation='relu')
+        output1 = layer1(input_tensor)  # layer1 is fully rematerialized
+
         with RematScope(mode="larger_than", output_size_threshold=512):
-            layer2 = keras.layers.Conv2D(32, (3, 3))
-            output = layer2(layer1(input_tensor))
+            output2 = layer2(output1) # layer2 is conditionally rematerialized
+            # if output > 512
+
     ```
     """
 
@@ -126,3 +135,54 @@ def get_current_remat_mode():
         active_scope.output_size_threshold,
         active_scope.layer_names,
     )
+
+
+@keras_export("keras.remat")
+def remat(f):
+    """Applies rematerialization to a function or layer for memory optimization.
+
+    Rematerialization is a memory optimization technique that trades off
+    computation for memory. Instead of storing intermediate results
+    (e.g. activations) for backpropagation, they are recomputed during the
+    backward pass. This reduces peak memory usage at the cost of increased
+    computation time, allowing the training of larger models or using larger
+    batch sizes within the same memory constraints.
+
+    Args:
+        f: The function, operation, or layer to which rematerialization is
+           applied. This is typically a computationally expensive operation
+           where intermediate states can be recomputed instead of stored.
+
+    Returns:
+        A wrapped function or layer that applies rematerialization. The returned
+        function defines a custom gradient, ensuring that during the backward
+        pass, the forward computation is recomputed as needed.
+
+    Example:
+        ```python
+        from keras import Model
+        class CustomRematLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.remat_function = remat(self.intermediate_function)
+
+            def intermediate_function(self, x):
+                for _ in range(2):
+                    x = x + x * 0.1  # Simple scaled transformation
+                return x
+
+            def call(self, inputs):
+                return self.remat_function(inputs)
+
+        # Define a simple model using the custom layer
+        inputs = layers.Input(shape=(4,))
+        x = layers.Dense(4, activation="relu")(inputs)
+        x = CustomRematLayer()(x)  # Custom layer with rematerialization
+        outputs = layers.Dense(1)(x)
+
+        # Create and compile the model
+        model = Model(inputs=inputs, outputs=outputs)
+        model.compile(optimizer="sgd", loss="mse")
+        ```
+    """
+    return backend.core.remat(f)

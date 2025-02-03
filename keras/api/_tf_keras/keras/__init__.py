@@ -35,7 +35,8 @@ from keras.src.backend import Variable
 from keras.src.backend import device
 from keras.src.backend import name_scope
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.common.remat_scope import RematScope
+from keras.src.backend.common.remat import RematScope
+from keras.src.backend.common.remat import remat
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
@@ -48,7 +49,6 @@ from keras.src.losses.loss import Loss
 from keras.src.metrics.metric import Metric
 from keras.src.models.model import Model
 from keras.src.models.sequential import Sequential
-from keras.src.ops.core import remat
 from keras.src.ops.function import Function
 from keras.src.ops.operation import Operation
 from keras.src.optimizers.optimizer import Optimizer
