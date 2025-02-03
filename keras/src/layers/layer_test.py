@@ -201,22 +201,13 @@ class LayerTest(testing.TestCase):
             "keras.src.backend.common.remat.remat", wraps=remat.remat
         ) as mock_remat:
             input_tensor = backend.random.uniform((2, 4))
-            layer = layers.Dense(3)
-            layer.build((2, 4))
-            layer.quantize("float8")
-
-            # Case 1: Without rematerialization
-            output_no_remat = layer(input_tensor)
 
             # Case 2: With rematerialization
             with RematScope(mode="full"):
                 layer = layers.Dense(3)
                 layer.build((2, 4))
                 layer.quantize("float8")
-                output_with_remat = layer(input_tensor)
-
-            # Assert outputs are the same
-            self.assertAllClose(output_no_remat, output_with_remat)
+                layer(input_tensor)
 
             # Ensure remat was applied
             mock_remat.assert_called()
