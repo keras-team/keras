@@ -290,7 +290,7 @@ class TestTFDatasetAdapter(testing.TestCase):
             self.assertEqual(by.shape, (2, 2))
 
     def test_distributed_datasets_from_function_adapter_properties(self):
-        strategy = tf.distribute.MirroredStrategy()
+        strategy = tf.distribute.MirroredStrategy(["CPU:0"])
 
         def dataset_fn(input_context):
             batch_size = input_context.get_per_replica_batch_size(
@@ -334,7 +334,7 @@ class TestTFDatasetAdapter(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_distributed_datasets_from_function_model_integration(self):
-        strategy = tf.distribute.MirroredStrategy()
+        strategy = tf.distribute.MirroredStrategy(["CPU:0"])
 
         def dataset_fn(input_context):
             batch_size = input_context.get_per_replica_batch_size(
@@ -348,6 +348,5 @@ class TestTFDatasetAdapter(testing.TestCase):
 
         model = Sequential([layers.Dense(2, input_shape=(1,))])
         model.compile(optimizer="adam", loss="mse")
-        model.fit(dist_dataset, epochs=1)
         history = model.fit(dist_dataset, epochs=1)
         self.assertIn("loss", history.history)
