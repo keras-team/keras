@@ -146,33 +146,36 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
-        print('DEBUG: Model.__init__ called')
+        Trainer.__init__(self)
+        print("DEBUG: Model.__init__ called")
         from keras.src.models import functional
+
         self.compiled = False
         self._compile_config = None
+
+        # Signature detection for usage of a `Model` subclass
+        # as a `Functional` subclass
         if functional_init_arguments(args, kwargs):
-            print('DEBUG: Detected Functional API model creation')
+            print("DEBUG: Detected Functional API model creation")
             inject_functional_model_class(self.__class__)
             functional.Functional.__init__(self, *args, **kwargs)
         else:
-            print('DEBUG: Creating model via non-Functional API')
+            print("DEBUG: Creating model via non-Functional API")
             Layer.__init__(self, *args, **kwargs)
             if args:
-                print('DEBUG: Processing args for inputs and outputs')
+                print("DEBUG: Processing args for inputs and outputs")
                 inputs = args[0]
-                outputs = args[1] if len(args) > 1 else None
             else:
-                print('DEBUG: Processing kwargs for inputs and outputs')
-                inputs = kwargs.get('inputs')
-                outputs = kwargs.get('outputs')
+                print("DEBUG: Processing kwargs for inputs and outputs")
+                inputs = kwargs.get("inputs")
             if isinstance(inputs, dict):
-                print('DEBUG: Inputs is a dictionary')
+                print("DEBUG: Inputs is a dictionary")
                 self._input_names = list(inputs.keys())
             else:
-                print('DEBUG: Inputs is not a dictionary')
+                print("DEBUG: Inputs is not a dictionary")
                 self._input_names = None
-            print(f'DEBUG: _input_names set to {self._input_names}')
-        print('DEBUG: Exiting Model.__init__')
+            print(f"DEBUG: _input_names set to {self._input_names}")
+        print("DEBUG: Exiting Model.__init__")
 
     def call(self, *args, **kwargs):
         raise NotImplementedError(
@@ -215,7 +218,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             print(f"DEBUG: Retrieving layer by index {index}")
             if len(self.layers) <= index:
                 raise ValueError(
-                    f"Was asked to retrieve layer at index {index} but model only has {len(self.layers)} layers."
+                    f"Was asked to retrieve layer at index {index}"
+                    f" but model only has {len(self.layers)}"
+                    " layers."
                 )
             else:
                 print(f"DEBUG: Found layer at index {index}")
@@ -231,7 +236,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     return self.get_layer(index=self._input_names.index(name))
             # Fallback to standard name lookup.
             for layer in self.layers:
-                print(f"DEBUG: Checking layer {layer.name} for match with '{name}'")
+                print(
+                    f"DEBUG: Checking layer {layer.name} for match with '{name}'"
+                )
                 if layer.name == name:
                     print(f"DEBUG: Found matching layer '{name}'")
                     return layer
@@ -240,7 +247,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"{list(layer.name for layer in self.layers)}."
             )
         print("DEBUG: No name or index provided")
-        raise ValueError("Provide either a layer name or layer index at `get_layer`.")
+        raise ValueError(
+            "Provide either a layer name or layer index at `get_layer`."
+        )
 
     @traceback_utils.filter_traceback
     def summary(
@@ -433,8 +442,12 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         if "input_names" in config and isinstance(config["input_names"], list):
             print("DEBUG: Setting _input_names from config['input_names']")
             self._input_names = config["input_names"]
-        elif "shapes_dict" in config and isinstance(config["shapes_dict"], dict):
-            print("DEBUG: Setting _input_names from config['shapes_dict'].keys()")
+        elif "shapes_dict" in config and isinstance(
+            config["shapes_dict"], dict
+        ):
+            print(
+                "DEBUG: Setting _input_names from config['shapes_dict'].keys()"
+            )
             self._input_names = list(config["shapes_dict"].keys())
         else:
             print("DEBUG: No input_names or shapes_dict found in config")

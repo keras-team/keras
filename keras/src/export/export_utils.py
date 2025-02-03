@@ -40,7 +40,9 @@ def get_input_signature(model):
             if isinstance(input_signature, list) and len(input_signature) > 1:
                 input_signature = [input_signature]
     else:
-        print("DEBUG: Model is not Functional or Sequential. Inferring input_signature.")
+        print(
+            "DEBUG: Model is not Functional or Sequential. Inferring input_signature."
+        )
         input_signature = _infer_input_signature_from_model(model)
         print("DEBUG: Inferred input_signature:", input_signature)
         if not input_signature or not model._called:

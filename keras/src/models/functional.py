@@ -151,6 +151,7 @@ class Functional(Function, Model):
 
         self._layers = self.layers
         self.build(None)
+        # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         output_layers = [x._keras_history[0] for x in self.outputs]
@@ -295,55 +296,76 @@ class Functional(Function, Model):
 
     def _standardize_inputs(self, inputs):
         if isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
-            if set(inputs.keys()) != set(self._inputs_struct.keys()):
+            model_keys = set(self._inputs_struct.keys())
+            input_keys = set(inputs.keys())
+            missing = model_keys - input_keys
+            if missing:
                 raise ValueError(
                     f"Input keys don't match model input keys. "
                     f"Model expects: {list(self._inputs_struct.keys())}, "
                     f"but got: {list(inputs.keys())}"
                 )
-            return {k: ops.convert_to_tensor(v) for k, v in inputs.items()}
-
-        if (not isinstance(inputs, dict)) and isinstance(self._inputs_struct, dict):
-            if isinstance(inputs, (list, tuple)) and len(inputs) == len(self._inputs_struct):
-                sorted_keys = sorted(self._inputs_struct.keys())
-                return {k: ops.convert_to_tensor(v) for k, v in zip(sorted_keys, inputs)}
+            extra = input_keys - model_keys
+            if extra:
+                self._maybe_warn_inputs_struct_mismatch(
+                    inputs, raise_exception=False
+                )
+            filtered_inputs = {k: inputs[k] for k in model_keys}
+            return tree.map_structure(ops.convert_to_tensor, filtered_inputs)
 
         raise_exception = False
         if isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
         ):
-            # This is to avoid warning
-            # when we have reconciable dict/list structs
-            if hasattr(self._inputs_struct, "__len__") and all(
-                isinstance(i, backend.KerasTensor) for i in self._inputs_struct
-            ):
-                expected_keys = set(i.name for i in self._inputs_struct)
-                keys = set(inputs.keys())
-                if expected_keys.issubset(keys):
-                    inputs = [inputs[i.name] for i in self._inputs_struct]
+            if isinstance(self._inputs_struct, (list, tuple)):
+                all_kt = all(
+                    isinstance(kt, backend.KerasTensor)
+                    for kt in self._inputs_struct
+                )
+                if all_kt:
+                    expected_names = [kt.name for kt in self._inputs_struct]
+                    input_keys = set(inputs.keys())
+                    if input_keys.issuperset(expected_names):
+                        inputs = [inputs[name] for name in expected_names]
+                    else:
+                        missing = set(expected_names) - input_keys
+                        raise ValueError(
+                            f"Missing input keys: {missing}. Expected keys: {expected_names}, "
+                            f"received keys: {list(inputs.keys())}"
+                        )
                 else:
                     raise_exception = True
             elif isinstance(self._inputs_struct, backend.KerasTensor):
                 if self._inputs_struct.name in inputs:
-                    inputs = [inputs[self._inputs_struct.name]]
+                    inputs = inputs[self._inputs_struct.name]
                 else:
                     raise_exception = True
             else:
                 raise_exception = True
-        if (
-            isinstance(self._inputs_struct, dict)
-            and not isinstance(inputs, dict)
-            and list(self._inputs_struct.keys())
-            != sorted(self._inputs_struct.keys())
+        elif not isinstance(inputs, (list, tuple)) and isinstance(
+            self._inputs_struct, (list, tuple)
         ):
-            raise_exception = True
+            inputs = [inputs]
+
         self._maybe_warn_inputs_struct_mismatch(
             inputs, raise_exception=raise_exception
         )
 
-        flat_inputs = tree.flatten(inputs)
-        flat_inputs = self._convert_inputs_to_tensors(flat_inputs)
-        return self._adjust_input_rank(flat_inputs)
+        if raise_exception:
+            raise ValueError(
+                "The model's input structure doesn't match the input data. "
+                f"Model expects {self._inputs_struct}, but received {inputs}."
+            )
+
+        try:
+            inputs = tree.flatten(inputs)
+            inputs = self._convert_inputs_to_tensors(inputs)
+            return self._adjust_input_rank(inputs)
+        except:
+            raise ValueError(
+                "The model's input structure doesn't match the input data. "
+                f"Model expects {self._inputs_struct}, but received {inputs}."
+            )
 
     @property
     def input(self):

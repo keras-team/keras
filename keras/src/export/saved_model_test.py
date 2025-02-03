@@ -1004,14 +1004,11 @@ class ExportArchiveTest(testing.TestCase):
         revived_model.serve(tf.random.normal((6, 10)))
 
     def test_export_with_dict_input(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         inputs = {
             "foo": layers.Input(shape=()),
             "bar": layers.Input(shape=()),
         }
-        # input_signature = {
-        #     "foo": tf.TensorSpec(shape=(None,), dtype=tf.float32),
-        #     "bar": tf.TensorSpec(shape=(None,), dtype=tf.float32),
-        # }
         outputs = layers.Add()([inputs["foo"], inputs["bar"]])
         model = models.Model(inputs, outputs)
-        model.export("test/", format="tf_saved_model")
+        model.export(temp_filepath, format="tf_saved_model")
