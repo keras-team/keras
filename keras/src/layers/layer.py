@@ -794,9 +794,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 f"the one set during layer initialization "
                 f"({self._remat_mode}). "
                 f"Restoring the correct rematerialization mode "
-                f"{self._remat_mode}for this layer."
+                f"{self._remat_mode} for this layer."
             )
-        # Restore rematerialization mode before calling the layer
 
         #####################################
         # 1. Convert any array arguments to tensors of correct dtype.
@@ -1039,7 +1038,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 f"the one set during layer initialization "
                 f"({self._remat_mode}). "
                 f"Restoring the correct rematerialization mode "
-                f"{self._remat_mode}for this layer."
+                f"{self._remat_mode} for this layer."
             )
         if not self.built:
             raise ValueError(
