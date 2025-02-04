@@ -78,7 +78,7 @@ class TimeDistributedTest(testing.TestCase):
             np.array([[[0], [0.22]], [[0.38], [0]], [[0.7], [0.86]]]),
             output,
         )
-
+    @pytest.mark.requires_trainable_backend
     def test_with_mask_zero(self):
         model = Sequential(
             [
