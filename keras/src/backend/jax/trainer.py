@@ -308,7 +308,7 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
-            predict_step = jax.jit(predict_step)
+            predict_step = jax.jit(predict_step, donate_argnums=0)
 
         _step_function = self._make_function(
             predict_step, concatenate_outputs=True
@@ -316,7 +316,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         def step_function(state, iterator):
             outputs, state = _step_function(state, iterator)
-            return outputs, state[1]
+            return outputs, state
 
         self.predict_function = step_function
 
@@ -671,14 +671,20 @@ class JAXTrainer(base_trainer.Trainer):
                     state = self._get_jax_state(
                         trainable_variables=True,
                         non_trainable_variables=True,
+                        purge_model_variables=True,
                     )
-                    self._purge_model_variables(non_trainable_variables=True)
                     self._jax_state_synced = False
-                else:
-                    state = (state[0], non_trainable_variables)
-                batch_outputs, non_trainable_variables = self.predict_function(
-                    state, iterator
-                )
+                batch_outputs, state = self.predict_function(state, iterator)
+                (
+                    trainable_variables,
+                    non_trainable_variables,
+                ) = state
+                self._jax_state = {
+                    "trainable_variables": trainable_variables,
+                    # I wouldn't recommend modifying non-trainable model state
+                    # during predict(), but it's allowed.
+                    "non_trainable_variables": non_trainable_variables,
+                }
                 outputs = append_to_outputs(batch_outputs, outputs)
 
                 # Dispatch callbacks. This takes care of async dispatch.
@@ -687,11 +693,6 @@ class JAXTrainer(base_trainer.Trainer):
                 if self.stop_predicting:
                     break
 
-        self._jax_state = {
-            # I wouldn't recommend modifying non-trainable model state
-            # during predict(), but it's allowed.
-            "non_trainable_variables": non_trainable_variables,
-        }
         self.jax_state_sync()
         callbacks.on_predict_end()
         self._jax_state = None
@@ -819,10 +820,10 @@ class JAXTrainer(base_trainer.Trainer):
         def data():
             yield (x,)
 
-        batch_outputs, non_trainable_variables = self.predict_function(
-            state, data()
-        )
+        batch_outputs, state = self.predict_function(state, data())
+        trainable_variables, non_trainable_variables = state
         self._jax_state = {
+            "trainable_variables": trainable_variables,
             "non_trainable_variables": non_trainable_variables,
         }
         self.jax_state_sync()
@@ -929,7 +930,7 @@ class JAXTrainer(base_trainer.Trainer):
     ):
         """Remove all the model variable for memory saving.
 
-        During JAX training, since the training function are stateless, we have
+        During JAX training, since the training function is stateless, we have
         to pass in and get the model weights over and over, during which the
         copy of the weights that attached to the Variable are still and
         occupying extra memory. We remove those variable to save memory (for
