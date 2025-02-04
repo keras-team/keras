@@ -783,19 +783,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     def __call__(self, *args, **kwargs):
         self._check_super_called()
         self._called = True
-        current_remat_mode = get_current_remat_mode()
-
-        if (
-            current_remat_mode != self._remat_mode
-            and current_remat_mode is not None
-        ):
-            warnings.warn(
-                f"The RematScope at call time ({current_remat_mode}) differs "
-                f"the one set during layer initialization "
-                f"({self._remat_mode}). "
-                f"Restoring the correct rematerialization mode "
-                f"{self._remat_mode} for this layer."
-            )
 
         #####################################
         # 1. Convert any array arguments to tensors of correct dtype.
@@ -917,19 +904,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                     new_scope = backend.AutocastScope(self.compute_dtype)
                 if new_scope is not None:
                     with new_scope:
-                        if self._remat_mode is not None:
-                            outputs = self.rematerialized_call(
-                                super().__call__, *args, **kwargs
-                            )
-                        else:
-                            outputs = super().__call__(*args, **kwargs)
-                else:
-                    if self._remat_mode is not None:
-                        outputs = self.rematerialized_call(
-                            super().__call__, *args, **kwargs
-                        )
-                    else:
                         outputs = super().__call__(*args, **kwargs)
+                else:
+                    outputs = super().__call__(*args, **kwargs)
                 # Change the layout for the layer output if needed.
                 # This is useful for relayout intermediate tensor in the model
                 # to achieve the optimal performance.
@@ -1027,19 +1004,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ```
         """
         self._check_super_called()
-        current_remat_mode = get_current_remat_mode()
-
-        if (
-            current_remat_mode != self._remat_mode
-            and current_remat_mode is not None
-        ):
-            warnings.warn(
-                f"The RematScope at call time ({current_remat_mode}) differs "
-                f"the one set during layer initialization "
-                f"({self._remat_mode}). "
-                f"Restoring the correct rematerialization mode "
-                f"{self._remat_mode} for this layer."
-            )
         if not self.built:
             raise ValueError(
                 f"To call stateless_call, {self.__class__.__name__} must be "
@@ -1266,6 +1230,19 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             )
 
     def quantized_call(self, *args, **kwargs):
+        current_remat_mode = get_current_remat_mode()
+
+        if (
+            current_remat_mode != self._remat_mode
+            and current_remat_mode is not None
+        ):
+            warnings.warn(
+                f"The RematScope at call time ({current_remat_mode}) differs "
+                f"the one set during layer initialization "
+                f"({self._remat_mode}). "
+                f"Restoring the correct rematerialization mode "
+                f"{self._remat_mode} for this layer."
+            )
         if self.quantization_mode == "int8":
             return self._int8_call(*args, **kwargs)
         elif self.quantization_mode == "float8":
@@ -1614,9 +1591,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         Returns:
             Rematerialized layer's `call` method.
         """
-        if any(isinstance(x, KerasTensor) for x in tree.flatten(args)):
-            # Bypass rematerialization when in symbolic mode.
-            return layer_call(*args, **kwargs)
 
         def compute_size(x):
             return (
