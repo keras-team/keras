@@ -259,8 +259,10 @@ class ApplicationsTest(testing.TestCase):
             input_shape = (123, 123, 4)
             last_dim_axis = -1
 
-        inputs_custom = Input(shape=input_shape, name='custom_input')
-        inputs_custom = Conv2D(3, (2, 2), padding='valid', strides=(2,2))(inputs_custom)
+        inputs_custom = Input(shape=input_shape, name="custom_input")
+        inputs_custom = Conv2D(3, (2, 2), padding="valid", strides=(2, 2))(
+            inputs_custom
+        )
         model = app(weights=None, include_top=False, input_tensor=inputs_custom)
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape[last_dim_axis], last_dim)
