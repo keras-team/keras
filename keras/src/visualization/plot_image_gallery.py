@@ -44,6 +44,9 @@ def _extract_image_batch(images, num_images, batch_size):
 @keras_export("keras.visualization.plot_image_gallery")
 def plot_image_gallery(
     images,
+    y_true=None,
+    y_pred=None,
+    label_map=None,
     rows=None,
     cols=None,
     value_range=(0, 255),
@@ -55,11 +58,18 @@ def plot_image_gallery(
     legend_handles=None,
     data_format=None,
 ):
-    """Displays a gallery of images.
+    """Displays a gallery of images with optional labels and predictions.
 
     Args:
         images: A 4D tensor or NumPy array of images. Shape should be
            `(batch_size, height, width, channels)`.
+        y_true: A 1D tensor or NumPy array of true labels (class indices).
+           Defaults to `None`.
+        y_pred: A 1D tensor or NumPy array of predicted labels (class indices).
+           Defaults to `None`.
+        label_map: A dictionary mapping class indices to class names.
+            Required if `y_true` or `y_pred` are provided.
+           Defaults to `None`.
         value_range: A tuple specifying the value range of the images
             (e.g., `(0, 255)` or `(0, 1)`). Defaults to `(0, 255)`.
         rows: The number of rows in the gallery. If `None`, it's calculated
@@ -83,8 +93,9 @@ def plot_image_gallery(
             `"channels_first"`. Defaults to the Keras backend data format.
 
     Raises:
-        ValueError: If both `path` and `show` are set to non-`None` values or if
-            `images` is not a 4D tensor or array.
+        ValueError: If both `path` and `show` are set to non-`None` values,
+            if `images` is not a 4D tensor or array, or if `y_true` or `y_pred`
+            are provided without a `label_map`.
         ImportError: if matplotlib is not installed.
     """
     if plt is None:
@@ -97,6 +108,12 @@ def plot_image_gallery(
         raise ValueError(
             "plot_gallery() expects either `path` to be set, or `show` "
             "to be true."
+        )
+
+    if (y_true is not None or y_pred is not None) and label_map is None:
+        raise ValueError(
+            "If `y_true` or `y_pred` are provided, a `label_map` must also be"
+            " provided."
         )
 
     show = show if show is not None else (path is None)
@@ -113,6 +130,7 @@ def plot_image_gallery(
         data_format == "channels_first"
     ):  # Ensure correct data format for plotting
         images = ops.transpose(images, (0, 2, 3, 1))
+
     # Generate subplots
     fig, axes = plt.subplots(
         nrows=rows,
@@ -141,6 +159,11 @@ def plot_image_gallery(
     if data_format == "channels_first":
         images = images.transpose(0, 2, 3, 1)
 
+    if y_true is not None:
+        y_true = ops.convert_to_numpy(y_true)
+    if y_pred is not None:
+        y_pred = ops.convert_to_numpy(y_pred)
+
     for row in range(rows):
         for col in range(cols):
             index = row * cols + col
@@ -150,6 +173,18 @@ def plot_image_gallery(
             current_axis.imshow(images[index].astype("uint8"))
             current_axis.margins(x=0, y=0)
             current_axis.axis("off")
+            title_parts = []
+            if y_true is not None and index < len(y_true):
+                title_parts.append(
+                    f"Label: {label_map.get(y_true[index], 'Unknown')}"
+                )
+            if y_pred is not None and index < len(y_pred):
+                title_parts.append(
+                    f"Pred: {label_map.get(y_pred[index], 'Unknown')}"
+                )
+
+            if title_parts:
+                current_axis.set_title("  ".join(title_parts), fontsize=8)
 
     if path is not None:
         plt.savefig(
