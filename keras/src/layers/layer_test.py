@@ -227,7 +227,9 @@ class LayerTest(testing.TestCase):
 
             # just one layer in remat scope
             with RematScope(mode="full"):
-                layer = layers.Conv2D(64, (3, 3), activation="relu")
+                layer = layers.Conv2D(
+                    64, (3, 3), activation="relu", data_format="channels_last"
+                )
                 output = layer(inputs)
 
             # Build the functional model
