@@ -21,7 +21,8 @@ from keras.src.applications import resnet_v2
 from keras.src.applications import vgg16
 from keras.src.applications import vgg19
 from keras.src.applications import xception
-from keras.src.layers import Input, Conv2D
+from keras.src.layers import Conv2D
+from keras.src.layers import Input
 from keras.src.saving import serialization_lib
 from keras.src.utils import file_utils
 from keras.src.utils import image_utils
