@@ -24,6 +24,7 @@ from keras.src.applications import xception
 from keras.src.saving import serialization_lib
 from keras.src.utils import file_utils
 from keras.src.utils import image_utils
+from keras.src.layers import Input, Conv2D
 
 try:
     import PIL
@@ -236,6 +237,30 @@ class ApplicationsTest(testing.TestCase):
             input_shape = (123, 123, 3)
             last_dim_axis = -1
         model = app(weights=None, include_top=False, input_shape=input_shape)
+        output_shape = list(model.outputs[0].shape)
+        self.assertEqual(output_shape[last_dim_axis], last_dim)
+
+    @parameterized.named_parameters(test_parameters)
+    def test_application_notop_custom_input_tensor(
+        self, app, last_dim, _, image_data_format
+    ):
+        if app == nasnet.NASNetMobile and backend.backend() == "torch":
+            self.skipTest(
+                "NASNetMobile pretrained incorrect with torch backend."
+            )
+        self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
+        backend.set_image_data_format(image_data_format)
+
+        if image_data_format == "channels_first":
+            input_shape = (4, 123, 123)
+            last_dim_axis = 1
+        else:
+            input_shape = (123, 123, 4)
+            last_dim_axis = -1
+
+        inputs_custom = Input(shape=input_shape, name='custom_input')
+        inputs_custom = Conv2D(3, (2, 2), padding='valid', strides=(2,2))(inputs_custom)
+        model = app(weights=None, include_top=False, input_tensor=inputs_custom)
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape[last_dim_axis], last_dim)
 
