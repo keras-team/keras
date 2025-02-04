@@ -1,16 +1,54 @@
 import math
 
 import mlx.core as mx
+import numpy as np
 
 from keras.src.backend.mlx.core import convert_to_tensor
 
 
+def _segment_reduction_fn(
+    data, segment_ids, reduction_method, num_segments, sorted
+):
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+
+    if data.dtype == mx.int64:
+        # GPU scatter does not yet support int64 for the input or updates.
+        data = data.astype(mx.int32)
+
+    if num_segments is None:
+        num_segments = mx.max(segment_ids) + 1
+
+    valid_indices = segment_ids >= 0
+    valid_data = mx.array(
+        np.array(data)[valid_indices]  # MLX does not support boolean indices
+    )
+    valid_segment_ids = mx.array(np.array(segment_ids)[valid_indices])
+
+    data_shape = list(valid_data.shape)
+    data_shape[0] = num_segments
+
+    if not sorted:
+        sort_indices = mx.argsort(valid_segment_ids)
+        valid_segment_ids = valid_segment_ids[sort_indices]
+        valid_data = valid_data[sort_indices]
+
+    if reduction_method == "max":
+        result = mx.ones(data_shape, dtype=valid_data.dtype) * -mx.inf
+        result = result.at[valid_segment_ids].maximum(valid_data)
+    else:  # sum
+        result = mx.zeros(data_shape, dtype=valid_data.dtype)
+        result = result.at[valid_segment_ids].add(valid_data)
+
+    return result
+
+
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError("segment_sum is not implemented for mlx")
+    return _segment_reduction_fn(data, segment_ids, "sum", num_segments, sorted)
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError("segment_max is not implemented for mlx")
+    return _segment_reduction_fn(data, segment_ids, "max", num_segments, sorted)
 
 
 def top_k(x, k, sorted=True):
