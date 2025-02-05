@@ -48,6 +48,7 @@ then
    python3 -c 'import jax;print(jax.__version__);print(jax.default_backend())'
    # Raise error if GPU is not detected.
    python3 -c 'import jax;assert jax.default_backend().lower() == "gpu"'
+   export XLA_PYTHON_CLIENT_PREALLOCATE='false'
 
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
    # TODO: keras/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow0 Fatal Python error: Aborted
