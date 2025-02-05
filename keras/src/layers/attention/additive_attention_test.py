@@ -1,10 +1,14 @@
 import numpy as np
+import pytest
 
 from keras.src import layers
 from keras.src import testing
 
 
 class AdditiveAttentionTest(testing.TestCase):
+    @pytest.mark.skipif(
+        testing.jax_uses_gpu(), reason="Leads to core dumps on CI"
+    )
     def test_attention_basics(self):
         # No scale
         self.run_layer_test(
