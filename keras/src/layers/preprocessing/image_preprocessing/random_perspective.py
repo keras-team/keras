@@ -2,7 +2,14 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
+from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.RandomPerspective")
@@ -72,6 +79,15 @@ class RandomPerspective(BaseImagePreprocessingLayer):
                 f"{self._SUPPORTED_INTERPOLATION}."
             )
 
+        if self.data_format == "channels_first":
+            self.height_axis = -2
+            self.width_axis = -1
+            self.channel_axis = -3
+        else:
+            self.height_axis = -3
+            self.width_axis = -2
+            self.channel_axis = -1
+
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None
@@ -105,30 +121,18 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         )
         apply_perspective = random_threshold < transformation_probability
 
-        horizontal_shift = self.backend.random.uniform(
+        perspective_factor = self.backend.random.uniform(
             minval=-self.scale,
             maxval=self.scale,
-            shape=[batch_size, 1],
-            seed=seed,
-            dtype=self.compute_dtype,
-        )
-        vertical_shift = self.backend.random.uniform(
-            minval=-self.scale,
-            maxval=self.scale,
-            shape=[batch_size, 1],
+            shape=[batch_size, 4],
             seed=seed,
             dtype=self.compute_dtype,
         )
 
-        perspective_factor = self.backend.cast(
-            self.backend.numpy.concatenate(
-                [horizontal_shift, vertical_shift], axis=1
-            ),
-            dtype=self.compute_dtype,
-        )
         return {
             "apply_perspective": apply_perspective,
             "perspective_factor": perspective_factor,
+            "input_shape": images_shape,
         }
 
     def transform_images(self, images, transformation, training=True):
@@ -178,20 +182,27 @@ class RandomPerspective(BaseImagePreprocessingLayer):
                 )
                 + perspectives[:, :1],
                 perspectives[:, :1],
-                self.backend.numpy.zeros((num_perspectives, 1)),
-                perspectives[:, 1:],
+                perspectives[:, 2:3],
+                perspectives[:, 1:2],
                 self.backend.numpy.ones(
                     (num_perspectives, 1), dtype=self.compute_dtype
                 )
-                + perspectives[:, 1:],
-                self.backend.numpy.zeros((num_perspectives, 1)),
+                + perspectives[:, 1:2],
+                perspectives[:, 3:4],
                 self.backend.numpy.zeros((num_perspectives, 2)),
             ],
             axis=1,
         )
 
-    def transform_labels(self, labels, transformation, training=True):
-        return labels
+    def _get_transformed_coordinates(self, x, y, transform):
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+            transform, 8, axis=-1
+        )
+
+        x_transformed = (a1 * (y - b2) - b1 * (x - a2)) / (a1 * b0 - a0 * b1)
+        y_transformed = (b0 * (x - a2) - a0 * (y - b2)) / (a1 * b0 - a0 * b1)
+
+        return x_transformed, y_transformed
 
     def transform_bounding_boxes(
         self,
@@ -199,7 +210,73 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        raise NotImplementedError()
+        if training:
+            if backend_utils.in_tf_graph():
+                self.backend.set_backend("tensorflow")
+
+            input_height, input_width = (
+                transformation["input_shape"][self.height_axis],
+                transformation["input_shape"][self.width_axis],
+            )
+
+            bounding_boxes = convert_format(
+                bounding_boxes,
+                source=self.bounding_box_format,
+                target="xyxy",
+                height=input_height,
+                width=input_width,
+            )
+
+            boxes = bounding_boxes["boxes"]
+
+            x0, y0, x1, y1 = self.backend.numpy.split(boxes, 4, axis=-1)
+
+            perspective_factor = transformation["perspective_factor"]
+            transform = self._get_perspective_matrix(perspective_factor)
+            transform = self.backend.numpy.expand_dims(transform, axis=1)
+            transform = self.backend.cast(transform, dtype=self.compute_dtype)
+
+            x_1, y_1 = self._get_transformed_coordinates(x0, y0, transform)
+            x_2, y_2 = self._get_transformed_coordinates(x1, y1, transform)
+            x_3, y_3 = self._get_transformed_coordinates(x0, y1, transform)
+            x_4, y_4 = self._get_transformed_coordinates(x1, y0, transform)
+
+            xs = self.backend.numpy.concatenate([x_1, x_2, x_3, x_4], axis=-1)
+            ys = self.backend.numpy.concatenate([y_1, y_2, y_3, y_4], axis=-1)
+
+            min_x = self.backend.numpy.min(xs, axis=-1)
+            max_x = self.backend.numpy.max(xs, axis=-1)
+            min_y = self.backend.numpy.min(ys, axis=-1)
+            max_y = self.backend.numpy.max(ys, axis=-1)
+
+            min_x = self.backend.numpy.expand_dims(min_x, axis=-1)
+            max_x = self.backend.numpy.expand_dims(max_x, axis=-1)
+            min_y = self.backend.numpy.expand_dims(min_y, axis=-1)
+            max_y = self.backend.numpy.expand_dims(max_y, axis=-1)
+
+            boxes = self.backend.numpy.concatenate(
+                [min_x, min_y, max_x, max_y], axis=-1
+            )
+
+            apply_perspective = transformation["apply_perspective"]
+
+            bounding_boxes["boxes"] = self.backend.numpy.where(
+                apply_perspective[:, None, None],
+                boxes,
+                bounding_boxes["boxes"],
+            )
+
+            bounding_boxes = clip_to_image_size(
+                bounding_boxes=bounding_boxes,
+                height=input_height,
+                width=input_width,
+                bounding_box_format="xyxy",
+            )
+
+        return bounding_boxes
+
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
