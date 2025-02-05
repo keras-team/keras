@@ -1,9 +1,11 @@
 import pickle
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.src import Input
 from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import layers
@@ -12,6 +14,9 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
+from keras.src.backend.common import remat
+from keras.src.backend.common.remat import RematScope
+from keras.src.models import Model
 
 
 class LayerTest(testing.TestCase):
@@ -164,6 +169,159 @@ class LayerTest(testing.TestCase):
                 getattr(layer, method)(**args)
             else:
                 getattr(layer, method)(args)
+
+    def test_layer_with_remat(self):
+        """Test rematerialization on a simple layer."""
+        # Create a mock to track calls to remat
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+
+            class SomeLayer(layers.Layer):
+                def call(self, x):
+                    return x + 1
+
+            input_tensor = backend.random.uniform((2, 4))
+            layer = SomeLayer()
+            # Case 1: Without rematerialization
+            output_no_remat = layer(input_tensor)
+
+            # Case 2: With rematerialization
+            with RematScope(mode="full"):
+                layer = SomeLayer()
+                output_with_remat = layer(input_tensor)
+
+            # Assert outputs are the same
+            self.assertAllClose(output_no_remat, output_with_remat)
+
+            # Ensure remat was applied in the second case
+            mock_remat.assert_called()
+
+    def test_quantized_layer_with_remat(self):
+        """Test rematerialization on a quantized layer."""
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+            input_tensor = backend.random.uniform((2, 4))
+
+            # Case 2: With rematerialization
+            with RematScope(mode="full"):
+                layer = layers.Dense(3)
+                layer.build((2, 4))
+                layer.quantize("float8")
+                layer(input_tensor)
+
+            # Ensure remat was applied
+            mock_remat.assert_called()
+
+    def test_functional_model_with_remat(self):
+        if backend.backend() in ("openvino", "numpy") or testing.jax_uses_gpu():
+            self.skipTest(
+                "remat is not supported in openvino and numpy backends."
+            )
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+            # Define model inputs
+            inputs = Input(shape=(32, 32, 3))
+
+            # just one layer in remat scope
+            with RematScope(mode="full"):
+                layer = layers.Conv2D(
+                    64, (3, 3), activation="relu", data_format="channels_last"
+                )
+                output = layer(inputs)
+
+            # Build the functional model
+            model = Model(inputs=inputs, outputs=output)
+
+            # Compile the model
+            model.compile(optimizer="adam", loss="mse")
+
+            # Generate dummy data for testing
+            x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
+            y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
+
+            # Run training to ensure `RematScope` is applied correctly
+            model.fit(x_train, y_train, epochs=1, batch_size=2)
+            self.assertGreater(mock_remat.call_count, 1)
+
+    def test_remat_wrapper_list_of_layers(self):
+        """Test rematerialization using list_of_layers mode."""
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+
+            class TestLayer(layers.Layer):
+                def call(self, x):
+                    return x + 1
+
+            class OtherLayer(layers.Layer):
+                def call(self, x):
+                    return x * 2
+
+            remat_layers = ["test_layer"]
+            input_tensor = backend.random.uniform((4, 4))
+
+            with RematScope(mode="list_of_layers", layer_names=remat_layers):
+                test_layer = TestLayer(name="test_layer")
+                other_layer = OtherLayer(name="other_layer")
+                output_test = test_layer(input_tensor)
+                output_other = other_layer(input_tensor)
+
+            self.assertAllClose(output_test, input_tensor + 1)
+            self.assertAllClose(output_other, input_tensor * 2)
+
+            # Ensure remat was applied to the correct layer
+            mock_remat.assert_called_once()
+
+    def test_remat_larger_than_mode(self):
+        """Test rematerialization using larger_than mode."""
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+
+            class TestLayer(layers.Layer):
+                def compute_output_shape(self, input_shape):
+                    return input_shape
+
+                def call(self, x):
+                    return x + 1
+
+            input_tensor = backend.random.uniform((100, 100))  # Large tensor
+
+            with RematScope(mode="larger_than", output_size_threshold=5000):
+                layer = TestLayer()
+                output = layer(input_tensor)
+
+            self.assertAllClose(output, input_tensor + 1)
+
+            # Ensure remat was applied
+            mock_remat.assert_called()
+
+    def test_remat_larger_than_mode_high_threshold(self):
+        """Test rematerialization using larger_than mode."""
+        with patch(
+            "keras.src.backend.common.remat.remat", wraps=remat.remat
+        ) as mock_remat:
+
+            class TestLayer(layers.Layer):
+                def compute_output_shape(self, input_shape):
+                    return input_shape
+
+                def call(self, x):
+                    return x + 1
+
+            input_tensor = backend.random.uniform((100, 100))  # Large tensor
+
+            with RematScope(mode="larger_than", output_size_threshold=50000):
+                layer = TestLayer()
+                output = layer(input_tensor)
+
+            self.assertAllClose(output, input_tensor + 1)
+
+            # Ensure remat was applied
+            mock_remat.assert_not_called()
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
