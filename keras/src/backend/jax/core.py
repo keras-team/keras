@@ -374,7 +374,7 @@ def remat(f):
         A function wrapping f that defines a custom gradient, which
         recomputes f on the backwards pass of a gradient call.
     """
-    return jax.checkpoint(f)
+    return jax.checkpoint(f, prevent_cse=True)
 
 
 class name_scope(base_name_scope):
