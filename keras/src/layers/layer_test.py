@@ -170,6 +170,9 @@ class LayerTest(testing.TestCase):
             else:
                 getattr(layer, method)(args)
 
+    @pytest.mark.skipif(
+        testing.jax_uses_gpu(), reason="Leads to core dumps on CI"
+    )
     def test_layer_with_remat(self):
         """Test rematerialization on a simple layer."""
         # Create a mock to track calls to remat
@@ -215,10 +218,9 @@ class LayerTest(testing.TestCase):
             mock_remat.assert_called()
 
     def test_functional_model_with_remat(self):
-        if backend.backend() in ("openvino", "numpy") or testing.jax_uses_gpu():
+        if backend.backend() in ("openvino", "numpy"):
             self.skipTest(
-                "remat is not supported in openvino and numpy backends. Jax GPU"
-                "CI causes seg fault"
+                "remat is not supported in openvino and numpy backends."
             )
         with patch(
             "keras.src.backend.common.remat.remat", wraps=remat.remat
