@@ -20,14 +20,14 @@ class RematScope:
     Args:
         mode: Rematerialization mode to apply.
             Options:
-            - "full": Apply rematerialization globally to all supported
+            - `"full"`: Apply rematerialization globally to all supported
               operations.
-            - "activations": Apply rematerialization to activations on any
+            - `"activations"`: Apply rematerialization to activations on any
               layers that contain `keras.activations` (e.g., `Dense(...,
               activation=relu)`).
-            - "larger_than": Apply rematerialization to layers with output sizes
-              larger than `output_size_threshold`.
-            - "list_of_layers": Apply rematerialization to a specific list of
+            - `"larger_than"`: Apply rematerialization to layers with output
+              sizes larger than `output_size_threshold`.
+            - `"list_of_layers"`: Apply rematerialization to a specific list of
               layer names.
             - None: Disable rematerialization.
         output_size_threshold: Output size threshold for the
