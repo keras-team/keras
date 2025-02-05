@@ -500,17 +500,18 @@ class ExportArchive(BackendExportArchive):
         )
 
         # Print out available endpoints
-        endpoints = "\n\n".join(
-            _print_signature(
-                getattr(self._tf_trackable, name), name, verbose=verbose
+        if verbose:
+            endpoints = "\n\n".join(
+                _print_signature(
+                    getattr(self._tf_trackable, name), name, verbose=verbose
+                )
+                for name in self._endpoint_names
             )
-            for name in self._endpoint_names
-        )
-        io_utils.print_msg(
-            f"Saved artifact at '{filepath}'. "
-            "The following endpoints are available:\n\n"
-            f"{endpoints}"
-        )
+            io_utils.print_msg(
+                f"Saved artifact at '{filepath}'. "
+                "The following endpoints are available:\n\n"
+                f"{endpoints}"
+            )
 
     def _convert_to_tf_variable(self, backend_variable):
         if not isinstance(backend_variable, backend.Variable):
@@ -561,7 +562,7 @@ class ExportArchive(BackendExportArchive):
 
 
 def export_saved_model(
-    model, filepath, verbose=True, input_signature=None, **kwargs
+    model, filepath, verbose=None, input_signature=None, **kwargs
 ):
     """Export the model as a TensorFlow SavedModel artifact for inference.
 
@@ -577,7 +578,8 @@ def export_saved_model(
     Args:
         filepath: `str` or `pathlib.Path` object. The path to save the artifact.
         verbose: `bool`. Whether to print a message during export. Defaults to
-            True`.
+            `None`, which uses the default value set by different backends and
+            formats.
         input_signature: Optional. Specifies the shape and dtype of the model
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
             `backend.KerasTensor`, or backend tensor. If not provided, it will
@@ -616,6 +618,8 @@ def export_saved_model(
     use the lower-level `keras.export.ExportArchive` class. The
     `export()` method relies on `ExportArchive` internally.
     """
+    if verbose is None:
+        verbose = True  # Defaults to `True` for all backends.
     export_archive = ExportArchive()
     if input_signature is None:
         input_signature = get_input_signature(model)
