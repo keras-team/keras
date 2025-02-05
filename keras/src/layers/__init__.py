@@ -134,6 +134,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_hue import (
 from keras.src.layers.preprocessing.image_preprocessing.random_invert import (
     RandomInvert,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_perspective import (
+    RandomPerspective,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_posterization import (
     RandomPosterization,
 )
