@@ -432,10 +432,11 @@ def ConvNeXt(
 
     if input_tensor is not None:
         inputs = operation_utils.get_source_inputs(input_tensor)[0]
+        x = input_tensor
     else:
         inputs = img_input
+        x = inputs
 
-    x = inputs
     if include_preprocessing:
         channel_axis = (
             3 if backend.image_data_format() == "channels_last" else 1
