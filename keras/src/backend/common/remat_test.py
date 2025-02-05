@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -82,6 +83,9 @@ class TestRematScope(testing.TestCase):
 
 
 class RematTest(testing.TestCase):
+    @pytest.mark.skipif(
+        testing.jax_uses_gpu(), reason="Leads to core dumps on CI"
+    )
     def test_remat_basic_call(self):
         if backend.backend() in ("openvino", "numpy"):
             self.skipTest(
