@@ -251,7 +251,13 @@ class GroupedQueryAttentionTest(testing.TestCase):
                     "PyTorch errors out on GPU: issue to track bug is here "
                     "https://github.com/keras-team/keras/issues/20459"
                 )
-        self.assertAllClose(masked_query._keras_mask, output._keras_mask)
+        if backend.backend() == "mlx":
+            self.assertAllClose(
+                backend.get_keras_mask(masked_query),
+                backend.get_keras_mask(output),
+            )
+        else:
+            self.assertAllClose(masked_query._keras_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
     @pytest.mark.skipif(
@@ -281,8 +287,10 @@ class GroupedQueryAttentionTest(testing.TestCase):
             mask = mask & np.array(
                 [[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3]
             ).astype(bool)
-        del masked_query._keras_mask
-        del masked_value._keras_mask
+        if hasattr(masked_query, "_keras_mask"):
+            del masked_query._keras_mask
+        if hasattr(masked_value, "_keras_mask"):
+            del masked_value._keras_mask
         output_with_manual_mask = layer(
             query=masked_query, value=masked_value, attention_mask=mask
         )

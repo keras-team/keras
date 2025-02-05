@@ -688,7 +688,10 @@ class LayerTest(testing.TestCase):
         mask = backend.numpy.ones((4,))
         backend.set_keras_mask(x, mask)
         y = layer(x)
-        self.assertAllClose(y._keras_mask, mask)
+        if backend.backend() == "mlx":
+            self.assertAllClose(backend.get_keras_mask(y), mask)
+        else:
+            self.assertAllClose(y._keras_mask, mask)
 
     def test_stateless_call(self):
         class TestLayer(layers.Layer):
@@ -1344,6 +1347,10 @@ class LayerTest(testing.TestCase):
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} doesn't support complex matmul.",
+    )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):
             def __init__(self, num_outputs):

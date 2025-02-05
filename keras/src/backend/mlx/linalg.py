@@ -6,7 +6,28 @@ from keras.src.backend.common import standardize_dtype
 from keras.src.backend.mlx.core import convert_to_tensor
 
 
+def _det_2x2(a):
+    return a[..., 0, 0] * a[..., 1, 1] - a[..., 0, 1] * a[..., 1, 0]
+
+
+def _det_3x3(a):
+    return (
+        a[..., 0, 0] * a[..., 1, 1] * a[..., 2, 2]
+        + a[..., 0, 1] * a[..., 1, 2] * a[..., 2, 0]
+        + a[..., 0, 2] * a[..., 1, 0] * a[..., 2, 1]
+        - a[..., 0, 2] * a[..., 1, 1] * a[..., 2, 0]
+        - a[..., 0, 0] * a[..., 1, 2] * a[..., 2, 1]
+        - a[..., 0, 1] * a[..., 1, 0] * a[..., 2, 2]
+    )
+
+
 def det(a):
+    a_shape = a.shape
+    if len(a_shape) >= 2 and a_shape[-1] == 2 and a_shape[-2] == 2:
+        return _det_2x2(a)
+    elif len(a_shape) >= 2 and a_shape[-1] == 3 and a_shape[-2] == 3:
+        return _det_3x3(a)
+    # elif len(a_shape) >= 2 and a_shape[-1] == a_shape[-2]:
     # TODO: Swap to mlx.linalg.det when supported
     a = jnp.array(a)
     output = jnp.linalg.det(a)

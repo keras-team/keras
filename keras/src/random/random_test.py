@@ -447,6 +447,9 @@ class RandomDTypeTest(testing.TestCase):
         INT_DTYPES = [
             x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
         ]
+    if backend.backend() == "mlx":
+        # mlx doesn't support float64
+        FLOAT_DTYPES = [x for x in FLOAT_DTYPES if x != "float64"]
 
     def setUp(self):
         if backend.backend() == "jax":

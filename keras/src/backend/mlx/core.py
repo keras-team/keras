@@ -36,6 +36,7 @@ MLX_DTYPES = {
     "int64": mx.int64,
     "bfloat16": mx.bfloat16,
     "bool": mx.bool_,
+    "complex64": mx.complex64,
 }
 
 
@@ -376,9 +377,9 @@ def random_seed_dtype():
     return "uint32"
 
 
-def reverse_sequence(xs):
-    indices = mx.arange(xs.shape[0] - 1, -1, -1)
-    return mx.take(xs, indices, axis=0)
+def reverse_sequence(xs, axis=0):
+    indices = mx.arange(xs.shape[axis] - 1, -1, -1)
+    return mx.take(xs, indices, axis=axis)
 
 
 def flip(x, axis=None):

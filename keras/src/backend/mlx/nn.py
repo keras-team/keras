@@ -18,6 +18,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.config import epsilon
 from keras.src.backend.mlx.core import cast
 from keras.src.backend.mlx.core import convert_to_tensor
+from keras.src.backend.mlx.core import reverse_sequence
 from keras.src.backend.mlx.core import scan
 from keras.src.backend.mlx.core import to_mlx_dtype
 from keras.src.backend.mlx.numpy import flip
@@ -367,6 +368,35 @@ def average_pool(
         return pooled / window_counts
 
 
+def grouped_conv3d(inputs, kernel, groups, **conv_args):
+    # Assume inputs shape: (batch, D, H, W, in_channels)
+    # Assume kernel shape: (out_channels, kD, kH, kW, in_channels//groups)
+
+    in_channels = inputs.shape[-1]
+    out_channels = kernel.shape[0]
+
+    if in_channels % groups != 0 or out_channels % groups != 0:
+        raise ValueError("Channels must be divisible by groups")
+
+    # Split input and kernel channels
+    in_splits = mx.split(inputs, groups, axis=-1)
+    kernel_splits = mx.split(kernel, groups, axis=0)
+
+    # Perform convolution for each group
+    outputs = []
+    for in_split, k_split in zip(in_splits, kernel_splits):
+        out = mx.conv_general(
+            in_split,
+            k_split,
+            groups=1,  # Each split uses groups=1
+            **conv_args,
+        )
+        outputs.append(out)
+
+    # Concatenate along channel dimension
+    return mx.concatenate(outputs, axis=-1)
+
+
 def conv(
     inputs,
     kernel,
@@ -412,16 +442,28 @@ def conv(
         )
     groups = channels // kernel_in_channels
 
-    result = mx.conv_general(
-        inputs,
-        kernel,
-        stride=strides,
-        padding=mlx_padding,
-        kernel_dilation=dilation_rate,
-        input_dilation=1,
-        groups=groups,
-        flip=False,
-    )
+    if num_spatial_dims == 3 and groups > 1:
+        result = grouped_conv3d(
+            inputs,
+            kernel,
+            groups,
+            stride=strides,
+            padding=mlx_padding,
+            kernel_dilation=dilation_rate,
+            input_dilation=1,
+            flip=False,
+        )
+    else:
+        result = mx.conv_general(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=mlx_padding,
+            kernel_dilation=dilation_rate,
+            input_dilation=1,
+            groups=groups,
+            flip=False,
+        )
     if data_format == "channels_first":
         result = result.transpose(0, -1, *range(1, result.ndim - 1))
 
@@ -563,6 +605,11 @@ def conv_transpose(
         )
     groups = channels // kernel_in_channels
 
+    for ax in range(1, kernel.ndim - 1):
+        # flip=True produces unexpected gradients
+        # manually flip spatial dimensions until fixed
+        kernel = reverse_sequence(kernel, axis=ax)
+
     result = mx.conv_general(
         inputs,
         kernel,
@@ -571,7 +618,7 @@ def conv_transpose(
         kernel_dilation=dilation_rate,
         input_dilation=strides,
         groups=groups,
-        flip=True,
+        flip=False,
     )
 
     if data_format == "channels_first":

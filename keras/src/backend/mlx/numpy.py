@@ -238,6 +238,53 @@ def average(x, axis=None, weights=None):
     return mx.mean(x, axis=axis)
 
 
+def bitwise_and(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return mx.bitwise_and(x, y)
+
+
+def bitwise_invert(x):
+    x = convert_to_tensor(x)
+    return ~x
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return mx.bitwise_or(x, y)
+
+
+def bitwise_xor(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return mx.bitwise_xor(x, y)
+
+
+def bitwise_left_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return mx.left_shift(x, y)
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    return mx.right_shift(x, y)
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def _bincount_1d(x, weights=None, minlength=0):
     length = builtins.max(builtins.max(x) + 1, minlength or 0)
     counts = mx.zeros(length)
@@ -441,6 +488,14 @@ def exp(x):
     return mx.exp(x)
 
 
+def exp2(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
+    return mx.power(2, x)
+
+
 def expand_dims(x, axis):
     x = convert_to_tensor(x)
     return mx.expand_dims(x, axis=axis)
@@ -523,10 +578,10 @@ def imag(x):
     return mx.imag(x)
 
 
-def isclose(x1, x2):
+def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return mx.isclose(x1, x2)
+    return mx.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
 def isfinite(x):
@@ -1031,11 +1086,25 @@ def triu(x, k=0):
     return x * mask
 
 
+def trunc(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or "bool" == dtype:
+        return x
+    return mx.floor(x)
+
+
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     x1_conj = mx.conj(mx.reshape(x1, (x1.size,)))
     return mx.sum(x1_conj * mx.reshape(x2, (x2.size,)))
+
+
+def inner(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return mx.inner(x1, x2)
 
 
 def vstack(xs):
@@ -1224,3 +1293,23 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
         return vmapped(*array_args)
 
     return wrapped
+
+
+def histogram(x, bins, range):
+    raise NotImplementedError("histogram not yet implemented in mlx.")
+
+
+def unravel_index(x, shape):
+    raise NotImplementedError("unravel_index not yet implemented in mlx.")
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    raise NotImplementedError("searchsorted not yet implemented in mlx.")
+
+
+def diagflat(x, k=0):
+    raise NotImplementedError("diagflat not yet implemented in mlx.")
+
+
+def rot90(array, k=1, axes=(0, 1)):
+    raise NotImplementedError("rot90 not yet implemented in mlx.")
