@@ -153,7 +153,7 @@ class TorchModuleWrapper(Layer):
 
         if "module" in config:
             buffer = io.BytesIO(config["module"])
-            config["module"] = torch.load(buffer)
+            config["module"] = torch.load(buffer, weights_only=False)
         return cls(**config)
 
 

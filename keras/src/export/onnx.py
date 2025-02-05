@@ -1,3 +1,5 @@
+import warnings
+
 from keras.src import backend
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
@@ -6,9 +8,10 @@ from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.export.saved_model import DEFAULT_ENDPOINT_NAME
 from keras.src.export.saved_model import ExportArchive
 from keras.src.export.tf2onnx_lib import patch_tf2onnx
+from keras.src.utils import io_utils
 
 
-def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
+def export_onnx(model, filepath, verbose=None, input_signature=None, **kwargs):
     """Export the model as a ONNX artifact for inference.
 
     This method lets you export a model to a lightweight ONNX artifact
@@ -22,7 +25,8 @@ def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
     Args:
         filepath: `str` or `pathlib.Path` object. The path to save the artifact.
         verbose: `bool`. Whether to print a message during export. Defaults to
-            True`.
+            `None`, which uses the default value set by different backends and
+            formats.
         input_signature: Optional. Specifies the shape and dtype of the model
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
             `backend.KerasTensor`, or backend tensor. If not provided, it will
@@ -55,6 +59,10 @@ def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
     predictions = ort_session.run(None, ort_inputs)
     ```
     """
+    actual_verbose = verbose
+    if actual_verbose is None:
+        actual_verbose = True  # Defaults to `True` for all backends.
+
     if input_signature is None:
         input_signature = get_input_signature(model)
         if not input_signature or not model._called:
@@ -92,15 +100,55 @@ def export_onnx(model, filepath, verbose=True, input_signature=None, **kwargs):
                 "dictionaries as inputs."
             )
 
-        # Convert to ONNX using TorchScript-based ONNX Exporter.
-        # TODO: Use TorchDynamo-based ONNX Exporter once
-        # `torch.onnx.dynamo_export()` supports Keras models.
-        torch.onnx.export(model, sample_inputs, filepath, verbose=verbose)
+        if hasattr(model, "eval"):
+            model.eval()
+        with warnings.catch_warnings():
+            # Suppress some unuseful warnings.
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*\n.*\n*.*\n*.*export will treat it as a constant.*",
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*not properly registered as a submodule,.*",
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*which is what 'get_attr' Nodes typically target.*",
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*underlying reference in the owning GraphModule.*",
+            )
+            warnings.filterwarnings(
+                "ignore", message=r".*suppressed about get_attr references.*"
+            )
+            try:
+                # Try the TorchDynamo-based ONNX exporter first.
+                onnx_program = torch.onnx.export(
+                    model, sample_inputs, verbose=actual_verbose, dynamo=True
+                )
+                if hasattr(onnx_program, "optimize"):
+                    onnx_program.optimize()  # Only supported by torch>=2.6.0.
+                onnx_program.save(filepath)
+            except:
+                if verbose is None:
+                    # Set to `False` due to file system leakage issue:
+                    # https://github.com/keras-team/keras/issues/20826
+                    actual_verbose = False
+
+                # Fall back to the TorchScript-based ONNX exporter.
+                torch.onnx.export(
+                    model, sample_inputs, filepath, verbose=actual_verbose
+                )
     else:
         raise NotImplementedError(
             "`export_onnx` is only compatible with TensorFlow, JAX and "
             "Torch backends."
         )
+
+    if actual_verbose:
+        io_utils.print_msg(f"Saved artifact at '{filepath}'.")
 
 
 def _check_jax_kwargs(kwargs):
