@@ -29,7 +29,7 @@ class RematScope:
               sizes larger than `output_size_threshold`.
             - `"list_of_layers"`: Apply rematerialization to a specific list of
               layer names.
-            - None: Disable rematerialization.
+            - `None`: Disable rematerialization.
         output_size_threshold: Output size threshold for the
             `"larger_than"` mode. Layers producing outputs larger than this
             threshold will be rematerialized. Default is `1024`.
