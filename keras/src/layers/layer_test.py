@@ -230,7 +230,9 @@ class LayerTest(testing.TestCase):
                 layer = layers.Conv2D(
                     64, (3, 3), activation="relu", data_format="channels_last"
                 )
-                output = layer(inputs)
+
+                x = layer(inputs)
+                output = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
                 # Build the functional model
             model = Model(inputs=inputs, outputs=output)
