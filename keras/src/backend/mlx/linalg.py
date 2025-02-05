@@ -39,7 +39,8 @@ def eig(a):
 
 
 def eigh(a):
-    return mx.linalg.eigh(a)
+    with mx.stream(mx.cpu):
+        return mx.linalg.eigh(a)
 
 
 def lu_factor(a):
