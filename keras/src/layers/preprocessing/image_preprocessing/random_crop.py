@@ -102,6 +102,9 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 ),
                 "int32",
             )
+            h_start = (
+                int(h_start) if backend.core.is_tensor(h_start) else h_start
+            )
             w_start = self.backend.cast(
                 self.backend.random.uniform(
                     (),
@@ -110,6 +113,9 @@ class RandomCrop(BaseImagePreprocessingLayer):
                     seed=seed,
                 ),
                 "int32",
+            )
+            w_start = (
+                int(w_start) if backend.core.is_tensor(w_start) else w_start
             )
         else:
             crop_height = int(float(input_width * self.height) / self.width)

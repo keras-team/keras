@@ -582,14 +582,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     f"Received: interpolation={interpolation}, "
                     f"antialias={antialias}."
                 )
-        if backend.backend() == "mlx":
-            if interpolation in ["lanczos3", "lanczos5", "bicubic"]:
-                self.skipTest(
-                    f"Resizing with  interpolation={interpolation} is "
-                    "not supported by the mlx backend. "
-                )
-            elif antialias:
-                self.skipTest("antialias=True not supported by mlx backend.")
         # Test channels_last
         x = np.random.random((30, 30, 3)).astype("float32") * 255
         out = kimage.resize(
@@ -668,6 +660,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(ref_out, out, atol=1e-4)
 
     def test_resize_uint8_round(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support uint8 matmul.")
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
         expected = np.array(
             # OpenCV as gold standard.
@@ -706,6 +700,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, expected, atol=1e-4)
 
     def test_resize_uint8_round_saturate(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support uint8 matmul.")
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
         expected = np.array(
             # OpenCV as gold standard. Same for `torch` backend.
@@ -800,6 +796,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape, (2, 3, 25, 25))
 
         x = np.ones((2, 3, 10, 10)) * 128
+        if backend.backend() == "mlx":
+            x = x.astype(np.float32)  # mlx backend does not support float64
         out = kimage.resize(
             x, size=(4, 4), pad_to_aspect_ratio=True, fill_value=fill_value
         )
@@ -807,6 +805,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out[:, 0, :, :], np.ones((2, 4, 4)) * 128)
 
         x = np.ones((2, 3, 10, 8)) * 128
+        if backend.backend() == "mlx":
+            x = x.astype(np.float32)  # mlx backend does not support float64
         out = kimage.resize(
             x, size=(4, 4), pad_to_aspect_ratio=True, fill_value=fill_value
         )

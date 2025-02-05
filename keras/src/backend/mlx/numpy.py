@@ -1293,3 +1293,23 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
         return vmapped(*array_args)
 
     return wrapped
+
+
+def histogram(x, bins, range):
+    raise NotImplementedError("histogram not yet implemented in mlx.")
+
+
+def unravel_index(x, shape):
+    raise NotImplementedError("unravel_index not yet implemented in mlx.")
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    raise NotImplementedError("searchsorted not yet implemented in mlx.")
+
+
+def diagflat(x, k=0):
+    raise NotImplementedError("diagflat not yet implemented in mlx.")
+
+
+def rot90(array, k=1, axes=(0, 1)):
+    raise NotImplementedError("rot90 not yet implemented in mlx.")
