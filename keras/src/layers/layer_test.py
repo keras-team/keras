@@ -242,7 +242,7 @@ class LayerTest(testing.TestCase):
 
             # Generate dummy data for testing
             x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
-            y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
+            y_train = np.random.random((10, 15, 15, 64)).astype(np.float32)
 
             # Run training to ensure `RematScope` is applied correctly
             model.fit(x_train, y_train, epochs=1, batch_size=2)
