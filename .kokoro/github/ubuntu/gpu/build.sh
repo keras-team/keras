@@ -43,6 +43,7 @@ fi
 if [ "$KERAS_BACKEND" == "jax" ]
 then
    echo "JAX backend detected."
+   export XLA_PYTHON_CLIENT_PREALLOCATE=false
    pip install -r requirements-jax-cuda.txt --progress-bar off --timeout 1000
    pip uninstall -y keras keras-nightly
    python3 -c 'import jax;print(jax.__version__);print(jax.default_backend())'
