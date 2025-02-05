@@ -122,24 +122,19 @@ def LPIPS(
     ]
     vgg_net = vgg_backbone(vgg_layers)
 
-    # Process inputs
     feat1 = vgg_net(img_input1)
     feat2 = vgg_net(img_input2)
 
-    # Normalize features
-    def normalize(x):
-        return x * ops.rsqrt(ops.sum(ops.square(x), axis=-1, keepdims=True))
+    def normalize(x, eps: float = 1e-8):
+        return x * ops.rsqrt(
+            eps + ops.sum(ops.square(x), axis=-1, keepdims=True)
+        )
 
-    norm1 = [layers.Lambda(normalize)(f) for f in feat1]
-    norm2 = [layers.Lambda(normalize)(f) for f in feat2]
+    norm1 = [normalize(f) for f in feat1]
+    norm2 = [normalize(f) for f in feat2]
 
-    # Feature differences
-    diffs = [
-        layers.Lambda(lambda x: ops.square(x[0] - x[1]))([n1, n2])
-        for n1, n2 in zip(norm1, norm2)
-    ]
+    diffs = [ops.square(t1 - t2) for t1, t2 in zip(norm1, norm2)]
 
-    # Get shapes for linear model
     channels = [f.shape[-1] for f in feat1]
 
     linear_net = linear_model(channels)
@@ -147,14 +142,13 @@ def LPIPS(
     lin_out = linear_net(diffs)
 
     spatial_average = [
-        layers.Lambda(lambda x: ops.mean(x, axis=[1, 2]))(t) for t in lin_out
+        ops.mean(t, axis=[1, 2], keepdims=False) for t in lin_out
     ]
 
-    output = layers.Lambda(
-        lambda x: ops.squeeze(
-            ops.sum(backend.convert_to_tensor(x), axis=0), axis=-1
-        )
-    )(spatial_average)
+    # need a layer to convert list to tensor
+    output = layers.Lambda(lambda x: ops.convert_to_tensor(x))(spatial_average)
+
+    output = ops.squeeze(ops.sum(output, axis=0), axis=-1)
 
     # Create model
     model = Functional([img_input1, img_input2], output, name=name)
