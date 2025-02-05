@@ -170,9 +170,7 @@ class LayerTest(testing.TestCase):
             else:
                 getattr(layer, method)(args)
 
-    @pytest.mark.skipif(
-        testing.jax_uses_gpu(), reason="Leads to core dumps on CI"
-    )
+
     def test_layer_with_remat(self):
         """Test rematerialization on a simple layer."""
         # Create a mock to track calls to remat
