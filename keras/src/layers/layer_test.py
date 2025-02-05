@@ -215,9 +215,10 @@ class LayerTest(testing.TestCase):
             mock_remat.assert_called()
 
     def test_functional_model_with_remat(self):
-        if backend.backend() in ("openvino", "numpy"):
+        if backend.backend() in ("openvino", "numpy") or testing.jax_uses_gpu():
             self.skipTest(
-                "remat is not supported in openvino and numpy backends."
+                "remat is not supported in openvino and numpy backends. Jax GPU"
+                "CI causes seg fault"
             )
         with patch(
             "keras.src.backend.common.remat.remat", wraps=remat.remat
