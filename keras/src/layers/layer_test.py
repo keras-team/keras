@@ -170,7 +170,6 @@ class LayerTest(testing.TestCase):
             else:
                 getattr(layer, method)(args)
 
-
     def test_layer_with_remat(self):
         """Test rematerialization on a simple layer."""
         # Create a mock to track calls to remat
@@ -224,16 +223,16 @@ class LayerTest(testing.TestCase):
             "keras.src.backend.common.remat.remat", wraps=remat.remat
         ) as mock_remat:
             # Define model inputs
-            inputs = Input(shape=(32, 32, 3))
 
             # just one layer in remat scope
             with RematScope(mode="full"):
+                inputs = Input(shape=(32, 32, 3))
                 layer = layers.Conv2D(
                     64, (3, 3), activation="relu", data_format="channels_last"
                 )
                 output = layer(inputs)
 
-            # Build the functional model
+                # Build the functional model
             model = Model(inputs=inputs, outputs=output)
 
             # Compile the model
