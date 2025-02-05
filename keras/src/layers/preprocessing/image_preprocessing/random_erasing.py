@@ -15,13 +15,14 @@ class RandomErasing(BaseImagePreprocessingLayer):
 
     Args:
         factor: A single float or a tuple of two floats.
-            `factor` controls the extent to which the image hue is impacted.
-            `factor=0.0` makes this layer perform a no-op operation,
-            while a value of `1.0` performs the most aggressive
-            erasing available. If a tuple is used, a `factor` is
-            sampled between the two values for every image augmented. If a
-            single float is used, a value between `0.0` and the passed float is
-            sampled. Default is 1.0.
+            `factor` controls the probability of applying the transformation.
+            - `factor=0.0` ensures no erasing is applied.
+            - `factor=1.0` means erasing is always applied.
+            - If a tuple `(min, max)` is provided, a probability value
+              is sampled between `min` and `max` for each image.
+            - If a single float is provided, a probability is sampled
+              between `0.0` and the given float.
+            Default is 1.0.
         scale: A tuple of two floats representing the aspect ratio range of
             the erased patch. This defines the width-to-height ratio of
             the patch to be erased. It can help control the rw shape of
