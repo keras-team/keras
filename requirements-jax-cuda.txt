@@ -9,7 +9,7 @@ torchvision==0.21.0+cpu
 
 # Jax with cuda support.
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-jax[cuda12]==0.4.28
+jax[cuda12]==0.5.0
 flax
 
 -r requirements-common.txt
