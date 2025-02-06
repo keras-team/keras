@@ -149,10 +149,12 @@ def serialize_keras_object(obj):
 
     # Special cases:
     if isinstance(obj, bytes):
-        return {
-            "class_name": "__bytes__",
-            "config": {"value": obj.decode("utf-8")},
-        }
+        try:
+            value = obj.decode("utf-8")
+        # For `torch` backend `latin-1` works
+        except UnicodeDecodeError:
+            value = obj.decode("latin-1")
+        return {"class_name": "__bytes__", "config": {"value": value}}
     if isinstance(obj, slice):
         return {
             "class_name": "__slice__",

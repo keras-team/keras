@@ -96,7 +96,10 @@ class TorchModuleWrapper(Layer):
                 f"Received uninitialized LazyModule: module={module}"
             )
 
-        self.module = module.to(get_device())
+        if hasattr(module, "to"):
+            self.module = module.to(get_device())
+        elif isinstance(module, dict) and module["class_name"] == "__bytes__":
+            self.module = module["config"]["value"]
         self._track_module_parameters()
 
     def parameters(self, recurse=True):
@@ -152,8 +155,10 @@ class TorchModuleWrapper(Layer):
         import torch
 
         if "module" in config:
-            buffer = io.BytesIO(config["module"])
-            config["module"] = torch.load(buffer, weights_only=False)
+            buffer = io.BytesIO(
+                config["module"]["config"]["value"].encode("latin-1")
+            )
+            config["module"]["config"]["value"] = torch.load(buffer)
         return cls(**config)
 
 
