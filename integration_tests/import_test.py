@@ -8,7 +8,7 @@ from keras.src import backend
 BACKEND_REQ = {
     "tensorflow": ("tensorflow-cpu", ""),
     "torch": (
-        "torch torchvision",
+        "torch",
         "--extra-index-url https://download.pytorch.org/whl/cpu ",
     ),
     "jax": ("jax[cpu]", ""),

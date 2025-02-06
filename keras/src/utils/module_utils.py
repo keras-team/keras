@@ -44,7 +44,6 @@ gfile = LazyModule("tensorflow.io.gfile", pip_name="tensorflow")
 tensorflow_io = LazyModule("tensorflow_io")
 scipy = LazyModule("scipy")
 jax = LazyModule("jax")
-torchvision = LazyModule("torchvision")
 torch_xla = LazyModule(
     "torch_xla",
     import_error_msg=(
