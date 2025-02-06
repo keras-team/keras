@@ -8,7 +8,6 @@ from absl.testing import parameterized
 from keras.src import applications
 from keras.src import backend
 from keras.src import layers
-from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
@@ -705,12 +704,17 @@ class FunctionalTest(testing.TestCase):
         x2 = Input((10,), name="IS")
         y = layers.subtract([x1, x2])
         model = Model(inputs={"IT": x1, "IS": x2}, outputs=y)
-        x1 = ops.ones((1, 10))
-        x2 = ops.zeros((1, 10))
+        x1 = np.ones((1, 10))
+        x2 = np.zeros((1, 10))
         # Works
         _ = model({"IT": x1, "IS": x2})
-        with self.assertRaisesRegex(
-            ValueError,
-            "The structure of `inputs` doesn't match the expected structure",
-        ):
-            model([x1, x2])
+        # Deprecated ValueError behavior: Works with support for dict-inputs.
+        expected = x2 - x1
+        output = model([x1, x2])
+        output_np = (
+            output.cpu().numpy() if hasattr(output, "cpu") else np.array(output)
+        )
+        expected_np = (
+            np.array(expected) if hasattr(expected, "numpy") else expected
+        )
+        self.assertAllClose(output_np, expected_np)

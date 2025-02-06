@@ -149,6 +149,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Trainer.__init__(self)
         from keras.src.models import functional
 
+        self.compiled = False
+        self._compile_config = None
+
         # Signature detection for usage of a `Model` subclass
         # as a `Functional` subclass
         if functional_init_arguments(args, kwargs):
@@ -156,6 +159,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             functional.Functional.__init__(self, *args, **kwargs)
         else:
             Layer.__init__(self, *args, **kwargs)
+            if args:
+                inputs = args[0]
+            else:
+                inputs = kwargs.get("inputs")
+            if isinstance(inputs, dict):
+                self._input_names = list(inputs.keys())
+            else:
+                self._input_names = None
 
     def call(self, *args, **kwargs):
         raise NotImplementedError(
@@ -204,6 +215,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 return self.layers[index]
 
         if name is not None:
+            # Check if the name matches any of the input names.
+            if hasattr(self, "_input_names") and self._input_names:
+                if name in self._input_names:
+                    return self.get_layer(index=self._input_names.index(name))
+            # Fallback to standard name lookup.
             for layer in self.layers:
                 if layer.name == name:
                     return layer
@@ -399,6 +415,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def build_from_config(self, config):
         if not config:
             return
+        # Fetch the input structure from config if available.
+        if "input_names" in config and isinstance(config["input_names"], list):
+            self._input_names = config["input_names"]
+        elif "shapes_dict" in config and isinstance(
+            config["shapes_dict"], dict
+        ):
+            self._input_names = list(config["shapes_dict"].keys())
+        else:
+            self._input_names = None
         status = False
         if "input_shape" in config:
             # Case: all inputs are in the first arg (possibly nested).
@@ -410,10 +435,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 try:
                     self.build(config["input_shape"])
                     status = True
-                except:
-                    pass
+                except Exception:
+                    status = False
             self._build_shapes_dict = config
-
         elif "shapes_dict" in config:
             # Case: inputs were recorded as multiple keyword arguments.
             if utils.is_default(self.build):
@@ -422,10 +446,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 try:
                     self.build(**config["shapes_dict"])
                     status = True
-                except:
-                    pass
+                except Exception:
+                    status = False
             self._build_shapes_dict = config["shapes_dict"]
-
         if not status:
             warnings.warn(
                 f"Model '{self.name}' had a build config, but the model "

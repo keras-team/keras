@@ -18,9 +18,15 @@ def get_input_signature(model):
             "before export."
         )
     if isinstance(model, (models.Functional, models.Sequential)):
-        input_signature = tree.map_structure(make_input_spec, model.inputs)
-        if isinstance(input_signature, list) and len(input_signature) > 1:
-            input_signature = [input_signature]
+        if hasattr(model, "_input_names") and model._input_names:
+            input_signature = {
+                name: make_input_spec(tensor)
+                for name, tensor in zip(model._input_names, model.inputs)
+            }
+        else:
+            input_signature = tree.map_structure(make_input_spec, model.inputs)
+            if isinstance(input_signature, list) and len(input_signature) > 1:
+                input_signature = [input_signature]
     else:
         input_signature = _infer_input_signature_from_model(model)
         if not input_signature or not model._called:

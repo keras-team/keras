@@ -562,7 +562,6 @@ class FeatureSpaceTest(testing.TestCase):
             ).items()
         }
         ref_out = fs(data)
-
         temp_filepath = os.path.join(self.get_temp_dir(), "fs.keras")
         fs.save(temp_filepath)
         fs = saving_api.load_model(temp_filepath)
