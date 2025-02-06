@@ -11,6 +11,8 @@ from keras.src import models
 from keras.src import saving
 from keras.src import testing
 from keras.src.utils.torch_utils import TorchModuleWrapper
+from keras.src.models import Model
+from keras.src.saving import load_model
 
 
 class Classifier(models.Model):
@@ -235,3 +237,20 @@ class TorchUtilsTest(testing.TestCase):
         new_mw = TorchModuleWrapper.from_config(config)
         for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
             self.assertAllClose(ref_w, new_w, atol=1e-5)
+
+    def test_serialize_deserialize_TorchModuleWrapper(self):
+        torch_module = torch.nn.Linear(4, 4)
+        wrapped_layer = TorchModuleWrapper(torch_module)
+
+        inputs = layers.Input(shape=(4,))
+        outputs = wrapped_layer(inputs)
+        model = Model(inputs=inputs, outputs=outputs)
+
+        test_ds = np.random.random(size=(10, 4))
+        result_1 = model.predict(test_ds)
+
+        model.save("./serialized.keras")
+        reloaded_model = load_model("./serialized.keras")
+
+        result_2 = reloaded_model.predict(test_ds)
+        self.assertAllClose(result_1, result_2)
