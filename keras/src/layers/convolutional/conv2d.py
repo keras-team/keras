@@ -12,6 +12,15 @@ class Conv2D(BaseConv):
     and added to the outputs. Finally, if `activation` is not `None`, it is
     applied to the outputs as well.
 
+    Note on numerical precision: While Keras documentation states that results
+    are identical across backends up to 1e-7 precision in float32 per function
+    execution, Conv2D operations may show larger variations. Due to the large
+    number of element-wise multiplications and additions in convolution
+    operations, especially with large inputs or kernel sizes, accumulated
+    floating-point differences can exceed this 1e-7 threshold. These variations
+    are particularly noticeable when using different backends (e.g., TensorFlow
+    vs JAX) or hardware implementations.
+
     Args:
         filters: int, the dimension of the output space (the number of filters
             in the convolution).
