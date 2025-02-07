@@ -339,11 +339,11 @@ class Layer(BackendLayer, Operation, KerasSaveable, metaclass=PostInitCaller):
         The metaclass pattern ensures that this function runs after the
         `__init__` of a subclassed layer.
 
-        Essentially, we automatically determine `self.built` by checking whether
-        `self.build` is the default implementation. If `build` is not overridden
-        by the subclass, `self.built` is set to `True`.
+        Essentially, we automatically determine `self.built` by:
+        - Checking if `build` is not overridden by the subclass.
+        - Ensuring there is no unbuilt state.
         """
-        if utils.is_default(self.build):
+        if utils.is_default(self.build) and not might_have_unbuilt_state(self):
             self.built = True
             self._post_build()
             self._lock_state()
