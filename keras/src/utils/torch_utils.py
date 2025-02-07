@@ -158,7 +158,9 @@ class TorchModuleWrapper(Layer):
             buffer = io.BytesIO(
                 config["module"]["config"]["value"].encode("latin-1")
             )
-            config["module"]["config"]["value"] = torch.load(buffer)
+            config["module"]["config"]["value"] = torch.load(
+                buffer, weights_only=False
+            )
         return cls(**config)
 
 

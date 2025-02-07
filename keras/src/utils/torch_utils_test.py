@@ -10,9 +10,9 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
-from keras.src.utils.torch_utils import TorchModuleWrapper
 from keras.src.models import Model
 from keras.src.saving import load_model
+from keras.src.utils.torch_utils import TorchModuleWrapper
 
 
 class Classifier(models.Model):
