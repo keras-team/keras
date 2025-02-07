@@ -194,7 +194,6 @@ class Normalization(TFDataLayer):
             variance = ops.broadcast_to(variance, self._broadcast_shape)
             self.mean = ops.cast(mean, dtype=self.compute_dtype)
             self.variance = ops.cast(variance, dtype=self.compute_dtype)
-            self.built = True
 
     def adapt(self, data):
         """Computes the mean and variance of values in a dataset.

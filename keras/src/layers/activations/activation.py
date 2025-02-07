@@ -26,7 +26,6 @@ class Activation(Layer):
         super().__init__(**kwargs)
         self.supports_masking = True
         self.activation = activations.get(activation)
-        self.built = True
 
     def call(self, inputs):
         return self.activation(inputs)

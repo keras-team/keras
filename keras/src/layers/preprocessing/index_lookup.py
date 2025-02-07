@@ -530,9 +530,6 @@ class IndexLookup(Layer):
             )
             self.idf_weights_const = self.idf_weights.value()
 
-    def build(self):
-        self.built = True
-
     def get_build_config(self):
         return {}
 

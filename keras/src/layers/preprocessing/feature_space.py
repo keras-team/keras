@@ -447,6 +447,11 @@ class FeatureSpace(Layer):
         self._crossed_features_names = None
         self._sublayers_built = False
 
+    def build(self):
+        # We need to override `build` to prevent the default behavior of locking
+        # the layer states in `Layer.__init__`.
+        pass
+
     def _feature_to_input(self, name, feature):
         return layers.Input(shape=(1,), dtype=feature.dtype, name=name)
 

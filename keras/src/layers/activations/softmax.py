@@ -47,7 +47,6 @@ class Softmax(Layer):
         super().__init__(**kwargs)
         self.axis = axis
         self.supports_masking = True
-        self.built = True
 
     def call(self, inputs, mask=None):
         if mask is not None:

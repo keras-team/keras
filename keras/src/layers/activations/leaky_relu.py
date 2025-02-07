@@ -50,7 +50,6 @@ class LeakyReLU(Layer):
             )
         self.negative_slope = negative_slope
         self.supports_masking = True
-        self.built = True
 
     def call(self, inputs):
         return activations.leaky_relu(

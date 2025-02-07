@@ -61,7 +61,6 @@ class ReLU(Layer):
         self.negative_slope = negative_slope
         self.threshold = threshold
         self.supports_masking = True
-        self.built = True
 
     def call(self, inputs):
         return activations.relu(

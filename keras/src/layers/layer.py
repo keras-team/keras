@@ -321,6 +321,11 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._remat_mode = get_current_remat_mode()
         self._initialize_tracker()
 
+        if utils.is_default(self.build):
+            self.built = True
+            self._post_build()
+            self._lock_state()
+
     @tracking.no_automatic_dependency_tracking
     def _initialize_tracker(self):
         if hasattr(self, "_tracker"):

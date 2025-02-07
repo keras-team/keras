@@ -117,7 +117,6 @@ class InputLayer(Layer):
             )
         self._input_tensor = input_tensor
         Node(operation=self, call_args=(), call_kwargs={}, outputs=input_tensor)
-        self.built = True
         self.optional = optional
 
     def call(self):

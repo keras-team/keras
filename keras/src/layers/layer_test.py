@@ -1521,3 +1521,19 @@ class LayerTest(testing.TestCase):
         layer = MyDenseLayer(10)
         output = layer(inputs)
         self.assertAllEqual(output.shape, (10, 10))
+
+    def test_built_by_default(self):
+        class NoBuildLayer(layers.Layer):
+            pass
+
+        class BuildLayer(layers.Layer):
+            def build(self):
+                pass
+
+        no_build_layer = NoBuildLayer()
+        build_layer = BuildLayer()
+
+        self.assertTrue(no_build_layer.built)
+        self.assertTrue(no_build_layer._tracker.locked)
+        self.assertFalse(build_layer.built)
+        self.assertFalse(build_layer._tracker.locked)
