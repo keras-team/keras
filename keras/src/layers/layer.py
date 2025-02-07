@@ -63,8 +63,20 @@ else:
     )
 
 
+class PostInitCaller(type):
+    """Use this metaclass to perform post-processing for `Layer.__init__`.
+
+    See `Layer._post_init()` for more details.
+    """
+
+    def __call__(cls, *args, **kwargs):
+        obj = type.__call__(cls, *args, **kwargs)
+        obj._post_init()
+        return obj
+
+
 @keras_export(["keras.Layer", "keras.layers.Layer"])
-class Layer(BackendLayer, Operation, KerasSaveable):
+class Layer(BackendLayer, Operation, KerasSaveable, metaclass=PostInitCaller):
     """This is the class from which all layers inherit.
 
     A layer is a callable object that takes as input one or more tensors and
@@ -321,6 +333,16 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._remat_mode = get_current_remat_mode()
         self._initialize_tracker()
 
+    def _post_init(self):
+        """This function is called after the layer's `__init__`.
+
+        The metaclass pattern ensures that this function runs after the
+        `__init__` of a subclassed layer.
+
+        Essentially, we automatically determine `self.built` by checking whether
+        `self.build` is the default implementation. If `build` is not overridden
+        by the subclass, `self.built` is set to `True`.
+        """
         if utils.is_default(self.build):
             self.built = True
             self._post_build()

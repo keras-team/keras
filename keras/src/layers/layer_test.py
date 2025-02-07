@@ -1148,9 +1148,11 @@ class LayerTest(testing.TestCase):
 
             def custom_change_dtype(self):
                 self.w = self._untrack_variable(self.w)
+                self._tracker.unlock()
                 self.w = self.add_weight(
                     initializer="zeros", dtype="int8", trainable=False
                 )
+                self._tracker.lock()
 
         layer = MyLayer()
         self.assertEqual(len(layer.weights), 1)
