@@ -4,6 +4,7 @@ pytest
 numpy
 scipy
 scikit-learn
+pillow
 pandas
 absl-py
 requests
