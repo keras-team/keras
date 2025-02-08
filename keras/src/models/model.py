@@ -149,6 +149,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Trainer.__init__(self)
         print("DEBUG: Model.__init__ called")
         from keras.src.models import functional
+
         # Signature detection for usage of a `Model` subclass
         # as a `Functional` subclass
         if functional_init_arguments(args, kwargs):

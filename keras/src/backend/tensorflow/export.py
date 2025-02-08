@@ -36,23 +36,23 @@ class TFExportArchive:
                     # Handle case where inputs are passed as positional args
                     # but need to be converted to dict for the model.
                     dict_inputs = {
-                        name: arg 
+                        name: arg
                         for name, arg in zip(input_signature.keys(), args)
                     }
                     return fn(dict_inputs)
-            # Convert dict input_signature to list of TensorSpecs while preserving order.
+
+            # Convert dict input_signature to list of TensorSpecs
+            # while preserving order.
             flat_input_signature = [
                 input_signature[name] for name in input_signature.keys()
             ]
             decorated_fn = tf.function(
-                wrapped_fn, 
+                wrapped_fn,
                 input_signature=flat_input_signature,
-                autograph=False
+                autograph=False,
             )
         else:
             decorated_fn = tf.function(
-                fn, 
-                input_signature=input_signature,
-                autograph=False
+                fn, input_signature=input_signature, autograph=False
             )
         return decorated_fn
