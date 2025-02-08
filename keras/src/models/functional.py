@@ -279,8 +279,8 @@ class Functional(Function, Model):
                     adjusted.append(ops.squeeze(x, axis=-1))
                     continue
             if x_rank == ref_rank - 1:
-                # Check if ref_shape's last dimension is None (variable) or 1.
-                if ref_shape[-1] is None or ref_shape[-1] == 1:
+            # Check if ref_shape's last dimension is None.
+                if ref_shape[-1] == 1:
                     adjusted.append(ops.expand_dims(x, axis=-1))
                     continue
             raise ValueError(
