@@ -10,6 +10,7 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validatio
     densify_bounding_boxes,
 )
 from keras.src.random.seed_generator import SeedGenerator
+from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.RandomCrop")
@@ -102,9 +103,6 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 ),
                 "int32",
             )
-            h_start = (
-                int(h_start) if backend.core.is_tensor(h_start) else h_start
-            )
             w_start = self.backend.cast(
                 self.backend.random.uniform(
                     (),
@@ -113,9 +111,6 @@ class RandomCrop(BaseImagePreprocessingLayer):
                     seed=seed,
                 ),
                 "int32",
-            )
-            w_start = (
-                int(w_start) if backend.core.is_tensor(w_start) else w_start
             )
         else:
             crop_height = int(float(input_width * self.height) / self.width)
@@ -129,8 +124,15 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
+            if backend_utils.in_tf_graph():
+                self.backend.set_backend("tensorflow")
+
             images = self.backend.cast(images, self.compute_dtype)
             crop_box_hstart, crop_box_wstart = transformation
+            if self.backend.name == "mlx":
+                # mlx cannot slice arrays with scalar arrays
+                crop_box_hstart = int(crop_box_hstart)
+                crop_box_wstart = int(crop_box_wstart)
             crop_height = self.height
             crop_width = self.width
 
@@ -182,6 +184,8 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 )
                 # Resize may have upcasted the outputs
                 images = self.backend.cast(images, self.compute_dtype)
+
+            self.backend.reset()
         return images
 
     def transform_labels(self, labels, transformation, training=True):
