@@ -159,7 +159,9 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         if unbatched:
             inputs = self.backend.numpy.expand_dims(inputs, axis=0)
 
-        perspective_factor = transformation["perspective_factor"]
+        perspective_factor = self.backend.core.convert_to_tensor(
+            transformation["perspective_factor"], dtype=self.compute_dtype
+        )
         outputs = self.backend.image.affine_transform(
             inputs,
             transform=self._get_perspective_matrix(perspective_factor),
@@ -174,6 +176,9 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         return outputs
 
     def _get_perspective_matrix(self, perspectives):
+        perspectives = self.backend.core.convert_to_tensor(
+            perspectives, dtype=self.compute_dtype
+        )
         num_perspectives = self.backend.shape(perspectives)[0]
         return self.backend.numpy.concatenate(
             [
@@ -258,7 +263,9 @@ class RandomPerspective(BaseImagePreprocessingLayer):
                 [min_x, min_y, max_x, max_y], axis=-1
             )
 
-            apply_perspective = transformation["apply_perspective"]
+            apply_perspective = self.backend.core.convert_to_tensor(
+                transformation["apply_perspective"], dtype=boxes.dtype
+            )
 
             bounding_boxes["boxes"] = self.backend.numpy.where(
                 apply_perspective[:, None, None],
