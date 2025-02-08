@@ -551,16 +551,19 @@ class FeatureSpace(Layer):
         return self.encoded_features
 
     def _preprocess_features(self, features):
-        return {
-            name: self.preprocessors[name](features[name])
-            for name in features.keys()
-        }
+        preprocessed = {}
+        for name, feature in features.items():
+            processed = self.preprocessors[name](feature)
+            print(f"Preprocessed feature '{name}' shape: {processed.shape}")
+            preprocessed[name] = processed
+        return preprocessed
 
     def _cross_features(self, features):
         all_outputs = {}
         for cross in self.crosses:
             inputs = [features[name] for name in cross.feature_names]
             outputs = self.crossers[cross.name](inputs)
+            print(f"Crossed feature '{cross.name}' shape: {outputs.shape}")
             all_outputs[cross.name] = outputs
         return all_outputs
 
@@ -578,6 +581,13 @@ class FeatureSpace(Layer):
             preprocessed_features[name]
             for name in self._preprocessed_features_names
         ] + [crossed_features[name] for name in self._crossed_features_names]
+
+        print("Preprocessed feature shapes:")
+        for name, feature in preprocessed_features.items():
+            print(f"  {name}: {feature.shape}")
+        print("Crossed feature shapes:")
+        for name, feature in crossed_features.items():
+            print(f"  {name}: {feature.shape}")
 
         if self.output_mode == "dict":
             output_dict = {}
@@ -708,6 +718,9 @@ class FeatureSpace(Layer):
         # Switch to TF to make FeatureSpace work universally.
         data = {key: self._convert_input(value) for key, value in data.items()}
         rebatched = False
+        print("Input data shapes:")
+        for key, value in data.items():
+            print(f"  {key}: {value.shape}")
         for name, x in data.items():
             if len(x.shape) == 0:
                 data[name] = tf.reshape(x, (1, 1))
@@ -753,6 +766,15 @@ class FeatureSpace(Layer):
                 lambda x: backend.convert_to_tensor(x, dtype=x.dtype),
                 merged_data,
             )
+
+        # Handle output shape printing based on output_mode
+        if self.output_mode == "concat":
+            print("Final output shape:", merged_data.shape)
+        else:
+            print("Final output shapes:")
+            for name, value in merged_data.items():
+                print(f"  {name}: {value.shape}")
+
         return merged_data
 
     def get_config(self):
@@ -807,6 +829,9 @@ class TFDConcat(TFDataLayer):
         self.axis = axis
 
     def call(self, xs):
+        print(f"Concatenating {len(xs)} tensors with shapes:")
+        for i, x in enumerate(xs):
+            print(f"  Tensor {i + 1}: {x.shape}")
         return self.backend.numpy.concatenate(xs, axis=self.axis)
 
 

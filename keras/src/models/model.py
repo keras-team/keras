@@ -147,6 +147,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     def __init__(self, *args, **kwargs):
         Trainer.__init__(self)
+        print("DEBUG: Model.__init__ called")
         from keras.src.models import functional
 
         self.compiled = False
@@ -155,18 +156,26 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         # Signature detection for usage of a `Model` subclass
         # as a `Functional` subclass
         if functional_init_arguments(args, kwargs):
+            print("DEBUG: Detected Functional API model creation")
             inject_functional_model_class(self.__class__)
             functional.Functional.__init__(self, *args, **kwargs)
         else:
+            print("DEBUG: Creating model via non-Functional API")
             Layer.__init__(self, *args, **kwargs)
             if args:
+                print("DEBUG: Processing args for inputs and outputs")
                 inputs = args[0]
             else:
+                print("DEBUG: Processing kwargs for inputs and outputs")
                 inputs = kwargs.get("inputs")
             if isinstance(inputs, dict):
+                print("DEBUG: Inputs is a dictionary")
                 self._input_names = list(inputs.keys())
             else:
+                print("DEBUG: Inputs is not a dictionary")
                 self._input_names = None
+            print(f"DEBUG: _input_names set to {self._input_names}")
+        print("DEBUG: Exiting Model.__init__")
 
     def call(self, *args, **kwargs):
         raise NotImplementedError(
@@ -199,12 +208,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Returns:
             A layer instance.
         """
+        print("DEBUG: Entering get_layer")
         if index is not None and name is not None:
             raise ValueError(
                 "Provide only a layer name or a layer index. Received: "
                 f"index={index}, name={name}."
             )
         if index is not None:
+            print(f"DEBUG: Retrieving layer by index {index}")
             if len(self.layers) <= index:
                 raise ValueError(
                     f"Was asked to retrieve layer at index {index}"
@@ -212,21 +223,27 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     " layers."
                 )
             else:
+                print(f"DEBUG: Found layer at index {index}")
                 return self.layers[index]
 
         if name is not None:
+            print(f"DEBUG: Retrieving layer by name '{name}'")
             # Check if the name matches any of the input names.
             if hasattr(self, "_input_names") and self._input_names:
+                print(f"DEBUG: _input_names = {self._input_names}")
                 if name in self._input_names:
+                    print(f"DEBUG: '{name}' found in _input_names")
                     return self.get_layer(index=self._input_names.index(name))
             # Fallback to standard name lookup.
             for layer in self.layers:
                 if layer.name == name:
+                    print(f"DEBUG: Found matching layer '{name}'")
                     return layer
             raise ValueError(
                 f"No such layer: {name}. Existing layers are: "
                 f"{list(layer.name for layer in self.layers)}."
             )
+        print("DEBUG: No name or index provided")
         raise ValueError(
             "Provide either a layer name or layer index at `get_layer`."
         )
@@ -413,43 +430,60 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.predict_function = None
 
     def build_from_config(self, config):
+        print("DEBUG: Entering build_from_config")
+        print(f"DEBUG: config = {config}")
         if not config:
+            print("DEBUG: config is empty, nothing to build")
             return
         # Fetch the input structure from config if available.
         if "input_names" in config and isinstance(config["input_names"], list):
+            print("DEBUG: Setting _input_names from config['input_names']")
             self._input_names = config["input_names"]
         elif "shapes_dict" in config and isinstance(
             config["shapes_dict"], dict
         ):
+            print(
+                "DEBUG: Setting _input_names from config['shapes_dict'].keys()"
+            )
             self._input_names = list(config["shapes_dict"].keys())
         else:
+            print("DEBUG: No input_names or shapes_dict found in config")
             self._input_names = None
         status = False
         if "input_shape" in config:
+            print("DEBUG: Building from 'input_shape' in config")
             # Case: all inputs are in the first arg (possibly nested).
             if utils.is_default(self.build):
+                print("DEBUG: Using _build_by_run_for_single_pos_arg")
                 status = self._build_by_run_for_single_pos_arg(
                     config["input_shape"]
                 )
             else:
                 try:
+                    print("DEBUG: Calling self.build(config['input_shape'])")
                     self.build(config["input_shape"])
                     status = True
-                except Exception:
+                except Exception as e:
+                    print(f"DEBUG: Error during build: {e}")
                     status = False
             self._build_shapes_dict = config
         elif "shapes_dict" in config:
+            print("DEBUG: Building from 'shapes_dict' in config")
             # Case: inputs were recorded as multiple keyword arguments.
             if utils.is_default(self.build):
+                print("DEBUG: Using _build_by_run_for_kwargs")
                 status = self._build_by_run_for_kwargs(config["shapes_dict"])
             else:
                 try:
+                    print("DEBUG: Calling self.build(**config['shapes_dict'])")
                     self.build(**config["shapes_dict"])
                     status = True
-                except Exception:
+                except Exception as e:
+                    print(f"DEBUG: Error during build: {e}")
                     status = False
             self._build_shapes_dict = config["shapes_dict"]
         if not status:
+            print("DEBUG: Build failed, issuing warning")
             warnings.warn(
                 f"Model '{self.name}' had a build config, but the model "
                 "cannot be built automatically in "
@@ -464,6 +498,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 "upon deserialization.",
                 stacklevel=2,
             )
+        print(f"DEBUG: Exiting build_from_config with status {status}")
 
     def to_json(self, **kwargs):
         """Returns a JSON string containing the network configuration.

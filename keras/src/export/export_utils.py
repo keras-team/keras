@@ -7,33 +7,47 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 
 def get_input_signature(model):
+    print("DEBUG: Entering get_input_signature")
     if not isinstance(model, models.Model):
         raise TypeError(
             "The model must be a `keras.Model`. "
             f"Received: model={model} of the type {type(model)}"
         )
+    print("DEBUG: Model type check passed.")
     if not model.built:
         raise ValueError(
             "The model provided has not yet been built. It must be built "
             "before export."
         )
+    print("DEBUG: Model is built.")
     if isinstance(model, (models.Functional, models.Sequential)):
+        print("DEBUG: Model is Functional or Sequential.")
+        print("DEBUG: model.inputs =", model.inputs)
+        if hasattr(model, "_input_names"):
+            print("DEBUG: model._input_names =", model._input_names)
+        else:
+            print("DEBUG: model has no attribute '_input_names'.")
+
         if hasattr(model, "_input_names") and model._input_names:
+            print("DEBUG: Using _input_names to create input_signature.")
             input_signature = {
                 name: make_input_spec(tensor)
                 for name, tensor in zip(model._input_names, model.inputs)
             }
         else:
+            print("DEBUG: Fallback to tree.map_structure.")
             input_signature = tree.map_structure(make_input_spec, model.inputs)
             if isinstance(input_signature, list) and len(input_signature) > 1:
                 input_signature = [input_signature]
     else:
         input_signature = _infer_input_signature_from_model(model)
+        print("DEBUG: Inferred input_signature:", input_signature)
         if not input_signature or not model._called:
             raise ValueError(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
+    print("DEBUG: Exiting get_input_signature with:", input_signature)
     return input_signature
 
 
