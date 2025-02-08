@@ -105,7 +105,8 @@ class Functional(Function, Model):
         print("DEBUG: Inputs provided as dictionary:", isinstance(inputs, dict))
         if isinstance(inputs, dict):
             print("DEBUG: Inputs dictionary keys:", list(inputs.keys()))
-            # This implementation relies on the deterministic order of dictionary keys
+            # This implementation relies on the deterministic order of
+            # dictionary keys
             # Assumption from Python < 3.7.
             self._input_names = list(inputs.keys())
             self._inputs_struct = inputs
@@ -300,6 +301,33 @@ class Functional(Function, Model):
 
     def _standardize_inputs(self, inputs):
         print("DEBUG: Entering Functional::_standardize_inputs")
+        # --- Edge-case checks ---
+        if inputs is None:
+            raise ValueError(
+                "No inputs provided to the model (inputs is None)."
+            )
+
+        if self._inputs_struct is None:
+            warnings.warn(
+                "Model's input structure (_inputs_struct) is None."
+                " This may lead to unexpected behavior.",
+                UserWarning,
+            )
+
+        # Additional check: if both inputs and _inputs_struct are
+        # lists/tuples, warn if lengths differ.
+        if isinstance(inputs, (list, tuple)) and isinstance(
+            self._inputs_struct, (list, tuple)
+        ):
+            if len(inputs) != len(self._inputs_struct):
+                warnings.warn(
+                    f"Number of inputs ({len(inputs)}) does not match"
+                    f" the expected number ({len(self._inputs_struct)})"
+                    " based on self._inputs_struct. This may lead to unexpected"
+                    " behavior.",
+                    UserWarning,
+                )
+
         if isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
             model_keys = set(self._inputs_struct.keys())
             input_keys = set(inputs.keys())

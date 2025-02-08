@@ -1005,7 +1005,8 @@ class ExportArchiveTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
-        reason="Proper handling of model._input_names for an export requires Tensorflow backend"
+        reason="Proper handling of model._input_names for an export"
+        "requires Tensorflow backend",
     )
     def test_export_with_dict_input(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -1017,7 +1018,7 @@ class ExportArchiveTest(testing.TestCase):
         outputs = layers.Add()([inputs["foo"], inputs["bar"]])
         print("Defined model outputs:", outputs)
         model = models.Model(inputs, outputs)
-        ref_input = {"foo": tf.constant(1.0), "bar": tf.constant(2.0)}
+        ref_input = {"foo": tf.constant([1.0]), "bar": tf.constant([2.0])}
         print("Reference input:", ref_input)
         ref_output = model(ref_input)
         print("Reference output:", ref_output.numpy())

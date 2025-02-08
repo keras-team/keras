@@ -27,28 +27,14 @@ class TFExportArchive:
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
         if isinstance(input_signature, dict):
-            # Create a wrapper that handles both dict and positional args.
-            def wrapped_fn(*args, **kwargs):
-                if len(args) == 1 and isinstance(args[0], dict):
-                    # Handle case where input is passed as a single dict.
-                    return fn(args[0])
-                else:
-                    # Handle case where inputs are passed as positional args
-                    # but need to be converted to dict for the model.
-                    dict_inputs = {
-                        name: arg
-                        for name, arg in zip(input_signature.keys(), args)
-                    }
-                    return fn(dict_inputs)
+            # Create a simplified wrapper that handles both dict and
+            # positional args.
+            def wrapped_fn(arg, **kwargs):
+                return fn(arg)
 
-            # Convert dict input_signature to list of TensorSpecs
-            # while preserving order.
-            flat_input_signature = [
-                input_signature[name] for name in input_signature.keys()
-            ]
             decorated_fn = tf.function(
                 wrapped_fn,
-                input_signature=flat_input_signature,
+                input_signature=[input_signature],
                 autograph=False,
             )
         else:

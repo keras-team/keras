@@ -117,17 +117,28 @@ def make_tf_tensor_spec(x):
         print("DEBUG: x is a dictionary")
         # Convert dict to ordered list with names preserved.
         return {
-            name: tf.TensorSpec(shape=spec.shape, dtype=spec.dtype, name=name)
+            name: tf.TensorSpec(
+                shape=input_spec.shape,
+                dtype=input_spec.dtype,
+                name=name,
+            )
             for name, spec in x.items()
+            for input_spec in [make_input_spec(spec)]
         }
     elif isinstance(x, layers.InputSpec):
         print("DEBUG: x is an InputSpec")
-        return tf.TensorSpec(shape=x.shape, dtype=x.dtype, name=x.name)
+        input_spec = make_input_spec(x)
+        return tf.TensorSpec(
+            shape=input_spec.shape, dtype=input_spec.dtype, name=input_spec.name
+        )
     else:
         print("DEBUG: x is other type")
         if hasattr(x, "shape") and hasattr(x, "dtype"):
+            input_spec = make_input_spec(x)
             return tf.TensorSpec(
-                shape=x.shape, dtype=x.dtype, name=getattr(x, "name", None)
+                shape=input_spec.shape,
+                dtype=input_spec.dtype,
+                name=getattr(input_spec, "name", None),
             )
         raise TypeError(
             f"Unsupported x={x} of the type ({type(x)}). Supported types are: "
