@@ -48,26 +48,44 @@ class RandomPerspectiveTest(testing.TestCase):
         np.random.seed(seed)
         inputs = np.random.randint(0, 255, size=(224, 224, 3))
         output = layer(inputs)
-        self.assertAllClose(inputs, output)
+        self.assertAllClose(inputs, output, atol=1e-3, rtol=1e-3)
 
     def test_random_perspective_basic(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
-            inputs = np.ones((2, 2, 1))
-            expected_output = np.array(
-                [[[[1.0], [0.89476013]], [[0.84097195], [0.6412543]]]]
+            inputs = np.ones((4, 4, 1))
+            expected_output = np.asarray(
+                [
+                    [
+                        [[1.0], [1.0], [0.0], [0.0]],
+                        [[1.0], [1.0], [0.0], [0.0]],
+                        [[1.0], [1.0], [0.0], [0.0]],
+                        [[1.0], [1.0], [0.0], [0.0]],
+                    ]
+                ]
             )
 
         else:
-            inputs = np.ones((1, 2, 2))
-            expected_output = np.array([[[[1.0000, 0.8948], [0.8410, 0.6413]]]])
+            inputs = np.ones((1, 4, 4))
+            expected_output = np.array([[[[1., 1., 0., 0.],
+                                          [1., 1., 0., 0.],
+                                          [1., 1., 0., 0.],
+                                          [1., 1., 0., 0.]]]])
 
         layer = layers.RandomPerspective(data_format=data_format)
 
         transformation = {
             "apply_perspective": np.asarray([True]),
+            "input_shape": inputs.shape,
             "perspective_factor": np.asarray(
-                [[0.05261999, 0.07951406, 0.05261999, 0.07951406]]
+                [
+                    [
+                        [-0.529, -0.1181],
+                        [0.1155, 0.578],
+                        [-0.568, -0.1299],
+                        [-0.479, 0.634],
+                    ]
+                ]
             ),
         }
 
@@ -91,24 +109,34 @@ class RandomPerspectiveTest(testing.TestCase):
 
     @parameterized.named_parameters(
         (
-            "with_negative_shift",
-            [[-0.5, -0.1, -0.3, -0.2]],
-            [
+                "with_negative_shift",
                 [
-                    [6.6750007, 2.0750003, 8.0, 5.0750003],
-                    [8.0, 6.8250003, 8.0, 9.825],
-                ]
-            ],
+                    [-0.1319, -0.1157],
+                    [-0.0469, -0.0745],
+                    [-0.0491, -0.0047],
+                    [-0.0586, -0.0155],
+                ],
+                [
+                    [
+                        [1.9133, 1.0001, 3.8251, 3.0013],
+                        [5.6804, 3.9589, 7.5711, 5.9405],
+                    ]
+                ],
         ),
         (
-            "with_positive_shift",
-            [[0.5, 0.1, 0.3, 0.2]],
-            [
+                "with_positive_shift",
                 [
-                    [0.29375008, 0.51874995, 2.2937498, 2.5187497],
-                    [2.1062498, 3.0812497, 4.10625, 5.08125],
-                ]
-            ],
+                    [0.1319, 0.1157],
+                    [0.0469, 0.0745],
+                    [0.0491, 0.0047],
+                    [0.0586, 0.0155],
+                ],
+                [
+                    [
+                        [2.0806, 0.9979, 4.1840, 3.0102],
+                        [6.3028, 4.0308, 8.0000, 6.0797],
+                    ]
+                ],
         ),
     )
     def test_random_perspective_bounding_boxes(self, factor, expected_boxes):
@@ -121,8 +149,10 @@ class RandomPerspectiveTest(testing.TestCase):
         bounding_boxes = {
             "boxes": np.array(
                 [
-                    [2, 1, 4, 3],
-                    [6, 4, 8, 6],
+                    [
+                        [2, 1, 4, 3],
+                        [6, 4, 8, 6],
+                    ]
                 ]
             ),
             "labels": np.array([[1, 2]]),
@@ -140,35 +170,43 @@ class RandomPerspectiveTest(testing.TestCase):
             "input_shape": image_shape,
         }
         output = layer.transform_bounding_boxes(
-            input_data["bounding_boxes"],
-            transformation=transformation,
-            training=True,
+            input_data["bounding_boxes"], transformation
         )
 
-        print(output)
-
-        self.assertAllClose(output["boxes"], expected_boxes)
+        self.assertAllClose(
+            output["boxes"], expected_boxes, atol=1e-3, rtol=1e-3
+        )
 
     @parameterized.named_parameters(
         (
-            "with_negative_shift",
-            [[-0.5, -0.1, -0.3, -0.2]],
-            [
+                "with_negative_shift",
                 [
-                    [6.6750007, 2.0750003, 8.0, 5.0750003],
-                    [8.0, 6.8250003, 8.0, 9.825],
-                ]
-            ],
+                    [-0.1319, -0.1157],
+                    [-0.0469, -0.0745],
+                    [-0.0491, -0.0047],
+                    [-0.0586, -0.0155],
+                ],
+                [
+                    [
+                        [1.9133, 1.0001, 3.8251, 3.0013],
+                        [5.6804, 3.9589, 7.5711, 5.9405],
+                    ]
+                ],
         ),
         (
-            "with_positive_shift",
-            [[0.5, 0.1, 0.3, 0.2]],
-            [
+                "with_positive_shift",
                 [
-                    [0.29375008, 0.51874995, 2.2937498, 2.5187497],
-                    [2.1062498, 3.0812497, 4.10625, 5.08125],
-                ]
-            ],
+                    [0.1319, 0.1157],
+                    [0.0469, 0.0745],
+                    [0.0491, 0.0047],
+                    [0.0586, 0.0155],
+                ],
+                [
+                    [
+                        [2.0806, 0.9979, 4.1840, 3.0102],
+                        [6.3028, 4.0308, 8.0000, 6.0797],
+                    ]
+                ],
         ),
     )
     def test_random_flip_tf_data_bounding_boxes(self, factor, expected_boxes):
@@ -180,12 +218,12 @@ class RandomPerspectiveTest(testing.TestCase):
         input_image = np.random.random(image_shape)
         bounding_boxes = {
             "boxes": np.array(
-                [
+                [[
                     [
                         [2, 1, 4, 3],
                         [6, 4, 8, 6],
                     ]
-                ]
+                ]]
             ),
             "labels": np.array([[1, 2]]),
         }
@@ -215,4 +253,6 @@ class RandomPerspectiveTest(testing.TestCase):
 
         output = next(iter(ds))
         expected_boxes = np.array(expected_boxes)
-        self.assertAllClose(output["boxes"], expected_boxes)
+        self.assertAllClose(
+            output["boxes"], expected_boxes, atol=1e-3, rtol=1e-3
+        )

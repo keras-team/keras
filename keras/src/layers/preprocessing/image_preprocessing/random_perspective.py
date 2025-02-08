@@ -47,14 +47,14 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     _SUPPORTED_INTERPOLATION = ("nearest", "bilinear")
 
     def __init__(
-            self,
-            factor=1.0,
-            scale=0.3,
-            interpolation="bilinear",
-            fill_value=0.0,
-            seed=None,
-            data_format=None,
-            **kwargs,
+        self,
+        factor=1.0,
+        scale=0.3,
+        interpolation="bilinear",
+        fill_value=0.0,
+        seed=None,
+        data_format=None,
+        **kwargs,
     ):
         super().__init__(data_format=data_format, **kwargs)
         self._set_factor(factor)
@@ -146,6 +146,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
                 perspective_images,
                 images,
             )
+            images = self.backend.cast(images, self.compute_dtype)
         return images
 
     def get_matrix_by_points(self, startpoints, endpoints):
@@ -278,8 +279,12 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         )
         B = self.backend.numpy.expand_dims(B, axis=-1)
 
+        A = self.backend.cast(A, dtype="float32")
+        B = self.backend.cast(B, dtype="float32")
+
         h = self.backend.linalg.solve(A, B)
         h = self.backend.numpy.reshape(h, [-1, 8])
+        h = self.backend.cast(h, dtype=self.compute_dtype)
 
         return h
 
@@ -306,8 +311,12 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         return outputs
 
     def _get_perspective_matrix(self, transformation):
-        perspective_factor = transformation["perspective_factor"]
-        input_shape = transformation["input_shape"]
+        perspective_factor = self.backend.cast(
+            transformation["perspective_factor"], dtype=self.compute_dtype
+        )
+        input_shape = self.backend.cast(
+            transformation["input_shape"], dtype=self.compute_dtype
+        )
 
         height, width = (
             input_shape[self.height_axis],
@@ -328,83 +337,115 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         end_points = start_points + start_points * perspective_factor
         return self.get_matrix_by_points(end_points, start_points)
 
-    def _get_transformed_coordinates(self, x, y, transform):
-        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
-            transform, 8, axis=-1
+    def _get_transformed_coordinates(
+        self, x_coords, y_coords, transformation_matrix
+    ):
+        backend = self.backend
+        batch_size = backend.shape(transformation_matrix)[0]
+
+        homogeneous_transform = backend.numpy.concatenate(
+            [transformation_matrix, backend.numpy.ones((batch_size, 1, 1))],
+            axis=-1,
+        )
+        homogeneous_transform = backend.numpy.reshape(
+            homogeneous_transform, (batch_size, 3, 3)
         )
 
-        x_transformed = (a1 * (y - b2) - b1 * (x - a2)) / (a1 * b0 - a0 * b1)
-        y_transformed = (b0 * (x - a2) - a0 * (y - b2)) / (a1 * b0 - a0 * b1)
+        inverse_transform = backend.linalg.inv(homogeneous_transform)
+
+        ones_column = backend.numpy.ones_like(x_coords)
+        homogeneous_coords = backend.numpy.concatenate(
+            [x_coords, y_coords, ones_column], axis=-1
+        )
+
+        homogeneous_coords = backend.numpy.transpose(
+            homogeneous_coords, axes=[0, 2, 1]
+        )
+        transformed_coords = backend.numpy.matmul(
+            inverse_transform, homogeneous_coords
+        )
+        transformed_coords = backend.numpy.transpose(
+            transformed_coords, axes=[0, 2, 1]
+        )
+
+        x_transformed = transformed_coords[..., 0] / transformed_coords[..., 2]
+        y_transformed = transformed_coords[..., 1] / transformed_coords[..., 2]
 
         return x_transformed, y_transformed
 
     def transform_bounding_boxes(
-            self,
-            bounding_boxes,
-            transformation,
-            training=True,
+        self,
+        bounding_boxes,
+        transformation,
+        training=True,
     ):
-        if training:
+        if training and transformation is not None:
             if backend_utils.in_tf_graph():
                 self.backend.set_backend("tensorflow")
 
-        input_height, input_width = (
-            transformation["input_shape"][self.height_axis],
-            transformation["input_shape"][self.width_axis],
-        )
+            input_height, input_width = (
+                transformation["input_shape"][self.height_axis],
+                transformation["input_shape"][self.width_axis],
+            )
 
-        bounding_boxes = convert_format(
-            bounding_boxes,
-            source=self.bounding_box_format,
-            target="xyxy",
-            height=input_height,
-            width=input_width,
-        )
+            bounding_boxes = convert_format(
+                bounding_boxes,
+                source=self.bounding_box_format,
+                target="xyxy",
+                height=input_height,
+                width=input_width,
+            )
 
-        boxes = bounding_boxes["boxes"]
+            boxes = bounding_boxes["boxes"]
+            x0, y0, x1, y1 = self.backend.numpy.split(boxes, 4, axis=-1)
 
-        x0, y0, x1, y1 = self.backend.numpy.split(boxes, 4, axis=-1)
+            transform = self._get_perspective_matrix(transformation)
+            transform = self.backend.numpy.expand_dims(transform, axis=1)
+            transform = self.backend.cast(transform, dtype=self.compute_dtype)
 
-        transform = self._get_perspective_matrix(transformation)
-        transform = self.backend.numpy.expand_dims(transform, axis=1)
-        transform = self.backend.cast(transform, dtype=self.compute_dtype)
+            corners = [
+                self._get_transformed_coordinates(x, y, transform)
+                for x, y in [(x0, y0), (x1, y1), (x0, y1), (x1, y0)]
+            ]
+            x_corners, y_corners = zip(*corners)
 
-        x_1, y_1 = self._get_transformed_coordinates(x0, y0, transform)
-        x_2, y_2 = self._get_transformed_coordinates(x1, y1, transform)
-        x_3, y_3 = self._get_transformed_coordinates(x0, y1, transform)
-        x_4, y_4 = self._get_transformed_coordinates(x1, y0, transform)
+            xs = self.backend.numpy.stack(x_corners, axis=-1)
+            ys = self.backend.numpy.stack(y_corners, axis=-1)
 
-        xs = self.backend.numpy.concatenate([x_1, x_2, x_3, x_4], axis=-1)
-        ys = self.backend.numpy.concatenate([y_1, y_2, y_3, y_4], axis=-1)
+            min_x, max_x = (
+                self.backend.numpy.min(xs, axis=-1),
+                self.backend.numpy.max(xs, axis=-1),
+            )
+            min_y, max_y = (
+                self.backend.numpy.min(ys, axis=-1),
+                self.backend.numpy.max(ys, axis=-1),
+            )
 
-        min_x = self.backend.numpy.min(xs, axis=-1)
-        max_x = self.backend.numpy.max(xs, axis=-1)
-        min_y = self.backend.numpy.min(ys, axis=-1)
-        max_y = self.backend.numpy.max(ys, axis=-1)
+            min_x = self.backend.numpy.expand_dims(min_x, axis=-1)
+            max_x = self.backend.numpy.expand_dims(max_x, axis=-1)
+            min_y = self.backend.numpy.expand_dims(min_y, axis=-1)
+            max_y = self.backend.numpy.expand_dims(max_y, axis=-1)
 
-        min_x = self.backend.numpy.expand_dims(min_x, axis=-1)
-        max_x = self.backend.numpy.expand_dims(max_x, axis=-1)
-        min_y = self.backend.numpy.expand_dims(min_y, axis=-1)
-        max_y = self.backend.numpy.expand_dims(max_y, axis=-1)
+            boxes = self.backend.numpy.concatenate(
+                [min_x, min_y, max_x, max_y], axis=-1
+            )
 
-        boxes = self.backend.numpy.concatenate(
-            [min_x, min_y, max_x, max_y], axis=-1
-        )
+            apply_perspective = transformation["apply_perspective"]
 
-        apply_perspective = transformation["apply_perspective"]
+            bounding_boxes["boxes"] = self.backend.numpy.where(
+                apply_perspective[:, None, None],
+                boxes,
+                bounding_boxes["boxes"],
+            )
 
-        bounding_boxes["boxes"] = self.backend.numpy.where(
-            apply_perspective[:, None, None],
-            boxes,
-            bounding_boxes["boxes"],
-        )
+            bounding_boxes = clip_to_image_size(
+                bounding_boxes=bounding_boxes,
+                height=input_height,
+                width=input_width,
+                bounding_box_format="xyxy",
+            )
 
-        bounding_boxes = clip_to_image_size(
-            bounding_boxes=bounding_boxes,
-            height=input_height,
-            width=input_width,
-            bounding_box_format="xyxy",
-        )
+            self.backend.reset()
 
         return bounding_boxes
 
@@ -412,7 +453,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         return labels
 
     def transform_segmentation_masks(
-            self, segmentation_masks, transformation, training=True
+        self, segmentation_masks, transformation, training=True
     ):
         return self.transform_images(
             segmentation_masks, transformation, training=training
