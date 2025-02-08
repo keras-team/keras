@@ -105,6 +105,8 @@ class Functional(Function, Model):
         print("DEBUG: Inputs provided as dictionary:", isinstance(inputs, dict))
         if isinstance(inputs, dict):
             print("DEBUG: Inputs dictionary keys:", list(inputs.keys()))
+            # This implementation relies on the deterministic order of dictionary keys
+            # Assumption from Python < 3.7.
             self._input_names = list(inputs.keys())
             self._inputs_struct = inputs
             for k, v in inputs.items():
@@ -279,8 +281,8 @@ class Functional(Function, Model):
                     adjusted.append(ops.squeeze(x, axis=-1))
                     continue
             if x_rank == ref_rank - 1:
-                # Check if ref_shape's last dimension is None.
-                if ref_shape[-1] == 1:
+                # Check if ref_shape's last dimension is None (variable) or 1.
+                if ref_shape[-1] is None or ref_shape[-1] == 1:
                     adjusted.append(ops.expand_dims(x, axis=-1))
                     continue
             raise ValueError(

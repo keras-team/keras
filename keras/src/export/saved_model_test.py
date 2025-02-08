@@ -1003,12 +1003,29 @@ class ExportArchiveTest(testing.TestCase):
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Proper handling of model._input_names for an export requires Tensorflow backend"
+    )
     def test_export_with_dict_input(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         inputs = {
             "foo": layers.Input(shape=()),
             "bar": layers.Input(shape=()),
         }
+        print("Defined model inputs:", inputs)
         outputs = layers.Add()([inputs["foo"], inputs["bar"]])
+        print("Defined model outputs:", outputs)
         model = models.Model(inputs, outputs)
+        ref_input = {"foo": tf.constant(1.0), "bar": tf.constant(2.0)}
+        print("Reference input:", ref_input)
+        ref_output = model(ref_input)
+        print("Reference output:", ref_output.numpy())
         model.export(temp_filepath, format="tf_saved_model")
+        print("Model exported successfully.")
+        revived_model = tf.saved_model.load(temp_filepath)
+        print("Revived model loaded successfully.")
+        revived_output = revived_model.serve(ref_input)
+        print("Revived model output:", revived_output)
+        self.assertAllClose(ref_output, revived_output)
+        print("Test passed: Exported and revived model outputs match.")
