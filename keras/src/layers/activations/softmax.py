@@ -1,5 +1,6 @@
 from keras.src import activations
 from keras.src import backend
+from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 
@@ -47,7 +48,13 @@ class Softmax(Layer):
         super().__init__(**kwargs)
         self.axis = axis
         self.supports_masking = True
-        self.built = True
+
+        # We can only safely mark the layer as built when build is not
+        # overridden.
+        if utils.is_default(self.build):
+            self.built = True
+            self._post_build()
+            self._lock_state()
 
     def call(self, inputs, mask=None):
         if mask is not None:

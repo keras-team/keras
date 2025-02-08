@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import layers
 from keras.src import ops
+from keras.src import utils
 from keras.src.api_export import keras_export
 
 
@@ -38,7 +39,13 @@ class GaussianNoise(layers.Layer):
         if stddev > 0:
             self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
-        self.built = True
+
+        # We can only safely mark the layer as built when build is not
+        # overridden.
+        if utils.is_default(self.build):
+            self.built = True
+            self._post_build()
+            self._lock_state()
 
     def call(self, inputs, training=False):
         if training and self.stddev > 0:

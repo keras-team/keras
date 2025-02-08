@@ -455,7 +455,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 self.build(config["input_shape"])
             elif "shapes_dict" in config:
                 self.build(**config["shapes_dict"])
-            self.built = True
 
     def _obj_type(self):
         return "Layer"

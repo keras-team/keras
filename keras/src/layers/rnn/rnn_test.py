@@ -23,7 +23,6 @@ class OneStateRNNCell(layers.Layer):
             initializer="ones",
             name="recurrent_kernel",
         )
-        self.built = True
 
     def call(self, inputs, states):
         prev_output = states[0]
@@ -55,7 +54,6 @@ class TwoStatesRNNCell(layers.Layer):
             initializer="ones",
             name="recurrent_kernel_2",
         )
-        self.built = True
 
     def call(self, inputs, states):
         prev_1 = states[0]

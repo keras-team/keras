@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src import ops
+from keras.src import utils
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.ops.operation_utils import compute_pooling_output_shape
@@ -34,7 +35,13 @@ class BasePooling(Layer):
         self.data_format = backend.standardize_data_format(data_format)
 
         self.input_spec = InputSpec(ndim=pool_dimensions + 2)
-        self.built = True
+
+        # We can only safely mark the layer as built when build is not
+        # overridden.
+        if utils.is_default(self.build):
+            self.built = True
+            self._post_build()
+            self._lock_state()
 
     def call(self, inputs):
         if self.pool_mode == "max":
