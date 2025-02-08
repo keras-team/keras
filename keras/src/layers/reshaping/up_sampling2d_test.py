@@ -132,7 +132,8 @@ class UpSampling2dTest(testing.TestCase):
             layers.UpSampling2D(size=(1, 2), interpolation=interpolation)(x)
 
     @pytest.mark.skipif(
-        backend.backend() == "torch", reason="Torch does not support lanczos."
+        backend.backend() in ("torch", "mlx"),
+        reason=f"{backend.backend()} does not support lanczos.",
     )
     def test_upsampling_2d_lanczos_interpolation_methods(self):
         input_shape = (2, 2, 1, 3)

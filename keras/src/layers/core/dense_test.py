@@ -333,6 +333,10 @@ class DenseTest(testing.TestCase):
 
     # Test quantization-related (int8 and float8) methods
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_int8(self):
         layer = layers.Dense(units=16)
         layer.build((None, 8))
@@ -387,6 +391,10 @@ class DenseTest(testing.TestCase):
         ("int8", "int8"),
         ("float8", "float8"),
     )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_on_unbuilt_layer(self, mode):
         layer = layers.Dense(units=2)
         with self.assertRaisesRegex(
@@ -397,6 +405,10 @@ class DenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
     )
     def test_quantize_on_subclass(self, mode):
         class MyDense(layers.Dense):
@@ -412,6 +424,10 @@ class DenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
     )
     def test_quantize_when_already_quantized(self, mode):
         layer = layers.Dense(units=2)
@@ -436,6 +452,10 @@ class DenseTest(testing.TestCase):
         ("float8", "float8_from_float32", 8),
     )
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
     ):
@@ -447,6 +467,10 @@ class DenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int7", "int7"),
         ("float7", "float7"),
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
     )
     def test_quantize_invalid_mode(self, mode):
         layer = layers.Dense(units=2)
@@ -482,6 +506,10 @@ class DenseTest(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):
@@ -499,6 +527,10 @@ class DenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_int8_when_lora_enabled(self):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
@@ -581,6 +613,10 @@ class DenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_float8(self):
         import ml_dtypes
 
@@ -696,6 +732,10 @@ class DenseTest(testing.TestCase):
             self.assertAllClose(layer.outputs_grad_scale, scale_g)
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_float8_fitting(self):
         config = dict(units=16)
         layer = layers.Dense(**config)
@@ -749,6 +789,10 @@ class DenseTest(testing.TestCase):
                 len(model.non_trainable_weights),
             )
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_float8_inference(self):
         config = dict(units=16)
         layer = layers.Dense(**config)

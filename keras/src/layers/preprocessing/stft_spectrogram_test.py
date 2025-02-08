@@ -11,7 +11,7 @@ from keras.src import testing
 
 
 class TestSpectrogram(testing.TestCase):
-    DTYPE = "float32" if backend.backend() == "torch" else "float64"
+    DTYPE = "float32" if backend.backend() in ["torch", "mlx"] else "float64"
 
     @staticmethod
     def _calc_spectrograms(

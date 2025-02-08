@@ -327,7 +327,10 @@ class MultiHeadAttentionTest(testing.TestCase):
                     "PyTorch errors out on GPU: issue to track bug is here "
                     "https://github.com/keras-team/keras/issues/20459"
                 )
-        self.assertAllClose(query_mask, output._keras_mask)
+        if backend.backend() == "mlx":
+            self.assertAllClose(query_mask, backend.get_keras_mask(output))
+        else:
+            self.assertAllClose(query_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
     @pytest.mark.skipif(
@@ -671,6 +674,10 @@ class MultiHeadAttentionTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):
             layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_int8(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])

@@ -4,6 +4,7 @@ import mlx.core as mx
 import numpy as np
 
 from keras.src.backend.mlx.core import convert_to_tensor
+from keras.src.backend.mlx.linalg import det
 
 
 def _segment_reduction_fn(
@@ -147,7 +148,7 @@ def irfft(x, fft_length=None):
 def stft(
     x, sequence_length, sequence_stride, fft_length, window="hann", center=True
 ):
-    raise NotImplementedError("fft not yet implemented in mlx")
+    raise NotImplementedError("sfft not yet implemented in mlx")
 
 
 def istft(
@@ -159,7 +160,7 @@ def istft(
     window="hann",
     center=True,
 ):
-    raise NotImplementedError("fft not yet implemented in mlx")
+    raise NotImplementedError("isfft not yet implemented in mlx")
 
 
 def rsqrt(x):
@@ -181,3 +182,9 @@ def solve(a, b):
     raise NotImplementedError(
         "Linear system solving not yet implemented in mlx"
     )
+
+
+def logdet(x):
+    x = convert_to_tensor(x)
+    det_x = det(x)
+    return mx.log(det_x)
