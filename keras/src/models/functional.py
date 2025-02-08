@@ -101,10 +101,7 @@ class Functional(Function, Model):
 
     @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
-        print("DEBUG: Functional.__init__ called")
-        print("DEBUG: Inputs provided as dictionary:", isinstance(inputs, dict))
         if isinstance(inputs, dict):
-            print("DEBUG: Inputs dictionary keys:", list(inputs.keys()))
             # This implementation relies on the deterministic order of
             # dictionary keys
             # Assumption from Python < 3.7.
@@ -122,7 +119,6 @@ class Functional(Function, Model):
         else:
             self._input_names = None
             self._inputs_struct = inputs
-        print("DEBUG: _input_names set to:", self._input_names)
 
         trainable = kwargs.pop("trainable", None)
         flat_inputs = tree.flatten(inputs)
@@ -142,11 +138,8 @@ class Functional(Function, Model):
                     f"type {type(x)}"
                 )
 
-        print("DEBUG: Before cloning, inputs structure:", inputs)
         if not all(is_input_keras_tensor(t) for t in flat_inputs):
-            print("DEBUG: Cloning graph nodes.")
             inputs, outputs = clone_graph_nodes(inputs, outputs)
-            print("DEBUG: After cloning, inputs structure:", inputs)
 
         Function.__init__(self, inputs, outputs, name=name)
 
@@ -300,7 +293,6 @@ class Functional(Function, Model):
         return adjusted
 
     def _standardize_inputs(self, inputs):
-        print("DEBUG: Entering Functional::_standardize_inputs")
         # --- Edge-case checks ---
         if inputs is None:
             raise ValueError(
@@ -331,8 +323,6 @@ class Functional(Function, Model):
         if isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
             model_keys = set(self._inputs_struct.keys())
             input_keys = set(inputs.keys())
-            print("DEBUG: Model input keys:", model_keys)
-            print("DEBUG: Input data keys:", input_keys)
             missing = model_keys - input_keys
             if missing:
                 raise ValueError(
@@ -346,7 +336,6 @@ class Functional(Function, Model):
                     inputs, raise_exception=False
                 )
             filtered_inputs = {k: inputs[k] for k in model_keys}
-            print("DEBUG: Filtered inputs:", filtered_inputs)
             converted_inputs = tree.map_structure(
                 ops.convert_to_tensor, filtered_inputs
             )
@@ -562,7 +551,6 @@ def functional_from_config(cls, config, custom_objects=None):
     Returns:
         An instance of `cls`.
     """
-    print("DEBUG: functional_from_config called")
     # Layer instances created during
     # the graph reconstruction process
     created_layers = {}

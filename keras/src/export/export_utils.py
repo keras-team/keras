@@ -7,29 +7,18 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 
 def get_input_signature(model):
-    print("DEBUG: Entering get_input_signature")
     if not isinstance(model, models.Model):
         raise TypeError(
             "The model must be a `keras.Model`. "
             f"Received: model={model} of the type {type(model)}"
         )
-    print("DEBUG: Model type check passed.")
     if not model.built:
         raise ValueError(
             "The model provided has not yet been built. It must be built "
             "before export."
         )
-    print("DEBUG: Model is built.")
     if isinstance(model, (models.Functional, models.Sequential)):
-        print("DEBUG: Model is Functional or Sequential.")
-        print("DEBUG: model.inputs =", model.inputs)
-        if hasattr(model, "_input_names"):
-            print("DEBUG: model._input_names =", model._input_names)
-        else:
-            print("DEBUG: model has no attribute '_input_names'.")
-
         if hasattr(model, "_input_names") and model._input_names:
-            print("DEBUG: Using _input_names to create input_signature.")
             if isinstance(model._inputs_struct, dict):
                 # Create dictionary input signature while
                 # preserving order.
@@ -42,17 +31,14 @@ def get_input_signature(model):
                     make_input_spec, model.inputs
                 )
         else:
-            print("DEBUG: Fallback to tree.map_structure.")
             input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
         input_signature = _infer_input_signature_from_model(model)
-        print("DEBUG: Inferred input_signature:", input_signature)
         if not input_signature or not model._called:
             raise ValueError(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
-    print("DEBUG: Exiting get_input_signature with:", input_signature)
     return input_signature
 
 
@@ -111,10 +97,8 @@ def make_input_spec(x):
 
 def make_tf_tensor_spec(x):
     if isinstance(x, tf.TensorSpec):
-        print("DEBUG: x is a TensorSpec")
         return x
     if isinstance(x, dict):
-        print("DEBUG: x is a dictionary")
         # Convert dict to ordered list with names preserved.
         return {
             name: tf.TensorSpec(
@@ -126,13 +110,11 @@ def make_tf_tensor_spec(x):
             for input_spec in [make_input_spec(spec)]
         }
     elif isinstance(x, layers.InputSpec):
-        print("DEBUG: x is an InputSpec")
         input_spec = make_input_spec(x)
         return tf.TensorSpec(
             shape=input_spec.shape, dtype=input_spec.dtype, name=input_spec.name
         )
     else:
-        print("DEBUG: x is other type")
         if hasattr(x, "shape") and hasattr(x, "dtype"):
             input_spec = make_input_spec(x)
             return tf.TensorSpec(

@@ -61,7 +61,7 @@ class JaxExportArchive:
                 self._check_device_compatible()
             )
 
-        # When input_signature is a dict, we need to 
+        # When input_signature is a dict, we need to
         # adjust polymorphic shapes.
         if "polymorphic_shapes" not in jax2tf_kwargs:
             if isinstance(input_signature, dict):
@@ -70,8 +70,8 @@ class JaxExportArchive:
                     self._to_polymorphic_shape(input_signature)
                 ]
             else:
-                jax2tf_kwargs["polymorphic_shapes"] = self._to_polymorphic_shape(
-                    input_signature
+                jax2tf_kwargs["polymorphic_shapes"] = (
+                    self._to_polymorphic_shape(input_signature)
                 )
 
         # Note: we truncate the number of parameters to what is specified by
@@ -84,6 +84,7 @@ class JaxExportArchive:
             # positional args, similar to TensorFlow implementation.
             def wrapped_fn(arg, **kwargs):
                 return fn(arg)
+
             target_fn = wrapped_fn
             target_signature = [input_signature]
             target_params = [fn_parameters[0]]
@@ -91,7 +92,7 @@ class JaxExportArchive:
             # Original code path for non-dict input signatures.
             target_fn = fn
             target_signature = input_signature
-            target_params = fn_parameters[0:len(input_signature)]
+            target_params = fn_parameters[0 : len(input_signature)]
 
         if is_static:
             from jax.experimental import jax2tf
