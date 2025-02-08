@@ -585,6 +585,7 @@ class FeatureSpaceTest(testing.TestCase):
         }
         print("DEBUG: Test data created:", data)
         ref_out = fs(data)
+
         print("DEBUG: Reference output:", ref_out)
         temp_filepath = os.path.join(self.get_temp_dir(), "fs.keras")
         fs.save(temp_filepath)

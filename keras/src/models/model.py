@@ -149,10 +149,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Trainer.__init__(self)
         print("DEBUG: Model.__init__ called")
         from keras.src.models import functional
-
-        self.compiled = False
-        self._compile_config = None
-
         # Signature detection for usage of a `Model` subclass
         # as a `Functional` subclass
         if functional_init_arguments(args, kwargs):
@@ -165,16 +161,17 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             if args:
                 print("DEBUG: Processing args for inputs and outputs")
                 inputs = args[0]
-            else:
+            # Only set _input_names if not already initialized by Functional.
+            elif not hasattr(self, '_input_names'):
                 print("DEBUG: Processing kwargs for inputs and outputs")
-                inputs = kwargs.get("inputs")
-            if isinstance(inputs, dict):
-                print("DEBUG: Inputs is a dictionary")
-                self._input_names = list(inputs.keys())
-            else:
-                print("DEBUG: Inputs is not a dictionary")
-                self._input_names = None
-            print(f"DEBUG: _input_names set to {self._input_names}")
+                inputs = kwargs.get("inputs") if not args else args[0]
+                if isinstance(inputs, dict):
+                    print("DEBUG: Inputs is a dictionary")
+                    self._input_names = list(inputs.keys())
+                else:
+                    print("DEBUG: Inputs is not a dictionary")
+                    self._input_names = None
+                print(f"DEBUG: _input_names set to {self._input_names}")
         print("DEBUG: Exiting Model.__init__")
 
     def call(self, *args, **kwargs):
