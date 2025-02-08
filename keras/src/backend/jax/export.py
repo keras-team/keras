@@ -60,28 +60,51 @@ class JaxExportArchive:
             jax2tf_kwargs["native_serialization"] = (
                 self._check_device_compatible()
             )
+
+        # When input_signature is a dict, we need to 
+        # adjust polymorphic shapes.
         if "polymorphic_shapes" not in jax2tf_kwargs:
-            jax2tf_kwargs["polymorphic_shapes"] = self._to_polymorphic_shape(
-                input_signature
-            )
+            if isinstance(input_signature, dict):
+                # Wrap the shape in a list to match the input structure
+                jax2tf_kwargs["polymorphic_shapes"] = [
+                    self._to_polymorphic_shape(input_signature)
+                ]
+            else:
+                jax2tf_kwargs["polymorphic_shapes"] = self._to_polymorphic_shape(
+                    input_signature
+                )
 
         # Note: we truncate the number of parameters to what is specified by
         # `input_signature`.
         fn_signature = inspect.signature(fn)
         fn_parameters = list(fn_signature.parameters.values())
 
+        if isinstance(input_signature, dict):
+            # Create a simplified wrapper that handles both dict and
+            # positional args, similar to TensorFlow implementation.
+            def wrapped_fn(arg, **kwargs):
+                return fn(arg)
+            target_fn = wrapped_fn
+            target_signature = [input_signature]
+            target_params = [fn_parameters[0]]
+        else:
+            # Original code path for non-dict input signatures.
+            target_fn = fn
+            target_signature = input_signature
+            target_params = fn_parameters[0:len(input_signature)]
+
         if is_static:
             from jax.experimental import jax2tf
 
-            jax_fn = jax2tf.convert(fn, **jax2tf_kwargs)
+            jax_fn = jax2tf.convert(target_fn, **jax2tf_kwargs)
             jax_fn.__signature__ = inspect.Signature(
-                parameters=fn_parameters[0 : len(input_signature)],
+                parameters=target_params,
                 return_annotation=fn_signature.return_annotation,
             )
 
             decorated_fn = tf.function(
                 jax_fn,
-                input_signature=input_signature,
+                input_signature=target_signature,
                 autograph=False,
             )
         else:
@@ -95,7 +118,7 @@ class JaxExportArchive:
             def stateless_fn(variables, *args, **kwargs):
                 state_mapping = zip(self._backend_variables, variables)
                 with StatelessScope(state_mapping=state_mapping) as scope:
-                    output = fn(*args, **kwargs)
+                    output = target_fn(*args, **kwargs)
 
                 # Gather updated non-trainable variables
                 non_trainable_variables = []
@@ -105,7 +128,7 @@ class JaxExportArchive:
                 return output, non_trainable_variables
 
             jax2tf_stateless_fn = self._convert_jax2tf_function(
-                stateless_fn, input_signature, jax2tf_kwargs=jax2tf_kwargs
+                stateless_fn, target_signature, jax2tf_kwargs=jax2tf_kwargs
             )
 
             def stateful_fn(*args, **kwargs):
@@ -123,13 +146,13 @@ class JaxExportArchive:
                 return output
 
             stateful_fn.__signature__ = inspect.Signature(
-                parameters=fn_parameters[0 : len(input_signature)],
+                parameters=target_params,
                 return_annotation=fn_signature.return_annotation,
             )
 
             decorated_fn = tf.function(
                 stateful_fn,
-                input_signature=input_signature,
+                input_signature=target_signature,
                 autograph=False,
             )
         return decorated_fn

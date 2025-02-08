@@ -1003,11 +1003,6 @@ class ExportArchiveTest(testing.TestCase):
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="Proper handling of model._input_names for an export"
-        "requires Tensorflow backend",
-    )
     def test_export_with_dict_input(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         inputs = {
@@ -1021,7 +1016,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_input = {"foo": tf.constant([1.0]), "bar": tf.constant([2.0])}
         print("Reference input:", ref_input)
         ref_output = model(ref_input)
-        print("Reference output:", ref_output.numpy())
+        print("Reference output:", ref_output)
         model.export(temp_filepath, format="tf_saved_model")
         print("Model exported successfully.")
         revived_model = tf.saved_model.load(temp_filepath)
