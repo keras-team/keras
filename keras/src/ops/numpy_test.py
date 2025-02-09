@@ -31,8 +31,8 @@ class NumPyTestRot90(testing.TestCase):
         ("k_1", 1, [[2, 4], [1, 3]]),
         ("k_2", 2, [[4, 3], [2, 1]]),
         ("k_neg1", -1, [[3, 1], [4, 2]]),
-        ("k_5", 5, [[2, 4], [1, 3]]), # k=5 ≡ k=1 (mod 4)
-        ("k_6", 6, [[4, 3], [2, 1]])  # k=6 ≡ k=2 (mod 4)
+        ("k_5", 5, [[2, 4], [1, 3]]),  # k=5 ≡ k=1 (mod 4)
+        ("k_6", 6, [[4, 3], [2, 1]]),  # k=6 ≡ k=2 (mod 4)
     )
     def test_k_parameter_variations(self, k, expected):
         array = np.array([[1, 2], [3, 4]])
@@ -42,9 +42,7 @@ class NumPyTestRot90(testing.TestCase):
         print(k)
 
     @parameterized.named_parameters(
-        ("axes_0_1", (0, 1)),
-        ("axes_1_2", (1, 2)),
-        ("axes_0_2", (0, 2))
+        ("axes_0_1", (0, 1)), ("axes_1_2", (1, 2)), ("axes_0_2", (0, 2))
     )
     def test_3d_operations(self, axes):
         array_3d = np.arange(12).reshape(3, 2, 2)
@@ -54,7 +52,7 @@ class NumPyTestRot90(testing.TestCase):
 
     @parameterized.named_parameters(
         ("single_image", np.random.random((4, 4, 3))),
-        ("batch_images", np.random.random((2, 4, 4, 3)))
+        ("batch_images", np.random.random((2, 4, 4, 3))),
     )
     def test_image_processing(self, array):
         np.random.seed(0)
@@ -65,7 +63,7 @@ class NumPyTestRot90(testing.TestCase):
     @parameterized.named_parameters(
         ("single_row", [[1, 2, 3]]),
         ("single_column", [[1], [2], [3]]),
-        ("negative_values", [[-1, 0], [1, -2]])
+        ("negative_values", [[-1, 0], [1, -2]]),
     )
     def test_edge_conditions(self, array):
         numpy_array = np.array(array)
@@ -75,7 +73,7 @@ class NumPyTestRot90(testing.TestCase):
 
     @parameterized.named_parameters(
         ("1D_array", np.array([1, 2, 3]), None),
-        ("duplicate_axes", np.array([[1, 2], [3, 4]]), (0, 0))
+        ("duplicate_axes", np.array([[1, 2], [3, 4]]), (0, 0)),
     )
     def test_error_conditions(self, array, axes):
         if axes is None:
