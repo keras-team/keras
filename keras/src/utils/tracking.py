@@ -27,6 +27,15 @@ def no_automatic_dependency_tracking(fn):
 
     return wrapper
 
+def safe_register_tree_node_class(cls):
+    try:
+        return tree.register_tree_node_class(cls)
+    except ValueError:
+        # optree raises a ValueError if the class is already registered.
+        # Triggered if config.set_backend() is called multiple times.
+        return cls
+
+
 
 class Tracker:
     """Attribute tracker, used for e.g. Variable tracking.
@@ -133,7 +142,7 @@ class Tracker:
         self.stored_ids[store_name].add(id(new_value))
 
 
-@tree.register_tree_node_class
+@safe_register_tree_node_class
 class TrackedList(list):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
@@ -194,7 +203,7 @@ class TrackedList(list):
         return cls(children)
 
 
-@tree.register_tree_node_class
+@safe_register_tree_node_class
 class TrackedDict(dict):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
@@ -245,7 +254,7 @@ class TrackedDict(dict):
         return cls(zip(keys, values))
 
 
-@tree.register_tree_node_class
+@safe_register_tree_node_class
 class TrackedSet(set):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
