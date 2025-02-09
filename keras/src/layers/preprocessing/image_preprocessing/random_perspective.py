@@ -49,7 +49,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     def __init__(
         self,
         factor=1.0,
-        scale=0.3,
+        scale=0.5,
         interpolation="bilinear",
         fill_value=0.0,
         seed=None,
