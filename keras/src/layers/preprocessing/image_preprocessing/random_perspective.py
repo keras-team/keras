@@ -126,6 +126,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             minval=-0.5 * self.scale,
             maxval=0.5 * self.scale,
             seed=seed,
+            dtype=self.compute_dtype,
         )
 
         return {
