@@ -40,7 +40,6 @@ if backend() == "tensorflow":
         pass
 
 
-
 def is_nested(structure):
     return not optree.tree_is_leaf(
         structure, none_is_leaf=True, namespace="keras"

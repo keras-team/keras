@@ -27,6 +27,7 @@ def no_automatic_dependency_tracking(fn):
 
     return wrapper
 
+
 def safe_register_tree_node_class(cls):
     try:
         return tree.register_tree_node_class(cls)
@@ -34,7 +35,6 @@ def safe_register_tree_node_class(cls):
         # optree raises a ValueError if the class is already registered.
         # Triggered if config.set_backend() is called multiple times.
         return cls
-
 
 
 class Tracker:
