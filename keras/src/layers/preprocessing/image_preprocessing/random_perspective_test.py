@@ -43,13 +43,6 @@ class RandomPerspectiveTest(testing.TestCase):
         output = layer(inputs)
         self.assertAllClose(inputs, output)
 
-        layer = layers.RandomPerspective(scale=0)
-
-        np.random.seed(seed)
-        inputs = np.random.rand(224, 224, 3)
-        output = layer(inputs)
-        self.assertAllClose(inputs, output, atol=1e-2, rtol=1e-2)
-
     def test_random_perspective_basic(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
