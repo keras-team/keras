@@ -170,10 +170,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     @layers.setter
     def layers(self, _):
         raise AttributeError(
-            "`Model.layers` is a read-only property. The list of layers "
-            "is automatically tracked by the Model. If you need to modify "
-            "the layers, please do so by calling Model.add() or by creating "
-            "a new Model instance."
+            "`Model.layers` is a read-only property. Use Model.add() "
+            "to add new layers."
         )
 
     @traceback_utils.filter_traceback
