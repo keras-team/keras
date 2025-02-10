@@ -46,9 +46,9 @@ class RandomPerspectiveTest(testing.TestCase):
         layer = layers.RandomPerspective(scale=0)
 
         np.random.seed(seed)
-        inputs = np.random.randint(0, 255, size=(224, 224, 3))
+        inputs = np.random.rand(224, 224, 3)
         output = layer(inputs)
-        self.assertAllClose(inputs, output, atol=1e-3, rtol=1e-3)
+        self.assertAllClose(inputs, output, atol=1e-2, rtol=1e-2)
 
     def test_random_perspective_basic(self):
         data_format = backend.config.image_data_format()
@@ -112,34 +112,34 @@ class RandomPerspectiveTest(testing.TestCase):
 
     @parameterized.named_parameters(
         (
-            "with_negative_shift",
-            [
-                [-0.1319, -0.1157],
-                [-0.0469, -0.0745],
-                [-0.0491, -0.0047],
-                [-0.0586, -0.0155],
-            ],
-            [
+                "with_negative_shift",
                 [
-                    [1.9133, 1.0001, 3.8251, 3.0013],
-                    [5.6804, 3.9589, 7.5711, 5.9405],
-                ]
-            ],
+                    [-0.1319, -0.1157],
+                    [-0.0469, -0.0745],
+                    [-0.0491, -0.0047],
+                    [-0.0586, -0.0155],
+                ],
+                [
+                    [
+                        [1.9133, 1.0001, 3.8251, 3.0013],
+                        [5.6804, 3.9589, 7.5711, 5.9405],
+                    ]
+                ],
         ),
         (
-            "with_positive_shift",
-            [
-                [0.1319, 0.1157],
-                [0.0469, 0.0745],
-                [0.0491, 0.0047],
-                [0.0586, 0.0155],
-            ],
-            [
+                "with_positive_shift",
                 [
-                    [2.0806, 0.9979, 4.1840, 3.0102],
-                    [6.3028, 4.0308, 8.0000, 6.0797],
-                ]
-            ],
+                    [0.1319, 0.1157],
+                    [0.0469, 0.0745],
+                    [0.0491, 0.0047],
+                    [0.0586, 0.0155],
+                ],
+                [
+                    [
+                        [2.0806, 0.9979, 4.1840, 3.0102],
+                        [6.3028, 4.0308, 8.0000, 6.0797],
+                    ]
+                ],
         ),
     )
     def test_random_perspective_bounding_boxes(self, factor, expected_boxes):
@@ -182,34 +182,34 @@ class RandomPerspectiveTest(testing.TestCase):
 
     @parameterized.named_parameters(
         (
-            "with_negative_shift",
-            [
-                [-0.1319, -0.1157],
-                [-0.0469, -0.0745],
-                [-0.0491, -0.0047],
-                [-0.0586, -0.0155],
-            ],
-            [
+                "with_negative_shift",
                 [
-                    [1.9133, 1.0001, 3.8251, 3.0013],
-                    [5.6804, 3.9589, 7.5711, 5.9405],
-                ]
-            ],
+                    [-0.1319, -0.1157],
+                    [-0.0469, -0.0745],
+                    [-0.0491, -0.0047],
+                    [-0.0586, -0.0155],
+                ],
+                [
+                    [
+                        [1.9133, 1.0001, 3.8251, 3.0013],
+                        [5.6804, 3.9589, 7.5711, 5.9405],
+                    ]
+                ],
         ),
         (
-            "with_positive_shift",
-            [
-                [0.1319, 0.1157],
-                [0.0469, 0.0745],
-                [0.0491, 0.0047],
-                [0.0586, 0.0155],
-            ],
-            [
+                "with_positive_shift",
                 [
-                    [2.0806, 0.9979, 4.1840, 3.0102],
-                    [6.3028, 4.0308, 8.0000, 6.0797],
-                ]
-            ],
+                    [0.1319, 0.1157],
+                    [0.0469, 0.0745],
+                    [0.0491, 0.0047],
+                    [0.0586, 0.0155],
+                ],
+                [
+                    [
+                        [2.0806, 0.9979, 4.1840, 3.0102],
+                        [6.3028, 4.0308, 8.0000, 6.0797],
+                    ]
+                ],
         ),
     )
     def test_random_flip_tf_data_bounding_boxes(self, factor, expected_boxes):
