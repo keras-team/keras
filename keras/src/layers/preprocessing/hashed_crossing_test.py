@@ -89,6 +89,23 @@ class HashedCrossingTest(testing.TestCase):
         output = next(iter(ds)).numpy()
         self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)
 
+    def test_static_shape_preserved(self):
+        layer = layers.HashedCrossing(num_bins=5)
+
+        def call_layer(x1, x2):
+            result = layer((x1, x2))
+            self.assertEqual(result.shape, (5,))
+            return result
+
+        feat1 = np.array(["A", "B", "A", "B", "A"])
+        feat2 = np.array([101, 101, 101, 102, 102])
+        ds = (
+            tf.data.Dataset.from_tensor_slices((feat1, feat2))
+            .batch(5, drop_remainder=True)
+            .map(call_layer)
+        )
+        next(iter(ds))
+
     def test_unsupported_shape_input_fails(self):
         with self.assertRaisesRegex(ValueError, "inputs should have shape"):
             layers.HashedCrossing(num_bins=10)(
