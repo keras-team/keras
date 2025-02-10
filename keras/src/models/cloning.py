@@ -413,5 +413,7 @@ def _clone_functional_model(
         # class than the original. However various existing models rely
         # on this behavior, so we keep it.
         new_model = Functional(input_tensors, output_tensors, name=model.name)
-
+    if model.compiled:
+        compiled_config = model.get_compile_config()
+        new_model.compile_from_config(compiled_config)
     return new_model
