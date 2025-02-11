@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pytest
 import tensorflow as tf
+from absl.testing import parameterized
 from tensorflow import data as tf_data
 
 from keras.src import Sequential
@@ -13,7 +14,7 @@ from keras.src import saving
 from keras.src import testing
 
 
-class TextVectorizationTest(testing.TestCase):
+class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
     # TODO: increase coverage. Most features aren't being tested.
 
     def test_config(self):
@@ -107,6 +108,39 @@ class TextVectorizationTest(testing.TestCase):
         layer.adapt(input_data)
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         next(iter(ds)).numpy()
+
+    @parameterized.named_parameters(
+        [
+            ("from_ragged", "whitespace"),  # intermediate tensor is ragged
+            ("from_dense", None),  # intermediate tensor is dense
+        ]
+    )
+    def test_static_output_sequence_length(self, split):
+        max_tokens = 5000
+        max_len = 4
+        layer = layers.TextVectorization(
+            max_tokens=max_tokens,
+            output_mode="int",
+            output_sequence_length=max_len,
+            split=split,
+            vocabulary=["baz", "bar", "foo"],
+        )
+        if split:
+            input_data = [["foo qux bar"], ["qux baz"]]
+        else:
+            input_data = [["foo"], ["baz"]]
+
+        def call_layer(x):
+            result = layer(x)
+            self.assertEqual(result.shape, (None, 4))
+            return result
+
+        ds = (
+            tf_data.Dataset.from_tensor_slices(input_data)
+            .batch(2)
+            .map(call_layer)
+        )
+        next(iter(ds))
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="Requires string tensors."
