@@ -125,8 +125,7 @@ class Sequential(Model):
             self._functional = None
 
     def pop(self, rebuild=True):
-        """Removes the last layer in the model.
-        
+        """Removes the last layer in the model.        
         Args:
             rebuild: Boolean, whether to rebuild the model after removing the layer.
         Returns:
