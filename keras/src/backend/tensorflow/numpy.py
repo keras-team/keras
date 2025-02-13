@@ -2384,7 +2384,7 @@ def tril(x, k=0):
 
     if k >= 0:
         return tf.linalg.band_part(x, -1, k)
-    return _negative_k_branch
+    return _negative_k_branch()
 
 
 def triu(x, k=0):
@@ -2399,7 +2399,7 @@ def triu(x, k=0):
 
     if k <= 0:
         return tf.linalg.band_part(x, -k, -1)
-    return _positive_k_branch
+    return _positive_k_branch()
 
 
 def trunc(x):
