@@ -983,8 +983,7 @@ class ModelTest(testing.TestCase):
         model = Model()
         with self.assertRaisesRegex(
             AttributeError,
-            "`Model.layers` is a read-only property. Use Model.add() "
-            "to add new layers."
+            "`Model.layers` is a read-only property",
         ):
             model.layers = [layers.Dense(4)]
 
