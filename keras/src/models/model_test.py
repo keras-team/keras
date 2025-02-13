@@ -982,7 +982,9 @@ class ModelTest(testing.TestCase):
     def test_layers_setter(self):
         model = Model()
         with self.assertRaisesRegex(
-            AttributeError, "`Model.layers` attribute is reserved"
+            AttributeError,
+            "`Model.layers` is a read-only property. Use Model.add() "
+            "to add new layers."
         ):
             model.layers = [layers.Dense(4)]
 
