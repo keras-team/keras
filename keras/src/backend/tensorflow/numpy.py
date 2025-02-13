@@ -2383,7 +2383,7 @@ def tril(x, k=0):
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
     if k >= 0:
-        return tf.linalg.band_part(x, -k, -1)
+        return tf.linalg.band_part(x, -1, k)
     return _negative_k_branch
 
 
