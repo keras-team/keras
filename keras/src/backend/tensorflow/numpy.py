@@ -2382,9 +2382,9 @@ def tril(x, k=0):
         mask = i >= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    return tf.cond(
-        k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch
-    )
+    if k >= 0:
+        return tf.linalg.band_part(x, -k, -1)
+    return _negative_k_branch
 
 
 def triu(x, k=0):
@@ -2397,9 +2397,9 @@ def triu(x, k=0):
         mask = i <= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
-    return tf.cond(
-        k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
-    )
+    if k <= 0:
+        return tf.linalg.band_part(x, -k, -1)
+    return _positive_k_branch
 
 
 def trunc(x):
