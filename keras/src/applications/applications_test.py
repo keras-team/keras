@@ -81,10 +81,8 @@ MODEL_LIST = [
     (resnet_v2.ResNet50V2, 2048, resnet_v2),
     (resnet_v2.ResNet101V2, 2048, resnet_v2),
     (resnet_v2.ResNet152V2, 2048, resnet_v2),
-    # lpips
-    (lpips.LPIPS, 512, lpips),
 ]
-MODELS_UNSUPPORTED_CHANNELS_FIRST = ["ConvNeXt", "DenseNet", "NASNet"]
+MODELS_UNSUPPORTED_CHANNELS_FIRST = ["ConvNeXt", "DenseNet", "NASNet", "LPIPS"]
 
 # Add names for `named_parameters`, and add each data format for each model
 test_parameters = [
@@ -267,3 +265,43 @@ class ApplicationsTest(testing.TestCase):
         )
         last_layer_act = model.layers[-1].activation.__name__
         self.assertEqual(last_layer_act, "softmax")
+
+    @parameterized.named_parameters(
+        [
+            (
+                "{}_{}".format(lpips.LPIPS.__name__, image_data_format),
+                image_data_format,
+            )
+            for image_data_format in ["channels_first", "channels_last"]
+        ]
+    )
+    def test_application_lpips(self, image_data_format):
+        self.skip_if_invalid_image_data_format_for_model(
+            lpips.LPIPS, image_data_format
+        )
+        backend.set_image_data_format(image_data_format)
+
+        model = lpips.LPIPS()
+        output_shape = list(model.outputs[0].shape)
+
+        # Two images as input
+        self.assertEqual(len(model.input_shape), 2)
+
+        # Single output
+        self.assertEqual(output_shape, [None])
+
+        # Can run a correct inference on a test image
+        if image_data_format == "channels_first":
+            shape = model.input_shape[0][2:4]
+        else:
+            shape = model.input_shape[0][1:3]
+
+        x = _get_elephant(shape)
+
+        x = lpips.preprocess_input(x)
+        y = lpips.preprocess_input(x)
+
+        preds = model.predict([x, y])
+
+        # same image so lpips should be 0
+        self.assertEqual(preds, 0.0)
