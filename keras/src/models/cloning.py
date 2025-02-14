@@ -323,15 +323,16 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
                 name=input_name,
             )
             new_layers = [inputs] + new_layers
+    cloned_model = Sequential(
+        new_layers, name=model.name, trainable=model.trainable
+    )
+
     # If model compiled already then set same to cloned model
     if model.compiled:
         compiled_config = model.get_compile_config()
-        cloned_model = Sequential(
-            new_layers, name=model.name, trainable=model.trainable
-        )
         cloned_model.compile_from_config(compiled_config)
         return cloned_model
-    return Sequential(new_layers, name=model.name, trainable=model.trainable)
+    return cloned_model
 
 
 def _clone_functional_model(
