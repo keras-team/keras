@@ -3,8 +3,6 @@ NumpyArrayCreateOpsCorrectnessTest
 NumpyDtypeTest
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_all
-NumpyOneInputOpsCorrectnessTest::test_amax
-NumpyOneInputOpsCorrectnessTest::test_amin
 NumpyOneInputOpsCorrectnessTest::test_any
 NumpyOneInputOpsCorrectnessTest::test_argmax
 NumpyOneInputOpsCorrectnessTest::test_argmin
