@@ -12,6 +12,7 @@ from keras.src.applications import efficientnet
 from keras.src.applications import efficientnet_v2
 from keras.src.applications import inception_resnet_v2
 from keras.src.applications import inception_v3
+from keras.src.applications import lpips
 from keras.src.applications import mobilenet
 from keras.src.applications import mobilenet_v2
 from keras.src.applications import mobilenet_v3
@@ -80,6 +81,8 @@ MODEL_LIST = [
     (resnet_v2.ResNet50V2, 2048, resnet_v2),
     (resnet_v2.ResNet101V2, 2048, resnet_v2),
     (resnet_v2.ResNet152V2, 2048, resnet_v2),
+    # lpips
+    (lpips.LPIPS, 512, lpips),
 ]
 MODELS_UNSUPPORTED_CHANNELS_FIRST = ["ConvNeXt", "DenseNet", "NASNet"]
 
