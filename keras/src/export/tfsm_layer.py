@@ -116,7 +116,8 @@ class TFSMLayer(layers.Layer):
             self._add_existing_weight(v)
         for v in ntvs:
             self._add_existing_weight(v)
-        self.built = True
+
+        self._build_at_init()
 
     def _add_existing_weight(self, weight):
         """Tracks an existing weight."""
