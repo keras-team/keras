@@ -20,7 +20,6 @@ from keras.src.losses.losses import MeanAbsoluteError
 from keras.src.losses.losses import MeanAbsolutePercentageError
 from keras.src.losses.losses import MeanSquaredError
 from keras.src.losses.losses import MeanSquaredLogarithmicError
-from keras.src.losses.losses import PerceptualSimilarity
 from keras.src.losses.losses import Poisson
 from keras.src.losses.losses import SparseCategoricalCrossentropy
 from keras.src.losses.losses import SquaredHinge
@@ -77,8 +76,6 @@ ALL_OBJECTS = {
     Tversky,
     # Similarity
     Circle,
-    # Feature Extraction
-    PerceptualSimilarity,
     # Sequence
     CTC,
     # Probabilistic
