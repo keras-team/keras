@@ -3,7 +3,6 @@ import math
 from keras.src import backend
 from keras.src import layers
 from keras.src import ops
-from keras.src import utils
 from keras.src.api_export import keras_export
 
 
@@ -39,12 +38,7 @@ class GaussianDropout(layers.Layer):
             self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
 
-        # We can only safely mark the layer as built when build is not
-        # overridden.
-        if utils.is_default(self.build):
-            self.built = True
-            self._post_build()
-            self._lock_state()
+        self._build_at_init()
 
     def call(self, inputs, training=False):
         if training and self.rate > 0:

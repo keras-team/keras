@@ -215,7 +215,7 @@ class SavedModelTest(testing.TestCase):
         @object_registration.register_keras_serializable(package="my_package")
         class CustomLayer(layers.Layer):
             def build(self, *input_shape):
-                self.built = True
+                pass
 
             def call(self, *input_list):
                 self.add_loss(input_list[-2] * 2)
@@ -226,7 +226,6 @@ class SavedModelTest(testing.TestCase):
             def build(self, *input_shape):
                 self.layer = CustomLayer()
                 self.layer.build(*input_shape)
-                self.built = True
 
             @tf.function
             def call(self, *inputs):

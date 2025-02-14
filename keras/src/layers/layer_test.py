@@ -647,7 +647,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     dtype="float32",
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast.
@@ -663,7 +663,7 @@ class LayerTest(testing.TestCase):
                     initializer="ones",
                     trainable=True,
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast.
@@ -681,7 +681,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     autocast=False,
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast `self.v`.
@@ -700,7 +700,7 @@ class LayerTest(testing.TestCase):
                 self.inner_one = InnerLayerOne()
                 self.inner_two = InnerLayerTwo()
                 self.inner_three = InnerLayerThree()
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should autocast.
@@ -864,7 +864,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     regularizer="l1",
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 x = backend.convert_to_tensor(x, dtype="float32")
@@ -1009,7 +1009,6 @@ class LayerTest(testing.TestCase):
             def build(self, bar_shape, foo_shape):
                 self.foo_shape = foo_shape
                 self.bar_shape = bar_shape
-                self.built = True
 
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
@@ -1018,7 +1017,6 @@ class LayerTest(testing.TestCase):
             def build(self, baz_shape, foo_shape):
                 self.foo_shape = foo_shape
                 self.baz_shape = baz_shape
-                self.built = True
 
             def call(self, foo, bar=None, baz=None):
                 return foo[:, 0] + bar[:, 0] + baz[:, 0]
@@ -1026,7 +1024,6 @@ class LayerTest(testing.TestCase):
         class SingleArgument(layers.Layer):
             def build(self, anything_whatsoever):
                 self.foo_shape = anything_whatsoever
-                self.built = True
 
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
