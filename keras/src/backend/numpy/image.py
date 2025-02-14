@@ -493,6 +493,235 @@ def affine_transform(
     return affined
 
 
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    start_points = convert_to_tensor(start_points)
+    end_points = convert_to_tensor(end_points)
+
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{AFFINE_TRANSFORM_INTERPOLATIONS}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    input_dtype = images.dtype
+    if input_dtype == "float16":
+        images = images.astype("float32")
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+
+    transforms = compute_homography_matrix(start_points, end_points)
+
+    if len(transforms.shape) == 1:
+        transforms = np.expand_dims(transforms, axis=0)
+    if transforms.shape[0] == 1 and batch_size > 1:
+        transforms = np.tile(transforms, (batch_size, 1))
+
+    x, y = np.meshgrid(
+        np.arange(width, dtype=np.float32),
+        np.arange(height, dtype=np.float32),
+        indexing="xy",
+    )
+
+    output = np.empty((batch_size, height, width, channels))
+
+    for i in range(batch_size):
+        a0, a1, a2, a3, a4, a5, a6, a7 = transforms[i]
+        denom = a6 * x + a7 * y + 1.0
+        x_in = (a0 * x + a1 * y + a2) / denom
+        y_in = (a3 * x + a4 * y + a5) / denom
+
+        coords = np.stack([y_in.ravel(), x_in.ravel()], axis=0)
+
+        mapped_channels = []
+        for channel in range(channels):
+            channel_img = images[i, :, :, channel]
+
+            mapped_channel = map_coordinates(
+                channel_img,
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                fill_mode="constant",
+                fill_value=fill_value,
+            )
+            mapped_channels.append(mapped_channel.reshape(height, width))
+
+        output[i] = np.stack(mapped_channels, axis=-1)
+
+    if data_format == "channels_first":
+        output = np.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = np.squeeze(output, axis=0)
+    output = output.astype(input_dtype)
+
+    return output
+
+
+def compute_homography_matrix(start_points, end_points):
+    start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
+    start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
+    start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
+    start_x4, start_y4 = start_points[:, 3, 0], start_points[:, 3, 1]
+
+    end_x1, end_y1 = end_points[:, 0, 0], end_points[:, 0, 1]
+    end_x2, end_y2 = end_points[:, 1, 0], end_points[:, 1, 1]
+    end_x3, end_y3 = end_points[:, 2, 0], end_points[:, 2, 1]
+    end_x4, end_y4 = end_points[:, 3, 0], end_points[:, 3, 1]
+
+    coefficient_matrix = np.stack(
+        [
+            np.stack(
+                [
+                    end_x1,
+                    end_y1,
+                    np.ones_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    -start_x1 * end_x1,
+                    -start_x1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    end_x1,
+                    end_y1,
+                    np.ones_like(end_x1),
+                    -start_y1 * end_x1,
+                    -start_y1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x2,
+                    end_y2,
+                    np.ones_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    -start_x2 * end_x2,
+                    -start_x2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    end_x2,
+                    end_y2,
+                    np.ones_like(end_x2),
+                    -start_y2 * end_x2,
+                    -start_y2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x3,
+                    end_y3,
+                    np.ones_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    -start_x3 * end_x3,
+                    -start_x3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    end_x3,
+                    end_y3,
+                    np.ones_like(end_x3),
+                    -start_y3 * end_x3,
+                    -start_y3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x4,
+                    end_y4,
+                    np.ones_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    -start_x4 * end_x4,
+                    -start_x4 * end_y4,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    end_x4,
+                    end_y4,
+                    np.ones_like(end_x4),
+                    -start_y4 * end_x4,
+                    -start_y4 * end_y4,
+                ],
+                axis=-1,
+            ),
+        ],
+        axis=1,
+    )
+
+    target_vector = np.stack(
+        [
+            start_x1,
+            start_y1,
+            start_x2,
+            start_y2,
+            start_x3,
+            start_y3,
+            start_x4,
+            start_y4,
+        ],
+        axis=-1,
+    )
+    target_vector = np.expand_dims(target_vector, axis=-1)
+
+    homography_matrix = np.linalg.solve(coefficient_matrix, target_vector)
+    homography_matrix = np.reshape(homography_matrix, [-1, 8])
+
+    return homography_matrix
+
+
 MAP_COORDINATES_FILL_MODES = {
     "constant",
     "nearest",
