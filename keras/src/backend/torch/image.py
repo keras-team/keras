@@ -444,6 +444,231 @@ def affine_transform(
     return affined
 
 
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+
+    images = convert_to_tensor(images)
+    start_points = torch.tensor(start_points, dtype=torch.float32)
+    end_points = torch.tensor(end_points, dtype=torch.float32)
+
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    if images.ndim not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images.unsqueeze(dim=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = images.permute((0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+
+    transforms = compute_homography_matrix(start_points, end_points)
+
+    if transforms.dim() == 1:
+        transforms = transforms.unsqueeze(0)
+    if transforms.shape[0] == 1 and batch_size > 1:
+        transforms = transforms.repeat(batch_size, 1)
+
+    grid_x, grid_y = torch.meshgrid(
+        torch.arange(width, dtype=torch.float32),
+        torch.arange(height, dtype=torch.float32),
+        indexing="xy",
+    )
+
+    output = torch.empty([batch_size, height, width, channels])
+
+    for i in range(batch_size):
+        a0, a1, a2, a3, a4, a5, a6, a7 = transforms[i]
+        denom = a6 * grid_x + a7 * grid_y + 1.0
+        x_in = (a0 * grid_x + a1 * grid_y + a2) / denom
+        y_in = (a3 * grid_x + a4 * grid_y + a5) / denom
+
+        coords = torch.stack([y_in.flatten(), x_in.flatten()], dim=0)
+        mapped_channels = []
+        for channel in range(channels):
+            channel_img = images[i, :, :, channel]
+            mapped_channel = map_coordinates(
+                channel_img,
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                fill_mode="constant",
+                fill_value=fill_value,
+            )
+            mapped_channels.append(mapped_channel.reshape(height, width))
+        output[i] = torch.stack(mapped_channels, dim=-1)
+
+    if data_format == "channels_first":
+        output = output.permute((0, 3, 1, 2))
+    if need_squeeze:
+        output = output.squeeze(dim=0)
+
+    return output
+
+
+def compute_homography_matrix(start_points, end_points):
+    start_points = convert_to_tensor(start_points, dtype=torch.float32)
+    end_points = convert_to_tensor(end_points, dtype=torch.float32)
+
+    start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
+    start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
+    start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
+    start_x4, start_y4 = start_points[:, 3, 0], start_points[:, 3, 1]
+
+    end_x1, end_y1 = end_points[:, 0, 0], end_points[:, 0, 1]
+    end_x2, end_y2 = end_points[:, 1, 0], end_points[:, 1, 1]
+    end_x3, end_y3 = end_points[:, 2, 0], end_points[:, 2, 1]
+    end_x4, end_y4 = end_points[:, 3, 0], end_points[:, 3, 1]
+
+    coefficient_matrix = torch.stack(
+        [
+            torch.stack(
+                [
+                    end_x1,
+                    end_y1,
+                    torch.ones_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    -start_x1 * end_x1,
+                    -start_x1 * end_y1,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    end_x1,
+                    end_y1,
+                    torch.ones_like(end_x1),
+                    -start_y1 * end_x1,
+                    -start_y1 * end_y1,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    end_x2,
+                    end_y2,
+                    torch.ones_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    -start_x2 * end_x2,
+                    -start_x2 * end_y2,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    end_x2,
+                    end_y2,
+                    torch.ones_like(end_x2),
+                    -start_y2 * end_x2,
+                    -start_y2 * end_y2,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    end_x3,
+                    end_y3,
+                    torch.ones_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    -start_x3 * end_x3,
+                    -start_x3 * end_y3,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    end_x3,
+                    end_y3,
+                    torch.ones_like(end_x3),
+                    -start_y3 * end_x3,
+                    -start_y3 * end_y3,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    end_x4,
+                    end_y4,
+                    torch.ones_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    -start_x4 * end_x4,
+                    -start_x4 * end_y4,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    end_x4,
+                    end_y4,
+                    torch.ones_like(end_x4),
+                    -start_y4 * end_x4,
+                    -start_y4 * end_y4,
+                ],
+                dim=-1,
+            ),
+        ],
+        dim=1,
+    )
+
+    target_vector = torch.stack(
+        [
+            start_x1,
+            start_y1,
+            start_x2,
+            start_y2,
+            start_x3,
+            start_y3,
+            start_x4,
+            start_y4,
+        ],
+        dim=-1,
+    ).unsqueeze(-1)
+
+    homography_matrix = torch.linalg.solve(coefficient_matrix, target_vector)
+    homography_matrix = homography_matrix.reshape(-1, 8)
+
+    return homography_matrix
+
+
 def _mirror_index_fixer(index, size):
     s = size - 1  # Half-wavelength of triangular wave
     # Scaled, integer-valued version of the triangular wave |x - round(x)|
