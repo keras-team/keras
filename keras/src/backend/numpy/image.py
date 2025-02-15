@@ -519,6 +519,23 @@ def perspective_transform(
             f"images.shape={images.shape}"
         )
 
+    if start_points.ndim not in (2, 3) or start_points.shape[-2:] != (4, 2):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if end_points.ndim not in (2, 3) or end_points.shape[-2:] != (4, 2):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+    if start_points.shape != end_points.shape:
+        raise ValueError(
+            "start_points and end_points must have the same shape."
+            f" Received start_points.shape={start_points.shape}, "
+            f"end_points.shape={end_points.shape}"
+        )
+
     input_dtype = images.dtype
     if input_dtype == "float16":
         images = images.astype("float32")
@@ -527,6 +544,11 @@ def perspective_transform(
     if len(images.shape) == 3:
         images = np.expand_dims(images, axis=0)
         need_squeeze = True
+
+    if len(start_points.shape) == 2:
+        start_points = np.expand_dims(start_points, axis=0)
+    if len(end_points.shape) == 2:
+        end_points = np.expand_dims(end_points, axis=0)
 
     if data_format == "channels_first":
         images = np.transpose(images, (0, 2, 3, 1))
