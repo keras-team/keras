@@ -60,7 +60,6 @@ class Reshape(Layer):
         self._resolved_target_shape = tuple(
             -1 if d is None else d for d in sample_output_shape
         )
-        self.built = True
 
     def call(self, inputs):
         return ops.reshape(

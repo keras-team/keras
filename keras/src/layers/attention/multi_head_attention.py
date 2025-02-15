@@ -299,7 +299,6 @@ class MultiHeadAttention(Layer):
         )
         output_dense_input_shape[-1] = self._value_dim
         self._output_dense.build(tuple(output_dense_input_shape))
-        self.built = True
 
     @property
     def query_dense(self):

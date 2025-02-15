@@ -30,7 +30,6 @@ class RNNCellWithDropout(layers.Layer, DropoutRNNCell):
             initializer="ones",
             name="recurrent_kernel",
         )
-        self.built = True
 
     def call(self, inputs, states, training=False):
         if training:

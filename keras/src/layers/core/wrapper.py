@@ -31,7 +31,6 @@ class Wrapper(Layer):
         if not self.layer.built:
             self.layer.build(input_shape)
             self.layer.built = True
-        self.built = True
 
     def get_config(self):
         config = {"layer": serialization_lib.serialize_keras_object(self.layer)}
