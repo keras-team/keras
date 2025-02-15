@@ -331,7 +331,6 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
     if model.compiled:
         compiled_config = model.get_compile_config()
         cloned_model.compile_from_config(compiled_config)
-        return cloned_model
     return cloned_model
 
 
