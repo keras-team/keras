@@ -1,5 +1,5 @@
-import jax.numpy as jnp
 import mlx.core as mx
+import numpy as np
 
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
@@ -29,8 +29,8 @@ def det(a):
         return _det_3x3(a)
     # elif len(a_shape) >= 2 and a_shape[-1] == a_shape[-2]:
     # TODO: Swap to mlx.linalg.det when supported
-    a = jnp.array(a)
-    output = jnp.linalg.det(a)
+    a = np.array(a)
+    output = np.linalg.det(a)
     return mx.array(output)
 
 
@@ -56,15 +56,26 @@ def solve_triangular(a, b, lower=False):
 
 
 def qr(x, mode="reduced"):
-    # TODO: Swap to mlx.linalg.qr when it supports non-square matrices
-    x = jnp.array(x)
-    output = jnp.linalg.qr(x, mode=mode)
-    return mx.array(output[0]), mx.array(output[1])
+    if mode != "reduced":
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Only 'reduced' is supported by the mlx backend. "
+            f"Received: mode={mode}"
+        )
+    with mx.stream(mx.cpu):
+        return mx.linalg.qr(x)
 
 
 def svd(x, full_matrices=True, compute_uv=True):
     with mx.stream(mx.cpu):
-        return mx.linalg.svd(x)
+        u, s, vt = mx.linalg.svd(x)
+        if not compute_uv:
+            return s
+        if not full_matrices:
+            n = min(x.shape[-2:])
+            return u[..., :n], s, vt[:n, ...]
+        # mlx returns full matrices by default
+        return u, s, vt
 
 
 def cholesky(a):
@@ -78,11 +89,15 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, "float32")
     x = convert_to_tensor(x, dtype=dtype)
     # TODO: swap to mlx.linalg.norm when it support singular value norms
-    x = jnp.array(x)
-    output = jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+    x = np.array(x)
+    output = np.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
     return mx.array(output)
 
 
 def inv(a):
     with mx.stream(mx.cpu):
         return mx.linalg.inv(a)
+
+
+def lstsq(a, b, rcond=None):
+    raise NotImplementedError("lstsq not yet implemented in mlx.")

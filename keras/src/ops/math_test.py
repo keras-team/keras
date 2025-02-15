@@ -123,7 +123,7 @@ def _istft(
 
     x = _overlap_sequences(x, sequence_stride)
 
-    if backend.backend() in {"numpy", "jax"}:
+    if backend.backend() in {"numpy", "jax", "mlx"}:
         x = np.nan_to_num(x)
 
     start = 0 if center is False else fft_length // 2
@@ -855,7 +855,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if backend.backend() in ("numpy", "jax", "torch", "mlx"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% befroe assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
@@ -884,7 +884,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if backend.backend() in ("numpy", "jax", "torch", "mlx"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% befroe assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
