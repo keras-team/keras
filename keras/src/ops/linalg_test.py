@@ -94,6 +94,9 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(q.shape, qref_shape)
         self.assertEqual(r.shape, rref_shape)
 
+        if backend.backend() == "mlx":
+            # mlx backend does not support mode=complete, exit early
+            return
         q, r = linalg.qr(x, mode="complete")
         qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="complete")
         qref_shape = (None,) + qref.shape[1:]
@@ -106,7 +109,10 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         x = np.array([[1, 2], [3, 4]])
         invalid_mode = "invalid_mode"
         with self.assertRaisesRegex(
-            ValueError, "Expected one of {'reduced', 'complete'}."
+            ValueError,
+            "Expected one of {'reduced', 'complete'}."
+            if backend.backend() != "mlx"
+            else "Only 'reduced' is supported by the mlx backend.",
         ):
             linalg.qr(x, mode=invalid_mode)
 
@@ -265,10 +271,12 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(q.shape, qref.shape)
         self.assertEqual(r.shape, rref.shape)
 
-        q, r = linalg.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(np.ones((4, 3)), mode="complete")
-        self.assertEqual(q.shape, qref.shape)
-        self.assertEqual(r.shape, rref.shape)
+        if backend.backend() != "mlx":
+            # mlx backend does not support mode=complete
+            q, r = linalg.qr(x, mode="complete")
+            qref, rref = np.linalg.qr(np.ones((4, 3)), mode="complete")
+            self.assertEqual(q.shape, qref.shape)
+            self.assertEqual(r.shape, rref.shape)
 
         with self.assertRaises(ValueError):
             linalg.qr(x, mode="invalid")
@@ -492,6 +500,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(qref, q)
         self.assertAllClose(rref, r)
 
+        if backend.backend() == "mlx":
+            # mlx backend does not support mode=complete, exit early
+            return
         q, r = linalg.qr(x, mode="complete")
         qref, rref = np.linalg.qr(x, mode="complete")
         self.assertAllClose(qref, q)
@@ -567,6 +578,8 @@ class QrOpTest(testing.TestCase):
         self.assertIsNotNone(qr_op)
 
     def test_qr_init_mode_complete(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mode=complete not supported by mlx backend")
         qr_op = linalg.Qr(mode="complete")
         self.assertIsNotNone(qr_op)
 
@@ -606,6 +619,8 @@ class QrOpTest(testing.TestCase):
         self.assertEqual(r.shape, (10, 10))
 
     def test_qr_call_mode_complete(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mode=complete not supported by mlx backend")
         qr_op = linalg.Qr(mode="complete")
         test_input = np.random.rand(10, 10)
         q, r = qr_op.call(test_input)

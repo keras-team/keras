@@ -1,12 +1,13 @@
 import builtins
 from copy import copy as builtin_copy
 
-import jax.numpy as jnp
 import mlx.core as mx
+import numpy as np
 
 from keras.src.backend import config
 from keras.src.backend import result_type
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.mlx.core import cast
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import convert_to_tensors
@@ -74,7 +75,7 @@ def max(x, axis=None, keepdims=False, initial=None):
     if initial is not None:
         result = mx.maximum(result, initial)
 
-    return result
+    return result.astype(x.dtype)
 
 
 def ones(shape, dtype=None):
@@ -183,23 +184,26 @@ def arctanh(x):
 
 def argmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    return mx.argmax(x, axis=axis, keepdims=keepdims)
+    # cast to int32 to align with other backends
+    return mx.argmax(x, axis=axis, keepdims=keepdims).astype(mx.int32)
 
 
 def argmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    return mx.argmin(x, axis=axis, keepdims=keepdims)
+    # cast to int32 to align with other backends
+    return mx.argmin(x, axis=axis, keepdims=keepdims).astype(mx.int32)
 
 
 def argsort(x, axis=-1):
     x = convert_to_tensor(x)
-    if x.ndim == 0:
-        return mx.argsort(x, axis=None)
-    return mx.argsort(x, axis=axis)
+    axis = None if x.ndim == 0 else axis
+    # cast to int32 to align with other backends
+    return mx.argsort(x, axis=axis).astype(mx.int32)
 
 
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x)
+    # cast to int32 to align with other backends
     return mx.argpartition(x, kth, axis).astype(mx.int32)
 
 
@@ -297,6 +301,14 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         raise ValueError("Unsupported value `sparse=True` with mlx backend")
 
     x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    else:
+        dtype = "int32"
+    mlx_dtype = to_mlx_dtype(dtype)
 
     if len(x.shape) == 2:
         batch_size = x.shape[0]
@@ -304,9 +316,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         for i in range(batch_size):
             w = None if weights is None else weights[i]
             results.append(_bincount_1d(x[i], w, minlength))
-        return mx.stack(results)
+        return mx.stack(results).astype(mlx_dtype)
 
-    return _bincount_1d(x, weights, minlength)
+    return _bincount_1d(x, weights, minlength).astype(mlx_dtype)
 
 
 def broadcast_to(x, shape):
@@ -316,6 +328,12 @@ def broadcast_to(x, shape):
 
 def ceil(x):
     x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    mlx_dtype = to_mlx_dtype(dtype)
+    x = x.astype(mlx_dtype)
     return mx.ceil(x)
 
 
@@ -386,8 +404,10 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 def cumprod(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
-    if dtype is not None:
-        x = cast(x, dtype)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x = cast(x, dtype)
     if x.dtype in [mx.int64, mx.uint64]:
         return mx.cumprod(
             x, axis=axis, stream=mx.Device(type=mx.DeviceType.cpu)
@@ -529,6 +549,12 @@ def flip(x, axis=None):
 
 def floor(x):
     x = convert_to_tensor(x)
+    dtype = (
+        config.floatx()
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = cast(x, dtype)
     return mx.floor(x)
 
 
@@ -622,16 +648,24 @@ def linspace(
 
     start = convert_to_tensor(start)
     stop = convert_to_tensor(stop)
-    if dtype is not None:
-        dtype = to_mlx_dtype(dtype)
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    mlx_dtype = to_mlx_dtype(dtype)
 
     if start.ndim == 0 and stop.ndim == 0:
         result = mx.linspace(
-            start, stop, num=num if endpoint else num + 1, dtype=dtype
+            start, stop, num=num if endpoint else num + 1, dtype=mlx_dtype
         )
     else:
+        start = start.astype(mlx_dtype)
+        stop = stop.astype(mlx_dtype)
         zero_one = mx.linspace(
-            0, 1, num=num if endpoint else num + 1, dtype=dtype
+            0, 1, num=num if endpoint else num + 1, dtype=mlx_dtype
         )
         zero_one = zero_one.reshape([-1] + [1] * start.ndim)
         result = zero_one * (stop - start)[None] + start[None]
@@ -693,7 +727,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             "MLX logspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
-    points = linspace(start, stop, num, endpoint=endpoint)
+    points = linspace(start, stop, num, endpoint=endpoint, dtype=dtype)
     return mx.power(base, points)
 
 
@@ -705,6 +739,9 @@ def maximum(x1, x2):
 
 def median(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    mlx_dtype = to_mlx_dtype(dtype)
+
     axis_arg = axis
     x_dim = x.ndim
 
@@ -747,7 +784,7 @@ def median(x, axis=None, keepdims=False):
         while medians.ndim < x_dim:
             medians = mx.expand_dims(medians, axis=-1)
 
-    return medians
+    return medians.astype(mlx_dtype)
 
 
 def meshgrid(*x, indexing="xy"):
@@ -769,7 +806,7 @@ def min(x, axis=None, keepdims=False, initial=None):
     if initial is not None:
         result = mx.minimum(result, initial)
 
-    return result
+    return result.astype(x.dtype)
 
 
 def minimum(x1, x2):
@@ -816,9 +853,11 @@ def ndim(x):
 def nonzero(x):
     # TODO: swap to mlx when nonzero is implemented
     x = convert_to_tensor(x)
-    x = jnp.array(x)
-    output = jnp.nonzero(x)
-    return tuple(mx.array(x) for x in output)
+    if x.dtype == mx.bfloat16:
+        x = x.astype(mx.float32)
+    x = np.array(x)
+    output = np.nonzero(x)
+    return tuple(mx.array(x).astype(mx.int32) for x in output)
 
 
 def not_equal(x1, x2):
@@ -885,31 +924,42 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
-    if dtype is not None:
-        x = cast(x, dtype)
+    if dtype is None:
+        dtype = dtypes.result_type(x.dtype)
+        if dtype in ("bool", "int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
+    mlx_dtype = to_mlx_dtype(dtype)
     output = mx.prod(x, axis=axis, keepdims=keepdims)
-    return output
+    return output.astype(mlx_dtype)
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
 
     # TODO: swap to mlx when quantile is supported
-    x = jnp.array(x)
-    q = jnp.array(q)
-    result = jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+    ori_dtype = standardize_dtype(x.dtype)
+    # np.quantile doesn't support bool
+    if ori_dtype == "bool":
+        default_dtype = to_mlx_dtype(config.floatx())
+        x = x.astype(default_dtype)
+    if ori_dtype == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    mlx_dtype = to_mlx_dtype(dtype)
+    print("mlx_dtype", mlx_dtype)
 
-    # TODO: with jax < 0.4.26 jnp.quantile failed to keepdims when axis is None
-    if keepdims is True and axis is None:
-        result_ndim = x.ndim + (1 if len(q.shape) > 0 else 0)
-        while result.ndim < result_ndim:
-            result = jnp.expand_dims(result, axis=-1)
-
-    result = mx.array(result)
-    return result
+    # problem casting mlx bfloat16 array to numpy
+    if ori_dtype == "bfloat16":
+        default_dtype = to_mlx_dtype(config.floatx())
+        x = x.astype(default_dtype)
+    x = np.array(x)
+    q = np.array(q)
+    result = np.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+    return mx.array(result).astype(mlx_dtype)
 
 
 def ravel(x):
@@ -1055,7 +1105,11 @@ def tile(x, repeats):
 
 def trace(x, offset=None, axis1=None, axis2=None):
     x = convert_to_tensor(x)
-    return diagonal(x, offset, axis1, axis2).sum(-1)
+    dtype = standardize_dtype(x.dtype)
+    if dtype not in ("int64", "uint32", "uint64"):
+        dtype = dtypes.result_type(dtype, "int32")
+    mlx_dtype = to_mlx_dtype(dtype)
+    return diagonal(x, offset, axis1, axis2).sum(-1).astype(mlx_dtype)
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -1097,8 +1151,11 @@ def trunc(x):
 def vdot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    result_dtype = to_mlx_dtype(dtype)
     x1_conj = mx.conj(mx.reshape(x1, (x1.size,)))
-    return mx.sum(x1_conj * mx.reshape(x2, (x2.size,)))
+    result = mx.sum(x1_conj * mx.reshape(x2, (x2.size,)))
+    return result.astype(result_dtype)
 
 
 def inner(x1, x2):
@@ -1114,16 +1171,24 @@ def vstack(xs):
     return mx.concatenate(xs, axis=0)
 
 
-def where(condition, x1=None, x2=None):
-    condition = convert_to_tensor(condition)
-
+def where(condition, x1, x2):
     if x1 is None and x2 is None:
         return nonzero(condition)
     elif x1 is None or x2 is None:
         raise ValueError("`x1` and `x2` either both should be `None`")
 
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    # handling of python dtypes similar to numpy's backend
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    condition = convert_to_tensor(condition)
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return mx.where(condition, x1, x2)
 
 
@@ -1160,6 +1225,8 @@ def negative(x):
 
 def square(x):
     x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype(mx.int32)
     return mx.square(x)
 
 
@@ -1198,9 +1265,15 @@ def eye(N, M=None, k=None, dtype=None):
 
 
 def floor_divide(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
+    )
+    x1 = convert_to_tensor(x1, dtype=dtype)
+    x2 = convert_to_tensor(x2, dtype=dtype)
     return mx.floor(x1 // x2)
 
 
@@ -1218,6 +1291,12 @@ def maybe_convert_to_tensor(x):
 def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "int64":
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16", "float64"]:
+        dtype = "float32"
+    mlx_dtype = to_mlx_dtype(dtype)
 
     if x1.ndim != 1 or x2.ndim != 1:
         raise ValueError("correlate() only supports 1-dimensional inputs")
@@ -1248,7 +1327,7 @@ def correlate(x1, x2, mode="valid"):
         x1 = mx.pad(x1, pad_width)
 
     output_size = len(x1) - len(x2) + 1
-    result = mx.zeros(output_size)
+    result = mx.zeros(output_size, dtype=mlx_dtype)
 
     for i in range(output_size):
         result = result.at[i].add(mx.sum(x1[i : i + len(x2)] * x2))
@@ -1268,8 +1347,8 @@ def select(condlist, choicelist, default=0):
 def slogdet(x):
     # TODO: Swap to mlx.linalg.slogdet when supported (or with determinant)
     x = convert_to_tensor(x)
-    x = jnp.array(x)
-    output = jnp.linalg.slogdet(x)
+    x = np.array(x)
+    output = np.linalg.slogdet(x)
     return (mx.array(output[0]), mx.array(output[1]))
 
 

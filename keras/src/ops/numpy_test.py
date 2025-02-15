@@ -4410,7 +4410,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(y, ref_y)
 
     @pytest.mark.skipif(
-        backend.backend() == "jax", reason="JAX does not support float64."
+        backend.backend() in ["jax", "mlx"],
+        reason=f"{backend.backend().capitalize()} does not support float64.",
     )
     def test_sqrt_float64(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float64")
