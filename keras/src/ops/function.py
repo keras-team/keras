@@ -81,6 +81,12 @@ class Function(Operation):
         self._nodes_by_depth = nodes_by_depth
         self._operations = operations
         self._operations_by_depth = operations_by_depth
+        for input in self._inputs:
+            if (
+                input._keras_history.operation
+                and not input._keras_history.operation._outbound_nodes
+            ):
+                raise ValueError("`inputs` not connected to `outputs`")
 
     @property
     def operations(self):
