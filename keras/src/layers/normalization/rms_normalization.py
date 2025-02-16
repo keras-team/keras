@@ -1,0 +1,84 @@
+from keras.src import ops
+from keras.src.api_export import keras_export
+from keras.src.layers.layer import Layer
+
+
+@keras_export("keras.layers.RMSNormalization")
+class RMSNormalization(Layer):
+    """Root Mean Square (RMS) Normalization layer.
+
+    This layer normalizes the input tensor based on its RMS value.
+
+    If `scale` is enabled, the layer will scale the normalized outputs via
+    a learnable scaling factor.
+
+    So, with scaling enabled, the normalization equations
+    are as follows:
+
+    Let the intermediate activations for a mini-batch to be the `inputs`.
+
+    ```
+    rms_norm(x) = x * rsqrt(mean(square(x))) * scale
+    ```
+
+    For example:
+
+    >>> layer = keras.layers.RMSNormalization(input_dim=10)
+    >>> layer.build([5, 20, 30, 40])
+    >>> print(layer.scale.shape)
+    (10,)
+    >>> layer(np.random.rand(1, 10)).numpy()
+    array([[0.35098287, 1.0495652 , 1.4645109 , 1.2944688 , 0.31124955,
+            1.2768592 , 1.184331  , 0.17474432, 0.49955517, 1.2428929 ]],
+        dtype=float32)
+
+    Args:
+        input_dim: int. The dimensionality of the input tensor.
+    """
+
+    def __init__(self, input_dim, axis=-1, epsilon=1e-6, **kwargs):
+        super().__init__(**kwargs)
+        self.axis = axis
+        self.epsilon = epsilon
+        self.input_dim = input_dim
+        self.scale = self.add_weight(
+            name="scale", shape=(input_dim,), initializer="ones"
+        )
+
+    def call(self, x):
+        """Applies RMS normalization to the input tensor.
+
+        Args:
+            x: Input tensor of shape (batch_size, input_dim).
+
+        Returns:
+            The RMS-normalized tensor of the same shape (batch_size, input_dim),
+            scaled by the learned `scale` parameter.
+        """
+        return ops.rms_norm(
+            x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
+        )
+
+    def compute_output_shape(self, input_shape):
+        if isinstance(self.axis, int):
+            axes = [self.axis]
+        else:
+            axes = self.axis
+
+        for axis in axes:
+            if axis >= len(input_shape) or axis < -len(input_shape):
+                raise ValueError(
+                    f"Axis {axis} is out of bounds for "
+                    f"input shape {input_shape}. "
+                    f"Received: axis={self.axis}"
+                )
+        return input_shape
+
+    def get_config(self):
+        config = {
+            "axis": self.axis,
+            "epsilon": self.epsilon,
+            "input_dim": self.input_dim,
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
