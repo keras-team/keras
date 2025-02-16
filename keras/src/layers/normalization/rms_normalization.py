@@ -7,8 +7,30 @@ from keras.src.layers.layer import Layer
 class RMSNormalization(Layer):
     """Root Mean Square (RMS) Normalization layer.
 
-    This layer normalizes the input tensor based on its RMS value and applies
-    a learned scaling factor.
+    This layer normalizes the input tensor based on its RMS value.
+
+    If `scale` is enabled, the layer will scale the normalized outputs via
+    a learnable scaling factor.
+
+    So, with scaling enabled, the normalization equations
+    are as follows:
+
+    Let the intermediate activations for a mini-batch to be the `inputs`.
+
+    ```
+    rms_norm(x) = x * rsqrt(mean(square(x))) * scale
+    ```
+
+    For example:
+
+    >>> layer = keras.layers.RMSNormalization(input_dim=10)
+    >>> layer.build([5, 20, 30, 40])
+    >>> print(layer.scale.shape)
+    (10,)
+    >>> layer(np.random.rand(1, 10)).numpy()
+    array([[0.35098287, 1.0495652 , 1.4645109 , 1.2944688 , 0.31124955,
+            1.2768592 , 1.184331  , 0.17474432, 0.49955517, 1.2428929 ]],
+        dtype=float32)
 
     Args:
         input_dim: int. The dimensionality of the input tensor.
