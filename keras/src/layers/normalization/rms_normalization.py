@@ -36,10 +36,11 @@ class RMSNormalization(Layer):
         input_dim: int. The dimensionality of the input tensor.
     """
 
-    def __init__(self, input_dim, axis=-1, epsilon=1e-6):
-        super().__init__()
+    def __init__(self, input_dim, axis=-1, epsilon=1e-6, **kwargs):
+        super().__init__(**kwargs)
         self.axis = axis
         self.epsilon = epsilon
+        self.input_dim = input_dim
         self.scale = self.add_weight(
             name="scale", shape=(input_dim,), initializer="ones"
         )
@@ -77,7 +78,7 @@ class RMSNormalization(Layer):
         config = {
             "axis": self.axis,
             "epsilon": self.epsilon,
-            "scale": self.scale,
+            "input_dim": self.input_dim,
         }
         base_config = super().get_config()
         return {**base_config, **config}
