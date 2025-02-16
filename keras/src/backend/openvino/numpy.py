@@ -81,9 +81,9 @@ def mean(x, axis=None, keepdims=False):
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    assert (
-        initial is None
-    ), "`max` with not None initial is not supported by openvino backend"
+    assert initial is None, (
+        "`max` with not None initial is not supported by openvino backend"
+    )
     x = get_ov_output(x)
     reduce_axis = ov_opset.constant(axis, Type.i32).output(0)
     return OpenVINOKerasTensor(
@@ -290,9 +290,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 
 def broadcast_to(x, shape):
-    assert isinstance(
-        shape, (tuple, list)
-    ), "`broadcast_to` is supported only for tuple and list `shape`"
+    assert isinstance(shape, (tuple, list)), (
+        "`broadcast_to` is supported only for tuple and list `shape`"
+    )
     target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))

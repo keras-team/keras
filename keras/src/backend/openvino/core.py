@@ -243,9 +243,9 @@ class OpenVINOKerasTensor:
     def __len__(self):
         ov_output = self.output
         ov_shape = ov_output.get_partial_shape()
-        assert (
-            ov_shape.rank.is_static and ov_shape.rank.get_length() > 0
-        ), "rank must be static and greater than zero"
+        assert ov_shape.rank.is_static and ov_shape.rank.get_length() > 0, (
+            "rank must be static and greater than zero"
+        )
         assert ov_shape[0].is_static, "the first dimension must be static"
         return ov_shape[0].get_length()
 
@@ -428,10 +428,10 @@ def convert_to_numpy(x):
             x = x.value
         else:
             return x.value.data
-    assert isinstance(
-        x, OpenVINOKerasTensor
-    ), "unsupported type {} for `convert_to_numpy` in openvino backend".format(
-        type(x)
+    assert isinstance(x, OpenVINOKerasTensor), (
+        "unsupported type {} for `convert_to_numpy` in openvino backend".format(
+            type(x)
+        )
     )
     try:
         ov_result = x.output
