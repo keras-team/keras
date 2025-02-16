@@ -2651,3 +2651,71 @@ def dot_product_attention(
         is_causal=is_causal,
         flash_attention=flash_attention,
     )
+
+
+class RMSNorm(Operation):
+    def __init__(self, input_dim, axis=-1, epsilon=None):
+        super().__init__()
+        self.axis = axis
+        self.scale = self.add_weight(
+            name="scale", shape=(input_dim,), initializer="ones"
+        )
+        self.epsilon = epsilon
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape)
+
+    def call(self, x):
+        return _normalize(
+            x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
+        )
+
+
+@keras_export(
+    [
+        "keras.ops.rms_norm",
+        "keras.ops.nn.rms_norm",
+    ]
+)
+def rms_norm(x, input_dim, scale, axis=-1, epsilon=None):
+    """Performs Root Mean Square (RMS) normalization on `x`.
+
+    It is defined as `rms_norm(x) = x * rsqrt(mean(square(x))) * scale`
+
+    Args:
+        x: Input tensor.
+        axis: The axis or axes along which to perform normalization.
+            Default to -1.
+        epsilon: A lower bound value for the norm.
+            Defaults to `backend.epsilon()`.
+
+    Returns:
+        The normalized array.
+
+    Example:
+
+    >>> x = np.random.rand(1, 10)
+    >>> x_norm = keras.ops.rms_norm(x)
+    >>> print(x_norm)
+    array([[0.69384296, 0.94444374, 0.16551171, 0.05749961, 1.11008865,
+        0.52475186, 1.57686807, 1.69893307, 1.27292764, 0.30819128]])
+    """
+    if any_symbolic_tensors((x,)):
+        return RMSNorm(
+            input_dim=input_dim, axis=axis, epsilon=epsilon
+        ).symbolic_call(x)
+    return _rms_norm(x, scale=scale, axis=axis, epsilon=epsilon)
+
+
+def _rms_norm(x, scale, axis=-1, epsilon=None):
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) == 0:
+        x = backend.numpy.expand_dims(x, axis=0)
+    if epsilon is None:
+        epsilon = backend.epsilon()
+
+    rrms = backend.math.rsqrt(
+        backend.numpy.mean(backend.math.square(x), axis=axis, keepdims=True)
+        + epsilon
+    )
+    return (x * rrms) * scale

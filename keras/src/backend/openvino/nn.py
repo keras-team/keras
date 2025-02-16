@@ -325,9 +325,9 @@ def depthwise_conv(
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
 
-    assert data_format == "channels_last", (
-        "`depthwise_conv` is supported only for channels_last data_format"
-    )
+    assert (
+        data_format == "channels_last"
+    ), "`depthwise_conv` is supported only for channels_last data_format"
 
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
