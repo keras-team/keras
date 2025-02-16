@@ -9,6 +9,9 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.numpy.image import (
+    perspective_transform as np_perspective_transform,
+)
 from keras.src.ops import image as kimage
 from keras.src.testing.test_utils import named_product
 
@@ -162,6 +165,22 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([3, None, None])
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
         self.assertEqual(out.shape, (3, 10, 20))
+
+    def test_perspective_transform(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        start_points = KerasTensor([None, 4, 2])
+        end_points = KerasTensor([None, 4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        start_points = KerasTensor([None, 4, 2])
+        end_points = KerasTensor([None, 4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
@@ -361,6 +380,22 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             x_batch, 2, 3, target_height=10, target_width=20
         )
         self.assertEqual(out_batch.shape, (2, 3, 10, 20))
+
+    def test_perspective_transform(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        start_points = KerasTensor([4, 2])
+        end_points = KerasTensor([4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        start_points = KerasTensor([4, 2])
+        end_points = KerasTensor([4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (3, 20, 20))
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -1213,6 +1248,46 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )(image)
         self.assertAllClose(ref_cropped_image, cropped_image)
 
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=["bilinear", "nearest"],
+        )
+    )
+    def test_perspective_transform(self, interpolation):
+        # Test channels_last
+        np.random.seed(42)
+        x = np.random.uniform(size=(50, 50, 3)).astype("float32")
+        start_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+        end_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+
+        ref_out = np_perspective_transform(
+            x, start_points, end_points, interpolation=interpolation
+        )
+
+        out = kimage.perspective_transform(
+            x, start_points, end_points, interpolation=interpolation
+        )
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = np.random.uniform(size=(3, 50, 50)).astype("float32")
+        start_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+        end_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+
+        ref_out = np_perspective_transform(
+            x, start_points, end_points, interpolation=interpolation
+        )
+
+        out = kimage.perspective_transform(
+            x, start_points, end_points, interpolation=interpolation
+        )
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
 
 class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
@@ -1446,3 +1521,83 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "When the width of the images is unknown"
         ):
             kimage.crop_images(x, 2, 3, 4, 5)
+
+    def test_perspective_transform_invalid_images_rank(self):
+        # Test rank=2
+        invalid_image = np.random.uniform(size=(10, 10))
+        start_points = np.random.uniform(size=(6,))
+        end_points = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.perspective_transform(
+                invalid_image, start_points, end_points
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.PerspectiveTransform()(
+                invalid_image, start_points, end_points
+            )
+
+        # Test rank=5
+        invalid_image = np.random.uniform(size=(2, 10, 10, 3, 1))
+        start_points = np.random.uniform(size=(6,))
+        end_points = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.perspective_transform(
+                invalid_image, start_points, end_points
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.PerspectiveTransform()(
+                invalid_image, start_points, end_points
+            )
+
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        start_points = KerasTensor(shape=(6,))
+        end_points = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.perspective_transform(
+                invalid_image, start_points, end_points
+            )
+
+    def test_perspective_transform_invalid_points_rank(self):
+        # Test rank=3
+        images = np.random.uniform(size=(10, 10, 3))
+        start_points = np.random.uniform(size=(2, 2, 4, 2))
+        end_points = np.random.uniform(size=(2, 2, 4, 2))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.perspective_transform(images, start_points, end_points)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.PerspectiveTransform()(images, start_points, end_points)
+
+        # Test rank=0
+        start_points = np.random.uniform(size=())
+        end_points = np.random.uniform(size=())
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.perspective_transform(images, start_points, end_points)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.PerspectiveTransform()(images, start_points, end_points)
+
+        # Test rank=3, symbolic tensor
+        images = KerasTensor(shape=(10, 10, 3))
+        start_points = KerasTensor(shape=(2, 3, 2))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.perspective_transform(images, start_points, end_points)

@@ -1360,7 +1360,7 @@ def perspective_transform(
     (2, 3, 64, 80)
     """
     if any_symbolic_tensors((images, start_points, end_points)):
-        return AffineTransform(
+        return PerspectiveTransform(
             interpolation=interpolation,
             fill_value=fill_value,
             data_format=data_format,
