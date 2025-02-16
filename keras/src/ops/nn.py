@@ -2654,12 +2654,10 @@ def dot_product_attention(
 
 
 class RMSNorm(Operation):
-    def __init__(self, input_dim, axis=-1, epsilon=None):
+    def __init__(self, scale, axis=-1, epsilon=None):
         super().__init__()
         self.axis = axis
-        self.scale = self.add_weight(
-            name="scale", shape=(input_dim,), initializer="ones"
-        )
+        self.scale = scale
         self.epsilon = epsilon
 
     def compute_output_spec(self, x):
@@ -2677,7 +2675,7 @@ class RMSNorm(Operation):
         "keras.ops.nn.rms_norm",
     ]
 )
-def rms_norm(x, input_dim, scale=1, axis=-1, epsilon=None):
+def rms_norm(x, scale=1, axis=-1, epsilon=None):
     """Performs Root Mean Square (RMS) normalization on `x`.
 
     It is defined as `rms_norm(x) = x * rsqrt(mean(square(x))) * scale`
@@ -2702,9 +2700,7 @@ def rms_norm(x, input_dim, scale=1, axis=-1, epsilon=None):
         0.52475186, 1.57686807, 1.69893307, 1.27292764, 0.30819128]])
     """
     if any_symbolic_tensors((x,)):
-        return RMSNorm(
-            input_dim=input_dim, axis=axis, epsilon=epsilon
-        ).symbolic_call(x)
+        return RMSNorm(scale=scale, axis=axis, epsilon=epsilon).symbolic_call(x)
     return _rms_norm(x, scale=scale, axis=axis, epsilon=epsilon)
 
 
