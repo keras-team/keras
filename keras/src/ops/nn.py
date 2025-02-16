@@ -2715,7 +2715,7 @@ def _rms_norm(x, scale, axis=-1, epsilon=None):
         epsilon = backend.epsilon()
 
     rrms = backend.math.rsqrt(
-        backend.numpy.mean(backend.math.square(x), axis=axis, keepdims=True)
+        backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)
         + epsilon
     )
     return (x * rrms) * scale
