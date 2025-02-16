@@ -1,10 +1,13 @@
 import math
+import operator
 
 import mlx.core as mx
 import numpy as np
 
+from keras.src.backend import standardize_dtype
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.linalg import det
+from keras.src.utils.module_utils import scipy
 
 
 def _segment_reduction_fn(
@@ -133,6 +136,12 @@ def fft2(x):
     return mx.real(complex_output), mx.imag(complex_output)
 
 
+def ifft2(x):
+    x = _get_complex_tensor_from_tuple(x)
+    complex_output = mx.fft.ifft2(x)
+    return mx.real(complex_output), mx.imag(complex_output)
+
+
 def rfft(x, fft_length=None):
     x = convert_to_tensor(x)
     complex_output = mx.fft.rfft(x, n=fft_length)
@@ -145,10 +154,265 @@ def irfft(x, fft_length=None):
     return real_output
 
 
+def _canonicalize_axis(axis, num_dims):
+    # Ref: jax.scipy.signal.stft
+    """Canonicalize an axis in [-num_dims, num_dims) to [0, num_dims)."""
+    axis = operator.index(axis)
+    if not -num_dims <= axis < num_dims:
+        raise ValueError(
+            f"axis {axis} is out of bounds for array of dimension {num_dims}"
+        )
+    if axis < 0:
+        axis = axis + num_dims
+    return axis
+
+
+def _create_sliding_windows(x, window_size, step):
+    batch_size, signal_length, _ = x.shape
+    num_windows = (signal_length - window_size) // step + 1
+
+    # create indices for all windows
+    indices = mx.arange(window_size)
+    window_starts = mx.arange(num_windows) * step
+
+    # create a mesh of indices for all windows
+    # shape: (num_windows, window_size)
+    indices_mesh = indices[None, :] + window_starts[:, None]
+
+    batch_idx = mx.arange(batch_size)[:, None, None]
+    indices_mesh = indices_mesh[None, :, :]
+
+    return x[batch_idx, indices_mesh]
+
+
+def _stft(x, window, nperseg, noverlap, nfft, axis=-1):
+    # Ref: jax.scipy.signal.stft
+    axis = _canonicalize_axis(axis, x.ndim)
+    result_dtype = mx.complex64
+
+    if x.size == 0:
+        return mx.zeros(x.shape, result_dtype)
+
+    x = mx.moveaxis(x, axis, -1)
+
+    if nfft < nperseg:
+        raise ValueError("nfft must be greater than or equal to nperseg.")
+    if noverlap >= nperseg:
+        raise ValueError("noverlap must be less than nperseg.")
+
+    *batch_shape, signal_length = x.shape
+    if nperseg == 1 and noverlap == 0:
+        result = x[..., None]
+    else:
+        step = nperseg - noverlap
+        batch_shape = list(batch_shape)
+        x = x.reshape((math.prod(batch_shape), signal_length, 1))
+
+        result = _create_sliding_windows(x, nperseg, step)
+        result = result.reshape(*batch_shape, result.shape[1], result.shape[2])
+
+    win_shape = (1,) * len(batch_shape) + (1, nperseg)
+    result = window.reshape(win_shape) * result
+    result = mx.fft.rfft(mx.real(result), n=nfft, axis=-1)
+
+    result *= mx.sqrt(1.0 / window.sum() ** 2)
+    result = result.astype(result_dtype)
+    result = mx.moveaxis(result, -1, axis)
+    return result
+
+
+def _reflect_pad(x, pad_width, axis=-1):
+    left_pad, right_pad = pad_width
+
+    if left_pad > 0:
+        indices = mx.arange(1, left_pad + 1, dtype=mx.int32)[::-1]
+        prefix = mx.take(x, indices, axis=axis)
+    else:
+        prefix = None
+
+    if right_pad > 0:
+        indices = mx.arange(
+            x.shape[axis] - 2, x.shape[axis] - right_pad - 2, -1, dtype=mx.int32
+        )
+        suffix = mx.take(x, indices, axis=axis)
+    else:
+        suffix = None
+
+    if prefix is not None and suffix is not None:
+        return mx.concatenate([prefix, x, suffix], axis=axis)
+    elif prefix is not None:
+        return mx.concatenate([prefix, x], axis=axis)
+    elif suffix is not None:
+        return mx.concatenate([x, suffix], axis=axis)
+    return x
+
+
 def stft(
     x, sequence_length, sequence_stride, fft_length, window="hann", center=True
 ):
-    raise NotImplementedError("sfft not yet implemented in mlx")
+    if standardize_dtype(x.dtype) not in {"float32", "float64"}:
+        raise TypeError(
+            "Invalid input type. Expected `float32` or `float64`. "
+            f"Received: input type={x.dtype}"
+        )
+    if fft_length < sequence_length:
+        raise ValueError(
+            "`fft_length` must equal or larger than `sequence_length`. "
+            f"Received: sequence_length={sequence_length}, "
+            f"fft_length={fft_length}"
+        )
+    if isinstance(window, str):
+        if window not in {"hann", "hamming"}:
+            raise ValueError(
+                "If a string is passed to `window`, it must be one of "
+                f'`"hann"`, `"hamming"`. Received: window={window}'
+            )
+    x = convert_to_tensor(x)
+
+    if center:
+        pad_width = (fft_length // 2, fft_length // 2)
+        x = _reflect_pad(x, pad_width)
+
+    l_pad = (fft_length - sequence_length) // 2
+    r_pad = fft_length - sequence_length - l_pad
+
+    if window is not None:
+        if isinstance(window, str):
+            # use scipy window for now to match precision with jax
+            win = convert_to_tensor(
+                scipy.signal.get_window(window, sequence_length), dtype=x.dtype
+            )
+        else:
+            win = convert_to_tensor(window, dtype=x.dtype)
+        if len(win.shape) != 1 or win.shape[-1] != sequence_length:
+            raise ValueError(
+                "The shape of `window` must be equal to [sequence_length]."
+                f"Received: window shape={win.shape}"
+            )
+        win = mx.pad(win, [[l_pad, r_pad]])
+    else:
+        win = mx.ones((sequence_length + l_pad + r_pad), dtype=x.dtype)
+
+    result = _stft(
+        x,
+        window=win,
+        nperseg=(sequence_length + l_pad + r_pad),
+        noverlap=(sequence_length + l_pad + r_pad - sequence_stride),
+        nfft=fft_length,
+    )
+    scale = mx.sqrt(1.0 / win.sum() ** 2)
+    result = result / scale
+    result = mx.swapaxes(result, -2, -1)
+    return mx.real(result), mx.imag(result)
+
+
+def _overlap_and_add(x, step_size):
+    # Ref: jax.scipy.signal.istft
+    """Utility function compatible with tf.signal.overlap_and_add.
+
+    Args:
+        x: An array with `(..., frames, frame_length)`-shape.
+        step_size: An integer denoting overlap offsets. Must be less than
+        `frame_length`.
+
+    Returns:
+        An array with `(..., output_size)`-shape containing overlapped signal.
+    """
+    if x.ndim < 2:
+        raise ValueError("Input must have (..., frames, frame_length) shape.")
+
+    *batch_shape, nframes, segment_len = x.shape
+    flat_batchsize = math.prod(batch_shape)
+    x = x.reshape((flat_batchsize, nframes, segment_len))
+    output_size = step_size * (nframes - 1) + segment_len
+    nstep_per_segment = 1 + (segment_len - 1) // step_size
+
+    # Here, we use shorter notation for axes.
+    # B: batch_size, N: nframes, S: nstep_per_segment,
+    # T: segment_len divided by S
+
+    padded_segment_len = nstep_per_segment * step_size
+    x = mx.pad(x, ((0, 0), (0, 0), (0, padded_segment_len - segment_len)))
+    x = x.reshape((flat_batchsize, nframes, nstep_per_segment, step_size))
+
+    # For obtaining shifted signals, this routine reinterprets flattened
+    # array with a shrinked axis.  With appropriate truncation/ padding,
+    # this operation pushes the last padded elements of the previous row
+    # to the head of the current row.
+    # See implementation of `overlap_and_add` in Tensorflow for details.
+    x = x.transpose((0, 2, 1, 3))  # x: (B, S, N, T)
+    x = mx.pad(x, ((0, 0), (0, 0), (0, nframes), (0, 0)))  # x: (B, S, N*2, T)
+    shrinked = x.shape[2] - 1
+    x = x.reshape((flat_batchsize, -1))
+    x = x[:, : (nstep_per_segment * shrinked * step_size)]
+    x = x.reshape((flat_batchsize, nstep_per_segment, shrinked * step_size))
+
+    # Finally, sum shifted segments, and truncate results to the output_size.
+    x = x.sum(axis=1)[:, :output_size]
+    return x.reshape(tuple(batch_shape) + (-1,))
+
+
+def _istft(
+    Zxx,
+    window,
+    nperseg,
+    noverlap,
+    nfft,
+    time_axis=-1,
+    freq_axis=-2,
+):
+    # Ref: jax.scipy.signal.istft
+    if Zxx.ndim < 2:
+        raise ValueError("Input stft must be at least 2d!")
+    freq_axis = _canonicalize_axis(freq_axis, Zxx.ndim)
+    time_axis = _canonicalize_axis(time_axis, Zxx.ndim)
+
+    if freq_axis == time_axis:
+        raise ValueError("Must specify differing time and frequency axes!")
+    if nperseg < 1:
+        raise ValueError("nperseg must be a positive integer")
+    if nfft < nperseg:
+        raise ValueError(
+            f"FFT length ({nfft}) must be longer than nperseg ({nperseg})."
+        )
+    if noverlap >= nperseg:
+        raise ValueError("noverlap must be less than nperseg.")
+
+    nstep = nperseg - noverlap
+
+    # Rearrange axes if necessary
+    if time_axis != Zxx.ndim - 1 or freq_axis != Zxx.ndim - 2:
+        outer_idxs = tuple(
+            idx for idx in range(Zxx.ndim) if idx not in {time_axis, freq_axis}
+        )
+        Zxx = mx.transpose(Zxx, outer_idxs + (freq_axis, time_axis))
+
+    # Perform IFFT
+    xsubs = mx.fft.irfft(Zxx, axis=-2, n=nfft)[..., :nperseg, :]
+
+    # Assumes window is already an array
+    if len(window.shape) != 1:
+        raise ValueError("window must be 1-D")
+    if window.shape[0] != nperseg:
+        raise ValueError(f"window must have length of {nperseg}")
+    xsubs *= window.sum()  # This takes care of the 'spectrum' scaling
+
+    # make window broadcastable over xsubs
+    window = mx.expand_dims(window, (*range(xsubs.ndim - 2), -1))
+    x = _overlap_and_add((xsubs * window).swapaxes(-2, -1), nstep)
+    window_squared = mx.repeat((window * window), xsubs.shape[-1], axis=-1)
+    norm = _overlap_and_add(window_squared.swapaxes(-2, -1), nstep)
+
+    x /= mx.where(norm > 1e-10, norm, 1.0)
+
+    # Put axes back
+    if x.ndim > 1:
+        if time_axis != Zxx.ndim - 1:
+            if freq_axis < time_axis:
+                time_axis -= 1
+            x = mx.moveaxis(x, -1, time_axis)
+
+    return x
 
 
 def istft(
@@ -160,7 +424,56 @@ def istft(
     window="hann",
     center=True,
 ):
-    raise NotImplementedError("isfft not yet implemented in mlx")
+    x = _get_complex_tensor_from_tuple(x)
+    dtype = mx.real(x).dtype
+
+    if len(x.shape) < 2:
+        raise ValueError(
+            f"Input `x` must have at least 2 dimensions. "
+            f"Received shape: {x.shape}"
+        )
+
+    expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)
+    l_pad = (fft_length - sequence_length) // 2
+    r_pad = fft_length - sequence_length - l_pad
+
+    if window is not None:
+        if isinstance(window, str):
+            win = convert_to_tensor(
+                scipy.signal.get_window(window, sequence_length), dtype=dtype
+            )
+        else:
+            win = convert_to_tensor(window, dtype=dtype)
+        if len(win.shape) != 1 or win.shape[-1] != sequence_length:
+            raise ValueError(
+                "The shape of `window` must be equal to [sequence_length]."
+                f"Received: window shape={win.shape}"
+            )
+        win = mx.pad(win, [[l_pad, r_pad]])
+    else:
+        win = mx.ones((sequence_length + l_pad + r_pad), dtype=dtype)
+
+    x = _istft(
+        x,
+        window=win,
+        nperseg=(sequence_length + l_pad + r_pad),
+        noverlap=(sequence_length + l_pad + r_pad - sequence_stride),
+        nfft=fft_length,
+        time_axis=-2,
+        freq_axis=-1,
+    )
+
+    # scale
+    x = x / win.sum() if window is not None else x / sequence_stride
+
+    start = 0 if center is False else fft_length // 2
+    if length is not None:
+        end = start + length
+    elif center is True:
+        end = -(fft_length // 2)
+    else:
+        end = expected_output_len
+    return x[..., start:end]
 
 
 def rsqrt(x):
