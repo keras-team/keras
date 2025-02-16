@@ -1379,7 +1379,28 @@ def histogram(x, bins, range):
 
 
 def unravel_index(x, shape):
-    raise NotImplementedError("unravel_index not yet implemented in mlx.")
+    x = convert_to_tensor(x)
+    input_dtype = x.dtype
+
+    if None in shape:
+        raise ValueError(
+            "`shape` argument cannot contain `None`. Received: shape={shape}"
+        )
+
+    if x.ndim == 1:
+        coords = []
+        for dim in reversed(shape):
+            coords.append((x % dim).astype(input_dtype))
+            x = x // dim
+        return tuple(reversed(coords))
+
+    x_shape = x.shape
+    coords = []
+    for dim in shape:
+        coords.append(mx.reshape((x % dim).astype(input_dtype), x_shape))
+        x = x // dim
+
+    return tuple(reversed(coords))
 
 
 def searchsorted(sorted_sequence, values, side="left"):
@@ -1391,4 +1412,46 @@ def diagflat(x, k=0):
 
 
 def rot90(array, k=1, axes=(0, 1)):
-    raise NotImplementedError("rot90 not yet implemented in mlx.")
+    array = convert_to_tensor(array)
+
+    if array.ndim < 2:
+        raise ValueError(
+            f"Input array must have at least 2 dimensions. "
+            f"Received: array.ndim={array.ndim}"
+        )
+    if len(axes) != 2 or axes[0] == axes[1]:
+        raise ValueError(
+            f"Invalid axes: {axes}. Axes must be a tuple of "
+            "two different dimensions."
+        )
+
+    array_axes = list(range(array.ndim))
+    # Swap axes
+    array_axes[axes[0]], array_axes[axes[1]] = (
+        array_axes[axes[1]],
+        array_axes[axes[0]],
+    )
+
+    if k < 0:
+        axes = (axes[1], axes[0])
+        k *= -1
+
+    k = k % 4
+
+    if k > 0:
+        slices = [builtins.slice(None) for _ in range(array.ndim)]
+        if k == 2:
+            # 180 deg rotation => reverse elements along both axes
+            slices[axes[0]] = builtins.slice(None, None, -1)
+            slices[axes[1]] = builtins.slice(None, None, -1)
+        else:
+            # 90 or 270 deg rotation => transpose and reverse along one axis
+            array = mx.transpose(array, axes=array_axes)
+            if k == 1:
+                slices[axes[0]] = builtins.slice(None, None, -1)
+            else:
+                slices[axes[1]] = builtins.slice(None, None, -1)
+
+        array = array[tuple(slices)]
+
+    return array
