@@ -1230,3 +1230,146 @@ def _crop_images(
 
     cropped_images = ops.slice(images, start_indices, shape)
     return cropped_images
+
+
+class PerspectiveTransform(Operation):
+    def __init__(
+        self,
+        interpolation="bilinear",
+        fill_value=0,
+        data_format=None,
+    ):
+        super().__init__()
+        self.interpolation = interpolation
+        self.fill_value = fill_value
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images, start_points, end_points):
+        return backend.image.perspective_transform(
+            images,
+            start_points,
+            end_points,
+            interpolation=self.interpolation,
+            fill_value=self.fill_value,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, images, start_points, end_points):
+        if len(images.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
+            )
+        if start_points.shape[-2:] != (4, 2) or start_points.ndim not in (2, 3):
+            raise ValueError(
+                "Invalid start_points shape: expected (4,2) for a single image"
+                f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+            )
+        if end_points.shape[-2:] != (4, 2) or end_points.ndim not in (2, 3):
+            raise ValueError(
+                "Invalid end_points shape: expected (4,2) for a single image"
+                f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+            )
+        if start_points.shape != end_points.shape:
+            raise ValueError(
+                "start_points and end_points must have the same shape."
+                f" Received start_points.shape={start_points.shape}, "
+                f"end_points.shape={end_points.shape}"
+            )
+        return KerasTensor(images.shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.perspective_transform")
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    """Applies a perspective transformation to the image(s).
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        start_points: A tensor of shape `(N, 4, 2)` or `(4, 2)`,
+            representing the source points in the original image
+            that define the transformation.
+        end_points: A tensor of shape `(N, 4, 2)` or `(4, 2)`,
+            representing the target points in the output image
+            after transformation.
+        interpolation: Interpolation method. Available methods are `"nearest"`,
+            and `"bilinear"`. Defaults to `"bilinear"`.
+        fill_value: Value used for points outside the boundaries of the input if
+            extrapolation is needed. Defaults to `0`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        Applied perspective transform image or batch of images.
+
+    Examples:
+
+    >>> x = np.random.random((2, 64, 80, 3))  # batch of 2 RGB images
+    >>> start_points = np.array(
+    ...     [
+    ...         [[0, 0], [0, 64], [80, 0], [80, 64]],
+    ...         [[0, 0], [0, 64], [80, 0], [80, 64]],
+    ...     ]
+    ... )
+    >>> end_points = np.array(
+    ...     [
+    ...         [[3, 5], [7, 64], [76, -10], [84, 61]],
+    ...         [[8, 10], [10, 61], [65, 3], [88, 43]],
+    ...     ]
+    ... )
+    >>> y = keras.ops.image.perspective_transform(x, start_points, end_points)
+    >>> y.shape
+    (2, 64, 80, 3)
+
+    >>> x = np.random.random((64, 80, 3))  # single RGB image
+    >>> start_points = np.array([[0, 0], [0, 64], [80, 0], [80, 64]])
+    >>> end_points = np.array([[3, 5], [7, 64], [76, -10], [84, 61]])
+    >>> y = keras.ops.image.perspective_transform(x, start_points, end_points)
+    >>> y.shape
+    (64, 80, 3)
+
+    >>> x = np.random.random((2, 3, 64, 80))  # batch of 2 RGB images
+    >>> start_points = np.array(
+    ...     [
+    ...         [[0, 0], [0, 64], [80, 0], [80, 64]],
+    ...         [[0, 0], [0, 64], [80, 0], [80, 64]],
+    ...     ]
+    ... )
+    >>> end_points = np.array(
+    ...     [
+    ...         [[3, 5], [7, 64], [76, -10], [84, 61]],
+    ...         [[8, 10], [10, 61], [65, 3], [88, 43]],
+    ...     ]
+    ... )
+    >>> y = keras.ops.image.perspective_transform(
+    ...     x, start_points, end_points, data_format="channels_first"
+    ... )
+    >>> y.shape
+    (2, 3, 64, 80)
+    """
+    if any_symbolic_tensors((images, start_points, end_points)):
+        return PerspectiveTransform(
+            interpolation=interpolation,
+            fill_value=fill_value,
+            data_format=data_format,
+        ).symbolic_call(images, start_points, end_points)
+    return backend.image.perspective_transform(
+        images,
+        start_points,
+        end_points,
+        interpolation=interpolation,
+        fill_value=fill_value,
+        data_format=data_format,
+    )
