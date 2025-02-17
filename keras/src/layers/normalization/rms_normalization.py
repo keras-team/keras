@@ -18,7 +18,7 @@ class RMSNormalization(Layer):
     Let the intermediate activations for a mini-batch to be the `inputs`.
 
     ```
-    rms_norm(x) = x * rsqrt(mean(square(x))) * scale
+    rms_normalization(x) = x * rsqrt(mean(square(x))) * scale
     ```
 
     For example:
@@ -55,7 +55,7 @@ class RMSNormalization(Layer):
             The RMS-normalized tensor of the same shape (batch_size, input_dim),
             scaled by the learned `scale` parameter.
         """
-        return ops.rms_norm(
+        return ops.rms_normalization(
             x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
         )
 

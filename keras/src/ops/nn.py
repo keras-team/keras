@@ -2664,21 +2664,21 @@ class RMSNorm(Operation):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
-        return _normalize(
+        return _rms_normalization(
             x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
         )
 
 
 @keras_export(
     [
-        "keras.ops.rms_norm",
-        "keras.ops.nn.rms_norm",
+        "keras.ops.rms_normalization",
+        "keras.ops.nn.rms_normalization",
     ]
 )
-def rms_norm(x, scale=1, axis=-1, epsilon=None):
+def rms_normalization(x, scale=1, axis=-1, epsilon=None):
     """Performs Root Mean Square (RMS) normalization on `x`.
 
-    It is defined as `rms_norm(x) = x * rsqrt(mean(square(x))) * scale`
+    It is defined as `rms_normalization(x) = x * rsqrt(mean(square(x))) * scale`
 
     Args:
         x: Input tensor.
@@ -2694,17 +2694,17 @@ def rms_norm(x, scale=1, axis=-1, epsilon=None):
     Example:
 
     >>> x = np.random.rand(1, 10)
-    >>> x_norm = keras.ops.rms_norm(x, (10,))
+    >>> x_norm = keras.ops.rms_normalization(x, (10,))
     >>> print(x_norm)
     array([[0.69384296, 0.94444374, 0.16551171, 0.05749961, 1.11008865,
         0.52475186, 1.57686807, 1.69893307, 1.27292764, 0.30819128]])
     """
     if any_symbolic_tensors((x,)):
         return RMSNorm(scale=scale, axis=axis, epsilon=epsilon).symbolic_call(x)
-    return _rms_norm(x, scale=scale, axis=axis, epsilon=epsilon)
+    return _rms_normalization(x, scale=scale, axis=axis, epsilon=epsilon)
 
 
-def _rms_norm(x, scale=1, axis=-1, epsilon=None):
+def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
     x = backend.convert_to_tensor(x)
     if len(x.shape) == 0:
         x = backend.numpy.expand_dims(x, axis=0)
