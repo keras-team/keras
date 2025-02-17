@@ -10,6 +10,7 @@ from keras.src.backend import standardize_data_format
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
+from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
@@ -2710,6 +2711,9 @@ def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
         x = backend.numpy.expand_dims(x, axis=0)
     if epsilon is None:
         epsilon = backend.epsilon()
+
+    if not is_keras_tensor(scale):
+        scale = backend.convert_to_tensor(scale)
 
     rrms = backend.math.rsqrt(
         backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)
