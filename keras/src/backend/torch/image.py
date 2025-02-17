@@ -512,12 +512,14 @@ def perspective_transform(
         transforms = transforms.repeat(batch_size, 1)
 
     grid_x, grid_y = torch.meshgrid(
-        torch.arange(width, dtype=torch.float32),
-        torch.arange(height, dtype=torch.float32),
+        torch.arange(width, dtype=torch.float32, device=images.device),
+        torch.arange(height, dtype=torch.float32, device=images.device),
         indexing="xy",
     )
 
-    output = torch.empty([batch_size, height, width, channels])
+    output = torch.empty(
+        [batch_size, height, width, channels], device=images.device
+    )
 
     for i in range(batch_size):
         a0, a1, a2, a3, a4, a5, a6, a7 = transforms[i]
