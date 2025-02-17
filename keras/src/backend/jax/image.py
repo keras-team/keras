@@ -546,7 +546,8 @@ def perspective_transform(
 
     batch_size, height, width, channels = images.shape
     transforms = compute_homography_matrix(
-        jnp.asarray(start_points), jnp.asarray(end_points)
+        jnp.asarray(start_points, dtype="float32"),
+        jnp.asarray(end_points, dtype="float32"),
     )
 
     x, y = jnp.meshgrid(jnp.arange(width), jnp.arange(height), indexing="xy")
