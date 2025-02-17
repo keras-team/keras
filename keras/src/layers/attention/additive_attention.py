@@ -33,8 +33,8 @@ class AdditiveAttention(Attention):
             - `query`: Query tensor of shape `(batch_size, Tq, dim)`.
             - `value`: Value tensor of shape `(batch_size, Tv, dim)`.
             - `key`: Optional key tensor of shape `(batch_size, Tv, dim)`. If
-                not given, will use the`value` for both `key` and `value`, which is
-                the most common case.
+                not given, will use the`value` for both `key` and `value`,
+                which is the most common case.
         mask: List of the following tensors:
             - `query_mask`: A boolean mask tensor of shape `(batch_size, Tq)`.
                 If given, the output will be zero at the positions where
