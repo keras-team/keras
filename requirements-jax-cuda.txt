@@ -1,0 +1,14 @@
+# Tensorflow cpu-only version (needed for testing).
+tensorflow-cpu~=2.18.0
+tf2onnx
+
+# Torch cpu-only version (needed for testing).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.6.0+cpu
+
+# Jax with cuda support.
+--find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+jax[cuda12]==0.4.28
+flax
+
+-r requirements-common.txt

@@ -1,0 +1,22 @@
+.DS_Store
+*.pyc
+.vscode-test
+__pycache__
+**/.vscode-test/**
+**/.vscode test/**
+**/.vscode-smoke/**
+**/.venv*/
+bin/**
+build/**
+obj/**
+.pytest_cache
+tmp/**
+.vs/
+dist/**
+*.egg-info/*
+.vscode
+examples/**/*.jpg
+.python-version
+.coverage
+*coverage.xml
+.ruff_cache

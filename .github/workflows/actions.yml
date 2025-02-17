@@ -1,0 +1,145 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10']
+        backend: [tensorflow, jax, torch, numpy, openvino]
+    name: Run tests
+    runs-on: ubuntu-latest
+    env:
+      PYTHON: ${{ matrix.python-version }}
+      KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for changes in keras/src/applications
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            applications:
+              - 'keras/src/applications/**'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      - name: pip cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.backend }}" == "openvino" ]; then
+            REQUIREMENTS_FILE="requirements-openvino.txt"
+          else
+            REQUIREMENTS_FILE="requirements.txt"
+          fi
+          pip install -r $REQUIREMENTS_FILE --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
+          pip install -e "." --progress-bar off --upgrade
+      - name: Test applications with pytest
+        if: ${{ steps.filter.outputs.applications == 'true' }}
+        run: |
+          pytest keras/src/applications --cov=keras/src/applications --cov-config=pyproject.toml
+          coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
+      - name: Codecov keras.applications
+        if: ${{ steps.filter.outputs.applications == 'true' }}
+        uses: codecov/codecov-action@v5
+        with:
+          env_vars: PYTHON,KERAS_HOME
+          flags: keras.applications,keras.applications-${{ matrix.backend }}
+          files: apps-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Test integrations
+        if: ${{ matrix.backend != 'numpy'}}
+        run: |
+          python integration_tests/import_test.py
+          python integration_tests/numerical_test.py
+      - name: Test JAX-specific integrations
+        if: ${{ matrix.backend == 'jax'}}
+        run: |
+          python integration_tests/jax_custom_fit_test.py
+      - name: Test TF-specific integrations
+        if: ${{ matrix.backend == 'tensorflow'}}
+        run: |
+          python integration_tests/tf_distribute_training_test.py
+          python integration_tests/tf_custom_fit_test.py
+      - name: Test Torch-specific integrations
+        if: ${{ matrix.backend == 'torch'}}
+        run: |
+          pytest integration_tests/torch_workflow_test.py
+          python integration_tests/torch_custom_fit_test.py
+      - name: Test with pytest
+        run: |
+          if [ "${{ matrix.backend }}" == "openvino" ]; then
+            IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
+            IGNORE_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
+          else
+            IGNORE_ARGS=""
+          fi
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
+          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+      - name: Codecov keras
+        uses: codecov/codecov-action@v5
+        with:
+          env_vars: PYTHON,KERAS_HOME
+          flags: keras,keras-${{ matrix.backend }}
+          files: core-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  format:
+    name: Check the code format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      - name: pip cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip install -r requirements-openvino.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
+          pip install -e "." --progress-bar off --upgrade
+      - name: Lint
+        run: bash shell/lint.sh
+      - name: Check for API changes
+        run: |
+          bash shell/api_gen.sh
+          git status
+          clean=$(git status | grep "nothing to commit")
+          if [ -z "$clean" ]; then
+            echo "Please run shell/api_gen.sh to generate API."
+            exit 1
+          fi

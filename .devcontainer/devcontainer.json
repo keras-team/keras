@@ -1,0 +1,28 @@
+{
+    "image": "mcr.microsoft.com/vscode/devcontainers/python:3.10",
+    "postCreateCommand": "sh ./.devcontainer/setup.sh && pip install -r requirements.txt",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.testing.pytestEnabled": true,
+                "editor.formatOnSave": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": true
+                },
+                "[python]": {
+                    "editor.defaultFormatter": "charliermarsh.ruff"
+                },
+                "editor.rulers": [
+                    80
+                ]
+            },
+            "extensions": [
+                "charliermarsh.ruff",
+                "ms-python.python"
+            ]
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    }
+}
