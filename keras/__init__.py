@@ -14,6 +14,7 @@ from keras.api import Operation
 from keras.api import Optimizer
 from keras.api import Quantizer
 from keras.api import Regularizer
+from keras.api import RematScope
 from keras.api import Sequential
 from keras.api import StatelessScope
 from keras.api import SymbolicScope
@@ -44,6 +45,7 @@ from keras.api import preprocessing
 from keras.api import quantizers
 from keras.api import random
 from keras.api import regularizers
+from keras.api import remat
 from keras.api import saving
 from keras.api import tree
 from keras.api import utils

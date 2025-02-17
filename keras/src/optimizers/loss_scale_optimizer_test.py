@@ -106,3 +106,25 @@ class LossScaleOptimizerTest(testing.TestCase):
             else:
                 optimizer.apply(grads, vars)
         self.assertAllClose(optimizer.scale_loss(1.0), 32.0)
+
+    @parameterized.named_parameters(("stateless", True), ("stateful", False))
+    def test_iterations_update(self, stateless):
+        self._skip_test_for_stateless(stateless)
+
+        inner_optimizer = SGD(learning_rate=0.5)
+        optimizer = LossScaleOptimizer(inner_optimizer)
+        vars = [backend.Variable([1.0, 2.0, 3.0, 4.0])]
+        optimizer.build(vars)
+        opt_vars = optimizer.variables
+        grads = [ops.array([1.0, 6.0, 7.0, 2.0])]
+
+        self.assertEqual(optimizer.iterations.value, 0)
+
+        for i in range(3):
+            if stateless:
+                _, opt_vars = optimizer.stateless_apply(opt_vars, grads, vars)
+                for ref_v, v in zip(optimizer.variables, opt_vars):
+                    ref_v.assign(v)
+            else:
+                optimizer.apply(grads, vars)
+            self.assertEqual(optimizer.iterations.value, i + 1)

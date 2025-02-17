@@ -128,7 +128,7 @@ class HashedCrossing(Layer):
                 return ()
             return (self.num_bins,)
         if self.output_mode == "int":
-            return input_shape[0]
+            return tuple(input_shape[0])
 
         if self.output_mode == "one_hot" and input_shape[0][-1] != 1:
             return tuple(input_shape[0]) + (self.num_bins,)
@@ -143,7 +143,8 @@ class HashedCrossing(Layer):
         self._check_input_shape_and_type(inputs)
 
         # Uprank to rank 2 for the cross_hashed op.
-        rank = len(inputs[0].shape)
+        first_shape = tuple(inputs[0].shape)
+        rank = len(first_shape)
         if rank < 2:
             inputs = [tf_backend.numpy.expand_dims(x, -1) for x in inputs]
         if rank < 1:
@@ -153,14 +154,13 @@ class HashedCrossing(Layer):
         outputs = tf.sparse.cross_hashed(inputs, self.num_bins)
         outputs = tf.sparse.to_dense(outputs)
 
-        # Fix output shape and downrank to match input rank.
+        # tf.sparse.cross_hashed output shape will always have None dimensions.
+        # Re-apply the known static shape and downrank to match input rank.
         if rank == 2:
-            # tf.sparse.cross_hashed output shape will always be None on the
-            # last dimension. Given our input shape restrictions, we want to
-            # force shape 1 instead.
-            outputs = tf.reshape(outputs, [-1, 1])
+            outputs.set_shape(first_shape)
         elif rank == 1:
-            outputs = tf.reshape(outputs, [-1])
+            outputs.set_shape(first_shape + (1,))
+            outputs = tf.squeeze(outputs, axis=1)
         elif rank == 0:
             outputs = tf.reshape(outputs, [])
 

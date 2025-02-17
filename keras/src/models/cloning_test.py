@@ -242,3 +242,12 @@ class CloneModelTest(testing.TestCase):
             if isinstance(l2, layers.Dense):
                 self.assertFalse(hasattr(l1, "flag"))
                 self.assertTrue(hasattr(l2, "flag"))
+
+    def test_compiled_model_cloning(self):
+        model = models.Sequential()
+        model.add(layers.Input((3,)))
+        model.add(layers.Dense(5, activation="relu"))
+        model.add(layers.Dense(1, activation="sigmoid"))
+        model.compile(optimizer="adam", loss="binary_crossentropy")
+        cloned_model = clone_model(model)
+        self.assertEqual(model.compiled, cloned_model.compiled)

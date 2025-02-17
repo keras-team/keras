@@ -615,3 +615,12 @@ def custom_gradient(fun):
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
         return outputs
+
+
+def remat(f):
+    warnings.warn(
+        "Rematerialization memory optimization is not supported by the "
+        "OpenVino backend. Please switch to JAX, TensorFlow, or PyTorch to "
+        "utilize this feature."
+    )
+    return f

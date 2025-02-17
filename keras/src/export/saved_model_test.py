@@ -1017,3 +1017,40 @@ class ExportArchiveTest(testing.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         revived_output = revived_model.serve(ref_input)
         self.assertAllClose(ref_output, revived_output)
+
+    def test_model_combined_with_tf_preprocessing(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        lookup_table = tf.lookup.StaticHashTable(
+            tf.lookup.KeyValueTensorInitializer(
+                tf.constant(["a", "b", "c"]), tf.constant([1.0, 2.0, 3.0])
+            ),
+            default_value=-1.0,
+        )
+        ref_input = tf.constant([["c", "b", "c", "a", "d"]])
+        ref_intermediate = lookup_table.lookup(ref_input)
+
+        model = models.Sequential([layers.Dense(1)])
+        ref_output = model(ref_intermediate)
+
+        export_archive = saved_model.ExportArchive()
+        model_fn = export_archive.track_and_add_endpoint(
+            "model",
+            model,
+            input_signature=[tf.TensorSpec(shape=(None, 5), dtype=tf.float32)],
+        )
+        export_archive.track(lookup_table)
+
+        @tf.function()
+        def combined_fn(x):
+            x = lookup_table.lookup(x)
+            x = model_fn(x)
+            return x
+
+        self.assertAllClose(combined_fn(ref_input), ref_output)
+
+        export_archive.add_endpoint("combined_fn", combined_fn)
+        export_archive.write_out(temp_filepath)
+
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(revived_model.combined_fn(ref_input), ref_output)

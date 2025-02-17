@@ -31,7 +31,7 @@ elif backend.backend() == "openvino":
     )
 else:
     raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement a layer mixin class."
+        f"Backend '{backend.backend()}' must implement ExportArchive."
     )
 
 
@@ -135,18 +135,17 @@ class ExportArchive(BackendExportArchive):
         return self._tf_trackable.non_trainable_variables
 
     def track(self, resource):
-        """Track the variables (and other assets) of a layer or model.
+        """Track the variables (of a layer or model) and other assets.
 
-        By default, all variables used by an endpoint function
-        are automatically tracked when you call `add_endpoint()`.
-        However, non-variables assets such as lookup tables
-        need to be tracked manually. Note that lookup tables
-        used by built-in Keras layers
-        (`TextVectorization`, `IntegerLookup`, `StringLookup`)
-        are automatically tracked in `add_endpoint()`.
+        By default, all variables used by an endpoint function are automatically
+        tracked when you call `add_endpoint()`. However, non-variables assets
+        such as lookup tables need to be tracked manually. Note that lookup
+        tables used by built-in Keras layers (`TextVectorization`,
+        `IntegerLookup`, `StringLookup`) are automatically tracked by
+        `add_endpoint()`.
 
         Args:
-            resource: A trackable Keras resource, such as a layer or model.
+            resource: A layer, model or a TensorFlow trackable resource.
         """
         if isinstance(resource, layers.Layer) and not resource.built:
             raise ValueError(
@@ -154,14 +153,22 @@ class ExportArchive(BackendExportArchive):
                 "It must be built before export."
             )
 
-        # Layers in `_tracked` are not part of the trackables that get saved,
-        # because we're creating the attribute in a
-        # no_automatic_dependency_tracking scope.
-        if not hasattr(self, "_tracked"):
-            self._tracked = []
-        self._tracked.append(resource)
+        # Note: with the TensorFlow backend, Layers and Models fall into both
+        # the Layer case and the Trackable case. The Trackable case is needed
+        # for preprocessing layers in order to track lookup tables.
+        if isinstance(resource, tf.__internal__.tracking.Trackable):
+            if not hasattr(self, "_tracked"):
+                self._tracked = []
+            self._tracked.append(resource)
 
-        BackendExportArchive.track(self, resource)
+        if isinstance(resource, layers.Layer):
+            self._track_layer(resource)
+        elif not isinstance(resource, tf.__internal__.tracking.Trackable):
+            raise ValueError(
+                "Invalid resource type. Expected a Keras `Layer` or `Model` "
+                "or a TensorFlow `Trackable` object. "
+                f"Received object {resource} of type '{type(resource)}'. "
+            )
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
         """Register a new serving endpoint.
@@ -283,6 +290,28 @@ class ExportArchive(BackendExportArchive):
         export_archive.track(model)
         export_archive.add_endpoint(name="serve", fn=serving_fn)
         ```
+
+        Combining a model with some TensorFlow preprocessing, which can use
+        TensorFlow resources:
+
+        ```python
+        lookup_table = tf.lookup.StaticHashTable(initializer, default_value=0.0)
+
+        export_archive = ExportArchive()
+        model_fn = export_archive.track_and_add_endpoint(
+            "model_fn",
+            model,
+            input_signature=[tf.TensorSpec(shape=(None, 5), dtype=tf.float32)],
+        )
+        export_archive.track(lookup_table)
+
+        @tf.function()
+        def serving_fn(x):
+            x = lookup_table.lookup(x)
+            return model_fn(x)
+
+        export_archive.add_endpoint(name="serve", fn=serving_fn)
+        ```
         """
         if name in self._endpoint_names:
             raise ValueError(f"Endpoint name '{name}' is already taken.")
@@ -332,9 +361,7 @@ class ExportArchive(BackendExportArchive):
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
         )
-        decorated_fn = BackendExportArchive.add_endpoint(
-            self, name, fn, input_signature, **kwargs
-        )
+        decorated_fn = super().add_endpoint(name, fn, input_signature, **kwargs)
         self._endpoint_signatures[name] = input_signature
         setattr(self._tf_trackable, name, decorated_fn)
         self._endpoint_names.append(name)
@@ -400,8 +427,8 @@ class ExportArchive(BackendExportArchive):
             )
         else:
             # Special case for the torch backend.
-            decorated_fn = BackendExportArchive.track_and_add_endpoint(
-                self, name, resource, input_signature, **kwargs
+            decorated_fn = super().track_and_add_endpoint(
+                name, resource, input_signature, **kwargs
             )
             self._endpoint_signatures[name] = input_signature
             setattr(self._tf_trackable, name, decorated_fn)
@@ -480,8 +507,7 @@ class ExportArchive(BackendExportArchive):
             raise ValueError(
                 "No endpoints have been set yet. Call add_endpoint()."
             )
-        if backend.backend() == "tensorflow":
-            self._filter_and_track_resources()
+        self._filter_and_track_resources()
 
         signatures = {}
         for name in self._endpoint_names:
@@ -500,17 +526,18 @@ class ExportArchive(BackendExportArchive):
         )
 
         # Print out available endpoints
-        endpoints = "\n\n".join(
-            _print_signature(
-                getattr(self._tf_trackable, name), name, verbose=verbose
+        if verbose:
+            endpoints = "\n\n".join(
+                _print_signature(
+                    getattr(self._tf_trackable, name), name, verbose=verbose
+                )
+                for name in self._endpoint_names
             )
-            for name in self._endpoint_names
-        )
-        io_utils.print_msg(
-            f"Saved artifact at '{filepath}'. "
-            "The following endpoints are available:\n\n"
-            f"{endpoints}"
-        )
+            io_utils.print_msg(
+                f"Saved artifact at '{filepath}'. "
+                "The following endpoints are available:\n\n"
+                f"{endpoints}"
+            )
 
     def _convert_to_tf_variable(self, backend_variable):
         if not isinstance(backend_variable, backend.Variable):
@@ -561,7 +588,7 @@ class ExportArchive(BackendExportArchive):
 
 
 def export_saved_model(
-    model, filepath, verbose=True, input_signature=None, **kwargs
+    model, filepath, verbose=None, input_signature=None, **kwargs
 ):
     """Export the model as a TensorFlow SavedModel artifact for inference.
 
@@ -577,7 +604,8 @@ def export_saved_model(
     Args:
         filepath: `str` or `pathlib.Path` object. The path to save the artifact.
         verbose: `bool`. Whether to print a message during export. Defaults to
-            True`.
+            `None`, which uses the default value set by different backends and
+            formats.
         input_signature: Optional. Specifies the shape and dtype of the model
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
             `backend.KerasTensor`, or backend tensor. If not provided, it will
@@ -616,6 +644,8 @@ def export_saved_model(
     use the lower-level `keras.export.ExportArchive` class. The
     `export()` method relies on `ExportArchive` internally.
     """
+    if verbose is None:
+        verbose = True  # Defaults to `True` for all backends.
     export_archive = ExportArchive()
     if input_signature is None:
         input_signature = get_input_signature(model)
