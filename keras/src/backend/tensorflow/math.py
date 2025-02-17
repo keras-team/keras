@@ -115,8 +115,8 @@ def fft2(x):
 
 def ifft2(x):
     real, imag = x
-    h = cast(tf.shape(real)[-2], "float32")
-    w = cast(tf.shape(real)[-1], "float32")
+    h = cast(tf.shape(real)[-2], real.dtype)
+    w = cast(tf.shape(real)[-1], real.dtype)
     real_conj, imag_conj = real, -imag
     fft_real, fft_imag = fft2((real_conj, imag_conj))
     return fft_real / (h * w), -fft_imag / (h * w)

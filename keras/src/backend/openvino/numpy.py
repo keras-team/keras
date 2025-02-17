@@ -152,11 +152,41 @@ def any(x, axis=None, keepdims=False):
 
 
 def amax(x, axis=None, keepdims=False):
-    raise NotImplementedError("`amax` is not supported with openvino backend")
+    if axis == () or axis == []:
+        return x
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    if x_type == Type.boolean:
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
+        )
+    return OpenVINOKerasTensor(ov_opset.reduce_max(x, axis, keepdims).output(0))
 
 
 def amin(x, axis=None, keepdims=False):
-    raise NotImplementedError("`amin` is not supported with openvino backend")
+    if axis == () or axis == []:
+        return x
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    if x_type == Type.boolean:
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
+        )
+    return OpenVINOKerasTensor(ov_opset.reduce_min(x, axis, keepdims).output(0))
 
 
 def append(x1, x2, axis=None):
