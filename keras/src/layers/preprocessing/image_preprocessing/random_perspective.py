@@ -49,7 +49,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     def __init__(
         self,
         factor=1.0,
-        scale=0.5,
+        scale=1.0,
         interpolation="bilinear",
         fill_value=0.0,
         seed=None,
@@ -103,6 +103,10 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             batch_size = 1
         else:
             batch_size = images_shape[0]
+        height, width = (
+            images.shape[self.height_axis],
+            images.shape[self.width_axis],
+        )
 
         seed = seed or self._get_seed_generator(self.backend._backend)
 
@@ -129,9 +133,25 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
+        start_points = self.backend.convert_to_tensor(
+            [
+                [
+                    [0.0, 0.0],
+                    [width - 1, 0.0],
+                    [0.0, height - 1],
+                    [width - 1, height - 1],
+                ]
+            ],
+            dtype=self.compute_dtype,
+        )
+        start_points = self.backend.numpy.tile(start_points, [batch_size, 1, 1])
+
+        end_points = start_points + start_points * perspective_factor
+
         return {
             "apply_perspective": apply_perspective,
-            "perspective_factor": perspective_factor,
+            "start_points": start_points,
+            "end_points": end_points,
             "input_shape": images_shape,
         }
 
@@ -142,156 +162,6 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             images = self.backend.cast(images, self.compute_dtype)
         return images
 
-    def get_matrix_by_points(self, source_points, target_points):
-        batch_size = self.backend.shape(source_points)[0]
-
-        target_points = self.backend.numpy.tile(
-            target_points, [batch_size, 1, 1]
-        )
-
-        src_x1, src_y1 = source_points[:, 0, 0], source_points[:, 0, 1]
-        src_x2, src_y2 = source_points[:, 1, 0], source_points[:, 1, 1]
-        src_x3, src_y3 = source_points[:, 2, 0], source_points[:, 2, 1]
-        src_x4, src_y4 = source_points[:, 3, 0], source_points[:, 3, 1]
-
-        tgt_x1, tgt_y1 = target_points[:, 0, 0], target_points[:, 0, 1]
-        tgt_x2, tgt_y2 = target_points[:, 1, 0], target_points[:, 1, 1]
-        tgt_x3, tgt_y3 = target_points[:, 2, 0], target_points[:, 2, 1]
-        tgt_x4, tgt_y4 = target_points[:, 3, 0], target_points[:, 3, 1]
-
-        coefficient_matrix = self.backend.numpy.stack(
-            [
-                self.backend.numpy.stack(
-                    [
-                        src_x1,
-                        src_y1,
-                        self.backend.numpy.ones_like(src_x1),
-                        self.backend.numpy.zeros_like(src_x1),
-                        self.backend.numpy.zeros_like(src_x1),
-                        self.backend.numpy.zeros_like(src_x1),
-                        -tgt_x1 * src_x1,
-                        -tgt_x1 * src_y1,
-                    ],
-                    axis=-1,
-                ),
-                self.backend.numpy.stack(
-                    [
-                        self.backend.numpy.zeros_like(src_x1),
-                        self.backend.numpy.zeros_like(src_x1),
-                        self.backend.numpy.zeros_like(src_x1),
-                        src_x1,
-                        src_y1,
-                        self.backend.numpy.ones_like(src_x1),
-                        -tgt_y1 * src_x1,
-                        -tgt_y1 * src_y1,
-                    ],
-                    axis=-1,
-                ),
-                self.backend.numpy.stack(
-                    [
-                        src_x2,
-                        src_y2,
-                        self.backend.numpy.ones_like(src_x2),
-                        self.backend.numpy.zeros_like(src_x2),
-                        self.backend.numpy.zeros_like(src_x2),
-                        self.backend.numpy.zeros_like(src_x2),
-                        -tgt_x2 * src_x2,
-                        -tgt_x2 * src_y2,
-                    ],
-                    axis=-1,
-                ),
-                self.backend.numpy.stack(
-                    [
-                        self.backend.numpy.zeros_like(src_x2),
-                        self.backend.numpy.zeros_like(src_x2),
-                        self.backend.numpy.zeros_like(src_x2),
-                        src_x2,
-                        src_y2,
-                        self.backend.numpy.ones_like(src_x2),
-                        -tgt_y2 * src_x2,
-                        -tgt_y2 * src_y2,
-                    ],
-                    axis=-1,
-                ),
-                self.backend.numpy.stack(
-                    [
-                        src_x3,
-                        src_y3,
-                        self.backend.numpy.ones_like(src_x3),
-                        self.backend.numpy.zeros_like(src_x3),
-                        self.backend.numpy.zeros_like(src_x3),
-                        self.backend.numpy.zeros_like(src_x3),
-                        -tgt_x3 * src_x3,
-                        -tgt_x3 * src_y3,
-                    ],
-                    axis=-1,
-                ),
-                self.backend.numpy.stack(
-                    [
-                        self.backend.numpy.zeros_like(src_x3),
-                        self.backend.numpy.zeros_like(src_x3),
-                        self.backend.numpy.zeros_like(src_x3),
-                        src_x3,
-                        src_y3,
-                        self.backend.numpy.ones_like(src_x3),
-                        -tgt_y3 * src_x3,
-                        -tgt_y3 * src_y3,
-                    ],
-                    axis=-1,
-                ),
-                self.backend.numpy.stack(
-                    [
-                        src_x4,
-                        src_y4,
-                        self.backend.numpy.ones_like(src_x4),
-                        self.backend.numpy.zeros_like(src_x4),
-                        self.backend.numpy.zeros_like(src_x4),
-                        self.backend.numpy.zeros_like(src_x4),
-                        -tgt_x4 * src_x4,
-                        -tgt_x4 * src_y4,
-                    ],
-                    axis=-1,
-                ),
-                self.backend.numpy.stack(
-                    [
-                        self.backend.numpy.zeros_like(src_x4),
-                        self.backend.numpy.zeros_like(src_x4),
-                        self.backend.numpy.zeros_like(src_x4),
-                        src_x4,
-                        src_y4,
-                        self.backend.numpy.ones_like(src_x4),
-                        -tgt_y4 * src_x4,
-                        -tgt_y4 * src_y4,
-                    ],
-                    axis=-1,
-                ),
-            ],
-            axis=1,
-        )
-
-        target_vector = self.backend.numpy.stack(
-            [tgt_x1, tgt_y1, tgt_x2, tgt_y2, tgt_x3, tgt_y3, tgt_x4, tgt_y4],
-            axis=-1,
-        )
-        target_vector = self.backend.numpy.expand_dims(target_vector, axis=-1)
-
-        coefficient_matrix = self.backend.cast(
-            coefficient_matrix, dtype="float32"
-        )
-        target_vector = self.backend.cast(target_vector, dtype="float32")
-
-        homography_matrix = self.backend.linalg.solve(
-            coefficient_matrix, target_vector
-        )
-        homography_matrix = self.backend.numpy.reshape(
-            homography_matrix, [-1, 8]
-        )
-        homography_matrix = self.backend.cast(
-            homography_matrix, dtype=self.compute_dtype
-        )
-
-        return homography_matrix
-
     def _perspective_inputs(self, inputs, transformation):
         if transformation is None:
             return inputs
@@ -301,11 +171,13 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         if unbatched:
             inputs = self.backend.numpy.expand_dims(inputs, axis=0)
 
-        outputs = self.backend.image.affine_transform(
+        start_points = transformation["start_points"]
+        end_points = transformation["end_points"]
+        outputs = self.backend.image.perspective_transform(
             inputs,
-            transform=self._get_perspective_matrix(transformation),
+            start_points,
+            end_points,
             interpolation=self.interpolation,
-            fill_mode="constant",
             fill_value=self.fill_value,
             data_format=self.data_format,
         )
@@ -320,66 +192,6 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         if unbatched:
             outputs = self.backend.numpy.squeeze(outputs, axis=0)
         return outputs
-
-    def _get_perspective_matrix(self, transformation):
-        perspective_factor = self.backend.core.convert_to_tensor(
-            transformation["perspective_factor"], dtype=self.compute_dtype
-        )
-        input_shape = self.backend.core.convert_to_tensor(
-            transformation["input_shape"], dtype=self.compute_dtype
-        )
-
-        height, width = (
-            input_shape[self.height_axis],
-            input_shape[self.width_axis],
-        )
-        start_points = self.backend.convert_to_tensor(
-            [
-                [
-                    [0.0, 0.0],
-                    [width - 1, 0.0],
-                    [0.0, height - 1],
-                    [width - 1, height - 1],
-                ]
-            ],
-            dtype=self.compute_dtype,
-        )
-
-        end_points = start_points + start_points * perspective_factor
-        return self.get_matrix_by_points(end_points, start_points)
-
-    def _get_transformed_coordinates(
-        self, x_coords, y_coords, transformation_matrix
-    ):
-        backend = self.backend
-
-        batch_size = backend.shape(transformation_matrix)[0]
-
-        homogeneous_transform = backend.numpy.concatenate(
-            [transformation_matrix, backend.numpy.ones((batch_size, 1, 1))],
-            axis=-1,
-        )
-        homogeneous_transform = backend.numpy.reshape(
-            homogeneous_transform, (batch_size, 3, 3)
-        )
-
-        inverse_transform = backend.linalg.inv(homogeneous_transform)
-
-        ones_column = backend.numpy.ones_like(x_coords)
-        homogeneous_coords = backend.numpy.concatenate(
-            [x_coords, y_coords, ones_column], axis=-1
-        )
-
-        homogeneous_coords = backend.numpy.moveaxis(homogeneous_coords, -1, -2)
-        transformed_coords = backend.numpy.matmul(
-            inverse_transform, homogeneous_coords
-        )
-        transformed_coords = backend.numpy.moveaxis(transformed_coords, -1, -2)
-
-        x_transformed = transformed_coords[..., 0] / transformed_coords[..., 2]
-        y_transformed = transformed_coords[..., 1] / transformed_coords[..., 2]
-
-        return x_transformed, y_transformed
 
     def transform_bounding_boxes(
         self,
@@ -407,7 +219,11 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             boxes = bounding_boxes["boxes"]
             x0, y0, x1, y1 = self.backend.numpy.split(boxes, 4, axis=-1)
 
-            transform = self._get_perspective_matrix(transformation)
+            start_points = transformation["start_points"]
+            end_points = transformation["end_points"]
+            transform = self.backend.image.compute_homography_matrix(
+                start_points, end_points
+            )
             transform = self.backend.numpy.expand_dims(transform, axis=1)
             transform = self.backend.cast(transform, dtype=self.compute_dtype)
 
@@ -458,6 +274,39 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             self.backend.reset()
 
         return bounding_boxes
+
+    def _get_transformed_coordinates(
+        self, x_coords, y_coords, transformation_matrix
+    ):
+        backend = self.backend
+
+        batch_size = backend.shape(transformation_matrix)[0]
+
+        homogeneous_transform = backend.numpy.concatenate(
+            [transformation_matrix, backend.numpy.ones((batch_size, 1, 1))],
+            axis=-1,
+        )
+        homogeneous_transform = backend.numpy.reshape(
+            homogeneous_transform, (batch_size, 3, 3)
+        )
+
+        inverse_transform = backend.linalg.inv(homogeneous_transform)
+
+        ones_column = backend.numpy.ones_like(x_coords)
+        homogeneous_coords = backend.numpy.concatenate(
+            [x_coords, y_coords, ones_column], axis=-1
+        )
+
+        homogeneous_coords = backend.numpy.moveaxis(homogeneous_coords, -1, -2)
+        transformed_coords = backend.numpy.matmul(
+            inverse_transform, homogeneous_coords
+        )
+        transformed_coords = backend.numpy.moveaxis(transformed_coords, -1, -2)
+
+        x_transformed = transformed_coords[..., 0] / transformed_coords[..., 2]
+        y_transformed = transformed_coords[..., 1] / transformed_coords[..., 2]
+
+        return x_transformed, y_transformed
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
