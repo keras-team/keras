@@ -491,6 +491,151 @@ MAP_COORDINATES_FILL_MODES = {
 }
 
 
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    if start_points.shape[-2:] != (4, 2) or start_points.ndim not in (2, 3):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if end_points.shape[-2:] != (4, 2) or end_points.ndim not in (2, 3):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+    if start_points.shape != end_points.shape:
+        raise ValueError(
+            "start_points and end_points must have the same shape."
+            f" Received start_points.shape={start_points.shape}, "
+            f"end_points.shape={end_points.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = jnp.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if len(start_points.shape) == 2:
+        start_points = jnp.expand_dims(start_points, axis=0)
+    if len(end_points.shape) == 2:
+        end_points = jnp.expand_dims(end_points, axis=0)
+
+    if data_format == "channels_first":
+        images = jnp.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+    transforms = compute_homography_matrix(
+        jnp.asarray(start_points), jnp.asarray(end_points)
+    )
+
+    x, y = jnp.meshgrid(jnp.arange(width), jnp.arange(height), indexing="xy")
+    grid = jnp.stack([x.ravel(), y.ravel(), jnp.ones_like(x).ravel()], axis=0)
+
+    def transform_coordinates(transform):
+        denom = transform[6] * grid[0] + transform[7] * grid[1] + 1.0
+        x_in = (
+            transform[0] * grid[0] + transform[1] * grid[1] + transform[2]
+        ) / denom
+        y_in = (
+            transform[3] * grid[0] + transform[4] * grid[1] + transform[5]
+        ) / denom
+        return jnp.stack([y_in, x_in], axis=0)
+
+    transformed_coords = jax.vmap(transform_coordinates)(transforms)
+
+    def interpolate_image(image, coords):
+        def interpolate_channel(channel_img):
+            return jax.scipy.ndimage.map_coordinates(
+                channel_img,
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                mode="constant",
+                cval=fill_value,
+            ).reshape(height, width)
+
+        return jax.vmap(interpolate_channel, in_axes=0)(
+            jnp.moveaxis(image, -1, 0)
+        )
+
+    output = jax.vmap(interpolate_image, in_axes=(0, 0))(
+        images, transformed_coords
+    )
+    output = jnp.moveaxis(output, 1, -1)
+
+    if data_format == "channels_first":
+        output = jnp.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = jnp.squeeze(output, axis=0)
+
+    return output
+
+
+def compute_homography_matrix(start_points, end_points):
+    start_x, start_y = start_points[..., 0], start_points[..., 1]
+    end_x, end_y = end_points[..., 0], end_points[..., 1]
+
+    zeros = jnp.zeros_like(end_x)
+    ones = jnp.ones_like(end_x)
+
+    x_rows = jnp.stack(
+        [
+            end_x,
+            end_y,
+            ones,
+            zeros,
+            zeros,
+            zeros,
+            -start_x * end_x,
+            -start_x * end_y,
+        ],
+        axis=-1,
+    )
+    y_rows = jnp.stack(
+        [
+            zeros,
+            zeros,
+            zeros,
+            end_x,
+            end_y,
+            ones,
+            -start_y * end_x,
+            -start_y * end_y,
+        ],
+        axis=-1,
+    )
+
+    coefficient_matrix = jnp.concatenate([x_rows, y_rows], axis=1)
+
+    target_vector = jnp.expand_dims(
+        jnp.concatenate([start_x, start_y], axis=-1), axis=-1
+    )
+
+    homography_matrix = jnp.linalg.solve(coefficient_matrix, target_vector)
+
+    return homography_matrix.squeeze(-1)
+
+
 def map_coordinates(
     inputs, coordinates, order, fill_mode="constant", fill_value=0.0
 ):

@@ -374,6 +374,226 @@ def affine_transform(
     return affined
 
 
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    start_points = convert_to_tensor(start_points, dtype=tf.float32)
+    end_points = convert_to_tensor(end_points, dtype=tf.float32)
+
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{AFFINE_TRANSFORM_INTERPOLATIONS}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    if start_points.shape.rank not in (2, 3) or start_points.shape[-2:] != (
+        4,
+        2,
+    ):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if end_points.shape.rank not in (2, 3) or end_points.shape[-2:] != (4, 2):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+    if start_points.shape != end_points.shape:
+        raise ValueError(
+            "start_points and end_points must have the same shape."
+            f" Received start_points.shape={start_points.shape}, "
+            f"end_points.shape={end_points.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = tf.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if len(start_points.shape) == 2:
+        start_points = tf.expand_dims(start_points, axis=0)
+    if len(end_points.shape) == 2:
+        end_points = tf.expand_dims(end_points, axis=0)
+
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    transform = compute_homography_matrix(start_points, end_points)
+    if len(transform.shape) == 1:
+        transform = tf.expand_dims(transform, axis=0)
+
+    output = tf.raw_ops.ImageProjectiveTransformV3(
+        images=images,
+        transforms=tf.cast(transform, dtype=tf.float32),
+        output_shape=tf.shape(images)[1:-1],
+        fill_value=fill_value,
+        interpolation=interpolation.upper(),
+    )
+    output = tf.ensure_shape(output, images.shape)
+
+    if data_format == "channels_first":
+        output = tf.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = tf.squeeze(output, axis=0)
+    return output
+
+
+def compute_homography_matrix(start_points, end_points):
+    start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
+    start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
+    start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
+    start_x4, start_y4 = start_points[:, 3, 0], start_points[:, 3, 1]
+
+    end_x1, end_y1 = end_points[:, 0, 0], end_points[:, 0, 1]
+    end_x2, end_y2 = end_points[:, 1, 0], end_points[:, 1, 1]
+    end_x3, end_y3 = end_points[:, 2, 0], end_points[:, 2, 1]
+    end_x4, end_y4 = end_points[:, 3, 0], end_points[:, 3, 1]
+
+    coefficient_matrix = tf.stack(
+        [
+            tf.stack(
+                [
+                    end_x1,
+                    end_y1,
+                    tf.ones_like(end_x1),
+                    tf.zeros_like(end_x1),
+                    tf.zeros_like(end_x1),
+                    tf.zeros_like(end_x1),
+                    -start_x1 * end_x1,
+                    -start_x1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            tf.stack(
+                [
+                    tf.zeros_like(end_x1),
+                    tf.zeros_like(end_x1),
+                    tf.zeros_like(end_x1),
+                    end_x1,
+                    end_y1,
+                    tf.ones_like(end_x1),
+                    -start_y1 * end_x1,
+                    -start_y1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            tf.stack(
+                [
+                    end_x2,
+                    end_y2,
+                    tf.ones_like(end_x2),
+                    tf.zeros_like(end_x2),
+                    tf.zeros_like(end_x2),
+                    tf.zeros_like(end_x2),
+                    -start_x2 * end_x2,
+                    -start_x2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            tf.stack(
+                [
+                    tf.zeros_like(end_x2),
+                    tf.zeros_like(end_x2),
+                    tf.zeros_like(end_x2),
+                    end_x2,
+                    end_y2,
+                    tf.ones_like(end_x2),
+                    -start_y2 * end_x2,
+                    -start_y2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            tf.stack(
+                [
+                    end_x3,
+                    end_y3,
+                    tf.ones_like(end_x3),
+                    tf.zeros_like(end_x3),
+                    tf.zeros_like(end_x3),
+                    tf.zeros_like(end_x3),
+                    -start_x3 * end_x3,
+                    -start_x3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            tf.stack(
+                [
+                    tf.zeros_like(end_x3),
+                    tf.zeros_like(end_x3),
+                    tf.zeros_like(end_x3),
+                    end_x3,
+                    end_y3,
+                    tf.ones_like(end_x3),
+                    -start_y3 * end_x3,
+                    -start_y3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            tf.stack(
+                [
+                    end_x4,
+                    end_y4,
+                    tf.ones_like(end_x4),
+                    tf.zeros_like(end_x4),
+                    tf.zeros_like(end_x4),
+                    tf.zeros_like(end_x4),
+                    -start_x4 * end_x4,
+                    -start_x4 * end_y4,
+                ],
+                axis=-1,
+            ),
+            tf.stack(
+                [
+                    tf.zeros_like(end_x4),
+                    tf.zeros_like(end_x4),
+                    tf.zeros_like(end_x4),
+                    end_x4,
+                    end_y4,
+                    tf.ones_like(end_x4),
+                    -start_y4 * end_x4,
+                    -start_y4 * end_y4,
+                ],
+                axis=-1,
+            ),
+        ],
+        axis=1,
+    )
+
+    target_vector = tf.stack(
+        [
+            start_x1,
+            start_y1,
+            start_x2,
+            start_y2,
+            start_x3,
+            start_y3,
+            start_x4,
+            start_y4,
+        ],
+        axis=-1,
+    )
+    target_vector = tf.expand_dims(target_vector, axis=-1)
+
+    homography_matrix = tf.linalg.solve(coefficient_matrix, target_vector)
+    homography_matrix = tf.reshape(homography_matrix, [-1, 8])
+
+    return homography_matrix
+
+
 def _mirror_index_fixer(index, size):
     s = size - 1  # Half-wavelength of triangular wave
     # Scaled, integer-valued version of the triangular wave |x - round(x)|
