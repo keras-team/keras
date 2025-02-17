@@ -72,21 +72,13 @@ class RandomPerspectiveTest(testing.TestCase):
         layer = layers.RandomPerspective(data_format=data_format)
 
         transformation = {
-            "apply_perspective": np.asarray([True]),
-            "input_shape": inputs.shape,
-            "perspective_factor": np.asarray(
-                [
-                    [
-                        [-0.5, -0.5],
-                        [-0.5, -0.5],
-                        [-0.5, -0.5],
-                        [-0.5, -0.5],
-                    ]
-                ]
+            "apply_perspective": np.array([True]),
+            "start_points": np.array(
+                [[[0.0, 0.0], [3.0, 0.0], [0.0, 3.0], [3.0, 3.0]]]
             ),
-            "fill_value": 0,
+            "end_points": np.array([[[0.0, 0.0], [1, 0.0], [0.0, 1], [1, 1]]]),
+            "input_shape": np.array((4, 4, 1)),
         }
-
         output = layer.transform_images(inputs, transformation)
 
         self.assertAllClose(expected_output, output, atol=1e-4, rtol=1e-4)
@@ -105,37 +97,43 @@ class RandomPerspectiveTest(testing.TestCase):
 
     @parameterized.named_parameters(
         (
-            "with_negative_shift",
+            "with_large_scale",
             [
-                [-0.1319, -0.1157],
-                [-0.0469, -0.0745],
-                [-0.0491, -0.0047],
-                [-0.0586, -0.0155],
+                [
+                    [0.0, 0.0],
+                    [8.151311, 0.0],
+                    [0.0, 12.695701],
+                    [9.2712054, 10.524198],
+                ]
             ],
             [
                 [
-                    [1.9133, 1.0001, 3.8251, 3.0013],
-                    [5.6804, 3.9589, 7.5711, 5.9405],
+                    [2.6490488, 1.1149256, 5.2026834, 3.6187303],
+                    [7.5547166, 4.2492595, 8.0, 6.869391],
                 ]
             ],
         ),
         (
-            "with_positive_shift",
+            "with_small_scale",
             [
-                [0.1319, 0.1157],
-                [0.0469, 0.0745],
-                [0.0491, 0.0047],
-                [0.0586, 0.0155],
+                [
+                    [0.0, 0.0],
+                    [4.151311, 0.0],
+                    [0.0, 6.695701],
+                    [4.2712054, 7.524198],
+                ]
             ],
             [
                 [
-                    [2.0806, 0.9979, 4.1840, 3.0102],
-                    [6.3028, 4.0308, 8.0000, 6.0797],
+                    [1.095408, 0.7504317, 2.2761598, 2.3389952],
+                    [3.5416048, 3.2349987, 4.920989, 5.0568376],
                 ]
             ],
         ),
     )
-    def test_random_perspective_bounding_boxes(self, factor, expected_boxes):
+    def test_random_perspective_bounding_boxes(
+        self, end_points, expected_boxes
+    ):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
             image_shape = (10, 8, 3)
@@ -155,18 +153,23 @@ class RandomPerspectiveTest(testing.TestCase):
         }
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
         layer = layers.RandomPerspective(
-            data_format=data_format,
+            # data_format=data_format,
             seed=42,
             bounding_box_format="xyxy",
         )
 
         transformation = {
-            "apply_perspective": np.asarray([True]),
-            "perspective_factor": np.asarray(factor),
-            "input_shape": image_shape,
+            "apply_perspective": np.array([True]),
+            "end_points": np.array(end_points),
+            "input_shape": np.array(image_shape),
+            "start_points": np.array(
+                [[[0.0, 0.0], [7.0, 0.0], [0.0, 9.0], [7.0, 9.0]]]
+            ),
         }
+
         output = layer.transform_bounding_boxes(
-            input_data["bounding_boxes"], transformation
+            input_data["bounding_boxes"],
+            transformation,
         )
 
         self.assertAllClose(
@@ -175,37 +178,43 @@ class RandomPerspectiveTest(testing.TestCase):
 
     @parameterized.named_parameters(
         (
-            "with_negative_shift",
+            "with_large_scale",
             [
-                [-0.1319, -0.1157],
-                [-0.0469, -0.0745],
-                [-0.0491, -0.0047],
-                [-0.0586, -0.0155],
+                [
+                    [0.0, 0.0],
+                    [8.151311, 0.0],
+                    [0.0, 12.695701],
+                    [9.2712054, 10.524198],
+                ]
             ],
             [
                 [
-                    [1.9133, 1.0001, 3.8251, 3.0013],
-                    [5.6804, 3.9589, 7.5711, 5.9405],
+                    [2.6490488, 1.1149256, 5.2026834, 3.6187303],
+                    [7.5547166, 4.2492595, 8.0, 6.869391],
                 ]
             ],
         ),
         (
-            "with_positive_shift",
+            "with_small_scale",
             [
-                [0.1319, 0.1157],
-                [0.0469, 0.0745],
-                [0.0491, 0.0047],
-                [0.0586, 0.0155],
+                [
+                    [0.0, 0.0],
+                    [4.151311, 0.0],
+                    [0.0, 6.695701],
+                    [4.2712054, 7.524198],
+                ]
             ],
             [
                 [
-                    [2.0806, 0.9979, 4.1840, 3.0102],
-                    [6.3028, 4.0308, 8.0000, 6.0797],
+                    [1.095408, 0.7504317, 2.2761598, 2.3389952],
+                    [3.5416048, 3.2349987, 4.920989, 5.0568376],
                 ]
             ],
         ),
     )
-    def test_random_flip_tf_data_bounding_boxes(self, factor, expected_boxes):
+    def test_random_flip_tf_data_bounding_boxes(
+        self, end_points, expected_boxes
+    ):
         data_format = backend.config.image_data_format()
         if backend.config.image_data_format() == "channels_last":
             image_shape = (1, 10, 8, 3)
@@ -236,9 +245,12 @@ class RandomPerspectiveTest(testing.TestCase):
         )
 
         transformation = {
-            "apply_perspective": np.asarray([True]),
-            "perspective_factor": np.asarray(factor),
-            "input_shape": image_shape,
+            "apply_perspective": np.array([True]),
+            "end_points": np.array(end_points),
+            "input_shape": np.array(image_shape),
+            "start_points": np.array(
+                [[[0.0, 0.0], [7.0, 0.0], [0.0, 9.0], [7.0, 9.0]]]
+            ),
         }
 
         ds = ds.map(

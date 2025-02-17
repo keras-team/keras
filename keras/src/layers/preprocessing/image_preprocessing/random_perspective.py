@@ -144,8 +144,10 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             ],
             dtype=self.compute_dtype,
         )
-        start_points = self.backend.numpy.tile(start_points, [batch_size, 1, 1])
 
+        start_points = self.backend.numpy.repeat(
+            start_points, batch_size, axis=0
+        )
         end_points = start_points + start_points * perspective_factor
 
         return {
@@ -173,6 +175,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
 
         start_points = transformation["start_points"]
         end_points = transformation["end_points"]
+
         outputs = self.backend.image.perspective_transform(
             inputs,
             start_points,
