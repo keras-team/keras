@@ -3514,6 +3514,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.average(x, axis=1, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
         )
+        self.assertAllClose(
+            knp.average(x, weights=weights_1d),
+            np.average(x, weights=weights_1d),
+        )
         self.assertAllClose(knp.Average()(x), np.average(x))
         self.assertAllClose(knp.Average(axis=1)(x), np.average(x, axis=1))
         self.assertAllClose(
@@ -3524,7 +3528,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Average(axis=1)(x, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
         )
-
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
