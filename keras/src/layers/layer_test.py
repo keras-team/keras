@@ -232,18 +232,23 @@ class LayerTest(testing.TestCase):
                 )
                 output = layer(inputs)
 
-            # Build the functional model
-            model = Model(inputs=inputs, outputs=output)
+                # Build the functional model
+                model = Model(inputs=inputs, outputs=output)
 
-            # Compile the model
-            model.compile(optimizer="adam", loss="mse")
+                # Compile the model
+                if backend.backend() == "tensorflow":
+                    model.compile(optimizer="adam", loss="mse")
+                else:
+                    model.compile(
+                        optimizer="adam", loss="mse", run_eagerly=True
+                    )
 
-            # Generate dummy data for testing
-            x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
-            y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
+                # Generate dummy data for testing
+                x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
+                y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
 
-            # Run training to ensure `RematScope` is applied correctly
-            model.fit(x_train, y_train, epochs=1, batch_size=2)
+                # Run training to ensure `RematScope` is applied correctly
+                model.fit(x_train, y_train, epochs=1, batch_size=2)
             self.assertGreater(mock_remat.call_count, 1)
 
     def test_remat_wrapper_list_of_layers(self):
