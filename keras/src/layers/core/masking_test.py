@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 
@@ -75,6 +77,7 @@ class MaskingTest(testing.TestCase):
             ]
         )
         model(x)
-        model.save("model.keras")
-        reload_model = load_model("model.keras")
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(temp_filepath)
+        reload_model = load_model(temp_filepath)
         reload_model(x)
