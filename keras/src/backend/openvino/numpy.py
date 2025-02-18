@@ -280,7 +280,7 @@ def array(x, dtype=None):
 def average(x, axis=None, weights=None):
     x = get_ov_output(x)
     weighted_sum = None
-    if axis is None:
+    if axis is None or axis == ():
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
