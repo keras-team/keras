@@ -278,9 +278,33 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
-    raise NotImplementedError(
-        "`average` is not supported with openvino backend"
-    )
+    weighted_sum = None
+    if weights is not None:
+        element_type = None
+        if isinstance(x, OpenVINOKerasTensor):
+            element_type = x.get_element_type()
+        if isinstance(weights, OpenVINOKerasTensor):
+            element_type = weights.get_element_type()
+        x = get_ov_output(x, element_type)
+        weights = get_ov_output(weights, element_type)
+        x, weights = _align_operand_types(x, weights, "multiply()")
+        weighted_sum = ov_opset.multiply(x, weights)
+    else:
+        x = get_ov_output(x)
+        weighted_sum = x  
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        if weights is not None:
+            weights = ov_opset.reshape(weights, flatten_shape, False).output(0)
+        axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    if axis == () or axis == []:
+        return OpenVINOKerasTensor(weighted_sum)
+    axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
+    mean_ops = ov_opset.reduce_mean(weighted_sum, axis_const, False)  
+    return OpenVINOKerasTensor(mean_ops.output(0))
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
