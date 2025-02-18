@@ -25,15 +25,17 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    with open(
-        "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
-    ) as file:
-        openvino_skipped_tests = file.readlines()
-        # it is necessary to check if stripped line is not empty
-        # and exclude such lines
-        openvino_skipped_tests = [
-            line.strip() for line in openvino_skipped_tests if line.strip()
-        ]
+    openvino_skipped_tests = []
+    if backend() == "openvino":
+        with open(
+            "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
+        ) as file:
+            openvino_skipped_tests = file.readlines()
+            # it is necessary to check if stripped line is not empty
+            # and exclude such lines
+            openvino_skipped_tests = [
+                line.strip() for line in openvino_skipped_tests if line.strip()
+            ]
 
     requires_trainable_backend = pytest.mark.skipif(
         backend() == "numpy" or backend() == "openvino",
