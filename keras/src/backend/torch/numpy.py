@@ -412,6 +412,11 @@ def average(x, axis=None, weights=None):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
+    if axis is None:
+        x = torch.flatten(x, start_dim=0, end_dim=-1)
+        if weights is not None:
+            weights = torch.flatten(weights, start_dim=0, end_dim=-1)
+        axis = 0
     if weights is not None:
         return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
             weights, dim=-1
