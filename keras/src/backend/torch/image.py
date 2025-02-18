@@ -3,12 +3,16 @@ import itertools
 import operator
 
 import torch
+import torch.nn.functional as F
 
 from keras.src import backend
 from keras.src.backend.torch.core import convert_to_tensor
-from keras.src.utils.module_utils import torchvision
 
-RESIZE_INTERPOLATIONS = {}  # populated after torchvision import
+RESIZE_INTERPOLATIONS = {
+    "bilinear": "bilinear",
+    "nearest": "nearest-exact",
+    "bicubic": "bicubic",
+}
 
 UNSUPPORTED_INTERPOLATIONS = (
     "lanczos3",
@@ -19,23 +23,27 @@ UNSUPPORTED_INTERPOLATIONS = (
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
     data_format = backend.standardize_data_format(data_format)
-    if data_format == "channels_last":
-        if images.ndim == 4:
-            images = images.permute((0, 3, 1, 2))
-        elif images.ndim == 3:
-            images = images.permute((2, 0, 1))
-        else:
-            raise ValueError(
-                "Invalid images rank: expected rank 3 (single image) "
-                "or rank 4 (batch of images). Received input with shape: "
-                f"images.shape={images.shape}"
-            )
-    images = torchvision.transforms.functional.rgb_to_grayscale(img=images)
-    if data_format == "channels_last":
-        if len(images.shape) == 4:
-            images = images.permute((0, 2, 3, 1))
-        elif len(images.shape) == 3:
-            images = images.permute((1, 2, 0))
+    if images.ndim not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    channel_axis = -3 if data_format == "channels_first" else -1
+    if images.shape[channel_axis] not in (1, 3):
+        raise ValueError(
+            "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+            f"Received input with shape: images.shape={images.shape}"
+        )
+
+    # This implementation is based on
+    # https://github.com/pytorch/vision/blob/main/torchvision/transforms/_functional_tensor.py
+    if images.shape[channel_axis] == 3:
+        r, g, b = images.unbind(dim=channel_axis)
+        images = (0.2989 * r + 0.587 * g + 0.114 * b).to(images.dtype)
+        images = images.unsqueeze(dim=channel_axis)
+    else:
+        images = images.clone()
     return images
 
 
@@ -129,6 +137,40 @@ def hsv_to_rgb(images, data_format=None):
     return images
 
 
+def _cast_squeeze_in(image, req_dtypes):
+    need_squeeze = False
+    # make image NCHW
+    if image.ndim < 4:
+        image = image.unsqueeze(dim=0)
+        need_squeeze = True
+
+    out_dtype = image.dtype
+    need_cast = False
+    if out_dtype not in req_dtypes:
+        need_cast = True
+        req_dtype = req_dtypes[0]
+        image = image.to(req_dtype)
+    return image, need_cast, need_squeeze, out_dtype
+
+
+def _cast_squeeze_out(image, need_cast, need_squeeze, out_dtype):
+    if need_squeeze:
+        image = image.squeeze(dim=0)
+
+    if need_cast:
+        if out_dtype in (
+            torch.uint8,
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+        ):
+            # it is better to round before cast
+            image = torch.round(image)
+        image = image.to(out_dtype)
+    return image
+
+
 def resize(
     images,
     size,
@@ -141,13 +183,6 @@ def resize(
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
-    RESIZE_INTERPOLATIONS.update(
-        {
-            "bilinear": torchvision.transforms.InterpolationMode.BILINEAR,
-            "nearest": torchvision.transforms.InterpolationMode.NEAREST_EXACT,
-            "bicubic": torchvision.transforms.InterpolationMode.BICUBIC,
-        }
-    )
     if interpolation in UNSUPPORTED_INTERPOLATIONS:
         raise ValueError(
             "Resizing with Lanczos interpolation is "
@@ -182,11 +217,11 @@ def resize(
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
+    images, need_cast, need_squeeze, out_dtype = _cast_squeeze_in(
+        images, [torch.float32, torch.float64]
+    )
     if data_format == "channels_last":
-        if images.ndim == 4:
-            images = images.permute((0, 3, 1, 2))
-        else:
-            images = images.permute((2, 0, 1))
+        images = images.permute((0, 3, 1, 2))
 
     if crop_to_aspect_ratio:
         shape = images.shape
@@ -198,19 +233,12 @@ def resize(
         crop_width = max(min(width, crop_width), 1)
         crop_box_hstart = int(float(height - crop_height) / 2)
         crop_box_wstart = int(float(width - crop_width) / 2)
-        if len(images.shape) == 4:
-            images = images[
-                :,
-                :,
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-            ]
-        else:
-            images = images[
-                :,
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-            ]
+        images = images[
+            :,
+            :,
+            crop_box_hstart : crop_box_hstart + crop_height,
+            crop_box_wstart : crop_box_wstart + crop_width,
+        ]
     elif pad_to_aspect_ratio:
         shape = images.shape
         height, width = shape[-2], shape[-1]
@@ -221,105 +249,77 @@ def resize(
         pad_width = max(width, pad_width)
         img_box_hstart = int(float(pad_height - height) / 2)
         img_box_wstart = int(float(pad_width - width) / 2)
-        if len(images.shape) == 4:
-            batch_size = images.shape[0]
-            channels = images.shape[1]
-            if img_box_hstart > 0:
-                padded_img = torch.cat(
-                    [
-                        torch.ones(
-                            (batch_size, channels, img_box_hstart, width),
-                            dtype=images.dtype,
-                            device=images.device,
-                        )
-                        * fill_value,
-                        images,
-                        torch.ones(
-                            (batch_size, channels, img_box_hstart, width),
-                            dtype=images.dtype,
-                            device=images.device,
-                        )
-                        * fill_value,
-                    ],
-                    axis=2,
-                )
-            else:
-                padded_img = images
 
-            if img_box_wstart > 0:
-                padded_img = torch.cat(
-                    [
-                        torch.ones(
-                            (batch_size, channels, height, img_box_wstart),
-                            dtype=images.dtype,
-                            device=images.device,
-                        ),
-                        padded_img,
-                        torch.ones(
-                            (batch_size, channels, height, img_box_wstart),
-                            dtype=images.dtype,
-                            device=images.device,
-                        )
-                        * fill_value,
-                    ],
-                    axis=3,
-                )
-
+        batch_size = images.shape[0]
+        channels = images.shape[1]
+        if img_box_hstart > 0:
+            padded_img = torch.cat(
+                [
+                    torch.ones(
+                        (batch_size, channels, img_box_hstart, width),
+                        dtype=images.dtype,
+                        device=images.device,
+                    )
+                    * fill_value,
+                    images,
+                    torch.ones(
+                        (batch_size, channels, img_box_hstart, width),
+                        dtype=images.dtype,
+                        device=images.device,
+                    )
+                    * fill_value,
+                ],
+                axis=2,
+            )
         else:
-            channels = images.shape[0]
-            if img_box_wstart > 0:
-                padded_img = torch.cat(
-                    [
-                        torch.ones(
-                            (channels, img_box_hstart, width),
-                            dtype=images.dtype,
-                            device=images.device,
-                        )
-                        * fill_value,
-                        images,
-                        torch.ones(
-                            (channels, img_box_hstart, width),
-                            dtype=images.dtype,
-                            device=images.device,
-                        )
-                        * fill_value,
-                    ],
-                    axis=1,
-                )
-            else:
-                padded_img = images
-            if img_box_wstart > 0:
-                torch.cat(
-                    [
-                        torch.ones(
-                            (channels, height, img_box_wstart),
-                            dtype=images.dtype,
-                            device=images.device,
-                        )
-                        * fill_value,
-                        padded_img,
-                        torch.ones(
-                            (channels, height, img_box_wstart),
-                            dtype=images.dtype,
-                            device=images.device,
-                        )
-                        * fill_value,
-                    ],
-                    axis=2,
-                )
+            padded_img = images
+        if img_box_wstart > 0:
+            padded_img = torch.cat(
+                [
+                    torch.ones(
+                        (batch_size, channels, height, img_box_wstart),
+                        dtype=images.dtype,
+                        device=images.device,
+                    ),
+                    padded_img,
+                    torch.ones(
+                        (batch_size, channels, height, img_box_wstart),
+                        dtype=images.dtype,
+                        device=images.device,
+                    )
+                    * fill_value,
+                ],
+                axis=3,
+            )
         images = padded_img
 
-    resized = torchvision.transforms.functional.resize(
-        img=images,
+    # This implementation is based on
+    # https://github.com/pytorch/vision/blob/main/torchvision/transforms/_functional_tensor.py
+    if antialias and interpolation not in ("bilinear", "bicubic"):
+        # We manually set it to False to avoid an error downstream in
+        # interpolate(). This behaviour is documented: the parameter is
+        # irrelevant for modes that are not bilinear or bicubic. We used to
+        # raise an error here, but now we don't use True as the default.
+        antialias = False
+    # Define align_corners to avoid warnings
+    align_corners = False if interpolation in ("bilinear", "bicubic") else None
+    resized = F.interpolate(
+        images,
         size=size,
-        interpolation=RESIZE_INTERPOLATIONS[interpolation],
+        mode=RESIZE_INTERPOLATIONS[interpolation],
+        align_corners=align_corners,
         antialias=antialias,
     )
+    if interpolation == "bicubic" and out_dtype == torch.uint8:
+        resized = resized.clamp(min=0, max=255)
     if data_format == "channels_last":
-        if len(images.shape) == 4:
-            resized = resized.permute((0, 2, 3, 1))
-        elif len(images.shape) == 3:
-            resized = resized.permute((1, 2, 0))
+        resized = resized.permute((0, 2, 3, 1))
+    resized = _cast_squeeze_out(
+        resized,
+        need_cast=need_cast,
+        need_squeeze=need_squeeze,
+        out_dtype=out_dtype,
+    )
     return resized
 
 
@@ -442,6 +442,255 @@ def affine_transform(
     if need_squeeze:
         affined = affined.squeeze(dim=0)
     return affined
+
+
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+
+    images = convert_to_tensor(images)
+    start_points = torch.tensor(start_points, dtype=torch.float32)
+    end_points = torch.tensor(end_points, dtype=torch.float32)
+
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    if images.ndim not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    if start_points.shape[-2:] != (4, 2) or start_points.dim() not in (2, 3):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if end_points.shape[-2:] != (4, 2) or end_points.dim() not in (2, 3):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+    if start_points.shape != end_points.shape:
+        raise ValueError(
+            "start_points and end_points must have the same shape."
+            f" Received start_points.shape={start_points.shape}, "
+            f"end_points.shape={end_points.shape}"
+        )
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images.unsqueeze(dim=0)
+        need_squeeze = True
+
+    if start_points.ndim == 2:
+        start_points = start_points.unsqueeze(dim=0)
+    if end_points.ndim == 2:
+        end_points = end_points.unsqueeze(dim=0)
+
+    if data_format == "channels_first":
+        images = images.permute((0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+
+    transforms = compute_homography_matrix(start_points, end_points)
+
+    if transforms.dim() == 1:
+        transforms = transforms.unsqueeze(0)
+    if transforms.shape[0] == 1 and batch_size > 1:
+        transforms = transforms.repeat(batch_size, 1)
+
+    grid_x, grid_y = torch.meshgrid(
+        torch.arange(width, dtype=torch.float32, device=images.device),
+        torch.arange(height, dtype=torch.float32, device=images.device),
+        indexing="xy",
+    )
+
+    output = torch.empty(
+        [batch_size, height, width, channels], device=images.device
+    )
+
+    for i in range(batch_size):
+        a0, a1, a2, a3, a4, a5, a6, a7 = transforms[i]
+        denom = a6 * grid_x + a7 * grid_y + 1.0
+        x_in = (a0 * grid_x + a1 * grid_y + a2) / denom
+        y_in = (a3 * grid_x + a4 * grid_y + a5) / denom
+
+        coords = torch.stack([y_in.flatten(), x_in.flatten()], dim=0)
+        mapped_channels = []
+        for channel in range(channels):
+            channel_img = images[i, :, :, channel]
+            mapped_channel = map_coordinates(
+                channel_img,
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                fill_mode="constant",
+                fill_value=fill_value,
+            )
+            mapped_channels.append(mapped_channel.reshape(height, width))
+        output[i] = torch.stack(mapped_channels, dim=-1)
+
+    if data_format == "channels_first":
+        output = output.permute((0, 3, 1, 2))
+    if need_squeeze:
+        output = output.squeeze(dim=0)
+
+    return output
+
+
+def compute_homography_matrix(start_points, end_points):
+    start_points = convert_to_tensor(start_points, dtype=torch.float32)
+    end_points = convert_to_tensor(end_points, dtype=torch.float32)
+
+    start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
+    start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
+    start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
+    start_x4, start_y4 = start_points[:, 3, 0], start_points[:, 3, 1]
+
+    end_x1, end_y1 = end_points[:, 0, 0], end_points[:, 0, 1]
+    end_x2, end_y2 = end_points[:, 1, 0], end_points[:, 1, 1]
+    end_x3, end_y3 = end_points[:, 2, 0], end_points[:, 2, 1]
+    end_x4, end_y4 = end_points[:, 3, 0], end_points[:, 3, 1]
+
+    coefficient_matrix = torch.stack(
+        [
+            torch.stack(
+                [
+                    end_x1,
+                    end_y1,
+                    torch.ones_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    -start_x1 * end_x1,
+                    -start_x1 * end_y1,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    torch.zeros_like(end_x1),
+                    end_x1,
+                    end_y1,
+                    torch.ones_like(end_x1),
+                    -start_y1 * end_x1,
+                    -start_y1 * end_y1,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    end_x2,
+                    end_y2,
+                    torch.ones_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    -start_x2 * end_x2,
+                    -start_x2 * end_y2,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    torch.zeros_like(end_x2),
+                    end_x2,
+                    end_y2,
+                    torch.ones_like(end_x2),
+                    -start_y2 * end_x2,
+                    -start_y2 * end_y2,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    end_x3,
+                    end_y3,
+                    torch.ones_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    -start_x3 * end_x3,
+                    -start_x3 * end_y3,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    torch.zeros_like(end_x3),
+                    end_x3,
+                    end_y3,
+                    torch.ones_like(end_x3),
+                    -start_y3 * end_x3,
+                    -start_y3 * end_y3,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    end_x4,
+                    end_y4,
+                    torch.ones_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    -start_x4 * end_x4,
+                    -start_x4 * end_y4,
+                ],
+                dim=-1,
+            ),
+            torch.stack(
+                [
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    torch.zeros_like(end_x4),
+                    end_x4,
+                    end_y4,
+                    torch.ones_like(end_x4),
+                    -start_y4 * end_x4,
+                    -start_y4 * end_y4,
+                ],
+                dim=-1,
+            ),
+        ],
+        dim=1,
+    )
+
+    target_vector = torch.stack(
+        [
+            start_x1,
+            start_y1,
+            start_x2,
+            start_y2,
+            start_x3,
+            start_y3,
+            start_x4,
+            start_y4,
+        ],
+        dim=-1,
+    ).unsqueeze(-1)
+
+    homography_matrix = torch.linalg.solve(coefficient_matrix, target_vector)
+    homography_matrix = homography_matrix.reshape(-1, 8)
+
+    return homography_matrix
 
 
 def _mirror_index_fixer(index, size):

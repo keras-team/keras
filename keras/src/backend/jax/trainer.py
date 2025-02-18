@@ -497,6 +497,7 @@ class JAXTrainer(base_trainer.Trainer):
             del self._eval_epoch_iterator
         callbacks.on_train_end(logs=training_logs)
         self._jax_state = None
+        self._clear_jax_state_sharding()
         return self.history
 
     @traceback_utils.filter_traceback
@@ -601,6 +602,9 @@ class JAXTrainer(base_trainer.Trainer):
             logs = self._get_metrics_result_or_logs(logs)
         callbacks.on_test_end(logs)
         self._jax_state = None
+        if not use_cached_eval_dataset:
+            # Only clear sharding if evaluate is not called from `fit`.
+            self._clear_jax_state_sharding()
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -696,6 +700,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.jax_state_sync()
         callbacks.on_predict_end()
         self._jax_state = None
+        self._clear_jax_state_sharding()
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
@@ -872,6 +877,12 @@ class JAXTrainer(base_trainer.Trainer):
         self._metrics_variable_shardings = [
             v.value.sharding for v in self.metrics_variables
         ]
+
+    def _clear_jax_state_sharding(self):
+        self._trainable_variable_shardings = None
+        self._non_trainable_variable_shardings = None
+        self._optimizer_variable_shardings = None
+        self._metrics_variable_shardings = None
 
     def _enforce_jax_state_sharding(
         self,
