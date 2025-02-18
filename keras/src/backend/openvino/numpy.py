@@ -283,6 +283,8 @@ def average(x, axis=None, weights=None):
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        if weights is not None:
+            weights = ov_opset.reshape(weights, flatten_shape, False).output(0)
         axis = 0
     if isinstance(axis, tuple):
         axis = list(axis)
