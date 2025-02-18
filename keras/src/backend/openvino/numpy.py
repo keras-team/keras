@@ -291,7 +291,7 @@ def average(x, axis=None, weights=None):
         weighted_sum = ov_opset.multiply(x, weights)
     else:
         x = get_ov_output(x)
-        weighted_sum = x  
+        weighted_sum = x
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
@@ -303,7 +303,7 @@ def average(x, axis=None, weights=None):
     if axis == () or axis == []:
         return OpenVINOKerasTensor(weighted_sum)
     axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
-    mean_ops = ov_opset.reduce_mean(weighted_sum, axis_const, False)  
+    mean_ops = ov_opset.reduce_mean(weighted_sum, axis_const, False)
     return OpenVINOKerasTensor(mean_ops.output(0))
 
 
