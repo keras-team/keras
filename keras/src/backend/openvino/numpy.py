@@ -298,6 +298,7 @@ def average(x, axis=None, weights=None):
         x, weights = _align_operand_types(x, weights, "multiply()")
         weighted_sum = ov_opset.multiply(x, weights)
     else:
+        x = get_ov_output(x)
         weighted_sum = x  
     if axis == () or axis == []:
         return OpenVINOKerasTensor(weighted_sum)
