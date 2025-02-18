@@ -280,11 +280,12 @@ def array(x, dtype=None):
 def average(x, axis=None, weights=None):
     x = get_ov_output(x)
     weighted_sum = None
-    axis_const = None
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
     if weights is not None:
         weights = get_ov_output(weights)
         element_type = None
@@ -298,10 +299,9 @@ def average(x, axis=None, weights=None):
         weighted_sum = ov_opset.multiply(x, weights)
     else:
         weighted_sum = x  
-    if axis == ():
+    if axis == () or axis == []:
         return OpenVINOKerasTensor(weighted_sum)
-    else:
-        axis_const = ov_opset.constant(list(axis), dtype=Type.i32).output(0)
+    axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
     mean_ops = ov_opset.reduce_mean(weighted_sum, axis_const, False)  
     return OpenVINOKerasTensor(mean_ops.output(0))
 
