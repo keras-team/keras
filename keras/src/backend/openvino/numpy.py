@@ -254,21 +254,21 @@ def arctan2(x1, x2):
     if x2_type.is_integral():
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x2 = ov_opset.convert(x2, ov_type)
-    
+
     x = ov_opset.divide(x1, x2)
     y = ov_opset.atan(x)
 
     ov_type = x1.get_element_type()
-    pi       = ov_opset.constant(float(np.pi), ov_type)
-    half_pi  = ov_opset.constant(float(np.pi / 2), ov_type)
+    pi = ov_opset.constant(float(np.pi), ov_type)
+    half_pi = ov_opset.constant(float(np.pi / 2), ov_type)
     neg_half_pi = ov_opset.constant(-float(np.pi / 2), ov_type)
-    zero_const  = ov_opset.constant(0.0, ov_type)
+    zero_const = ov_opset.constant(0.0, ov_type)
 
-    cond_x2_gt0 = ov_opset.greater(x2, zero_const).output(0)         # x2 > 0
-    cond_x2_lt0 = ov_opset.less(x2, zero_const).output(0)            # x2 < 0
+    cond_x2_gt0 = ov_opset.greater(x2, zero_const).output(0)
+    cond_x2_lt0 = ov_opset.less(x2, zero_const).output(0)
 
-    cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const).output(0)   # x1 >= 0
-    cond_x1_gt0 = ov_opset.greater(x1, zero_const).output(0)         # x1 > 0
+    cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const).output(0)
+    cond_x1_gt0 = ov_opset.greater(x1, zero_const).output(0)
 
     out_x2_lt0 = ov_opset.select(
         cond_x1_ge0,
@@ -276,16 +276,13 @@ def arctan2(x1, x2):
         ov_opset.subtract(y, pi),
     )
 
-    out_x2_zero = ov_opset.select(
-        cond_x1_gt0,
-        half_pi,
-        neg_half_pi
-    )
+    out_x2_zero = ov_opset.select(cond_x1_gt0, half_pi, neg_half_pi)
 
     out_not_pos = ov_opset.select(cond_x2_lt0, out_x2_lt0, out_x2_zero)
 
     final_out = ov_opset.select(cond_x2_gt0, y, out_not_pos)
     return OpenVINOKerasTensor(final_out.output(0))
+
 
 def arctanh(x):
     x = get_ov_output(x)
