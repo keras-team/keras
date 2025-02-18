@@ -301,7 +301,7 @@ def average(x, axis=None, weights=None):
     if axis == ():
         return OpenVINOKerasTensor(weighted_sum)
     else:
-        axis_const = ov_opset.constant(list(axis), dtype=Type.i32).output(0)
+        axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
     mean_ops = ov_opset.reduce_mean(weighted_sum, axis_const, False)  
     return OpenVINOKerasTensor(mean_ops.output(0))
 
