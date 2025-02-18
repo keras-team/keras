@@ -290,9 +290,9 @@ def average(x, axis=None, weights=None):
         weights = get_ov_output(weights)
         element_type = None
         if isinstance(x, OpenVINOKerasTensor):
-            element_type = x.output.get_element_type()
+            element_type = x.get_element_type()
         if isinstance(weights, OpenVINOKerasTensor):
-            element_type = weights.output.get_element_type()
+            element_type = weights.get_element_type()
         x = get_ov_output(x, element_type)
         weights = get_ov_output(weights, element_type)
         x, weights = _align_operand_types(x, weights, "multiply()")
