@@ -278,7 +278,6 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
-    x = get_ov_output(x)
     weighted_sum = None
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
@@ -289,7 +288,6 @@ def average(x, axis=None, weights=None):
     if isinstance(axis, tuple):
         axis = list(axis)
     if weights is not None:
-        weights = get_ov_output(weights)
         element_type = None
         if isinstance(x, OpenVINOKerasTensor):
             element_type = x.get_element_type()
