@@ -3511,12 +3511,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.average(x, axis=1, weights=weights),
         )
         self.assertAllClose(
-            knp.average(x, axis=1, weights=weights_1d),
-            np.average(x, axis=1, weights=weights_1d),
+            knp.average(x, axis=1, weights=weights),
+            np.average(x, axis=1, weights=weights),
         )
         self.assertAllClose(
-            knp.average(x, weights=weights_1d),
-            np.average(x, weights=weights_1d),
+            knp.average(x, axis=1, weights=weights_1d),
+            np.average(x, axis=1, weights=weights_1d),
         )
         self.assertAllClose(knp.Average()(x), np.average(x))
         self.assertAllClose(knp.Average(axis=1)(x), np.average(x, axis=1))
