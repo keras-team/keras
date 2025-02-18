@@ -290,7 +290,8 @@ def average(x, axis=None, weights=None):
         element_type = x.get_element_type()
     if weights is not None and isinstance(weights, OpenVINOKerasTensor):
         element_type = weights.get_element_type()
-    x = get_ov_output(x, element_type) if axis is not None else x
+    if axis is not None:
+        x = get_ov_output(x, element_type)  
     if weights is not None:
         weights = get_ov_output(weights, element_type)
         x, weights = _align_operand_types(x, weights, "multiply()")
