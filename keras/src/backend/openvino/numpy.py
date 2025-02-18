@@ -269,6 +269,7 @@ def arctan2(x1, x2):
 
     cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const).output(0)
     cond_x1_gt0 = ov_opset.greater(x1, zero_const).output(0)
+    cond_x1_eq0 = ov_opset.equal(x1, zero_const).output(0)
 
     out_x2_lt0 = ov_opset.select(
         cond_x1_ge0,
@@ -276,7 +277,8 @@ def arctan2(x1, x2):
         ov_opset.subtract(y, pi),
     )
 
-    out_x2_zero = ov_opset.select(cond_x1_gt0, half_pi, neg_half_pi)
+    out_x1_zero = ov_opset.select(cond_x1_eq0, zero_const, neg_half_pi)
+    out_x2_zero = ov_opset.select(cond_x1_gt0, half_pi, out_x1_zero)
 
     out_not_pos = ov_opset.select(cond_x2_lt0, out_x2_lt0, out_x2_zero)
 
