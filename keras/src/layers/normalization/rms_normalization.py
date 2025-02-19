@@ -17,7 +17,7 @@ class RMSNormalization(Layer):
 
     Let the intermediate activations for a mini-batch to be the `inputs`.
 
-    ```
+    ```python
     rms_normalization(x) = x * rsqrt(mean(square(x))) * scale
     ```
 
@@ -33,17 +33,27 @@ class RMSNormalization(Layer):
         dtype=float32)
 
     Args:
-        input_dim: int. The dimensionality of the input tensor.
+        axis: int. The axis on which to perform the normalization.
+        epsilon: float. A small number to add to avoid division by zero.
     """
 
-    def __init__(self, input_dim, axis=-1, epsilon=1e-6, **kwargs):
+    def __init__(self, axis=-1, epsilon=1e-6, **kwargs):
         super().__init__(**kwargs)
         self.axis = axis
         self.epsilon = epsilon
-        self.input_dim = input_dim
+
+    def build(self, input_shape):
+        if isinstance(self.axis, list):
+            shape = tuple([input_shape[dim] for dim in self.axis])
+        else:
+            shape = (input_shape[self.axis],)
+            self.axis = [self.axis]
+
         self.scale = self.add_weight(
-            name="scale", shape=(input_dim,), initializer="ones"
+            name="scale", shape=shape, initializer="ones"
         )
+
+        self.built = True
 
     def call(self, x):
         """Applies RMS normalization to the input tensor.
