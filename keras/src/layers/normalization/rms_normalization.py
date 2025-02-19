@@ -28,8 +28,8 @@ class RMSNormalization(Layer):
 
     For example:
 
-    >>> layer = keras.layers.RMSNormalization(input_dim=10)
-    >>> layer.build([5, 20, 30, 40])
+    >>> layer = keras.layers.RMSNormalization()
+    >>> layer.build([5, 20, 30, 10])
     >>> print(layer.scale.shape)
     (10,)
     >>> layer(np.random.rand(1, 10)).numpy()
