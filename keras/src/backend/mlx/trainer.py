@@ -553,9 +553,8 @@ class MLXTrainer(base_trainer.Trainer):
                 model=self,
             )
 
-        # self.stop_training = False
-        self.make_train_function()
         self.stop_training = False
+        self.make_train_function()
         training_logs = {}
         callbacks.on_train_begin()
         initial_epoch = self._initial_epoch or initial_epoch
