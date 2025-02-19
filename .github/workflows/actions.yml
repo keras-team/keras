@@ -78,6 +78,10 @@ jobs:
         if: ${{ matrix.backend == 'jax'}}
         run: |
           python integration_tests/jax_custom_fit_test.py
+      - name: Test MLX-specific integrations
+        if: ${{ matrix.backend == 'mlx'}}
+        run: |
+          python integration_tests/mlx_custom_fit_test.py
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |

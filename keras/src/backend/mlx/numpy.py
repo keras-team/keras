@@ -1,4 +1,5 @@
 import builtins
+import math
 from copy import copy as builtin_copy
 
 import mlx.core as mx
@@ -950,7 +951,6 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     else:
         dtype = dtypes.result_type(x.dtype, float)
     mlx_dtype = to_mlx_dtype(dtype)
-    print("mlx_dtype", mlx_dtype)
 
     # problem casting mlx bfloat16 array to numpy
     if ori_dtype == "bfloat16":
@@ -1374,8 +1374,43 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
     return wrapped
 
 
-def histogram(x, bins, range):
-    raise NotImplementedError("histogram not yet implemented in mlx.")
+def histogram_bin_edges(a, bins=10, range=None):
+    # Ref: jax.numpy.histogram
+    # infer range if None
+    if range is None:
+        range = (mx.min(a).item(), mx.max(a).item())
+
+    if range[0] == range[1]:
+        range = (range[0] - 0.5, range[1] + 0.5)
+
+    bin_edges = mx.linspace(range[0], range[1], bins + 1, dtype=mx.float32)
+    # due to the way mlx currently handles linspace
+    # with fp32 precision it is not always right edge inclusive
+    # manually set the right edge for now
+    bin_edges[-1] = range[-1]
+    return bin_edges
+
+
+def histogram(x, bins=10, range=None):
+    # Ref: jax.numpy.histogram
+    x = convert_to_tensor(x)
+    if range is not None:
+        if not isinstance(range, tuple) or len(range) != 2:
+            raise ValueError(
+                "Invalid value for argument `range`. Only `None` or "
+                "a tuple of the lower and upper range of bins is supported. "
+                f"Received: range={range}"
+            )
+
+    bin_edges = histogram_bin_edges(x, bins, range)
+
+    bin_idx = searchsorted(bin_edges, x, side="right")
+    bin_idx = mx.where(x == bin_edges[-1], len(bin_edges) - 1, bin_idx)
+
+    counts = mx.zeros(len(bin_edges))
+    counts = counts.at[bin_idx].add(mx.ones_like(x))
+
+    return counts[1:], bin_edges
 
 
 def unravel_index(x, shape):
@@ -1384,7 +1419,7 @@ def unravel_index(x, shape):
 
     if None in shape:
         raise ValueError(
-            "`shape` argument cannot contain `None`. Received: shape={shape}"
+            f"`shape` argument cannot contain `None`. Received: shape={shape}"
         )
 
     if x.ndim == 1:
@@ -1403,8 +1438,73 @@ def unravel_index(x, shape):
     return tuple(reversed(coords))
 
 
+def searchsorted_binary(a, b, side="left"):
+    original_shape = b.shape
+    b_flat = b.reshape(-1)
+
+    size = a.shape[0]
+    steps = math.ceil(math.log2(size))
+    indices = mx.full(b_flat.shape, vals=size // 2, dtype=mx.uint32)
+
+    comparison = lambda x, y: x <= y if side == "left" else lambda x, y: x < y
+
+    upper = size
+    lower = 0
+    for _ in range(steps):
+        comp = comparison(b_flat, a[indices])
+        new_indices = mx.where(
+            comp, (lower + indices) // 2, (indices + upper) // 2
+        )
+        lower = mx.where(comp, lower, indices)
+        upper = mx.where(comp, indices, upper)
+        indices = new_indices
+
+    result = mx.where(comparison(b_flat, a[indices]), indices, indices + 1)
+    return result.reshape(original_shape)
+
+
+def searchsorted_linear(a, b, side="left"):
+    original_shape = b.shape
+    b_flat = b.reshape(-1)
+    b_flat_broadcast = b_flat.reshape(-1, 1)
+    if side == "left":
+        result = (a[None, :] < b_flat_broadcast).sum(axis=1)
+    else:
+        result = (a[None, :] <= b_flat_broadcast).sum(axis=1)
+
+    return result.reshape(original_shape)
+
+
 def searchsorted(sorted_sequence, values, side="left"):
-    raise NotImplementedError("searchsorted not yet implemented in mlx.")
+    if side not in ("left", "right"):
+        raise ValueError(f"Invalid side `{side}`, must be `left` or `right`.")
+    sorted_sequence = convert_to_tensor(sorted_sequence)
+    values = convert_to_tensor(values)
+    if sorted_sequence.ndim != 1:
+        raise ValueError(
+            "Invalid sorted_sequence, should be 1-dimensional. "
+            f"Recieved sorted_sequence.shape={sorted_sequence.shape}"
+        )
+    if values.ndim == 0:
+        raise ValueError(
+            "Invalid values, should be N-dimensional. Recieved "
+            f"scalar array values.shape={values.shape}"
+        )
+
+    sorted_size = sorted_sequence.size
+    search_size = values.size
+
+    # TODO: swap to mlx implementation if exists in the future
+    # current implementation and search choice based on discussion:
+    # https://github.com/ml-explore/mlx/issues/1255
+    use_linear = sorted_size <= 1024 or (
+        sorted_size <= 16384 and search_size <= 256
+    )
+
+    if use_linear:
+        return searchsorted_linear(sorted_sequence, values, side=side)
+    else:
+        return searchsorted_binary(sorted_sequence, values, side=side)
 
 
 def diagflat(x, k=0):

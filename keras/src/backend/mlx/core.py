@@ -25,7 +25,7 @@ IS_THREAD_SAFE = True
 MLX_DTYPES = {
     "float16": mx.float16,
     "float32": mx.float32,
-    "float64": None,  # mlx does not support float64
+    "float64": None,  # mlx only supports float64 on cpu
     "uint8": mx.uint8,
     "uint16": mx.uint16,
     "uint32": mx.uint32,

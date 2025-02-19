@@ -260,7 +260,9 @@ class MLXTrainer(base_trainer.Trainer):
                 for ref_v, v in zip(self.metrics_variables, metrics_variables)
             ]
         ) as scope:
-            self._loss_tracker.update_state(unscaled_loss)
+            self._loss_tracker.update_state(
+                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
+            )
             logs = self.compute_metrics(x, y, y_pred, sample_weight)
 
         new_metrics_variables = []
@@ -553,6 +555,7 @@ class MLXTrainer(base_trainer.Trainer):
 
         self.stop_training = False
         self.make_train_function()
+        training_logs = {}
         callbacks.on_train_begin()
         initial_epoch = self._initial_epoch or initial_epoch
         for epoch in range(initial_epoch, epochs):
@@ -648,6 +651,7 @@ class MLXTrainer(base_trainer.Trainer):
         # If _eval_epoch_iterator exists, delete it after all epochs are done.
         if getattr(self, "_eval_epoch_iterator", None) is not None:
             del self._eval_epoch_iterator
+
         callbacks.on_train_end(logs=training_logs)
         self._mlx_state = None
         return self.history
@@ -706,7 +710,7 @@ class MLXTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
 
         trainable_variables = [v.value for v in self.trainable_variables]
