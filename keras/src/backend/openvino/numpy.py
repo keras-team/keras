@@ -274,10 +274,12 @@ def argmax(x, axis=None, keepdims=False):
     axis = ov_opset.constant(axis, Type.i32).output(0)
 
     if x_type == Type.boolean:
-        return OpenVINOKerasTensor(ov_opset.reduce_logical_or(x, axis, keepdims).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
+            )
 
-    sorted_values, sorted_indices = ov_opset.sort(x, axis, False)
-    max_index = sorted_indices[0]
+    topk_values, topk_indices = ov_opset.topk(x, 1, axis, "max", "index")
+    max_index = topk_indices.output(0)
     
     return OpenVINOKerasTensor(max_index)
 
@@ -294,15 +296,17 @@ def argmin(x, axis=None, keepdims=False):
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
     
-    if isinstance(axis, tuple):
+    if isinstance(axis, tuple): 
         axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
 
     if x_type == Type.boolean:
-        return OpenVINOKerasTensor(ov_opset.reduce_logical_or(x, axis, keepdims).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
+            )
 
-    sorted_values, sorted_indices = ov_opset.sort(x, axis, True)
-    min_index = sorted_indices[0]
+    topk_values, topk_indices = ov_opset.topk(x, 1, axis, "min", "index")
+    min_index = topk_indices.output(0)
     
     return OpenVINOKerasTensor(min_index)
 
