@@ -2679,6 +2679,10 @@ class RMSNorm(Operation):
 def rms_normalization(x, scale=1, axis=-1, epsilon=None):
     """Performs Root Mean Square (RMS) normalization on `x`.
 
+    The Keras operation implements the operation as described in
+    [Root Mean Square Layer Normalization](https://arxiv.org/pdf/1910.07467)
+    by Biao Zhang et al.
+
     It is defined as `rms_normalization(x) = x * rsqrt(mean(square(x))) * scale`
 
     Args:

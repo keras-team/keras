@@ -9,6 +9,11 @@ class RMSNormalization(Layer):
 
     This layer normalizes the input tensor based on its RMS value.
 
+    The Keras layer performs the operation as described in
+    [Root Mean Square Layer Normalization](https://arxiv.org/pdf/1910.07467)
+    by Biao Zhang et al.
+
+
     If `scale` is enabled, the layer will scale the normalized outputs via
     a learnable scaling factor.
 
