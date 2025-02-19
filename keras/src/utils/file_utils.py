@@ -424,8 +424,7 @@ def is_remote_path(filepath):
         bool: True if the filepath is a recognized remote path, otherwise False
     """
     if re.match(
-        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|.*://).*$",
-        str(filepath)
+        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|.*://).*$", str(filepath)
     ):
         return True
     return False
