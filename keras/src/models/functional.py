@@ -293,7 +293,6 @@ class Functional(Function, Model):
         return adjusted
 
     def _standardize_inputs(self, inputs):
-        # --- Edge-case checks ---
         if inputs is None:
             raise ValueError(
                 "No inputs provided to the model (inputs is None)."
@@ -386,8 +385,8 @@ class Functional(Function, Model):
             if raise_exception:
                 raise ValueError(
                     f"The model's input structure doesn't match the input data."
-                    f" Model expects {self._inputs_struct}, "
-                    f"but received {inputs}."
+                    f" Model expects {self._inputs_struct},"
+                    f" but received {inputs}."
                 )
 
             try:
@@ -396,8 +395,8 @@ class Functional(Function, Model):
             except:
                 raise ValueError(
                     f"The model's input structure doesn't match the input data."
-                    f" Model expects {self._inputs_struct}, "
-                    f"but received {inputs}."
+                    f" Model expects {self._inputs_struct},"
+                    f" but received {inputs}."
                 )
 
         return self._adjust_input_rank(inputs)
