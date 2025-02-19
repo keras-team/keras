@@ -29,6 +29,12 @@ class DtypesTest(test_case.TestCase):
             for x in dtypes.ALLOWED_DTYPES
             if x not in ["string", "complex64", "complex128"]
         ] + [None]
+    elif backend.backend() == "mlx":
+        ALL_DTYPES = [
+            x
+            for x in dtypes.ALLOWED_DTYPES
+            if x not in ["string", "complex128"]
+        ] + [None]
     else:
         ALL_DTYPES = [x for x in dtypes.ALLOWED_DTYPES if x != "string"] + [
             None
