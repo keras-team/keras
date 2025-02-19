@@ -243,9 +243,47 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    raise NotImplementedError(
-        "`arctan2` is not supported with openvino backend"
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1_type = x1.get_element_type()
+    x2_type = x2.get_element_type()
+
+    if x1_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x1 = ov_opset.convert(x1, ov_type)
+    if x2_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x2 = ov_opset.convert(x2, ov_type)
+
+    x = ov_opset.divide(x1, x2)
+    y = ov_opset.atan(x)
+
+    ov_type = x1.get_element_type()
+    pi = ov_opset.constant(float(np.pi), ov_type)
+    half_pi = ov_opset.constant(float(np.pi / 2), ov_type)
+    neg_half_pi = ov_opset.constant(-float(np.pi / 2), ov_type)
+    zero_const = ov_opset.constant(0.0, ov_type)
+
+    cond_x2_gt0 = ov_opset.greater(x2, zero_const).output(0)
+    cond_x2_lt0 = ov_opset.less(x2, zero_const).output(0)
+
+    cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const).output(0)
+    cond_x1_gt0 = ov_opset.greater(x1, zero_const).output(0)
+    cond_x1_eq0 = ov_opset.equal(x1, zero_const).output(0)
+
+    out_x2_lt0 = ov_opset.select(
+        cond_x1_ge0,
+        ov_opset.add(y, pi),
+        ov_opset.subtract(y, pi),
     )
+
+    out_x1_zero = ov_opset.select(cond_x1_eq0, zero_const, neg_half_pi)
+    out_x2_zero = ov_opset.select(cond_x1_gt0, half_pi, out_x1_zero)
+
+    out_not_pos = ov_opset.select(cond_x2_lt0, out_x2_lt0, out_x2_zero)
+
+    final_out = ov_opset.select(cond_x2_gt0, y, out_not_pos)
+    return OpenVINOKerasTensor(final_out.output(0))
 
 
 def arctanh(x):
@@ -278,9 +316,35 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
-    raise NotImplementedError(
-        "`average` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    if weights is not None:
+        weights = get_ov_output(weights)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        if weights is not None:
+            weights = ov_opset.reshape(weights, flatten_shape, False).output(0)
+        axis = 0
+
+    if weights is not None:
+        x_type = x.get_element_type()
+        weights_type = weights.get_element_type()
+        if (weights_type.is_integral() or weights_type == Type.boolean) and (
+            x_type.is_integral() or x_type == Type.boolean
+        ):
+            x = ov_opset.convert(x, Type.f32).output(0)
+            weights = ov_opset.convert(weights, Type.f32).output(0)
+        x, weights = _align_operand_types(x, weights, "multiply()")
+        x = ov_opset.multiply(x, weights)
+
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    if axis == []:
+        return OpenVINOKerasTensor(x)
+
+    axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
+    mean_ops = ov_opset.reduce_mean(x, axis_const, False)
+    return OpenVINOKerasTensor(mean_ops.output(0))
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
