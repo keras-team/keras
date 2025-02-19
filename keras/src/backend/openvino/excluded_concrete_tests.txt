@@ -77,7 +77,6 @@ NumpyOneInputOpsCorrectnessTest::test_var
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_vstack
 NumpyTwoInputOpsCorrectnessTest::test_append
-NumpyTwoInputOpsCorrectnessTest::test_arctan2
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_and
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_left_shift
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_or
