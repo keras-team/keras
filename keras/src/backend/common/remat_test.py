@@ -83,7 +83,7 @@ class TestRematScope(testing.TestCase):
 
 class RematTest(testing.TestCase):
     def test_remat_basic_call(self):
-        if backend.backend() in ("openvino", "numpy") or testing.jax_uses_gpu():
+        if backend.backend() in ("openvino", "numpy"):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )

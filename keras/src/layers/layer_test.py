@@ -237,11 +237,11 @@ class LayerTest(testing.TestCase):
 
                 # Compile the model
                 if backend.backend() == "tensorflow":
-                    model.compile(optimizer="adam", loss="mse")
-                else:
                     model.compile(
                         optimizer="adam", loss="mse", run_eagerly=True
                     )
+                else:
+                    model.compile(optimizer="adam", loss="mse")
 
                 # Generate dummy data for testing
                 x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
