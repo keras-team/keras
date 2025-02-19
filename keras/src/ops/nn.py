@@ -2713,9 +2713,9 @@ def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
         epsilon = backend.epsilon()
 
     if not is_keras_tensor(scale):
-        scale = backend.convert_to_tensor(scale)
+        scale = backend.convert_to_tensor(scale, dtype=x.dtype)
     if not is_keras_tensor(epsilon):
-        epsilon = backend.convert_to_tensor(epsilon)
+        epsilon = backend.convert_to_tensor(epsilon, dtype=x.dtype)
 
     rrms = backend.math.rsqrt(
         backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)

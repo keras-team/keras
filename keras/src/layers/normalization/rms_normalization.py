@@ -88,7 +88,6 @@ class RMSNormalization(Layer):
         config = {
             "axis": self.axis,
             "epsilon": self.epsilon,
-            "input_dim": self.input_dim,
         }
         base_config = super().get_config()
         return {**base_config, **config}
