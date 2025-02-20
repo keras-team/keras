@@ -1284,6 +1284,12 @@ class NNOpsStaticShapeTest(testing.TestCase):
         out = knn.dot_product_attention(query, key, value)
         self.assertEqual(out.shape, query.shape)
 
+    def test_polar(self):
+        abs_ = KerasTensor([1, 2])
+        angle = KerasTensor([3, 4])
+        out = knn.polar(abs_, angle)
+        self.assertEqual(out.shape, abs_.shape)
+
 
 class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu(self):
@@ -1509,6 +1515,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 np.exp(ops.convert_to_numpy(result)), axis=axis
             )
             self.assertAllClose(normalized_sum_by_axis, 1.0)
+
+    def test_polar_corectness(self):
+        abs_ = np.array([1, 2])
+        angle = np.array([2, 3])
+        out = knn.polar(abs_, angle)
+        self.assertAllClose(
+            out, [-0.9900 + 0.1411j, -1.3073 - 1.5136j], atol=1e-3
+        )
 
     def test_sparsemax(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
