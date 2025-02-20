@@ -8,7 +8,8 @@ torch==2.6.0+cpu
 
 # Jax with cuda support.
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-jax[cuda12]==0.4.28
+#because dot product attention is only supported >0.4.31
+jax[cuda12]>=0.4.31
 flax
 
 -r requirements-common.txt
