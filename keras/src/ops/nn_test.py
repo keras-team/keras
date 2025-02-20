@@ -1521,7 +1521,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         angle = np.array([2, 3])
         out = knn.polar(abs_, angle)
         self.assertAllClose(
-            out, [-0.9900 + 0.1411j, -1.3073 - 1.5136j], atol=1e-3
+            out, [-0.41614684 + 0.9092974j, -1.979985 + 0.28224j], atol=1e-3
         )
 
     def test_sparsemax(self):
