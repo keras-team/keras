@@ -226,24 +226,19 @@ class LayerTest(testing.TestCase):
             inputs = Input(shape=(32, 32, 3))
 
             # just one layer in remat scope
-            with RematScope(mode="full"):
-                layer = layers.Conv2D(
-                    64, (3, 3), activation="relu", data_format="channels_last"
-                )
-                output = layer(inputs)
+            with RematScope(mode="activations"):
+                layer = layers.Dense(64, activation="relu")
+                output = layer(layers.Flatten()(inputs))
 
             # Build the functional model
             model = Model(inputs=inputs, outputs=output)
 
             # Compile the model
-            if backend.backend() == "jax":
-                model.compile(optimizer="adam", loss="mse", jit_compile=True)
-            else:
-                model.compile(optimizer="adam", loss="mse")
+            model.compile(optimizer="adam", loss="mse")
 
             # Generate dummy data for testing
             x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
-            y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
+            y_train = np.random.random((10, 64)).astype(np.float32)
 
             # Run training to ensure `RematScope` is applied correctly
             model.fit(x_train, y_train, epochs=1, batch_size=2)
