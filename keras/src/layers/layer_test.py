@@ -215,7 +215,7 @@ class LayerTest(testing.TestCase):
             mock_remat.assert_called()
 
     def test_functional_model_with_remat(self):
-        if backend.backend() in ("openvino", "numpy") or testing.jax_uses_gpu():
+        if backend.backend() in ("openvino", "numpy"):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )
@@ -236,7 +236,10 @@ class LayerTest(testing.TestCase):
             model = Model(inputs=inputs, outputs=output)
 
             # Compile the model
-            model.compile(optimizer="adam", loss="mse")
+            if backend.backend() == "jax":
+                model.compile(optimizer="adam", loss="mse", jit_compile=True)
+            else:
+                model.compile(optimizer="adam", loss="mse")
 
             # Generate dummy data for testing
             x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
