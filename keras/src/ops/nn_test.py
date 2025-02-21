@@ -1517,8 +1517,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(normalized_sum_by_axis, 1.0)
 
     def test_polar_corectness(self):
-        abs_ = np.array([1, 2])
-        angle = np.array([2, 3])
+        abs_ = np.array([1, 2], dtype="float32")
+        angle = np.array([2, 3], dtype="float32")
         out = knn.polar(abs_, angle)
         self.assertAllClose(
             out, [-0.41614684 + 0.9092974j, -1.979985 + 0.28224j], atol=1e-3
@@ -2952,6 +2952,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Softsign().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_polar(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_tanh(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_tanh(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardTanh().symbolic_call(x).dtype),
             expected_dtype,
         )
 
