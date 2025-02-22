@@ -308,17 +308,19 @@ def argmax(x, axis=None, keepdims=False):
     if isinstance(axis, tuple):
         axis = list(axis)
     axis_const = ov_opset.constant(axis, Type.i32).output(0)
+
+    if x_type == Type.boolean:
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_or(x, axis_const, keepdims).output(0))
+
     k = ov_opset.constant(1, Type.i64)
-    topk_result = ov_opset.topk(
+    topk_val,topk_indices = ov_opset.topk(
         x, k, axis_const,
         mode="max",
-        sort="values",
+        sort="index",
     )
-    axis_to_remove = ov_opset.constant([axis], Type.i64)
-    res = ov_opset.squeeze(topk_result[1], axis_to_remove)
-    if keepdims:
-        res = ov_opset.unsqueeze(res, axis_const)
-    return OpenVINOKerasTensor(res)
+    max_index = topk_indices.output(0)
+    return OpenVINOKerasTensor(max_index)
 
 
 def argmin(x, axis=None, keepdims=False):
@@ -334,17 +336,15 @@ def argmin(x, axis=None, keepdims=False):
     if isinstance(axis, tuple):
         axis = list(axis)
     axis_const = ov_opset.constant(axis, Type.i32).output(0)
-    k = ov_opset.constant(1, Type.i64)
-    topk_result = ov_opset.topk(
-        x, k, axis_const,
-        mode="min",
-        sort="values",
-    )
-    axis_to_remove = ov_opset.constant([axis], Type.i64)
-    res = ov_opset.squeeze(topk_result[1], axis_to_remove)
-    if keepdims:
-        res = ov_opset.unsqueeze(res, axis_const)
-    return OpenVINOKerasTensor(res)
+    if x_type == Type.boolean:
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_or(x, axis_const, keepdims).output(0)
+        )
+
+    topk_values, topk_indices = ov_opset.topk(x, 1, axis, "min", "index")
+    min_index = topk_indices.output(0)
+
+    return OpenVINOKerasTensor(min_index)
 
 def argsort(x, axis=-1):
     raise NotImplementedError(
