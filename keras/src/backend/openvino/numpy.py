@@ -309,13 +309,10 @@ def argmax(x, axis=None, keepdims=False):
         axis = list(axis)
     axis_const = ov_opset.constant(axis, Type.i32).output(0)
     k = ov_opset.constant(1, Type.i64)
-    output_type = Type.i64
     topk_result = ov_opset.topk(
         x, k, axis_const,
-        mode="MAX",
-        sort="SORT_VALUES",
-        output_type=output_type,
-        compute_max=True
+        mode="max",
+        sort="values",
     )
     axis_to_remove = ov_opset.constant([axis], Type.i64)
     res = ov_opset.squeeze(topk_result[1], axis_to_remove)
@@ -338,13 +335,10 @@ def argmin(x, axis=None, keepdims=False):
         axis = list(axis)
     axis_const = ov_opset.constant(axis, Type.i32).output(0)
     k = ov_opset.constant(1, Type.i64)
-    output_type = Type.i64
     topk_result = ov_opset.topk(
         x, k, axis_const,
-        mode="MIN",
-        sort="SORT_VALUES",
-        output_type=output_type,
-        compute_max=False
+        mode="min",
+        sort="values",
     )
     axis_to_remove = ov_opset.constant([axis], Type.i64)
     res = ov_opset.squeeze(topk_result[1], axis_to_remove)
