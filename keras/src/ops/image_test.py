@@ -182,23 +182,13 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
     def test_gaussian_blur(self):
         # Test channels_last
         x = KerasTensor([None, 20, 20, 3])
-        kernel_size = KerasTensor(
-            [
-                2,
-            ]
-        )
-        sigma = KerasTensor(
-            [
-                2,
-            ]
-        )
-        out = kimage.gaussian_blur(x, kernel_size, sigma)
+        out = kimage.gaussian_blur(x)
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
         x = KerasTensor([None, 3, 20, 20])
-        out = kimage.gaussian_blur(x, kernel_size, sigma)
+        out = kimage.gaussian_blur(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
 
 
@@ -2008,26 +1998,36 @@ class ImageOpsBehaviorTests(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Invalid images rank: expected rank 3"
         ):
-            kimage.gaussian_blur(invalid_image, kernel_size, sigma)
+            kimage.gaussian_blur(
+                invalid_image, kernel_size=kernel_size, sigma=sigma
+            )
         with self.assertRaisesRegex(
             ValueError, "Invalid images rank: expected rank 3"
         ):
-            kimage.GaussianBlur()(invalid_image, kernel_size, sigma)
+            kimage.GaussianBlur(kernel_size=kernel_size, sigma=sigma)(
+                invalid_image
+            )
 
         # Test rank=5
         invalid_image = np.random.uniform(size=(2, 10, 10, 3, 1))
         with self.assertRaisesRegex(
             ValueError, "Invalid images rank: expected rank 3"
         ):
-            kimage.gaussian_blur(invalid_image, kernel_size, sigma)
+            kimage.gaussian_blur(
+                invalid_image, kernel_size=kernel_size, sigma=sigma
+            )
         with self.assertRaisesRegex(
             ValueError, "Invalid images rank: expected rank 3"
         ):
-            kimage.GaussianBlur()(invalid_image, kernel_size, sigma)
+            kimage.GaussianBlur(kernel_size=kernel_size, sigma=sigma)(
+                invalid_image
+            )
 
         # Test rank=2, symbolic tensor
         invalid_image = KerasTensor(shape=(10, 10))
         with self.assertRaisesRegex(
             ValueError, "Invalid images rank: expected rank 3"
         ):
-            kimage.gaussian_blur(invalid_image, kernel_size, sigma)
+            kimage.gaussian_blur(
+                invalid_image, kernel_size=kernel_size, sigma=sigma
+            )

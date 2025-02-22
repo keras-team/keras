@@ -821,14 +821,14 @@ def map_coordinates(
 
 
 def gaussian_blur(
-    images,
-    kernel_size,
-    sigma,
-    data_format=None,
+    images, kernel_size=(3, 3), sigma=(0.1, 2.0), data_format=None
 ):
     def _create_gaussian_kernel(kernel_size, sigma, dtype):
         def _get_gaussian_kernel1d(size, sigma):
-            x = torch.arange(size, dtype=dtype) - (size - 1) / 2
+            x = (
+                torch.arange(size, dtype=dtype, device=sigma.device)
+                - (size - 1) / 2
+            )
             kernel1d = torch.exp(-0.5 * (x / sigma) ** 2)
             return kernel1d / torch.sum(kernel1d)
 

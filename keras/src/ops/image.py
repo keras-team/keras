@@ -1378,20 +1378,24 @@ def perspective_transform(
 class GaussianBlur(Operation):
     def __init__(
         self,
+        kernel_size=(3, 3),
+        sigma=(0.1, 2.0),
         data_format=None,
     ):
         super().__init__()
+        self.kernel_size = kernel_size
+        self.sigma = sigma
         self.data_format = backend.standardize_data_format(data_format)
 
-    def call(self, images, kernel_size, sigma):
+    def call(self, images):
         return backend.image.gaussian_blur(
             images,
-            kernel_size,
-            sigma,
+            kernel_size=self.kernel_size,
+            sigma=self.sigma,
             data_format=self.data_format,
         )
 
-    def compute_output_spec(self, images, kernel_size, sigma):
+    def compute_output_spec(self, images):
         if len(images.shape) not in (3, 4):
             raise ValueError(
                 "Invalid images rank: expected rank 3 (single image) "
@@ -1403,10 +1407,7 @@ class GaussianBlur(Operation):
 
 @keras_export("keras.ops.image.gaussian_blur")
 def gaussian_blur(
-    images,
-    kernel_size,
-    sigma,
-    data_format=None,
+    images, kernel_size=(3, 3), sigma=(0.1, 2.0), data_format=None
 ):
     """Applies a Gaussian blur to the image(s).
 
@@ -1430,28 +1431,30 @@ def gaussian_blur(
     Examples:
 
     >>> x = np.random.random((2, 64, 80, 3))  # batch of 2 RGB images
-    >>> y = keras.ops.image.gaussian_blur(x, (3, 3), (0.1, 0.3))
+    >>> y = keras.ops.image.gaussian_blur(x)
     >>> y.shape
     (2, 64, 80, 3)
 
     >>> x = np.random.random((64, 80, 3))  # single RGB image
-    >>> y = keras.ops.image.gaussian_blur(x, (3, 3), (0.1, 0.3))
+    >>> y = keras.ops.image.gaussian_blur(x)
     >>> y.shape
     (64, 80, 3)
 
     >>> x = np.random.random((2, 3, 64, 80))  # batch of 2 RGB images
     >>> y = keras.ops.image.gaussian_blur(
-    ...     x, (3, 3), (0.1, 0.3), data_format="channels_first")
+    ...     x, data_format="channels_first")
     >>> y.shape
     (2, 3, 64, 80)
     """
-    if any_symbolic_tensors((images, kernel_size, sigma)):
+    if any_symbolic_tensors((images,)):
         return GaussianBlur(
+            kernel_size=kernel_size,
+            sigma=sigma,
             data_format=data_format,
-        ).symbolic_call(images, kernel_size, sigma)
+        ).symbolic_call(images)
     return backend.image.gaussian_blur(
         images,
-        kernel_size,
-        sigma,
+        kernel_size=kernel_size,
+        sigma=sigma,
         data_format=data_format,
     )
