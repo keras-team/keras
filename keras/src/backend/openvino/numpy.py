@@ -318,7 +318,7 @@ def argmax(x, axis=None, keepdims=False):
     res = ov_opset.squeeze(topk_result[1], axis_to_remove)
     if keepdims:
         res = ov_opset.unsqueeze(res, axis_const)
-    return OpenVINOKerasTensor(res.output(0))
+    return OpenVINOKerasTensor(res)
 
 
 def argmin(x, axis=None, keepdims=False):
@@ -344,7 +344,7 @@ def argmin(x, axis=None, keepdims=False):
     res = ov_opset.squeeze(topk_result[1], axis_to_remove)
     if keepdims:
         res = ov_opset.unsqueeze(res, axis_const)
-    return OpenVINOKerasTensor(res.output(0))
+    return OpenVINOKerasTensor(res)
 
 def argsort(x, axis=-1):
     raise NotImplementedError(
