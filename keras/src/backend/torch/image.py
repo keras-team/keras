@@ -833,6 +833,7 @@ def gaussian_blur(
             return kernel1d / torch.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
+            size = torch.tensor(size, dtype=dtype)
             kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
             kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
             return torch.outer(kernel1d_y, kernel1d_x)
@@ -843,9 +844,11 @@ def gaussian_blur(
         return kernel
 
     images = convert_to_tensor(images)
+    kernel_size = convert_to_tensor(kernel_size)
+    sigma = convert_to_tensor(sigma)
     dtype = images.dtype
 
-    if images.ndim not in (3, 4):
+    if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
@@ -865,11 +868,13 @@ def gaussian_blur(
 
     kernel = kernel.expand(num_channels, 1, kernel_size[0], kernel_size[1])
 
+    print(kernel_size[0] // 2)
+
     blurred_images = torch.nn.functional.conv2d(
         images,
         kernel,
         stride=1,
-        padding=kernel_size[0] // 2,
+        padding=int(kernel_size[0] // 2),
         groups=num_channels,
     )
 
