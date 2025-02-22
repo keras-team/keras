@@ -13,7 +13,6 @@ NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_argsort
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_average_
-NumpyDtypeTest::test_bincount
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
@@ -97,7 +96,6 @@ NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_argsort
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_average
-NumpyOneInputOpsCorrectnessTest::test_bincount
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_correlate
