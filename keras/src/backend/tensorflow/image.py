@@ -723,7 +723,7 @@ def map_coordinates(
 
 
 def gaussian_blur(
-    images, kernel_size=(3, 3), sigma=(0.1, 2.0), data_format=None
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
 ):
     def _create_gaussian_kernel(kernel_size, sigma, num_channels, dtype):
         def _get_gaussian_kernel1d(size, sigma):

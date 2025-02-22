@@ -1379,7 +1379,7 @@ class GaussianBlur(Operation):
     def __init__(
         self,
         kernel_size=(3, 3),
-        sigma=(0.1, 2.0),
+        sigma=(1.0, 1.0),
         data_format=None,
     ):
         super().__init__()
@@ -1407,7 +1407,7 @@ class GaussianBlur(Operation):
 
 @keras_export("keras.ops.image.gaussian_blur")
 def gaussian_blur(
-    images, kernel_size=(3, 3), sigma=(0.1, 2.0), data_format=None
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
 ):
     """Applies a Gaussian blur to the image(s).
 
