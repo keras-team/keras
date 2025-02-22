@@ -873,15 +873,14 @@ def gaussian_blur(
 
     for b in range(batch_size):
         image_patch = padded_images[b : b + 1, :, :, :]
-
-    for i in range(height):
-        for j in range(width):
-            patch = image_patch[
-                :, i : i + kernel_size[0], j : j + kernel_size[1], :
-            ]
-            blurred_images[b, i, j, :] = np.sum(
-                patch * kernel_reshaped, axis=(1, 2)
-            )
+        for i in range(height):
+            for j in range(width):
+                patch = image_patch[
+                    :, i : i + kernel_size[0], j : j + kernel_size[1], :
+                ]
+                blurred_images[b, i, j, :] = np.sum(
+                    patch * kernel_reshaped, axis=(1, 2)
+                )
 
     if data_format == "channels_first":
         blurred_images = np.transpose(blurred_images, (0, 3, 1, 2))
