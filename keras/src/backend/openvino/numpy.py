@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.runtime.opset14 as ov_opset
+import openvino.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
@@ -296,12 +296,61 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmax` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis_const = ov_opset.constant(axis, Type.i32).output(0)
+    k = ov_opset.constant(1, Type.i64)
+    output_type = Type.i64
+    topk_result = ov_opset.topk(
+        x, k, axis_const,
+        mode="MAX",
+        sort="SORT_VALUES",
+        output_type=output_type,
+        compute_max=True
+    )
+    axis_to_remove = ov_opset.constant([axis], Type.i64)
+    result = ov_opset.squeeze(topk_result[1], axis_to_remove)
+    if keepdims:
+        res = ov_opset.unsqueeze(result, axis_const)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def argmin(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmin` is not supported with openvino backend")
-
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis_const = ov_opset.constant(axis, Type.i32).output(0)
+    k = ov_opset.constant(1, Type.i64)
+    output_type = Type.i64
+    topk_result = ov_opset.topk(
+        x, k, axis_const,
+        mode="MIN",
+        sort="SORT_VALUES",
+        output_type=output_type,
+        compute_max=False
+    )
+    axis_to_remove = ov_opset.constant([axis], Type.i64)
+    res = ov_opset.squeeze(topk_result[1], axis_to_remove)
+    if keepdims:
+        res = ov_opset.unsqueeze(res, axis_const)
+    return OpenVINOKerasTensor(res.output(0))
 
 def argsort(x, axis=-1):
     raise NotImplementedError(
