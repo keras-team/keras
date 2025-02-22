@@ -318,10 +318,10 @@ def argmax(x, axis=None, keepdims=False):
         compute_max=True
     )
     axis_to_remove = ov_opset.constant([axis], Type.i64)
-    result = ov_opset.squeeze(topk_result[1], axis_to_remove)
+    res = ov_opset.squeeze(topk_result[1], axis_to_remove)
     if keepdims:
-        res = ov_opset.unsqueeze(result, axis_const)
-    return OpenVINOKerasTensor(result.output(0))
+        res = ov_opset.unsqueeze(res, axis_const)
+    return OpenVINOKerasTensor(res.output(0))
 
 
 def argmin(x, axis=None, keepdims=False):
