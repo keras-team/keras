@@ -4,6 +4,7 @@ from openvino import Type
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
@@ -92,7 +93,7 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_one = ov_opset.constant(1, ov_type).output(0)
     if isinstance(shape, tuple):
@@ -105,7 +106,7 @@ def ones(shape, dtype=None):
 
 
 def zeros(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
     if isinstance(shape, tuple):
@@ -194,7 +195,33 @@ def append(x1, x2, axis=None):
 
 
 def arange(start, stop=None, step=None, dtype=None):
-    raise NotImplementedError("`arange` is not supported with openvino backend")
+    if stop is None:
+        start, stop = get_ov_output(0), get_ov_output(start)
+    else:
+        start, stop = get_ov_output(start), get_ov_output(stop)
+
+    step = get_ov_output(1) if step is None else get_ov_output(step)
+
+    ov_type = None
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+    else:
+        ov_type = OPENVINO_DTYPES[
+            dtypes.result_type(
+                ov_to_keras_type(start.get_element_type()),
+                ov_to_keras_type(stop.get_element_type()),
+                ov_to_keras_type(step.get_element_type()),
+                "int32",
+            )
+        ]
+
+    start_node = ov_opset.convert(start, ov_type)
+    stop_node = ov_opset.convert(stop, ov_type)
+    step_node = ov_opset.convert(step, ov_type)
+
+    return OpenVINOKerasTensor(
+        ov_opset.range(start_node, stop_node, step_node, ov_type).output(0)
+    )
 
 
 def arccos(x):
@@ -411,7 +438,7 @@ def cumprod(x, axis=None, dtype=None):
 def cumsum(x, axis=None, dtype=None):
     x = get_ov_output(x)
     if dtype is not None:
-        ov_type = OPENVINO_DTYPES[dtype]
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
         x = ov_opset.convert(x, ov_type).output(0)
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
@@ -489,7 +516,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     fill_value = get_ov_output(fill_value, ov_type)
     if isinstance(shape, tuple):
@@ -721,7 +748,7 @@ def zeros_like(x, dtype=None):
     x = get_ov_output(x)
     shape_x = ov_opset.shape_of(x)
     if dtype is not None:
-        ov_type = OPENVINO_DTYPES[dtype]
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
         const_zero = ov_opset.constant(0, ov_type).output(0)
     else:
         const_zero = ov_opset.constant(0, x.get_element_type()).output(0)
@@ -733,7 +760,7 @@ def ones_like(x, dtype=None):
     x = get_ov_output(x)
     shape_x = ov_opset.shape_of(x)
     if dtype is not None:
-        ov_type = OPENVINO_DTYPES[dtype]
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
         const_one = ov_opset.constant(1, ov_type).output(0)
     else:
         const_one = ov_opset.constant(1, x.get_element_type()).output(0)
