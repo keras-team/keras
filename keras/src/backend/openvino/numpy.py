@@ -380,9 +380,38 @@ def average(x, axis=None, weights=None):
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
-    raise NotImplementedError(
-        "`bincount` is not supported with openvino backend"
+    if x is None:
+        raise ValueError("input x is None")
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True`")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    minlength = get_ov_output(minlength)
+    minlength = ov_opset.convert(minlength, x_type).output(0)
+    const_one = ov_opset.constant(1, x_type).output(0)
+    const_zero = ov_opset.constant(0, x_type).output(0)
+    max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
+    depth = ov_opset.add(max_element, const_one).output(0)
+    depth = ov_opset.maximum(depth, minlength).output(0)
+    one_hot = ov_opset.one_hot(x, depth, const_one, const_zero, axis=-1).output(
+        0
     )
+    if weights is not None:
+        weights = get_ov_output(weights)
+        weights_type = weights.get_element_type()
+        weights_new = ov_opset.reshape(weights, [-1, 1], False).output(0)
+        one_hot = ov_opset.convert(one_hot, weights_type).output(0)
+        final_one_hot = ov_opset.multiply(one_hot, weights_new).output(0)
+        final_output = ov_opset.reduce_sum(
+            final_one_hot, const_zero, keep_dims=False
+        ).output(0)
+        return OpenVINOKerasTensor(final_output)
+    else:
+        final_output = ov_opset.reduce_sum(
+            one_hot, const_zero, keep_dims=False
+        ).output(0)
+        final_output = ov_opset.convert(final_output, Type.i32).output(0)
+        return OpenVINOKerasTensor(final_output)
 
 
 def broadcast_to(x, shape):

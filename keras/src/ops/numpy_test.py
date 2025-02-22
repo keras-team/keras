@@ -3579,8 +3579,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
         self.assertSparse(output, sparse_input or sparse_arg)
 
-        x = knp.expand_dims(x, 0)
-        weights = knp.expand_dims(weights, 0)
+        x = np.expand_dims(x, 0)
+        weights = np.expand_dims(weights, 0)
 
         expected_output = np.array([[0, 0, 4, 2, 5, 0, 2]])
         output = knp.bincount(
