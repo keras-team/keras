@@ -10,7 +10,6 @@ NumpyDtypeTest::test_arctan2_
 NumpyDtypeTest::test_argmax
 NumpyDtypeTest::test_argmin
 NumpyDtypeTest::test_argpartition
-NumpyDtypeTest::test_argsort
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_average_
 NumpyDtypeTest::test_bincount
