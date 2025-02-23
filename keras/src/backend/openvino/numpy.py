@@ -304,7 +304,6 @@ def argmin(x, axis=None, keepdims=False):
 
 
 def argsort(x, axis=-1):
-    axis_dim = None
     x = get_ov_output(x)
     x_shape = x.get_partial_shape()
     rank = x_shape.rank.get_length()
@@ -313,9 +312,9 @@ def argsort(x, axis=-1):
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        print("shape_of: ", shape_1 := ov_opset.shape_of(x, Type.i32).output(0))
+        x_shape = ov_opset.shape_of(x, Type.i32).output(0)
         k = ov_opset.reduce_prod(
-            shape_1, ov_opset.constant([0], Type.i32), keep_dims=False
+            x_shape, ov_opset.constant([0], Type.i32), keep_dims=False
         )
         axis_dim = x.shape[0]
         axis_dim = k
@@ -324,7 +323,6 @@ def argsort(x, axis=-1):
         if axis < 0:
             axis = rank + axis
         axis_dim = x_shape[axis].get_length()
-    print("k: ", axis_dim)
     sorted_indices = ov_opset.topk(
         x,
         k=axis_dim,
