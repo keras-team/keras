@@ -324,6 +324,8 @@ def average(x, axis=None, weights=None):
 def bincount(x, weights=None, minlength=0, sparse=False):
     if x is None:
         raise ValueError("input x is None")
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True`")
     x = get_ov_output(x)
     x_type = x.get_element_type()
     minlength = get_ov_output(minlength)
@@ -333,7 +335,6 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
     depth = ov_opset.add(max_element, const_one).output(0)
     depth = ov_opset.maximum(depth, minlength).output(0)
-    depth = ov_opset.convert(depth, x_type).output(0)
     one_hot = ov_opset.one_hot(x, depth, const_one, const_zero, axis=-1).output(
         0
     )
@@ -348,10 +349,10 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         ).output(0)
         return OpenVINOKerasTensor(final_output)
     else:
-        one_hot = ov_opset.convert(one_hot, x_type).output(0)
         final_output = ov_opset.reduce_sum(
             one_hot, const_zero, keep_dims=False
         ).output(0)
+        final_output = ov_opset.convert(final_output, Type.i32).output(0)
         return OpenVINOKerasTensor(final_output)
 
 
