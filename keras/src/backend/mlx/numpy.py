@@ -1145,7 +1145,7 @@ def trunc(x):
     dtype = standardize_dtype(x.dtype)
     if "int" in dtype or "bool" == dtype:
         return x
-    return mx.floor(x)
+    return mx.where(x < 0, mx.ceil(x), mx.floor(x))
 
 
 def vdot(x1, x2):
@@ -1508,7 +1508,13 @@ def searchsorted(sorted_sequence, values, side="left"):
 
 
 def diagflat(x, k=0):
-    raise NotImplementedError("diagflat not yet implemented in mlx.")
+    x = convert_to_tensor(x)
+
+    # GPU scatter does not yet support int64 or complex64
+    # for the input or updates.
+    stream = mx.cpu if x.dtype in [mx.int64, mx.complex64] else None
+
+    return mx.diag(mx.reshape(x, [-1]), k, stream=stream)
 
 
 def rot90(array, k=1, axes=(0, 1)):
