@@ -2651,3 +2651,73 @@ def dot_product_attention(
         is_causal=is_causal,
         flash_attention=flash_attention,
     )
+
+
+class Polar(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def compute_output_spec(self, abs_, angle):
+        return KerasTensor(shape=abs_.shape)
+
+    def call(self, x):
+        return _polar(x)
+
+
+@keras_export(["keras.ops.polar", "keras.ops.nn.polar"])
+def polar(abs_, angle):
+    """Constructs a complex tensor whose elements are Cartesian
+    coordinates corresponding to the polar coordinates
+    with absolute value `abs` and angle `angle`.
+
+    The operation is numerically equivalent to `torch.polar()`.
+    It is not equivalent to `scipy.lingalg.polar()` which performs
+    Singular Value Decomposition.
+
+    Given the magnitude (`abs_`) and angle (`angle`), this function computes the
+    corresponding complex number in the form of `real + imaginary * 1j`, where:
+    - `real = abs_ * cos(angle)`
+    - `imaginary = abs_ * sin(angle)`
+
+    Args:
+        abs_: The magnitude (absolute value) of the complex number.
+        angle: The angle (in radians) of the complex number.
+
+    Returns:
+        A complex number (or array of complex numbers) with the same shape as
+        `abs_` and `angle`.
+
+    Example:
+
+    >>> abs_ = keras.random.normal((1, 2))
+    >>> angle = keras.random.normal((1, 2))
+    >>> keras.ops.nn.polar(abs_, angle).shape
+    (1, 2)
+    >>> keras.ops.nn.polar(abs_, angle)
+    Array([[0.63185346-0.59370506j, 0.48960376-0.31677645j]], dtype=complex64)
+    """
+    if any_symbolic_tensors((abs_, angle)):
+        return Polar().symbolic_call(abs_, angle)
+    return _polar(abs_, angle)
+
+
+def _polar(abs_, angle):
+    """Internal implementation of the polar function.
+
+    Args:
+        abs_: The magnitude (absolute value) of the complex number.
+        angle: The angle (in radians) of the complex number.
+
+    Returns:
+        A complex number (or array of complex numbers) with the same shape as
+        `abs_` and `angle`.
+    """
+    abs_ = backend.convert_to_tensor(abs_)
+    angle = backend.convert_to_tensor(angle)
+
+    real = abs_ * backend.numpy.cos(angle)
+    imaginary = abs_ * backend.numpy.sin(angle)
+
+    result = backend.math._get_complex_tensor_from_tuple((real, imaginary))
+
+    return result
