@@ -1,11 +1,12 @@
 NumPyTestRot90
-NumpyArrayCreateOpsCorrectnessTest
+NumpyArrayCreateOpsCorrectnessTest::test_eye
+NumpyArrayCreateOpsCorrectnessTest::test_identity
+NumpyArrayCreateOpsCorrectnessTest::test_tri
 NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_all
 NumpyDtypeTest::test_any
 NumpyDtypeTest::test_append_
-NumpyDtypeTest::test_arange
 NumpyDtypeTest::test_arctan2_
 NumpyDtypeTest::test_argmax
 NumpyDtypeTest::test_argmin
