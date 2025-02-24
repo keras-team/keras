@@ -569,7 +569,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 def diff(a, n=1, axis=-1):
     if n == 0:
-        return OpenVINOKerasTensor(a)
+        return OpenVINOKerasTensor(get_ov_output(a))
     if n < 0:
         raise ValueError("order must be non-negative but got " + repr(n))
     a = get_ov_output(a)
@@ -633,7 +633,6 @@ def diff(a, n=1, axis=-1):
         else:
             result = ov_opset.subtract(upper, lower).output(0)
     return OpenVINOKerasTensor(result)
-
 
 def digitize(x, bins):
     raise NotImplementedError(
