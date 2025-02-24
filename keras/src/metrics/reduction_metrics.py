@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import losses
 from keras.src import ops
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.metrics.metric import Metric
 from keras.src.saving import serialization_lib
@@ -199,8 +200,8 @@ class MeanMetricWrapper(Mean):
             self._direction = "down"
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = backend.cast(y_true, self.dtype)
-        y_pred = backend.cast(y_pred, self.dtype)
+        y_true = tree.map_structure(lambda x: ops.cast(x, self.dtype), y_true)
+        y_pred = tree.map_structure(lambda x: ops.cast(x, self.dtype), y_pred)
 
         mask = backend.get_keras_mask(y_pred)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
