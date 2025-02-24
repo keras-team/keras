@@ -2389,7 +2389,9 @@ def tril(x, k=0):
 
     # when `k` is a tensor
     return tf.cond(
-        k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch
+        tf.greater_equal(k, 0),
+        lambda: tf.linalg.band_part(x, -1, k),
+        _negative_k_branch,
     )
 
 
@@ -2410,7 +2412,9 @@ def triu(x, k=0):
 
     # when `k` is a tensor
     return tf.cond(
-        k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
+        tf.less_equal(k, 0),
+        lambda: tf.linalg.band_part(x, -k, -1),
+        _positive_k_branch,
     )
 
 
