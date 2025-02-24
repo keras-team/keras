@@ -215,7 +215,7 @@ class LayerTest(testing.TestCase):
             mock_remat.assert_called()
 
     def test_functional_model_with_remat(self):
-        if backend.backend() in ("openvino", "numpy") or testing.jax_uses_gpu():
+        if backend.backend() in ("openvino", "numpy"):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )
@@ -226,11 +226,9 @@ class LayerTest(testing.TestCase):
             inputs = Input(shape=(32, 32, 3))
 
             # just one layer in remat scope
-            with RematScope(mode="full"):
-                layer = layers.Conv2D(
-                    64, (3, 3), activation="relu", data_format="channels_last"
-                )
-                output = layer(inputs)
+            with RematScope(mode="activations"):
+                layer = layers.Dense(64, activation="relu")
+                output = layer(layers.Flatten()(inputs))
 
             # Build the functional model
             model = Model(inputs=inputs, outputs=output)
@@ -240,7 +238,7 @@ class LayerTest(testing.TestCase):
 
             # Generate dummy data for testing
             x_train = np.random.random((10, 32, 32, 3)).astype(np.float32)
-            y_train = np.random.random((10, 30, 30, 64)).astype(np.float32)
+            y_train = np.random.random((10, 64)).astype(np.float32)
 
             # Run training to ensure `RematScope` is applied correctly
             model.fit(x_train, y_train, epochs=1, batch_size=2)
