@@ -574,10 +574,12 @@ def diff(a, n=1, axis=-1):
         raise ValueError("order must be non-negative but got " + repr(n))
     a = get_ov_output(a)
     a_type = a.get_element_type()
-    rank = len(a.get_partial_shape())
+    if isinstance(a, np.ndarray):
+        rank = a.ndim
+    else:
+        rank = len(a.get_partial_shape())
     if axis < 0:
         axis = axis + rank
-
     result = a
     for _ in range(n):
         rank = len(result.get_partial_shape())
@@ -586,8 +588,8 @@ def diff(a, n=1, axis=-1):
 
         begin_upper_list = [0] * rank
         begin_upper_list[axis] = 1
-        begin_upper = ov_opset.constant(np.array(begin_upper_list, dtype=np.int64),
-                                        Type.i64).output(0)
+        begin_upper = ov_opset.constant(np.array(begin_upper_list,
+                                        dtype=np.int64),Type.i64).output(0)
         end_upper = ov_opset.constant(np.array([0] * rank, dtype=np.int64),
                                       Type.i64).output(0)
         begin_mask_upper = [1] * rank
