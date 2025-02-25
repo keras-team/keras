@@ -353,7 +353,7 @@ class MLXTrainer(base_trainer.Trainer):
                             next_output,
                         )
                     return output
-                
+
                 if not self.run_eagerly and self.jit_compile:
                     concatenate = mx.compile(concatenate)
 
@@ -416,7 +416,7 @@ class MLXTrainer(base_trainer.Trainer):
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
             return
-        
+
         if not self.run_eagerly and self.jit_compile:
             predict_step = mx.compile(self.predict_step)
         else:
