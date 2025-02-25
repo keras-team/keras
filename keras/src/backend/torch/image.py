@@ -818,3 +818,70 @@ def map_coordinates(
     if _is_integer(input_arr):
         result = result if _is_integer(result) else torch.round(result)
     return result.to(input_arr.dtype)
+
+
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    def _create_gaussian_kernel(kernel_size, sigma, dtype):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = (
+                torch.arange(size, dtype=dtype, device=sigma.device)
+                - (size - 1) / 2
+            )
+            kernel1d = torch.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / torch.sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            size = torch.tensor(size, dtype=dtype)
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return torch.outer(kernel1d_y, kernel1d_x)
+
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
+
+        kernel = kernel.view(1, 1, kernel_size[0], kernel_size[1])
+        return kernel
+
+    images = convert_to_tensor(images)
+    kernel_size = convert_to_tensor(kernel_size)
+    sigma = convert_to_tensor(sigma)
+    dtype = images.dtype
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images.unsqueeze(dim=0)
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        images = images.permute(0, 3, 1, 2)
+
+    num_channels = images.shape[1]
+    kernel = _create_gaussian_kernel(kernel_size, sigma, dtype)
+
+    kernel = kernel.expand(num_channels, 1, kernel_size[0], kernel_size[1])
+
+    print(kernel_size[0] // 2)
+
+    blurred_images = torch.nn.functional.conv2d(
+        images,
+        kernel,
+        stride=1,
+        padding=int(kernel_size[0] // 2),
+        groups=num_channels,
+    )
+
+    if data_format == "channels_last":
+        blurred_images = blurred_images.permute(0, 2, 3, 1)
+
+    if need_squeeze:
+        blurred_images = blurred_images.squeeze(dim=0)
+
+    return blurred_images

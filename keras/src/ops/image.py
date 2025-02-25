@@ -1373,3 +1373,88 @@ def perspective_transform(
         fill_value=fill_value,
         data_format=data_format,
     )
+
+
+class GaussianBlur(Operation):
+    def __init__(
+        self,
+        kernel_size=(3, 3),
+        sigma=(1.0, 1.0),
+        data_format=None,
+    ):
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.sigma = sigma
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.gaussian_blur(
+            images,
+            kernel_size=self.kernel_size,
+            sigma=self.sigma,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, images):
+        if len(images.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
+            )
+        return KerasTensor(images.shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.gaussian_blur")
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    """Applies a Gaussian blur to the image(s).
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        kernel_size: A tuple of two integers, specifying the height and width
+            of the Gaussian kernel.
+        sigma: A tuple of two floats, specifying the standard deviation of
+            the Gaussian kernel along height and width.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        Blurred image or batch of images.
+
+    Examples:
+
+    >>> x = np.random.random((2, 64, 80, 3))  # batch of 2 RGB images
+    >>> y = keras.ops.image.gaussian_blur(x)
+    >>> y.shape
+    (2, 64, 80, 3)
+
+    >>> x = np.random.random((64, 80, 3))  # single RGB image
+    >>> y = keras.ops.image.gaussian_blur(x)
+    >>> y.shape
+    (64, 80, 3)
+
+    >>> x = np.random.random((2, 3, 64, 80))  # batch of 2 RGB images
+    >>> y = keras.ops.image.gaussian_blur(
+    ...     x, data_format="channels_first")
+    >>> y.shape
+    (2, 3, 64, 80)
+    """
+    if any_symbolic_tensors((images,)):
+        return GaussianBlur(
+            kernel_size=kernel_size,
+            sigma=sigma,
+            data_format=data_format,
+        ).symbolic_call(images)
+    return backend.image.gaussian_blur(
+        images,
+        kernel_size=kernel_size,
+        sigma=sigma,
+        data_format=data_format,
+    )
