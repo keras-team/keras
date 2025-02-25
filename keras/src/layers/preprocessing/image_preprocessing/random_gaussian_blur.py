@@ -106,31 +106,6 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             raise ValueError(error_msg)
         return lower, upper
 
-    def create_gaussian_kernel(self, kernel_size, sigma, num_channels):
-        def get_gaussian_kernel1d(size, sigma):
-            x = (
-                self.backend.numpy.arange(size, dtype=self.compute_dtype)
-                - (size - 1) / 2
-            )
-            kernel1d = self.backend.numpy.exp(-0.5 * (x / sigma) ** 2)
-            return kernel1d / self.backend.numpy.sum(kernel1d)
-
-        def get_gaussian_kernel2d(size, sigma):
-            kernel1d_x = get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_y = get_gaussian_kernel1d(size[1], sigma[1])
-            return self.backend.numpy.tensordot(kernel1d_y, kernel1d_x, axes=0)
-
-        kernel = get_gaussian_kernel2d(kernel_size, sigma)
-
-        kernel = self.backend.numpy.reshape(
-            kernel, (kernel_size[0], kernel_size[1], 1, 1)
-        )
-        kernel = self.backend.numpy.tile(kernel, [1, 1, num_channels, 1])
-
-        kernel = self.backend.cast(kernel, self.compute_dtype)
-
-        return kernel
-
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None
@@ -188,24 +163,14 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformation=None, training=True):
         images = self.backend.cast(images, self.compute_dtype)
         if training and transformation is not None:
-            if self.data_format == "channels_first":
-                images = self.backend.numpy.swapaxes(images, -3, -1)
-
             blur_factor = transformation["blur_factor"]
             should_apply_blur = transformation["should_apply_blur"]
 
-            kernel = self.create_gaussian_kernel(
-                self.kernel_size,
-                blur_factor,
-                self.backend.shape(images)[-1],
-            )
-
-            blur_images = self.backend.nn.depthwise_conv(
+            blur_images = self.backend.image.gaussian_blur(
                 images,
-                kernel,
-                strides=1,
-                padding="same",
-                data_format="channels_last",
+                kernel_size=self.kernel_size,
+                sigma=blur_factor,
+                data_format=self.data_format,
             )
 
             images = self.backend.numpy.where(
@@ -217,9 +182,6 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             images = self.backend.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
-
-            if self.data_format == "channels_first":
-                images = self.backend.numpy.swapaxes(images, -3, -1)
 
             images = self.backend.cast(images, dtype=self.compute_dtype)
 
