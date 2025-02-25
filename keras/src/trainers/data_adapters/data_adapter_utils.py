@@ -199,6 +199,19 @@ def get_jax_iterator(iterable):
         yield tree.map_structure(convert_to_jax_compatible, batch)
 
 
+def get_mlx_iterator(iterable):
+    import mlx.core as mx
+
+    def convert_to_mlx(x):
+        if isinstance(x, mx.array):
+            return x
+        else:
+            return mx.array(x)
+
+    for batch in iterable:
+        yield tree.map_structure(convert_to_mlx, batch)
+
+
 def get_numpy_iterator(iterable):
     def convert_to_numpy(x):
         if not isinstance(x, np.ndarray):

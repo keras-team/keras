@@ -25,7 +25,7 @@ IS_THREAD_SAFE = True
 MLX_DTYPES = {
     "float16": mx.float16,
     "float32": mx.float32,
-    "float64": None,  # mlx only supports float64 on cpu
+    "float64": mx.float64,  # for mlx float64 only supported on cpu
     "uint8": mx.uint8,
     "uint16": mx.uint16,
     "uint32": mx.uint32,
@@ -104,19 +104,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
-
-        def to_scalar_list(x):
-            if isinstance(x, list):
-                return [to_scalar_list(xi) for xi in x]
-            elif isinstance(x, mx.array):
-                if x.ndim == 0:
-                    return x.item()
-                else:
-                    return x.tolist()
-            else:
-                return x
-
-        return mx.array(to_scalar_list(x), dtype=mlx_dtype)
+        return mx.array(x, dtype=mlx_dtype)
 
     if _is_h5py_dataset(x):
         if h5py is None:
@@ -592,3 +580,41 @@ class custom_gradient:
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
         return outputs
+
+
+def enable_float64():
+    """Returns context manager forcing operations on cpu
+
+    MLX requires operations involving `float64` to be on cpu,
+    mimicking jax's `enable_x64()`
+
+    Usage:
+    ```
+        a = mx.array([1, 2, 3], dtype=mx.float64)
+        b = mx.array([4, 5, 6], dtype=mx.float64)
+
+        with enable_float64():
+            c = mx.add(a, b)
+
+        # OR
+        mlx_cpu_context = mx.stream(mx.cpu)
+        mlx_cpu_context.__enter__()
+        c = mx.add(a, b)
+        mlx_cpu_context.__exit__(None, None, None)
+    ```
+    """
+    return mx.stream(mx.cpu)
+
+
+def device_scope(device_name):
+    if isinstance(device_name, str):
+        mlx_device = mx.cpu if "cpu" in device_name.lower() else mx.gpu
+    elif not isinstance(device_name, mx.Device):
+        raise ValueError(
+            "Invalid value for argument `device_name`. "
+            "Expected a string like 'gpu:0' or a `mlx.core.Device` instance. "
+            f"Received: device_name='{device_name}'"
+        )
+    else:
+        mlx_device = device_name
+    return mx.stream(mlx_device)

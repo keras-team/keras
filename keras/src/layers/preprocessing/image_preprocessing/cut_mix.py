@@ -36,6 +36,9 @@ class CutMix(BaseImagePreprocessingLayer):
         self._set_factor(factor)
         self.seed = seed
         self.generator = SeedGenerator(seed)
+        if self.backend.name == "mlx":
+            # mlx.random.beta() is not currently jit compilable
+            self.supports_jit = False
 
         if self.data_format == "channels_first":
             self.height_axis = -2

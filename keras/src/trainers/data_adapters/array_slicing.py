@@ -103,6 +103,20 @@ class Sliceable:
         return x
 
     @classmethod
+    def convert_to_mlx_compatible(cls, x):
+        """Convert a tensor to something that the MLX backend can consume.
+
+        This can be a `MLX` array or a NumPy array.
+        Only called after slicing using `__getitem__`.
+        Used to convert sparse tensors and densify ragged tensors.
+
+        Args:
+            x: the tensor to convert.
+        Returns: the converted tensor.
+        """
+        return x
+
+    @classmethod
     def convert_to_torch_compatible(cls, x):
         """Convert a tensor to something that the Torch backend can consume.
 
@@ -161,6 +175,10 @@ class TensorflowRaggedSliceable(TensorflowSliceable):
         return cls.convert_to_numpy(x)
 
     @classmethod
+    def convert_to_mlx_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
     def convert_to_torch_compatible(cls, x):
         return x.to_tensor()
 
@@ -190,6 +208,12 @@ class TensorflowSparseSliceable(TensorflowSliceable):
 
         return tf_sparse.sparse_to_dense(x)
 
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
+        from keras.src.backend.tensorflow import sparse as tf_sparse
+
+        return tf_sparse.sparse_to_dense(x)
+
 
 class JaxSparseSliceable(Sliceable):
     def __getitem__(self, indices):
@@ -209,6 +233,10 @@ class JaxSparseSliceable(Sliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
+        return x.todense()
+
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
         return x.todense()
 
 
@@ -240,6 +268,10 @@ class PandasSliceable(Sliceable):
 
     @classmethod
     def convert_to_jax_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
         return cls.convert_to_numpy(x)
 
     @classmethod
@@ -279,6 +311,10 @@ class ScipySparseSliceable(Sliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
+        return x.todense()
+
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
         return x.todense()
 
 

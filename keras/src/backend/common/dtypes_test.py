@@ -47,10 +47,15 @@ class DtypesTest(test_case.TestCase):
 
         self.jax_enable_x64 = enable_x64()
         self.jax_enable_x64.__enter__()
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context = backend.core.enable_float64()
+            self.mlx_cpu_context.__enter__()
         return super().setUp()
 
     def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context.__exit__(None, None, None)
         return super().tearDown()
 
     @parameterized.named_parameters(

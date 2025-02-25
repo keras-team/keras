@@ -112,6 +112,8 @@ class Normalization(TFDataLayer):
         self.supports_masking = True
         self._build_input_shape = None
         self.mean = None
+        # if self.backend.name == "mlx":
+        #     self.supports_jit = False
 
         # Set `mean` and `variance` if passed.
         if (mean is not None) != (variance is not None):

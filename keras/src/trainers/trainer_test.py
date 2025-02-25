@@ -160,6 +160,7 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
             "torch": "cpu",
+            "mlx": "cpu",
         }
         with backend.device(CPU_DEVICES[backend.backend()]):
             return ops.ones((5, 4)), ops.zeros((5, 3))

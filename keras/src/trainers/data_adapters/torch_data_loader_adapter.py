@@ -42,6 +42,15 @@ class TorchDataLoaderAdapter(DataAdapter):
         # We use numpy as an intermediary because it is faster.
         return self.get_numpy_iterator()
 
+    def get_mlx_iterator(self):
+        from keras.src.utils.module_utils import mlx
+
+        # mlx requires converting to numpy first for torch tensors for now
+        for batch in self._dataloader:
+            yield tuple(
+                tree.map_structure(lambda x: mlx.core.array(x.numpy()), batch)
+            )
+
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
 

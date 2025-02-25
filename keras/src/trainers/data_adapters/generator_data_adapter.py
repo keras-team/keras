@@ -28,6 +28,9 @@ class GeneratorDataAdapter(DataAdapter):
     def get_jax_iterator(self):
         return data_adapter_utils.get_jax_iterator(self.generator())
 
+    def get_mlx_iterator(self):
+        return data_adapter_utils.get_mlx_iterator(self.generator())
+
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
 

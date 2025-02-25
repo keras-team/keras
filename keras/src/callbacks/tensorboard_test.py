@@ -468,6 +468,10 @@ class TestTensorBoardV2(testing.TestCase):
                     # TODO: Use device scope after the API is added.
                     if tensor.is_cuda:
                         tensor = tensor.cpu()
+                if backend.backend() == "mlx":
+                    # summary.write can't write mlx array directly
+                    # assuming scalar array, retrieve value first
+                    tensor = tensor.item()
                 summary.write(
                     tag=tag,
                     tensor=tensor,
@@ -630,7 +634,9 @@ class TestTensorBoardV2(testing.TestCase):
                 "NumPy conversion."
             )
 
-        tensor.numpy = mock_numpy
+        if backend.backend() != "mlx":
+            # mlx arrays do not have a __dict__ attribute
+            tensor.numpy = mock_numpy
 
         logs = {"metric": tensor}
 
