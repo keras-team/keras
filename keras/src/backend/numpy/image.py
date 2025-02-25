@@ -808,3 +808,83 @@ def map_coordinates(
         padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
     )
     return result
+
+
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    def _create_gaussian_kernel(kernel_size, sigma, num_channels, dtype):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = np.arange(size, dtype=dtype) - (size - 1) / 2
+            kernel1d = np.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / np.sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            size = np.asarray(size, dtype)
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return np.outer(kernel1d_y, kernel1d_x)
+
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
+        kernel = kernel[:, :, np.newaxis]
+        kernel = np.tile(kernel, (1, 1, num_channels))
+        return kernel.astype(dtype)
+
+    images = convert_to_tensor(images)
+    kernel_size = convert_to_tensor(kernel_size)
+    sigma = convert_to_tensor(sigma)
+    input_dtype = images.dtype
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    num_channels = images.shape[-1]
+    kernel = _create_gaussian_kernel(
+        kernel_size, sigma, num_channels, input_dtype
+    )
+    batch_size, height, width, _ = images.shape
+    padded_images = np.pad(
+        images,
+        (
+            (0, 0),
+            (kernel_size[0] // 2, kernel_size[0] // 2),
+            (kernel_size[1] // 2, kernel_size[1] // 2),
+            (0, 0),
+        ),
+        mode="constant",
+    )
+
+    blurred_images = np.zeros_like(images)
+    kernel_reshaped = kernel.reshape(
+        (1, kernel.shape[0], kernel.shape[1], num_channels)
+    )
+
+    for b in range(batch_size):
+        image_patch = padded_images[b : b + 1, :, :, :]
+        for i in range(height):
+            for j in range(width):
+                patch = image_patch[
+                    :, i : i + kernel_size[0], j : j + kernel_size[1], :
+                ]
+                blurred_images[b, i, j, :] = np.sum(
+                    patch * kernel_reshaped, axis=(1, 2)
+                )
+
+    if data_format == "channels_first":
+        blurred_images = np.transpose(blurred_images, (0, 3, 1, 2))
+    if need_squeeze:
+        blurred_images = np.squeeze(blurred_images, axis=0)
+
+    return blurred_images

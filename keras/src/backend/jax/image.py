@@ -668,3 +668,65 @@ def map_coordinates(
     return jax.scipy.ndimage.map_coordinates(
         inputs, coordinates, order, fill_mode, fill_value
     )
+
+
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    def _create_gaussian_kernel(kernel_size, sigma, dtype):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = jnp.arange(size, dtype=dtype) - (size - 1) / 2
+            kernel1d = jnp.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / jnp.sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            size = size.astype(dtype)
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return jnp.outer(kernel1d_y, kernel1d_x)
+
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
+        kernel = kernel[jnp.newaxis, jnp.newaxis, :, :]
+        return kernel
+
+    images = convert_to_tensor(images)
+    kernel_size = convert_to_tensor(kernel_size)
+    sigma = convert_to_tensor(sigma)
+    dtype = images.dtype
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images[jnp.newaxis, ...]
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        images = jnp.transpose(images, (0, 3, 1, 2))
+
+    num_channels = images.shape[1]
+    kernel = _create_gaussian_kernel(kernel_size, sigma, dtype)
+
+    kernel = jnp.tile(kernel, (num_channels, 1, 1, 1))
+
+    blurred_images = jax.lax.conv_general_dilated(
+        images,
+        kernel,
+        window_strides=(1, 1),
+        padding="SAME",
+        dimension_numbers=("NCHW", "OIHW", "NCHW"),
+        feature_group_count=num_channels,
+    )
+
+    if data_format == "channels_last":
+        blurred_images = jnp.transpose(blurred_images, (0, 2, 3, 1))
+
+    if need_squeeze:
+        blurred_images = blurred_images.squeeze(axis=0)
+
+    return blurred_images
