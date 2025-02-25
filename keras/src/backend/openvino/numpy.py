@@ -583,15 +583,18 @@ def diff(a, n=1, axis=-1):
     result = a
     for _ in range(n):
         rank = len(result.get_partial_shape())
-        strides = ov_opset.constant(np.array([1] * rank, dtype=np.int64),
-                                    Type.i64).output(0)
+        strides = ov_opset.constant(
+            np.array([1] * rank, dtype=np.int64), Type.i64
+        ).output(0)
 
         begin_upper_list = [0] * rank
         begin_upper_list[axis] = 1
-        begin_upper = ov_opset.constant(np.array(begin_upper_list,
-                                        dtype=np.int64),Type.i64).output(0)
-        end_upper = ov_opset.constant(np.array([0] * rank, dtype=np.int64),
-                                      Type.i64).output(0)
+        begin_upper = ov_opset.constant(
+            np.array(begin_upper_list, dtype=np.int64), Type.i64
+        ).output(0)
+        end_upper = ov_opset.constant(
+            np.array([0] * rank, dtype=np.int64), Type.i64
+        ).output(0)
         begin_mask_upper = [1] * rank
         begin_mask_upper[axis] = 0
         end_mask_upper = [1] * rank
@@ -604,15 +607,17 @@ def diff(a, n=1, axis=-1):
             end_mask=end_mask_upper,
             new_axis_mask=[],
             shrink_axis_mask=[],
-            ellipsis_mask=[]
+            ellipsis_mask=[],
         ).output(0)
 
-        begin_lower = ov_opset.constant(np.array([0] * rank, dtype=np.int64),
-                                        Type.i64).output(0)
+        begin_lower = ov_opset.constant(
+            np.array([0] * rank, dtype=np.int64), Type.i64
+        ).output(0)
         end_lower_list = [0] * rank
         end_lower_list[axis] = -1
-        end_lower = ov_opset.constant(np.array(end_lower_list, dtype=np.int64),
-                                      Type.i64).output(0)
+        end_lower = ov_opset.constant(
+            np.array(end_lower_list, dtype=np.int64), Type.i64
+        ).output(0)
         begin_mask_lower = [1] * rank
         end_mask_lower = [1] * rank
         end_mask_lower[axis] = 0
@@ -625,7 +630,7 @@ def diff(a, n=1, axis=-1):
             end_mask=end_mask_lower,
             new_axis_mask=[],
             shrink_axis_mask=[],
-            ellipsis_mask=[]
+            ellipsis_mask=[],
         ).output(0)
 
         if a_type == Type.boolean:
@@ -633,6 +638,7 @@ def diff(a, n=1, axis=-1):
         else:
             result = ov_opset.subtract(upper, lower).output(0)
     return OpenVINOKerasTensor(result)
+
 
 def digitize(x, bins):
     raise NotImplementedError(
