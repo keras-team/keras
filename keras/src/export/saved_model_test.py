@@ -1003,6 +1003,21 @@ class ExportArchiveTest(testing.TestCase):
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
 
+    def test_export_with_dict_input(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        inputs = {
+            "foo": layers.Input(shape=()),
+            "bar": layers.Input(shape=()),
+        }
+        outputs = layers.Add()([inputs["foo"], inputs["bar"]])
+        model = models.Model(inputs, outputs)
+        ref_input = {"foo": tf.constant([1.0]), "bar": tf.constant([2.0])}
+        ref_output = model(ref_input)
+        model.export(temp_filepath, format="tf_saved_model")
+        revived_model = tf.saved_model.load(temp_filepath)
+        revived_output = revived_model.serve(ref_input)
+        self.assertAllClose(ref_output, revived_output)
+
     def test_model_combined_with_tf_preprocessing(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
 
