@@ -54,6 +54,21 @@ class TFDatasetAdapter(DataAdapter):
         for batch in self._dataset:
             yield tree.map_structure(convert_to_jax, batch)
 
+    def get_mlx_iterator(self):
+        from keras.src.backend.tensorflow.core import sparse_to_dense
+        from keras.src.utils.module_utils import mlx
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        def convert_to_mlx(x):
+            if isinstance(x, tf.SparseTensor):
+                x = sparse_to_dense(x)
+            # tensorflow supports the buffer protocol
+            # but requires explicit memoryview with mlx
+            return mlx.core.array(memoryview(x))
+
+        for batch in self._dataset:
+            yield tree.map_structure(convert_to_mlx, batch)
+
     def get_tf_dataset(self):
         return self._dataset
 

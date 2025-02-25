@@ -1,6 +1,7 @@
 from unittest import mock
 
 import jax
+import mlx.core as mx
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -35,6 +36,9 @@ class TestTFDatasetAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)

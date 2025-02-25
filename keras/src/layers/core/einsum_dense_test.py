@@ -713,6 +713,10 @@ class EinsumDenseTest(testing.TestCase):
             )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support float8.",
+    )
     def test_quantize_float8(self):
         import ml_dtypes
 
@@ -832,6 +836,10 @@ class EinsumDenseTest(testing.TestCase):
             self.assertAllClose(layer.outputs_grad_scale, scale_g)
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support float8.",
+    )
     def test_quantize_float8_fitting(self):
         config = dict(
             equation="ab,bcd->acd",
@@ -889,6 +897,10 @@ class EinsumDenseTest(testing.TestCase):
                 len(model.non_trainable_weights),
             )
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support float8.",
+    )
     def test_quantize_float8_inference(self):
         config = dict(
             equation="ab,bcd->acd",

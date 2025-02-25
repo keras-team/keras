@@ -253,6 +253,21 @@ class ArrayDataAdapter(DataAdapter):
 
         return self._get_iterator(slice_and_convert_to_jax, inputs)
 
+    def get_mlx_iterator(self):
+        from keras.src.backend.mlx.core import convert_to_tensor
+
+        inputs = array_slicing.convert_to_sliceable(
+            self._inputs, target_backend="mlx"
+        )
+
+        def slice_and_convert_to_mlx(sliceable, indices=None):
+            x = sliceable[indices]
+            x = sliceable.convert_to_mlx_compatible(x)
+            x = convert_to_tensor(x)
+            return x
+
+        return self._get_iterator(slice_and_convert_to_mlx, inputs)
+
     def get_torch_dataloader(self):
         import torch
 

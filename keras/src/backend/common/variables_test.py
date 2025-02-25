@@ -256,6 +256,13 @@ class VariablePropertiesTest(test_case.TestCase):
         ):
             self.skipTest(f"openvino backend does not support dtype {dtype}")
 
+        if backend.backend() == "mlx" and dtype in (
+            "complex128",
+            "float8_e4m3fn",
+            "float8_e5m2",
+        ):
+            self.skipTest(f"mlx backend does not support dtype {dtype}")
+
         x = backend.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
         self.assertEqual(actual, dtype)
@@ -805,6 +812,8 @@ if backend.backend() == "torch":
 elif backend.backend() == "openvino":
     # TODO: openvino doesn't support complex
     ALL_DTYPES = [x for x in ALL_DTYPES if x not in ["complex128", "complex64"]]
+elif backend.backend() == "mlx":
+    ALL_DTYPES = [x for x in ALL_DTYPES if x not in ["complex128"]]
 # Remove float8 dtypes for the following tests
 ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 NON_COMPLEX_DTYPES = [x for x in ALL_DTYPES if x and x not in COMPLEX_DTYPES]
@@ -818,10 +827,15 @@ class VariableOpsDTypeTest(test_case.TestCase):
 
         self.jax_enable_x64 = enable_x64()
         self.jax_enable_x64.__enter__()
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context = backend.core.enable_float64()
+            self.mlx_cpu_context.__enter__()
         return super().setUp()
 
     def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context.__exit__(None, None, None)
         return super().tearDown()
 
     @parameterized.named_parameters(

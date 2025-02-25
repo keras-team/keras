@@ -17,6 +17,7 @@ from keras.src.backend.mlx.core import compute_output_spec
 from keras.src.backend.mlx.core import cond
 from keras.src.backend.mlx.core import convert_to_numpy
 from keras.src.backend.mlx.core import convert_to_tensor
+from keras.src.backend.mlx.core import device_scope
 from keras.src.backend.mlx.core import is_tensor
 from keras.src.backend.mlx.core import random_seed_dtype
 from keras.src.backend.mlx.core import scatter

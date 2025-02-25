@@ -37,6 +37,9 @@ class MixUp(BaseImagePreprocessingLayer):
         self.alpha = alpha
         self.seed = seed
         self.generator = SeedGenerator(seed)
+        if self.backend.name == "mlx":
+            # mlx.random.beta() is not currently jit compilable
+            self.supports_jit = False
 
     def get_random_transformation(self, data, training=True, seed=None):
         if isinstance(data, dict):

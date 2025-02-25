@@ -2,6 +2,7 @@ import math
 
 import jax
 import jax.experimental.sparse as jax_sparse
+import mlx.core as mx
 import numpy as np
 import pytest
 import scipy
@@ -38,7 +39,7 @@ class GeneratorDataAdapterTest(testing.TestCase):
                 {"testcase_name": "use_weight", "use_sample_weight": True},
                 {"testcase_name": "no_weight", "use_sample_weight": False},
             ],
-            generator_type=["np", "tf", "jax", "torch"],
+            generator_type=["np", "tf", "jax", "torch", "mlx"],
         )
     )
     def test_basic_flow(self, use_sample_weight, generator_type):
@@ -55,6 +56,8 @@ class GeneratorDataAdapterTest(testing.TestCase):
                 torch.as_tensor(y),
                 torch.as_tensor(sw),
             )
+        elif generator_type == "mlx":
+            x, y, sw = mx.array(x), mx.array(y), mx.array(sw)
         if not use_sample_weight:
             sw = None
         make_generator = example_generator(
@@ -79,6 +82,9 @@ class GeneratorDataAdapterTest(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
 
         sample_order = []
         for i, batch in enumerate(it):
@@ -120,6 +126,8 @@ class GeneratorDataAdapterTest(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)

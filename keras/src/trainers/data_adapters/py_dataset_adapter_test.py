@@ -2,6 +2,7 @@ import math
 import time
 
 import jax
+import mlx.core as mx
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -128,6 +129,10 @@ class PyDatasetAdapterTest(testing.TestCase):
                     "testcase_name": "single_torch",
                     "dataset_type": "torch",
                 },
+                {
+                    "testcase_name": "single_mlx",
+                    "dataset_type": "mlx",
+                },
             ],
             infinite=[True, False],
             shuffle=[True, False],
@@ -153,6 +158,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             "jax": "cpu:0",
             "torch": "cpu",
             "numpy": "cpu",
+            "mlx": "cpu",
         }
         with backend.device(CPU_DEVICES[backend.backend()]):
             if dataset_type == "tf":
@@ -161,6 +167,8 @@ class PyDatasetAdapterTest(testing.TestCase):
                 x, y = jax.numpy.array(x), jax.numpy.array(y)
             elif dataset_type == "torch":
                 x, y = torch.as_tensor(x), torch.as_tensor(y)
+            elif dataset_type == "mlx":
+                x, y = mx.array(x), mx.array(y)
         py_dataset = ExamplePyDataset(
             x,
             y,
@@ -186,6 +194,9 @@ class PyDatasetAdapterTest(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
 
         sample_order = []
         adapter.on_epoch_begin()
@@ -236,6 +247,8 @@ class PyDatasetAdapterTest(testing.TestCase):
             gen = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             gen = adapter.get_torch_dataloader()
+        elif backend.backend() == "mlx":
+            gen = adapter.get_mlx_iterator()
 
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
@@ -351,6 +364,8 @@ class PyDatasetAdapterTest(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)
@@ -414,6 +429,8 @@ class PyDatasetAdapterTest(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
 
         it = iter(it)
         next(it)

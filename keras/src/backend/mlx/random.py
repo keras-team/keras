@@ -226,7 +226,7 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     # Binomial(n, p) distribution by summing n Bernoulli(p) samples
     dtype = to_mlx_dtype(dtype)
-    key = mx.random.key(seed)
+    key = mlx_draw_seed(seed)
 
     if isinstance(shape, int):
         shape = (shape,)

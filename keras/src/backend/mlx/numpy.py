@@ -291,10 +291,16 @@ def right_shift(x, y):
 
 
 def _bincount_1d(x, weights=None, minlength=0):
-    length = builtins.max(builtins.max(x) + 1, minlength or 0)
+    x_max = mx.max(x)
+    length = mx.maximum(x_max + 1, minlength)
+
     counts = mx.zeros(length)
-    w = weights if weights is not None else mx.ones_like(x)
-    return counts.at[x].add(w)
+    if weights is None:
+        counts = counts.at[x].add(1)
+    else:
+        counts = counts.at[x].add(weights)
+
+    return counts
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
