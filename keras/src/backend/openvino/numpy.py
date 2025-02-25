@@ -191,7 +191,14 @@ def amin(x, axis=None, keepdims=False):
 
 
 def append(x1, x2, axis=None):
-    raise NotImplementedError("`append` is not supported with openvino backend")
+    x1, x2 = get_ov_output(x1), get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "append()")
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x1 = ov_opset.reshape(x1, flatten_shape, False).output(0)
+        x2 = ov_opset.reshape(x2, flatten_shape, False).output(0)
+        axis = 0
+    return OpenVINOKerasTensor(ov_opset.concat([x1, x2], axis).output(0))
 
 
 def arange(start, stop=None, step=None, dtype=None):
