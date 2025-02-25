@@ -197,6 +197,12 @@ class DeviceMesh:
     def devices(self):
         return self._devices
 
+    @property
+    def backend_mesh(self):
+        if not hasattr(self, "_backend_mesh"):
+            self._backend_mesh = distribution_lib._to_backend_mesh(self)
+        return self._backend_mesh
+
     def __repr__(self):
         return (
             f"<{self.__class__.__name__} "
@@ -250,6 +256,12 @@ class TensorLayout:
             )
         self._device_mesh = device_mesh
         self._validate_axes()
+
+    @property
+    def backend_layout(self):
+        if not hasattr(self, "_backend_layout"):
+            self._backend_layout = distribution_lib._to_backend_layout(self)
+        return self._backend_layout
 
     def _validate_axes(self):
         if self._device_mesh:
