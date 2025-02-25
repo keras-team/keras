@@ -48,7 +48,10 @@ def lu_factor(a):
 
 
 def solve(a, b):
-    raise NotImplementedError("solve_triangular not yet implemented in mlx.")
+    with mx.stream(mx.cpu):
+        # [linalg::solve] This op is not yet supported on the GPU.
+        # Explicitly pass a CPU stream to run it.
+        return mx.linalg.solve(a, b)
 
 
 def solve_triangular(a, b, lower=False):
