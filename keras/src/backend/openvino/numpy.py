@@ -394,12 +394,9 @@ def cosh(x):
 
 def count_nonzero(x, axis=None):
     x = get_ov_output(x)
-    if x.get_element_type() != Type.boolean:
-        x = ov_opset.ceil(x).output(0)
-        x = ov_opset.convert(x, Type.i32).output(0)
-        x = ov_opset.not_equal(
-            x, ov_opset.constant(0, dtype=Type.i32).output(0)
-        ).output(0)
+    zero_constant = ov_opset.constant(0, dtype=Type.i32).output(0)
+    zero_constant = ov_opset.convert_like(zero_constant, x)
+    x = ov_opset.not_equal(x, zero_constant).output(0)
     x = ov_opset.convert(x, Type.i32).output(0)
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
