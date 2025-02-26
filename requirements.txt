@@ -10,7 +10,9 @@ torch==2.6.0+cpu
 torch-xla==2.6.0;sys_platform != 'darwin'
 
 # Jax.
-jax[cpu]
+# Pinned to 0.5.0 on CPU. JAX 0.5.1 requires Tensorflow 2.19 for saved_model_test.
+# Note that we test against the latest JAX on GPU.
+jax[cpu]==0.5.0
 flax
 
 # Common deps.
