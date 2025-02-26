@@ -131,6 +131,32 @@ class DiscretizationTest(testing.TestCase):
         for output in ds.take(1):
             output.numpy()
 
+    def test_serialization(self):
+        layer = layers.Discretization(num_bins=5)
+
+        # Serialization before `adapt` is called.
+        config = layer.get_config()
+        revived_layer = layers.Discretization.from_config(config)
+        self.assertEqual(config, revived_layer.get_config())
+
+        # Serialization after `adapt` is called but `num_bins` was not reached.
+        layer.adapt(np.array([0.0, 1.0, 5.0]))
+        config = layer.get_config()
+        revived_layer = layers.Discretization.from_config(config)
+        self.assertEqual(config, revived_layer.get_config())
+
+        # Serialization after `adapt` is called and `num_bins` is reached.
+        layer.adapt(np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]))
+        config = layer.get_config()
+        revived_layer = layers.Discretization.from_config(config)
+        self.assertEqual(config, revived_layer.get_config())
+
+        # Serialization with `bin_boundaries`.
+        layer = layers.Discretization(bin_boundaries=[0.0, 0.35, 0.5, 1.0])
+        config = layer.get_config()
+        revived_layer = layers.Discretization.from_config(config)
+        self.assertEqual(config, revived_layer.get_config())
+
     def test_saving(self):
         # With fixed bins
         layer = layers.Discretization(bin_boundaries=[0.0, 0.35, 0.5, 1.0])
@@ -163,3 +189,19 @@ class DiscretizationTest(testing.TestCase):
         model.save(fpath)
         model = saving_api.load_model(fpath)
         self.assertAllClose(layer(ref_input), ref_output)
+
+    def test_init_num_bins_and_bin_boundaries_raises(self):
+        with self.assertRaisesRegex(
+            ValueError, "Both `num_bins` and `bin_boundaries`"
+        ):
+            layers.Discretization(num_bins=3, bin_boundaries=[0.0, 1.0])
+
+        with self.assertRaisesRegex(
+            ValueError, "either `num_bins` or `bin_boundaries`"
+        ):
+            layers.Discretization()
+
+    def test_call_before_adapt_raises(self):
+        layer = layers.Discretization(num_bins=3)
+        with self.assertRaisesRegex(ValueError, "You need .* call .*adapt"):
+            layer([[0.1, 0.8, 0.9]])
