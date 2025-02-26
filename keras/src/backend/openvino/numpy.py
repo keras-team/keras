@@ -279,15 +279,13 @@ def arctan(x):
 def arctan2(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
-    x1_type = x1.get_element_type()
-    x2_type = x2.get_element_type()
 
-    if x1_type.is_integral():
-        ov_type = OPENVINO_DTYPES[config.floatx()]
-        x1 = ov_opset.convert(x1, ov_type)
-    if x2_type.is_integral():
-        ov_type = OPENVINO_DTYPES[config.floatx()]
-        x2 = ov_opset.convert(x2, ov_type)
+    x1_type = ov_to_keras_type(x1.get_element_type())
+    x2_type = ov_to_keras_type(x2.get_element_type())
+    result_type = dtypes.result_type(x1_type, x2_type, float)
+    result_type = OPENVINO_DTYPES[result_type]
+    x1 = ov_opset.convert(x1, result_type)
+    x2 = ov_opset.convert(x2, result_type)
 
     x = ov_opset.divide(x1, x2)
     y = ov_opset.atan(x)

@@ -720,3 +720,59 @@ def map_coordinates(
     if input_arr.dtype.is_integer:
         result = tf.round(result)
     return tf.cast(result, input_arr.dtype)
+
+
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    def _create_gaussian_kernel(kernel_size, sigma, num_channels, dtype):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = tf.range(size, dtype=dtype) - (size - 1) / 2
+            kernel1d = tf.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / tf.reduce_sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            size = tf.cast(size, dtype)
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return tf.tensordot(kernel1d_y, kernel1d_x, axes=0)
+
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
+        kernel = tf.reshape(kernel, (kernel_size[0], kernel_size[1], 1, 1))
+        kernel = tf.tile(kernel, [1, 1, num_channels, 1])
+        kernel = tf.cast(kernel, dtype)
+        return kernel
+
+    images = convert_to_tensor(images)
+    kernel_size = convert_to_tensor(kernel_size)
+    sigma = convert_to_tensor(sigma)
+    dtype = images.dtype
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = tf.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    num_channels = tf.shape(images)[-1]
+    kernel = _create_gaussian_kernel(kernel_size, sigma, num_channels, dtype)
+
+    blurred_images = tf.nn.depthwise_conv2d(
+        images, kernel, strides=[1, 1, 1, 1], padding="SAME"
+    )
+
+    if data_format == "channels_first":
+        blurred_images = tf.transpose(blurred_images, (0, 3, 1, 2))
+    if need_squeeze:
+        blurred_images = tf.squeeze(blurred_images, axis=0)
+
+    return blurred_images
