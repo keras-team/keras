@@ -680,17 +680,16 @@ def gaussian_blur(
             return kernel1d / jnp.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            size = size.astype(dtype)
             kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
             kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
             return jnp.outer(kernel1d_y, kernel1d_x)
 
-        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
-        kernel = kernel[jnp.newaxis, jnp.newaxis, :, :]
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)[
+            jnp.newaxis, jnp.newaxis, :, :
+        ]
         return kernel
 
     images = convert_to_tensor(images)
-    kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)
     dtype = images.dtype
 
