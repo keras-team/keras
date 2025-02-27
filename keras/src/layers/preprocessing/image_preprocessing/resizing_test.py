@@ -7,80 +7,49 @@ from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.testing.test_utils import named_product
 
 
 class ResizingTest(testing.TestCase):
-    def test_resizing_basics(self):
-        self.run_layer_test(
-            layers.Resizing,
-            init_kwargs={
-                "height": 6,
-                "width": 6,
-                "data_format": "channels_last",
-                "interpolation": "bicubic",
-                "crop_to_aspect_ratio": True,
-            },
-            input_shape=(2, 12, 12, 3),
-            expected_output_shape=(2, 6, 6, 3),
-            expected_num_trainable_weights=0,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            expected_num_losses=0,
-            supports_masking=False,
-            run_training_check=False,
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=["nearest", "bilinear", "bicubic", "lanczos5"],
+            crop_pad=[(False, False), (True, False), (False, True)],
+            antialias=[False, True],
+            data_format=["channels_last", "channels_first"],
         )
-        self.run_layer_test(
-            layers.Resizing,
-            init_kwargs={
-                "height": 6,
-                "width": 6,
-                "data_format": "channels_first",
-                "interpolation": "bilinear",
-                "crop_to_aspect_ratio": True,
-            },
-            input_shape=(2, 3, 12, 12),
-            expected_output_shape=(2, 3, 6, 6),
-            expected_num_trainable_weights=0,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            expected_num_losses=0,
-            supports_masking=False,
-            run_training_check=False,
-        )
-        self.run_layer_test(
-            layers.Resizing,
-            init_kwargs={
-                "height": 6,
-                "width": 6,
-                "data_format": "channels_last",
-                "interpolation": "nearest",
-                "crop_to_aspect_ratio": False,
-            },
-            input_shape=(2, 12, 12, 3),
-            expected_output_shape=(2, 6, 6, 3),
-            expected_num_trainable_weights=0,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            expected_num_losses=0,
-            supports_masking=False,
-            run_training_check=False,
-        )
-
-    @pytest.mark.skipif(
-        backend.backend() == "torch", reason="Torch does not support lanczos."
     )
-    def test_resizing_basics_lanczos5(self):
+    def test_resizing_basics(
+        self,
+        interpolation,
+        crop_pad,
+        antialias,
+        data_format,
+    ):
+        if interpolation == "lanczos5" and backend.backend() == "torch":
+            self.skipTest("Torch does not support lanczos.")
+
+        crop_to_aspect_ratio, pad_to_aspect_ratio = crop_pad
+        if data_format == "channels_last":
+            input_shape = (2, 12, 12, 3)
+            expected_output_shape = (2, 6, 6, 3)
+        else:
+            input_shape = (2, 3, 12, 12)
+            expected_output_shape = (2, 3, 6, 6)
+
         self.run_layer_test(
             layers.Resizing,
             init_kwargs={
                 "height": 6,
                 "width": 6,
-                "data_format": "channels_first",
-                "interpolation": "lanczos5",
-                "crop_to_aspect_ratio": False,
+                "interpolation": interpolation,
+                "crop_to_aspect_ratio": crop_to_aspect_ratio,
+                "pad_to_aspect_ratio": pad_to_aspect_ratio,
+                "antialias": antialias,
+                "data_format": data_format,
             },
-            input_shape=(2, 3, 12, 12),
-            expected_output_shape=(2, 3, 6, 6),
+            input_shape=input_shape,
+            expected_output_shape=expected_output_shape,
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
