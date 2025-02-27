@@ -163,6 +163,34 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
         self.assertEqual(out.shape, (3, 10, 20))
 
+    def test_perspective_transform(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        start_points = KerasTensor([None, 4, 2])
+        end_points = KerasTensor([None, 4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        start_points = KerasTensor([None, 4, 2])
+        end_points = KerasTensor([None, 4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
+
+    def test_gaussian_blur(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.gaussian_blur(x)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        out = kimage.gaussian_blur(x)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
@@ -362,6 +390,54 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(out_batch.shape, (2, 3, 10, 20))
 
+    def test_perspective_transform(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        start_points = KerasTensor([4, 2])
+        end_points = KerasTensor([4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        start_points = KerasTensor([4, 2])
+        end_points = KerasTensor([4, 2])
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_gaussian_blur(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        kernel_size = KerasTensor(
+            [
+                2,
+            ]
+        )
+        sigma = KerasTensor(
+            [
+                2,
+            ]
+        )
+        out = kimage.gaussian_blur(x, kernel_size, sigma)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        kernel_size = KerasTensor(
+            [
+                2,
+            ]
+        )
+        sigma = KerasTensor(
+            [
+                2,
+            ]
+        )
+        out = kimage.gaussian_blur(x, kernel_size, sigma)
+        self.assertEqual(out.shape, (3, 20, 20))
+
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
     "nearest": 0,
@@ -439,6 +515,301 @@ def _fixed_map_coordinates(
         padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
     )
     return result
+
+
+def _perspective_transform_numpy(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if len(start_points.shape) == 2:
+        start_points = np.expand_dims(start_points, axis=0)
+    if len(end_points.shape) == 2:
+        end_points = np.expand_dims(end_points, axis=0)
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+
+    transforms = _compute_homography_matrix(start_points, end_points)
+
+    if len(transforms.shape) == 1:
+        transforms = np.expand_dims(transforms, axis=0)
+    if transforms.shape[0] == 1 and batch_size > 1:
+        transforms = np.tile(transforms, (batch_size, 1))
+
+    x, y = np.meshgrid(
+        np.arange(width, dtype=np.float32),
+        np.arange(height, dtype=np.float32),
+        indexing="xy",
+    )
+
+    output = np.empty((batch_size, height, width, channels))
+
+    for i in range(batch_size):
+        a0, a1, a2, a3, a4, a5, a6, a7 = transforms[i]
+        denom = a6 * x + a7 * y + 1.0
+        x_in = (a0 * x + a1 * y + a2) / denom
+        y_in = (a3 * x + a4 * y + a5) / denom
+
+        coords = np.stack([y_in.ravel(), x_in.ravel()], axis=0)
+
+        mapped_channels = []
+        for channel in range(channels):
+            channel_img = images[i, :, :, channel]
+
+            mapped_channel = _fixed_map_coordinates(
+                channel_img,
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                fill_mode="constant",
+                fill_value=fill_value,
+            )
+            mapped_channels.append(mapped_channel.reshape(height, width))
+
+        output[i] = np.stack(mapped_channels, axis=-1)
+
+    if data_format == "channels_first":
+        output = np.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = np.squeeze(output, axis=0)
+
+    return output
+
+
+def gaussian_blur_np(
+    images,
+    kernel_size,
+    sigma,
+    data_format=None,
+):
+    def _create_gaussian_kernel(kernel_size, sigma, num_channels, dtype):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = np.arange(size, dtype=dtype) - (size - 1) / 2
+            kernel1d = np.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / np.sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return np.outer(kernel1d_y, kernel1d_x)
+
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
+        kernel = kernel[:, :, np.newaxis]
+        kernel = np.tile(kernel, (1, 1, num_channels))
+        return kernel.astype(dtype)
+
+    images = np.asarray(images)
+    input_dtype = images.dtype
+    kernel_size = np.asarray(kernel_size)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    num_channels = images.shape[-1]
+    kernel = _create_gaussian_kernel(
+        kernel_size, sigma, num_channels, input_dtype
+    )
+    batch_size, height, width, _ = images.shape
+    padded_images = np.pad(
+        images,
+        (
+            (0, 0),
+            (kernel_size[0] // 2, kernel_size[0] // 2),
+            (kernel_size[1] // 2, kernel_size[1] // 2),
+            (0, 0),
+        ),
+        mode="constant",
+    )
+
+    blurred_images = np.zeros_like(images)
+    kernel_reshaped = kernel.reshape(
+        (1, kernel.shape[0], kernel.shape[1], num_channels)
+    )
+
+    for b in range(batch_size):
+        image_patch = padded_images[b : b + 1, :, :, :]
+
+    for i in range(height):
+        for j in range(width):
+            patch = image_patch[
+                :, i : i + kernel_size[0], j : j + kernel_size[1], :
+            ]
+            blurred_images[b, i, j, :] = np.sum(
+                patch * kernel_reshaped, axis=(1, 2)
+            )
+
+    if data_format == "channels_first":
+        blurred_images = np.transpose(blurred_images, (0, 3, 1, 2))
+    if need_squeeze:
+        blurred_images = np.squeeze(blurred_images, axis=0)
+
+    return blurred_images
+
+
+def _compute_homography_matrix(start_points, end_points):
+    start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
+    start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
+    start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
+    start_x4, start_y4 = start_points[:, 3, 0], start_points[:, 3, 1]
+
+    end_x1, end_y1 = end_points[:, 0, 0], end_points[:, 0, 1]
+    end_x2, end_y2 = end_points[:, 1, 0], end_points[:, 1, 1]
+    end_x3, end_y3 = end_points[:, 2, 0], end_points[:, 2, 1]
+    end_x4, end_y4 = end_points[:, 3, 0], end_points[:, 3, 1]
+
+    coefficient_matrix = np.stack(
+        [
+            np.stack(
+                [
+                    end_x1,
+                    end_y1,
+                    np.ones_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    -start_x1 * end_x1,
+                    -start_x1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    end_x1,
+                    end_y1,
+                    np.ones_like(end_x1),
+                    -start_y1 * end_x1,
+                    -start_y1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x2,
+                    end_y2,
+                    np.ones_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    -start_x2 * end_x2,
+                    -start_x2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    end_x2,
+                    end_y2,
+                    np.ones_like(end_x2),
+                    -start_y2 * end_x2,
+                    -start_y2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x3,
+                    end_y3,
+                    np.ones_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    -start_x3 * end_x3,
+                    -start_x3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    end_x3,
+                    end_y3,
+                    np.ones_like(end_x3),
+                    -start_y3 * end_x3,
+                    -start_y3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x4,
+                    end_y4,
+                    np.ones_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    -start_x4 * end_x4,
+                    -start_x4 * end_y4,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    end_x4,
+                    end_y4,
+                    np.ones_like(end_x4),
+                    -start_y4 * end_x4,
+                    -start_y4 * end_y4,
+                ],
+                axis=-1,
+            ),
+        ],
+        axis=1,
+    )
+
+    target_vector = np.stack(
+        [
+            start_x1,
+            start_y1,
+            start_x2,
+            start_y2,
+            start_x3,
+            start_y3,
+            start_x4,
+            start_y4,
+        ],
+        axis=-1,
+    )
+    target_vector = np.expand_dims(target_vector, axis=-1)
+
+    homography_matrix = np.linalg.solve(coefficient_matrix, target_vector)
+    homography_matrix = np.reshape(homography_matrix, [-1, 8])
+
+    return homography_matrix
 
 
 class ImageOpsCorrectnessTest(testing.TestCase):
@@ -1213,6 +1584,98 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )(image)
         self.assertAllClose(ref_cropped_image, cropped_image)
 
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=["bilinear", "nearest"],
+        )
+    )
+    def test_perspective_transform(self, interpolation):
+        # Test channels_last
+        np.random.seed(42)
+        x = np.random.uniform(size=(50, 50, 3)).astype("float32")
+        start_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+        end_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+
+        out = kimage.perspective_transform(
+            x, start_points, end_points, interpolation=interpolation
+        )
+
+        ref_out = _perspective_transform_numpy(
+            x, start_points, end_points, interpolation=interpolation
+        )
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = np.random.uniform(size=(3, 50, 50)).astype("float32")
+        start_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+        end_points = np.random.uniform(size=(1, 4, 2)).astype("float32")
+
+        out = kimage.perspective_transform(
+            x, start_points, end_points, interpolation=interpolation
+        )
+
+        ref_out = _perspective_transform_numpy(
+            x,
+            start_points,
+            end_points,
+            interpolation=interpolation,
+            data_format="channels_first",
+        )
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+    def test_gaussian_blur(self):
+        # Test channels_last
+        backend.set_image_data_format("channels_last")
+        np.random.seed(42)
+        x = np.random.uniform(size=(50, 50, 3)).astype("float32")
+        kernel_size = np.array([3, 3])
+        sigma = np.random.uniform(size=(2,)).astype("float32")
+
+        out = kimage.gaussian_blur(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_last",
+        )
+
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_last",
+        )
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = np.random.uniform(size=(3, 50, 50)).astype("float32")
+        kernel_size = np.array([3, 3])
+        sigma = np.random.uniform(size=(2,)).astype("float32")
+
+        out = kimage.gaussian_blur(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_first",
+        )
+
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_first",
+        )
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
 
 class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
@@ -1446,3 +1909,125 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "When the width of the images is unknown"
         ):
             kimage.crop_images(x, 2, 3, 4, 5)
+
+    def test_perspective_transform_invalid_images_rank(self):
+        # Test rank=2
+        invalid_image = np.random.uniform(size=(10, 10))
+        start_points = np.random.uniform(size=(6,))
+        end_points = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.perspective_transform(
+                invalid_image, start_points, end_points
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.PerspectiveTransform()(
+                invalid_image, start_points, end_points
+            )
+
+        # Test rank=5
+        invalid_image = np.random.uniform(size=(2, 10, 10, 3, 1))
+        start_points = np.random.uniform(size=(6,))
+        end_points = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.perspective_transform(
+                invalid_image, start_points, end_points
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.PerspectiveTransform()(
+                invalid_image, start_points, end_points
+            )
+
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        start_points = KerasTensor(shape=(6,))
+        end_points = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.perspective_transform(
+                invalid_image, start_points, end_points
+            )
+
+    def test_perspective_transform_invalid_points_rank(self):
+        # Test rank=3
+        images = np.random.uniform(size=(10, 10, 3))
+        start_points = np.random.uniform(size=(2, 2, 4, 2))
+        end_points = np.random.uniform(size=(2, 2, 4, 2))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.perspective_transform(images, start_points, end_points)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.PerspectiveTransform()(images, start_points, end_points)
+
+        # Test rank=0
+        start_points = np.random.uniform(size=())
+        end_points = np.random.uniform(size=())
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.perspective_transform(images, start_points, end_points)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.PerspectiveTransform()(images, start_points, end_points)
+
+        # Test rank=3, symbolic tensor
+        images = KerasTensor(shape=(10, 10, 3))
+        start_points = KerasTensor(shape=(2, 3, 2))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid start_points shape: expected"
+        ):
+            kimage.perspective_transform(images, start_points, end_points)
+
+    def test_gaussian_blur_invalid_images_rank(self):
+        # Test rank=2
+        invalid_image = np.random.uniform(size=(10, 10))
+        kernel_size = (3, 3)
+        sigma = (0.1, 0.1)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.gaussian_blur(
+                invalid_image, kernel_size=kernel_size, sigma=sigma
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.GaussianBlur(kernel_size=kernel_size, sigma=sigma)(
+                invalid_image
+            )
+
+        # Test rank=5
+        invalid_image = np.random.uniform(size=(2, 10, 10, 3, 1))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.gaussian_blur(
+                invalid_image, kernel_size=kernel_size, sigma=sigma
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.GaussianBlur(kernel_size=kernel_size, sigma=sigma)(
+                invalid_image
+            )
+
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.gaussian_blur(
+                invalid_image, kernel_size=kernel_size, sigma=sigma
+            )

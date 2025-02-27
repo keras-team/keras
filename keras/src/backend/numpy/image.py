@@ -493,6 +493,257 @@ def affine_transform(
     return affined
 
 
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    start_points = convert_to_tensor(start_points)
+    end_points = convert_to_tensor(end_points)
+
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{AFFINE_TRANSFORM_INTERPOLATIONS}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    if start_points.ndim not in (2, 3) or start_points.shape[-2:] != (4, 2):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if end_points.ndim not in (2, 3) or end_points.shape[-2:] != (4, 2):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+    if start_points.shape != end_points.shape:
+        raise ValueError(
+            "start_points and end_points must have the same shape."
+            f" Received start_points.shape={start_points.shape}, "
+            f"end_points.shape={end_points.shape}"
+        )
+
+    input_dtype = images.dtype
+    if input_dtype == "float16":
+        images = images.astype("float32")
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if len(start_points.shape) == 2:
+        start_points = np.expand_dims(start_points, axis=0)
+    if len(end_points.shape) == 2:
+        end_points = np.expand_dims(end_points, axis=0)
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+
+    transforms = compute_homography_matrix(start_points, end_points)
+
+    if len(transforms.shape) == 1:
+        transforms = np.expand_dims(transforms, axis=0)
+    if transforms.shape[0] == 1 and batch_size > 1:
+        transforms = np.tile(transforms, (batch_size, 1))
+
+    x, y = np.meshgrid(
+        np.arange(width, dtype=np.float32),
+        np.arange(height, dtype=np.float32),
+        indexing="xy",
+    )
+
+    output = np.empty((batch_size, height, width, channels))
+
+    for i in range(batch_size):
+        a0, a1, a2, a3, a4, a5, a6, a7 = transforms[i]
+        denom = a6 * x + a7 * y + 1.0
+        x_in = (a0 * x + a1 * y + a2) / denom
+        y_in = (a3 * x + a4 * y + a5) / denom
+
+        coords = np.stack([y_in.ravel(), x_in.ravel()], axis=0)
+
+        mapped_channels = []
+        for channel in range(channels):
+            channel_img = images[i, :, :, channel]
+
+            mapped_channel = map_coordinates(
+                channel_img,
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                fill_mode="constant",
+                fill_value=fill_value,
+            )
+            mapped_channels.append(mapped_channel.reshape(height, width))
+
+        output[i] = np.stack(mapped_channels, axis=-1)
+
+    if data_format == "channels_first":
+        output = np.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = np.squeeze(output, axis=0)
+    output = output.astype(input_dtype)
+
+    return output
+
+
+def compute_homography_matrix(start_points, end_points):
+    start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
+    start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
+    start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
+    start_x4, start_y4 = start_points[:, 3, 0], start_points[:, 3, 1]
+
+    end_x1, end_y1 = end_points[:, 0, 0], end_points[:, 0, 1]
+    end_x2, end_y2 = end_points[:, 1, 0], end_points[:, 1, 1]
+    end_x3, end_y3 = end_points[:, 2, 0], end_points[:, 2, 1]
+    end_x4, end_y4 = end_points[:, 3, 0], end_points[:, 3, 1]
+
+    coefficient_matrix = np.stack(
+        [
+            np.stack(
+                [
+                    end_x1,
+                    end_y1,
+                    np.ones_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    -start_x1 * end_x1,
+                    -start_x1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    np.zeros_like(end_x1),
+                    end_x1,
+                    end_y1,
+                    np.ones_like(end_x1),
+                    -start_y1 * end_x1,
+                    -start_y1 * end_y1,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x2,
+                    end_y2,
+                    np.ones_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    -start_x2 * end_x2,
+                    -start_x2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    np.zeros_like(end_x2),
+                    end_x2,
+                    end_y2,
+                    np.ones_like(end_x2),
+                    -start_y2 * end_x2,
+                    -start_y2 * end_y2,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x3,
+                    end_y3,
+                    np.ones_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    -start_x3 * end_x3,
+                    -start_x3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    np.zeros_like(end_x3),
+                    end_x3,
+                    end_y3,
+                    np.ones_like(end_x3),
+                    -start_y3 * end_x3,
+                    -start_y3 * end_y3,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    end_x4,
+                    end_y4,
+                    np.ones_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    -start_x4 * end_x4,
+                    -start_x4 * end_y4,
+                ],
+                axis=-1,
+            ),
+            np.stack(
+                [
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    np.zeros_like(end_x4),
+                    end_x4,
+                    end_y4,
+                    np.ones_like(end_x4),
+                    -start_y4 * end_x4,
+                    -start_y4 * end_y4,
+                ],
+                axis=-1,
+            ),
+        ],
+        axis=1,
+    )
+
+    target_vector = np.stack(
+        [
+            start_x1,
+            start_y1,
+            start_x2,
+            start_y2,
+            start_x3,
+            start_y3,
+            start_x4,
+            start_y4,
+        ],
+        axis=-1,
+    )
+    target_vector = np.expand_dims(target_vector, axis=-1)
+
+    homography_matrix = np.linalg.solve(coefficient_matrix, target_vector)
+    homography_matrix = np.reshape(homography_matrix, [-1, 8])
+
+    return homography_matrix
+
+
 MAP_COORDINATES_FILL_MODES = {
     "constant",
     "nearest",
@@ -557,3 +808,83 @@ def map_coordinates(
         padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
     )
     return result
+
+
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    def _create_gaussian_kernel(kernel_size, sigma, num_channels, dtype):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = np.arange(size, dtype=dtype) - (size - 1) / 2
+            kernel1d = np.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / np.sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            size = np.asarray(size, dtype)
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return np.outer(kernel1d_y, kernel1d_x)
+
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
+        kernel = kernel[:, :, np.newaxis]
+        kernel = np.tile(kernel, (1, 1, num_channels))
+        return kernel.astype(dtype)
+
+    images = convert_to_tensor(images)
+    kernel_size = convert_to_tensor(kernel_size)
+    sigma = convert_to_tensor(sigma)
+    input_dtype = images.dtype
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    num_channels = images.shape[-1]
+    kernel = _create_gaussian_kernel(
+        kernel_size, sigma, num_channels, input_dtype
+    )
+    batch_size, height, width, _ = images.shape
+    padded_images = np.pad(
+        images,
+        (
+            (0, 0),
+            (kernel_size[0] // 2, kernel_size[0] // 2),
+            (kernel_size[1] // 2, kernel_size[1] // 2),
+            (0, 0),
+        ),
+        mode="constant",
+    )
+
+    blurred_images = np.zeros_like(images)
+    kernel_reshaped = kernel.reshape(
+        (1, kernel.shape[0], kernel.shape[1], num_channels)
+    )
+
+    for b in range(batch_size):
+        image_patch = padded_images[b : b + 1, :, :, :]
+        for i in range(height):
+            for j in range(width):
+                patch = image_patch[
+                    :, i : i + kernel_size[0], j : j + kernel_size[1], :
+                ]
+                blurred_images[b, i, j, :] = np.sum(
+                    patch * kernel_reshaped, axis=(1, 2)
+                )
+
+    if data_format == "channels_first":
+        blurred_images = np.transpose(blurred_images, (0, 3, 1, 2))
+    if need_squeeze:
+        blurred_images = np.squeeze(blurred_images, axis=0)
+
+    return blurred_images
