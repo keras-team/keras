@@ -79,6 +79,7 @@ class Resizing(BaseImagePreprocessingLayer):
         pad_to_aspect_ratio=False,
         fill_mode="constant",
         fill_value=0.0,
+        antialias=False,
         data_format=None,
         **kwargs,
     ):
@@ -91,6 +92,7 @@ class Resizing(BaseImagePreprocessingLayer):
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
         self.fill_value = fill_value
+        self.antialias = bool(antialias)
         if self.data_format == "channels_first":
             self.height_axis = -2
             self.width_axis = -1
@@ -104,6 +106,7 @@ class Resizing(BaseImagePreprocessingLayer):
             images,
             size=size,
             interpolation=self.interpolation,
+            antialias=self.antialias,
             data_format=self.data_format,
             crop_to_aspect_ratio=self.crop_to_aspect_ratio,
             pad_to_aspect_ratio=self.pad_to_aspect_ratio,
@@ -299,6 +302,7 @@ class Resizing(BaseImagePreprocessingLayer):
             "pad_to_aspect_ratio": self.pad_to_aspect_ratio,
             "fill_mode": self.fill_mode,
             "fill_value": self.fill_value,
+            "antialias": self.antialias,
             "data_format": self.data_format,
         }
         return {**base_config, **config}
