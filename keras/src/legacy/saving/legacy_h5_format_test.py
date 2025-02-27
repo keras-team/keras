@@ -279,6 +279,15 @@ class LegacyH5WholeModelTest(testing.TestCase):
             self.assertIsInstance(loaded_layer.sublayers[1], RegisteredSubLayer)
             self.assertEqual(loaded_layer.sublayers[1].name, "MySubLayer")
 
+    def test_model_loading_with_axis_arg(self):
+        input1 = layers.Input(shape=(1, 4), name='input1')
+        input2 = layers.Input(shape=(1, 4), name='input2')
+        concat1 = layers.Concatenate(axis=1)([input1, input2])
+        output = layers.Dense(1, activation='sigmoid')(concat1)
+        model = models.Model(inputs=[input1, input2], outputs=output)
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        legacy_h5_format.save_model_to_hdf5(model, "model_with_axis_arg.h5")
+        legacy_h5_format.load_model_from_hdf5("model_with_axis_arg.h5")
 
 @pytest.mark.requires_trainable_backend
 @pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
