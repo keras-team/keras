@@ -87,8 +87,8 @@ class LayerNormalization(Layer):
             inputs are scaled by `gamma` and the inverse square root
             of the square of all inputs. This is an approximate and faster
             approach that avoids ever computing the mean of the input. Note that
-            this isn't the equivalent operation to what's known
-            as RMSNormalization.
+            this *isn't* equivalent to the computation that the
+            `keras.layers.RMSNormalization` layer performs.
         beta_initializer: Initializer for the beta weight. Defaults to zeros.
         gamma_initializer: Initializer for the gamma weight. Defaults to ones.
         beta_regularizer: Optional regularizer for the beta weight.
