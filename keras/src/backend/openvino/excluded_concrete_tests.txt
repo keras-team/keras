@@ -21,6 +21,8 @@ NumpyDtypeTest::test_count_nonzero
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_cumsum_bool
+NumpyDtypeTest::test_diagflat
+NumpyDtypeTest::test_diagonal
 NumpyDtypeTest::test_diff
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_dot
@@ -100,6 +102,7 @@ NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_correlate
 NumpyOneInputOpsCorrectnessTest::test_count_nonzero
 NumpyOneInputOpsCorrectnessTest::test_cumprod
+NumpyOneInputOpsCorrectnessTest::test_diagflat
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_diff
 NumpyOneInputOpsCorrectnessTest::test_dot
