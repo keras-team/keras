@@ -850,37 +850,27 @@ def gaussian_blur(
     if data_format == "channels_first":
         images = np.transpose(images, (0, 2, 3, 1))
 
-    num_channels = images.shape[-1]
+    batch_size, height, width, num_channels = images.shape
+
     kernel = _create_gaussian_kernel(
         kernel_size, sigma, num_channels, input_dtype
     )
-    batch_size, height, width, _ = images.shape
-    padded_images = np.pad(
-        images,
-        (
-            (0, 0),
-            (kernel_size[0] // 2, kernel_size[0] // 2),
-            (kernel_size[1] // 2, kernel_size[1] // 2),
-            (0, 0),
-        ),
-        mode="constant",
-    )
 
-    blurred_images = np.zeros_like(images)
-    kernel_reshaped = kernel.reshape(
-        (1, kernel.shape[0], kernel.shape[1], num_channels)
-    )
+    pad_h = kernel_size[0] // 2
+    pad_w = kernel_size[1] // 2
+
+    blurred_images = np.empty_like(images)
 
     for b in range(batch_size):
-        image_patch = padded_images[b : b + 1, :, :, :]
-        for i in range(height):
-            for j in range(width):
-                patch = image_patch[
-                    :, i : i + kernel_size[0], j : j + kernel_size[1], :
-                ]
-                blurred_images[b, i, j, :] = np.sum(
-                    patch * kernel_reshaped, axis=(1, 2)
-                )
+        for ch in range(num_channels):
+            padded = np.pad(
+                images[b, :, :, ch],
+                ((pad_h, pad_h), (pad_w, pad_w)),
+                mode="constant",
+            )
+            blurred_images[b, :, :, ch] = scipy.signal.convolve2d(
+                padded, kernel[:, :, ch], mode="valid"
+            )
 
     if data_format == "channels_first":
         blurred_images = np.transpose(blurred_images, (0, 3, 1, 2))
