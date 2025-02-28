@@ -63,8 +63,11 @@ def model_from_config(config, custom_objects=None):
             config["config"]["input_shape"] = batch_input_shape
 
     axis = config["config"].pop("axis", None)
-    if axis is not None and isinstance(axis, list) and len(axis) == 1:
-        config["config"]["axis"] = int(axis[0])
+    if axis is not None:
+        if isinstance(axis, list) and len(axis) == 1:
+            config["config"]["axis"] = int(axis[0])
+        elif isinstance(axis, (int, float)):
+            config["config"]["axis"] = int(axis)
 
     # Handle backwards compatibility for Keras lambdas
     if config["class_name"] == "Lambda":
