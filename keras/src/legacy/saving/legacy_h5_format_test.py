@@ -288,8 +288,11 @@ class LegacyH5WholeModelTest(testing.TestCase):
         model.compile(
             optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"]
         )
-        legacy_h5_format.save_model_to_hdf5(model, "model_with_axis_arg.h5")
-        legacy_h5_format.load_model_from_hdf5("model_with_axis_arg.h5")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "model_with_axis_arg.h5"
+        )
+        legacy_h5_format.save_model_to_hdf5(model, temp_filepath)
+        legacy_h5_format.load_model_from_hdf5(temp_filepath)
 
 
 @pytest.mark.requires_trainable_backend
