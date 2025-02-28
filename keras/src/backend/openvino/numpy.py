@@ -444,9 +444,21 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    raise NotImplementedError(
-        "`count_nonzero` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    zero_constant = ov_opset.constant(0, dtype=Type.i32).output(0)
+    zero_constant = ov_opset.convert_like(zero_constant, x)
+    x = ov_opset.not_equal(x, zero_constant).output(0)
+    x = ov_opset.convert(x, Type.i32).output(0)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    if axis == []:
+        return OpenVINOKerasTensor(x)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.reduce_sum(x, axis, False).output(0))
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
