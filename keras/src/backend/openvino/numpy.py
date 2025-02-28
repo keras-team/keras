@@ -825,6 +825,7 @@ def diag(x, k=0):
     else:
         raise ValueError("diag supports only 1D or 2D tensors")
 
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     raise NotImplementedError(
         "`diagonal` is not supported with openvino backend"
