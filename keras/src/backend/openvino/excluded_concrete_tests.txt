@@ -16,7 +16,6 @@ NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_correlate
-NumpyDtypeTest::test_count_nonzero
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_cumsum_bool
@@ -98,7 +97,6 @@ NumpyOneInputOpsCorrectnessTest::test_bincount
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_correlate
-NumpyOneInputOpsCorrectnessTest::test_count_nonzero
 NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_diagonal
