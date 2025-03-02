@@ -833,7 +833,6 @@ def gaussian_blur(
             return kernel1d / torch.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            size = torch.tensor(size, dtype=dtype)
             kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
             kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
             return torch.outer(kernel1d_y, kernel1d_x)
@@ -868,8 +867,6 @@ def gaussian_blur(
 
     kernel = kernel.expand(num_channels, 1, kernel_size[0], kernel_size[1])
 
-    print(kernel_size[0] // 2)
-
     blurred_images = torch.nn.functional.conv2d(
         images,
         kernel,
@@ -885,3 +882,92 @@ def gaussian_blur(
         blurred_images = blurred_images.squeeze(dim=0)
 
     return blurred_images
+
+
+def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
+    images = convert_to_tensor(images)
+    alpha = convert_to_tensor(alpha)
+    sigma = convert_to_tensor(sigma)
+    input_dtype = images.dtype
+    kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images.unsqueeze(dim=0)
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        batch_size, height, width, channels = images.shape
+        channel_axis = -1
+    else:
+        batch_size, channels, height, width = images.shape
+        channel_axis = 1
+
+    dx = torch.randn(batch_size, height, width, dtype=input_dtype) * sigma
+    dy = torch.randn(batch_size, height, width, dtype=input_dtype) * sigma
+
+    dx = gaussian_blur(
+        dx.unsqueeze(dim=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+    dy = gaussian_blur(
+        dy.unsqueeze(dim=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+
+    dx = dx.squeeze()
+    dy = dy.squeeze()
+
+    x, y = torch.meshgrid(
+        torch.arange(width), torch.arange(height), indexing="xy"
+    )
+    x, y = x.unsqueeze(0), y.unsqueeze(0)
+
+    distorted_x = x + alpha * dx
+    distorted_y = y + alpha * dy
+
+    transformed_images = torch.zeros_like(images)
+
+    if data_format == "channels_last":
+        for i in range(channels):
+            transformed_images[..., i] = torch.stack(
+                [
+                    map_coordinates(
+                        images[b, ..., i],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS["bilinear"],
+                        fill_mode="reflect",
+                    )
+                    for b in range(batch_size)
+                ]
+            )
+    else:
+        for i in range(channels):
+            transformed_images[:, i, :, :] = torch.stack(
+                [
+                    map_coordinates(
+                        images[b, i, ...],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS["bilinear"],
+                        fill_mode="reflect",
+                    )
+                    for b in range(batch_size)
+                ]
+            )
+
+    if need_squeeze:
+        transformed_images = transformed_images.squeeze(0)
+    transformed_images = transformed_images.to(input_dtype)
+
+    return transformed_images

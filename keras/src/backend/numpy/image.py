@@ -906,8 +906,8 @@ def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
         batch_size, channels, height, width = images.shape
         channel_axis = 1
 
-    dx = np.random.randn(batch_size, height, width).astype(np.float32) * sigma
-    dy = np.random.randn(batch_size, height, width).astype(np.float32) * sigma
+    dx = np.random.randn(batch_size, height, width).astype(input_dtype) * sigma
+    dy = np.random.randn(batch_size, height, width).astype(input_dtype) * sigma
 
     dx = gaussian_blur(
         np.expand_dims(dx, axis=channel_axis),
