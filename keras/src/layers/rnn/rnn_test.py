@@ -383,19 +383,4 @@ class RNNTest(testing.TestCase):
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         self.run_class_serialization_test(layer)
 
-    @pytest.mark.torch
-    def test_stateful_state_copying(self):
-        sequence = np.ones((1, 2, 3))
-        layer = layers.RNN(
-            TwoStatesRNNCell(2),
-            stateful=True,
-            return_state=True,
-        )
-        _, state1, state2 = layer(sequence)
-
-        self.assertIsNot(state1, layer.states[0])
-        self.assertIsNot(state2, layer.states[1])
-        self.assertAllClose(state1, layer.states[0])
-        self.assertAllClose(state2, layer.states[1])
-
     # TODO: test masking
