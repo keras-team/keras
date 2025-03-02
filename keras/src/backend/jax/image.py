@@ -733,7 +733,12 @@ def gaussian_blur(
 
 
 def elastic_transform(
-    images, alpha=20.0, sigma=5.0, seed=None, data_format=None
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    seed=None,
+    data_format=None,
 ):
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -806,7 +811,9 @@ def elastic_transform(
                         map_coordinates(
                             images[b, ..., i],
                             [distorted_y[b], distorted_x[b]],
-                            order=AFFINE_TRANSFORM_INTERPOLATIONS["bilinear"],
+                            order=AFFINE_TRANSFORM_INTERPOLATIONS[
+                                interpolation
+                            ],
                             fill_mode="reflect",
                         )
                         for b in range(batch_size)
@@ -821,7 +828,9 @@ def elastic_transform(
                         map_coordinates(
                             images[b, i, ...],
                             [distorted_y[b], distorted_x[b]],
-                            order=AFFINE_TRANSFORM_INTERPOLATIONS["bilinear"],
+                            order=AFFINE_TRANSFORM_INTERPOLATIONS[
+                                interpolation
+                            ],
                             fill_mode="reflect",
                         )
                         for b in range(batch_size)
