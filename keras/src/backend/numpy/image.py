@@ -4,6 +4,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.backend.numpy.core import convert_to_tensor
+from keras.src.random.seed_generator import draw_seed
 from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = (
@@ -880,7 +881,9 @@ def gaussian_blur(
     return blurred_images
 
 
-def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
+def elastic_transform(
+    images, alpha=20.0, sigma=5.0, seed=None, data_format=None
+):
     if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
@@ -889,9 +892,11 @@ def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
         )
 
     images = convert_to_tensor(images)
-    alpha = convert_to_tensor(alpha)
-    sigma = convert_to_tensor(sigma)
     input_dtype = images.dtype
+
+    alpha = convert_to_tensor(alpha, dtype=input_dtype)
+    sigma = convert_to_tensor(sigma, dtype=input_dtype)
+
     kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
 
     need_squeeze = False
@@ -906,8 +911,20 @@ def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
         batch_size, channels, height, width = images.shape
         channel_axis = 1
 
-    dx = np.random.randn(batch_size, height, width).astype(input_dtype) * sigma
-    dy = np.random.randn(batch_size, height, width).astype(input_dtype) * sigma
+    seed = draw_seed(seed)
+    rng = np.random.default_rng(seed)
+    dx = (
+        rng.normal(size=(batch_size, height, width), loc=0.0, scale=1.0).astype(
+            input_dtype
+        )
+        * sigma
+    )
+    dy = (
+        rng.normal(size=(batch_size, height, width), loc=0.0, scale=1.0).astype(
+            input_dtype
+        )
+        * sigma
+    )
 
     dx = gaussian_blur(
         np.expand_dims(dx, axis=channel_axis),

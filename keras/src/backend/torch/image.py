@@ -3,10 +3,13 @@ import itertools
 import operator
 
 import torch
+import torch._dynamo as dynamo
 import torch.nn.functional as F
 
 from keras.src import backend
 from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.core import get_device
+from keras.src.random.seed_generator import draw_seed
 
 RESIZE_INTERPOLATIONS = {
     "bilinear": "bilinear",
@@ -884,7 +887,20 @@ def gaussian_blur(
     return blurred_images
 
 
-def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
+@dynamo.disable()
+def torch_seed_generator(seed):
+    first_seed, second_seed = draw_seed(seed)
+    device = get_device()
+    if device == "meta":
+        return None
+    generator = torch.Generator(device=get_device())
+    generator.manual_seed(int(first_seed + second_seed))
+    return generator
+
+
+def elastic_transform(
+    images, alpha=20.0, sigma=5.0, seed=None, data_format=None
+):
     images = convert_to_tensor(images)
     alpha = convert_to_tensor(alpha)
     sigma = convert_to_tensor(sigma)
@@ -910,8 +926,30 @@ def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
         batch_size, channels, height, width = images.shape
         channel_axis = 1
 
-    dx = torch.randn(batch_size, height, width, dtype=input_dtype) * sigma
-    dy = torch.randn(batch_size, height, width, dtype=input_dtype) * sigma
+    generator = torch_seed_generator(seed) if get_device() == "meta" else None
+    dx = (
+        torch.normal(
+            0.0,
+            1.0,
+            size=(batch_size, height, width),
+            generator=generator,
+            dtype=input_dtype,
+            device=images.device,
+        )
+        * sigma
+    )
+
+    dy = (
+        torch.normal(
+            0.0,
+            1.0,
+            size=(batch_size, height, width),
+            generator=generator,
+            dtype=input_dtype,
+            device=images.device,
+        )
+        * sigma
+    )
 
     dx = gaussian_blur(
         dx.unsqueeze(dim=channel_axis),

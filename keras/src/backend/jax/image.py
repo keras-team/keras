@@ -5,6 +5,7 @@ import jax.numpy as jnp
 
 from keras.src import backend
 from keras.src.backend.jax.core import convert_to_tensor
+from keras.src.random.seed_generator import draw_seed
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -731,7 +732,9 @@ def gaussian_blur(
     return blurred_images
 
 
-def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
+def elastic_transform(
+    images, alpha=20.0, sigma=5.0, seed=None, data_format=None
+):
     if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
@@ -757,12 +760,17 @@ def elastic_transform(images, alpha=20.0, sigma=5.0, data_format=None):
         batch_size, channels, height, width = images.shape
         channel_axis = 1
 
+    seed = draw_seed(seed)
     dx = (
-        jax.random.normal(jax.random.PRNGKey(0), (batch_size, height, width))
+        jax.random.normal(
+            seed, shape=(batch_size, height, width), dtype=input_dtype
+        )
         * sigma
     )
     dy = (
-        jax.random.normal(jax.random.PRNGKey(1), (batch_size, height, width))
+        jax.random.normal(
+            seed, shape=(batch_size, height, width), dtype=input_dtype
+        )
         * sigma
     )
 
