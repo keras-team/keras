@@ -10,6 +10,7 @@ from keras.src.backend import standardize_data_format
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
+from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
@@ -2651,6 +2652,82 @@ def dot_product_attention(
         is_causal=is_causal,
         flash_attention=flash_attention,
     )
+
+
+class RMSNorm(Operation):
+    def __init__(self, scale, axis=-1, epsilon=None):
+        super().__init__()
+        self.axis = axis
+        self.scale = scale
+        self.epsilon = epsilon
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape)
+
+    def call(self, x):
+        return _rms_normalization(
+            x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
+        )
+
+
+@keras_export(
+    [
+        "keras.ops.rms_normalization",
+        "keras.ops.nn.rms_normalization",
+    ]
+)
+def rms_normalization(x, scale=1, axis=-1, epsilon=None):
+    """Performs Root Mean Square (RMS) normalization on `x`.
+
+    The Keras operation implements the operation as described in
+    [Root Mean Square Layer Normalization](https://arxiv.org/pdf/1910.07467)
+    by Biao Zhang et al.
+
+    The operation is different from LayerNormalization with RMS scaling.
+
+    It is defined as `rms_normalization(x) = x * rsqrt(mean(square(x))) * scale`
+
+    Args:
+        x: Input tensor.
+        axis: The axis or axes along which to perform normalization.
+            Default to -1.
+        scale: Optional scaling factor for the normalization.
+        epsilon: A lower bound value for the norm.
+            Defaults to `backend.epsilon()`.
+
+    Returns:
+        The normalized array.
+
+    Example:
+
+    >>> x = np.random.rand(1, 10)
+    >>> x_norm = keras.ops.rms_normalization(x, (10,))
+    >>> print(x_norm)
+    array([[0.69384296, 0.94444374, 0.16551171, 0.05749961, 1.11008865,
+        0.52475186, 1.57686807, 1.69893307, 1.27292764, 0.30819128]])
+    """
+    if any_symbolic_tensors((x,)):
+        return RMSNorm(scale=scale, axis=axis, epsilon=epsilon).symbolic_call(x)
+    return _rms_normalization(x, scale=scale, axis=axis, epsilon=epsilon)
+
+
+def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) == 0:
+        x = backend.numpy.expand_dims(x, axis=0)
+    if epsilon is None:
+        epsilon = backend.epsilon()
+
+    if not is_keras_tensor(scale):
+        scale = backend.convert_to_tensor(scale, dtype=x.dtype)
+    if not is_keras_tensor(epsilon):
+        epsilon = backend.convert_to_tensor(epsilon, dtype=x.dtype)
+
+    rrms = backend.math.rsqrt(
+        backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)
+        + epsilon
+    )
+    return (x * rrms) * scale
 
 
 class Polar(Operation):

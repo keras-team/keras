@@ -91,6 +91,7 @@ from keras.src.ops.nn import polar
 from keras.src.ops.nn import psnr
 from keras.src.ops.nn import relu
 from keras.src.ops.nn import relu6
+from keras.src.ops.nn import rms_normalization
 from keras.src.ops.nn import selu
 from keras.src.ops.nn import separable_conv
 from keras.src.ops.nn import sigmoid
