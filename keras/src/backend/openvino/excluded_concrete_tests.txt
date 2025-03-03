@@ -6,7 +6,6 @@ NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_all
 NumpyDtypeTest::test_any
-NumpyDtypeTest::test_append_
 NumpyDtypeTest::test_argmax
 NumpyDtypeTest::test_argmin
 NumpyDtypeTest::test_argpartition
@@ -159,7 +158,6 @@ NumpyOneInputOpsCorrectnessTest::test_unravel_index
 NumpyOneInputOpsCorrectnessTest::test_var
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_vstack
-NumpyTwoInputOpsCorrectnessTest::test_append
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_and
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_left_shift
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_or
