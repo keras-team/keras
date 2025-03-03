@@ -519,9 +519,7 @@ def dot(x, y):
         element_type = y.output.get_element_type()
     x = get_ov_output(x, element_type)
     y = get_ov_output(y, element_type)
-
     x,y = _align_operand_types(x, y, "dot()")
-
     return OpenVINOKerasTensor(ov_opset.matmul(x,y,False,False).output(0))
 
 
