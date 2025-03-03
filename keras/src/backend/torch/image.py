@@ -908,18 +908,30 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    images = convert_to_tensor(images)
-    alpha = convert_to_tensor(alpha)
-    sigma = convert_to_tensor(sigma)
-    input_dtype = images.dtype
-    kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
-
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Expected of one "
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
+        )
     if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
+
+    images = convert_to_tensor(images)
+    alpha = convert_to_tensor(alpha)
+    sigma = convert_to_tensor(sigma)
+    input_dtype = images.dtype
+    kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
 
     need_squeeze = False
     if images.ndim == 3:
