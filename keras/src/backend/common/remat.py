@@ -156,30 +156,31 @@ def remat(f):
         pass, the forward computation is recomputed as needed.
 
     Example:
-        ```python
-        from keras import Model
-        class CustomRematLayer(layers.Layer):
-            def __init__(self, **kwargs):
-                super().__init__(**kwargs)
-                self.remat_function = remat(self.intermediate_function)
 
-            def intermediate_function(self, x):
-                for _ in range(2):
-                    x = x + x * 0.1  # Simple scaled transformation
-                return x
+    ```python
+    from keras import Model
+    class CustomRematLayer(layers.Layer):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.remat_function = remat(self.intermediate_function)
 
-            def call(self, inputs):
-                return self.remat_function(inputs)
+        def intermediate_function(self, x):
+            for _ in range(2):
+                x = x + x * 0.1  # Simple scaled transformation
+            return x
 
-        # Define a simple model using the custom layer
-        inputs = layers.Input(shape=(4,))
-        x = layers.Dense(4, activation="relu")(inputs)
-        x = CustomRematLayer()(x)  # Custom layer with rematerialization
-        outputs = layers.Dense(1)(x)
+        def call(self, inputs):
+            return self.remat_function(inputs)
 
-        # Create and compile the model
-        model = Model(inputs=inputs, outputs=outputs)
-        model.compile(optimizer="sgd", loss="mse")
-        ```
+    # Define a simple model using the custom layer
+    inputs = layers.Input(shape=(4,))
+    x = layers.Dense(4, activation="relu")(inputs)
+    x = CustomRematLayer()(x)  # Custom layer with rematerialization
+    outputs = layers.Dense(1)(x)
+
+    # Create and compile the model
+    model = Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer="sgd", loss="mse")
+    ```
     """
     return backend.core.remat(f)
