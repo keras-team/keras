@@ -886,6 +886,8 @@ def elastic_transform(
     alpha=20.0,
     sigma=5.0,
     interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
     seed=None,
     data_format=None,
 ):
@@ -963,7 +965,8 @@ def elastic_transform(
                         images[b, ..., i],
                         [distorted_y[b], distorted_x[b]],
                         order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
-                        fill_mode="reflect",
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
                     )
                     for b in range(batch_size)
                 ]
@@ -975,8 +978,9 @@ def elastic_transform(
                     map_coordinates(
                         images[b, i, ...],
                         [distorted_y[b], distorted_x[b]],
-                        order=AFFINE_TRANSFORM_INTERPOLATIONS["bilinear"],
-                        fill_mode="reflect",
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
                     )
                     for b in range(batch_size)
                 ]
