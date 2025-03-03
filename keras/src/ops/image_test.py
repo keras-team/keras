@@ -191,6 +191,18 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.gaussian_blur(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
 
+    def test_elastic_transform(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
@@ -436,6 +448,18 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             ]
         )
         out = kimage.gaussian_blur(x, kernel_size, sigma)
+        self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_elastic_transform(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (3, 20, 20))
 
 
@@ -2031,3 +2055,35 @@ class ImageOpsBehaviorTests(testing.TestCase):
             kimage.gaussian_blur(
                 invalid_image, kernel_size=kernel_size, sigma=sigma
             )
+
+    def test_elastic_transform_invalid_images_rank(self):
+        # Test rank=2
+        invalid_image = np.random.uniform(size=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.elastic_transform(
+                invalid_image,
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.ElasticTransform()(invalid_image)
+
+        # Test rank=5
+        invalid_image = np.random.uniform(size=(2, 10, 10, 3, 1))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.elastic_transform(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.ElasticTransform()(invalid_image)
+
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.elastic_transform(invalid_image)
