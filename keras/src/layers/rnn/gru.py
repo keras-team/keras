@@ -354,7 +354,7 @@ class GRU(RNN):
 
     1. `activation` == `tanh`
     2. `recurrent_activation` == `sigmoid`
-    3. `dropout` == 0 and `recurrent_dropout` == 0
+    3. `recurrent_dropout` == 0
     4. `unroll` is `False`
     5. `use_bias` is `True`
     6. `reset_after` is `True`
@@ -553,7 +553,7 @@ class GRU(RNN):
         if self.use_cudnn in ("auto", True):
             if not self.recurrent_dropout:
                 try:
-                    if self.dropout:
+                    if training and self.dropout:
                         dp_mask = self.cell.get_dropout_mask(sequences[:, 0, :])
                         dp_mask = ops.expand_dims(dp_mask, axis=1)
                         dp_mask = ops.broadcast_to(
