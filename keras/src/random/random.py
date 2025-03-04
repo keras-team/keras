@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.src import backend
 from keras.src.api_export import keras_export
 
@@ -126,6 +128,103 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     return backend.random.uniform(
         shape, minval=minval, maxval=maxval, dtype=dtype, seed=seed
     )
+
+
+@keras_export("keras.random.complex_uniform")
+def complex_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
+    """Draw random complex numbers from a uniform distribution.
+
+    The generated values follow a uniform distribution for both real and
+    imaginary components in the range `[minval, maxval)`. The lower bound
+    `minval` is included in the range, while the upper bound `maxval` is
+    excluded.
+
+    Args:
+        shape: The shape of the random values to generate.
+        minval: Float, defaults to 0. Lower bound of the range of
+            random values to generate (inclusive) for real and imaginary parts.
+        maxval: Float, defaults to 1. Upper bound of the range of
+            random values to generate (exclusive) for real and imaginary parts.
+        dtype: Optional dtype of the tensor. Only complex types are
+            supported ('complex64' or 'complex128'). If not specified,
+            'complex64' will be used.
+        seed: Optional Python integer or instance of
+           `keras.random.SeedGenerator`.
+            Used for both real and imaginary parts with different folded seeds.
+
+    Returns:
+        A complex tensor of the specified shape and dtype.
+
+    Raises:
+        ValueError: If dtype is not complex64 or complex128.
+    """
+    if dtype is None:
+        dtype = "complex64"
+    if dtype not in ("complex64", "complex128"):
+        raise ValueError(f"dtype must be complex64 or complex128, got {dtype}")
+
+    float_dtype = "float32" if dtype == "complex64" else "float64"
+
+    if seed is not None:
+        if isinstance(seed, int):
+            seed = backend.random.SeedGenerator(seed)
+        seed_real = seed.next()
+        seed_imag = seed.next()
+    else:
+        seed_real = None
+        seed_imag = None
+
+    real_part = backend.random.uniform(
+        shape=shape,
+        minval=minval,
+        maxval=maxval,
+        dtype=float_dtype,
+        seed=seed_real,
+    )
+    imag_part = backend.random.uniform(
+        shape=shape,
+        minval=minval,
+        maxval=maxval,
+        dtype=float_dtype,
+        seed=seed_imag,
+    )
+
+    return backend.cast(real_part, dtype) + backend.cast(imag_part, dtype) * 1j
+
+
+@keras_export("keras.random.initializer_for_complex")
+def initializer_for_complex(initializer):
+    """Modifies an initializer to handle complex dtypes.
+
+    When the requested dtype is complex, this wrapper modifies the initializer
+    to generate complex values using complex_uniform with an appropriate scale.
+    Otherwise, it delegates to the original initializer.
+
+    Args:
+        initializer: A Keras initializer function to be wrapped.
+
+    Returns:
+        A wrapped initializer that handles complex dtypes.
+    """
+
+    def wrapped_initializer(shape, dtype=None, **kwargs):
+        dtype = backend.standardize_dtype(dtype)
+        if dtype is not None and dtype in ("complex64", "complex128"):
+            fan_in = float(shape[-1])
+            limit = backend.cast(1.0 / np.sqrt(fan_in), dtype="float32")
+            return complex_uniform(
+                shape, minval=-limit, maxval=limit, dtype=dtype, **kwargs
+            )
+        return initializer(shape, dtype=dtype, **kwargs)
+
+    if hasattr(initializer, "__name__"):
+        wrapped_initializer.__name__ = f"complex_{initializer.__name__}"
+    if hasattr(initializer, "__doc__"):
+        wrapped_initializer.__doc__ = (
+            f"Complex number variant of:\n\n{initializer.__doc__}"
+        )
+
+    return wrapped_initializer
 
 
 @keras_export("keras.random.randint")
