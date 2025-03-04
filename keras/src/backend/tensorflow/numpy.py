@@ -24,7 +24,17 @@ from keras.src.backend.tensorflow.core import shape as shape_op
 
 
 def rot90(array, k=1, axes=(0, 1)):
-    """Rotate an array by 90 degrees in the specified plane."""
+    """Rotate an array by 90 degrees in the specified plane.
+
+    Args:
+        array: Input tensor
+        k: Number of 90-degree rotations (default=1)
+        axes: Tuple of two axes that define the plane of rotation.
+        Defaults to (0, 1).
+
+    Returns:
+        Rotated tensor with correct shape transformation
+    """
     array = convert_to_tensor(array)
 
     if array.shape.rank < 2:
@@ -53,14 +63,26 @@ def rot90(array, k=1, axes=(0, 1)):
 
     shape = tf.shape(array)
     non_rot_shape = shape[:-2]
-    rot_shape = shape[-2:]
+    h, w = shape[-2], shape[-1]
 
-    array = tf.reshape(array, tf.concat([[-1], rot_shape], axis=0))
+    array = tf.reshape(array, tf.concat([[-1], [h, w]], axis=0))
 
-    for _ in range(k):
-        array = tf.transpose(array, [0, 2, 1])
-        array = tf.reverse(array, axis=[1])
-    array = tf.reshape(array, tf.concat([non_rot_shape, rot_shape], axis=0))
+    array = tf.reverse(array, axis=[2])
+    array = tf.transpose(array, [0, 2, 1])
+
+    if k % 2 == 1:
+        final_h, final_w = w, h
+    else:
+        final_h, final_w = h, w
+
+    if k > 1:
+        array = tf.reshape(array, tf.concat([[-1], [final_h, final_w]], axis=0))
+        for _ in range(k - 1):
+            array = tf.reverse(array, axis=[2])
+            array = tf.transpose(array, [0, 2, 1])
+
+    final_shape = tf.concat([non_rot_shape, [final_h, final_w]], axis=0)
+    array = tf.reshape(array, final_shape)
 
     inv_perm = [0] * len(perm)
     for i, p in enumerate(perm):
@@ -2382,8 +2404,16 @@ def tril(x, k=0):
         mask = i >= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
+    if isinstance(k, int):
+        if k >= 0:
+            return tf.linalg.band_part(x, -1, k)
+        return _negative_k_branch()
+
+    # when `k` is a tensor
     return tf.cond(
-        k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch
+        tf.greater_equal(k, 0),
+        lambda: tf.linalg.band_part(x, -1, k),
+        _negative_k_branch,
     )
 
 
@@ -2397,8 +2427,16 @@ def triu(x, k=0):
         mask = i <= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
+    if isinstance(k, int):
+        if k <= 0:
+            return tf.linalg.band_part(x, -k, -1)
+        return _positive_k_branch()
+
+    # when `k` is a tensor
     return tf.cond(
-        k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
+        tf.less_equal(k, 0),
+        lambda: tf.linalg.band_part(x, -k, -1),
+        _positive_k_branch,
     )
 
 
