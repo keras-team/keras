@@ -275,7 +275,6 @@ class Bidirectional(Layer):
             self.forward_layer.build(sequences_shape)
         if not self.backward_layer.built:
             self.backward_layer.build(sequences_shape)
-        self.built = True
 
     def compute_mask(self, _, mask):
         if isinstance(mask, list):

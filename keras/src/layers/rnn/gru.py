@@ -178,7 +178,6 @@ class GRUCell(Layer, DropoutRNNCell):
             )
         else:
             self.bias = None
-        self.built = True
 
     def call(self, inputs, states, training=False):
         h_tm1 = (
