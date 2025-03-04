@@ -42,7 +42,7 @@ class JaxDistributionLibTest(testing.TestCase):
         jax_devices = jax.devices("cpu")
 
         for d, jax_d in zip(devices, jax_devices):
-            converted_jax_device = backend_dlib._to_jax_device(d)
+            converted_jax_device = backend_dlib._to_backend_device(d)
             self.assertIsInstance(converted_jax_device, jax.Device)
             self.assertEqual(jax_d, converted_jax_device)
 
@@ -130,26 +130,26 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(backend_dlib.process_id(), 0)
         self.assertEqual(backend_dlib.num_processes(), 1)
 
-    def test_to_jax_mesh(self):
+    def test_to_backend_mesh(self):
         devices = [f"cpu:{i}" for i in range(8)]
         shape = (4, 2)
         axis_names = ["batch", "model"]
 
         mesh = distribution_lib.DeviceMesh(shape, axis_names, devices)
-        jax_mesh = backend_dlib._to_jax_mesh(mesh)
+        jax_mesh = backend_dlib._to_backend_mesh(mesh)
 
         self.assertIsInstance(jax_mesh, jax.sharding.Mesh)
         self.assertEqual(jax_mesh.devices.shape, shape)
         self.assertEqual(jax_mesh.axis_names, ("batch", "model"))
 
-    def test_to_jax_layout(self):
+    def test_to_backend_layout(self):
         axes = ["data", None]
         mesh = distribution_lib.DeviceMesh(
             (4, 2), ["data", "model"], [f"cpu:{i}" for i in range(8)]
         )
         layout = distribution_lib.TensorLayout(axes, mesh)
-        jax_sharding = backend_dlib._to_jax_layout(layout)
-        jax_mesh = backend_dlib._to_jax_mesh(mesh)
+        jax_sharding = backend_dlib._to_backend_layout(layout)
+        jax_mesh = backend_dlib._to_backend_mesh(mesh)
         self.assertEqual(
             jax_sharding,
             jax.sharding.NamedSharding(
@@ -164,7 +164,7 @@ class JaxDistributionLibTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Cannot create sharding when device mesh is not set"
         ):
-            backend_dlib._to_jax_layout(layout)
+            backend_dlib._to_backend_layout(layout)
 
     def test_variable_assignment_reuse_layout(self):
         shape = (4, 2)
@@ -314,7 +314,7 @@ class JaxDistributionLibTest(testing.TestCase):
         # Note that the intermediate_tensor_layout is only captured during the
         # actual training, and not at the model building time.
         intermediate_tensor_layout = jax.sharding.NamedSharding(
-            backend_dlib._to_jax_mesh(distribution.device_mesh),
+            backend_dlib._to_backend_mesh(distribution.device_mesh),
             jax.sharding.PartitionSpec("batch", None),
         )
         self.assertTrue(
