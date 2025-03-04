@@ -13,7 +13,19 @@ class TFExportArchive:
         self._tf_trackable.non_trainable_variables += non_trainable_variables
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
-        decorated_fn = tf.function(
-            fn, input_signature=input_signature, autograph=False
-        )
+        if isinstance(input_signature, dict):
+            # Create a simplified wrapper that handles both dict and
+            # positional args.
+            def wrapped_fn(arg, **kwargs):
+                return fn(arg)
+
+            decorated_fn = tf.function(
+                wrapped_fn,
+                input_signature=[input_signature],
+                autograph=False,
+            )
+        else:
+            decorated_fn = tf.function(
+                fn, input_signature=input_signature, autograph=False
+            )
         return decorated_fn
