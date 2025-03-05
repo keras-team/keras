@@ -504,8 +504,8 @@ def dot(x, y):
     x_shape = ov_opset.shape_of(x)
     y_shape = ov_opset.shape_of(y)
     if (
-        x_shape.get_input_partial_shape(0).rank() == 0
-        and y_shape.get_input_partial_shape(0).rank() == 0
+        x_shape.get_input_partial_shape(0).rank == 0
+        and y_shape.get_input_partial_shape(0).rank == 0
     ):
         one_shape = ov_opset.constant([1], Type.i32).output(0)
         x = ov_opset.reshape(x, one_shape, False).output(0)
