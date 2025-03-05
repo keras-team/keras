@@ -521,9 +521,6 @@ def dot(x, y):
     y = get_ov_output(y, element_type)
     x_shape = ov_opset.shape_of(x)
     y_shape = ov_opset.shape_of(y)
-    if x_shape.rank.get_length() == 0 or y_shape.rank.get_length() == 0:
-        x,y = _align_operand_types(x, y, "dot()")
-        return OpenVINOKerasTensor(ov_opset.multiply(x,y).output(0))
     x,y = _align_operand_types(x, y, "dot()")
     return OpenVINOKerasTensor(ov_opset.matmul(x,y,False,False).output(0))
 
