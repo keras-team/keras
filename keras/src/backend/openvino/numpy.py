@@ -13,6 +13,17 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
+def dot(x, y):
+    """
+    OpenVINO implementation of numpy.dot using MatMul and element-wise multiplication.
+    """
+    x, y = _align_operand_types(x, y)    
+    if len(x.shape) == 1 and len(y.shape) == 1:
+        return ov_to_keras_type(ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0]))
+    if len(x.shape) == 2 and len(y.shape) == 1:
+        y = ov_opset.unsqueeze(y, [1])  
+        return ov_to_keras_type(ov_opset.squeeze(ov_opset.matmul(x, y), [1]))
+    return ov_to_keras_type(ov_opset.matmul(x, y))
 
 def add(x1, x2):
     element_type = None
