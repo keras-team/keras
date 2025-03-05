@@ -17,11 +17,17 @@ def dot(x, y):
     """
     OpenVINO implementation of numpy.dot using MatMul and element-wise multiplication.
     """
-    x, y = _align_operand_types(x, y)    
+    if x.dtype != y.dtype:
+        target_dtype = np.promote_types(x.dtype, y.dtype)
+        x = ov_opset.convert(x, target_dtype)
+        y = ov_opset.convert(y, target_dtype)
     if len(x.shape) == 1 and len(y.shape) == 1:
-        return ov_to_keras_type(ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0]))
+        result = ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0])
+        return ov_to_keras_type(result)
     if len(x.shape) == 2 and len(y.shape) == 1:
-        return ov_to_keras_type(ov_opset.matmul(x, y)) 
+        y = ov_opset.unsqueeze(y, [1])
+        result = ov_opset.matmul(x, y)
+        return ov_to_keras_type(ov_opset.squeeze(result, [1]))
     return ov_to_keras_type(ov_opset.matmul(x, y))
 
 def add(x1, x2):
@@ -519,11 +525,6 @@ def digitize(x, bins):
     raise NotImplementedError(
         "`digitize` is not supported with openvino backend"
     )
-
-
-def dot(x, y):
-    raise NotImplementedError("`dot` is not supported with openvino backend")
-
 
 def empty(shape, dtype=None):
     raise NotImplementedError("`empty` is not supported with openvino backend")
