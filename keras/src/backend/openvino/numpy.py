@@ -21,8 +21,8 @@ def dot(x, y):
     if len(x.shape) == 1 and len(y.shape) == 1:
         return ov_to_keras_type(ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0]))
     if len(x.shape) == 2 and len(y.shape) == 1:
-    return ov_to_keras_type(ov_opset.matmul(x, y)) 
-return ov_to_keras_type(ov_opset.matmul(x, y))
+        return ov_to_keras_type(ov_opset.matmul(x, y)) 
+    return ov_to_keras_type(ov_opset.matmul(x, y))
 
 def add(x1, x2):
     element_type = None
