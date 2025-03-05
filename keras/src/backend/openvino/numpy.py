@@ -505,7 +505,7 @@ def dot(x, y):
     y_shape = ov_opset.shape_of(y)
     if (
         x_shape.get_input_partial_shape(0).rank == 0
-        and y_shape.get_input_partial_shape(0).rank == 0
+        or y_shape.get_input_partial_shape(0).rank == 0
     ):
         x, y = _align_operand_types(x, y, "dot()")
         return OpenVINOKerasTensor(ov_opset.multiply(x, y).output(0))
