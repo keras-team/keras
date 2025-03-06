@@ -382,6 +382,10 @@ class EinsumDenseTest(testing.TestCase):
 
     # Test quantization-related (int8 and float8) methods
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="mlx backend doesn't int8 matmul.",
+    )
     def test_quantize_int8(self):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
@@ -469,6 +473,10 @@ class EinsumDenseTest(testing.TestCase):
         ("btnh,nhd->btd", "btnh,nhd->btd", (None, 8), (1, 2, 2, 4)),
         ("btd,ndh->btnh", "btd,ndh->btnh", (None, 2, 8), (1, 2, 4)),
         ("btd,df->btf", "btd,df->btf", (None, 4), (1, 2, 4)),
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="mlx backend doesn't int8 matmul.",
     )
     def test_quantize_int8_with_specific_equations(
         self, equation, output_shape, input_shape
@@ -608,6 +616,11 @@ class EinsumDenseTest(testing.TestCase):
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):
+        if backend.backend() == "mlx":
+            if "int8" in dtype:
+                self.skipTest("mlx backend doesn't support int8 matmul")
+            if "float8" in dtype:
+                self.skipTest("mlx backend doesn't support float8")
         self.run_layer_test(
             layers.EinsumDense,
             init_kwargs={
@@ -630,6 +643,10 @@ class EinsumDenseTest(testing.TestCase):
         ("btd,ndh->btnh", "btd,ndh->btnh", (1, 4, 32), (1, 4, 8, 16)),
     )
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="mlx backend doesn't int8 matmul.",
+    )
     def test_quantize_int8_when_lora_enabled(
         self, equation, input_shape, output_shape
     ):

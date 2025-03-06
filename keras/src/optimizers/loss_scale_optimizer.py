@@ -91,6 +91,11 @@ class LossScaleOptimizer(optimizer.Optimizer):
                 "must be built (i.e. its variables must have been created). "
                 "You can build it via `optimizer.build(trainable_variables)`."
             )
+        if backend.backend() == "mlx":
+            # ops.cond is non-compilable with mlx backend
+            return self._mlx_stateless_apply(
+                optimizer_variables, grads, trainable_variables
+            )
         finite = self.check_finite(grads)
         return ops.cond(
             finite,
@@ -101,6 +106,77 @@ class LossScaleOptimizer(optimizer.Optimizer):
                 optimizer_variables, trainable_variables
             ),
         )
+
+    def _mlx_stateless_apply(
+        self, optimizer_variables, grads, trainable_variables
+    ):
+        # this performs a stateless_apply without ops.cond using ops.where
+        finite = self.check_finite(grads)
+
+        mapping = list(zip(self.variables, optimizer_variables))
+        with backend.StatelessScope(state_mapping=mapping) as scope:
+            step_counter = self.step_counter.value
+            dynamic_scale = self.dynamic_scale.value
+            inner_optimizer_vars = [
+                scope.get_current_value(v)
+                for v in self.inner_optimizer._variables
+            ]
+
+        is_growth_step = ops.equal(step_counter, self.dynamic_growth_steps - 1)
+
+        # if growth step reset steps to 0 and double scale
+        # else increment steps by 1 and keep current scale
+        new_step_counter = ops.where(is_growth_step, 0, step_counter + 1)
+        new_dynamic_scale_if_finite = ops.where(
+            is_growth_step, dynamic_scale * 2.0, dynamic_scale
+        )
+
+        # for non-finite case reset counter and halve scale
+        final_step_counter = ops.where(finite, new_step_counter, 0)
+        final_dynamic_scale = ops.where(
+            finite, new_dynamic_scale_if_finite, dynamic_scale / 2.0
+        )
+
+        with backend.StatelessScope(state_mapping=mapping) as scope:
+            self.step_counter.assign(final_step_counter)
+            self.dynamic_scale.assign(final_dynamic_scale)
+            new_own_vars = [scope.get_current_value(v) for v in self._variables]
+
+        # Unscale gradients
+        unscaled_grads = [
+            g if g is None else ops.divide(g, dynamic_scale) for g in grads
+        ]
+
+        with backend.StatelessScope(state_mapping=mapping):
+            (
+                new_trainable_vars_finite,
+                new_inner_vars_finite,
+            ) = self.inner_optimizer.stateless_apply(
+                inner_optimizer_vars,
+                unscaled_grads,
+                trainable_variables,
+            )
+
+        # for non-finite case, don't apply gradients
+        final_trainable_vars = []
+        for new_trainable_var, existing_trainable_var in zip(
+            new_trainable_vars_finite, trainable_variables
+        ):
+            final_var = ops.where(
+                finite, new_trainable_var, existing_trainable_var
+            )
+            final_trainable_vars.append(final_var)
+
+        final_inner_vars = []
+        for new_inner_var, existing_inner_var in zip(
+            new_inner_vars_finite, inner_optimizer_vars
+        ):
+            final_var = ops.where(finite, new_inner_var, existing_inner_var)
+            final_inner_vars.append(final_var)
+
+        final_optimizer_vars = new_own_vars + final_inner_vars
+
+        return final_trainable_vars, final_optimizer_vars
 
     def _stateless_handle_finite_grads(
         self, optimizer_variables, grads, trainable_variables

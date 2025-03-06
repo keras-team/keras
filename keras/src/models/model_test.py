@@ -779,6 +779,12 @@ class ModelTest(testing.TestCase):
         ("float8", "float8"),
     )
     def test_quantize(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest(
+                "mlx backend does not support float8."
+                if mode == "float8"
+                else "mlx backend does not support integer matmul"
+            )
         model = _get_model()
         x1 = np.random.rand(2, 3)
         x2 = np.random.rand(2, 3)
@@ -1232,8 +1238,8 @@ class ModelTest(testing.TestCase):
             with self.assertRaisesRegex(
                 NotImplementedError,
                 (
-                    r"`export_saved_model` only currently supports the "
-                    r"tensorflow, jax and torch backends."
+                    r"`ExportArchive` is only compatible with "
+                    r"TensorFlow, JAX and Torch backends."
                 ),
             ):
                 model.export(temp_filepath, format="tf_saved_model")

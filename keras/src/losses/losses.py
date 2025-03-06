@@ -1518,6 +1518,12 @@ def convert_binary_labels_to_hinge(y_true):
         # Returns the labels unchanged if they are non-binary
         return y_true
 
+    if backend.backend() == "mlx":
+        # ops.cond is non-compilable with mlx backend
+        return ops.where(
+            is_binary, _convert_binary_labels(), _return_labels_unconverted()
+        )
+
     updated_y_true = ops.cond(
         is_binary, _convert_binary_labels, _return_labels_unconverted
     )
