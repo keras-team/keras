@@ -13,19 +13,22 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
-def dot(x, y):
-    if x.dtype != y.dtype:
-        target_dtype = np.promote_types(x.dtype, y.dtype)
-        x = ov_opset.convert(x, target_dtype)
-        y = ov_opset.convert(y, target_dtype)
-    if len(x.shape) == 1 and len(y.shape) == 1:
-        result = ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0])
-        return ov_to_keras_type(result)
-    if len(x.shape) == 2 and len(y.shape) == 1:
-        y = ov_opset.unsqueeze(y, [1])
-        result = ov_opset.matmul(x, y)
-        return ov_to_keras_type(ov_opset.squeeze(result, [1]))
-    return ov_to_keras_type(ov_opset.matmul(x, y))
+def dot(x1, x2):
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "dot()")
+    if len(x1.shape) == 1 and len(x2.shape) == 1:
+        return OpenVINOKerasTensor(ov_opset.reduce_sum(ov_opset.multiply(x1, x2), axes=[0]).output(0))
+    if len(x1.shape) == 2 and len(x2.shape) == 1:  
+        x2 = ov_opset.unsqueeze(x2, [1])
+        result = ov_opset.matmul(x1, x2)
+        return OpenVINOKerasTensor(ov_opset.squeeze(result, [1]).output(0))
+    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2).output(0))
 
 def add(x1, x2):
     element_type = None
