@@ -1124,7 +1124,8 @@ def wrap_flash_attention(
         )
 
     if custom_mask is not None:
-        mask = custom_mask
+        mask = splash_attention_mask.NumpyMask(mask=custom_mask)
+
     else:
         mask = splash_attention_mask.CausalMask(
             shape=(query.shape[2], query.shape[2])
@@ -1180,7 +1181,6 @@ def dot_product_attention(
 
         segment_ids = jnp.ones([B, S])
         # {token_ids, padding_mask, segment_ids} enable packing
-        mask = splash_attention_mask.NumpyMask(mask=mask)
         out = wrap_flash_attention(
             query,
             key,
