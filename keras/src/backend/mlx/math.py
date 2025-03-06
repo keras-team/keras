@@ -1,10 +1,9 @@
 import math
-import operator
 
 import mlx.core as mx
-import numpy as np
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.linalg import det
 from keras.src.utils.module_utils import scipy
@@ -23,26 +22,31 @@ def _segment_reduction_fn(
     if num_segments is None:
         num_segments = mx.max(segment_ids) + 1
 
-    valid_indices = segment_ids >= 0
-    valid_data = mx.array(
-        np.array(data)[valid_indices]  # MLX does not support boolean indices
-    )
-    valid_segment_ids = mx.array(np.array(segment_ids)[valid_indices])
-
-    data_shape = list(valid_data.shape)
-    data_shape[0] = num_segments
+    mask = segment_ids >= 0
+    # pack segment_ids < 0 into index 0 and then handle below
+    safe_segment_ids = mx.where(mask, segment_ids, 0)
 
     if not sorted:
-        sort_indices = mx.argsort(valid_segment_ids)
-        valid_segment_ids = valid_segment_ids[sort_indices]
-        valid_data = valid_data[sort_indices]
+        sort_indices = mx.argsort(safe_segment_ids)
+        safe_segment_ids = mx.take(safe_segment_ids, sort_indices)
+        data = mx.take(data, sort_indices, axis=0)
+        mask = mx.take(mask, sort_indices)
+
+    # expand mask dimensions to match data dimensions
+    for i in range(1, len(data.shape)):
+        mask = mx.expand_dims(mask, axis=i)
+
+    data_shape = list(data.shape)
+    data_shape[0] = num_segments
 
     if reduction_method == "max":
-        result = mx.ones(data_shape, dtype=valid_data.dtype) * -mx.inf
-        result = result.at[valid_segment_ids].maximum(valid_data)
+        masked_data = mx.where(mask, data, -mx.inf)
+        result = mx.ones(data_shape, dtype=data.dtype) * -mx.inf
+        result = result.at[safe_segment_ids].maximum(masked_data)
     else:  # sum
-        result = mx.zeros(data_shape, dtype=valid_data.dtype)
-        result = result.at[valid_segment_ids].add(valid_data)
+        masked_data = mx.where(mask, data, 0)
+        result = mx.zeros(data_shape, dtype=data.dtype)
+        result = result.at[safe_segment_ids].add(masked_data)
 
     return result
 
@@ -154,19 +158,6 @@ def irfft(x, fft_length=None):
     return real_output
 
 
-def _canonicalize_axis(axis, num_dims):
-    # Ref: jax.scipy.signal.stft
-    """Canonicalize an axis in [-num_dims, num_dims) to [0, num_dims)."""
-    axis = operator.index(axis)
-    if not -num_dims <= axis < num_dims:
-        raise ValueError(
-            f"axis {axis} is out of bounds for array of dimension {num_dims}"
-        )
-    if axis < 0:
-        axis = axis + num_dims
-    return axis
-
-
 def _create_sliding_windows(x, window_size, step):
     batch_size, signal_length, _ = x.shape
     num_windows = (signal_length - window_size) // step + 1
@@ -187,7 +178,7 @@ def _create_sliding_windows(x, window_size, step):
 
 def _stft(x, window, nperseg, noverlap, nfft, axis=-1):
     # Ref: jax.scipy.signal.stft
-    axis = _canonicalize_axis(axis, x.ndim)
+    axis = canonicalize_axis(axis, x.ndim)
     result_dtype = mx.complex64
 
     if x.size == 0:
@@ -364,8 +355,8 @@ def _istft(
     # Ref: jax.scipy.signal.istft
     if Zxx.ndim < 2:
         raise ValueError("Input stft must be at least 2d!")
-    freq_axis = _canonicalize_axis(freq_axis, Zxx.ndim)
-    time_axis = _canonicalize_axis(time_axis, Zxx.ndim)
+    freq_axis = canonicalize_axis(freq_axis, Zxx.ndim)
+    time_axis = canonicalize_axis(time_axis, Zxx.ndim)
 
     if freq_axis == time_axis:
         raise ValueError("Must specify differing time and frequency axes!")

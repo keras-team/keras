@@ -1295,9 +1295,6 @@ def dot_product_attention(
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
 
-    query = convert_to_tensor(query)
-    key = convert_to_tensor(key)
-    value = convert_to_tensor(value)
     if len(query.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "

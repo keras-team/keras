@@ -114,6 +114,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         # load h5py._hl.dataset.Dataset object with numpy
         x = np.array(x)
 
+    if x is None:
+        # this is needed for tracking
+        # mlx.array returns a TypeError when called with None
+        raise ValueError("mlx cannot convert `None` to array")
+
     return mx.array(x, dtype=mlx_dtype)
 
 
