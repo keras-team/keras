@@ -1115,7 +1115,12 @@ def _dot_product_attention_core(
 
 
 def wrap_flash_attention(
-    query, key, value, decoder_segment_ids, custom_mask=None
+    query,
+    key,
+    value,
+    decoder_segment_ids,
+    custom_mask=None,
+    attn_logits_soft_cap=None,
 ):
     if decoder_segment_ids is not None:
         assert query.shape[2] == decoder_segment_ids.q.shape[1], (
@@ -1139,6 +1144,7 @@ def wrap_flash_attention(
         mask=multi_head_mask,
         head_shards=1,
         q_seq_shards=1,
+        attn_logits_soft_cap=attn_logits_soft_cap,
     )
 
     return jax.vmap(splash_kernel)(
@@ -1155,6 +1161,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
@@ -1185,8 +1192,11 @@ def dot_product_attention(
             query,
             key,
             value,
-            splash_attention_kernel.SegmentIds(segment_ids, segment_ids),
+            decoder_segment_ids=splash_attention_kernel.SegmentIds(
+                segment_ids, segment_ids
+            ),
             custom_mask=mask,
+            attn_logits_soft_cap=attn_logits_soft_cap,
         )
         out = jnp.transpose(out, axes=(0, 2, 1, 3))
         return out
