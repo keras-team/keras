@@ -1120,7 +1120,7 @@ def wrap_flash_attention(
     if decoder_segment_ids is not None:
         assert query.shape[2] == decoder_segment_ids.q.shape[1], (
             "Sharding along sequence dimension not allowed in tpu kernel "
-            " attention"
+            "attention"
         )
 
     if custom_mask is not None:
