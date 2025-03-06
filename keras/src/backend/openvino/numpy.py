@@ -14,9 +14,6 @@ from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
 def dot(x, y):
-    """
-    OpenVINO implementation of numpy.dot using MatMul and element-wise multiplication.
-    """
     if x.dtype != y.dtype:
         target_dtype = np.promote_types(x.dtype, y.dtype)
         x = ov_opset.convert(x, target_dtype)
