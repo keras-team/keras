@@ -520,8 +520,11 @@ def dot(x, y):
     x = get_ov_output(x, element_type)
     y = get_ov_output(y, element_type)
     x, y = _align_operand_types(x, y, "dot()")
-    if len(x.shape) == 0 and len(y.shape) == 0:
-        return OpenVINOKerasTensor(ov_opset.multiply(x, y).output(0))
+    if len(x.shape) == 0:
+        x = ov_opset.reshape(x, [1])
+    if len(y.shape) == 0:
+        y = ov_opset.reshape(y, [1])
+
     if len(x.shape) == 1 and len(y.shape) == 1:
         return OpenVINOKerasTensor(
             ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0]).output(0)
