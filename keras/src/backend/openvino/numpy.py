@@ -519,15 +519,12 @@ def dot(x, y):
         element_type = y.output.get_element_type()
     x = get_ov_output(x, element_type)
     y = get_ov_output(y, element_type)
-    x_shape = ov_opset.shape_of(x)
-    y_shape = ov_opset.shape_of(y)
-    if (
-        x_shape.get_input_partial_shape(0).rank == 0
-        or y_shape.get_input_partial_shape(0).rank == 0
-    ):
-        x, y = _align_operand_types(x, y, "dot()")
-        return OpenVINOKerasTensor(ov_opset.multiply(x, y).output(0))
     x, y = _align_operand_types(x, y, "dot()")
+    if (
+        x.get_partial_shape(0).rank == 0
+        or y.get_partial_shape(0).rank == 0
+    ):
+        return OpenVINOKerasTensor(ov_opset.multiply(x, y).output(0))
     return OpenVINOKerasTensor(ov_opset.matmul(x, y, False, False).output(0))
 
 
