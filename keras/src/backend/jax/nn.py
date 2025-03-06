@@ -1180,7 +1180,7 @@ def dot_product_attention(
 
         segment_ids = jnp.ones([B, S])
         # {token_ids, padding_mask, segment_ids} enable packing
-        mask = splash_attention_mask.BoolMask(mask=mask)
+        mask = splash_attention_mask.NumpyMask(mask=mask)
         out = wrap_flash_attention(
             query,
             key,
