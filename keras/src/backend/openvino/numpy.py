@@ -23,7 +23,8 @@ def dot(x1, x2):
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "dot()")
     if len(x1.shape) == 1 and len(x2.shape) == 1:
-        return OpenVINOKerasTensor(ov_opset.reduce_sum(ov_opset.multiply(x1, x2), axes=[0]).output(0))
+        result = ov_opset.reduce_sum(ov_opset.multiply(x1, x2), axes=[0])
+        return OpenVINOKerasTensor(result.output(0))
     if len(x1.shape) == 2 and len(x2.shape) == 1:  
         x2 = ov_opset.unsqueeze(x2, [1])
         result = ov_opset.matmul(x1, x2)
