@@ -529,7 +529,7 @@ def dot(x, y):
             ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0]).output(0)
         )
     return OpenVINOKerasTensor(ov_opset.matmul(x, y, False, False).output(0))
-    
+
 
 def empty(shape, dtype=None):
     raise NotImplementedError("`empty` is not supported with openvino backend")
