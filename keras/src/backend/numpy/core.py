@@ -420,7 +420,7 @@ def random_seed_dtype():
     return "uint32"
 
 
-class custom_gradient:
+def custom_gradient(fun):
     """Decorator for custom gradients.
 
     Args:
