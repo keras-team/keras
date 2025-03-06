@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-import keras
 from keras.src import applications
 from keras.src import backend
 from keras.src import layers
@@ -17,6 +16,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
+from keras.src.models.model import model_from_json
 
 
 class FunctionalTest(testing.TestCase):
@@ -281,9 +281,7 @@ class FunctionalTest(testing.TestCase):
 
         # Serialize and deserialize the model
         json_config = model.to_json()
-        restored_json_config = keras.models.model_from_json(
-            json_config
-        ).to_json()
+        restored_json_config = model_from_json(json_config).to_json()
 
         # Check that the serialized model is the same as the original
         self.assertEqual(json_config, restored_json_config)
