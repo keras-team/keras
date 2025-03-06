@@ -1,4 +1,3 @@
-import jax
 import ml_dtypes
 import numpy as np
 
@@ -138,6 +137,13 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
+    try:
+        import jax
+    except ImportError:
+        raise ImportError(
+            "The `resize` op on the numpy backend uses jax for an efficient "
+            "resize implementation. Please install jax via `pip install jax`."
+        )
     data_format = backend.standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
