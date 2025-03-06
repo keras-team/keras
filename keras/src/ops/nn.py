@@ -2,6 +2,8 @@
 
 import warnings
 
+import jax
+
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
@@ -2545,6 +2547,7 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
         flash_attention=None,
+        attn_logits_soft_cap=None,
     ):
         return backend.nn.dot_product_attention(
             query,
@@ -2555,6 +2558,7 @@ class DotProductAttention(Operation):
             scale=scale,
             is_causal=self.is_causal,
             flash_attention=flash_attention,
+            attn_logits_soft_cap=attn_logits_soft_cap,
         )
 
     def compute_output_spec(
@@ -2566,6 +2570,7 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
         flash_attention=None,
+        attn_logits_soft_cap=None,
     ):
         return KerasTensor(query.shape, dtype=query.dtype)
 
@@ -2636,6 +2641,13 @@ def dot_product_attention(
     >>> keras.ops.nn.dot_product_attention(query, key, value).shape
     (2, 4, 8, 16)
     """
+    if attn_logits_soft_cap is not None:
+        if backend.backend() != "jax" and jax.devices()[0].platform != "tpu":
+            raise ValueError(
+                "attn_logits_soft_cap is only supported for JAX on TPU. "
+                "Set attn_logits_soft_cap=None when not using JAX on TPU."
+            )
+
     if any_symbolic_tensors((query, key, value)):
         return DotProductAttention(is_causal=is_causal).symbolic_call(
             query,
