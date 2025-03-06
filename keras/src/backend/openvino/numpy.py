@@ -13,6 +13,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
+
 def dot(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
@@ -24,10 +25,10 @@ def dot(x1, x2):
     x1, x2 = _align_operand_types(x1, x2, "dot()")
     if len(x1.shape) == 1 and len(x2.shape) == 1:
         return OpenVINOKerasTensor(
-               ov_opset.reduce_sum(ov_opset.multiply(x1,x2),axes=[0]
-               ).output(0)
+            ov_opset.reduce_sum(ov_opset.multiply(x1, x2), axes=[0]).output(0)
         )
-    return OpenVINOKerasTensor(ov_opset.matmul(x1,x2,False,False).output(0))
+    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
+
 
 def add(x1, x2):
     element_type = None
@@ -524,6 +525,7 @@ def digitize(x, bins):
     raise NotImplementedError(
         "`digitize` is not supported with openvino backend"
     )
+
 
 def empty(shape, dtype=None):
     raise NotImplementedError("`empty` is not supported with openvino backend")
