@@ -2582,6 +2582,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     """Scaled dot product attention function.
 
@@ -2620,6 +2621,9 @@ def dot_product_attention(
             attempt to use flash attention if the required conditions are met.
             Typically, the inputs must be in float16 and bfloat16 dtype and the
             input layout requirements may vary depending on the backend.
+        attn_logits_soft_cap: The value limit for maximum value of the
+            attention logits before the softmax function is applied. This is
+            only supported in JAX TPU backend. Defaults to None.
 
     Returns:
         An array of the attention output with the same shape of `query`.
@@ -2641,6 +2645,7 @@ def dot_product_attention(
             mask=mask,
             scale=scale,
             flash_attention=flash_attention,
+            attn_logits_soft_cap=attn_logits_soft_cap,
         )
     return backend.nn.dot_product_attention(
         query,
@@ -2651,6 +2656,7 @@ def dot_product_attention(
         scale=scale,
         is_causal=is_causal,
         flash_attention=flash_attention,
+        attn_logits_soft_cap=attn_logits_soft_cap,
     )
 
 
