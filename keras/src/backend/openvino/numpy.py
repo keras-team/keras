@@ -524,7 +524,6 @@ def dot(x, y):
         x = ov_opset.reshape(x, [1])
     if len(y.shape) == 0:
         y = ov_opset.reshape(y, [1])
-
     if len(x.shape) == 1 and len(y.shape) == 1:
         return OpenVINOKerasTensor(
             ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0]).output(0)
