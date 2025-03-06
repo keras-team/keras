@@ -14,22 +14,6 @@ from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
 
-def dot(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "dot()")
-    if len(x1.shape) == 1 and len(x2.shape) == 1:
-        return OpenVINOKerasTensor(
-            ov_opset.reduce_sum(ov_opset.multiply(x1, x2), axes=[0]).output(0)
-        )
-    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
-
-
 def add(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
@@ -525,6 +509,23 @@ def digitize(x, bins):
     raise NotImplementedError(
         "`digitize` is not supported with openvino backend"
     )
+
+
+def dot(x, y):
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "dot()")
+    if len(x.shape) == 1 and len(y.shape) == 1:
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_sum(ov_opset.multiply(x, y), axes=[0]).output(0)
+        )
+    return OpenVINOKerasTensor(ov_opset.matmul(x, y, False, False).output(0))
+
 
 
 def empty(shape, dtype=None):
@@ -1206,3 +1207,5 @@ def argpartition(x, kth, axis=-1):
     raise NotImplementedError(
         "`argpartition` is not supported with openvino backend"
     )
+
+
