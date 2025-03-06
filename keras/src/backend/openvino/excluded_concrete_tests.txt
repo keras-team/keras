@@ -100,7 +100,6 @@ NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_diff
-NumpyOneInputOpsCorrectnessTest::test_dot
 NumpyOneInputOpsCorrectnessTest::test_exp
 NumpyOneInputOpsCorrectnessTest::test_expand_dims
 NumpyOneInputOpsCorrectnessTest::test_flip
