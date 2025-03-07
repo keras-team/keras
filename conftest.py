@@ -8,7 +8,7 @@ try:
     # When using torch and tensorflow, torch needs to be imported first,
     # otherwise it will segfault upon import. This should force the torch
     # import to happen first for all tests.
-   try:
+
     import torch  # noqa: F401
 except ImportError:
     torch = None  # Explicitly set torch to None if not installed
