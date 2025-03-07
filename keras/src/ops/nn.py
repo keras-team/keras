@@ -2,7 +2,6 @@
 
 import warnings
 
-
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
@@ -2643,6 +2642,7 @@ def dot_product_attention(
     if attn_logits_soft_cap is not None:
         if backend.backend() == "jax":
             import jax
+
             if jax.devices()[0].platform != "tpu":
                 raise ValueError(
                     "attn_logits_soft_cap is only supported for JAX on TPU. "
