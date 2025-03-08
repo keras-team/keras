@@ -63,6 +63,8 @@ class TestTFSMLayer(testing.TestCase):
             reloaded_layer.non_trainable_weights,
             len(model.non_trainable_weights),
         )
+        for keras_var in reloaded_layer.weights:
+            self.assertIsInstance(keras_var, backend.Variable)
 
     def test_call_training(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
