@@ -198,7 +198,6 @@ class GroupedQueryAttention(Layer):
         self._output_dense.build(
             (None, None, self.num_query_heads, self.head_dim)
         )
-        self.built = True
 
     def _get_common_kwargs_for_sublayer(self):
         common_kwargs = dict(

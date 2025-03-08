@@ -51,7 +51,8 @@ class Masking(Layer):
             mask_value = deserialize_keras_object(mask_value)
         self.mask_value = mask_value
         self.supports_masking = True
-        self.built = True
+
+        self._build_at_init()
 
     def compute_mask(self, inputs, mask=None):
         return ops.any(ops.not_equal(inputs, self.mask_value), axis=-1)

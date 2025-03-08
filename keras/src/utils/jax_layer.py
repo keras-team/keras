@@ -237,7 +237,7 @@ class JaxLayer(Layer):
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
-            self.built = True
+            self._build_at_init()
 
         self.call_fn_arguments = self._validate_signature(
             call_fn,
@@ -397,7 +397,6 @@ class JaxLayer(Layer):
             init_params, trainable=True
         )
         self.tracked_state = self._create_variables(init_state, trainable=False)
-        self.built = True
 
     def call(self, inputs, training=False):
         def unwrap_variable(variable):
