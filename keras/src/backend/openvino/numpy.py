@@ -512,7 +512,17 @@ def digitize(x, bins):
 
 
 def dot(x, y):
-    raise NotImplementedError("`dot` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "dot()")
+    if x.get_partial_shape().rank == 0 or y.get_partial_shape().rank == 0:
+        return OpenVINOKerasTensor(ov_opset.multiply(x, y).output(0))
+    return OpenVINOKerasTensor(ov_opset.matmul(x, y, False, False).output(0))
 
 
 def empty(shape, dtype=None):
