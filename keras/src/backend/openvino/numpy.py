@@ -312,20 +312,23 @@ def argsort(x, axis=-1):
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        x_shape = ov_opset.shape_of(x, Type.i32).output(0)
+        x_shape_tensor = ov_opset.shape_of(x, Type.i32).output(0)
         k = ov_opset.reduce_prod(
-            x_shape, ov_opset.constant([0], Type.i32), keep_dims=False
+            x_shape_tensor, ov_opset.constant([0], Type.i32), keep_dims=False
         )
-        axis_dim = x.shape[0]
-        axis_dim = k
         axis = 0
     else:
         if axis < 0:
             axis = rank + axis
-        axis_dim = x_shape[axis].get_length()
+        x_shape_tensor = ov_opset.shape_of(x, Type.i32).output(0)
+        k = ov_opset.gather(
+            x_shape_tensor,
+            ov_opset.constant(axis, Type.i32).output(0),
+            ov_opset.constant(0, Type.i32).output(0),
+        ).output(0)
     sorted_indices = ov_opset.topk(
         x,
-        k=axis_dim,
+        k=k,
         axis=axis,
         mode="min",
         sort="value",
