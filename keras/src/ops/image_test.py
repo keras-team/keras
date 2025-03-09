@@ -1813,6 +1813,14 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         x = np.random.uniform(size=(50, 50, 3)).astype("float32")
         alpha, sigma, seed = 20.0, 5.0, 42
 
+        out = kimage.elastic_transform(
+            x,
+            alpha=alpha,
+            sigma=sigma,
+            seed=seed,
+            data_format="channels_last",
+        )
+
         ref_out = elastic_transform_np(
             x,
             alpha=alpha,
@@ -1821,13 +1829,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             data_format="channels_last",
         )
 
-        out = kimage.elastic_transform(
-            x,
-            alpha=alpha,
-            sigma=sigma,
-            seed=seed,
-            data_format="channels_last",
-        )
         out = np.asarray(out)
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
