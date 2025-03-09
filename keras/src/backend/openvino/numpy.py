@@ -380,9 +380,48 @@ def average(x, axis=None, weights=None):
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
-    raise NotImplementedError(
-        "`bincount` is not supported with openvino backend"
-    )
+    if x is None:
+        raise ValueError("input x is None")
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True`")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    shape_x = ov_opset.shape_of(x, "i64").output(0)
+    rank_x = ov_opset.shape_of(shape_x, "i64").output(0)
+    rank_x = ov_opset.convert(rank_x, x_type).output(0)
+    scalar_shape = ov_opset.constant([], x_type).output(0)
+    rank_x = ov_opset.reshape(rank_x, scalar_shape, False).output(0)
+    const_minus_one = ov_opset.constant(-1, x_type).output(0)
+    rank_minus_one = ov_opset.add(rank_x, const_minus_one).output(0)
+    minlength = get_ov_output(minlength)
+    minlength = ov_opset.convert(minlength, x_type).output(0)
+    const_one = ov_opset.constant(1, x_type).output(0)
+    const_zero = ov_opset.constant(0, x_type).output(0)
+    max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
+    depth = ov_opset.add(max_element, const_one).output(0)
+    depth = ov_opset.maximum(depth, minlength).output(0)
+    depth_scalar = ov_opset.reduce_max(
+        depth, const_zero, keep_dims=False
+    ).output(0)
+    one_hot = ov_opset.one_hot(
+        x, depth_scalar, const_one, const_zero, axis=-1
+    ).output(0)
+    if weights is not None:
+        weights = get_ov_output(weights)
+        weights_type = weights.get_element_type()
+        weights_new = ov_opset.reshape(weights, [-1, 1], False).output(0)
+        one_hot = ov_opset.convert(one_hot, weights_type).output(0)
+        final_one_hot = ov_opset.multiply(one_hot, weights_new).output(0)
+        final_output = ov_opset.reduce_sum(
+            final_one_hot, rank_minus_one, keep_dims=False
+        ).output(0)
+        return OpenVINOKerasTensor(final_output)
+    else:
+        final_output = ov_opset.reduce_sum(
+            one_hot, rank_minus_one, keep_dims=False
+        ).output(0)
+        final_output = ov_opset.convert(final_output, Type.i32).output(0)
+        return OpenVINOKerasTensor(final_output)
 
 
 def broadcast_to(x, shape):
