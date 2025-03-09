@@ -989,7 +989,7 @@ def elastic_transform(
     x, y = torch.meshgrid(
         torch.arange(width), torch.arange(height), indexing="xy"
     )
-    x, y = x.unsqueeze(0), y.unsqueeze(0)
+    x, y = x.unsqueeze(0).to(images.device), y.unsqueeze(0).to(images.device)
 
     distorted_x = x + alpha * dx
     distorted_y = y + alpha * dy

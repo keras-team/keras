@@ -828,19 +828,25 @@ def elastic_transform(
         channel_axis = 1
 
     seed = draw_seed(seed)
-    dx = tf.random.stateless_normal(
-        shape=(batch_size, height, width),
-        mean=0.0,
-        stddev=1.0,
-        dtype=input_dtype,
-        seed=seed,
+    dx = (
+        tf.random.stateless_normal(
+            shape=(batch_size, height, width),
+            mean=0.0,
+            stddev=1.0,
+            dtype=input_dtype,
+            seed=seed,
+        )
+        * sigma
     )
-    dy = tf.random.stateless_normal(
-        shape=(batch_size, height, width),
-        mean=0.0,
-        stddev=1.0,
-        dtype=input_dtype,
-        seed=seed,
+    dy = (
+        tf.random.stateless_normal(
+            shape=(batch_size, height, width),
+            mean=0.0,
+            stddev=1.0,
+            dtype=input_dtype,
+            seed=seed,
+        )
+        * sigma
     )
 
     dx = gaussian_blur(
