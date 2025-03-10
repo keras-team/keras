@@ -28,7 +28,6 @@ NumpyDtypeTest::test_expm1
 NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
-NumpyDtypeTest::test_full_like
 NumpyDtypeTest::test_hstack
 NumpyDtypeTest::test_identity
 NumpyDtypeTest::test_inner
@@ -164,7 +163,6 @@ NumpyTwoInputOpsCorrectnessTest::test_cross
 NumpyTwoInputOpsCorrectnessTest::test_digitize
 NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
-NumpyTwoInputOpsCorrectnessTest::test_full_like
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_isclose
 NumpyTwoInputOpsCorrectnessTest::test_linspace
