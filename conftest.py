@@ -8,9 +8,11 @@ try:
     # When using torch and tensorflow, torch needs to be imported first,
     # otherwise it will segfault upon import. This should force the torch
     # import to happen first for all tests.
+
     import torch  # noqa: F401
 except ImportError:
-    pass
+    torch = None  # Explicitly set torch to None if not installed
+
 
 import pytest  # noqa: E402
 
@@ -37,9 +39,11 @@ def pytest_collection_modifyitems(config, items):
                 line.strip() for line in openvino_skipped_tests if line.strip()
             ]
 
-    requires_trainable_backend = pytest.mark.skipif(
-        backend() == "numpy" or backend() == "openvino",
-        reason="Trainer not implemented for NumPy and OpenVINO backend.",
+  requires_trainable_backend = pytest.mark.skipif(
+    backend() in ["numpy", "openvino"],
+    reason="Trainer not implemented for NumPy and OpenVINO backend.",
+)
+
     )
     for item in items:
         if "requires_trainable_backend" in item.keywords:
