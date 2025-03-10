@@ -1829,7 +1829,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             data_format="channels_last",
         )
 
-        out = np.asarray(out)
+        out = backend.convert_to_numpy(out)
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(
@@ -1857,7 +1857,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             seed=seed,
             data_format="channels_first",
         )
-        out = np.asarray(out)
+        out = backend.convert_to_numpy(out)
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(
