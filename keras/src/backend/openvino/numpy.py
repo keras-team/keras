@@ -12,6 +12,7 @@ from keras.src.backend.openvino.core import (
 )
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import convert_to_tensor
 
 
 def add(x1, x2):
@@ -653,7 +654,11 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    raise NotImplementedError("`hstack` is not supported with openvino backend")
+    tensor_list = [convert_to_tensor(x) for x in xs]
+    is_1d = all(len(x.shape)==1 for x in tensor_list)
+    axis = 0 if is_1d else 1
+    concat_node = ov_opset.concat(tensor_list, axis)
+    return concat_node    
 
 
 def identity(n, dtype=None):
