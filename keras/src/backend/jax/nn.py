@@ -1124,7 +1124,7 @@ def wrap_flash_attention(
         )
 
     if custom_mask is not None:
-        mask = splash_attention_mask.NumpyMask(mask=custom_mask)
+        mask = splash_attention_mask.NumpyMask(array=custom_mask)
 
     else:
         mask = splash_attention_mask.CausalMask(
