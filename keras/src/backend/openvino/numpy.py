@@ -722,7 +722,7 @@ def less_equal(x1, x2):
 
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
-    ):
+):
     raise NotImplementedError(
         "`linspace` is not supported with openvino backend"
     )
