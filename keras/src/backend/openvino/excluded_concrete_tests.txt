@@ -22,7 +22,6 @@ NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_diff
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
-NumpyDtypeTest::test_empty
 NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_expm1
 NumpyDtypeTest::test_eye
