@@ -362,7 +362,7 @@ def average(x, axis=None, weights=None):
         x_type = x.get_element_type()
         weights_type = weights.get_element_type()
         if (weights_type.is_integral() or weights_type == Type.boolean) and (
-                x_type.is_integral() or x_type == Type.boolean
+            x_type.is_integral() or x_type == Type.boolean
         ):
             x = ov_opset.convert(x, Type.f32).output(0)
             weights = ov_opset.convert(weights, Type.f32).output(0)
@@ -721,8 +721,8 @@ def less_equal(x1, x2):
 
 
 def linspace(
-        start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
-):
+    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
+    ):
     raise NotImplementedError(
         "`linspace` is not supported with openvino backend"
     )
