@@ -23,7 +23,6 @@ NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_empty
 NumpyDtypeTest::test_exp2
-NumpyDtypeTest::test_expm1
 NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
