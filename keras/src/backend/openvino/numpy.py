@@ -565,15 +565,15 @@ def dot(x, y):
 
 
 def empty(shape, dtype=None):
-    if dtype is not None:
-        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
-    else:
-        ov_type = Type.f32
+    dtype = standardize_dtype(dtype) or config.floatx()
+    ov_type = OPENVINO_DTYPES[dtype]
     if isinstance(shape, tuple):
         shape = list(shape)
     elif isinstance(shape, int):
         shape = [shape]
-    empty_tensor = ov_opset.parameter(shape, ov_type).output(0)
+    shape_node = ov_opset.constant(shape, Type.i32).output(0)
+    const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
+    empty_tensor = ov_opset.broadcast(const_zero, shape_node).output(0)
     return OpenVINOKerasTensor(empty_tensor)
 
 
