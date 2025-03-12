@@ -577,12 +577,12 @@ def diff(a, n=1, axis=-1):
     if isinstance(a, np.ndarray):
         rank = a.ndim
     else:
-        rank = len(a.get_partial_shape())
+        rank = a.get_partial_shape().rank.get_length()
     if axis < 0:
         axis = axis + rank
     result = a
     for _ in range(n):
-        rank = len(result.get_partial_shape())
+        rank = result.get_partial_shape().rank.get_length()
         strides = ov_opset.constant(
             np.array([1] * rank, dtype=np.int64), Type.i64
         ).output(0)
