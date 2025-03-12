@@ -568,7 +568,64 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 def diff(a, n=1, axis=-1):
-    raise NotImplementedError("`diff` is not supported with openvino backend")
+    if n == 0:
+        return a
+    if n < 0:
+        raise ValueError("order must be non-negative but got " + repr(n))
+    a = get_ov_output(a)
+    a_type = a.get_element_type()
+    rank = len(a.get_partial_shape())
+    if axis < 0:
+        axis = axis + rank
+
+    result = a
+    for _ in range(n):
+        rank = len(result.get_partial_shape())
+        strides = ov_opset.constant(np.array([1] * rank, dtype=np.int64), Type.i64).output(0)
+
+        begin_upper_list = [0] * rank
+        begin_upper_list[axis] = 1
+        begin_upper = ov_opset.constant(np.array(begin_upper_list, dtype=np.int64), Type.i64).output(0)
+        end_upper = ov_opset.constant(np.array([0] * rank, dtype=np.int64), Type.i64).output(0)
+        begin_mask_upper = [1] * rank
+        begin_mask_upper[axis] = 0
+        end_mask_upper = [1] * rank
+        upper = ov_opset.strided_slice(
+            data=result,
+            begin=begin_upper,
+            end=end_upper,
+            strides=strides,
+            begin_mask=begin_mask_upper,
+            end_mask=end_mask_upper,
+            new_axis_mask=[],
+            shrink_axis_mask=[],
+            ellipsis_mask=[]
+        ).output(0)
+
+        begin_lower = ov_opset.constant(np.array([0] * rank, dtype=np.int64), Type.i64).output(0)
+        end_lower_list = [0] * rank
+        end_lower_list[axis] = -1
+        end_lower = ov_opset.constant(np.array(end_lower_list, dtype=np.int64), Type.i64).output(0)
+        begin_mask_lower = [1] * rank
+        end_mask_lower = [1] * rank
+        end_mask_lower[axis] = 0
+        lower = ov_opset.strided_slice(
+            data=result,
+            begin=begin_lower,
+            end=end_lower,
+            strides=strides,
+            begin_mask=begin_mask_lower,
+            end_mask=end_mask_lower,
+            new_axis_mask=[],
+            shrink_axis_mask=[],
+            ellipsis_mask=[]
+        ).output(0)
+
+        if a_type == Type.boolean:
+            result = ov_opset.not_equal(upper, lower).output(0)
+        else:
+            result = ov_opset.subtract(upper, lower).output(0)
+    return result
 
 
 def digitize(x, bins):
