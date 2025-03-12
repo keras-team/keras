@@ -391,6 +391,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.make_train_function()
         self.stop_training = False
         training_logs = {}
+        training_finished = False
         callbacks.on_train_begin()
         initial_epoch = self._initial_epoch or initial_epoch
         try:
@@ -486,6 +487,7 @@ class JAXTrainer(base_trainer.Trainer):
                 training_logs = epoch_logs
                 if self.stop_training:
                     break
+            training_finished = True
 
         finally:
             self.jax_state_sync()
@@ -498,7 +500,8 @@ class JAXTrainer(base_trainer.Trainer):
             # If _eval_epoch_iterator exists, delete it after all epochs are done.
             if getattr(self, "_eval_epoch_iterator", None) is not None:
                 del self._eval_epoch_iterator
-            callbacks.on_train_end(logs=training_logs)
+            if training_finished:
+                callbacks.on_train_end(logs=training_logs)
             self._jax_state = None
             self._clear_jax_state_sharding()
         return self.history
