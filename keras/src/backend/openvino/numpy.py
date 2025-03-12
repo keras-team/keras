@@ -650,9 +650,15 @@ def full(shape, fill_value, dtype=None):
 
 
 def full_like(x, fill_value, dtype=None):
-    raise NotImplementedError(
-        "`full_like` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    shape_x = ov_opset.shape_of(x)
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+    else:
+        ov_type = x.get_element_type()
+    const_value = ov_opset.constant(fill_value, ov_type).output(0)
+    res = ov_opset.broadcast(const_value, shape_x).output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def greater(x1, x2):
