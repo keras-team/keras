@@ -148,6 +148,9 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
         if not training:
             return None
 
+        if (self.scale[1] == 0) or (self.factor[1] == 0):
+            return None
+
         if isinstance(data, dict):
             images = data["images"]
         else:
@@ -192,9 +195,6 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
         }
 
     def get_elastic_transform_params(self, height, width, factor):
-        if factor == 0:
-            return None, None
-
         alpha_scale = 0.1 * factor
         sigma_scale = 0.05 * factor
 
@@ -205,7 +205,7 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         images = self.backend.cast(images, self.compute_dtype)
-        if training:
+        if training and transformation is not None:
             apply_transform = transformation["apply_transform"]
             distortion_factor = transformation["distortion_factor"]
             seed = transformation["seed"]
@@ -219,27 +219,32 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
                 height, width, distortion_factor
             )
 
-            if alpha is not None:
-                transformed_images = self.backend.image.elastic_transform(
-                    images,
-                    alpha=alpha,
-                    sigma=sigma,
-                    interpolation=self.interpolation,
-                    fill_mode=self.fill_mode,
-                    fill_value=self.fill_value,
-                    seed=seed,
-                    data_format=self.data_format,
-                )
+            transformed_images = self.backend.image.elastic_transform(
+                images,
+                alpha=alpha,
+                sigma=sigma,
+                interpolation=self.interpolation,
+                fill_mode=self.fill_mode,
+                fill_value=self.fill_value,
+                seed=seed,
+                data_format=self.data_format,
+            )
 
-                images = self.backend.numpy.where(
-                    apply_transform[:, None, None, None],
-                    transformed_images,
-                    images,
-                )
+            apply_transform = (
+                apply_transform[:, None, None]
+                if len(images.shape) == 3
+                else apply_transform[:, None, None, None]
+            )
 
-                images = self.backend.numpy.clip(
-                    images, self.value_range[0], self.value_range[1]
-                )
+            images = self.backend.numpy.where(
+                apply_transform,
+                transformed_images,
+                images,
+            )
+
+            images = self.backend.numpy.clip(
+                images, self.value_range[0], self.value_range[1]
+            )
 
             images = self.backend.cast(images, self.compute_dtype)
         return images
