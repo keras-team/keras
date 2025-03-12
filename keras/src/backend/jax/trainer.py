@@ -425,8 +425,8 @@ class JAXTrainer(base_trainer.Trainer):
                             metrics_variables,
                         ) = state
 
-                        # Setting _jax_state enables callbacks to force a state sync
-                        # if they need to.
+                        # Setting _jax_state enables callbacks to force a state
+                        # sync if they need to.
                         self._jax_state = {
                             "trainable_variables": trainable_variables,
                             "non_trainable_variables": non_trainable_variables,
@@ -441,12 +441,14 @@ class JAXTrainer(base_trainer.Trainer):
                             # this flag in on_(train_)batch_end.
                             break
 
-                # Reattach state to the model (if not already done by a callback).
+                # Reattach state to the model
+                # (if not already done by a callback).
                 # NOTE: doing this after each step would be a big performance
                 # bottleneck.
                 self.jax_state_sync()
 
-                # Override with model metrics instead of last step logs if needed.
+                # Override with model metrics instead of last step logs if
+                # needed.
                 # The jax spmd_mode is need for multi-process context, since the
                 # metrics values are replicated, and we don't want to do a all
                 # gather, and only need the local copy of the value.
@@ -497,7 +499,8 @@ class JAXTrainer(base_trainer.Trainer):
             ):
                 self.optimizer.finalize_variable_values(self.trainable_weights)
 
-            # If _eval_epoch_iterator exists, delete it after all epochs are done.
+            # If _eval_epoch_iterator exists, delete it after all epochs
+            # are done.
             if getattr(self, "_eval_epoch_iterator", None) is not None:
                 del self._eval_epoch_iterator
             if training_finished:
@@ -528,7 +531,8 @@ class JAXTrainer(base_trainer.Trainer):
         if use_cached_eval_dataset:
             epoch_iterator = self._eval_epoch_iterator
         else:
-            # Create an iterator that yields batches of input/target data.
+            # Create an iterator that yields batches of
+            # input/target data.
             epoch_iterator = JAXEpochIterator(
                 x=x,
                 y=y,
