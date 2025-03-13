@@ -18,6 +18,7 @@ NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_cumsum_bool
 NumpyDtypeTest::test_diag
+NumpyDtypeTest::test_diagonal
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
