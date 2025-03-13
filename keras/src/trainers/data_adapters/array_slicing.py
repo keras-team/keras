@@ -146,6 +146,26 @@ class MLXSliceable(Sliceable):
 
         return self.array[mx.array(indices)]
 
+    @classmethod
+    def cast(cls, x, dtype):
+        from keras.src.backend.mlx.core import cast
+
+        return cast(x, dtype)
+
+    @classmethod
+    def convert_to_numpy(cls, x):
+        from keras.src.backend.mlx.core import convert_to_numpy
+
+        return convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_jax_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_tf_dataset_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
 
 class TensorflowSliceable(Sliceable):
     def __getitem__(self, indices):

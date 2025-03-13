@@ -153,6 +153,9 @@ def convert_to_tensors(*xs):
 
 def convert_to_numpy(x):
     # Performs a copy. If we want 0-copy we can pass copy=False
+    if isinstance(x, mx.array) and x.dtype == mx.bfloat16:
+        # mlx currently has an error passing bloat16 array to numpy
+        return np.array(x.astype(mx.float32))
     return np.array(x)
 
 

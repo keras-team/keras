@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import keras
+from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.saving import serialization_lib
@@ -112,7 +113,11 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(..., deserialized)
 
     def test_tensors_and_shapes(self):
-        x = ops.random.normal((2, 2), dtype="float64")
+        if backend.backend() == "mlx":
+            # mlx backend does not yet support float64 in normal and uniform
+            x = ops.random.normal((2, 2), dtype="float32")
+        else:
+            x = ops.random.normal((2, 2), dtype="float64")
         obj = {"x": x}
         _, new_obj, _ = self.roundtrip(obj)
         self.assertAllClose(x, new_obj["x"], atol=1e-5)
