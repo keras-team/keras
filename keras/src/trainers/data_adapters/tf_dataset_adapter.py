@@ -62,9 +62,7 @@ class TFDatasetAdapter(DataAdapter):
         def convert_to_mlx(x):
             if isinstance(x, tf.SparseTensor):
                 x = sparse_to_dense(x)
-            # tensorflow supports the buffer protocol
-            # but requires explicit memoryview with mlx
-            return mlx.core.array(memoryview(x))
+            return mlx.core.array(x)
 
         for batch in self._dataset:
             yield tree.map_structure(convert_to_mlx, batch)

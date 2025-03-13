@@ -6,6 +6,7 @@ from absl import logging
 from absl.testing import parameterized
 
 from keras.src import layers
+from keras.src import backend
 from keras.src.models import Sequential
 from keras.src.saving import saving_api
 from keras.src.testing import test_case
@@ -122,6 +123,9 @@ class LoadModelTests(test_case.TestCase):
     )
     def test_basic_load(self, dtype):
         """Test basic model loading."""
+        if backend.backend() == "mlx" and dtype == "float64":
+            self.skipTest("mlx backend does not yet support float64 in random and uniform")
+
         model = self.get_model(dtype)
         filepath = os.path.join(self.get_temp_dir(), "test_model.keras")
         saving_api.save_model(model, filepath)
@@ -208,6 +212,10 @@ class LoadWeightsTests(test_case.TestCase):
     )
     def test_load_keras_weights(self, source_dtype, dest_dtype):
         """Test loading keras weights."""
+        if backend.backend() == "mlx":
+            if source_dtype == "float64" or dest_dtype == "float64":
+                self.skipTest("mlx backend does not yet support float64 in random and uniform")
+
         src_model = self.get_model(dtype=source_dtype)
         filepath = os.path.join(self.get_temp_dir(), "test_weights.weights.h5")
         src_model.save_weights(filepath)

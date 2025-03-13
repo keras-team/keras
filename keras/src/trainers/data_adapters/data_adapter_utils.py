@@ -222,6 +222,8 @@ def get_numpy_iterator(iterable):
                 if is_torch_tensor(x):
                     x = x.cpu()
                 x = np.asarray(x)
+            if is_mlx_array(x):
+                x = np.array(x)
         return x
 
     for batch in iterable:
