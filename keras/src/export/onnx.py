@@ -80,7 +80,7 @@ def export_onnx(model, filepath, verbose=None, input_signature=None, **kwargs):
         decorated_fn = get_concrete_fn(model, input_signature, **kwargs)
 
         # Use `tf2onnx` to convert the `decorated_fn` to the ONNX format.
-        patch_tf2onnx()  # TODO: Remove this once `tf2onnx` supports numpy 2.
+        # patch_tf2onnx()  # TODO: Remove this once `tf2onnx` supports numpy 2.
         tf2onnx.convert.from_function(
             decorated_fn, input_signature, output_path=filepath
         )

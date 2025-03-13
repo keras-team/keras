@@ -10,13 +10,14 @@ absl-py
 requests
 h5py
 ml-dtypes
-protobuf
+protobuf==4.21.6  # Earlier versions break Tensorflow>=2.19
 tensorboard-plugin-profile
 rich
 build
 optree
 pytest-cov
 packaging
+tf2onnx>=1.16.1  # For Numpy 2 support
 # for tree_test.py
 dm_tree
 coverage!=7.6.5  # 7.6.5 breaks CI
