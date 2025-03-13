@@ -1504,6 +1504,80 @@ class Circle(LossFunctionWrapper):
         return config
 
 
+@keras_export("keras.losses.CategoricalGeneralizedCrossEntropy")
+class CategoricalGeneralizedCrossEntropy(LossFunctionWrapper):
+    """Computes the Generalized Cross Entropy loss.
+
+    Generalized Cross Entropy (GCE) is a noise-robust loss function
+    that provides better robustness against noisy labels than
+    standard cross entropy.
+    It generalizes both cross entropy and mean absolute error through
+    the parameter q, where values closer to 0 make the loss more robust
+    to noisy labels.
+
+    Formula:
+        GCE = (1 - p^q) / q
+
+    where p is the predicted probability for the true class.
+
+    Args:
+        y_true: Ground truth labels. Expected to contain integer class indices,
+            with shape `[batch_size]` or `[batch_size, 1]`.
+        y_pred: The predicted class probabilities, with shape
+            `[batch_size, num_classes]`. The values should sum to 1
+            over the last axis.
+        q: Float in range (0,1). Controls the behavior of the loss:
+            - As q approaches 0: Behaves more like cross entropy
+            - As q approaches 1: Behaves more like mean absolute error
+            - Default is 0.5
+
+    Returns:
+        GCE loss values with shape `[batch_size]`.
+
+    Example:
+    ```python
+    y_true = np.array([0, 1, 0, 1])
+    y_pred = np.array([[0.7, 0.3], [0.2, 0.8], [0.6, 0.4], [0.4, 0.6]])
+    output = keras.losses.CategoricalGeneralizedCrossEntropy(q=0.1)(
+            y_true, y_pred
+        )
+    ```
+
+
+    References:
+        - [Zhang et al., 2018](https://arxiv.org/abs/1805.07836)
+          ("Generalized Cross Entropy Loss for
+            Training Deep Neural Networks with Noisy Labels")
+    """
+
+    def __init__(
+        self,
+        q=0.5,
+        reduction="sum_over_batch_size",
+        name="categorical_generalized_cross_entropy",
+        dtype=None,
+    ):
+        if not 0 < q < 1:
+            raise ValueError("q must be in the interval (0, 1)")
+        super().__init__(
+            categorical_generalized_cross_entropy,
+            name=name,
+            reduction=reduction,
+            dtype=dtype,
+            q=q,
+        )
+        self.q = q
+
+    def get_config(self):
+        config = Loss.get_config(self)
+        config.update(
+            {
+                "q": self.q,
+            }
+        )
+        return config
+
+
 def convert_binary_labels_to_hinge(y_true):
     """Converts binary labels into -1/1 for hinge loss/metric calculation."""
     are_zeros = ops.equal(y_true, 0)
@@ -2597,3 +2671,51 @@ def circle(
     circle_loss = ops.softplus(p_loss + n_loss)
     backend.set_keras_mask(circle_loss, circle_loss > 0)
     return circle_loss
+
+
+@keras_export("keras.losses.categorical_generalized_cross_entropy")
+def categorical_generalized_cross_entropy(y_true, y_pred, q):
+    """Computes the Generalized Cross Entropy loss.
+
+    Generalized Cross Entropy (GCE) is a noise-robust loss function that
+    provides better robustness against noisy labels than standard cross entropy.
+    It generalizes both cross entropy and mean absolute error through
+    the parameter q, where values closer to 0 make the loss more robust
+    to noisy labels.
+
+    Formula:
+        GCE = (1 - p^q) / q
+
+    where p is the predicted probability for the true class.
+
+    Args:
+        y_true: Ground truth labels. Expected to contain *integer class indices*
+            with shape `[batch_size]` or `[batch_size, 1]`.
+        y_pred: The predicted class probabilities, with shape
+            `[batch_size, num_classes]`. The values should sum to 1
+            over the last axis.
+        q: Float in range (0,1). Controls the behavior of the loss:
+            - As q approaches 0: Behaves more like cross entropy
+            - As q approaches 1: Behaves more like mean absolute error
+
+    Returns:
+        GCE loss values with shape `[batch_size]`.
+    ```
+
+    References:
+        - [Zhang et al., 2018](https://arxiv.org/abs/1805.07836)
+          ("Generalized Cross Entropy Loss for Training
+            Deep Neural Networks with Noisy Labels")
+    """
+    # Convert y_true to integer type and one-hot encode
+    y_true_one_hot = ops.one_hot(
+        ops.cast(y_true, "int"), num_classes=ops.shape(y_pred)[-1]
+    )
+    y_true_one_hot = ops.cast(y_true_one_hot, y_pred.dtype)
+    # Calculate the probability of the true class
+    p = ops.sum(y_pred * y_true_one_hot, axis=-1)
+
+    # Compute the GCE loss for q in (0,1)
+    gce_loss = (1 - ops.power(p, q)) / q
+
+    return gce_loss
