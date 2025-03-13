@@ -157,7 +157,7 @@ class MLXSliceable(Sliceable):
         from keras.src.backend.mlx.core import convert_to_numpy
 
         return convert_to_numpy(x)
-    
+
     @classmethod
     def convert_to_jax_compatible(cls, x):
         return cls.convert_to_numpy(x)
