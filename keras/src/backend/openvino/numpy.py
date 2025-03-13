@@ -661,7 +661,16 @@ def dot(x, y):
 
 
 def empty(shape, dtype=None):
-    raise NotImplementedError("`empty` is not supported with openvino backend")
+    dtype = standardize_dtype(dtype) or config.floatx()
+    ov_type = OPENVINO_DTYPES[dtype]
+    if isinstance(shape, tuple):
+        shape = list(shape)
+    elif isinstance(shape, int):
+        shape = [shape]
+    shape_node = ov_opset.constant(shape, Type.i32).output(0)
+    const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
+    empty_tensor = ov_opset.broadcast(const_zero, shape_node).output(0)
+    return OpenVINOKerasTensor(empty_tensor)
 
 
 def equal(x1, x2):
