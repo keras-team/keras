@@ -313,47 +313,72 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         )
 
     @traceback_utils.filter_traceback
-    def save_weights(self, filepath, overwrite=True):
-        """Saves all layer weights to a `.weights.h5` file.
+    def save_weights(self, filepath, overwrite=True, max_shard_size=None):
+        """Saves all weights to a single file or sharded files.
+
+        By default, the weights will be saved in a single `.weights.h5` file.
+        If sharding is enabled (`max_shard_size` is not `None`), the weights
+        will be saved in multiple files, each with a size at most
+        `max_shard_size` (in GB). Additionally, a configuration file
+        `.weights.json` will contain the metadata for the sharded files.
 
         Args:
-            filepath: `str` or `pathlib.Path` object.
-                Path where to save the model. Must end in `.weights.h5`.
-            overwrite: Whether we should overwrite any existing model
-                at the target location, or instead ask the user
-                via an interactive prompt.
+            filepath: `str` or `pathlib.Path` object. Path where the weights
+                will be saved.  When sharding, the filepath must end in
+                `.weights.json`. If `.weights.h5` is provided, it will be
+                overridden.
+            overwrite: Whether to overwrite any existing weights at the target
+                location or instead ask the user via an interactive prompt.
+            max_shard_size: `int` or `float`. Maximum size in GB for each
+                sharded file. If `None`, no sharding will be done. Defaults to
+                `None`.
         """
-        return saving_api.save_weights(self, filepath, overwrite=overwrite)
+        return saving_api.save_weights(
+            self, filepath, overwrite=overwrite, max_shard_size=max_shard_size
+        )
 
     @traceback_utils.filter_traceback
-    def load_weights(self, filepath, skip_mismatch=False, **kwargs):
-        """Load weights from a file saved via `save_weights()`.
+    def load_weights(
+        self, filepath, skip_mismatch=False, sharded=False, **kwargs
+    ):
+        """Load the weights from a single file or sharded files.
 
-        Weights are loaded based on the network's
-        topology. This means the architecture should be the same as when the
-        weights were saved. Note that layers that don't have weights are not
-        taken into account in the topological ordering, so adding or removing
-        layers is fine as long as they don't have weights.
+        Weights are loaded based on the network's topology. This means the
+        architecture should be the same as when the weights were saved. Note
+        that layers that don't have weights are not taken into account in the
+        topological ordering, so adding or removing layers is fine as long as
+        they don't have weights.
 
         **Partial weight loading**
 
         If you have modified your model, for instance by adding a new layer
-        (with weights) or by changing the shape of the weights of a layer,
-        you can choose to ignore errors and continue loading
-        by setting `skip_mismatch=True`. In this case any layer with
-        mismatching weights will be skipped. A warning will be displayed
-        for each skipped layer.
+        (with weights) or by changing the shape of the weights of a layer, you
+        can choose to ignore errors and continue loading by setting
+        `skip_mismatch=True`. In this case any layer with mismatching weights
+        will be skipped. A warning will be displayed for each skipped layer.
+
+        **Sharding**
+
+        When loading sharded weights, it is important to set `sharded=True` and
+        specify `filepath` that ends with `.weights.json`.
 
         Args:
-            filepath: String, path to the weights file to load.
-                It can either be a `.weights.h5` file
-                or a legacy `.h5` weights file.
+            filepath: `str` or `pathlib.Path` object. Path where the weights
+                will be saved.  When sharding, the filepath must end in
+                `.weights.json`. If `.weights.h5` is provided, it will be
+                overridden.
             skip_mismatch: Boolean, whether to skip loading of layers where
                 there is a mismatch in the number of weights, or a mismatch in
                 the shape of the weights.
+            sharded: Whether the saved file(s) are sharded. Defaults to
+                `False`.
         """
         saving_api.load_weights(
-            self, filepath, skip_mismatch=skip_mismatch, **kwargs
+            self,
+            filepath,
+            skip_mismatch=skip_mismatch,
+            sharded=sharded,
+            **kwargs,
         )
 
     def quantize(self, mode, **kwargs):

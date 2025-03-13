@@ -762,6 +762,100 @@ class SavingTest(testing.TestCase):
         self.assertLen(model.layers, 3)  # Input + 2 Dense layers
         self._test_inference_after_instantiation(model)
 
+    def test_lora_weights(self):
+        # For `keras_hub.models.backbone.save_lora_weights` and
+        # `keras_hub.models.backbone.load_lora_weights`
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "layer.lora.h5"))
+        layer = keras.layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.enable_lora(4)
+
+        ref_input = np.random.random((1, 8)).astype("float32")
+        ref_output = layer(ref_input)
+
+        # Save the LoRA weights.
+        store = saving_lib.H5IOStore(temp_filepath, mode="w")
+        lora_store = store.make("lora")
+        lora_store["rank"] = layer.lora_rank
+        inner_store = store.make("lora/0")
+        inner_store["lora_kernel_a"] = layer.lora_kernel_a
+        inner_store["lora_kernel_b"] = layer.lora_kernel_b
+        store.close()
+
+        # Load the LoRA weights.
+        revived_layer = keras.layers.Dense(units=16)
+        revived_layer.build((None, 8))
+        store = saving_lib.H5IOStore(temp_filepath, mode="r")
+        lora_store = store.get("lora")
+        revived_layer.enable_lora(int(lora_store["rank"][()]))
+        lora_kernel_a = store.get("lora/0")["lora_kernel_a"]
+        lora_kernel_b = store.get("lora/0")["lora_kernel_b"]
+        revived_layer._kernel.assign(layer._kernel)
+        revived_layer.bias.assign(layer.bias)
+        revived_layer.lora_kernel_a.assign(lora_kernel_a)
+        revived_layer.lora_kernel_b.assign(lora_kernel_b)
+        self.assertAllClose(revived_layer(ref_input), ref_output, atol=1e-6)
+
+    @parameterized.named_parameters(
+        ("efficientnet_b0_512", "efficientnet_b0", 1),  # Only 1 sharded file.
+        ("efficientnet_b0_10", "efficientnet_b0", 0.01),
+    )
+    def test_weights_sharding(self, model_name, max_shard_size):
+        from keras.src.applications import efficientnet
+
+        if backend.image_data_format() == "channels_last":
+            shape = (224, 224, 3)
+        else:
+            shape = (3, 224, 224)
+
+        if model_name == "efficientnet_b0":
+            model_fn = efficientnet.EfficientNetB0
+
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "mymodel.weights.json")
+        )
+        model = model_fn(weights=None, input_shape=shape)
+        ref_input = np.random.random((1, *shape)).astype("float32")
+        ref_output = model.predict(ref_input)
+
+        # Save the sharded files.
+        saving_lib.save_weights_only(
+            model, temp_filepath, max_shard_size=max_shard_size
+        )
+        self.assertIn("mymodel.weights.json", os.listdir(temp_filepath.parent))
+        if max_shard_size == 512:
+            # 1 sharded file + 1 config file = 2.
+            self.assertLen(os.listdir(temp_filepath.parent), 2)
+        elif max_shard_size == 10:
+            # 3 sharded file + 1 config file = 4.
+            self.assertLen(os.listdir(temp_filepath.parent), 4)
+
+        # Instantiate new model and load the sharded files.
+        model = model_fn(weights=None, input_shape=shape)
+        saving_lib.load_weights_only(model, temp_filepath, sharded=True)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_weights_sharding_exception_raised(self):
+        # `BytesIO` is not allowed.
+        with self.assertRaisesRegex(
+            TypeError, r"`path_or_io` should be a `str`, `pathlib.Path` object."
+        ):
+            saving_lib.ShardedH5IOStore(BytesIO(), mode="w")
+
+        # The weight exceeds the `max_shard_size`.
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "sharded.weights.json")
+        )
+        store = saving_lib.ShardedH5IOStore(
+            temp_filepath, max_shard_size=0.001, mode="w"
+        )
+        vars_store = store.make("/vars")
+        with self.assertRaisesRegex(
+            ValueError, r"exceeds the maximum shard size"
+        ):
+            vars_store["kernel"] = np.ones((1000, 1000)).astype("float32")
+        store.close()
+
 
 @pytest.mark.requires_trainable_backend
 class SavingAPITest(testing.TestCase):
