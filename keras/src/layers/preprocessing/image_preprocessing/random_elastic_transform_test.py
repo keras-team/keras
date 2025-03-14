@@ -71,10 +71,7 @@ class RandomElasticTransformTest(testing.TestCase):
 
         output = layer.transform_images(inputs, transformation)
 
-        self.assertFalse(
-            np.allclose(inputs, output),
-            "Elastic transform should modify input.",
-        )
+        self.assertNotAllClose(inputs, output)
         self.assertEqual(inputs.shape, output.shape)
 
     def test_tf_data_compatibility(self):
