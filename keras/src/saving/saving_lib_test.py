@@ -830,9 +830,14 @@ class SavingTest(testing.TestCase):
             # 3 sharded file + 1 config file = 4.
             self.assertLen(os.listdir(temp_filepath.parent), 4)
 
+        with open(temp_filepath, "r") as f:
+            sharding_config = json.load(f)
+        self.assertIn("metadata", sharding_config)
+        self.assertIn("weight_map", sharding_config)
+
         # Instantiate new model and load the sharded files.
         model = model_fn(weights=None, input_shape=shape)
-        saving_lib.load_weights_only(model, temp_filepath, sharded=True)
+        saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_weights_sharding_exception_raised(self):

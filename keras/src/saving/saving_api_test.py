@@ -247,7 +247,7 @@ class LoadWeightsTests(test_case.TestCase):
         self.assertLen(os.listdir(temp_filepath.parent), 2)
         src_weights = src_model.get_weights()
         dest_model = self.get_model()
-        dest_model.load_weights(temp_filepath, sharded=True)
+        dest_model.load_weights(temp_filepath)
         dest_weights = dest_model.get_weights()
         for orig, loaded in zip(src_weights, dest_weights):
             self.assertAllClose(orig, loaded)

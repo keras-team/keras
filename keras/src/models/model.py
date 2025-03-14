@@ -332,15 +332,55 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             max_shard_size: `int` or `float`. Maximum size in GB for each
                 sharded file. If `None`, no sharding will be done. Defaults to
                 `None`.
+
+        Example:
+
+        ```python
+        # Create a big model with about 272MB of weights.
+        model = keras.Sequential()
+        model.add(keras.Input(shape=(1024,)))
+        for _ in range(5):
+            model.add(keras.layers.Dense(4096))
+
+        # Save the weights in a single file.
+        model.save_weights("model.weights.h5")
+
+        # Save the weights in sharded files. Use `max_shard_size=0.1` means each
+        # sharded file will be at most ~100MB.
+        model.save_weights("model.weights.json", max_shard_size=0.1)
+
+        # Load the weights in a new model with the same architecture.
+        loaded_model = keras.Sequential()
+        loaded_model.add(keras.Input(shape=(1024,)))
+        for _ in range(5):
+            loaded_model.add(keras.layers.Dense(4096))
+        loaded_model.load_weights("model.weights.h5")
+        x = keras.random.uniform((1, 1024))
+        assert np.allclose(model.predict(x), loaded_model.predict(x))
+
+        # Load the sharded weights in a new model with the same architecture.
+        loaded_model = keras.Sequential()
+        loaded_model.add(keras.Input(shape=(1024,)))
+        for _ in range(5):
+            loaded_model.add(keras.layers.Dense(4096))
+        loaded_model.load_weights("model.weights.json")
+        x = keras.random.uniform((1, 1024))
+        assert np.allclose(model.predict(x), loaded_model.predict(x))
+        ```
+
+        The saved sharded files contain:
+
+        - `*.weights.json`: The configuration file containing 'metadata' and
+            'weight_map'.
+        - `*_xxxxxx.weights.h5`: The sharded files containing only the
+            weights.
         """
         return saving_api.save_weights(
             self, filepath, overwrite=overwrite, max_shard_size=max_shard_size
         )
 
     @traceback_utils.filter_traceback
-    def load_weights(
-        self, filepath, skip_mismatch=False, sharded=False, **kwargs
-    ):
+    def load_weights(self, filepath, skip_mismatch=False, **kwargs):
         """Load the weights from a single file or sharded files.
 
         Weights are loaded based on the network's topology. This means the
@@ -359,25 +399,33 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         **Sharding**
 
-        When loading sharded weights, it is important to set `sharded=True` and
-        specify `filepath` that ends with `.weights.json`.
+        When loading sharded weights, it is important to specify `filepath` that
+        ends with `*.weights.json` which is used as the configuration file.
+        Additionally, the sharded files `*_xxxxx.weights.h5` must be in the same
+        directory as the configuration file.
 
         Args:
             filepath: `str` or `pathlib.Path` object. Path where the weights
                 will be saved.  When sharding, the filepath must end in
-                `.weights.json`. If `.weights.h5` is provided, it will be
-                overridden.
+                `.weights.json`.
             skip_mismatch: Boolean, whether to skip loading of layers where
                 there is a mismatch in the number of weights, or a mismatch in
                 the shape of the weights.
-            sharded: Whether the saved file(s) are sharded. Defaults to
-                `False`.
+
+        Example:
+
+        ```python
+        # Load the weights in a single file.
+        model.load_weights("model.weights.h5")
+
+        # Load the weights in sharded files.
+        model.load_weights("model.weights.json")
+        ```
         """
         saving_api.load_weights(
             self,
             filepath,
             skip_mismatch=skip_mismatch,
-            sharded=sharded,
             **kwargs,
         )
 

@@ -247,13 +247,13 @@ def save_weights(
 
 
 @keras_export("keras.saving.load_weights")
-def load_weights(model, filepath, skip_mismatch=False, sharded=False, **kwargs):
+def load_weights(model, filepath, skip_mismatch=False, **kwargs):
     filepath_str = str(filepath)
     if filepath_str.endswith(".keras"):
         if kwargs:
             raise ValueError(f"Invalid keyword arguments: {kwargs}")
         saving_lib.load_weights_only(
-            model, filepath, skip_mismatch=skip_mismatch, sharded=sharded
+            model, filepath, skip_mismatch=skip_mismatch
         )
     elif filepath_str.endswith(".weights.h5") or filepath_str.endswith(
         ".weights.json"
@@ -266,7 +266,6 @@ def load_weights(model, filepath, skip_mismatch=False, sharded=False, **kwargs):
             filepath,
             skip_mismatch=skip_mismatch,
             objects_to_skip=objects_to_skip,
-            sharded=sharded,
         )
     elif filepath_str.endswith(".h5") or filepath_str.endswith(".hdf5"):
         by_name = kwargs.pop("by_name", False)

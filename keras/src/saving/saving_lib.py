@@ -572,7 +572,7 @@ def save_weights_only(
 
 
 def load_weights_only(
-    model, filepath, skip_mismatch=False, objects_to_skip=None, sharded=False
+    model, filepath, skip_mismatch=False, objects_to_skip=None
 ):
     """Load the weights of a model from a filepath (.keras or .weights.h5).
 
@@ -598,21 +598,13 @@ def load_weights_only(
             file_utils.copy(filepath_str, local_filepath)
             filepath_str = filepath = local_filepath
 
-        if filepath_str.endswith(("weights.h5", "weights.json")):
-            if sharded:
-                weights_store = ShardedH5IOStore(filepath, mode="r")
-            else:
-                weights_store = H5IOStore(filepath, mode="r")
+        if filepath_str.endswith("weights.h5"):
+            weights_store = H5IOStore(filepath, mode="r")
+        elif filepath_str.endswith("weights.json"):
+            weights_store = ShardedH5IOStore(filepath, mode="r")
         elif filepath_str.endswith(".keras"):
             archive = zipfile.ZipFile(filepath, "r")
-            if sharded:
-                weights_store = ShardedH5IOStore(
-                    _VARS_FNAME_H5, archive=archive, mode="r"
-                )
-            else:
-                weights_store = H5IOStore(
-                    _VARS_FNAME_H5, archive=archive, mode="r"
-                )
+            weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
 
         failed_saveables = set()
         if objects_to_skip is not None:
@@ -1075,19 +1067,6 @@ class H5IOStore:
 
     # H5 entry level methods.
 
-    @property
-    def h5_entry_group(self):
-        return self._h5_entry_group
-
-    @h5_entry_group.setter
-    def h5_entry_group(self, value):
-        if not isinstance(value, (h5py.Group, dict)):
-            raise TypeError(
-                "`h5_entry_group` should be an instance of `h5py.Group` or "
-                f"or dict. Received: {type(value)}"
-            )
-        self._h5_entry_group = value
-
     def make_entry(self, path, metadata=None):
         if not isinstance(metadata, (dict, type(None))):
             raise ValueError(
@@ -1096,21 +1075,21 @@ class H5IOStore:
 
         if self.mode == "w":
             if not path:
-                self.h5_entry_group = self.h5_file.create_group("vars")
+                self._h5_entry_group = self.h5_file.create_group("vars")
             else:
-                self.h5_entry_group = self.h5_file.create_group(
+                self._h5_entry_group = self.h5_file.create_group(
                     path
                 ).create_group("vars")
             if metadata:
                 for k, v in metadata.items():
-                    self.h5_entry_group.attrs[k] = v
+                    self._h5_entry_group.attrs[k] = v
         else:
-            self.h5_entry_group = {}  # Defaults to an empty dict if not found.
+            self._h5_entry_group = {}  # Defaults to an empty dict if not found.
             if not path:
                 if "vars" in self.h5_file:
-                    self.h5_entry_group = self.h5_file["vars"]
+                    self._h5_entry_group = self.h5_file["vars"]
             elif path in self.h5_file and "vars" in self.h5_file[path]:
-                self.h5_entry_group = self.h5_file[path]["vars"]
+                self._h5_entry_group = self.h5_file[path]["vars"]
             else:
                 # No hit.
                 # Fix for 2.13 compatibility
@@ -1119,22 +1098,22 @@ class H5IOStore:
                         "layers", "_layer_checkpoint_dependencies"
                     )
                     if path in self.h5_file and "vars" in self.h5_file[path]:
-                        self.h5_entry_group = self.h5_file[path]["vars"]
+                        self._h5_entry_group = self.h5_file[path]["vars"]
 
     def __len__(self):
-        return self.h5_entry_group.__len__()
+        return self._h5_entry_group.__len__()
 
     def keys(self):
-        return self.h5_entry_group.keys()
+        return self._h5_entry_group.keys()
 
     def items(self):
-        return self.h5_entry_group.items()
+        return self._h5_entry_group.items()
 
     def values(self):
-        return self.h5_entry_group.values()
+        return self._h5_entry_group.values()
 
     def __getitem__(self, key):
-        value = self.h5_entry_group[key]
+        value = self._h5_entry_group[key]
         if (
             hasattr(value, "attrs")
             and "dtype" in value.attrs
@@ -1148,18 +1127,18 @@ class H5IOStore:
             raise ValueError("Setting a value is only allowed in write mode.")
         value = backend.convert_to_numpy(value)
         if backend.standardize_dtype(value.dtype) == "bfloat16":
-            ds = self.h5_entry_group.create_dataset(key, data=value)
+            ds = self._h5_entry_group.create_dataset(key, data=value)
             ds.attrs["dtype"] = "bfloat16"
         else:
-            self.h5_entry_group[key] = value
+            self._h5_entry_group[key] = value
 
     def __delitem__(self, key):
         if self.mode != "w":
             raise ValueError("Deleting a value is only allowed in write mode.")
-        del self.h5_entry_group[key]
+        del self._h5_entry_group[key]
 
     def __contains__(self, item):
-        return item in self.h5_entry_group
+        return item in self._h5_entry_group
 
 
 class ShardedH5IOStore(H5IOStore):
@@ -1177,7 +1156,7 @@ class ShardedH5IOStore(H5IOStore):
             to `"r"`.
     """
 
-    def __init__(self, path_or_io, max_shard_size=5120, archive=None, mode="r"):
+    def __init__(self, path_or_io, max_shard_size=5, archive=None, mode="r"):
         if mode not in ("w", "r"):
             raise ValueError(
                 f"`mode` should be either 'w' or 'r'. Received: {mode}"
@@ -1212,22 +1191,28 @@ class ShardedH5IOStore(H5IOStore):
         # Init shard parameters.
         self.current_shard_index = 0
         self.current_shard_size = 0
+        self.total_shard_size = 0  # In bytes.
         self.current_shard_path = None
         if self.mode == "w":
-            self.variable_shard_map = {}
+            self.sharding_config = {
+                "metadata": {
+                    "total_size": 0,
+                },
+                "weight_map": {},
+            }
         else:
             if self.archive:
-                self.variable_shard_map = json.loads(
+                self.sharding_config = json.loads(
                     self.archive.open(str(self.path), "r").read()
                 )
             else:
                 with open(self.path, "r") as map_file:
-                    self.variable_shard_map = json.load(map_file)
+                    self.sharding_config = json.load(map_file)
         self.h5_file = self._create_new_shard_file()
 
     def make(self, path, metadata=None):
         h5_entry = super().make(path, metadata=metadata)
-        self.variable_shard_map[self.h5_entry_group.name] = (
+        self.sharding_config["weight_map"][self._h5_entry_group.name] = (
             self.current_shard_path.name
         )
         return h5_entry
@@ -1239,9 +1224,9 @@ class ShardedH5IOStore(H5IOStore):
             parsed_path = path
 
         # If not found, check shard map and switch files.
-        filename = self.variable_shard_map.get(
+        filename = self.sharding_config["weight_map"].get(
             parsed_path
-        ) or self.variable_shard_map.get("/" + parsed_path + "/vars")
+        ) or self.sharding_config["weight_map"].get("/" + parsed_path + "/vars")
 
         if filename != self.current_shard_path.name:
             self.close()
@@ -1251,7 +1236,10 @@ class ShardedH5IOStore(H5IOStore):
     def close(self):
         self.h5_file.close()
         if self.mode == "w":
-            json_str = json.dumps(self.variable_shard_map, indent=4)
+            self.sharding_config["metadata"]["total_size"] = (
+                self.total_shard_size
+            )
+            json_str = json.dumps(self.sharding_config, indent=4)
             if self.archive:
                 self.archive.writestr(str(self.path), json_str)
                 self.archive.writestr(
@@ -1259,7 +1247,7 @@ class ShardedH5IOStore(H5IOStore):
                 )
             else:
                 with open(self.path, "w") as f:
-                    f.write(json.dumps(self.variable_shard_map, indent=4))
+                    f.write(json_str)
         if self.io_file:
             self.io_file.close()
 
@@ -1282,6 +1270,7 @@ class ShardedH5IOStore(H5IOStore):
         weight_counts = math.prod(value.shape)
         per_param_size = dtype_utils.dtype_size(dtype)
         value_size = weight_counts * per_param_size / (8.0 * 1024**3)  # To GB.
+        self.total_shard_size += weight_counts * per_param_size / 8  # In bytes.
         if value_size > self.max_shard_size:
             value_size_str = readable_memory_size(value_size * 1024**3)
             max_shard_size_str = readable_memory_size(
