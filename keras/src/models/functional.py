@@ -618,8 +618,6 @@ def functional_from_config(cls, config, custom_objects=None):
 
     input_tensors = map_tensors(functional_config["input_layers"])
     output_tensors = map_tensors(functional_config["output_layers"])
-    if isinstance(input_tensors, list) and len(input_tensors) == 1:
-        input_tensors = input_tensors[0]
     if isinstance(output_tensors, list) and len(output_tensors) == 1:
         output_tensors = output_tensors[0]
 

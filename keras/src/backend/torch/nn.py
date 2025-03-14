@@ -1018,6 +1018,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     if bias is not None:
         raise ValueError(

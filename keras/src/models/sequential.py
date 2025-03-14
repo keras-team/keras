@@ -214,7 +214,6 @@ class Sequential(Model):
                 raise e
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
-        self.built = True
 
     def call(self, inputs, training=None, mask=None):
         if self._functional:

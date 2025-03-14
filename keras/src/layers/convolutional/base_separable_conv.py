@@ -213,7 +213,6 @@ class BaseSeparableConv(Layer):
             )
         else:
             self.bias = None
-        self.built = True
 
     def call(self, inputs):
         outputs = ops.separable_conv(

@@ -288,7 +288,6 @@ class Dot(Merge):
                 f"{shape2[axes[1]]} (at axis {axes[1]}). "
                 f"Full input shapes: {shape1}, {shape2}"
             )
-        self.built = True
 
     def _merge_function(self, inputs):
         if len(inputs) != 2:

@@ -372,6 +372,18 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             # Reset attribute tracking (TF-specific)
             self._self_setattr_tracking = _self_setattr_tracking
 
+    def _build_at_init(self):
+        """Build the layer at `Layer.__init__`.
+
+        We can only safely mark the layer as `built=True` in `Layer.__init__` if
+        `build` is not overridden. Otherwise, it might cause the subclasses to
+        ignore the user's `build`.
+        """
+        if utils.is_default(self.build):
+            self.built = True
+            self._post_build()
+            self._lock_state()
+
     @property
     def path(self):
         """The path of the layer.
@@ -455,7 +467,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 self.build(config["input_shape"])
             elif "shapes_dict" in config:
                 self.build(**config["shapes_dict"])
-            self.built = True
 
     def _obj_type(self):
         return "Layer"
@@ -920,8 +931,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                             outputs, layout
                         )
 
-                if not self.built:
-                    self.built = True
+                self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):

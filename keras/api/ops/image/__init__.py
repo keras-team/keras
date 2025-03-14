@@ -6,6 +6,7 @@ since your modifications would be overwritten.
 
 from keras.src.ops.image import affine_transform
 from keras.src.ops.image import crop_images
+from keras.src.ops.image import elastic_transform
 from keras.src.ops.image import extract_patches
 from keras.src.ops.image import gaussian_blur
 from keras.src.ops.image import hsv_to_rgb
