@@ -336,35 +336,26 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Example:
 
         ```python
-        # Create a big model with about 272MB of weights.
-        model = keras.Sequential()
-        model.add(keras.Input(shape=(1024,)))
-        for _ in range(5):
-            model.add(keras.layers.Dense(4096))
+        # Instantiate a EfficientNetV2L model with about 454MB of weights.
+        model = keras.applications.EfficientNetV2L(weights=None)
 
         # Save the weights in a single file.
         model.save_weights("model.weights.h5")
 
-        # Save the weights in sharded files. Use `max_shard_size=0.1` means each
-        # sharded file will be at most ~100MB.
-        model.save_weights("model.weights.json", max_shard_size=0.1)
+        # Save the weights in sharded files. Use `max_shard_size=0.25` means
+        # each sharded file will be at most ~250MB.
+        model.save_weights("model.weights.json", max_shard_size=0.25)
 
         # Load the weights in a new model with the same architecture.
-        loaded_model = keras.Sequential()
-        loaded_model.add(keras.Input(shape=(1024,)))
-        for _ in range(5):
-            loaded_model.add(keras.layers.Dense(4096))
+        loaded_model = keras.applications.EfficientNetV2L(weights=None)
         loaded_model.load_weights("model.weights.h5")
-        x = keras.random.uniform((1, 1024))
+        x = keras.random.uniform((1, 480, 480, 3))
         assert np.allclose(model.predict(x), loaded_model.predict(x))
 
         # Load the sharded weights in a new model with the same architecture.
-        loaded_model = keras.Sequential()
-        loaded_model.add(keras.Input(shape=(1024,)))
-        for _ in range(5):
-            loaded_model.add(keras.layers.Dense(4096))
+        loaded_model = keras.applications.EfficientNetV2L(weights=None)
         loaded_model.load_weights("model.weights.json")
-        x = keras.random.uniform((1, 1024))
+        x = keras.random.uniform((1, 480, 480, 3))
         assert np.allclose(model.predict(x), loaded_model.predict(x))
         ```
 
