@@ -2363,11 +2363,22 @@ def binary_focal_crossentropy(
 
     >>> y_true = [[0, 1], [0, 0]]
     >>> y_pred = [[0.6, 0.4], [0.4, 0.6]]
-    >>> loss = keras.losses.binary_focal_crossentropy(
+    >>> # In this instance, sample 1 in the first batch is the 'harder' example
+    >>> focal_loss = keras.losses.binary_focal_crossentropy(
     ...        y_true, y_pred, gamma=2)
     >>> assert loss.shape == (2,)
-    >>> loss
+    >>> focal_loss
     array([0.330, 0.206], dtype=float32)
+    >>> # Compare with binary_crossentropy
+    >>> bce_loss = keras.losses.binary_focal_crossentropy(
+    ...        y_true, y_pred)
+    >>> bce_loss
+    array([0.916, 0.714], dtype=float32)
+    >>> # Binary focal crossentropy loss attributes more importance to the
+    >>> # harder example which results in a higher loss for the first batch
+    >>> # when normalized by binary cross entropy loss
+    >>> focal_loss/bce_loss
+    array([0.360, 0.289]
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
