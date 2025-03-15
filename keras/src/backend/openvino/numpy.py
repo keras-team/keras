@@ -802,6 +802,7 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
     return OpenVINOKerasTensor(result.output(0))
 
+
 def isfinite(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.is_finite(x).output(0))
