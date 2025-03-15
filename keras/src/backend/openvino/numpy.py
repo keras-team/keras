@@ -836,7 +836,15 @@ def log(x):
 
 
 def log10(x):
-    raise NotImplementedError("`log10` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type)
+    log_x = ov_opset.log(x).output(0)
+    log_10 = ov_opset.constant(np.log(10), log_x.get_element_type()).output(0)
+    result = ov_opset.divide(log_x, log_10).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def log1p(x):
