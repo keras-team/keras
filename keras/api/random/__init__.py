@@ -7,8 +7,10 @@ since your modifications would be overwritten.
 from keras.src.random.random import beta
 from keras.src.random.random import binomial
 from keras.src.random.random import categorical
+from keras.src.random.random import complex_uniform
 from keras.src.random.random import dropout
 from keras.src.random.random import gamma
+from keras.src.random.random import initializer_for_complex
 from keras.src.random.random import normal
 from keras.src.random.random import randint
 from keras.src.random.random import shuffle
