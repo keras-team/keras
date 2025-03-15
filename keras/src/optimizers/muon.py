@@ -7,15 +7,11 @@ from keras.src.optimizers import optimizer
 class Muon(optimizer.Optimizer):
     """Optimizer that implements the Adam algorithm.
 
-    Adam optimization is a stochastic gradient descent method that is based on
-    adaptive estimation of first-order and second-order moments.
+    Muon optimization is a newly Optimizer
 
     According to
-    [Kingma et al., 2014](http://arxiv.org/abs/1412.6980),
+    https://github.com/KellerJordan/Muon
     the method is "*computationally
-    efficient, has little memory requirement, invariant to diagonal rescaling of
-    gradients, and is well suited for problems that are large in terms of
-    data/parameters*".
 
     - This optimizer should not be used for the embedding layer,
     the final fully connected layer, or any {0,1}-D parameters;
