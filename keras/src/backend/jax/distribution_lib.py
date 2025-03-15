@@ -240,10 +240,8 @@ def _to_backend_mesh(device_mesh):
     Returns:
         A `jax.sharding.Mesh` instance.
     """
-    shape = device_mesh.devices.shape
-    devices = [_to_backend_device(d) for d in device_mesh.devices.flatten()]
-    devices = np.array(devices).reshape(shape)
-    return jax.sharding.Mesh(devices, device_mesh.axis_names)
+    shape_tuple = tuple(zip(device_mesh.axis_names, device_mesh.devices.shape))
+    return jax.sharding.AbstractMesh(shape_tuple)
 
 
 def _to_backend_layout(tensor_layout):
