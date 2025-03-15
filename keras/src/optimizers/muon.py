@@ -41,9 +41,9 @@ class Muon(optimizer.Optimizer):
             In general, the embedding layer and the final layer should use adamw
         adam_lr_ratio:float,The ratio of the learning rate when
                 using Adam to the main learning rate
-        momentum: The momentum used by the internal SGD.
-        ns_steps: The number of Newton-Schulz iterations to run.
-        nesterov: Whether to use Nesterov-style momentum in the internal SGD
+        momentum: float,The momentum used by the internal SGD.
+        ns_steps: int,The number of Newton-Schulz iterations to run.
+        nesterov: bool,Whether to use Nesterov-style momentum 
         {{base_optimizer_keyword_args}}
     """
 
