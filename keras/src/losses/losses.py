@@ -2363,7 +2363,8 @@ def binary_focal_crossentropy(
 
     >>> y_true = [[0, 1], [0, 0]]
     >>> y_pred = [[0.6, 0.4], [0.4, 0.6]]
-    >>> # In this instance, sample 1 in the first batch is the 'harder' example
+    >>> # In this instance, the second sample in the second batch is the
+    >>> # 'easier' example.
     >>> focal_loss = keras.losses.binary_focal_crossentropy(
     ...        y_true, y_pred, gamma=2)
     >>> assert loss.shape == (2,)
