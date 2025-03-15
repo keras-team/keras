@@ -12,6 +12,7 @@ from keras.src.optimizers.nadam import Nadam
 from keras.src.optimizers.optimizer import Optimizer
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.optimizers.sgd import SGD
+from keras.src.optimizers.muon import Muon
 from keras.src.saving import serialization_lib
 
 ALL_OBJECTS = {
