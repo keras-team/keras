@@ -43,7 +43,7 @@ class Muon(optimizer.Optimizer):
                 using Adam to the main learning rate
         momentum: float,The momentum used by the internal SGD.
         ns_steps: int,The number of Newton-Schulz iterations to run.
-        nesterov: bool,Whether to use Nesterov-style momentum 
+        nesterov: bool,Whether to use Nesterov-style momentum
         {{base_optimizer_keyword_args}}
     """
 
