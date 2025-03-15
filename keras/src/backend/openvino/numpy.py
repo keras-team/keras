@@ -778,10 +778,29 @@ def imag(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    raise NotImplementedError(
-        "`isclose` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
 
+    x1, x2 = _align_operand_types(x1, x2, "isclose()")
+    diff = ov_opset.subtract(x1, x2)
+    abs_diff = ov_opset.abs(diff)
+
+    abs_b = ov_opset.abs(x2)
+    rtol_times_abs_b = ov_opset.multiply(rtol, abs_b)
+    threshold = ov_opset.add(atol, rtol_times_abs_b)
+    result = ov_opset.less_equal(abs_diff, threshold)
+    if equal_nan:
+        nan_a = ov_opset.is_nan(x1)
+        nan_b = ov_opset.is_nan(x2)
+        nan_equal = ov_opset.logical_and(nan_a, nan_b)
+        result = ov_opset.logical_or(result, nan_equal)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 def isfinite(x):
     x = get_ov_output(x)
