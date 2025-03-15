@@ -778,27 +778,50 @@ def imag(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    if x1 is None or x2 is None:
+        raise ValueError("isclose() requires two non-None inputs for comparison")
 
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+
+    x1_dtype = x1.get_element_type().to_dtype() if hasattr(x1.get_element_type(), 'to_dtype') else str(x1.get_element_type())
+    x2_dtype = x2.get_element_type().to_dtype() if hasattr(x2.get_element_type(), 'to_dtype') else str(x2.get_element_type())
+
+    common_dtype = dtypes.result_type(x1_dtype, x2_dtype, config.floatx())
+
+    if common_dtype not in ('float16', 'float32', 'float64', 'bfloat16'):
+        common_dtype = config.floatx()
+
+    ov_type_map = {
+        'float16': ov_opset.Type.f16,
+        'float32': ov_opset.Type.f32,
+        'float64': ov_opset.Type.f64,
+        'bfloat16': ov_opset.Type.bf16
+    }
+    ov_target_type = ov_type_map.get(common_dtype, ov_opset.Type.f32)
+
+    if x1.get_element_type() != ov_target_type:
+        x1 = ov_opset.convert(x1, ov_target_type)
+    if x2.get_element_type() != ov_target_type:
+        x2 = ov_opset.convert(x2, ov_target_type)
     x1, x2 = _align_operand_types(x1, x2, "isclose()")
+
     diff = ov_opset.subtract(x1, x2)
     abs_diff = ov_opset.abs(diff)
 
-    abs_b = ov_opset.abs(x2)
-    rtol_times_abs_b = ov_opset.multiply(rtol, abs_b)
-    threshold = ov_opset.add(atol, rtol_times_abs_b)
+    atol_const = ov_opset.constant(float(atol), ov_target_type)
+    rtol_const = ov_opset.constant(float(rtol), ov_target_type)
+    abs_x2 = ov_opset.abs(x2)
+    rtol_times_abs_x2 = ov_opset.multiply(rtol_const, abs_x2)
+    threshold = ov_opset.add(atol_const, rtol_times_abs_x2)
+
     result = ov_opset.less_equal(abs_diff, threshold)
+
     if equal_nan:
-        nan_a = ov_opset.is_nan(x1)
-        nan_b = ov_opset.is_nan(x2)
-        nan_equal = ov_opset.logical_and(nan_a, nan_b)
-        result = ov_opset.logical_or(result, nan_equal)
+        nan_x1 = ov_opset.is_nan(x1)
+        nan_x2 = ov_opset.is_nan(x2)
+        both_nan = ov_opset.logical_and(nan_x1, nan_x2)
+        result = ov_opset.logical_or(result, both_nan)
 
     return OpenVINOKerasTensor(result.output(0))
 
