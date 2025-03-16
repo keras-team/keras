@@ -769,6 +769,10 @@ def hstack(xs):
         if isinstance(x, OpenVINOKerasTensor):
             element_type = x.output.get_element_type()
             break
+    if element_type not in [ov.Type.f32]: 
+        xs = [get_ov_output(x, ov.Type.f32) for x in xs]
+    else:
+        xs = [get_ov_output(x, element_type) for x in xs]
     xs = [get_ov_output(x, element_type) for x in xs]
     xs = [_align_operand_types(xs[0], x, "hstack()") for x in xs]
     rank = len(xs[0].get_partial_shape())
