@@ -769,7 +769,7 @@ def hstack(xs):
         if isinstance(x, OpenVINOKerasTensor):
             element_type = x.output.get_element_type()
             break
-    ov_outputs = [get_ov_output(x) for x in xs]
+    ov_outputs = [get_ov_output(x).output(0) for x in xs]
     result_dtype = dtypes.result_type(*[ov_to_keras_type(x.get_element_type()) for x in ov_outputs])
     ov_element_type = OPENVINO_DTYPES[result_dtype]
     xs = [ov_opset.convert(x, ov_element_type) for x in ov_outputs]
