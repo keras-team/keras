@@ -764,7 +764,7 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    xs = get_ov_output(xs)
+    xs = [get_ov_output(x) for x in xs]
     if dtype is not None:
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
         xs = [ov_opset.convert(x, ov_type).output(0) for x in xs]
