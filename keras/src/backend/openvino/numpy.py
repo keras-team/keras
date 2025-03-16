@@ -839,10 +839,11 @@ def log10(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type.is_integral():
-        ov_type = OPENVINO_DTYPES[config.floatx()]
-        x = ov_opset.convert(x, ov_type)
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
     log_x = ov_opset.log(x).output(0)
-    log_10 = ov_opset.constant(np.log(10), log_x.get_element_type()).output(0)
+    const_10 = ov_opset.constant(10, x_type).output(0)
+    log_10 = ov_opset.log(const_10).output(0)
     result = ov_opset.divide(log_x, log_10).output(0)
     return OpenVINOKerasTensor(result)
 
