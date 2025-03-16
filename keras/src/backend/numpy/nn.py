@@ -2,7 +2,6 @@ import jax
 import numpy as np
 from jax import lax
 from numpy.lib._stride_tricks_impl import as_strided
-from scipy.linalg._fblas import dgemm
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
@@ -416,14 +415,12 @@ def np_conv1d(
                 x_in.strides[1],
                 x_in.strides[2],
             ),
-        ).reshape(n_batch * h_out, -1)
-
-        result = dgemm(
-            1.0,
-            x_strided,
-            kernel_weights[
+        ).reshape(n_batch * h_out, kernel_size * ch_in)
+        result = (
+            x_strided
+            @ kernel_weights[
                 ..., grp * ch_out_per_grp : (grp + 1) * ch_out_per_grp
-            ],
+            ]
         )
         out_grps.append(result.reshape(n_batch, h_out, -1))
 
