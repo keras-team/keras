@@ -773,7 +773,7 @@ def hstack(xs):
     base = xs[0]
     aligned_xs = [base]
     for i in range(1, len(xs)):
-        aligned = _align_operand_types(base, xs[i], "hstack()")
+        _, aligned = _align_operand_types(base, xs[i], "hstack()")
         aligned_xs.append(aligned)
     rank = len(base.get_partial_shape())
     axis = 1 if rank > 1 else 0
