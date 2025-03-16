@@ -769,8 +769,8 @@ def hstack(xs):
         if isinstance(x, OpenVINOKerasTensor):
             element_type = x.output.get_element_type()
             break
-    if element_type not in [ov.Type.f32]: 
-        xs = [get_ov_output(x, ov.Type.f32) for x in xs]
+    if element_type not in [ov_opset.Type.f32]: 
+        xs = [get_ov_output(x, ov_opset.Type.f32) for x in xs]
     else:
         xs = [get_ov_output(x, element_type) for x in xs]
     xs = [get_ov_output(x, element_type) for x in xs]
