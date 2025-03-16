@@ -570,7 +570,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 def diff(a, n=1, axis=-1):
     if n == 0:
         return OpenVINOKerasTensor(get_ov_output(a))
-    if n < 0:
+    if n  < 0:
         raise ValueError("order must be non-negative but got " + repr(n))
     a = get_ov_output(a)
     a_type = a.get_element_type()
@@ -764,17 +764,16 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    element_type = None
-    for x in xs:
-        if isinstance(x, OpenVINOKerasTensor):
-            element_type = x.output.get_element_type()
-            break
-    element_type = standardize_dtype(element_type) or config.floatx()
-    if element_type not in OPENVINO_DTYPES:
-        element_type = "float32"
-    element_type = OPENVINO_DTYPES[element_type]
+    first_tensor = xs[0]
+    element_type = first_tensor.output.get_element_type()        
     xs = [get_ov_output(x, element_type) for x in xs]
     xs = [_align_operand_types(xs[0], x, "hstack()") for x in xs]
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        xs = [ov_opset.convert(x, ov_type).output(0) for x in xs]
+    else:
+        dtype = element_type
+        xs = [ov_opset.convert(x, dtype).output(0) for x in xs]
     rank = len(xs[0].get_partial_shape())
     axis = 1 if rank > 1 else 0
     return OpenVINOKerasTensor(ov_opset.concat(xs, axis=axis).output(0))
