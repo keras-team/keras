@@ -763,19 +763,17 @@ def greater_equal(x1, x2):
     return OpenVINOKerasTensor(ov_opset.greater_equal(x1, x2).output(0))
 
 
-def hstack(xs):
-    ov_outputs = [get_ov_output(x).output(0) for x in xs]
-    result_dtype = dtypes.result_type(*[ov_to_keras_type(x.get_element_type()) for x in ov_outputs])
-    ov_element_type = OPENVINO_DTYPES[result_dtype]
-    xs = [ov_opset.convert(x, ov_element_type) for x in ov_outputs]
-    base = xs[0]
-    aligned_xs = [base]
-    for i in range(1, len(xs)):
-        _, aligned = _align_operand_types(base, xs[i], "hstack()")
-        aligned_xs.append(aligned)
-    rank = len(base.get_partial_shape())
+hstack(xs):
+    element_type = None
+    for x in xs:
+        if isinstance(x, OpenVINOKerasTensor):
+            element_type = x.output.get_element_type()
+            break
+    xs = [get_ov_output(x, element_type) for x in xs]
+    xs = [_align_operand_types(xs[0], x, "hstack()") for x in xs]
+    rank = len(xs[0].get_partial_shape())
     axis = 1 if rank > 1 else 0
-    return OpenVINOKerasTensor(ov_opset.concat(aligned_xs, axis=axis).output(0))
+    return OpenVINOKerasTensor(ov_opset.concat(xs, axis=axis).output(0))
 
 
 def identity(n, dtype=None):
