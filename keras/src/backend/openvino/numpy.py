@@ -770,7 +770,12 @@ def hstack(xs):
             element_type = x.output.get_element_type()
             break
     xs = [get_ov_output(x, element_type) for x in xs]
-    xs = [_align_operand_types(xs[0], x, "hstack()")[0] if i == 0 else _align_operand_types(xs[0], x, "hstack()")[1] for i, x in enumerate(xs)]
+    xs = [
+        _align_operand_types(xs[0], x, "hstack()")[0]
+        if i == 0
+        else _align_operand_types(xs[0], x, "hstack()")[1]
+        for i, x in enumerate(xs)
+    ]
     rank = len(xs[0].get_partial_shape())
     axis = 1 if rank > 1 else 0
     return OpenVINOKerasTensor(ov_opset.concat(xs, axis=axis).output(0))
