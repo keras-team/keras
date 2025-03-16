@@ -2149,14 +2149,14 @@ def categorical_focal_crossentropy(
     >>> focal_loss
     array([2.63401289e-04, 6.75912094e-01], dtype=float32)
     >>> # Compare with categorical_crossentropy
-    >>> bce_loss = keras.losses.categorical_crossentropy(
+    >>> cce_loss = keras.losses.categorical_crossentropy(
     ...        y_true, y_pred)
-    >>> bce_loss
+    >>> cce_loss
     array([0.10536054, 2.9957323], dtype=float32)
     >>> # Categorical focal crossentropy loss attributes more importance to the
     >>> # harder example which results in a higher loss for the second example
     >>> # when normalized by categorical cross entropy loss
-    >>> focal_loss/bce_loss
+    >>> focal_loss/cce_loss
     array([0.0025  , 0.225625], dtype=float32)
     """
     if isinstance(axis, bool):
