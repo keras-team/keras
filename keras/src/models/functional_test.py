@@ -580,15 +580,15 @@ class FunctionalTest(testing.TestCase):
                 if y is not None:
                     return x + y
                 return x
-    
+
             def compute_output_shape(self, x_shape):
                 return x_shape
-    
+
         i1 = Input((2,), name="input1")
         i2 = Input((2,), name="input2", optional=True)
         outputs = OptionalInputLayer()(i1, i2)
         model = Model({"input1": i1, "input2": i2}, outputs)
-    
+
         # Eager test
         out = model({"input1": np.ones((2, 2)), "input2": None})
         self.assertAllClose(out, np.ones((2, 2)))
