@@ -771,7 +771,8 @@ def hstack(xs):
             break
     element_type = standardize_dtype(element_type) or config.floatx()
     if element_type not in OPENVINO_DTYPES:
-        element_type = OPENVINO_DTYPES["f32"]
+        element_type = "float32"
+    element_type = OPENVINO_DTYPES[element_type]
     xs = [get_ov_output(x, element_type) for x in xs]
     xs = [_align_operand_types(xs[0], x, "hstack()") for x in xs]
     rank = len(xs[0].get_partial_shape())
