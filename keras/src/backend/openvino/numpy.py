@@ -763,7 +763,7 @@ def greater_equal(x1, x2):
     return OpenVINOKerasTensor(ov_opset.greater_equal(x1, x2).output(0))
 
 
-hstack(xs):
+def hstack(xs):
     element_type = None
     for x in xs:
         if isinstance(x, OpenVINOKerasTensor):
