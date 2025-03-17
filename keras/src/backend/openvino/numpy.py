@@ -832,6 +832,10 @@ def linspace(
 
 def log(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
     return OpenVINOKerasTensor(ov_opset.log(x).output(0))
 
 
