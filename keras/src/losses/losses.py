@@ -1517,16 +1517,16 @@ class CategoricalGeneralizedCrossEntropy(LossFunctionWrapper):
 
     Formula:
     ```python
-    loss = (1 - p^q) / q
+    loss = (1 - p**q) / q
     ```
     where `p` is the predicted probability for the true class and `q`
     is the noise parameter.
 
     Args:
-        q: Float in range (0,1). It is the noise parameter.
+        q: Float in range `(0, 1)`. It is the noise parameter.
            Controls the behavior of the loss:
-            - As q approaches 0: Behaves more like cross entropy
-            - As q approaches 1: Behaves more like mean absolute error
+            - As `q` approaches 0: Behaves more like cross entropy
+            - As `q` approaches 1: Behaves more like mean absolute error
            Defaults to `0.5`
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`. Supported options are
@@ -1546,9 +1546,7 @@ class CategoricalGeneralizedCrossEntropy(LossFunctionWrapper):
     Example:
     ```python
     y_true = np.array([0, 1, 0, 1])
-
     y_pred = np.array([[0.7, 0.3], [0.2, 0.8], [0.6, 0.4], [0.4, 0.6]])
-
     keras.losses.CategoricalGeneralizedCrossEntropy()(y_true, y_pred)
     ```
 
@@ -2693,7 +2691,7 @@ def categorical_generalized_cross_entropy(y_true, y_pred, q):
 
     Formula:
     ```python
-    loss = (1 - p^q) / q
+    loss = (1 - p**q) / q
     ```
     where `p` is the predicted probability for the true class and `q`
     is the noise parameter.
@@ -2703,10 +2701,10 @@ def categorical_generalized_cross_entropy(y_true, y_pred, q):
             with shape `[batch_size]` or `[batch_size, 1]`.
         y_pred: The predicted class probabilities, with shape
             `[batch_size, num_classes]`.
-        q: Float in range (0,1). It is the noise parameter.
+        q: Float in range `(0, 1)`. It is the noise parameter.
            Controls the behavior of the loss:
-            - As q approaches 0: Behaves more like cross entropy
-            - As q approaches 1: Behaves more like mean absolute error
+            - As `q` approaches 0: Behaves more like cross entropy
+            - As `q` approaches 1: Behaves more like mean absolute error
 
     Returns:
         GCE loss values with shape `[batch_size]`.
