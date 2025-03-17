@@ -863,10 +863,12 @@ def logaddexp(x1, x2):
         x2 = ov_opset.convert(x2, ov_type)
     max_element = ov_opset.maximum(x1, x2).output(0)
     exp_k = ov_opset.exp(max_element).output(0)
-    exp_x1 = ov_opset.exp(ov_opset.subtract(x1, max_element).output(0)) \
-            .output(0)
-    exp_x2 = ov_opset.exp(ov_opset.subtract(x2, max_element).output(0)) \
-            .output(0)
+    exp_x1 = ov_opset.exp(ov_opset.subtract(x1, max_element).output(0)).output(
+        0
+    )
+    exp_x2 = ov_opset.exp(ov_opset.subtract(x2, max_element).output(0)).output(
+        0
+    )
     sum_exp = ov_opset.add(exp_x1, exp_x2).output(0)
     mul_exp = ov_opset.multiply(exp_k, sum_exp).output(0)
     return OpenVINOKerasTensor(ov_opset.log(mul_exp).output(0))
