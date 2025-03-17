@@ -770,7 +770,7 @@ def hstack(xs):
         dtype = np.int64
     std_dtype = standardize_dtype(dtype)
     if std_dtype not in OPENVINO_DTYPES:
-        std_dtype = np.int64    
+        std_dtype = np.int64
     ov_type = OPENVINO_DTYPES[std_dtype]
     xs = [ov_opset.convert(x, ov_type) for x in xs]
     ref = xs[0]
