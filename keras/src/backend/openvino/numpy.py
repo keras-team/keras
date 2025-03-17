@@ -765,15 +765,11 @@ def greater_equal(x1, x2):
 
 def hstack(xs):
     xs = [get_ov_output(x) for x in xs]
-    dtype = None
-    if len(xs) > 0:
-        dtype = xs[0].output.get_element_type()
-    if dtype is not None:
-        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
-        xs = [ov_opset.convert(x, ov_type).output(0) for x in xs]
-    else:
-        dtype = xs[0].output.get_element_type()
-    xs = [_align_operand_types(xs[0], x, "hstack()") for x in xs]
+    dtype = xs[0].get_element_type()
+    ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+    xs = [ov_opset.convert(x, ov_type) for x in xs]
+    reference = xs[0]
+    xs = [_align_operand_types(reference, x, "hstack()") for x in xs]    
     return OpenVINOKerasTensor(ov_opset.concat(xs, axis=1).output(0))
 
 
