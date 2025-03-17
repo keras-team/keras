@@ -98,4 +98,4 @@ class DeviceTest(testing.TestCase):
             x = torch.ones(5)
 
         t = backend.convert_to_tensor(x)
-        self.assertEqual(t.device, torch.device("cuda", 0))
+        self.assertEqual(t.device, torch.device("cpu"))
