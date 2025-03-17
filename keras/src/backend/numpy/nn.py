@@ -79,7 +79,7 @@ def silu(x):
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
     b = convert_to_tensor(b, dtype=x.dtype)
-    y = x + np.sqrt(x ** 2 + b)
+    y = x + np.sqrt(x**2 + b)
     return y / 2
 
 
@@ -116,9 +116,9 @@ def elu(x, alpha=1.0):
 
 
 def selu(
-        x,
-        alpha=1.6732632423543772848170429916717,
-        scale=1.0507009873554804934193349852946,
+    x,
+    alpha=1.6732632423543772848170429916717,
+    scale=1.0507009873554804934193349852946,
 ):
     x = convert_to_tensor(x)
     return np.array(scale, x.dtype) * elu(x, alpha)
@@ -130,19 +130,19 @@ def gelu(x, approximate=True):
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
         cdf = np.array(0.5, x.dtype) * (
-                np.array(1.0, x.dtype)
-                + np.tanh(
-            sqrt_2_over_pi
-            * (x + np.array(0.044715, x.dtype) * (x ** 3).astype(x.dtype))
-        )
+            np.array(1.0, x.dtype)
+            + np.tanh(
+                sqrt_2_over_pi
+                * (x + np.array(0.044715, x.dtype) * (x**3).astype(x.dtype))
+            )
         )
         return x * cdf
     else:
         sqrt_2 = np.sqrt(2).astype(x.dtype)
         return (
-                x
-                * (scipy.special.erf(x / sqrt_2) + 1).astype(x.dtype)
-                / np.array(2, x.dtype)
+            x
+            * (scipy.special.erf(x / sqrt_2) + 1).astype(x.dtype)
+            / np.array(2, x.dtype)
         )
 
 
@@ -216,10 +216,10 @@ def sparsemax(logits, axis=-1):
 
 
 def _convert_to_spatial_operand(
-        x,
-        num_spatial_dims,
-        data_format="channels_last",
-        include_batch_and_channels=True,
+    x,
+    num_spatial_dims,
+    data_format="channels_last",
+    include_batch_and_channels=True,
 ):
     # Helper function that converts an operand to a spatial operand.
     x = (x,) * num_spatial_dims if isinstance(x, int) else x
@@ -233,12 +233,12 @@ def _convert_to_spatial_operand(
 
 
 def _pool(
-        inputs,
-        initial_value,
-        reduce_fn,
-        pool_size,
-        strides=None,
-        padding="valid",
+    inputs,
+    initial_value,
+    reduce_fn,
+    pool_size,
+    strides=None,
+    padding="valid",
 ):
     """Helper function to define pooling functions.
 
@@ -273,11 +273,11 @@ def _pool(
 
 
 def max_pool(
-        inputs,
-        pool_size,
-        strides=None,
-        padding="valid",
-        data_format=None,
+    inputs,
+    pool_size,
+    strides=None,
+    padding="valid",
+    data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
@@ -292,11 +292,11 @@ def max_pool(
 
 
 def average_pool(
-        inputs,
-        pool_size,
-        strides,
-        padding,
-        data_format=None,
+    inputs,
+    pool_size,
+    strides,
+    padding,
+    data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
@@ -332,9 +332,9 @@ def average_pool(
 
 
 def _convert_to_lax_conv_dimension_numbers(
-        num_spatial_dims,
-        data_format="channels_last",
-        transpose=False,
+    num_spatial_dims,
+    data_format="channels_last",
+    transpose=False,
 ):
     """Create a `lax.ConvDimensionNumbers` for the given inputs."""
     num_dims = num_spatial_dims + 2
@@ -365,13 +365,13 @@ def _same_padding(input_size, kernel_size, stride):
 
 
 def np_conv1d(
-        x,
-        kernel_weights,
-        strides,
-        padding,
-        data_format,
-        dilation_rate,
-        groups,
+    x,
+    kernel_weights,
+    strides,
+    padding,
+    data_format,
+    dilation_rate,
+    groups,
 ):
     if data_format == "channels_first":
         x = x.swapaxes(1, 2)
@@ -405,7 +405,7 @@ def np_conv1d(
     out_grps = []
     ch_out_per_grp = ch_out // groups
     for grp in range(groups):
-        x_in = x[..., grp * ch_in: (grp + 1) * ch_in]
+        x_in = x[..., grp * ch_in : (grp + 1) * ch_in]
         stride_shape = (n_batch, h_out, kernel_size, ch_in)
         strides = (
             x_in.strides[0],
@@ -420,8 +420,8 @@ def np_conv1d(
         ).reshape(-1, inner_dim)
 
         kernel_weights_grp = kernel_weights[
-                             ..., grp * ch_out_per_grp: (grp + 1) * ch_out_per_grp
-                             ]
+            ..., grp * ch_out_per_grp : (grp + 1) * ch_out_per_grp
+        ]
         result = x_strided @ kernel_weights_grp
         out_grps.append(result.reshape(n_batch, h_out, -1))
     out = np.concatenate(out_grps, axis=-1)
@@ -431,13 +431,13 @@ def np_conv1d(
 
 
 def np_conv2d(
-        x,
-        kernel_weights,
-        strides,
-        padding,
-        data_format,
-        dilation_rate,
-        groups,
+    x,
+    kernel_weights,
+    strides,
+    padding,
+    data_format,
+    dilation_rate,
+    groups,
 ):
     if data_format == "channels_first":
         x = x.transpose((0, 2, 3, 1))
@@ -479,7 +479,7 @@ def np_conv2d(
     out_grps = []
     ch_out_groups = ch_out // groups
     for grp in range(1, groups + 1):
-        x_in = x[..., (grp - 1) * ch_in: grp * ch_in]
+        x_in = x[..., (grp - 1) * ch_in : grp * ch_in]
 
         stride_shape = (n_batch, h_out, w_out, h_kernel, w_kernel, ch_in)
         strides = (
@@ -497,8 +497,8 @@ def np_conv2d(
         ).reshape(-1, inner_dim)
 
         kernel_weights_grp = kernel_weights[
-                             ..., (grp - 1) * ch_out_groups: grp * ch_out_groups
-                             ].reshape(-1, ch_out_groups)
+            ..., (grp - 1) * ch_out_groups : grp * ch_out_groups
+        ].reshape(-1, ch_out_groups)
         out_grps.append(
             (x_strided @ kernel_weights_grp).reshape(n_batch, h_out, w_out, -1)
         )
@@ -511,13 +511,13 @@ def np_conv2d(
 
 
 def np_conv3d(
-        x,
-        kernel_weights,
-        strides,
-        padding,
-        data_format,
-        dilation_rate,
-        groups,
+    x,
+    kernel_weights,
+    strides,
+    padding,
+    data_format,
+    dilation_rate,
+    groups,
 ):
     if data_format == "channels_first":
         x = x.transpose((0, 2, 3, 4, 1))
@@ -570,7 +570,7 @@ def np_conv3d(
     out_grps = []
     ch_out_groups = ch_out // groups
     for grp in range(1, groups + 1):
-        x_in = x[..., (grp - 1) * ch_in: grp * ch_in]
+        x_in = x[..., (grp - 1) * ch_in : grp * ch_in]
         stride_shape = (
             n_batch,
             h_out,
@@ -598,8 +598,8 @@ def np_conv3d(
         x_strided = x_strided.reshape(-1, inner_dim)
 
         kernel_weights_grp = kernel_weights[
-                             ..., (grp - 1) * ch_out_groups: grp * ch_out_groups
-                             ].reshape(-1, ch_out_groups)
+            ..., (grp - 1) * ch_out_groups : grp * ch_out_groups
+        ].reshape(-1, ch_out_groups)
 
         result = x_strided @ kernel_weights_grp
         out_grps.append(result.reshape(n_batch, h_out, w_out, d_out, -1))
@@ -611,12 +611,12 @@ def np_conv3d(
 
 
 def conv(
-        inputs,
-        kernel,
-        strides=1,
-        padding="valid",
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
@@ -684,12 +684,12 @@ def conv(
 
 
 def depthwise_conv(
-        inputs,
-        kernel,
-        strides=1,
-        padding="valid",
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
@@ -731,13 +731,13 @@ def depthwise_conv(
 
 
 def separable_conv(
-        inputs,
-        depthwise_kernel,
-        pointwise_kernel,
-        strides=1,
-        padding="valid",
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    depthwise_kernel,
+    pointwise_kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
     depthwise_conv_output = depthwise_conv(
@@ -759,13 +759,13 @@ def separable_conv(
 
 
 def conv_transpose(
-        inputs,
-        kernel,
-        strides=1,
-        padding="valid",
-        output_padding=None,
-        data_format=None,
-        dilation_rate=1,
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    output_padding=None,
+    data_format=None,
+    dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
@@ -956,7 +956,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
 
 
 def batch_normalization(
-        x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
@@ -1013,7 +1013,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     repeat = (target[:, :-1] == target[:, 1:]).astype(np.float32)
     repeat = np.pad(repeat, ((0, 0), (0, 1)))
 
-    logprobs_phi = logprobs[:, :, mask_index: mask_index + 1]  # [B, T, 1]
+    logprobs_phi = logprobs[:, :, mask_index : mask_index + 1]  # [B, T, 1]
     logprobs_phi = np.transpose(logprobs_phi, (1, 0, 2))  # [T, B, 1]
 
     _one_hot = one_hot(target, num_classes=num_classes)  # [B, N, K]
@@ -1022,13 +1022,13 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
     # [B, N]
     logalpha_phi_init = (
-            np.ones((batch_size, max_label_length + 1), dtype=output.dtype)
-            * log_epsilon
+        np.ones((batch_size, max_label_length + 1), dtype=output.dtype)
+        * log_epsilon
     )
     logalpha_phi_init[:, 0] = 0.0
     logalpha_emit_init = (
-            np.ones((batch_size, max_label_length), dtype=output.dtype)
-            * log_epsilon
+        np.ones((batch_size, max_label_length), dtype=output.dtype)
+        * log_epsilon
     )
 
     def update_phi_score(phi, added_score):
@@ -1090,10 +1090,10 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
 
 def _ctc_greedy_decode(
-        inputs,
-        sequence_lengths,
-        merge_repeated=True,
-        mask_index=None,
+    inputs,
+    sequence_lengths,
+    merge_repeated=True,
+    mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
     sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
@@ -1133,11 +1133,11 @@ def _ctc_greedy_decode(
 
 
 def _ctc_beam_search_decode(
-        inputs,
-        sequence_lengths,
-        beam_width=100,
-        top_paths=1,
-        mask_index=None,
+    inputs,
+    sequence_lengths,
+    beam_width=100,
+    top_paths=1,
+    mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
     sequence_lengths = convert_to_tensor(sequence_lengths)
@@ -1253,7 +1253,7 @@ def _ctc_beam_search_decode(
         return (paths, scores, masked), None
 
     def _decode_batch(
-            init_paths, init_scores, init_masked, inputs, seqlen_mask
+        init_paths, init_scores, init_masked, inputs, seqlen_mask
     ):
         def np_scan_only_carry(f, init, xs):
             carry = init
@@ -1298,13 +1298,13 @@ def _ctc_beam_search_decode(
 
 
 def ctc_decode(
-        inputs,
-        sequence_lengths,
-        strategy="greedy",
-        beam_width=100,
-        top_paths=1,
-        merge_repeated=True,
-        mask_index=0,
+    inputs,
+    sequence_lengths,
+    strategy="greedy",
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=True,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
     dtype = backend.result_type(inputs.dtype, "float32")
@@ -1401,15 +1401,15 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
 
 
 def dot_product_attention(
-        query,
-        key,
-        value,
-        bias=None,
-        mask=None,
-        scale=None,
-        is_causal=False,
-        flash_attention=None,
-        attn_logits_soft_cap=None,
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     if flash_attention is None:
         flash_attention = False
