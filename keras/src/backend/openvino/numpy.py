@@ -767,15 +767,15 @@ def hstack(xs):
     xs = [get_ov_output(x) for x in xs]
     dtype = xs[0].get_element_type()
     if dtype is None:
-        dtype = np.int64
-    std_dtype = standardize_dtype(dtype)
-    if std_dtype not in OPENVINO_DTYPES:
-        std_dtype = np.int64
-    ov_type = OPENVINO_DTYPES[std_dtype]
-    xs = [ov_opset.convert(x, ov_type) for x in xs]
+        dtype = np.float32
+    std_dtype = standardize_dtype(dtype) or config.floatx()
+    std_dtype = std_dtype if std_dtype in OPENVINO_DTYPES else np.float32
+    ov_type = OPENVINO_DTYPES.get(std_dtype, np.float32)
+    xs = [ov.opset8.convert(x, ov_type) for x in xs]
     ref = xs[0]
     aligned_xs = [_align_operand_types(ref, x, "hstack()") for x in xs]
-    return OpenVINOKerasTensor(ov_opset.concat(aligned_xs, axis=1).output(0))
+    result = ov.opset8.concat(aligned_xs, axis=1)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def identity(n, dtype=None):
