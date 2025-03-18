@@ -28,11 +28,12 @@ def setup_package():
     whl_path = re.findall(
         r"[^\s]*\.whl",
         build_process.stdout,
-    )[-1]
+    )
     if not whl_path:
+        print(build_process.stdout)
         print(build_process.stderr)
         raise ValueError("Installing Keras package unsuccessful. ")
-    return whl_path
+    return whl_path[-1]
 
 
 def create_virtualenv():

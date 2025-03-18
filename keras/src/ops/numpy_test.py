@@ -6229,16 +6229,16 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.BitwiseXor().symbolic_call(x1, x2), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+        named_product(dtypes=itertools.product(INT_DTYPES, INT_DTYPES + [None]))
     )
     def test_bitwise_left_shift(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
+        x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
+        x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(jnp.left_shift(x1_jax, x2_jax).dtype)
 
         self.assertDType(knp.bitwise_left_shift(x1, x2), expected_dtype)
@@ -6249,16 +6249,16 @@ class NumpyDtypeTest(testing.TestCase):
     # left_shift is same as bitwise_left_shift
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+        named_product(dtypes=itertools.product(INT_DTYPES, INT_DTYPES + [None]))
     )
     def test_bitwise_right_shift(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
+        x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
+        x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(
             jnp.right_shift(x1_jax, x2_jax).dtype
         )

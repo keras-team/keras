@@ -151,9 +151,6 @@ class Discretization(TFDataLayer):
         else:
             self.summary = np.array([[], []], dtype="float32")
 
-    def build(self, input_shape=None):
-        self.built = True
-
     @property
     def input_dtype(self):
         return backend.floatx()

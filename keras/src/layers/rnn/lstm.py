@@ -191,7 +191,6 @@ class LSTMCell(Layer, DropoutRNNCell):
             )
         else:
             self.bias = None
-        self.built = True
 
     def _compute_carry_and_output(self, x, h_tm1, c_tm1):
         """Computes carry and output using split kernels."""

@@ -117,6 +117,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_contrast import (
 from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
     RandomCrop,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_elastic_transform import (
+    RandomElasticTransform,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_erasing import (
     RandomErasing,
 )

@@ -116,11 +116,20 @@ class TFSMLayer(layers.Layer):
             self._add_existing_weight(v)
         for v in ntvs:
             self._add_existing_weight(v)
-        self.built = True
+
+        self._build_at_init()
 
     def _add_existing_weight(self, weight):
         """Tracks an existing weight."""
-        self._track_variable(weight)
+        variable = backend.Variable(
+            initializer=weight,
+            trainable=weight.trainable,
+            dtype=weight.dtype,
+            shape=weight.shape,
+            # Keras variable names cannot contain slashes.
+            name=weight.name.replace("/", "_"),
+        )
+        self._track_variable(variable)
 
     def call(self, inputs, training=False, **kwargs):
         if training:

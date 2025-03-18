@@ -36,13 +36,16 @@ class Variable(
         return self.value.handle
 
     def _initialize(self, value):
-        self._value = tf.Variable(
-            value,
-            dtype=self._dtype,
-            trainable=self.trainable,
-            name=self.name,
-            aggregation=self._map_aggregation(self.aggregation),
-        )
+        if isinstance(value, tf.Variable):
+            self._value = value
+        else:
+            self._value = tf.Variable(
+                value,
+                dtype=self._dtype,
+                trainable=self.trainable,
+                name=self.name,
+                aggregation=self._map_aggregation(self.aggregation),
+            )
 
     def _initialize_with_initializer(self, initializer):
         self._initialize(lambda: initializer(self._shape, dtype=self._dtype))
@@ -138,7 +141,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             x = tf.convert_to_tensor(x)
             return tf.cast(x, dtype)
         return tf.convert_to_tensor(x, dtype=dtype)
-    elif dtype is not None and not x.dtype == dtype:
+    elif dtype is not None and not standardize_dtype(x.dtype) == dtype:
         if isinstance(x, tf.SparseTensor):
             x_shape = x.shape
             x = tf.cast(x, dtype)

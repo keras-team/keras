@@ -16,6 +16,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
+from keras.src.models.model import model_from_json
 
 
 class FunctionalTest(testing.TestCase):
@@ -271,6 +272,19 @@ class FunctionalTest(testing.TestCase):
         # Symbolic call
         out_val = model_restored(Input(shape=(3,), batch_size=2))
         self.assertIsInstance(out_val, out_type)
+
+    def test_restored_nested_input(self):
+        input_a = Input(shape=(3,), batch_size=2, name="input_a")
+        x = layers.Dense(5)(input_a)
+        outputs = layers.Dense(4)(x)
+        model = Functional([[input_a]], outputs)
+
+        # Serialize and deserialize the model
+        json_config = model.to_json()
+        restored_json_config = model_from_json(json_config).to_json()
+
+        # Check that the serialized model is the same as the original
+        self.assertEqual(json_config, restored_json_config)
 
     @pytest.mark.requires_trainable_backend
     def test_layer_getters(self):

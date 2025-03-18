@@ -1458,3 +1458,132 @@ def gaussian_blur(
         sigma=sigma,
         data_format=data_format,
     )
+
+
+class ElasticTransform(Operation):
+    def __init__(
+        self,
+        alpha=20.0,
+        sigma=5.0,
+        interpolation="bilinear",
+        fill_mode="reflect",
+        fill_value=0.0,
+        seed=None,
+        data_format=None,
+    ):
+        super().__init__()
+        self.alpha = alpha
+        self.sigma = sigma
+        self.interpolation = interpolation
+        self.fill_mode = fill_mode
+        self.fill_value = fill_value
+        self.seed = seed
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.elastic_transform(
+            images,
+            alpha=self.alpha,
+            sigma=self.sigma,
+            interpolation=self.interpolation,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
+            seed=self.seed,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, images):
+        if len(images.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
+            )
+        return KerasTensor(images.shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.elastic_transform")
+def elastic_transform(
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
+    seed=None,
+    data_format=None,
+):
+    """Applies elastic deformation to the image(s).
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        alpha: Scaling factor that controls the intensity of the deformation.
+        sigma: Standard deviation of the Gaussian filter used for
+            smoothing the displacement fields.
+        interpolation: Interpolation method. Available methods are `"nearest"`,
+            and `"bilinear"`. Defaults to `"bilinear"`.
+        fill_mode: Points outside the boundaries of the input are filled
+            according to the given mode. Available methods are `"constant"`,
+            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"constant"`.
+            - `"reflect"`: `(d c b a | a b c d | d c b a)`
+                The input is extended by reflecting about the edge of the last
+                pixel.
+            - `"constant"`: `(k k k k | a b c d | k k k k)`
+                The input is extended by filling all values beyond
+                the edge with the same constant value k specified by
+                `fill_value`.
+            - `"wrap"`: `(a b c d | a b c d | a b c d)`
+                The input is extended by wrapping around to the opposite edge.
+            - `"nearest"`: `(a a a a | a b c d | d d d d)`
+                The input is extended by the nearest pixel.
+        fill_value: Value used for points outside the boundaries of the input if
+            `fill_mode="constant"`. Defaults to `0`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        Transformed image or batch of images with elastic deformation.
+
+    Examples:
+
+    >>> x = np.random.random((2, 64, 80, 3))  # batch of 2 RGB images
+    >>> y = keras.ops.image.elastic_transform(x)
+    >>> y.shape
+    (2, 64, 80, 3)
+
+    >>> x = np.random.random((64, 80, 3))  # single RGB image
+    >>> y = keras.ops.image.elastic_transform(x)
+    >>> y.shape
+    (64, 80, 3)
+
+    >>> x = np.random.random((2, 3, 64, 80))  # batch of 2 RGB images
+    >>> y = keras.ops.image.elastic_transform(
+    ...     x, data_format="channels_first")
+    >>> y.shape
+    (2, 3, 64, 80)
+    """
+    if any_symbolic_tensors((images,)):
+        return ElasticTransform(
+            alpha=alpha,
+            sigma=sigma,
+            interpolation=interpolation,
+            fill_mode=fill_mode,
+            fill_value=fill_value,
+            seed=seed,
+            data_format=data_format,
+        ).symbolic_call(images)
+    return backend.image.elastic_transform(
+        images,
+        alpha=alpha,
+        sigma=sigma,
+        interpolation=interpolation,
+        fill_mode=fill_mode,
+        fill_value=fill_value,
+        seed=seed,
+        data_format=data_format,
+    )
