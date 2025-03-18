@@ -342,7 +342,12 @@ def argmax(x, axis=None, keepdims=False):
             axis = rank + axis
         k = ov_opset.constant(1, Type.i32).output(0)
     topk_outputs = ov_opset.topk(
-        x, k=k, axis=axis, mode="max", sort="none", index_element_type=Type.i32
+        x,
+        k=k, 
+        axis=axis,
+        mode="max", 
+        sort="none",
+        index_element_type=Type.i32
     )
     topk_indices = topk_outputs.output(1)
     if not keepdims:
