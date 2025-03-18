@@ -105,8 +105,9 @@ class Muon(optimizer.Optimizer):
         self.ns_steps = ns_steps
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
-        # exclude_layers should be a key word
-        assert isinstance(exclude_layers, str)
+        # exclude_layers is a keyword at variable path
+        # so it must be a string
+        assert isinstance(exclude_layers, str) or exclude_layers is None
         self.exclude_layers = exclude_layers.lower()
 
     def _should_use_adamw(self, variable):
