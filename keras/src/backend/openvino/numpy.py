@@ -353,7 +353,7 @@ def argmax(x, axis=None, keepdims=False):
     else:
         topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
     return OpenVINOKerasTensor(topk_indices)
-    
+
 
 def argmin(x, axis=None, keepdims=False):
     x = get_ov_output(x)
