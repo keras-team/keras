@@ -582,9 +582,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         if is_functional_config and revivable_as_functional:
             # Revive Functional model
             # (but not Functional subclasses with a custom __init__)
-            from keras.src.models.functional import functional_from_config
+            from keras.src.models.functional import function_from_config
 
-            return functional_from_config(
+            return function_from_config(
                 cls, config, custom_objects=custom_objects
             )
 

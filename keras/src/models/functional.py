@@ -171,19 +171,9 @@ class Functional(Function, Model):
         )
 
     def call(self, inputs, training=None, mask=None):
-        # Add support for training, masking
-        inputs = self._standardize_inputs(inputs)
-        if mask is None:
-            masks = [None] * len(inputs)
-        else:
-            masks = tree.flatten(mask)
-            for x, mask in zip(inputs, masks):
-                if mask is not None:
-                    backend.set_keras_mask(x, mask)
-        outputs = self._run_through_graph(
-            inputs, operation_fn=lambda op: operation_fn(op, training=training)
+        return run_through_graph_with_training_and_mask(
+            self, inputs, training, mask
         )
-        return unpack_singleton(outputs)
 
     def compute_output_spec(self, inputs, training=None, mask=None):
         # From Function
@@ -213,114 +203,6 @@ class Functional(Function, Model):
     def _assert_input_compatibility(self, *args):
         return super(Model, self)._assert_input_compatibility(*args)
 
-    def _maybe_warn_inputs_struct_mismatch(self, inputs, raise_exception=False):
-        try:
-            # We first normalize to tuples before performing the check to
-            # suppress warnings when encountering mismatched tuples and lists.
-            tree.assert_same_structure(
-                tree.lists_to_tuples(inputs),
-                tree.lists_to_tuples(self._inputs_struct),
-            )
-        except:
-            model_inputs_struct = tree.map_structure(
-                lambda x: x.name, self._inputs_struct
-            )
-            inputs_struct = tree.map_structure(
-                lambda x: f"Tensor(shape={x.shape})", inputs
-            )
-            msg = (
-                "The structure of `inputs` doesn't match the expected "
-                f"structure.\nExpected: {model_inputs_struct}\n"
-                f"Received: inputs={inputs_struct}"
-            )
-            if raise_exception:
-                raise ValueError(msg)
-            warnings.warn(msg)
-
-    def _convert_inputs_to_tensors(self, flat_inputs):
-        converted = []
-        for x, input in zip(flat_inputs, self._inputs):
-            if x is None:  # TODO: check if optional
-                converted.append(x)
-            else:
-                converted.append(
-                    ops.convert_to_tensor(
-                        x, dtype=input.dtype, sparse=input.sparse
-                    )
-                )
-        return converted
-
-    def _adjust_input_rank(self, flat_inputs):
-        flat_ref_shapes = [x.shape for x in self._inputs]
-        adjusted = []
-        for x, ref_shape in zip(flat_inputs, flat_ref_shapes):
-            if x is None:
-                adjusted.append(x)
-                continue
-            x_rank = len(x.shape)
-            ref_rank = len(ref_shape)
-            if x_rank == ref_rank:
-                adjusted.append(x)
-                continue
-            if x_rank == ref_rank + 1:
-                if x.shape[-1] == 1:
-                    adjusted.append(ops.squeeze(x, axis=-1))
-                    continue
-            if x_rank == ref_rank - 1:
-                if ref_shape[-1] == 1:
-                    adjusted.append(ops.expand_dims(x, axis=-1))
-                    continue
-            raise ValueError(
-                f"Invalid input shape for input {x}. Expected shape "
-                f"{ref_shape}, but input has incompatible shape {x.shape}"
-            )
-        # Add back metadata.
-        for i in range(len(flat_inputs)):
-            if hasattr(flat_inputs[i], "_keras_history"):
-                adjusted[i]._keras_history = flat_inputs[i]._keras_history
-            mask = backend.get_keras_mask(flat_inputs[i])
-            if mask is not None:
-                backend.set_keras_mask(adjusted[i], mask)
-        return adjusted
-
-    def _standardize_inputs(self, inputs):
-        raise_exception = False
-        if isinstance(inputs, dict) and not isinstance(
-            self._inputs_struct, dict
-        ):
-            # This is to avoid warning
-            # when we have reconciable dict/list structs
-            if hasattr(self._inputs_struct, "__len__") and all(
-                isinstance(i, backend.KerasTensor) for i in self._inputs_struct
-            ):
-                expected_keys = set(i.name for i in self._inputs_struct)
-                keys = set(inputs.keys())
-                if expected_keys.issubset(keys):
-                    inputs = [inputs[i.name] for i in self._inputs_struct]
-                else:
-                    raise_exception = True
-            elif isinstance(self._inputs_struct, backend.KerasTensor):
-                if self._inputs_struct.name in inputs:
-                    inputs = [inputs[self._inputs_struct.name]]
-                else:
-                    raise_exception = True
-            else:
-                raise_exception = True
-        if (
-            isinstance(self._inputs_struct, dict)
-            and not isinstance(inputs, dict)
-            and list(self._inputs_struct.keys())
-            != sorted(self._inputs_struct.keys())
-        ):
-            raise_exception = True
-        self._maybe_warn_inputs_struct_mismatch(
-            inputs, raise_exception=raise_exception
-        )
-
-        flat_inputs = tree.flatten(inputs)
-        flat_inputs = self._convert_inputs_to_tensors(flat_inputs)
-        return self._adjust_input_rank(flat_inputs)
-
     @property
     def input(self):
         # For backwards compatibility,
@@ -340,44 +222,7 @@ class Functional(Function, Model):
     def input_spec(self):
         if hasattr(self, "_manual_input_spec"):
             return self._manual_input_spec
-
-        def shape_with_no_batch_size(x):
-            x = list(x)
-            if x:
-                x[0] = None
-            return tuple(x)
-
-        def make_spec_for_tensor(x):
-            optional = False
-            if isinstance(x._keras_history[0], InputLayer):
-                if x._keras_history[0].optional:
-                    optional = True
-            return InputSpec(
-                shape=shape_with_no_batch_size(x.shape),
-                allow_last_axis_squeeze=True,
-                name=x._keras_history[0].name,
-                optional=optional,
-            )
-
-        if isinstance(self._inputs_struct, dict):
-            if all(
-                isinstance(x, backend.KerasTensor)
-                for x in self._inputs_struct.values()
-            ):
-                # Case where `_nested_inputs` is a plain dict of Inputs.
-                names = sorted(self._inputs_struct.keys())
-                return [
-                    InputSpec(
-                        shape=shape_with_no_batch_size(
-                            self._inputs_struct[name].shape
-                        ),
-                        allow_last_axis_squeeze=True,
-                        name=name,
-                    )
-                    for name in names
-                ]
-            return None  # Deeply nested dict: skip checks.
-        return [make_spec_for_tensor(x) for x in self.inputs]
+        return compute_input_spec(self._inputs_struct, self._inputs)
 
     @input_spec.setter
     def input_spec(self, value):
@@ -390,81 +235,311 @@ class Functional(Function, Model):
             # the author of the subclassed network).
             return Model.get_config(self)
 
-        config = {
-            "name": self.name,
-            "trainable": self.trainable,
-        }
-        # Build a map from a layer unique name (make_node_key)
-        # to the index of the nodes that are saved in the config.
-        # Only nodes in network_nodes are saved.
-        node_reindexing_map = {}
-        for operation in self.operations:
-            if issubclass(operation.__class__, Functional):
-                # Functional models start with a pre-existing node
-                # linking their input to output.
-                kept_nodes = 1
-            else:
-                kept_nodes = 0
-            for original_node_index, node in enumerate(
-                operation._inbound_nodes
-            ):
-                node_key = make_node_key(operation, original_node_index)
-                if node_key in self._nodes:
-                    # i.e. we mark it to be saved
-                    node_reindexing_map[node_key] = kept_nodes
-                    kept_nodes += 1
-
-        # serialize and save the layers in layer_configs
-        layer_configs = []
-        for operation in self.operations:  # From the earliest layers on.
-            filtered_inbound_nodes = []
-            for original_node_index, node in enumerate(
-                operation._inbound_nodes
-            ):
-                node_key = make_node_key(operation, original_node_index)
-                if node_key in self._nodes:
-                    # The node is relevant to the model:
-                    # add to filtered_inbound_nodes.
-                    node_data = serialize_node(node, own_nodes=self._nodes)
-                    if node_data is not None:
-                        filtered_inbound_nodes.append(node_data)
-
-            serialize_obj_fn = serialization_lib.serialize_keras_object
-            if global_state.get_global_attribute("use_legacy_config", False):
-                # Legacy format serialization used for H5 and SavedModel
-                serialize_obj_fn = legacy_serialization.serialize_keras_object
-            layer_config = serialize_obj_fn(operation)
-            layer_config["name"] = operation.name
-            layer_config["inbound_nodes"] = filtered_inbound_nodes
-            layer_configs.append(layer_config)
-        config["layers"] = layer_configs
-
-        # Gather info about inputs and outputs.
-        def get_tensor_config(tensor):
-            operation = tensor._keras_history[0]
-            node_index = tensor._keras_history[1]
-            tensor_index = tensor._keras_history[2]
-            node_key = make_node_key(operation, node_index)
-            assert node_key in self._nodes
-            new_node_index = node_reindexing_map[node_key]
-            return [operation.name, new_node_index, tensor_index]
-
-        def map_tensors(tensors):
-            if isinstance(tensors, backend.KerasTensor):
-                return [get_tensor_config(tensors)]
-            return tree.map_structure(get_tensor_config, tensors)
-
-        config["input_layers"] = map_tensors(self._inputs_struct)
-        config["output_layers"] = map_tensors(self._outputs_struct)
-        return copy.deepcopy(config)
+        return serialize_functional_config(self, self)
 
 
-def functional_from_config(cls, config, custom_objects=None):
-    """Instantiates a Functional model from its config (from `get_config()`).
+def compute_input_spec(inputs_struct, inputs):
+    """Compute the input spec for a Function-based layer or Model.
 
     Args:
-        cls: Class of the model, e.g. a custom subclass of `Model`.
-        config: Output of `get_config()` for the original model instance.
+        inputs_struct: Input structure of the layer or model
+        inputs: List of input tensors
+
+    Returns:
+        InputSpec object or structure
+    """
+
+    def shape_with_no_batch_size(x):
+        x = list(x)
+        if x:
+            x[0] = None
+        return tuple(x)
+
+    def make_spec_for_tensor(x):
+        optional = False
+        if isinstance(x._keras_history[0], InputLayer):
+            if x._keras_history[0].optional:
+                optional = True
+        return InputSpec(
+            shape=shape_with_no_batch_size(x.shape),
+            allow_last_axis_squeeze=True,
+            name=x._keras_history[0].name,
+            optional=optional,
+        )
+
+    if isinstance(inputs_struct, dict):
+        if all(
+            isinstance(x, backend.KerasTensor) for x in inputs_struct.values()
+        ):
+            # Case where `_nested_inputs` is a plain dict of Inputs.
+            names = sorted(inputs_struct.keys())
+            return [
+                InputSpec(
+                    shape=shape_with_no_batch_size(inputs_struct[name].shape),
+                    allow_last_axis_squeeze=True,
+                    name=name,
+                )
+                for name in names
+            ]
+        return None  # Deeply nested dict: skip checks.
+    return [make_spec_for_tensor(x) for x in inputs]
+
+
+def run_through_graph_with_training_and_mask(
+    function_obj, inputs, training=None, mask=None
+):
+    """Run inputs through a Function graph, injecting training and mask arks.
+
+    Args:
+        function_obj: Function object to execute
+        inputs: Input values
+        training: Training mode boolean
+        mask: Input mask values
+
+    Returns:
+        Output values from the Function
+    """
+    inputs = _standardize_inputs(function_obj, inputs)
+
+    # Set masks if provided
+    if mask is not None:
+        masks = tree.flatten(mask)
+        for x, m in zip(inputs, masks):
+            if m is not None and x is not None:
+                from keras.src.backend import set_keras_mask
+
+                set_keras_mask(x, m)
+
+    # Run the function with modified operation_fn that handles training
+    outputs = function_obj._run_through_graph(
+        inputs,
+        operation_fn=lambda op: operation_fn_with_training(
+            op, training=training
+        ),
+    )
+
+    # Unpack singleton result if needed (for API consistency)
+    return unpack_singleton(outputs)
+
+
+def _adjust_input_rank(function_obj, flat_inputs):
+    flat_ref_shapes = [x.shape for x in function_obj._inputs]
+    adjusted = []
+    for x, ref_shape in zip(flat_inputs, flat_ref_shapes):
+        if x is None:
+            adjusted.append(x)
+            continue
+        x_rank = len(x.shape)
+        ref_rank = len(ref_shape)
+        if x_rank == ref_rank:
+            adjusted.append(x)
+            continue
+        if x_rank == ref_rank + 1:
+            if x.shape[-1] == 1:
+                adjusted.append(ops.squeeze(x, axis=-1))
+                continue
+        if x_rank == ref_rank - 1:
+            if ref_shape[-1] == 1:
+                adjusted.append(ops.expand_dims(x, axis=-1))
+                continue
+        raise ValueError(
+            f"Invalid input shape for input {x}. Expected shape "
+            f"{ref_shape}, but input has incompatible shape {x.shape}"
+        )
+
+    # Add back metadata.
+    for i in range(len(flat_inputs)):
+        if hasattr(flat_inputs[i], "_keras_history"):
+            adjusted[i]._keras_history = flat_inputs[i]._keras_history
+        mask = backend.get_keras_mask(flat_inputs[i])
+        if mask is not None:
+            backend.set_keras_mask(adjusted[i], mask)
+
+    return adjusted
+
+
+def _convert_inputs_to_tensors(function_obj, flat_inputs):
+    converted = []
+    for x, input in zip(flat_inputs, function_obj._inputs):
+        if x is None:  # TODO: check if optional
+            converted.append(x)
+        else:
+            converted.append(
+                ops.convert_to_tensor(x, dtype=input.dtype, sparse=input.sparse)
+            )
+    return converted
+
+
+def _maybe_warn_inputs_struct_mismatch(
+    function_obj, inputs, raise_exception=False
+):
+    try:
+        # We first normalize to tuples before performing the check to
+        # suppress warnings when encountering mismatched tuples and lists.
+        tree.assert_same_structure(
+            tree.lists_to_tuples(inputs),
+            tree.lists_to_tuples(function_obj._inputs_struct),
+        )
+    except:
+        model_inputs_struct = tree.map_structure(
+            lambda x: x.name, function_obj._inputs_struct
+        )
+        inputs_struct = tree.map_structure(
+            lambda x: f"Tensor(shape={x.shape})", inputs
+        )
+        msg = (
+            "The structure of `inputs` doesn't match the expected "
+            f"structure.\nExpected: {model_inputs_struct}\n"
+            f"Received: inputs={inputs_struct}"
+        )
+        if raise_exception:
+            raise ValueError(msg)
+        warnings.warn(msg)
+
+
+def _standardize_inputs(function_obj, inputs):
+    """Convert and validate inputs to match function's expected inputs.
+
+    Args:
+        function_obj: Function object with _inputs_struct and _inputs attributes
+        inputs: Input values to standardize
+
+    Returns:
+        Standardized inputs as a flat list
+    """
+    raise_exception = False
+    if isinstance(inputs, dict) and not isinstance(
+        function_obj._inputs_struct, dict
+    ):
+        # This is to avoid warning when we have reconciable dict/list structs
+        if hasattr(function_obj._inputs_struct, "__len__") and all(
+            isinstance(i, backend.KerasTensor)
+            for i in function_obj._inputs_struct
+        ):
+            expected_keys = set(i.name for i in function_obj._inputs_struct)
+            keys = set(inputs.keys())
+            if expected_keys.issubset(keys):
+                inputs = [inputs[i.name] for i in function_obj._inputs_struct]
+            else:
+                raise_exception = True
+        elif isinstance(function_obj._inputs_struct, backend.KerasTensor):
+            if function_obj._inputs_struct.name in inputs:
+                inputs = [inputs[function_obj._inputs_struct.name]]
+            else:
+                raise_exception = True
+        else:
+            raise_exception = True
+
+    if (
+        isinstance(function_obj._inputs_struct, dict)
+        and not isinstance(inputs, dict)
+        and list(function_obj._inputs_struct.keys())
+        != sorted(function_obj._inputs_struct.keys())
+    ):
+        raise_exception = True
+
+    _maybe_warn_inputs_struct_mismatch(
+        function_obj, inputs, raise_exception=raise_exception
+    )
+
+    flat_inputs = tree.flatten(inputs)
+    flat_inputs = _convert_inputs_to_tensors(function_obj, flat_inputs)
+    return _adjust_input_rank(function_obj, flat_inputs)
+
+
+def serialize_functional_config(obj, function_obj):
+    """Serialize a Function-based object to config.
+
+    Args:
+        obj: A Functional model or a CompositeLayer instance.
+        function_obj: its Function instance.
+
+    Returns:
+        Dictionary containing serialized configuration.
+    """
+    config = {
+        "name": obj.name,
+        "trainable": obj.trainable,
+    }
+
+    # Build a map from a layer unique name (make_node_key)
+    # to the index of the nodes that are saved in the config.
+    # Only nodes in nodes parameter are saved.
+    node_reindexing_map = {}
+    for operation in function_obj.operations:
+        # TODO: make this work for CompositeLayer too
+        if issubclass(operation.__class__, Function):
+            # Functional models start with a pre-existing node
+            # linking their input to output.
+            kept_nodes = 1
+        else:
+            kept_nodes = 0
+        for original_node_index, node in enumerate(operation._inbound_nodes):
+            node_key = make_node_key(operation, original_node_index)
+            if node_key in function_obj._nodes:
+                # i.e. we mark it to be saved
+                node_reindexing_map[node_key] = kept_nodes
+                kept_nodes += 1
+
+    # serialize and save the layers in layer_configs
+    layer_configs = []
+    for operation in function_obj.operations:  # From the earliest layers on.
+        filtered_inbound_nodes = []
+        for original_node_index, node in enumerate(operation._inbound_nodes):
+            node_key = make_node_key(operation, original_node_index)
+            if node_key in function_obj._nodes:
+                # The node is relevant to the model:
+                # add to filtered_inbound_nodes.
+                node_data = serialize_node(node, own_nodes=function_obj._nodes)
+                if node_data is not None:
+                    filtered_inbound_nodes.append(node_data)
+
+        serialize_obj_fn = serialization_lib.serialize_keras_object
+        if global_state.get_global_attribute("use_legacy_config", False):
+            # Legacy format serialization used for H5 and SavedModel
+            serialize_obj_fn = legacy_serialization.serialize_keras_object
+        layer_config = serialize_obj_fn(operation)
+        layer_config["name"] = operation.name
+        layer_config["inbound_nodes"] = filtered_inbound_nodes
+        layer_configs.append(layer_config)
+    config["layers"] = layer_configs
+
+    # Gather info about inputs and outputs.
+    def get_tensor_config(tensor):
+        operation = tensor._keras_history[0]
+        node_index = tensor._keras_history[1]
+        tensor_index = tensor._keras_history[2]
+        node_key = make_node_key(operation, node_index)
+        assert node_key in function_obj._nodes
+        new_node_index = node_reindexing_map[node_key]
+        return [operation.name, new_node_index, tensor_index]
+
+    def map_tensors(tensors):
+        if isinstance(tensors, backend.KerasTensor):
+            # Note: difference here with the original Functional version
+            # which returned a singleton list here. It looked wrong but
+            # Model.assert_input_compatible let it through. However,
+            # Function.assert_input_compatible does not so the bug
+            # must be fixed here.
+            # return [get_tensor_config(tensors)]
+            return get_tensor_config(tensors)
+        return tree.map_structure(get_tensor_config, tensors)
+
+    config["input_layers"] = map_tensors(obj._inputs_struct)
+    config["output_layers"] = map_tensors(obj._outputs_struct)
+    return copy.deepcopy(config)
+
+
+def function_from_config(cls, config, custom_objects=None):
+    """Instantiates a Function from its config.
+    A valid config for this can be saved by:
+    - a model: Functional.get_config()
+    - a Finction-based layer: CompositeLayer.get_config()
+
+    Args:
+        cls: Class to restore, e.g. a custom subclass of `Model` or
+        CompositeLayer.
+        config: Output of `get_config()` for the original instance.
         custom_objects: Optional dict of custom objects.
 
     Returns:
@@ -541,16 +616,11 @@ def functional_from_config(cls, config, custom_objects=None):
             add_unprocessed_node(layer, node_data)
 
     # Extract config used to instantiate Functional model from the config. The
-    # remaining config will be passed as keyword arguments to the Model
-    # constructor.
+    # remaining config will be passed as keyword arguments to the Functional
+    # Model or Function constructor.
     functional_config = {}
     for key in ["layers", "input_layers", "output_layers"]:
         functional_config[key] = config.pop(key)
-    for key in ["name", "trainable"]:
-        if key in config:
-            functional_config[key] = config.pop(key)
-        else:
-            functional_config[key] = None
 
     # First, we create all layers and enqueue nodes to be processed
     for layer_data in functional_config["layers"]:
@@ -590,13 +660,12 @@ def functional_from_config(cls, config, custom_objects=None):
                     del unprocessed_nodes[layer]
 
     # Create list of input and output tensors and return new class
-    name = functional_config["name"]
-    trainable = functional_config["trainable"]
 
     def get_tensor(layer_name, node_index, tensor_index):
         assert layer_name in created_layers
         layer = created_layers[layer_name]
-        if isinstance(layer, Functional):
+        # TODO: make this work for CompositeLayer too
+        if isinstance(layer, Function):
             # Functional models start out with a built-in node.
             node_index -= 1
         layer_output_tensors = layer._inbound_nodes[node_index].output_tensors
@@ -624,13 +693,11 @@ def functional_from_config(cls, config, custom_objects=None):
     return cls(
         inputs=input_tensors,
         outputs=output_tensors,
-        name=name,
-        trainable=trainable,
-        **config,
+        **config,  # "name" or "trainable" are in the config if relevant
     )
 
 
-def operation_fn(operation, training):
+def operation_fn_with_training(operation, training):
     def call(*args, **kwargs):
         if (
             hasattr(operation, "_call_has_training_arg")

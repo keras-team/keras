@@ -261,8 +261,9 @@ class FunctionalTest(testing.TestCase):
             outputs = {"a": output_a, "b": output_b}
         else:
             outputs = out_type([output_a, output_b])
-        model = Functional(inputs, outputs)
+        model = Functional(inputs, outputs, name="funcmodel")
         model_restored = Functional.from_config(model.get_config())
+        self.assertEqual(model_restored.name, model.name)
 
         # Eager call
         in_val = np.random.random((2, 3))
@@ -718,6 +719,11 @@ class FunctionalTest(testing.TestCase):
         x1 = Input((10,), name="IT")
         x2 = Input((10,), name="IS")
         y = layers.subtract([x1, x2])
+        # Note: the test fails here only because the order of dict
+        # keys "IT", "IS" is different from the sorted order of the
+        # keys "IS", "IT". Otherwise, passing a list of inputs to
+        # a model expecting a dictionary of inputs seems to be allowed.
+        # as long as flattening the dict does not result in reordering.
         model = Model(inputs={"IT": x1, "IS": x2}, outputs=y)
         x1 = ops.ones((1, 10))
         x2 = ops.zeros((1, 10))
