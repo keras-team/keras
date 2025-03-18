@@ -351,7 +351,11 @@ def argmax(x, axis=None, keepdims=False):
         index_element_type=Type.i32
     )
     topk_indices = topk_outputs.output(1)
-    if not keepdims:
+    if keepdims:
+        topk_indices_shape = topk_indices.get_partial_shape()
+        if topk_indices_shape.rank.get_length() == rank - 1:
+            topk_indices = ov_opset.unsqueeze(topk_indices, [axis]).output(0)
+    else:
         topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
     return OpenVINOKerasTensor(topk_indices)
 
