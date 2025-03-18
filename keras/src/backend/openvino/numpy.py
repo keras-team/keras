@@ -707,7 +707,16 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    raise NotImplementedError("`flip` is not supported with openvino backend")
+    rank=len(x.shape)
+
+    if axis is None:
+        axis=list(range(rank))
+
+
+    axis_tensor=np.array(axis,dtype=np.int32)
+    reversed_tensor=ov_opset.Reverse(x,axis_tensor)
+
+    return reversed_tensor
 
 
 def floor(x):
