@@ -5,45 +5,51 @@ from keras.src.optimizers import optimizer
 
 @keras_export(["keras.optimizers.Muon"])
 class Muon(optimizer.Optimizer):
-    """Optimizer that implements the Adam algorithm.
+    """Optimizer that implements the Muon algorithm.
 
-    Muon optimization is a newly Optimizer
+    The Muon optimizer is a new type of optimizer
+    first implemented in https://github.com/KellerJordan/Muon
+    first verified in the paper https://arxiv.org/abs/2502.16982
 
-    According to
-    https://github.com/KellerJordan/Muon
-    the method is "*computationally
-
-    - This optimizer should not be used for the embedding layer,
-    the final fully connected layer, or any {0,1}-D parameters;
-    those should all be optimized by AdamW.
-
-
+    Note that this optimizer should not be used in the following layers:
+    1. Embedding layer
+    2. Final output fully connected layer
+    3. Any {0,1}-D parameters
+    These should all be optimized using AdamW.
     Args:
-        learning_rate: A float, a
+        learning_rate: A float,
             `keras.optimizers.schedules.LearningRateSchedule` instance, or
             a callable that takes no arguments and returns the actual value to
             use. The learning rate. Defaults to `0.001`.
-            It should be noted that lr is one-tenth when using adamw.
         adam_beta_1: A float value or a constant float tensor, or a callable
-            that takes no arguments and returns the actual value to use. The
-            exponential decay rate for the 1st moment estimates. Defaults to
+            that takes no arguments and returns the actual value to use.
+            The exponential decay rate for the 1st moment estimates. Defaults to
             `0.9`.
-        adam_beta_2: A float value or a constant float tensor, or a callable
-            that takes no arguments and returns the actual value to use. The
-            exponential decay rate for the 2nd moment estimates. Defaults to
+        adam_beta_2: A float value or a constant float tensor, ora callable
+            that takes no arguments and returns the actual value to use.
+            The exponential decay rate for the 2nd moment estimates. Defaults to
             `0.999`.
-        epsilon: A small constant for numerical stability. This epsilon is
-            "epsilon hat" in the Kingma and Ba paper (in the formula just before
-            Section 2.1), not the epsilon in Algorithm 1 of the paper. Defaults
-            to `1e-7`.
-        output_layer_key_word:List, which stores the keyword.
-            All layers with the keyword in the path will use adamw.
-            In general, the embedding layer and the final layer should use adamw
-        adam_lr_ratio:float,The ratio of the learning rate when
-                using Adam to the main learning rate
-        momentum: float,The momentum used by the internal SGD.
-        ns_steps: int,The number of Newton-Schulz iterations to run.
-        nesterov: bool,Whether to use Nesterov-style momentum
+        epsilon: A small constant for numerical stability. This is
+            "epsilon hat" in the Kingma and Ba paper
+            (in the formula just before Section 2.1),
+            not the epsilon in Algorithm 1 of the paper.
+            It be used at Adamw.Defaults to `1e-7`.
+        exclude_layers: List of strings, keywords of layer names to exclude.
+            All layers with keywords in their path will use adamw.
+        exclude_embeddings: Boolean value
+            If True, embedding layers will use adamw.
+        muon_a: Float, parameter a of the muon algorithm.
+            It is recommended to use the default value
+        muon_b: Float, parameter b of the muon algorithm.
+            It is recommended to use the default value
+        muon_c: Float, parameter c of the muon algorithm.
+            It is recommended to use the default value
+        adam_lr_ratio: Float, the ratio of the learning rate when
+                using Adam to the main learning rate.
+                it is recommended to set it to 0.1
+        momentum: Float, momentum used by internal SGD.
+        ns_steps: Integer, number of Newton-Schulz iterations to run.
+        nesterov: Boolean, whether to use Nesterov-style momentum
         {{base_optimizer_keyword_args}}
     """
 
@@ -63,7 +69,8 @@ class Muon(optimizer.Optimizer):
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
         name="muon",
-        output_layer_key_word: list = ["embedding"],
+        exclude_layers=None,
+        exclude_embeddings=True,
         muon_a=3.4445,
         muon_b=-4.7750,
         muon_c=2.0315,
@@ -90,7 +97,6 @@ class Muon(optimizer.Optimizer):
         self.adam_beta_1 = adam_beta_1
         self.adam_beta_2 = adam_beta_2
         self.epsilon = epsilon
-        self.output_layer_key_word = output_layer_key_word
         self.muon_a = muon_a
         self.muon_b = muon_b
         self.muon_c = muon_c
@@ -98,16 +104,21 @@ class Muon(optimizer.Optimizer):
         self.momentum = momentum
         self.ns_steps = ns_steps
         self.nesterov = nesterov
+        self.exclude_embeddings = exclude_embeddings
+        # exclude_layers should be a key word
+        assert isinstance(exclude_layers, str)
+        self.exclude_layers = exclude_layers.lower()
 
-    def weather_use_adamw(self, variable):
+    def _should_use_adamw(self, variable):
         # To use it with 4D convolutional filters,
         # it works well to just flatten their last 3 dimensions.
         # any {0,1}-D parameters should all be optimized by adam
         if not 1 < len(variable.shape) < 4:
             return True
-        for keyword in self.output_layer_key_word:
-            if keyword in variable.path:
-                return True
+        if self.exclude_embeddings and "embedding" in variable.path.lower():
+            return True
+        if self.exclude_layers in variable.path.lower():
+            return True
         return False
 
     def build(self, var_list):
@@ -132,7 +143,7 @@ class Muon(optimizer.Optimizer):
             self.adam_momentums[var.path] = self.add_variable_from_reference(
                 reference_variable=var, name="momentum"
             )
-            if self.weather_use_adamw(var):
+            if self._should_use_adamw(var):
                 self.adam_velocities[var.path] = (
                     self.add_variable_from_reference(
                         reference_variable=var, name="velocity"
@@ -140,7 +151,7 @@ class Muon(optimizer.Optimizer):
                 )
 
     def update_step(self, gradient, variable, learning_rate):
-        if self.weather_use_adamw(variable):
+        if self._should_use_adamw(variable):
             # It should be noted that lr is one-tenth when using adamw.
             self.adamw_update_step(
                 gradient, variable, learning_rate * self.adam_lr_ratio
@@ -205,7 +216,7 @@ class Muon(optimizer.Optimizer):
         X = ops.transpose(X, temp_order)
         return X
 
-    def zeropower_via_newtonschulz5(self, X, steps: int):
+    def zeropower_via_newtonschulz5(self, x, steps: int):
         """
         We apply the Newton-Schulz iteration to compute matrix G.
         We select a quintic iteration that maximizes the slope at zero.
@@ -216,24 +227,24 @@ class Muon(optimizer.Optimizer):
         model performance remains unaffected
         compared to using the exact UV^T from the SVD.
         """
-        shape = ops.shape(X)
+        shape = ops.shape(x)
         assert len(shape) >= 2
 
         a, b, c = self.muon_a, self.muon_b, self.muon_c
         if shape[-2] > shape[-1]:
-            X = self.transpose_last_axis(X)
+            x = self.transpose_last_axis(x)
 
         # Ensure spectral norm is at most 1
-        X = X / (ops.norm(X, axis=(-2, -1), keepdims=True) + 1e-7)
+        x = x / (ops.norm(x, axis=(-2, -1), keepdims=True) + 1e-7)
         # Perform the NS iterations
         for _ in range(steps):
-            A = X @ X.mT
-            B = b * A + c * A @ A
-            X = a * X + B @ X
+            temp_a = x @ self.transpose_last_axis(x)
+            temp_b = b * temp_a + c * temp_a @ temp_a
+            x = a * x + temp_b @ x
 
         if shape[-2] > shape[-1]:
-            X = self.transpose_last_axis(X)
-        return X
+            x = self.transpose_last_axis(x)
+        return x
 
     def get_config(self):
         config = super().get_config()
@@ -242,7 +253,7 @@ class Muon(optimizer.Optimizer):
                 "adam_beta_1": self.adam_beta_1,
                 "adam_beta_2": self.adam_beta_2,
                 "epsilon": self.epsilon,
-                "output_layer_key_word": self.output_layer_key_word,
+                "exclude_layers": self.exclude_layers,
                 "muon_a": self.muon_a,
                 "muon_b": self.muon_b,
                 "muon_c": self.muon_c,
@@ -250,6 +261,7 @@ class Muon(optimizer.Optimizer):
                 "momentum": self.momentum,
                 "ns_steps": self.ns_steps,
                 "nesterov": self.nesterov,
+                "exclude_embeddings": self.exclude_embeddings,
             }
         )
         return config
