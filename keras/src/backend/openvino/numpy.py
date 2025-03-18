@@ -337,6 +337,7 @@ def argmax(x, axis=None, keepdims=False):
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
+        k = ov_opset.constant(1, Type.i32).output(0)
     else:
         if axis < 0:
             axis = rank + axis
