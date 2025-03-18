@@ -764,22 +764,7 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    xs = [get_ov_output(x) for x in xs]
-    dtype = xs[0].get_element_type()
-    if dtype is None:
-        dtype = np.float32
-    std_dtype = standardize_dtype(dtype) or np.float32
-    std_dtype = std_dtype if std_dtype in OPENVINO_DTYPES else np.float32
-    if std_dtype == np.bool_:
-        std_dtype = np.int32
-    elif np.issubdtype(std_dtype, np.unsignedinteger):
-        std_dtype = np.int32
-    ov_type = OPENVINO_DTYPES.get(std_dtype, np.float32)
-    xs = [ov_opset.convert(x, ov_type) for x in xs]
-    ref = xs[0]
-    aligned_xs = [_align_operand_types(ref, x, "hstack()") for x in xs]
-    result = ov_opset.concat(aligned_xs, axis=1)
-    return OpenVINOKerasTensor(result.output(0))
+    raise NotImplementedError("`hstack` is not supported with openvino backend")
 
 
 def identity(n, dtype=None):
