@@ -337,9 +337,11 @@ def argmax(x, axis=None, keepdims=False):
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
+        reduce = True
     else:
         if axis < 0:
             axis = rank + axis
+        reduce = not keepdims
     x_shape_tensor = ov_opset.shape_of(x, Type.i32).output(0)
     k = ov_opset.gather(
         x_shape_tensor,
@@ -353,10 +355,8 @@ def argmax(x, axis=None, keepdims=False):
         mode="max",
         sort="none",
     ).output(1)
-    if not keepdims:
-        topk_indices = ov_opset.squeeze(
-            topk_indices, ov_opset.constant([axis], Type.i32)
-        ).output(0)
+    if reduce:
+        topk_indices = ov_opset.squeeze(topk_indices, ov_opset.constant([axis], Type.i32)).output(0)
     return OpenVINOKerasTensor(topk_indices)
 
 
