@@ -89,3 +89,13 @@ class DeviceTest(testing.TestCase):
     def test_invalid_torch_device(self):
         with self.assertRaisesRegex(ValueError, "Received: device_name='123'"):
             backend.device(123).__enter__()
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_torch_meta_device(self):
+        import torch
+
+        with torch.device("meta"):
+            x = torch.ones(5)
+
+        t = backend.convert_to_tensor(x)
+        self.assertEqual(t.device, torch.device("cpu"))
