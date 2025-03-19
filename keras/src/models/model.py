@@ -270,6 +270,16 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def save(self, filepath, overwrite=True, zipped=None, **kwargs):
         """Saves a model as a `.keras` file.
 
+        Note that `model.save()` is an alias for `keras.saving.save_model()`.
+
+        The saved `.keras` file contains:
+
+        - The model's configuration (architecture)
+        - The model's weights
+        - The model's optimizer's state (if any)
+
+        Thus models can be reinstantiated in the exact same state.
+
         Args:
             filepath: `str` or `pathlib.Path` object.
                 The path where to save the model. Must end in `.keras`
@@ -297,16 +307,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         x = keras.random.uniform((10, 3))
         assert np.allclose(model.predict(x), loaded_model.predict(x))
         ```
-
-        Note that `model.save()` is an alias for `keras.saving.save_model()`.
-
-        The saved `.keras` file contains:
-
-        - The model's configuration (architecture)
-        - The model's weights
-        - The model's optimizer's state (if any)
-
-        Thus models can be reinstantiated in the exact same state.
         """
         return saving_api.save_model(
             self, filepath, overwrite=overwrite, zipped=zipped, **kwargs
@@ -321,6 +321,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         will be saved in multiple files, each with a size at most
         `max_shard_size` (in GB). Additionally, a configuration file
         `.weights.json` will contain the metadata for the sharded files.
+
+        The saved sharded files contain:
+
+        - `*.weights.json`: The configuration file containing 'metadata' and
+            'weight_map'.
+        - `*_xxxxxx.weights.h5`: The sharded files containing only the
+            weights.
 
         Args:
             filepath: `str` or `pathlib.Path` object. Path where the weights
@@ -358,13 +365,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         x = keras.random.uniform((1, 480, 480, 3))
         assert np.allclose(model.predict(x), loaded_model.predict(x))
         ```
-
-        The saved sharded files contain:
-
-        - `*.weights.json`: The configuration file containing 'metadata' and
-            'weight_map'.
-        - `*_xxxxxx.weights.h5`: The sharded files containing only the
-            weights.
         """
         return saving_api.save_weights(
             self, filepath, overwrite=overwrite, max_shard_size=max_shard_size

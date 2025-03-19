@@ -998,8 +998,8 @@ class H5IOStore:
         archive: Optional `zipfile.ZipFile` object. If specified, the h5 file
             will be saved inside the archive and `path_or_io` will be used as
             the filename.
-        mode: `str`. One of {'r', 'w'}. The mode to open the h5 file. Defaults
-            to `"r"`.
+        mode: `str`. One of {`"r"`, `"w"`}. The mode to open the h5 file.
+            Defaults to `"r"`.
     """
 
     def __init__(self, path_or_io, archive=None, mode="r"):
@@ -1255,7 +1255,7 @@ class ShardedH5IOStore(H5IOStore):
 
     def _create_new_shard_file(self):
         new_shard_path = (
-            f"{self.base_name}_{self.current_shard_index:05}.weighs.h5"
+            f"{self.base_name}_{self.current_shard_index:05}.weights.h5"
         )
         self.current_shard_index += 1
         self.current_shard_path = self.path.with_name(new_shard_path)
