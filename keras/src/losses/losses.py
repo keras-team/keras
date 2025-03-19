@@ -2560,7 +2560,7 @@ def dice(y_true, y_pred, axis=None):
     >>> assert loss.shape == ()
     >>> loss
     array(0.6164384, shape=(), dtype=float32)
-    
+
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
