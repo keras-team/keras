@@ -328,11 +328,53 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmax` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    if rank == 0:
+        return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    else:
+        if axis < 0:
+            axis = rank + axis
+    sorted_indices = ov_opset.topk(
+        x,
+        k=1,
+        axis=axis,
+        mode="max",
+    ).output(1)
+
+    if not keepdims:
+        sorted_indices = ov_opset.squeeze(sorted_indices, [axis]).output(0)
+    return OpenVINOKerasTensor(sorted_indices)
 
 
 def argmin(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmin` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    if rank == 0:
+        return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    else:
+        if axis < 0:
+            axis = rank + axis
+    sorted_indices = ov_opset.topk(
+        x,
+        k=1,
+        axis=axis,
+        mode="min",
+    ).output(1)
+
+    if not keepdims:
+        sorted_indices = ov_opset.squeeze(sorted_indices, [axis]).output(0)
+    return OpenVINOKerasTensor(sorted_indices)
 
 
 def argsort(x, axis=-1):
