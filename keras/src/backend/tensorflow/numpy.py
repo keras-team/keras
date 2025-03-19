@@ -1007,10 +1007,11 @@ def bitwise_xor(x, y):
 
 def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = tf.cast(x, dtype)
-    y = tf.cast(y, dtype)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = tf.cast(x, dtype)
+        y = tf.cast(y, dtype)
     return tf.bitwise.left_shift(x, y)
 
 
@@ -1020,10 +1021,11 @@ def left_shift(x, y):
 
 def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = tf.cast(x, dtype)
-    y = tf.cast(y, dtype)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = tf.cast(x, dtype)
+        y = tf.cast(y, dtype)
     return tf.bitwise.right_shift(x, y)
 
 

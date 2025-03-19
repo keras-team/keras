@@ -600,7 +600,7 @@ def affine_transform(
     # transform the indices
     coordinates = np.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = np.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += np.reshape(a=offset, newshape=(*offset.shape, 1, 1, 1))
+    coordinates += np.reshape(offset, newshape=(*offset.shape, 1, 1, 1))
 
     # apply affine transformation
     affined = np.stack(

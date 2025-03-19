@@ -424,7 +424,7 @@ def affine_transform(
     # transform the indices
     coordinates = torch.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = torch.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += torch.reshape(a=offset, shape=(*offset.shape, 1, 1, 1))
+    coordinates += torch.reshape(offset, shape=(*offset.shape, 1, 1, 1))
 
     # Note: torch.stack is faster than torch.vmap when the batch size is small.
     affined = torch.stack(

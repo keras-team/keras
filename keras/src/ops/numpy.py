@@ -1417,7 +1417,10 @@ class BitwiseLeftShift(Operation):
         return backend.numpy.bitwise_left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1451,7 +1454,10 @@ class LeftShift(Operation):
         return backend.numpy.left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1483,7 +1489,10 @@ class BitwiseRightShift(Operation):
         return backend.numpy.bitwise_right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1517,7 +1526,10 @@ class RightShift(Operation):
         return backend.numpy.right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
