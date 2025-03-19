@@ -95,7 +95,7 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             maxval=self.factor[1],
             seed=seed,
         )
-        factor = factor / (1 - factor)
+        factor = factor / (1 - factor + 1e-6)
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):
