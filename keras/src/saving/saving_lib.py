@@ -1032,6 +1032,8 @@ class H5IOStore:
         # Init H5 entry group.
         self._h5_entry_path = None
         self._h5_entry_group = {}
+        self._h5_entry_metadata = None
+        self._h5_entry_initialized = False
 
     def __bool__(self):
         # Delegate `__bool__` to the underlying `h5_file`. Otherwise, Python
@@ -1049,13 +1051,59 @@ class H5IOStore:
             return h5py.File(path_or_io, mode=self.mode)
 
     def make(self, path, metadata=None):
+        """Make a new H5 entry group.
+
+        This method is only available in write mode. It defers the creation of
+        the H5 entry group until `__setitem__` is called, preventing the
+        creation of empty groups.
+
+        Args:
+            path: `str`. The variable path.
+            metadata: Optional `dict`. The metadata to save with the H5 entry
+                group. Defaults to `None`.
+        """
+        if self.mode != "w":
+            raise ValueError("`make` is only allowed in write mode.")
+        if not isinstance(metadata, (dict, type(None))):
+            raise ValueError(
+                f"`metadata` should be a dict or `None`. Received: {metadata}"
+            )
+
         self._h5_entry_path = path
-        self.make_entry(path, metadata=metadata)
+        if metadata:
+            self._create_h5_group(path, metadata=metadata)
+        else:
+            # Defer to `__setitem__` for H5 group creation to prevent the
+            # creation of empty groups when the store is unused.
+            self._h5_entry_group = {}
+            self._h5_entry_initialized = False
         return self
 
     def get(self, path):
+        """Get the H5 entry group.
+
+        This method is only available in read mode.
+
+        Args:
+            path: `str`. The variable path.
+        """
+        if self.mode != "r":
+            raise ValueError("`get` is only allowed in read mode.")
+
         self._h5_entry_path = path
-        self.make_entry(path)
+        self._h5_entry_group = {}  # Defaults to an empty dict if not found.
+        if not path:
+            if "vars" in self.h5_file:
+                self._h5_entry_group = self.h5_file["vars"]
+        elif path in self.h5_file and "vars" in self.h5_file[path]:
+            self._h5_entry_group = self.h5_file[path]["vars"]
+        else:
+            # No hit. Fix for 2.13 compatibility.
+            if "_layer_checkpoint_dependencies" in self.h5_file:
+                path = path.replace("layers", "_layer_checkpoint_dependencies")
+                if path in self.h5_file and "vars" in self.h5_file[path]:
+                    self._h5_entry_group = self.h5_file[path]["vars"]
+        self._h5_entry_initialized = True
         return self
 
     def close(self):
@@ -1067,38 +1115,18 @@ class H5IOStore:
 
     # H5 entry level methods.
 
-    def make_entry(self, path, metadata=None):
-        if not isinstance(metadata, (dict, type(None))):
-            raise ValueError(
-                f"`metadata` should be a dict or `None`. Received: {metadata}"
-            )
-
-        if self.mode == "w":
-            if not path:
-                self._h5_entry_group = self.h5_file.create_group("vars")
-            else:
-                self._h5_entry_group = self.h5_file.create_group(
-                    path
-                ).create_group("vars")
-            if metadata:
-                for k, v in metadata.items():
-                    self._h5_entry_group.attrs[k] = v
+    def _create_h5_group(self, path, metadata=None):
+        if not path:
+            self._h5_entry_group = self.h5_file.create_group("vars")
         else:
-            self._h5_entry_group = {}  # Defaults to an empty dict if not found.
-            if not path:
-                if "vars" in self.h5_file:
-                    self._h5_entry_group = self.h5_file["vars"]
-            elif path in self.h5_file and "vars" in self.h5_file[path]:
-                self._h5_entry_group = self.h5_file[path]["vars"]
-            else:
-                # No hit.
-                # Fix for 2.13 compatibility
-                if "_layer_checkpoint_dependencies" in self.h5_file:
-                    path = path.replace(
-                        "layers", "_layer_checkpoint_dependencies"
-                    )
-                    if path in self.h5_file and "vars" in self.h5_file[path]:
-                        self._h5_entry_group = self.h5_file[path]["vars"]
+            self._h5_entry_group = self.h5_file.create_group(path).create_group(
+                "vars"
+            )
+        if metadata:
+            for k, v in metadata.items():
+                self._h5_entry_group.attrs[k] = v
+
+        self._h5_entry_initialized = True
 
     def __len__(self):
         return self._h5_entry_group.__len__()
@@ -1125,6 +1153,9 @@ class H5IOStore:
     def __setitem__(self, key, value):
         if self.mode != "w":
             raise ValueError("Setting a value is only allowed in write mode.")
+        if not self._h5_entry_initialized:
+            self._create_h5_group(self._h5_entry_path)
+
         value = backend.convert_to_numpy(value)
         if backend.standardize_dtype(value.dtype) == "bfloat16":
             ds = self._h5_entry_group.create_dataset(key, data=value)
@@ -1187,6 +1218,8 @@ class ShardedH5IOStore(H5IOStore):
         # Init H5 entry group.
         self._h5_entry_path = None
         self._h5_entry_group = {}
+        self._h5_entry_metadata = None
+        self._h5_entry_initialized = False
 
         # Init shard parameters.
         self.current_shard_index = 0
@@ -1210,25 +1243,27 @@ class ShardedH5IOStore(H5IOStore):
                     self.sharding_config = json.load(map_file)
         self.h5_file = self._create_new_shard_file()
 
-    def make(self, path, metadata=None):
-        h5_entry = super().make(path, metadata=metadata)
-        self.sharding_config["weight_map"][self._h5_entry_group.name] = (
-            self.current_shard_path.name
-        )
-        return h5_entry
-
     def get(self, path):
+        """Get the H5 entry group.
+
+        This method is only available in read mode. If the path is not found in
+        the current shard, it will switch to the correct shard.
+
+        Args:
+            path: `str`. The variable path.
+        """
         if not path:
             parsed_path = "/vars"
         else:
             parsed_path = path
 
         # If not found, check shard map and switch files.
-        filename = self.sharding_config["weight_map"].get(
-            parsed_path
-        ) or self.sharding_config["weight_map"].get("/" + parsed_path + "/vars")
+        weight_map = self.sharding_config["weight_map"]
+        filename = weight_map.get(parsed_path) or weight_map.get(
+            "/" + parsed_path + "/vars"
+        )
 
-        if filename != self.current_shard_path.name:
+        if filename is not None and filename != self.current_shard_path.name:
             self.close()
             self.h5_file = self._get_h5_file(self.path.with_name(filename))
         return super().get(path)
@@ -1292,6 +1327,12 @@ class ShardedH5IOStore(H5IOStore):
             self.current_shard_size = value_size
 
         super().__setitem__(key, value)
+
+        variable_path = self._h5_entry_group.name
+        if variable_path not in self.sharding_config["weight_map"]:
+            self.sharding_config["weight_map"][variable_path] = (
+                self.current_shard_path.name
+            )
 
 
 class NpzIOStore:
