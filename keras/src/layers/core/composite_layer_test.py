@@ -255,15 +255,21 @@ class CompositeLayerTest(testing.TestCase):
     def test_initialization_errors(self):
         # Test with invalid layers parameter type
         with self.assertRaisesRegex(
-            ValueError, "Must provide a layers parameter that is either*"
+            ValueError, "is either a function .* or a .* list of layers."
         ):
             CompositeLayer("not_valid")
 
         # Test error when layers list is empty
         with self.assertRaisesRegex(
-            ValueError, "Must provide a layers parameter that is either*"
+            ValueError, "is either a function .* or a .* list of layers."
         ):
             CompositeLayer([])
+
+        def layer_fn(x, y):
+            return x + y
+
+        with self.assertRaisesRegex(ValueError, "take a single argument"):
+            CompositeLayer(layer_fn)
 
     def test_serialization(self):
         # Test basic model
@@ -539,7 +545,7 @@ class CompositeLayerTest(testing.TestCase):
         sequential_layer(np.random.random((2, 3)), training=True)
 
     def test_mask_arg(self):
-        # TODO (same as in functional!test.py)
+        # TODO (same as in functional_test.py)
         pass
 
     def test_rank_standardization(self):
@@ -735,33 +741,6 @@ class CompositeLayerTest(testing.TestCase):
         new_out_eager = loaded_model(num_input)
         self.assertAllClose(out_eager, new_out_eager)
 
-    # TODO: optional inputs
-    # def test_optional_inputs(self):
-    #     class OptionalInputLayer(layers.Layer):
-    #         def call(self, x, y=None):
-    #             if y is not None:
-    #                 return x + y
-    #             return x
-
-    #         def compute_output_shape(self, x_shape):
-    #             return x_shape
-
-    #     def layer_fn(inputs):
-    #         i1, i2 = inputs
-    #         return OptionalInputLayer()(i1, i2)
-
-    #     composite_layer = CompositeLayer(layer_fn)
-
-    #     i1 = Input((2,))
-    #     i2 = Input((2,), optional=True)
-
-    #     composite_layer([i1, i2]) # build the layer
-
-    #     # Eager test
-    #     out = composite_layer([np.ones((2, 2)), None])
-    #     self.assertAllClose(out, np.ones((2, 2)))
-    #     # Note: it's not intended to work in symbolic mode (yet).
-
     def test_for_composite_layer_in_sequential(self):
         if backend.image_data_format() == "channels_first":
             image_size = (3, 256, 256)
@@ -796,7 +775,7 @@ class CompositeLayerTest(testing.TestCase):
         model(Input(shape=image_size))
 
     def test_add_loss(self):
-        # TODO (same as in functional!test.py)
+        # TODO (same as in functional_test.py)
         pass
 
     def test_layers_setter(self):
@@ -1028,3 +1007,40 @@ class CompositeLayerTest(testing.TestCase):
 
         output2 = loaded_model(data)
         self.assertAllClose(output1, output2)
+
+    def test_optional_inputs(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        def layer_fn(x):
+            x1 = x[0]
+            x2 = x[1]
+            return OptionalInputLayer()(x2, x1)
+
+        layer = CompositeLayer(layer_fn)
+
+        # declare the first arg as optional
+        input_spec = [
+            InputSpec(shape=(None, 2), optional=True),
+            InputSpec(shape=(None, 2)),
+        ]
+        layer.input_spec = input_spec
+
+        # Eager test
+        data = np.ones((8, 2))
+        out = layer([None, data])
+        self.assertAllClose(out, data)
+        out = layer([data, data])
+        self.assertAllClose(out, data * 2)
+
+        # Error message when passing None to a non-optional input
+        with self.assertRaisesRegex(
+            ValueError, "Optional inputs must be declared"
+        ):
+            out = layer([data, None])

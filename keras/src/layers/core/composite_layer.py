@@ -1,81 +1,4 @@
-# Implementation notes:
-#
-# - CompositeLayer encapsulates a functional subgraph of layers.
-#   It is the equivalent of a Functional or Sequential model but
-#   as a lighter-weight component, without the model-specific
-#   functionality like .fit() etc.
-#
-# - A CompositeLayer can be cretaed either from a list of layers
-#   or a function that defines a graph of layers. There is no
-#   constructor similar to a functional Model(inputs, outputs)
-#   because inputs and outputs are usually not known when creating
-#   a layer. They will be created when the layer is built.
-#
-# - Functional and CompositeLayer only depend on Function. There is
-#   no circular dependency between models and layers.
-#
-# - Note 1:
-#   This is an intermediate implementation to make reviewing easier
-#   It isolates 4 functions in functional.py that are used by both
-#   CompositeLayer and Functional:
-#      1) compute_input_spec
-#      2) run_through_graph_with_training_and_mask
-#      3) function_from_config
-#      4) serialize_functional_config
-#   With this approach, no changes are made to the Functional Model
-#   class hierarchy.
-#
-#   The next step is to move these 4 functions to CompositeLayer, then
-#   base Functional on CompositeLayer instead of Function. This will
-#   also allow the unification of Functional and Sequential models since
-#   both will be based on CompositeLayer and have a Function once build()
-#   is called. Code explicitly testing for Functional or Sequential
-#   can then be removed throughout the code base and replaced with
-#   `isinstance(obj, CompositeLayer) and obj.built`
-#
-# - Note 2:
-#   Once change potentially affecting Functional model:
-#   in functional.serialize_functional_config, a line was
-#   changed from
-#       return [get_tensor_config(tensors)]
-#   to
-#       return get_tensor_config(tensors)
-#   This looked like a bug but Model.assert_input_compatible
-#   let it through. However, Function.assert_input_compatible
-#   does not so the bug needed to be fixed.
-#
-#   Also in functional.compute_input_spec, a list with a single element
-#   was returned when the input spec was a single tensor. This was changed
-#   too.
-#
-# - Note 3:
-#   In functional.py, there are two explicit tetst for "Function":
-#   "if isinstance(layer, Function)" in function_from_config
-#   and
-#   "issubclass(operation.__class__, Function)" in serialize_functional_config
-#   I have added a test that triggers these conditions in functions_test.py
-#   This is supposed to handle the case when a Functional sub-model is used
-#   in the computatio graph twice. However, if the two conditional clauses
-#   in functional.py are removed, the tests still pass. I do not think they
-#   are useful at all and I do not thing their explanatory comment "Functional
-#   models start with a pre-existing node linking their input to output." is
-#   correct. Therefore, I have not adapted these conditional clauses for
-#   CompositeLayer. It does not seem to matter in tests.
-#
-# - Note 4:
-#   Passing a list of inputs to a model expecting a dictionary
-#   of inputs seems to be allowed, as long as flattening the dict does
-#   not result in reordering. There is an explicit reordering test in
-#   functional._standardize_inputs (look for "sort").
-#   Changing this in Functional is not possible at this point but I would
-#   consider disalowing this in CompositeLayer.
-#   Tests covering thids behavior:
-#     functional_test.test_list_input_with_dict_build
-#     composite_layer_test.test_list_input_with_dict_build
-#
-# - TODOs:
-#   - TODO: optional inputs for CompositeLayer
-
+import inspect
 import typing
 
 from keras.src import tree
@@ -91,7 +14,11 @@ from keras.src.ops.function import Function
 
 @keras_export(["keras.layers.CompositeLayer"])
 class CompositeLayer(Layer):
-    """Layer that encapsulates a subgraph of layers into a single layer.
+    """Layer that encapsulates a subgraph of layers into a single layer
+       in a Keras functional way. This means that the subgraph of layers is
+       programmatically accessible. Functional Models containing
+       CompositeLayers can be plotted with `keras.utils.plot_model`
+       or programmatically edited with 'keras.models.clone_model(call_fn)'.
 
     `CompositeLayer` can be created in two ways:
 
@@ -107,6 +34,8 @@ class CompositeLayer(Layer):
 
     2. Using a function that defines a graph of layers:
        This allows more complex computation graphs.
+       The function must have a single input, which
+       can be a list or dictionary.
 
     ```python
     def layer_fn(x):
@@ -116,9 +45,19 @@ class CompositeLayer(Layer):
 
     # Create the composite layer using the function
     composite = layers.CompositeLayer(layer_fn)
+
+    # for multiple inputs us a single arg that is a list or dict
+     def layer_fn(inputs):
+        x0 = inputs[0] # inputs is a list
+        x1 = inputs[1]
+        y0 = layers.Dense(64, activation='relu')(x0)
+        y1 = layers.Dense(64, activation='relu')(x1)
+        return y0 + y1
+
+    composite = layers.CompositeLayer(layer_fn)
     ```
 
-    It is recommended to package reusable composite layers
+    Reusable composite layers can be packaged
     in a subclass of `CompositeLayer`:
 
     ```python
@@ -153,10 +92,21 @@ class CompositeLayer(Layer):
             isinstance(layers, (list, tuple)) and len(layers) > 0
         ):
             raise ValueError(
-                f"Must provide a layers parameter that is either a callable "
-                f"function that defines the layer's computation graph or a "
-                f"list of layers. Got: {layers}"
+                f"CompositeLayer requires a layers parameter that is either "
+                f"a function that defines the layer's computation graph or "
+                f"a non-empty list of layers. Got: {layers}"
             )
+        # error out on wrong layer_fn signature
+        if callable(layers):
+            layer_fn = layers
+            layer_fn_params = inspect.signature(layer_fn).parameters
+            if len(layer_fn_params) != 1:
+                raise ValueError(
+                    f"The function used to initialize a CompositeLayer must "
+                    f"take a single argument (the inputs). If multiple inputs "
+                    f"are required, use a list or a dictionary. "
+                    f"Got: {layer_fn_params} for {layer_fn}"
+                )
 
         self._arg_layers = layers
         self._function = None
@@ -165,29 +115,44 @@ class CompositeLayer(Layer):
         self._allow_non_tensor_positional_args = True
 
     def build(self, input_shape):
-        if callable(self._arg_layers):
-            layer_fn = self._arg_layers
-            # Create dummy inputs (remove batch size from shape)
-            input = tree.map_shape_structure(
+        def spec_to_input(spec):
+            # InputSpec shapes have batch size as first
+            # dimension but InputLayer shapes do not.
+            return Input(
+                shape=spec.shape[1:],
+                dtype=spec.dtype,
+                name=spec.name,
+                optional=spec.optional,
+            )
+
+        # create appropriate inputs
+        if hasattr(self, "_manual_input_spec"):
+            # code path for a manual input spec which may contain
+            # optional inputs (set with InputSpec(optional=True)
+            inputs = tree.map_structure(spec_to_input, self.input_spec)
+        else:
+            # In this code path, there are no optional inputs and
+            # input_shape cannot have None fields.
+            inputs = tree.map_shape_structure(
                 lambda x: Input(shape=x[1:], dtype=self.input_dtype),
                 input_shape,
             )
-            outputs = layer_fn(input)
-            self._function = Function(input, outputs, name=self.name)
 
+        # if "layers" is a callable, call to to create the layer graph
+        if callable(self._arg_layers):
+            layer_fn = self._arg_layers
+            outputs = layer_fn(inputs)
+            self._function = Function(inputs, outputs, name=self.name)
+        # if "layers" is a list or tuple, create the layer graph sequantially
         elif (
             isinstance(self._arg_layers, (list, tuple))
             and len(self._arg_layers) > 0
         ):
             layers_list = self._arg_layers
-            # Create dummy inputs (remove batch size from shape)
-            input = tree.map_shape_structure(
-                lambda x: Input(shape=x[1:]), input_shape
-            )
-            x = input
+            x = inputs
             for layer in layers_list:
                 x = layer(x)
-            self._function = Function(input, x, name=self.name)
+            self._function = Function(inputs, x, name=self.name)
 
         # Store structure for get_config/serialization
         self._inputs_struct = self._function._inputs_struct

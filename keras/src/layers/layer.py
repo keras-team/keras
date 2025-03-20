@@ -1741,7 +1741,13 @@ def get_shapes_dict(call_spec):
             continue
         if k in call_spec.nested_tensor_argument_names:
             shapes_dict[f"{k}_shape"] = tree.map_structure(
-                lambda x: backend.standardize_shape(x.shape), v
+                lambda x: (
+                    backend.standardize_shape(x.shape)
+                    # Handle optional inputs returning None(s) as shapes
+                    if x is not None
+                    else None
+                ),
+                v,
             )
         else:
             shapes_dict[f"{k}_shape"] = backend.standardize_shape(v.shape)
