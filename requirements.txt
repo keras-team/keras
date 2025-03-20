@@ -15,5 +15,8 @@ torch-xla==2.6.0;sys_platform != 'darwin'
 jax[cpu]==0.5.0
 flax
 
+# pre-commit checks (formatting, linting, etc.)
+pre-commit
+
 # Common deps.
 -r requirements-common.txt
