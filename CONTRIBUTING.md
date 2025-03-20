@@ -128,6 +128,13 @@ git add .
 git commit -m "<message>" # This will not get logged as a duplicate commit.
 ```
 
+In case you want to run the above manually on all files, you can do the
+following:
+
+```
+pre-commit run --all-files
+```
+
 KerasHub uses [Ruff](https://docs.astral.sh/ruff/) to format the code.
 
 ### Docstrings
