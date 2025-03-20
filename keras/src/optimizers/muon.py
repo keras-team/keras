@@ -7,15 +7,34 @@ from keras.src.optimizers import optimizer
 class Muon(optimizer.Optimizer):
     """Optimizer that implements the Muon algorithm.
 
-    The Muon optimizer is a new type of optimizer
-    first implemented in https://github.com/KellerJordan/Muon
-    first verified in the paper https://arxiv.org/abs/2502.16982
-
     Note that this optimizer should not be used in the following layers:
+
     1. Embedding layer
     2. Final output fully connected layer
-    3. Any {0,1}-D parameters
+    3. Any {0,1}-D variables
+
     These should all be optimized using AdamW.
+
+    The Muon optimizer can use both the Muon update step or the
+    AdamW update step based on the following:
+
+    - For any variable that isn't 2D, 3D or 4D, the AdamW step
+        will be used. This is not configurable.
+    - If the argument `exclude_embeddings` (defaults to `True`) is set
+    to `True`, the AdamW step will be used.
+    - For any variablewith a name that matches an expression
+        listed in the argument `exclude_layers` (a list), the
+        AdamW step will be used.
+    - Any other variable uses the Muon step.
+
+    Typically, you only need to pass the name of your densely-connected
+    output layer to `exclude_layers`, e.g.
+    `exclude_layers=["output_dense"]`.
+
+    References:
+        - [Original implementation](https://github.com/KellerJordan/Muon)
+        - [Liu et al, 2025](https://arxiv.org/abs/2502.16982)
+
     Args:
         learning_rate: A float,
             `keras.optimizers.schedules.LearningRateSchedule` instance, or
@@ -154,13 +173,13 @@ class Muon(optimizer.Optimizer):
     def update_step(self, gradient, variable, learning_rate):
         if self._should_use_adamw(variable):
             # It should be noted that lr is one-tenth when using adamw.
-            self.adamw_update_step(
+            self._adamw_update_step(
                 gradient, variable, learning_rate * self.adam_lr_ratio
             )
         else:
-            self.muon_update_step(gradient, variable, learning_rate)
+            self._muon_update_step (gradient, variable, learning_rate)
 
-    def muon_update_step(self, gradient, variable, lr):
+    def _muon_update_step (self, gradient, variable, lr):
         m = self.adam_momentums[variable.path]
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
         shape = variable.shape
@@ -176,7 +195,7 @@ class Muon(optimizer.Optimizer):
             * max(1, shape[0] / shape[1]) ** 0.5,
         )
 
-    def adamw_update_step(self, gradient, variable, learning_rate):
+    def _adamw_update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
         lr = ops.cast(learning_rate, variable.dtype)
         gradient = ops.cast(gradient, variable.dtype)
