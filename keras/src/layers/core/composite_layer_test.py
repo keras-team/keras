@@ -7,10 +7,12 @@ from absl.testing import parameterized
 
 from keras.src import applications
 from keras.src import backend
+from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src import tree
 from keras.src.layers.core.composite_layer import CompositeLayer
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
@@ -829,9 +831,200 @@ class CompositeLayerTest(testing.TestCase):
         # keys "IS", "IT". Otherwise, passing a list of inputs to
         # a model expecting a dictionary of inputs seems to be allowed,
         # as long as flattening the dict does not result in reordering.
-        # TODO: Consider disalowing this in CompositeLayer
         with self.assertRaisesRegex(
             ValueError,
             "The structure of `inputs` doesn't match the expected structure",
         ):
             layer([x1, x2])
+
+    def test_functional_subclass_serialization(self):
+        class FuncSubclass(CompositeLayer):
+            @staticmethod
+            def layer_fn(x):
+                y = layers.Dense(8)(x)
+                return layers.Dense(4)(y)
+
+            def __init__(self, name=None, **kwargs):
+                super().__init__(FuncSubclass.layer_fn, name, **kwargs)
+
+        inputs = Input((4,), name="input")
+        y = FuncSubclass()(inputs)
+        model = Model(inputs, y)
+        data = ops.ones((8, 4))
+        output1 = model(data)  # build the model
+        temp_filepath = os.path.join(self.get_temp_dir(), "comp_subclass.keras")
+        model.save(temp_filepath)
+
+        # Note: this recreates the layer by calling FuncSubclass.__init__
+        # and does *not* test the functional.function_from_config method.
+
+        loaded_model = saving.load_model(
+            temp_filepath, custom_objects={"FuncSubclass": FuncSubclass}
+        )
+
+        output2 = loaded_model(data)
+        self.assertAllClose(output1, output2)
+
+    def test_functional_in_functional_with_reuse_serialization(self):
+        ini = initializers.Ones()
+
+        # sub-functional
+        def layer_fn(inputs):
+            y = layers.Dense(6, kernel_initializer=ini)(inputs)
+            return layers.Dense(8, kernel_initializer=ini)(y)
+
+        sub_layer1 = CompositeLayer(layer_fn)
+
+        comp_layer = CompositeLayer(
+            [
+                sub_layer1,
+                sub_layer1,  # reuse
+            ]
+        )
+
+        data = ops.ones((2, 8))
+        output1 = comp_layer(data)
+
+        # this recreates the model from the saved functional graph
+        # and *does* test the functional.function_from_config method.
+
+        config = comp_layer.get_config()
+        loaded_model = CompositeLayer.from_config(config)
+
+        # check the model works
+        output2 = loaded_model(data)
+        # check both models return the same results
+        # (weights were initialized deterministically)
+        self.assertAllClose(output1, output2)
+
+    def test_functional_in_functional_with_reuse_saving(self):
+        # sub-functional
+        def layer_fn(inputs):
+            y = layers.Dense(6)(inputs)
+            return layers.Dense(8)(y)
+
+        sub_layer1 = CompositeLayer(layer_fn)
+
+        inputs = Input((8,))
+        y1 = sub_layer1(inputs)
+        outputs = sub_layer1(y1)  # reuse
+
+        model = Model(inputs, outputs)
+        data = ops.ones((2, 8))
+        output1 = model(data)  # build the model
+
+        # this recreates the model from the saved functional graph
+        # and *does* test the functional.function_from_config method.
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "func_subclass_reuse.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # check the model works
+        output2 = loaded_model(data)
+        # check both models return the same results
+        # (weights were initialized deterministically)
+        self.assertAllClose(output1, output2)
+
+    def test_composite_in_functional_model(self):
+        class ConvStack(CompositeLayer):
+            def __init__(self, **kwargs):
+                @staticmethod
+                def layer_fn(x):
+                    y = layers.Conv2D(
+                        12,
+                        kernel_size=(3, 3),
+                        padding="same",
+                        activation="relu",
+                        name="c1",
+                    )(x)
+                    y = layers.Conv2D(
+                        16, (3, 3), padding="same", activation="relu", name="c2"
+                    )(y)
+                    z = layers.Conv2D(
+                        16, kernel_size=(1, 1), activation="relu", name="c3"
+                    )(x)
+                    return y + z
+
+                super().__init__(layer_fn, **kwargs)
+
+        class RegulStack(CompositeLayer):
+            def __init__(self, **kwargs):
+                super().__init__(
+                    [layers.MaxPooling2D(pool_size=(2, 2)), layers.Flatten()],
+                    **kwargs,
+                )
+
+        class DenseStack(CompositeLayer):
+            def __init__(self, **kwargs):
+                super().__init__(
+                    [
+                        layers.Dense(128, activation="relu"),
+                        layers.Dropout(0.25),
+                    ],
+                    **kwargs,
+                )
+
+        input = Input(shape=(28, 28, 1))
+        composite_layer1 = ConvStack(name="c1")
+        x = composite_layer1(input)
+        composite_layer2 = ConvStack(name="c2")
+        x = composite_layer2(x)
+        composite_layer3 = RegulStack(name="r1")
+        x = composite_layer3(x)
+        composite_layer4 = DenseStack(name="d1")
+        x = composite_layer4(x)
+        output = layers.Dense(10, activation="softmax", name="head")(x)
+        model = Model(input, output, name="func_model")
+        model(input)  # check the model builds
+
+        def is_spec_equal(spec1, spec2):
+            tree.assert_same_structure(spec1, spec2)
+
+            def compare_spec(s1, s2):
+                return s1.shape == s2.shape and s1.dtype == s2.dtype
+
+            result = tree.map_structure(compare_spec, spec1, spec2)
+            return all(tree.flatten(result))
+
+        # check the layers were built correctly
+        self.assertTrue(
+            is_spec_equal(
+                composite_layer1.input_spec, InputSpec(shape=(None, 28, 28, 1))
+            )
+        )
+        self.assertTrue(
+            is_spec_equal(
+                composite_layer2.input_spec, InputSpec(shape=(None, 28, 28, 16))
+            )
+        )
+        self.assertTrue(
+            is_spec_equal(
+                composite_layer3.input_spec, InputSpec(shape=(None, 28, 28, 16))
+            )
+        )
+        self.assertTrue(
+            is_spec_equal(
+                composite_layer4.input_spec,
+                InputSpec(shape=(None, 28 * 28 * 16 // 4)),
+            )
+        )
+
+        # test model serialization with weights
+        data = np.ones((2, 28, 28, 1))
+        output1 = model(data)
+        temp_filepath = os.path.join(self.get_temp_dir(), "func_nested.keras")
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(
+            temp_filepath,
+            custom_objects={
+                "ConvStack": ConvStack,
+                "RegulStack": RegulStack,
+                "DenseStack": DenseStack,
+            },
+        )
+
+        output2 = loaded_model(data)
+        self.assertAllClose(output1, output2)

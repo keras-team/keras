@@ -282,7 +282,9 @@ def compute_input_spec(inputs_struct, inputs):
                 for name in names
             ]
         return None  # Deeply nested dict: skip checks.
-    return [make_spec_for_tensor(x) for x in inputs]
+
+    computed_spec = [make_spec_for_tensor(x) for x in inputs]
+    return unpack_singleton(computed_spec)
 
 
 def run_through_graph_with_training_and_mask(
@@ -467,7 +469,6 @@ def serialize_functional_config(obj, function_obj):
     # Only nodes in nodes parameter are saved.
     node_reindexing_map = {}
     for operation in function_obj.operations:
-        # TODO: make this work for CompositeLayer too
         if issubclass(operation.__class__, Function):
             # Functional models start with a pre-existing node
             # linking their input to output.
@@ -516,12 +517,6 @@ def serialize_functional_config(obj, function_obj):
 
     def map_tensors(tensors):
         if isinstance(tensors, backend.KerasTensor):
-            # Note: difference here with the original Functional version
-            # which returned a singleton list here. It looked wrong but
-            # Model.assert_input_compatible let it through. However,
-            # Function.assert_input_compatible does not so the bug
-            # must be fixed here.
-            # return [get_tensor_config(tensors)]
             return get_tensor_config(tensors)
         return tree.map_structure(get_tensor_config, tensors)
 
@@ -664,7 +659,6 @@ def function_from_config(cls, config, custom_objects=None):
     def get_tensor(layer_name, node_index, tensor_index):
         assert layer_name in created_layers
         layer = created_layers[layer_name]
-        # TODO: make this work for CompositeLayer too
         if isinstance(layer, Function):
             # Functional models start out with a built-in node.
             node_index -= 1

@@ -14,10 +14,16 @@
 # - Functional and CompositeLayer only depend on Function. There is
 #   no circular dependency between models and layers.
 #
-# - This is an intermediate implementation to make reviewing easier
+# - Note 1:
+#   This is an intermediate implementation to make reviewing easier
 #   It isolates 4 functions in functional.py that are used by both
-#   CompositeLayer and Functional. With this approach, no changes are
-#   made to the Functional Model class hierarchy.
+#   CompositeLayer and Functional:
+#      1) compute_input_spec
+#      2) run_through_graph_with_training_and_mask
+#      3) function_from_config
+#      4) serialize_functional_config
+#   With this approach, no changes are made to the Functional Model
+#   class hierarchy.
 #
 #   The next step is to move these 4 functions to CompositeLayer, then
 #   base Functional on CompositeLayer instead of Function. This will
@@ -27,23 +33,48 @@
 #   can then be removed throughout the code base and replaced with
 #   `isinstance(obj, CompositeLayer) and obj.built`
 #
-# - Once change potentially affecting Functional model:
+# - Note 2:
+#   Once change potentially affecting Functional model:
 #   in functional.serialize_functional_config, a line was
 #   changed from
 #       return [get_tensor_config(tensors)]
 #   to
 #       return get_tensor_config(tensors)
-#   There is comment in the file that explains why (it looked like a bug).
+#   This looked like a bug but Model.assert_input_compatible
+#   let it through. However, Function.assert_input_compatible
+#   does not so the bug needed to be fixed.
+#
+#   Also in functional.compute_input_spec, a list with a single element
+#   was returned when the input spec was a single tensor. This was changed
+#   too.
+#
+# - Note 3:
+#   In functional.py, there are two explicit tetst for "Function":
+#   "if isinstance(layer, Function)" in function_from_config
+#   and
+#   "issubclass(operation.__class__, Function)" in serialize_functional_config
+#   I have added a test that triggers these conditions in functions_test.py
+#   This is supposed to handle the case when a Functional sub-model is used
+#   in the computatio graph twice. However, if the two conditional clauses
+#   in functional.py are removed, the tests still pass. I do not think they
+#   are useful at all and I do not thing their explanatory comment "Functional
+#   models start with a pre-existing node linking their input to output." is
+#   correct. Therefore, I have not adapted these conditional clauses for
+#   CompositeLayer. It does not seem to matter in tests.
+#
+# - Note 4:
+#   Passing a list of inputs to a model expecting a dictionary
+#   of inputs seems to be allowed, as long as flattening the dict does
+#   not result in reordering. There is an explicit reordering test in
+#   functional._standardize_inputs (look for "sort").
+#   Changing this in Functional is not possible at this point but I would
+#   consider disalowing this in CompositeLayer.
+#   Tests covering thids behavior:
+#     functional_test.test_list_input_with_dict_build
+#     composite_layer_test.test_list_input_with_dict_build
 #
 # - TODOs:
 #   - TODO: optional inputs for CompositeLayer
-#   - functional.function_from_config and functional.function_from_config
-#     TODO to make them work for CompositeLayer.
-#   - TODO: Consider disalowing, in CompositeLayer, the mapping of list inputs
-#     to a layer built for dict inputs. It is allowed in a Functional model as
-#     long as the dict keys are sorted and do not change order when flattened.
-#     It is checked in function functional._standardize_inputs
-#     (look for "sort").
 
 import typing
 
