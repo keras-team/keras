@@ -177,9 +177,9 @@ class Muon(optimizer.Optimizer):
                 gradient, variable, learning_rate * self.adam_lr_ratio
             )
         else:
-            self._muon_update_step (gradient, variable, learning_rate)
+            self._muon_update_step(gradient, variable, learning_rate)
 
-    def _muon_update_step (self, gradient, variable, lr):
+    def _muon_update_step(self, gradient, variable, lr):
         m = self.adam_momentums[variable.path]
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
         shape = variable.shape
