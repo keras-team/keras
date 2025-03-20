@@ -1307,12 +1307,12 @@ class Dice(LossFunctionWrapper):
     >>> y_pred = [[[[0.0], [1.0]], [[0.0], [1.0]]],
     ...           [[[0.4], [0.0]], [[0.0], [0.9]]]]
     >>> axis = (1, 2, 3)
-    >>> loss = keras.losses.dice(y_true, y_pred, axis=axis)
+    >>> loss = keras.losses.Dice(axis=axis, reduction=None)(y_true, y_pred)
     >>> assert loss.shape == (2,)
     >>> loss
     array([0.5, 0.75757575], shape=(2,), dtype=float32)
 
-    >>> loss = keras.losses.dice(y_true, y_pred)
+    >>> loss = keras.losses.Dice()(y_true, y_pred)
     >>> assert loss.shape == ()
     >>> loss
     array(0.6164384, shape=(), dtype=float32)
@@ -2543,6 +2543,24 @@ def dice(y_true, y_pred, axis=None):
 
     Returns:
         Dice loss value.
+
+    Example:
+
+    >>> y_true = [[[[1.0], [1.0]], [[0.0], [0.0]]],
+    ...           [[[1.0], [1.0]], [[0.0], [0.0]]]]
+    >>> y_pred = [[[[0.0], [1.0]], [[0.0], [1.0]]],
+    ...           [[[0.4], [0.0]], [[0.0], [0.9]]]]
+    >>> axis = (1, 2, 3)
+    >>> loss = keras.losses.dice(y_true, y_pred, axis=axis)
+    >>> assert loss.shape == (2,)
+    >>> loss
+    array([0.5, 0.75757575], shape=(2,), dtype=float32)
+
+    >>> loss = keras.losses.dice(y_true, y_pred)
+    >>> assert loss.shape == ()
+    >>> loss
+    array(0.6164384, shape=(), dtype=float32)
+
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
