@@ -1051,6 +1051,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         ) as scope:
             if self.dtype_policy.quantization_mode is not None:
                 if self._remat_mode is not None:
+                    print("rematerializing", self._remat_mode)
                     outputs = self.rematerialized_call(
                         self.quantized_call, *args, **kwargs
                     )
