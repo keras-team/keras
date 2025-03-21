@@ -53,7 +53,7 @@ class Muon(optimizer.Optimizer):
             (in the formula just before Section 2.1),
             not the epsilon in Algorithm 1 of the paper.
             It be used at Adamw.Defaults to `1e-7`.
-        exclude_layers: str, keywords of layer names to exclude.
+        exclude_layers: List of strings,, keywords of layer names to exclude.
             All layers with keywords in their path will use adamw.
         exclude_embeddings: Boolean value
             If True, embedding layers will use adamw.
@@ -124,10 +124,7 @@ class Muon(optimizer.Optimizer):
         self.ns_steps = ns_steps
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
-        # exclude_layers is a keyword at variable path
-        # so it must be a string
-        assert isinstance(exclude_layers, str) or exclude_layers is None
-        self.exclude_layers = exclude_layers.lower()
+        self.exclude_layers = exclude_layers
 
     def _should_use_adamw(self, variable):
         # To use it with 4D convolutional filters,
@@ -137,8 +134,9 @@ class Muon(optimizer.Optimizer):
             return True
         if self.exclude_embeddings and "embedding" in variable.path.lower():
             return True
-        if self.exclude_layers in variable.path.lower():
-            return True
+        for keyword in self.exclude_layers:
+            if keyword in variable.path.lower():
+                return True
         return False
 
     def build(self, var_list):
