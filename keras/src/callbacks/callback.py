@@ -76,15 +76,30 @@ class Callback:
 
     @property
     def model(self):
-        if backend.backend() == "jax" and hasattr(
-            self._model, "jax_state_sync"
+        if (
+            backend.backend() == "torch"
+            and type(self._model).__name__ == "DistributedDataParallel"
         ):
-            # With JAX, by default the model state is not
-            # attached to the model in the middle of an
-            # epoch. We have to force a sync before
-            # accessing model state for e.g. checkpointing.
-            self._model.jax_state_sync()
-        return self._model
+            # Keras Callbacks expect to work with Keras models. e.g.          |
+            # ModelCheckpoint and EarlyStopping both attempt to call
+            # self.model.weights. Torch Modules do not# have this property,
+            # and when using DDP, self._model is a DistributedDataParallel
+            # instance, not a keras.Model instance. Therefore, when using
+            # DDP, we should "unwrap" the underlying model for use in
+            # the callbacks.
+
+            return self._model.module
+        else:
+            if backend.backend() == "jax" and hasattr(
+                self._model, "jax_state_sync"
+            ):
+                # With JAX, by default the model state is not
+                # attached to the model in the middle of an
+                # epoch. We have to force a sync before
+                # accessing model state for e.g. checkpointing.
+                self._model.jax_state_sync()
+
+            return self._model
 
     @utils.default
     def on_batch_begin(self, batch, logs=None):
