@@ -1146,6 +1146,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         keras.config.backend() == "openvino",
         reason="OpenVINO doesn't support this change",
     )
+    @pytest.mark.skipif(
+        keras.config.backend() == "mlx",
+        reason="Wrong results due to MLX flushing denormal numbers to 0 on GPU",
+    )
     def test_argmax_negative_zero(self):
         input_data = np.array(
             [-1.0, -0.0, 1.401298464324817e-45], dtype=np.float32
@@ -1160,6 +1164,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         change, TensorFlow behavior for this case is under
         evaluation and may change within this PR
         """,
+    )
+    @pytest.mark.skipif(
+        keras.config.backend() == "mlx",
+        reason="Wrong results due to MLX flushing denormal numbers to 0 on GPU",
     )
     def test_argmin_negative_zero(self):
         input_data = np.array(
@@ -5391,10 +5399,16 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.jax_enable_x64 = enable_x64()
         self.jax_enable_x64.__enter__()
+
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context = backend.core.enable_float64()
+            self.mlx_cpu_context.__enter__()
         return super().setUp()
 
     def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context.__exit__(None, None, None)
         return super().tearDown()
 
     @parameterized.named_parameters(
@@ -5598,6 +5612,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # This must be removed once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         # The shape of the matrix needs to meet the requirements of
         # torch._int_mm to test hardware-accelerated matmul
         x1 = knp.ones((17, 16), dtype=dtype1)
@@ -6620,6 +6641,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # This must be removed once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         x1 = knp.ones((2, 3, 4), dtype=dtype1)
         x2 = knp.ones((4, 3), dtype=dtype2)
         x1_jax = jnp.ones((2, 3, 4), dtype=dtype1)
@@ -6648,6 +6676,13 @@ class NumpyDtypeTest(testing.TestCase):
             return x1_shape, x2_shape
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # This must be removed once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         subscripts = "ijk,lkj->il"
         x1_shape, x2_shape = get_input_shapes(subscripts)
         x1 = knp.ones(x1_shape, dtype=dtype1)
@@ -8312,6 +8347,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # This must be removed once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         x1 = knp.ones((1, 1), dtype=dtype1)
         x2 = knp.ones((1, 1), dtype=dtype2)
         x1_jax = jnp.ones((1, 1), dtype=dtype1)
@@ -8522,6 +8564,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # This must be removed once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2)
         x1_jax = jnp.ones((1,), dtype=dtype1)
