@@ -328,11 +328,59 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmax` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    if rank == 0:
+        return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+        k = ov_opset.constant(1, Type.i32).output(0)
+    else:
+        if axis < 0:
+            axis = rank + axis
+        k = ov_opset.constant(1, Type.i32).output(0)
+    topk_outputs = ov_opset.topk(
+        x, k=k, axis=axis, mode="max", sort="none", index_element_type=Type.i32
+    )
+    topk_indices = topk_outputs.output(1)
+    if keepdims:
+        topk_indices_shape = topk_indices.get_partial_shape()
+        if topk_indices_shape.rank.get_length() == rank - 1:
+            topk_indices = ov_opset.unsqueeze(topk_indices, [axis]).output(0)
+    else:
+        topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
+    return OpenVINOKerasTensor(topk_indices)
 
 
 def argmin(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmin` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    if rank == 0:
+        return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+        k = ov_opset.constant(1, Type.i32).output(0)
+    else:
+        if axis < 0:
+            axis = rank + axis
+        k = ov_opset.constant(1, Type.i32).output(0)
+    topk_outputs = ov_opset.topk(
+        x, k=k, axis=axis, mode="min", sort="none", index_element_type=Type.i32
+    )
+    topk_indices = topk_outputs.output(1)
+    if keepdims:
+        topk_indices_shape = topk_indices.get_partial_shape()
+        if topk_indices_shape.rank.get_length() == rank - 1:
+            topk_indices = ov_opset.unsqueeze(topk_indices, [axis]).output(0)
+    else:
+        topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
+    return OpenVINOKerasTensor(topk_indices)
 
 
 def argsort(x, axis=-1):
@@ -764,7 +812,20 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    raise NotImplementedError("`hstack` is not supported with openvino backend")
+    if not isinstance(xs, (list, tuple)):
+        raise TypeError("Input to `hstack` must be a list or tuple of tensors.")
+    if len(xs) == 0:
+        raise ValueError("Input list to `hstack` cannot be empty.")
+    element_type = None
+    for x in xs:
+        if isinstance(x, OpenVINOKerasTensor):
+            element_type = x.output.get_element_type()
+            break
+    xs = [get_ov_output(x, element_type) for x in xs]
+    xs = _align_operand_types(xs[0], xs[1], "hstack()")
+    rank = len(xs[0].get_partial_shape())
+    axis = 1 if rank > 1 else 0
+    return OpenVINOKerasTensor(ov_opset.concat(xs, axis=axis).output(0))
 
 
 def identity(n, dtype=None):
