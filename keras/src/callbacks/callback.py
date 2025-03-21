@@ -84,11 +84,11 @@ class Callback:
         ):
             # Keras Callbacks expect to work with Keras models. e.g.          |
             # ModelCheckpoint and EarlyStopping both attempt to call
-            # self.model.weights. Torch Modules do not# have this property,
-            # and when using DDP, self._model is a DistributedDataParallel
-            # instance, not a keras.Model instance. Therefore, when using
-            # DDP, we should "unwrap" the underlying model for use in
-            # the callbacks.
+            # keras-specific APIs on the value returned from this
+            # property. If this callback was created against a DDP
+            # wrapper instead of the underlying keras.Model, it is
+            # likely to fail. Return self._model.module for DDP
+            # instances instead.
             return self._model.module
         else:
             if backend.backend() == "jax" and hasattr(
