@@ -53,7 +53,7 @@ class Muon(optimizer.Optimizer):
             (in the formula just before Section 2.1),
             not the epsilon in Algorithm 1 of the paper.
             It be used at Adamw.Defaults to `1e-7`.
-        exclude_layers: strings, keywords of layer names to exclude.
+        exclude_layers: str, keywords of layer names to exclude.
             All layers with keywords in their path will use adamw.
         exclude_embeddings: Boolean value
             If True, embedding layers will use adamw.
