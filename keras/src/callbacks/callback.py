@@ -2,9 +2,6 @@ from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
 
-if backend.backend() == "torch":
-    from torch.nn.parallel import DistributedDataParallel
-
 
 @keras_export("keras.callbacks.Callback")
 class Callback:
@@ -79,27 +76,28 @@ class Callback:
 
     @property
     def model(self):
-        if backend.backend() == "torch" and isinstance(
-            self._model, DistributedDataParallel
+        if backend.backend() == "torch":
+            from torch.nn.parallel import DistributedDataParallel
+
+            if isinstance(self._model, DistributedDataParallel):
+                # Keras Callbacks expect to work with Keras models. e.g
+                # ModelCheckpoint and EarlyStopping both attempt to call
+                # keras-specific APIs on the value returned from this
+                # property. If this callback was created against a DDP
+                # wrapper instead of the underlying keras.Model, it is
+                # likely to fail. Return self._model.module for DDP
+                # instances instead.
+                return self._model.module
+
+        if backend.backend() == "jax" and hasattr(
+            self._model, "jax_state_sync"
         ):
-            # Keras Callbacks expect to work with Keras models. e.g.          |
-            # ModelCheckpoint and EarlyStopping both attempt to call
-            # keras-specific APIs on the value returned from this
-            # property. If this callback was created against a DDP
-            # wrapper instead of the underlying keras.Model, it is
-            # likely to fail. Return self._model.module for DDP
-            # instances instead.
-            return self._model.module
-        else:
-            if backend.backend() == "jax" and hasattr(
-                self._model, "jax_state_sync"
-            ):
-                # With JAX, by default the model state is not
-                # attached to the model in the middle of an
-                # epoch. We have to force a sync before
-                # accessing model state for e.g. checkpointing.
-                self._model.jax_state_sync()
-            return self._model
+            # With JAX, by default the model state is not
+            # attached to the model in the middle of an
+            # epoch. We have to force a sync before
+            # accessing model state for e.g. checkpointing.
+            self._model.jax_state_sync()
+        return self._model
 
     @utils.default
     def on_batch_begin(self, batch, logs=None):
