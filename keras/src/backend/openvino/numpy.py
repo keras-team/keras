@@ -840,7 +840,10 @@ def log10(x):
 
 
 def log1p(x):
-    raise NotImplementedError("`log1p` is not supported with openvino backend")
+    x=get_ov_output(x)
+    one=ov_opset.constant(1.0,dtype=x.dtype)
+    return OpenVINOKerasTensor(ov_opset.log(ov_opset.add(x,one)).output(0))
+
 
 
 def log2(x):
