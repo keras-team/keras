@@ -13,6 +13,8 @@ from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src import tree
+
+# from keras.src import utils
 from keras.src.layers.core.composite_layer import CompositeLayer
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
@@ -441,8 +443,7 @@ class CompositeLayerTest(testing.TestCase):
     def test_warning_for_mismatched_inputs_structure(self):
         def is_input_warning(w):
             return str(w.message).startswith(
-                "The structure of `inputs` doesn't match "
-                "the expected structure"
+                "The structure of `inputs` doesn't match the expected structure"
             )
 
         def layer_fn(inputs):
@@ -1044,3 +1045,33 @@ class CompositeLayerTest(testing.TestCase):
             ValueError, "Optional inputs must be declared"
         ):
             out = layer([data, None])
+
+    # keeping this as a manual test during development
+    # def test_plot(self):
+    #     def layer_fn(x):
+    #         y = layers.Dense(8)(x)
+    #         y = layers.Dense(4)(y)
+    #         return y
+
+    #     layer = CompositeLayer(layer_fn)
+
+    #     x = Input((4,))
+    #     y = layers.Dense(8)(x)
+    #     y = layers.Dense(4)(y)
+    #     model = Model(x,y)
+
+    #     model2 = Sequential([
+    #         layers.Dense(8),
+    #         layers.Dense(8)
+    #     ])
+
+    #     x = Input((12,))
+    #     y = layer(x)
+    #     y = model(y)
+    #     y = model2(y)
+    #     model = Model(x,y)
+
+    #     data = np.random.uniform(size=(4, 12))
+    #     model(data)
+
+    #     utils.plot_model(model, expand_nested=True)
