@@ -18,9 +18,20 @@ def get_input_signature(model):
             "before export."
         )
     if isinstance(model, (models.Functional, models.Sequential)):
-        input_signature = tree.map_structure(make_input_spec, model.inputs)
-        if isinstance(input_signature, list) and len(input_signature) > 1:
-            input_signature = [input_signature]
+        if hasattr(model, "_input_names") and model._input_names:
+            if isinstance(model._inputs_struct, dict):
+                # Create dictionary input signature while
+                # preserving order.
+                input_signature = {
+                    name: make_input_spec(tensor)
+                    for name, tensor in zip(model._input_names, model.inputs)
+                }
+            else:
+                input_signature = tree.map_structure(
+                    make_input_spec, model.inputs
+                )
+        else:
+            input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
         input_signature = _infer_input_signature_from_model(model)
         if not input_signature or not model._called:
@@ -86,13 +97,35 @@ def make_input_spec(x):
 
 def make_tf_tensor_spec(x):
     if isinstance(x, tf.TensorSpec):
-        tensor_spec = x
-    else:
+        return x
+    if isinstance(x, dict):
+        # Convert dict to ordered list with names preserved.
+        return {
+            name: tf.TensorSpec(
+                shape=input_spec.shape,
+                dtype=input_spec.dtype,
+                name=name,
+            )
+            for name, spec in x.items()
+            for input_spec in [make_input_spec(spec)]
+        }
+    elif isinstance(x, layers.InputSpec):
         input_spec = make_input_spec(x)
-        tensor_spec = tf.TensorSpec(
-            input_spec.shape, dtype=input_spec.dtype, name=input_spec.name
+        return tf.TensorSpec(
+            shape=input_spec.shape, dtype=input_spec.dtype, name=input_spec.name
         )
-    return tensor_spec
+    else:
+        if hasattr(x, "shape") and hasattr(x, "dtype"):
+            input_spec = make_input_spec(x)
+            return tf.TensorSpec(
+                shape=input_spec.shape,
+                dtype=input_spec.dtype,
+                name=getattr(input_spec, "name", None),
+            )
+        raise TypeError(
+            f"Unsupported x={x} of the type ({type(x)}). Supported types are: "
+            "`keras.InputSpec`, `keras.KerasTensor` and backend tensor."
+        )
 
 
 def convert_spec_to_tensor(spec, replace_none_number=None):
