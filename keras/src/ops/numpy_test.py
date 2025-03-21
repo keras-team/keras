@@ -1148,9 +1148,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     )
     @pytest.mark.skipif(
         keras.config.backend() == "mlx",
-        reason="""
-        MLX flush denormal numbers to 0 on GPU resulting in wrong results.
-        """,
+        reason="Wrong results due to MLX flushing denormal numbers to 0 on GPU",
     )
     def test_argmax_negative_zero(self):
         input_data = np.array(
@@ -1169,9 +1167,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     )
     @pytest.mark.skipif(
         keras.config.backend() == "mlx",
-        reason="""
-        MLX flush denormal numbers to 0 on GPU resulting in wrong results.
-        """,
+        reason="Wrong results due to MLX flushing denormal numbers to 0 on GPU",
     )
     def test_argmin_negative_zero(self):
         input_data = np.array(
