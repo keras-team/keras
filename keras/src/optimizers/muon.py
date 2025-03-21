@@ -88,7 +88,7 @@ class Muon(optimizer.Optimizer):
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
         name="muon",
-        exclude_layers=None,
+        exclude_layers=[],
         exclude_embeddings=True,
         muon_a=3.4445,
         muon_b=-4.7750,
@@ -135,7 +135,7 @@ class Muon(optimizer.Optimizer):
         if self.exclude_embeddings and "embedding" in variable.path.lower():
             return True
         for keyword in self.exclude_layers:
-            if keyword in variable.path.lower():
+            if keyword.lower() in variable.path.lower():
                 return True
         return False
 
