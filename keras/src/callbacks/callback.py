@@ -2,6 +2,9 @@ from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
 
+if backend.backend() == "torch":
+    from torch.nn.parallel import DistributedDataParallel
+
 
 @keras_export("keras.callbacks.Callback")
 class Callback:
@@ -76,9 +79,8 @@ class Callback:
 
     @property
     def model(self):
-        if (
-            backend.backend() == "torch"
-            and type(self._model).__name__ == "DistributedDataParallel"
+        if backend.backend() == "torch" and isinstance(
+            self._model, DistributedDataParallel
         ):
             # Keras Callbacks expect to work with Keras models. e.g.          |
             # ModelCheckpoint and EarlyStopping both attempt to call
@@ -87,7 +89,6 @@ class Callback:
             # instance, not a keras.Model instance. Therefore, when using
             # DDP, we should "unwrap" the underlying model for use in
             # the callbacks.
-
             return self._model.module
         else:
             if backend.backend() == "jax" and hasattr(
@@ -98,7 +99,6 @@ class Callback:
                 # epoch. We have to force a sync before
                 # accessing model state for e.g. checkpointing.
                 self._model.jax_state_sync()
-
             return self._model
 
     @utils.default
