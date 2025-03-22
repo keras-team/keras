@@ -50,8 +50,10 @@ class RandomApply(BaseImagePreprocessingLayer):
                 in self.NOT_SUPPORTED_TRANSFORMATIONS
             ):
                 raise NotImplementedError(
-                    f"The transformation '{transform_layer.__class__.__name__}' is not supported by this implementation. "
-                    f"Supported transformations do not include: {', '.join(self.NOT_SUPPORTED_TRANSFORMATIONS)}."
+                    f"The transformation '{transform_layer.__class__.__name__}' "
+                    f"is not supported by this implementation. "
+                    f"Supported transformations do not include: "
+                    f"{', '.join(self.NOT_SUPPORTED_TRANSFORMATIONS)}."
                 )
 
         self._set_factor(factor)
