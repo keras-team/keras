@@ -9,41 +9,26 @@ from keras.src.random import SeedGenerator
 class RandomApply(BaseImagePreprocessingLayer):
     """Apply randomly a list of transformations with a given probability.
 
-    This layer can be thought of as an all-in-one image augmentation layer. The
-    policy implemented by this layer has been benchmarked extensively and is
-    effective on a wide variety of datasets.
-
     Args:
         transforms: A list of transformation operations to randomly apply.
             The available operations are specified in `ALLOWED_TRANSFORMATIONS`.
-        factor: The strength of the augmentation as a normalized value
-            between 0 and 1. Default is 0.5.
+        factor: A float or a tuple of two floats specifying the probability of
+            applying the transformations.
+            - `factor=0.0` ensures no transformations are applied.
+            - `factor=1.0` means transformations are always applied.
+            - A tuple `(min, max)` results in a probability value sampled
+              uniformly between `min` and `max` for each image.
+            - A single float value specifies a probability sampled between
+              `0.0` and the given float.
+            Default is `1.0`.
         seed: Integer. Used to create a random seed.
 
     """
 
-    ALLOWED_TRANSFORMATIONS = [
-        "AutoContrast",
-        "Equalization",
-        "RandomBrightness",
-        "RandomColorDegeneration",
-        "RandomContrast",
-        "RandomElasticTransform",
-        "RandomErasing",
-        "RandomFlip",
-        "RandomGaussianBlur",
-        "RandomGrayscale",
-        "RandomHue",
-        "RandomInvert",
-        "RandomPerspective",
-        "RandomPosterization",
-        "RandomRotation",
-        "RandomSaturation",
-        "RandomSharpness",
-        "RandomShear",
-        "RandomTranslation",
-        "RandomZoom",
-        "Solarization",
+    NOT_SUPPORTED_TRANSFORMATIONS = [
+        "CenterCrop",
+        "RandomCrop",
+        "Resizing",
     ]
 
     _USE_BASE_FACTOR = False
@@ -62,11 +47,11 @@ class RandomApply(BaseImagePreprocessingLayer):
         for transform_layer in transforms:
             if (
                 transform_layer.__class__.__name__
-                not in self.ALLOWED_TRANSFORMATIONS
+                in self.NOT_SUPPORTED_TRANSFORMATIONS
             ):
                 raise NotImplementedError(
-                    f"Transformation '{transform_layer.__class__.__name__}' is not supported. "
-                    f"Allowed transformations are: {', '.join(self.ALLOWED_TRANSFORMATIONS)}."
+                    f"The transformation '{transform_layer.__class__.__name__}' is not supported by this implementation. "
+                    f"Supported transformations do not include: {', '.join(self.NOT_SUPPORTED_TRANSFORMATIONS)}."
                 )
 
         self._set_factor(factor)
