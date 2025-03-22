@@ -20,7 +20,6 @@ class MuonTest(testing.TestCase):
         optimizer = Muon()
         tensor_input = ops.array([[0.2499, 0.9105], [0.2655, 0.8824]])
         except_output = ops.array([[-0.4422, 0.6457], [0.7285, 0.2968]])
-
         output = optimizer.zeropower_via_newtonschulz5(tensor_input, 5)
         self.assertAllClose(output, except_output, rtol=1e-3, atol=1e-3)
 

@@ -53,7 +53,7 @@ class Muon(optimizer.Optimizer):
             (in the formula just before Section 2.1),
             not the epsilon in Algorithm 1 of the paper.
             It be used at Adamw.Defaults to `1e-7`.
-        exclude_layers: List of strings,, keywords of layer names to exclude.
+        exclude_layers: List of strings, keywords of layer names to exclude.
             All layers with keywords in their path will use adamw.
         exclude_embeddings: Boolean value
             If True, embedding layers will use adamw.
@@ -88,7 +88,7 @@ class Muon(optimizer.Optimizer):
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
         name="muon",
-        exclude_layers=[],
+        exclude_layers=None,
         exclude_embeddings=True,
         muon_a=3.4445,
         muon_b=-4.7750,
@@ -124,6 +124,8 @@ class Muon(optimizer.Optimizer):
         self.ns_steps = ns_steps
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
+        if exclude_layers is None:
+            exclude_layers = []
         self.exclude_layers = exclude_layers
 
     def _should_use_adamw(self, variable):
