@@ -3,6 +3,7 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
     BaseImagePreprocessingLayer,
 )
 from keras.src.random import SeedGenerator
+from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.RandomApply")
@@ -11,7 +12,6 @@ class RandomApply(BaseImagePreprocessingLayer):
 
     Args:
         transforms: A list of transformation operations to randomly apply.
-            The available operations are specified in `ALLOWED_TRANSFORMATIONS`.
         factor: A float or a tuple of two floats specifying the probability of
             applying the transformations.
             - `factor=0.0` ensures no transformations are applied.
@@ -62,6 +62,11 @@ class RandomApply(BaseImagePreprocessingLayer):
         if not training:
             return None
 
+        if backend_utils.in_tf_graph():
+            self.backend.set_backend("tensorflow")
+            for transform_layer in self.transform_layers:
+                transform_layer.backend.set_backend("tensorflow")
+
         if isinstance(data, dict):
             images = data["images"]
         else:
@@ -78,6 +83,8 @@ class RandomApply(BaseImagePreprocessingLayer):
                 "Expected the input image to be rank 3 or 4. Received "
                 f"inputs.shape={images_shape}"
             )
+
+        seed = seed or self._get_seed_generator(self.backend._backend)
 
         apply_probability = self.backend.random.uniform(
             shape=(batch_size,),
@@ -98,6 +105,7 @@ class RandomApply(BaseImagePreprocessingLayer):
             "apply_transform": apply_transform,
             "transform_values": {},
         }
+
         for transform_layer in self.transform_layers:
             name = transform_layer.__class__.__name__
             transformations["transform_values"][name] = (
@@ -189,6 +197,7 @@ class RandomApply(BaseImagePreprocessingLayer):
 
     def get_config(self):
         config = {
+            "transforms": self.transform_layers,
             "factor": self.factor,
             "seed": self.seed,
         }
