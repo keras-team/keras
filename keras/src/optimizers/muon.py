@@ -1,3 +1,5 @@
+import re
+
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
@@ -124,10 +126,7 @@ class Muon(optimizer.Optimizer):
         self.ns_steps = ns_steps
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
-        # exclude_layers is a keyword at variable path
-        # so it must be a string
-        assert isinstance(exclude_layers, str) or exclude_layers is None
-        self.exclude_layers = exclude_layers.lower()
+        self.exclude_layers = exclude_layers or []
 
     def _should_use_adamw(self, variable):
         # To use it with 4D convolutional filters,
@@ -137,8 +136,9 @@ class Muon(optimizer.Optimizer):
             return True
         if self.exclude_embeddings and "embedding" in variable.path.lower():
             return True
-        if self.exclude_layers in variable.path.lower():
-            return True
+        for keyword in self.exclude_layers:
+            if re.search(keyword, variable.path):
+                return True
         return False
 
     def build(self, var_list):
