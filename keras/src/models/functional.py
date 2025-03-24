@@ -227,52 +227,31 @@ class Functional(Function, Model):
         def compute_input_spec(inputs_struct, inputs):
             """Compute the input spec for a Function-based layer or Model.
 
-            Args:
-                inputs_struct: Input structure of the layer or model
-                inputs: List of input tensors
+        def make_spec_for_tensor(x, name=None):
+            optional = False
+            if isinstance(x._keras_history[0], InputLayer):
+                if x._keras_history[0].optional:
+                    optional = True
+            return InputSpec(
+                shape=shape_with_no_batch_size(x.shape),
+                allow_last_axis_squeeze=True,
+                name=x._keras_history[0].name if name is None else name,
+                optional=optional,
+            )
 
-            Returns:
-                InputSpec object or structure
-            """
-
-            def shape_with_no_batch_size(x):
-                x = list(x)
-                if x:
-                    x[0] = None
-                return tuple(x)
-
-            def make_spec_for_tensor(x):
-                optional = False
-                if isinstance(x._keras_history[0], InputLayer):
-                    if x._keras_history[0].optional:
-                        optional = True
-                return InputSpec(
-                    shape=shape_with_no_batch_size(x.shape),
-                    allow_last_axis_squeeze=True,
-                    name=x._keras_history[0].name,
-                    optional=optional,
-                )
-
-            if isinstance(inputs_struct, dict):
-                if all(
-                    isinstance(x, backend.KerasTensor) for x in inputs_struct.values()
-                ):
-                    # Case where `_nested_inputs` is a plain dict of Inputs.
-                    names = sorted(inputs_struct.keys())
-                    return [
-                        InputSpec(
-                            shape=shape_with_no_batch_size(inputs_struct[name].shape),
-                            allow_last_axis_squeeze=True,
-                            name=name,
-                        )
-                        for name in names
-                    ]
-                return None  # Deeply nested dict: skip checks.
-
-            computed_spec = [make_spec_for_tensor(x) for x in inputs]
-            return unpack_singleton(computed_spec)
-            
-        return compute_input_spec(self._inputs_struct, self._inputs)
+        if isinstance(self._inputs_struct, dict):
+            if all(
+                isinstance(x, backend.KerasTensor)
+                for x in self._inputs_struct.values()
+            ):
+                # Case where `_nested_inputs` is a plain dict of Inputs.
+                names = sorted(self._inputs_struct.keys())
+                return [
+                    make_spec_for_tensor(self._inputs_struct[name], name=name)
+                    for name in names
+                ]
+            return None  # Deeply nested dict: skip checks.
+        return [make_spec_for_tensor(x) for x in self.inputs]
 
     @input_spec.setter
     def input_spec(self, value):
