@@ -773,7 +773,7 @@ def hstack(xs):
         aligned.append(x)
     result = ov_opset.concat(aligned, axis=1)
     return OpenVINOKerasTensor(result.output(0))
-    
+
 
 def identity(n, dtype=None):
     raise NotImplementedError(
