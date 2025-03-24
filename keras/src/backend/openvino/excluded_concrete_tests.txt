@@ -34,6 +34,7 @@ NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
 NumpyDtypeTest::test_linspace
 NumpyDtypeTest::test_log1p
+NumpyDtypeTest::test_logaddexp
 NumpyDtypeTest::test_logspace
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_max
