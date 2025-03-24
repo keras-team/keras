@@ -26,7 +26,6 @@ NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
 NumpyDtypeTest::test_hstack
-NumpyDtypeTest::test_identity
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isclose
 NumpyDtypeTest::test_isfinite
