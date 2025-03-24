@@ -2078,7 +2078,7 @@ def signbit(x):
             tf.bitwise.bitwise_and(
                 tf.bitcast(x, tf.int32),
                 # tf.float32 sign bit
-                tf.constant(0x80000000, dtype=tf.int32),
+                tf.constant(tf.int32.min, dtype=tf.int32),
             ),
             0,
         )
