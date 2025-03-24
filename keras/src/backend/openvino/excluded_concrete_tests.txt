@@ -6,6 +6,7 @@ NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_all
 NumpyDtypeTest::test_any
+NumpyDtypeTest::test_argmax
 NumpyDtypeTest::test_argmin
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
@@ -24,7 +25,6 @@ NumpyDtypeTest::test_expm1
 NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
-NumpyDtypeTest::test_hstack
 NumpyDtypeTest::test_identity
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isclose
@@ -32,7 +32,6 @@ NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
 NumpyDtypeTest::test_linspace
-NumpyDtypeTest::test_log10
 NumpyDtypeTest::test_log1p
 NumpyDtypeTest::test_log
 NumpyDtypeTest::test_logspace
@@ -80,6 +79,7 @@ NumpyDtypeTest::test_square_bool
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_all
 NumpyOneInputOpsCorrectnessTest::test_any
+NumpyOneInputOpsCorrectnessTest::test_argmax
 NumpyOneInputOpsCorrectnessTest::test_argmin
 NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
@@ -93,11 +93,12 @@ NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_expm1
 NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
-NumpyOneInputOpsCorrectnessTest::test_hstack
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
-NumpyOneInputOpsCorrectnessTest::test_log
+NumpyOneInputOpsCorrectnessTest::test_log1p
+NumpyOneInputOpsCorrectnessTest::test_log2
+NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
 NumpyOneInputOpsCorrectnessTest::test_median
