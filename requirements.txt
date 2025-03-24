@@ -1,7 +1,7 @@
 # Tensorflow.
 tensorflow-cpu~=2.19.0;sys_platform != 'darwin'
 tensorflow~=2.19.0;sys_platform == 'darwin'
-tf_keras
+tf_keras~=2.19.0
 tf2onnx
 
 # Torch.
