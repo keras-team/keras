@@ -868,6 +868,7 @@ def log2(x):
     result = ov_opset.divide(log_x, log_2).output(0)
     return OpenVINOKerasTensor(result)
 
+
 def logaddexp(x1, x2):
     raise NotImplementedError(
         "`logaddexp` is not supported with openvino backend"
