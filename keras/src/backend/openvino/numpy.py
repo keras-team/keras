@@ -328,31 +328,7 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    x = get_ov_output(x)
-    x_shape = x.get_partial_shape()
-    rank = x_shape.rank.get_length()
-    if rank == 0:
-        return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-        k = ov_opset.constant(1, Type.i32).output(0)
-    else:
-        if axis < 0:
-            axis = rank + axis
-        k = ov_opset.constant(1, Type.i32).output(0)
-    topk_outputs = ov_opset.topk(
-        x, k=k, axis=axis, mode="max", sort="none", index_element_type=Type.i32
-    )
-    topk_indices = topk_outputs.output(1)
-    if keepdims:
-        topk_indices_shape = topk_indices.get_partial_shape()
-        if topk_indices_shape.rank.get_length() == rank - 1:
-            topk_indices = ov_opset.unsqueeze(topk_indices, [axis]).output(0)
-    else:
-        topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
-    return OpenVINOKerasTensor(topk_indices)
+    raise NotImplementedError("`argmin` is not supported with openvino backend")
 
 
 def argmin(x, axis=None, keepdims=False):
@@ -788,8 +764,16 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    raise NotImplementedError("`hstack` is not supported with openvino backend")
-
+    ov_outputs = [get_ov_output(x) for x in xs]
+    ref_rank = len(ov_outputs[0].get_partial_shape())
+    aligned = []
+    for x in ov_outputs:
+        if len(x.get_partial_shape()) == 1 and ref_rank > 1:
+            x = ov_opset.unsqueeze(x, ov_opset.constant([0], dtype=np.int64))
+        aligned.append(x)
+    result = ov_opset.concat(aligned, axis=1)
+    return OpenVINOKerasTensor(result.output(0))
+    
 
 def identity(n, dtype=None):
     raise NotImplementedError(
