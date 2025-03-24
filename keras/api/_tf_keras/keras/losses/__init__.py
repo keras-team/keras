@@ -14,6 +14,7 @@ from keras.src.losses.losses import BinaryCrossentropy
 from keras.src.losses.losses import BinaryFocalCrossentropy
 from keras.src.losses.losses import CategoricalCrossentropy
 from keras.src.losses.losses import CategoricalFocalCrossentropy
+from keras.src.losses.losses import CategoricalGeneralizedCrossEntropy
 from keras.src.losses.losses import CategoricalHinge
 from keras.src.losses.losses import Circle
 from keras.src.losses.losses import CosineSimilarity
@@ -34,6 +35,7 @@ from keras.src.losses.losses import binary_crossentropy
 from keras.src.losses.losses import binary_focal_crossentropy
 from keras.src.losses.losses import categorical_crossentropy
 from keras.src.losses.losses import categorical_focal_crossentropy
+from keras.src.losses.losses import categorical_generalized_cross_entropy
 from keras.src.losses.losses import categorical_hinge
 from keras.src.losses.losses import circle
 from keras.src.losses.losses import cosine_similarity

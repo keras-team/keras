@@ -439,7 +439,8 @@ def bitwise_xor(x, y):
 
 def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
     return jnp.left_shift(x, y)
 
 
@@ -449,7 +450,8 @@ def left_shift(x, y):
 
 def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
     return jnp.right_shift(x, y)
 
 

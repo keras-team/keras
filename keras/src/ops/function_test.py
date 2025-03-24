@@ -7,6 +7,7 @@ from keras.src.backend.common import keras_tensor
 from keras.src.layers import Dense
 from keras.src.layers import Input
 from keras.src.models import Model
+from keras.src.models import Sequential
 from keras.src.ops import function
 from keras.src.ops import numpy as knp
 
@@ -142,3 +143,26 @@ class FunctionTest(testing.TestCase):
             ValueError, "`inputs` argument cannot be empty"
         ):
             _ = function.Function(inputs=[], outputs=x)
+
+    def test_function_with_unconnected_inputs(self):
+        model_1 = Sequential(
+            [
+                Input(shape=(6,)),
+                Dense(3, activation="sigmoid"),
+            ]
+        )
+        model_2 = Sequential(
+            [
+                Input(shape=(3,)),
+                Dense(2, activation="sigmoid"),
+            ],
+        )
+        with self.assertRaisesRegex(
+            ValueError, "`inputs` not connected to `outputs`"
+        ):
+            _ = Model(Input(shape=(6,)), model_2(model_1(Input(shape=(6,)))))
+
+        with self.assertRaisesRegex(
+            ValueError, "`inputs` not connected to `outputs`"
+        ):
+            _ = Model(model_1(Input(shape=(6,))), model_2(Input(shape=(3,))))
