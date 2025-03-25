@@ -13,13 +13,14 @@ from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
+from flax import nnx
 
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
-class Variable(KerasVariable):
+class Variable(nnx.Param, KerasVariable):
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
         self._shape = self._validate_shape(value.shape)
@@ -31,6 +32,14 @@ class Variable(KerasVariable):
         else:
             self._layout = None
         self._direct_assign(value)
+
+    @property
+    def _value(self):
+        return self.raw_value
+    
+    @_value.setter
+    def _value(self, value):
+        self.raw_value = value
 
     def _direct_assign(self, value):
         if getattr(self, "_layout", None) is not None:
