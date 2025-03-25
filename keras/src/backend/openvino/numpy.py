@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.runtime.opset14 as ov_opset
+import openvino.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
@@ -595,7 +595,9 @@ def diagonal(x, offset=0, axis1=-2, axis2=-1):
         keras_dtype = ov_to_keras_type(x.get_element_type())
         np_dtype = np.dtype(keras_dtype)
         empty_np = np.empty((0,), dtype=np_dtype)
-        empty_const = ov_opset.constant(empty_np, x.get_element_type()).output(0)
+        empty_const = ov_opset.constant(empty_np, x.get_element_type()).output(
+            0
+        )
         return OpenVINOKerasTensor(empty_const)
 
     indices = np.array(indices, dtype=np.int32)
