@@ -678,10 +678,30 @@ def diff(a, n=1, axis=-1):
     return OpenVINOKerasTensor(result)
 
 
-def digitize(x, bins):
-    raise NotImplementedError(
-        "`digitize` is not supported with openvino backend"
-    )
+def digitize(x, bins, right=False):
+    x = get_ov_output(x)
+    bins = get_ov_output(bins)
+    bins_shape = bins.get_partial_shape()
+
+    if bins_shape.rank != 1:
+        raise ValueError("digitize requires bins to be a 1D tensor.")
+    
+    if not bins_shape[0].is_static:
+        raise ValueError("digitize requires a static shape for bins.")
+    
+    B = bins_shape[0].get_length()
+    x_shape = x.get_partial_shape()
+    x_expanded = ov_opset.unsqueeze(x, axes=[-1])
+    bins_broadcast = ov_opset.broadcast(bins, ov_opset.shape_of(x_expanded))
+
+    if not right:
+        cmp_tensor = ov_opset.less_equal(bins_broadcast, x_expanded)
+    else:
+        cmp_tensor = ov_opset.less(bins_broadcast, x_expanded)
+
+    cmp_int = ov_opset.convert(cmp_tensor, destination_type=Type.i32)
+    indices = ov_opset.reduce_sum(cmp_int, axes=[-1], keep_dims=False)
+    return OpenVINOKerasTensor(indices.output(0))
 
 
 def dot(x, y):
