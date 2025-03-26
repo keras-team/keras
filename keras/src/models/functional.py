@@ -14,6 +14,7 @@ from keras.src.layers.layer import Layer
 from keras.src.legacy.saving import saving_utils
 from keras.src.legacy.saving import serialization as legacy_serialization
 from keras.src.models.model import Model
+from keras.src.models.model import strict_functional_like_constructor
 from keras.src.ops.function import Function
 from keras.src.ops.function import _build_map
 from keras.src.ops.function import make_node_key
@@ -229,10 +230,12 @@ class Functional(Function, Model):
         self._manual_input_spec = value
 
     def get_config(self):
-        if not functional_like_constructor(self.__class__):
+        if not strict_functional_like_constructor(self.__class__):
             # Subclassed networks are not serializable
             # (unless serialization is implemented by
-            # the author of the subclassed network).
+            # the author of the subclassed network)
+            # and unless the author has implemented a
+            # Functional-like constructor.
             return Model.get_config(self)
 
         return serialize_functional_config(self, self)
@@ -520,8 +523,8 @@ def serialize_functional_config(obj, function_obj):
             return get_tensor_config(tensors)
         return tree.map_structure(get_tensor_config, tensors)
 
-    config["input_layers"] = map_tensors(obj._inputs_struct)
-    config["output_layers"] = map_tensors(obj._outputs_struct)
+    config["input_layers"] = map_tensors(function_obj._inputs_struct)
+    config["output_layers"] = map_tensors(function_obj._outputs_struct)
     return copy.deepcopy(config)
 
 
@@ -702,15 +705,6 @@ def operation_fn_with_training(operation, training):
         return operation(*args, **kwargs)
 
     return call
-
-
-def functional_like_constructor(cls):
-    init_args = inspect.getfullargspec(cls.__init__).args[1:]
-    functional_init_args = inspect.getfullargspec(Functional.__init__).args[1:]
-    if init_args == functional_init_args:
-        return True
-    return False
-
 
 def unpack_singleton(x):
     if isinstance(x, (list, tuple)) and len(x) == 1:

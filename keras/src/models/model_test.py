@@ -9,6 +9,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
+from keras.src import ops
 from keras.src import testing
 from keras.src import tree
 from keras.src.layers.core.input_layer import Input
@@ -163,6 +164,10 @@ def _get_variable_value_by_path(variables, path):
             return v.value
     raise ValueError(f"No variable was find with path = {path}")
 
+def has_functional_config_keys(config):
+    functional_config_keys = ["name", "layers", "input_layers", "output_layers"]
+    return all(key in config for key in functional_config_keys)
+
 
 @pytest.mark.requires_trainable_backend
 class ModelTest(testing.TestCase):
@@ -216,8 +221,8 @@ class ModelTest(testing.TestCase):
 
     def test_reviving_functional_from_config_custom_model(self):
         class CustomModel(Model):
-            def __init__(self, *args, param=1, **kwargs):
-                super().__init__(*args, **kwargs)
+            def __init__(self, inputs, outputs, *args, param=1, **kwargs):
+                super().__init__(inputs, outputs, *args, **kwargs)
                 self.param = param
 
             def get_config(self):
@@ -231,6 +236,242 @@ class ModelTest(testing.TestCase):
 
         new_model = CustomModel.from_config(model.get_config())
         self.assertEqual(new_model.param, 3)
+
+    def test_reviving_functional_from_config_custom_model0(self):
+        # Functional custom model, true Functional-like constructor
+        # CustomModel.__init__ called with true functional-like args
+        # super().__init__ called with true functional-like args
+        class CustomModel0(Model):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+        inputs = layers.Input((3,))
+        outputs = layers.Dense(5)(inputs)
+        model = CustomModel0(inputs=inputs, outputs=outputs)
+
+        self.assertTrue(isinstance(model, CustomModel0))
+        self.assertTrue(isinstance(model, Functional))
+        # No way to detect that this can be serialized functionnally
+        # since the graph could have been created inside the custom
+        # __init__ with the same __init__ args.
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        with self.assertRaisesRegex(TypeError, "Unable to revive model"):
+            CustomModel0.from_config(config)
+
+        # Same thing when inputs and outputs are initially
+        # passed as args rather than kwargs.
+        model = CustomModel0(inputs, outputs)
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        with self.assertRaisesRegex(TypeError, "Unable to revive model"):
+            CustomModel0.from_config(config)
+
+    def test_reviving_functional_from_config_custom_model1(self):
+        # Functional custom model, true Functional-like constructor
+        # CustomModel.__init__ called with true functional-like args
+        # super().__init__ called with true functional-like args
+        class CustomModel1(Model):
+            def __init__(self, *args, param=1, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.param = param
+
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"param": self.param}
+                return base_config | config
+
+        inputs = layers.Input((3,))
+        outputs = layers.Dense(5)(inputs)
+        model = CustomModel1(inputs=inputs, outputs=outputs, param=3)
+
+        self.assertEqual(model.param, 3)
+        self.assertTrue(isinstance(model, CustomModel1))
+        self.assertTrue(isinstance(model, Functional))
+        # No way to detect that this can be serialized functionnally
+        # since the graph could have been created inside the custom
+        # __init__ with the same __init__ args.
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        with self.assertRaisesRegex(TypeError, "Unable to revive model"):
+            CustomModel1.from_config(config)
+
+    def test_reviving_functional_from_config_custom_model2(self):
+        # Functional custom model, true Functional-like constructor
+        # CustomModel.__init__ called with true functional-like args
+        # super().__init__ called with true functional-like args
+        # Explicit 'inputs' and 'outputs' args.
+        class CustomModel2(Model):
+            def __init__(self, inputs, outputs, *args, param=1, **kwargs):
+                super().__init__(inputs, outputs, *args, **kwargs)
+                self.param = param
+
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"param": self.param}
+                return base_config | config
+
+        inputs = layers.Input((3,))
+        outputs = layers.Dense(5)(inputs)
+        model = CustomModel2(inputs=inputs, outputs=outputs, param=3)
+
+        self.assertEqual(model.param, 3)
+        self.assertTrue(isinstance(model, CustomModel2))
+        self.assertTrue(isinstance(model, Functional))
+        # Here, the model has an explicit Functional-like constructor
+        # with inputs and outputs arguments: we detect that it can be
+        # serialized functionally
+        config = model.get_config()
+        self.assertTrue(has_functional_config_keys(config)) 
+        new_model = CustomModel2.from_config(config)
+        self.assertEqual(new_model.param, 3)
+        self.assertTrue(isinstance(new_model.layers[0], layers.InputLayer))
+        self.assertTrue(isinstance(new_model.layers[1], layers.Dense))
+
+        # However, if the inputs and outputs parameters in the constructr are
+        # not called that, there is no way to detect the functional constructor
+        # so we conservatively decline to serialize functionally.
+        class CustomModel2B(CustomModel2):
+            def __init__(self, a, b, *args, param=1, **kwargs):
+                super().__init__(a, b, *args, param=param, **kwargs)
+                self.param = param
+        model = CustomModel2B(inputs, outputs, param=3)
+        self.assertEqual(model.param, 3)
+        self.assertTrue(isinstance(model, CustomModel2B))
+        self.assertTrue(isinstance(model, Functional))
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        with self.assertRaisesRegex(TypeError, "Unable to revive model"):
+            CustomModel2B.from_config(config)
+        
+
+    def test_reviving_functional_from_config_custom_model3(self):
+        # Functional custom model, false Functional-like constructor
+        # CustomModel.__init__ called with false functional-like args
+        # super().__init__ called with true functional-like args
+        class CustomModel3(Model):
+            def __init__(self, **kwargs):
+                inputs = layers.Input((5,))
+                outputs = layers.Dense(12)(inputs)
+                super().__init__(inputs, outputs, **kwargs)
+
+        model = CustomModel3()
+        self.assertTrue(isinstance(model, CustomModel3))
+        self.assertTrue(isinstance(model, Functional))
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        # Model can still be revived by calling its constructor
+        new_model = CustomModel3.from_config(config)
+        self.assertTrue(isinstance(new_model.layers[0], layers.InputLayer))
+        self.assertTrue(isinstance(new_model.layers[1], layers.Dense))
+
+    def test_reviving_functional_from_config_custom_model4(self):
+        # Functional custom model, false Functional-like constructor
+        # CustomModel.__init__ called with false functional-like args
+        # super().__init__ called with true functional-like args
+        class CustomModel4(Model):
+            def __init__(self, a, b, *args, **kwargs):
+                inputs = layers.Input((a,))
+                outputs = layers.Dense(b)(inputs)
+                (self.a, self.b) = (a, b)
+                super().__init__(inputs, outputs, *args, **kwargs)
+
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"a": self.a, "b": self.b}
+                return base_config | config
+
+        model = CustomModel4(5, 12)
+        self.assertEqual(model.a, 5)
+        self.assertEqual(model.b, 12)
+        self.assertTrue(isinstance(model, CustomModel4))
+        self.assertTrue(isinstance(model, Functional))
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        # Model can still be revived by calling its constructor
+        new_model = CustomModel4.from_config(config)
+        self.assertEqual(new_model.a, 5)
+        self.assertEqual(new_model.b, 12)
+
+    def test_reviving_functional_from_config_custom_model5(self):
+        # non-functional custom model
+        # CustomModel.__init__ called with false functional-like args
+        # super().__init__ called with non-functional-like args
+        class CustomModel5(Model):
+            def __init__(self, a, b, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.w = self.add_weight(shape=(a, b))
+                (self.a, self.b) = (a, b)
+
+            def call(self, inputs):
+                result = ops.matmul(inputs, self.w)
+                return result
+
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"a": self.a, "b": self.b}
+                return base_config | config
+
+        model = CustomModel5(5, 12)
+        self.assertEqual(model.a, 5)
+        self.assertEqual(model.b, 12)
+        self.assertTrue(isinstance(model, CustomModel5))
+        self.assertFalse(isinstance(model, Functional))
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        # Model can still be revived by calling its constructor
+        new_model = CustomModel5.from_config(config)
+        self.assertEqual(new_model.a, 5)
+        self.assertEqual(new_model.b, 12)
+
+    def test_reviving_functional_from_config_custom_model6(self):
+        # non-functional custom model
+        # CustomModel.__init__ called with false functional-like args
+        # super().__init__ called with non-functional-like args
+        class CustomModel6(Model):
+            def __init__(self, a, b):
+                super().__init__() # will fail when "name" is passed
+                                   # during deserialization 
+                self.w = self.add_weight(shape=(a, b))
+                (self.a, self.b) = (a, b)
+
+            def call(self, inputs):
+                result = ops.matmul(inputs, self.w)
+                return result
+
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"a": self.a, "b": self.b}
+                return base_config | config
+
+        model = CustomModel6(5, 12)
+        self.assertEqual(model.a, 5)
+        self.assertEqual(model.b, 12)
+        self.assertTrue(isinstance(model, CustomModel6))
+        self.assertFalse(isinstance(model, Functional))
+        config = model.get_config()
+        self.assertFalse(has_functional_config_keys(config))
+        with self.assertRaisesRegex(TypeError,
+                                    "unexpected keyword argument 'name'"):
+            CustomModel6.from_config(config)
+
+    def test_reviving_functional_from_config_custom_model7(self):
+        # non-functional custom model
+        # CustomModel.__init__ called with functional-like args
+        # super().__init__ called with functional-like args
+        class CustomModel7(Model):
+            def __init__(self, a, b):
+                super().__init__(a, b) # nonsensical call that will fail
+                self.w = self.add_weight(shape=(a, b))
+                (self.a, self.b) = (a, b)
+
+            def call(self, inputs):
+                result = ops.matmul(inputs, self.w)
+                return result
+
+        with self.assertRaisesRegex(ValueError,
+                                    "All `inputs` values must be KerasTensors."):
+            CustomModel7(5, 12)
 
     @parameterized.named_parameters(
         ("single_output_1", _get_model_single_output),

@@ -86,35 +86,79 @@ class CompositeLayer(Layer):
     def __init__(self, layers, name=None, **kwargs):
         super().__init__(name=name, **kwargs)
 
-        # Init from either a function that defines the layer graph
-        # or a sequence of layers.
-        if not callable(layers) and not (
-            isinstance(layers, (list, tuple)) and len(layers) > 0
-        ):
-            raise ValueError(
-                f"CompositeLayer requires a layers parameter that is either "
-                f"a function that defines the layer's computation graph or "
-                f"a non-empty list of layers. Got: {layers}"
-            )
-        # error out on wrong layer_fn signature
-        if callable(layers):
-            layer_fn = layers
-            layer_fn_params = inspect.signature(layer_fn).parameters
-            if len(layer_fn_params) != 1:
+        # Init from either a function that defines the
+        # layer graph or a sequence of layers.
+        # Internally, a CompositeLayer can also
+        # be initialized from a Keras Function.
+        if not isinstance(layers, Function):
+            if not ((isinstance(layers, (list, tuple)) and len(layers) > 0) or
+                    (callable(layers))
+            ):
                 raise ValueError(
-                    f"The function used to initialize a CompositeLayer must "
-                    f"take a single argument (the inputs). If multiple inputs "
-                    f"are required, use a list or a dictionary. "
-                    f"Got: {layer_fn_params} for {layer_fn}"
+                    f"CompositeLayer requires a layers parameter that is "
+                    f"either a function that defines the layer's computation "
+                    f"graph or a non-empty list of layers. Got: {layers}"
                 )
+            # error out on wrong layer_fn signature
+            if callable(layers):
+                layer_fn = layers
+                layer_fn_params = inspect.signature(layer_fn).parameters
+                if len(layer_fn_params) != 1:
+                    raise ValueError(
+                        f"The function used to initialize a CompositeLayer "
+                        f"must take a single argument (the inputs). If multiple "
+                        f" inputs are required, use a list or a dictionary. "
+                        f"Got: {layer_fn_params} for {layer_fn}"
+                    )
 
-        self._arg_layers = layers
-        self._function = None
-        self.built = False
+        # Constructing from a Keras Function is useful
+        # internally when deserializing or cloning the layer.
+        if isinstance(layers, Function):
+            self._build_from_function(function=layers)
+            self._arg_layers = None
+        # defer building until the first call to build()
+        else:
+            self._arg_layers = layers
+            self._function = None
+            self.built = False
+
         self._convert_input_args = True
         self._allow_non_tensor_positional_args = True
 
+    # Note: CompositeLayer does not have the following attributes:
+    # _inputs_struct, _outputs_struct, _inputs, _outputs as in 
+    # Functional model since those are private attributes of Function.
+
+    @property
+    def inputs(self):
+        return self._function._inputs
+
+    @property
+    def outputs(self):
+        return self._function._outputs
+
+    # Override Operation.input (as in Functional)
+    @property
+    def input(self):
+        return self._function._inputs_struct
+
+    # Override Operation.output (as in Functional)
+    @property
+    def output(self):
+        return self._function._outputs_struct
+
+    # Only call this from __init__ or build()
+    # otherwise, must handle state locking/unlocking.
+    def _build_from_function(self, function):
+        self._function = function
+        # tracking: compute list of layers from the new function
+        self._layers = self.layers
+        self.built = True
+
     def build(self, input_shape):
+        # if __init__ from Function, build() should do nothing
+        assert(not isinstance(self._arg_layers, Function))
+
         def spec_to_input(spec):
             # InputSpec shapes have batch size as first
             # dimension but InputLayer shapes do not.
@@ -138,11 +182,11 @@ class CompositeLayer(Layer):
                 input_shape,
             )
 
-        # if "layers" is a callable, call to to create the layer graph
+        # if "layers" is a callable, call to create the layer graph
         if callable(self._arg_layers):
             layer_fn = self._arg_layers
             outputs = layer_fn(inputs)
-            self._function = Function(inputs, outputs, name=self.name)
+            self._build_from_function(Function(inputs, outputs, name=self.name))
         # if "layers" is a list or tuple, create the layer graph sequantially
         elif (
             isinstance(self._arg_layers, (list, tuple))
@@ -152,23 +196,16 @@ class CompositeLayer(Layer):
             x = inputs
             for layer in layers_list:
                 x = layer(x)
-            self._function = Function(inputs, x, name=self.name)
-
-        # Store structure for get_config/serialization
-        self._inputs_struct = self._function._inputs_struct
-        self._outputs_struct = self._function._outputs_struct
+            self._build_from_function(Function(inputs, x, name=self.name))
 
         # remove input param references now that _function is built
         self._arg_layers = None
-
-        # tracking
-        self._layers = self.layers
 
     @property
     def layers(self):
         """Returns the list of layers contained in this composite layer."""
         # Ensure the function is built
-        if not self.built and not self._function:
+        if not self._function:
             raise ValueError(
                 "This CompositeLayer has not been built yet. "
                 "Call it on inputs to build it before accessing layers."
@@ -216,21 +253,11 @@ class CompositeLayer(Layer):
         for key in ["name"]:
             layer_config[key] = config.get(key, None)  # keep name for Function
 
-        # Create instance without Function (dummy lambda fn)
+        # Recreate the Keras Function
+        function = function_from_config(Function, config, custom_objects)
+        # Create instance from Function
         instance = cls.__new__(cls)
-        CompositeLayer.__init__(instance, lambda x: x, **layer_config)
-
-        # Initialize Function from config
-        instance._function = function_from_config(
-            Function, config, custom_objects
-        )
-
-        # Copy relevant attributes from Function
-        instance._inputs_struct = instance._function._inputs_struct
-        instance._outputs_struct = instance._function._outputs_struct
-
-        instance._arg_layers = None
-        instance.built = True
+        CompositeLayer.__init__(instance, function, **layer_config)
         return instance
 
     def get_layer(self, name=None, index=None):

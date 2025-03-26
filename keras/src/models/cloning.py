@@ -4,9 +4,10 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers import Input
 from keras.src.layers import InputLayer
+from keras.src.layers.core.composite_layer import CompositeLayer
 from keras.src.models.functional import Functional
-from keras.src.models.functional import functional_like_constructor
 from keras.src.models.sequential import Sequential
+from keras.src.ops.function import Function
 from keras.src.saving import serialization_lib
 
 
@@ -161,7 +162,7 @@ def clone_model(
             clone_function=clone_function,
             input_tensors=input_tensors,
         )
-    if isinstance(model, Functional):
+    if _is_functional(model):
         # Wrap clone_function to handle recursiveness and layer sharing.
         clone_function = _wrap_clone_function(
             clone_function,
@@ -170,22 +171,53 @@ def clone_model(
             cache=cache,
         )
 
+        if isinstance(model, CompositeLayer):
+            cloned_inputs, cloned_outputs = _clone_function_object(
+                model._function,
+                clone_function=clone_function,
+                call_function=call_function,
+                input_tensors=input_tensors,
+            )
+            # Create a Keras Function from the graph between inputs and outputs
+            function = Function(cloned_inputs, cloned_outputs,
+                                model._function.name)
+
+            # Create a new CompositeLayer from the cloned function
+            # Note: A functional subclass of CompositeLayer will be
+            #       cloned as a vanilla CompositeLayer. This could be changed
+            #       in the future to;
+            #       inst = layer.__class__.__new__, then
+            #       CompositeLayer.__init__(inst, function, layer.name)
+            #       It would represent the cloned CompositeLayer with 
+            #       the correct class name but not call the __init__
+            #       method of the subclass which could create problems.
+            return CompositeLayer(function, model.name)
+
         # If the get_config() method is the same as a regular Functional
-        # model, we're safe to use _clone_functional_model (which relies
+        # model, we're safe to use _clone_function_object (which relies
         # on a Functional constructor). In the case where the get_config
         # is custom, this may not necessarily work, but if clone_function
-        # or input_tensors are passed, we attempt it anyway
+        # or call_function or input_tensors are passed, we attempt it anyway
         # in order to preserve backwards compatibility.
-        if utils.is_default(model.get_config) or (
-            clone_function or input_tensors
-        ):
-            return _clone_functional_model(
-                model,
+        if (utils.is_default(model.get_config) or
+            (clone_function or call_function or input_tensors)
+            ):
+            cloned_inputs, cloned_outputs = _clone_function_object(
+                model, # the model is a Function
                 clone_function=clone_function,
                 call_function=call_function,
                 input_tensors=input_tensors,
             )
 
+            # A subclassed Functional model is always cloned
+            #  as a vanilla Functional model.
+            new_model = Functional(cloned_inputs, cloned_outputs,
+                                    name=model.name)
+            if model.compiled:
+                compiled_config = model.get_compile_config()
+                new_model.compile_from_config(compiled_config)
+            return new_model
+         
     # Case of a custom model class
     if clone_function or input_tensors:
         raise ValueError(
@@ -236,7 +268,7 @@ def _wrap_clone_function(
                 )
                 cache[id(layer)] = clone
                 return clone
-            elif isinstance(layer, Functional):
+            elif _is_functional(layer):
                 clone = clone_model(
                     layer,
                     clone_function=clone_function,
@@ -334,19 +366,21 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
     return cloned_model
 
 
-def _clone_functional_model(
-    model, clone_function, input_tensors=None, call_function=None
+def _clone_function_object(
+    function_obj, clone_function, input_tensors=None, call_function=None
 ):
-    """Clone a `Functional` model instance.
+    """Clone a `Function` object instance.
 
-    Model cloning is similar to calling a model on new inputs,
-    except that it creates new layers (and thus new weights) instead
-    of sharing the weights of the existing layers.
+    Cloning is similar to calling a Function on new inputs.
+    Depending on clone_unction and call_function,
+    layers (and thus weights) can be shared or cloned
+    (which creates new layers and weights). See 'clone_model'
+    for details.
 
     Input layers are always cloned.
 
     Args:
-        model: Instance of `Functional`.
+        model: Instance of `Function`.
         input_tensors: optional list of input tensors
             to build the model upon. If not provided,
             placeholders will be created.
@@ -354,9 +388,9 @@ def _clone_functional_model(
             By default, it clones the layer (without copying the weights).
 
     Returns:
-        An instance of `Functional` reproducing the behavior
-        of the original model, on top of new inputs tensors,
-        using newly instantiated weights.
+        New input_tensors, output_tensors which can be used to instantiate
+        a new `Function` corresponding to the graph of the original function,
+        with the changes specified by clone_function and call_function.
     """
 
     if not callable(clone_function):
@@ -365,10 +399,10 @@ def _clone_functional_model(
             f"Received: clone_function={clone_function}"
         )
 
-    if not isinstance(model, Functional):
+    if not isinstance(function_obj, Function):
         raise ValueError(
             "Expected `model` argument "
-            f"to be a Functional Model instance. Received: model={model}"
+            f"to be a Functional Model instance. Received: model={function_obj}"
         )
 
     if input_tensors is not None:
@@ -381,39 +415,34 @@ def _clone_functional_model(
                 f"Received invalid values: inputs_tensors={input_tensors}"
             )
         try:
-            tree.assert_same_structure(input_tensors, model.input)
+            tree.assert_same_structure(input_tensors,
+                                       function_obj._inputs_struct)
         except ValueError as e:
             raise ValueError(
                 "`input_tensors` must have the same structure as model.input"
-                f"\nReference structure: {model.input}"
+                f"\nReference structure: {function_obj._inputs_struct}"
                 f"\nReceived structure: {input_tensors}"
             ) from e
     else:
         input_tensors = tree.map_structure(
             lambda x: Input(batch_shape=x.shape, dtype=x.dtype, name=x.name),
-            model.input,
+            function_obj._inputs_struct,
         )
 
     def operation_fn(layer):
         new_layer = clone_function(layer)
         return new_layer
 
-    output_tensors = model._run_through_graph(
+    output_tensors = function_obj._run_through_graph(
         input_tensors,
         operation_fn=operation_fn,
         call_fn=call_function,
     )
 
-    if functional_like_constructor(model.__class__):
-        new_model = model.__class__(
-            input_tensors, output_tensors, name=model.name
-        )
-    else:
-        # This may be incorrect: the new model will end up having a different
-        # class than the original. However various existing models rely
-        # on this behavior, so we keep it.
-        new_model = Functional(input_tensors, output_tensors, name=model.name)
-    if model.compiled:
-        compiled_config = model.get_compile_config()
-        new_model.compile_from_config(compiled_config)
-    return new_model
+    return input_tensors, output_tensors
+
+def _is_functional(layer):
+    return (
+        isinstance(layer, Functional)
+        or isinstance(layer, CompositeLayer)
+    )

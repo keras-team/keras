@@ -761,12 +761,13 @@ class FunctionalTest(testing.TestCase):
         self.assertAllClose(output1, output2)
 
     def test_functional_subclass_cfg_serialization(self):
-        class FuncSubclass(Functional):
+        class FuncSubclass(Model):
             def __init__(self, name=None, **kwargs):
                 inputs = Input((4,), name="input")
                 y = layers.Dense(8)(inputs)
                 outputs = layers.Dense(4)(y)
-                super().__init__(inputs, outputs, name, **kwargs)
+                # during deserilization, **kwargs already has "inputs" and "outputs"
+                super().__init__(inputs, outputs, name=name, **kwargs)
 
         model = FuncSubclass()
         data = ops.ones((8, 4))

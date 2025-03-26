@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.models import clone_model
 from keras.src import applications
 from keras.src import backend
 from keras.src import initializers
@@ -13,8 +14,6 @@ from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src import tree
-
-# from keras.src import utils
 from keras.src.layers.core.composite_layer import CompositeLayer
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
@@ -122,16 +121,13 @@ class CompositeLayerTest(testing.TestCase):
         out_val = layer(in_val)
         self.assertAllClose(out_val, np.ones((2, 3)))
 
-    def test_mutable_state(self):
+    def test_non_mutable_state(self):
         def layer_fn(inputs):
             x = layers.Dense(5)(inputs)
             outputs = layers.Dense(5)(x)
             return outputs
 
         layer = CompositeLayer(layer_fn)
-        # Allow attaching state to a model that isn't directly part of the DAG.
-        # Most useful for functional subclasses.
-        layer.extra_layer = layers.Dense(5)
         layer.build([2, 3])
         with self.assertRaisesRegex(
             ValueError, "You cannot add new elements of state*"
@@ -1046,7 +1042,8 @@ class CompositeLayerTest(testing.TestCase):
         ):
             out = layer([data, None])
 
-    # keeping this as a manual test during development
+    # Keeping this as a manual test so that pydot
+    # and graphvizare not required for testing.
     # def test_plot(self):
     #     def layer_fn(x):
     #         y = layers.Dense(8)(x)
@@ -1075,3 +1072,118 @@ class CompositeLayerTest(testing.TestCase):
     #     model(data)
 
     #     utils.plot_model(model, expand_nested=True)
+
+    def test_clone_model(self):
+
+        const_init = initializers.Ones()
+        zero_init = initializers.Zeros()
+
+        # alternative dense implementation with dict output
+        class AltDense(layers.Layer):
+            def __init__(self, units, **kwargs):
+                super().__init__(**kwargs)
+                self.units = units
+
+            def build(self, input_shape):
+                self.w = self.add_weight(
+                    shape=(input_shape[-1], self.units),
+                    initializer=const_init,
+                    trainable=True,
+                )
+                self.b = self.add_weight(
+                    shape=(self.units,),
+                    initializer=zero_init,
+                    trainable=True,
+                )
+
+            def call(self, inputs):
+                return ops.matmul(inputs, self.w) + self.b
+
+        data = np.random.uniform(size=(4, 12))
+
+        # CompositeLayer using regular dense layers
+        def layer_fn(x):
+            y = layers.Dense(8,
+                             kernel_initializer=const_init, name="original1")(x)
+            y = layers.Dense(8,
+                             kernel_initializer=const_init, name="original2")(y)
+            return y
+
+        layer = CompositeLayer(layer_fn)
+
+        # Composite layer instatiated as a subclass of CompositeLayer
+        # It is cloned as a vanilla CompositeLayer for now.
+        class FuncSub(CompositeLayer):
+            def __init__(self, name=None, **kwargs):
+                super().__init__(layer_fn, name, **kwargs)
+
+        flayer = FuncSub()
+
+        x = Input((12,))
+        y = layers.Dense(8, kernel_initializer=const_init, name="original3")(x)
+        y = layer(y)
+        y = flayer(y) # subclass layer
+        y = layer(y) # shared layer
+        model = Model(x,y)
+        # build the model
+        model(data)
+
+        for variable in model.variables:
+            self.assertContainsSubsequence(variable.path, "original")
+
+        # replace regular dense layers with alternative
+        # dense layers and rewire dict output
+        def replace_fn(layer, *args, **kwargs):
+            if isinstance(layer, layers.Dense):
+                return AltDense(layer.units)(*args, **kwargs)
+            else:            
+                return layer(*args, **kwargs) # pass-through
+
+        # clone function thas does not do any layer cloning
+        # but only creates a new layer graph.
+        model2 = clone_model(model,
+                            input_tensors=x,
+                            # everyhting is done in call_function
+                            clone_function=lambda x: x,
+                            call_function=replace_fn,
+                            recursive=True)
+
+        model2(data)
+        
+        # original model is unchanged
+        for variable in model.variables:
+            self.assertContainsSubsequence(variable.path, "original")
+
+        # new model has new AltDense layers
+        for variable in model2.variables:
+            self.assertContainsSubsequence(variable.path, "alt_dense")
+
+        self.assertEqual(len(model.layers), len(model2.layers))
+        for layer1, layer2 in zip(model.layers, model2.layers):
+            if isinstance(layer1, layers.Dense):
+                self.assertTrue(layer2.__class__ is AltDense)
+            # A subclass of CompositeLayer is cloned as CompositeLayer for now
+            elif isinstance(layer1, FuncSub):
+                self.assertTrue(layer2.__class__ is CompositeLayer or
+                                layer2.__class__ is FuncSub)
+            else:
+                self.assertEqual(layer1.__class__, layer2.__class__)
+
+        self.assertAllClose(model(data), model2(data))
+
+    def test_build_twice(self):
+        def layer_fn(inputs):
+            return layers.Dense(5)(inputs)
+            
+        layer = CompositeLayer(layer_fn)
+        layer.build([2, 3])
+        
+        id1 = id(layer.layers[0])
+        id2 = id(layer.layers[1])
+
+        # calling build a second time should do nothing
+        layer.build([2, 3])
+        
+        self.assertEqual(id1, id(layer.layers[0]))
+        self.assertEqual(id2, id(layer.layers[1]))
+
