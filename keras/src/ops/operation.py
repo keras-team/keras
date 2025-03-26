@@ -1,13 +1,10 @@
 import inspect
-import math
 import textwrap
 
 from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend.common import remat
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.ops.node import Node
 from keras.src.utils import python_utils
@@ -31,51 +28,6 @@ class Operation:
         self._inbound_nodes = []
         self._outbound_nodes = []
 
-    def rematerialized_function(self, function, *args, **kwargs):
-        """Rematerialize a function based on remat mode."""
-
-        def compute_size(x):
-            return (
-                math.prod([d or 1 for d in x.shape])
-                if isinstance(x, KerasTensor)
-                else 0
-            )
-
-        # Full rematerialization
-        if self._remat_mode.mode == "full":
-            return remat.remat(function)
-
-        # Apply rematerialization to specific layers
-        elif self._remat_mode.mode == "list_of_layers" and (
-            self.name in self._remat_mode.layer_names
-        ):
-            return remat.remat(function)
-        # Apply rematerialization based on output size threshold
-        elif self._remat_mode.mode == "larger_than":
-            output_spec = self.compute_output_spec(*args, **kwargs)
-            output_size = sum(
-                tree.flatten(tree.map_structure(compute_size, output_spec))
-            )
-            if (
-                output_size
-                and output_size > self._remat_mode.output_size_threshold
-            ):
-                return remat.remat(function)
-
-        elif self._remat_mode.mode == "activations":
-            has_activation = (
-                hasattr(self, "activation") and self.activation is not None
-            )
-            if has_activation:
-                not_rematted_activation = self.activation
-                try:
-                    self.activation = remat.remat(not_rematted_activation)
-                    return function
-                finally:
-                    self.activation = not_rematted_activation
-
-        return function
-
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         if traceback_utils.is_traceback_filtering_enabled():
@@ -85,12 +37,15 @@ class Operation:
             else:
                 if getattr(self, "_remat_mode", None) is not None:
                     if getattr(self, "quantization_mode", None) is not None:
-                        call_fn = self.rematerialized_function(
-                            self.quantized_call, *args, **kwargs
+                        call_fn = self.rematerialized_call(
+                            self.quantized_call,
+                            get_function_only=True,
+                            *args,
+                            **kwargs,
                         )
                     else:
-                        call_fn = self.rematerialized_function(
-                            self.call, *args, **kwargs
+                        call_fn = self.rematerialized_call(
+                            self.call, get_function_only=True, *args, **kwargs
                         )
                 else:
                     if getattr(self, "quantization_mode", None) is not None:

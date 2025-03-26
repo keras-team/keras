@@ -1602,6 +1602,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             Rematerialized layer's `call` method.
         """
 
+        def remated_function():
+            get_function_only = kwargs.pop("get_function_only", False)
+            if get_function_only:
+                return remat.remat(layer_call)
+            else:
+                return remat.remat(layer_call)(*args, **kwargs)
+
         def compute_size(x):
             return (
                 math.prod([d or 1 for d in x.shape])
@@ -1611,13 +1618,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # Full rematerialization
         if self._remat_mode.mode == "full":
-            return remat.remat(layer_call)(*args, **kwargs)
+            return remated_function()
 
         # Apply rematerialization to specific layers
         elif self._remat_mode.mode == "list_of_layers" and (
             self.name in self._remat_mode.layer_names
         ):
-            return remat.remat(layer_call)(*args, **kwargs)
+            return remated_function()
 
         # Apply rematerialization based on output size threshold
         elif self._remat_mode.mode == "larger_than":
@@ -1629,7 +1636,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 output_size
                 and output_size > self._remat_mode.output_size_threshold
             ):
-                return remat.remat(layer_call)(*args, **kwargs)
+                return remated_function()
         elif self._remat_mode.mode == "activations":
             has_activation = (
                 hasattr(self, "activation") and self.activation is not None
