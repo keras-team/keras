@@ -568,7 +568,76 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 def diff(a, n=1, axis=-1):
-    raise NotImplementedError("`diff` is not supported with openvino backend")
+    if n == 0:
+        return OpenVINOKerasTensor(get_ov_output(a))
+    if n < 0:
+        raise ValueError("order must be non-negative but got " + repr(n))
+    a = get_ov_output(a)
+    a_type = a.get_element_type()
+    if isinstance(a, np.ndarray):
+        rank = a.ndim
+    else:
+        rank = a.get_partial_shape().rank.get_length()
+    if axis < 0:
+        axis = axis + rank
+    result = a
+    for _ in range(n):
+        rank = result.get_partial_shape().rank.get_length()
+        strides = ov_opset.constant(
+            np.array([1] * rank, dtype=np.int64), Type.i64
+        ).output(0)
+
+        begin_upper_list = [0] * rank
+        begin_upper_list[axis] = 1
+        begin_upper = ov_opset.constant(
+            np.array(begin_upper_list, dtype=np.int64), Type.i64
+        ).output(0)
+        end_upper = ov_opset.constant(
+            np.array([0] * rank, dtype=np.int64), Type.i64
+        ).output(0)
+        begin_mask_upper = [1] * rank
+        begin_mask_upper[axis] = 0
+        end_mask_upper = [1] * rank
+        upper = ov_opset.strided_slice(
+            data=result,
+            begin=begin_upper,
+            end=end_upper,
+            strides=strides,
+            begin_mask=begin_mask_upper,
+            end_mask=end_mask_upper,
+            new_axis_mask=[],
+            shrink_axis_mask=[],
+            ellipsis_mask=[],
+        ).output(0)
+
+        begin_lower = ov_opset.constant(
+            np.array([0] * rank, dtype=np.int64), Type.i64
+        ).output(0)
+        end_lower_list = [0] * rank
+        end_lower_list[axis] = -1
+        end_lower = ov_opset.constant(
+            np.array(end_lower_list, dtype=np.int64), Type.i64
+        ).output(0)
+        begin_mask_lower = [1] * rank
+        end_mask_lower = [1] * rank
+        end_mask_lower[axis] = 0
+        lower = ov_opset.strided_slice(
+            data=result,
+            begin=begin_lower,
+            end=end_lower,
+            strides=strides,
+            begin_mask=begin_mask_lower,
+            end_mask=end_mask_lower,
+            new_axis_mask=[],
+            shrink_axis_mask=[],
+            ellipsis_mask=[],
+        ).output(0)
+
+        if a_type == Type.boolean:
+            result = ov_opset.not_equal(upper, lower).output(0)
+        else:
+            result = ov_opset.subtract(upper, lower).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def digitize(x, bins):
@@ -592,7 +661,16 @@ def dot(x, y):
 
 
 def empty(shape, dtype=None):
-    raise NotImplementedError("`empty` is not supported with openvino backend")
+    dtype = standardize_dtype(dtype) or config.floatx()
+    ov_type = OPENVINO_DTYPES[dtype]
+    if isinstance(shape, tuple):
+        shape = list(shape)
+    elif isinstance(shape, int):
+        shape = [shape]
+    shape_node = ov_opset.constant(shape, Type.i32).output(0)
+    const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
+    empty_tensor = ov_opset.broadcast(const_zero, shape_node).output(0)
+    return OpenVINOKerasTensor(empty_tensor)
 
 
 def equal(x1, x2):
@@ -754,11 +832,24 @@ def linspace(
 
 def log(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
     return OpenVINOKerasTensor(ov_opset.log(x).output(0))
 
 
 def log10(x):
-    raise NotImplementedError("`log10` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
+    log_x = ov_opset.log(x).output(0)
+    const_10 = ov_opset.constant(10, x_type).output(0)
+    log_10 = ov_opset.log(const_10).output(0)
+    result = ov_opset.divide(log_x, log_10).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def log1p(x):
@@ -766,7 +857,16 @@ def log1p(x):
 
 
 def log2(x):
-    raise NotImplementedError("`log2` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
+    log_x = ov_opset.log(x).output(0)
+    const_2 = ov_opset.constant(2, x_type).output(0)
+    log_2 = ov_opset.log(const_2).output(0)
+    result = ov_opset.divide(log_x, log_2).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def logaddexp(x1, x2):
