@@ -270,6 +270,15 @@ class CompositeLayerTest(testing.TestCase):
             CompositeLayer(layer_fn)
 
     def test_serialization(self):
+        def run_compsite_layer_serialization_test(layer):
+            # this torch-specific attribute is not supposed
+            # to be serialized / deserialized so delete it
+            # before checking serialization / deserialization.
+            if backend.backend() == "torch":
+                if hasattr(layer, "_torch_params"):
+                    del layer._torch_params
+            self.run_class_serialization_test(layer)
+
         # Test basic model
         def layer_fn(x):
             return layers.Dense(3)(x)
@@ -277,7 +286,9 @@ class CompositeLayerTest(testing.TestCase):
         layer = CompositeLayer(layer_fn, trainable=False)
         inputs = Input(shape=(3,), batch_size=2)
         layer(inputs)  # build the layer
-        self.run_class_serialization_test(layer)
+        if backend.backend() == "torch":
+            del layer._torch_params
+        run_compsite_layer_serialization_test(layer)
 
         # Test multi-io model
         def layer_fn(inputs):
@@ -292,7 +303,9 @@ class CompositeLayerTest(testing.TestCase):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
         input_b = Input(shape=(3,), batch_size=2, name="input_b")
         layer([input_a, input_b])  # build the layer
-        self.run_class_serialization_test(layer)
+        if backend.backend() == "torch":
+            del layer._torch_params
+        run_compsite_layer_serialization_test(layer)
 
         # Test model that includes floating ops
         def layer_fn(inputs):
@@ -307,7 +320,9 @@ class CompositeLayerTest(testing.TestCase):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
         input_b = Input(shape=(3,), batch_size=2, name="input_b")
         layer([input_a, input_b])  # build the layer
-        self.run_class_serialization_test(layer)
+        if backend.backend() == "torch":
+            del layer._torch_params
+        run_compsite_layer_serialization_test(layer)
 
         # Test model with dict i/o
         def layer_fn(inputs):
@@ -321,7 +336,9 @@ class CompositeLayerTest(testing.TestCase):
         input_a = Input(shape=(3,), batch_size=2, name="a")
         input_b = Input(shape=(3,), batch_size=2, name="b")
         layer({"a": input_a, "b": input_b})  # build the layer
-        self.run_class_serialization_test(layer)
+        if backend.backend() == "torch":
+            del layer._torch_params
+        run_compsite_layer_serialization_test(layer)
 
     def test_config_serialization(self):
         # Test serialization of sequential initialization
@@ -778,14 +795,7 @@ class CompositeLayerTest(testing.TestCase):
     def test_layers_setter(self):
         layer = CompositeLayer([layers.Dense(4)])
 
-        with self.assertRaisesRegex(
-            ValueError, "This CompositeLayer has not been built yet."
-        ):
-            layer.layers = [layers.Dense(5)]
-        layer(np.ones((8, 4)))  # build the layer
-        with self.assertRaisesRegex(
-            ValueError, "You cannot add new elements .* already built."
-        ):
+        with self.assertRaisesRegex(AttributeError, "attribute is reserved"):
             layer.layers = [layers.Dense(5)]
 
     def test_list_input_with_dict_build(self):

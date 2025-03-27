@@ -205,18 +205,12 @@ class CompositeLayer(Layer):
     @property
     def layers(self):
         """Returns the list of layers contained in this composite layer."""
-        # Ensure the function is built
-        if not self._function:
-            raise ValueError(
-                "This CompositeLayer has not been built yet. "
-                "Call it on inputs to build it before accessing layers."
-            )
-
         # Collect all Layer objects from operations
         layers = []
-        for operation in self._function.operations:
-            if isinstance(operation, Layer):
-                layers.append(operation)
+        if self._function:
+            for operation in self._function.operations:
+                if isinstance(operation, Layer):
+                    layers.append(operation)
         return layers
 
     @layers.setter
@@ -239,8 +233,12 @@ class CompositeLayer(Layer):
         return self._function.compute_output_spec(inputs)
 
     def get_config(self):
+        if not self.built:
+            raise ValueError(
+                "This CompositeLayer has not been built yet."
+                "You need to call `build()` or call the layer on an input."
+            )
         config = super().get_config()
-        self.layers  # accessing this checks the layer was built
         functional_config = serialize_functional_config(self, self._function)
         config.update(functional_config)
         return config
