@@ -620,8 +620,8 @@ val_py_dataset = ExamplePyDataset(x_val, y_val, batch_size=32)
 """
 To fit the model, pass the dataset instead as the `x` argument (no need for a `y`
 argument since the dataset includes the targets), and pass the validation dataset
-as the `validation_data` argument. And no need for the `batch_size` argument, since
-the dataset is already batched!
+as the `validation_data` argument. And no need for the `validation_batch_size`
+argument, since the dataset is already batched!
 """
 
 model = get_compiled_model()
