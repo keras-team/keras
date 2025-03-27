@@ -578,6 +578,7 @@ class CompositeLayerTest(testing.TestCase):
         out_val = layer(np.random.random((8, 10)))
         self.assertEqual(out_val.shape, (8, 10, 4))
 
+    @pytest.mark.requires_trainable_backend
     def test_dtype_standardization(self):
         def layer_fn(x):
             float_input = x["float"]
@@ -720,6 +721,7 @@ class CompositeLayerTest(testing.TestCase):
             self.assertEqual(out["others"]["2"].shape, (8, 2))
             self.assertEqual(out["others"]["3"].shape, (8, 3))
 
+    @pytest.mark.requires_trainable_backend
     def test_model_with_composite_layers_serialization(self):
         def layer_fn(x):
             # input x is: {"1": i1, "others": {"2": i2, "3": i3}}
@@ -823,6 +825,7 @@ class CompositeLayerTest(testing.TestCase):
         ):
             layer([x1, x2])
 
+    @pytest.mark.requires_trainable_backend
     def test_functional_subclass_serialization(self):
         class FuncSubclass(CompositeLayer):
             @staticmethod
@@ -883,6 +886,7 @@ class CompositeLayerTest(testing.TestCase):
         # (weights were initialized deterministically)
         self.assertAllClose(output1, output2)
 
+    @pytest.mark.requires_trainable_backend
     def test_functional_in_functional_with_reuse_saving(self):
         # sub-functional
         def layer_fn(inputs):
@@ -914,6 +918,7 @@ class CompositeLayerTest(testing.TestCase):
         # (weights were initialized deterministically)
         self.assertAllClose(output1, output2)
 
+    @pytest.mark.requires_trainable_backend
     def test_composite_in_functional_model(self):
         class ConvStack(CompositeLayer):
             def __init__(self, **kwargs):
@@ -953,7 +958,12 @@ class CompositeLayerTest(testing.TestCase):
                     **kwargs,
                 )
 
-        input = Input(shape=(28, 28, 1))
+        if backend.config.image_data_format() == "channels_first":
+            input = Input(shape=(1, 28, 28))
+            data = np.ones((2, 1, 28, 28))
+        else:
+            input = Input(shape=(28, 28, 1))
+            data = np.ones((2, 28, 28, 1))
         composite_layer1 = ConvStack(name="c1")
         x = composite_layer1(input)
         composite_layer2 = ConvStack(name="c2")
@@ -975,21 +985,24 @@ class CompositeLayerTest(testing.TestCase):
             result = tree.map_structure(compare_spec, spec1, spec2)
             return all(tree.flatten(result))
 
+        def get_image_format_shape(channeles_first_shape, channels_last_shape):
+            if backend.config.image_data_format() == "channels_first":
+                return channeles_first_shape
+            else:
+                return channels_last_shape
+
         # check the layers were built correctly
+        shape = get_image_format_shape((None, 1, 28, 28), (None, 28, 28, 1))
         self.assertTrue(
-            is_spec_equal(
-                composite_layer1.input_spec, InputSpec(shape=(None, 28, 28, 1))
-            )
+            is_spec_equal(composite_layer1.input_spec, InputSpec(shape=shape))
         )
+        shape = get_image_format_shape((None, 16, 28, 28), (None, 28, 28, 16))
         self.assertTrue(
-            is_spec_equal(
-                composite_layer2.input_spec, InputSpec(shape=(None, 28, 28, 16))
-            )
+            is_spec_equal(composite_layer2.input_spec, InputSpec(shape=shape))
         )
+        shape = get_image_format_shape((None, 16, 28, 28), (None, 28, 28, 16))
         self.assertTrue(
-            is_spec_equal(
-                composite_layer3.input_spec, InputSpec(shape=(None, 28, 28, 16))
-            )
+            is_spec_equal(composite_layer3.input_spec, InputSpec(shape=shape))
         )
         self.assertTrue(
             is_spec_equal(
@@ -999,7 +1012,6 @@ class CompositeLayerTest(testing.TestCase):
         )
 
         # test model serialization with weights
-        data = np.ones((2, 28, 28, 1))
         output1 = model(data)
         temp_filepath = os.path.join(self.get_temp_dir(), "func_nested.keras")
         model.save(temp_filepath)
