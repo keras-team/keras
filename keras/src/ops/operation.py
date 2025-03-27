@@ -39,13 +39,12 @@ class Operation:
                     if getattr(self, "quantization_mode", None) is not None:
                         call_fn = self.rematerialized_call(
                             self.quantized_call,
-                            get_function_only=True,
                             *args,
                             **kwargs,
                         )
                     else:
                         call_fn = self.rematerialized_call(
-                            self.call, get_function_only=True, *args, **kwargs
+                            self.call, *args, **kwargs
                         )
                 else:
                     if getattr(self, "quantization_mode", None) is not None:
@@ -65,9 +64,11 @@ class Operation:
             if getattr(self, "quantization_mode", None) is not None:
                 return self.rematerialized_call(
                     self.quantized_call, *args, **kwargs
-                )
+                )(*args, **kwargs)
             else:
-                return self.rematerialized_call(self.call, *args, **kwargs)
+                return self.rematerialized_call(self.call, *args, **kwargs)(
+                    *args, **kwargs
+                )
         else:
             if getattr(self, "quantization_mode", None) is not None:
                 return self.quantized_call(*args, **kwargs)

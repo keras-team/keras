@@ -17,6 +17,7 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common import remat
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
+from keras.src.utils import traceback_utils
 
 
 class LayerTest(testing.TestCase):
@@ -219,6 +220,7 @@ class LayerTest(testing.TestCase):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )
+        traceback_utils.enable_traceback_filtering()
         with patch(
             "keras.src.backend.common.remat.remat", wraps=remat.remat
         ) as mock_remat:
