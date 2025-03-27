@@ -164,6 +164,7 @@ def _get_variable_value_by_path(variables, path):
             return v.value
     raise ValueError(f"No variable was find with path = {path}")
 
+
 def has_functional_config_keys(config):
     functional_config_keys = ["name", "layers", "input_layers", "output_layers"]
     return all(key in config for key in functional_config_keys)
@@ -322,7 +323,7 @@ class ModelTest(testing.TestCase):
         # with inputs and outputs arguments: we detect that it can be
         # serialized functionally
         config = model.get_config()
-        self.assertTrue(has_functional_config_keys(config)) 
+        self.assertTrue(has_functional_config_keys(config))
         new_model = CustomModel2.from_config(config)
         self.assertEqual(new_model.param, 3)
         self.assertTrue(isinstance(new_model.layers[0], layers.InputLayer))
@@ -335,6 +336,7 @@ class ModelTest(testing.TestCase):
             def __init__(self, a, b, *args, param=1, **kwargs):
                 super().__init__(a, b, *args, param=param, **kwargs)
                 self.param = param
+
         model = CustomModel2B(inputs, outputs, param=3)
         self.assertEqual(model.param, 3)
         self.assertTrue(isinstance(model, CustomModel2B))
@@ -343,7 +345,6 @@ class ModelTest(testing.TestCase):
         self.assertFalse(has_functional_config_keys(config))
         with self.assertRaisesRegex(TypeError, "Unable to revive model"):
             CustomModel2B.from_config(config)
-        
 
     def test_reviving_functional_from_config_custom_model3(self):
         # Functional custom model, false Functional-like constructor
@@ -430,8 +431,8 @@ class ModelTest(testing.TestCase):
         # super().__init__ called with non-functional-like args
         class CustomModel6(Model):
             def __init__(self, a, b):
-                super().__init__() # will fail when "name" is passed
-                                   # during deserialization 
+                super().__init__()  # will fail when "name" is passed
+                # during deserialization
                 self.w = self.add_weight(shape=(a, b))
                 (self.a, self.b) = (a, b)
 
@@ -451,8 +452,9 @@ class ModelTest(testing.TestCase):
         self.assertFalse(isinstance(model, Functional))
         config = model.get_config()
         self.assertFalse(has_functional_config_keys(config))
-        with self.assertRaisesRegex(TypeError,
-                                    "unexpected keyword argument 'name'"):
+        with self.assertRaisesRegex(
+            TypeError, "unexpected keyword argument 'name'"
+        ):
             CustomModel6.from_config(config)
 
     def test_reviving_functional_from_config_custom_model7(self):
@@ -461,7 +463,7 @@ class ModelTest(testing.TestCase):
         # super().__init__ called with functional-like args
         class CustomModel7(Model):
             def __init__(self, a, b):
-                super().__init__(a, b) # nonsensical call that will fail
+                super().__init__(a, b)  # nonsensical call that will fail
                 self.w = self.add_weight(shape=(a, b))
                 (self.a, self.b) = (a, b)
 
@@ -469,8 +471,9 @@ class ModelTest(testing.TestCase):
                 result = ops.matmul(inputs, self.w)
                 return result
 
-        with self.assertRaisesRegex(ValueError,
-                                    "All `inputs` values must be KerasTensors."):
+        with self.assertRaisesRegex(
+            ValueError, "All `inputs` values must be KerasTensors"
+        ):
             CustomModel7(5, 12)
 
     @parameterized.named_parameters(

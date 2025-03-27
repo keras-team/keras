@@ -215,7 +215,7 @@ class CloneModelTest(testing.TestCase):
             def call(self, inputs):
                 result = ops.matmul(inputs, self.w) + self.b
                 return result
-            
+
         model = get_mlp_functional_model(shared_layers=False)
 
         def call_function(layer, *args, **kwargs):
@@ -227,7 +227,7 @@ class CloneModelTest(testing.TestCase):
 
         new_model = clone_model(
             model,
-            clone_function=lambda x: x, # everything happense in call_function.
+            clone_function=lambda x: x,  # everything happense in call_function.
             call_function=call_function,
         )
         self.assertLen(model.layers, 3)
@@ -316,18 +316,21 @@ class CloneModelTest(testing.TestCase):
         class FuncSubclassModel(models.Model):
             def __init__(self, **kwargs):
                 inputs = layers.Input(shape=(8,))
-                y = layers.Dense(4, kernel_initializer=const_init,
-                                 name="original1")(inputs)
-                outputs = layers.Dense(8, kernel_initializer=const_init,
-                                       name="original2")(y)
+                y = layers.Dense(
+                    4, kernel_initializer=const_init, name="original1"
+                )(inputs)
+                outputs = layers.Dense(
+                    8, kernel_initializer=const_init, name="original2"
+                )(y)
                 super().__init__(inputs, outputs, **kwargs)
 
         inputs = layers.Input(shape=(12,))
-        y = layers.Dense(8, kernel_initializer=const_init,
-                         name="original3")(inputs)
+        y = layers.Dense(8, kernel_initializer=const_init, name="original3")(
+            inputs
+        )
         funcsub = FuncSubclassModel()
         y = funcsub(y)
-        outputs = funcsub(y) # reused layer
+        outputs = funcsub(y)  # reused layer
         model = models.Model(inputs, outputs)
 
         data = np.random.uniform(size=(4, 12))
@@ -336,15 +339,17 @@ class CloneModelTest(testing.TestCase):
         def replace_fn(layer, *args, **kwargs):
             if isinstance(layer, layers.Dense):
                 return AltDense(layer.units)(*args, **kwargs)
-            else:            
-                return layer(*args, **kwargs) # pass-through
+            else:
+                return layer(*args, **kwargs)  # pass-through
 
-        model2 = clone_model(model,
-                            input_tensors=inputs,
-                            # everything happense in call_function.
-                            clone_function=lambda x: x,
-                            call_function=replace_fn,
-                            recursive=True)
+        model2 = clone_model(
+            model,
+            input_tensors=inputs,
+            # everything happense in call_function.
+            clone_function=lambda x: x,
+            call_function=replace_fn,
+            recursive=True,
+        )
 
         model2(data)
 
@@ -355,7 +360,7 @@ class CloneModelTest(testing.TestCase):
         # new model has new AltDense layers
         for variable in model2.variables:
             self.assertContainsSubsequence(variable.path, "alt_dense")
-        
+
         self.assertEqual(len(model.layers), len(model2.layers))
         for layer1, layer2 in zip(model.layers, model2.layers):
             if isinstance(layer1, layers.Dense):
@@ -363,8 +368,10 @@ class CloneModelTest(testing.TestCase):
             # A subclass of Functional is cloned as vanilla Functional for now
             # unless it has an explicit functional constructor
             elif isinstance(layer1, FuncSubclassModel):
-                self.assertTrue(layer2.__class__ is Functional or
-                                layer2.__class__ is FuncSubclassModel)
+                self.assertTrue(
+                    layer2.__class__ is Functional
+                    or layer2.__class__ is FuncSubclassModel
+                )
             else:
                 self.assertEqual(layer1.__class__, layer2.__class__)
 
@@ -395,16 +402,18 @@ class CloneModelTest(testing.TestCase):
         def replace_fn(layer, *args, **kwargs):
             if isinstance(layer, layers.Dense):
                 return AltDense(layer.units)(*args, **kwargs)
-            else:            
-                return layer(*args, **kwargs) # pass-through
-        
+            else:
+                return layer(*args, **kwargs)  # pass-through
+
         model = FuncSubclassParametrizedModel(param=11)
         self.assertEqual(model.param, 11)
 
-        model2 = clone_model(model,
-                            clone_function=lambda x: x,
-                            call_function=replace_fn,
-                            recursive=True)
+        model2 = clone_model(
+            model,
+            clone_function=lambda x: x,
+            call_function=replace_fn,
+            recursive=True,
+        )
         # A subclass of Functional is cloned as vanilla Functional for now
         self.assertFalse(model2.__class__ == FuncSubclassParametrizedModel)
         self.assertTrue(model2.__class__ == Functional)
@@ -433,11 +442,11 @@ class CloneModelTest(testing.TestCase):
         class SubFunctional(models.Model):
             pass
 
-        inputs=layers.Input(shape=(8,))
-        outputs=layers.Dense(8)(inputs)
+        inputs = layers.Input(shape=(8,))
+        outputs = layers.Dense(8)(inputs)
         sublayer = SubFunctional(inputs, outputs)
 
-        inputs=layers.Input(shape=(8,))
+        inputs = layers.Input(shape=(8,))
         outputs = sublayer(inputs)
         model = models.Model(inputs, outputs)
 
@@ -466,7 +475,7 @@ class CloneModelTest(testing.TestCase):
                 outputs = layers.Dense(4)(inputs)
                 return super().__init__(inputs, outputs, *args, **kwargs)
 
-        inputs=layers.Input(shape=(8,))
+        inputs = layers.Input(shape=(8,))
         outputs = SubFunctional()(inputs)
         model = models.Model(inputs, outputs)
 
@@ -482,13 +491,11 @@ class CloneModelTest(testing.TestCase):
                 outputs = layers.Dense(4)(inputs)
                 return super().__init__(inputs, outputs, *args, **kwargs)
 
-        inputs=layers.Input(shape=(8,))
+        inputs = layers.Input(shape=(8,))
         outputs = SubFunctional()(inputs)
         model = models.Model(inputs, outputs)
 
-        model2 = clone_model(model,
-                            clone_function=lambda x: x,
-                            recursive=True)
+        model2 = clone_model(model, clone_function=lambda x: x, recursive=True)
         self.assertTrue(model2.__class__ == Functional)
         # cloned as a vanilla Functional
         self.assertTrue(model2.layers[1].__class__ == Functional)
@@ -500,13 +507,11 @@ class CloneModelTest(testing.TestCase):
                 outputs = layers.Dense(4)(inputs)
                 return super().__init__(inputs, outputs, *args, **kwargs)
 
-        inputs=layers.Input(shape=(8,))
+        inputs = layers.Input(shape=(8,))
         outputs = SubFunctional()(inputs)
         model = models.Model(inputs, outputs)
 
-        model2 = clone_model(model,
-                            clone_function=lambda x: x,
-                            recursive=False)
+        model2 = clone_model(model, clone_function=lambda x: x, recursive=False)
         self.assertTrue(model2.__class__ == Functional)
         # not touched in non-recursive mode
         self.assertTrue(model2.layers[1].__class__ == SubFunctional)
@@ -525,17 +530,3 @@ class CloneModelTest(testing.TestCase):
         # cloned as a vanilla Functional
         model2 = clone_model(model)
         self.assertTrue(model2.__class__ == Functional)
-
-    
-
-
-        
-
-
-
-
-
-
-        
-
-

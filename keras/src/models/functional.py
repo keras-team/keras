@@ -1,5 +1,4 @@
 import copy
-import inspect
 import typing
 import warnings
 
@@ -241,6 +240,7 @@ class Functional(Function, Model):
 
         return serialize_functional_config(self, self)
 
+
 def compute_input_spec(inputs_struct, inputs):
     """Compute the input spec for a Function-based layer or Model."""
 
@@ -264,8 +264,7 @@ def compute_input_spec(inputs_struct, inputs):
 
     if isinstance(inputs_struct, dict):
         if all(
-            isinstance(x, backend.KerasTensor)
-            for x in inputs_struct.values()
+            isinstance(x, backend.KerasTensor) for x in inputs_struct.values()
         ):
             # Case where `_nested_inputs` is a plain dict of Inputs.
             names = sorted(inputs_struct.keys())
@@ -274,8 +273,9 @@ def compute_input_spec(inputs_struct, inputs):
                 for name in names
             ]
         return None  # Deeply nested dict: skip checks.
-    computed_spec =  [make_spec_for_tensor(x) for x in inputs]
+    computed_spec = [make_spec_for_tensor(x) for x in inputs]
     return unpack_singleton(computed_spec)
+
 
 def run_through_graph_with_training_and_mask(
     function_obj, inputs, training=None, mask=None
@@ -692,6 +692,7 @@ def operation_fn_with_training(operation, training):
         return operation(*args, **kwargs)
 
     return call
+
 
 def unpack_singleton(x):
     if isinstance(x, (list, tuple)) and len(x) == 1:

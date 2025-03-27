@@ -179,8 +179,9 @@ def clone_model(
                 input_tensors=input_tensors,
             )
             # Create a Keras Function from the graph between inputs and outputs
-            function = Function(cloned_inputs, cloned_outputs,
-                                model._function.name)
+            function = Function(
+                cloned_inputs, cloned_outputs, model._function.name
+            )
 
             # Create a new CompositeLayer from the cloned function
             # Note: A functional subclass of CompositeLayer will be
@@ -188,7 +189,7 @@ def clone_model(
             #       in the future to;
             #       inst = layer.__class__.__new__, then
             #       CompositeLayer.__init__(inst, function, layer.name)
-            #       It would represent the cloned CompositeLayer with 
+            #       It would represent the cloned CompositeLayer with
             #       the correct class name but not call the __init__
             #       method of the subclass which could create problems.
             return CompositeLayer(function, model.name)
@@ -199,11 +200,11 @@ def clone_model(
         # is custom, this may not necessarily work, but if clone_function
         # or call_function or input_tensors are passed, we attempt it anyway
         # in order to preserve backwards compatibility.
-        if (utils.is_default(model.get_config) or
-            (clone_function or call_function or input_tensors)
-            ):
+        if utils.is_default(model.get_config) or (
+            clone_function or call_function or input_tensors
+        ):
             cloned_inputs, cloned_outputs = _clone_function_object(
-                model, # the model is a Function
+                model,  # the model is a Function
                 clone_function=clone_function,
                 call_function=call_function,
                 input_tensors=input_tensors,
@@ -211,13 +212,14 @@ def clone_model(
 
             # A subclassed Functional model is always cloned
             #  as a vanilla Functional model.
-            new_model = Functional(cloned_inputs, cloned_outputs,
-                                    name=model.name)
+            new_model = Functional(
+                cloned_inputs, cloned_outputs, name=model.name
+            )
             if model.compiled:
                 compiled_config = model.get_compile_config()
                 new_model.compile_from_config(compiled_config)
             return new_model
-         
+
     # Case of a custom model class
     if clone_function or input_tensors:
         raise ValueError(
@@ -415,8 +417,9 @@ def _clone_function_object(
                 f"Received invalid values: inputs_tensors={input_tensors}"
             )
         try:
-            tree.assert_same_structure(input_tensors,
-                                       function_obj._inputs_struct)
+            tree.assert_same_structure(
+                input_tensors, function_obj._inputs_struct
+            )
         except ValueError as e:
             raise ValueError(
                 "`input_tensors` must have the same structure as model.input"
@@ -441,8 +444,6 @@ def _clone_function_object(
 
     return input_tensors, output_tensors
 
+
 def _is_functional(layer):
-    return (
-        isinstance(layer, Functional)
-        or isinstance(layer, CompositeLayer)
-    )
+    return isinstance(layer, Functional) or isinstance(layer, CompositeLayer)

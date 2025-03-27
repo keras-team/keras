@@ -1074,7 +1074,6 @@ class CompositeLayerTest(testing.TestCase):
     #     utils.plot_model(model, expand_nested=True)
 
     def test_clone_model(self):
-
         const_init = initializers.Ones()
         zero_init = initializers.Zeros()
 
@@ -1103,10 +1102,12 @@ class CompositeLayerTest(testing.TestCase):
 
         # CompositeLayer using regular dense layers
         def layer_fn(x):
-            y = layers.Dense(8,
-                             kernel_initializer=const_init, name="original1")(x)
-            y = layers.Dense(8,
-                             kernel_initializer=const_init, name="original2")(y)
+            y = layers.Dense(
+                8, kernel_initializer=const_init, name="original1"
+            )(x)
+            y = layers.Dense(
+                8, kernel_initializer=const_init, name="original2"
+            )(y)
             return y
 
         layer = CompositeLayer(layer_fn)
@@ -1122,9 +1123,9 @@ class CompositeLayerTest(testing.TestCase):
         x = Input((12,))
         y = layers.Dense(8, kernel_initializer=const_init, name="original3")(x)
         y = layer(y)
-        y = flayer(y) # subclass layer
-        y = layer(y) # shared layer
-        model = Model(x,y)
+        y = flayer(y)  # subclass layer
+        y = layer(y)  # shared layer
+        model = Model(x, y)
         # build the model
         model(data)
 
@@ -1136,20 +1137,22 @@ class CompositeLayerTest(testing.TestCase):
         def replace_fn(layer, *args, **kwargs):
             if isinstance(layer, layers.Dense):
                 return AltDense(layer.units)(*args, **kwargs)
-            else:            
-                return layer(*args, **kwargs) # pass-through
+            else:
+                return layer(*args, **kwargs)  # pass-through
 
         # clone function thas does not do any layer cloning
         # but only creates a new layer graph.
-        model2 = clone_model(model,
-                            input_tensors=x,
-                            # everyhting is done in call_function
-                            clone_function=lambda x: x,
-                            call_function=replace_fn,
-                            recursive=True)
+        model2 = clone_model(
+            model,
+            input_tensors=x,
+            # everyhting is done in call_function
+            clone_function=lambda x: x,
+            call_function=replace_fn,
+            recursive=True,
+        )
 
         model2(data)
-        
+
         # original model is unchanged
         for variable in model.variables:
             self.assertContainsSubsequence(variable.path, "original")
@@ -1164,8 +1167,10 @@ class CompositeLayerTest(testing.TestCase):
                 self.assertTrue(layer2.__class__ is AltDense)
             # A subclass of CompositeLayer is cloned as CompositeLayer for now
             elif isinstance(layer1, FuncSub):
-                self.assertTrue(layer2.__class__ is CompositeLayer or
-                                layer2.__class__ is FuncSub)
+                self.assertTrue(
+                    layer2.__class__ is CompositeLayer
+                    or layer2.__class__ is FuncSub
+                )
             else:
                 self.assertEqual(layer1.__class__, layer2.__class__)
 
@@ -1174,16 +1179,15 @@ class CompositeLayerTest(testing.TestCase):
     def test_build_twice(self):
         def layer_fn(inputs):
             return layers.Dense(5)(inputs)
-            
+
         layer = CompositeLayer(layer_fn)
         layer.build([2, 3])
-        
+
         id1 = id(layer.layers[0])
         id2 = id(layer.layers[1])
 
         # calling build a second time should do nothing
         layer.build([2, 3])
-        
+
         self.assertEqual(id1, id(layer.layers[0]))
         self.assertEqual(id2, id(layer.layers[1]))
-

@@ -786,7 +786,8 @@ class FunctionalTest(testing.TestCase):
                 inputs = Input((4,), name="input")
                 y = layers.Dense(8)(inputs)
                 outputs = layers.Dense(4)(y)
-                # during deserilization, **kwargs already has "inputs" and "outputs"
+                # during deserilization, **kwargs already
+                # has "inputs" and "outputs"
                 super().__init__(inputs, outputs, name=name, **kwargs)
 
         model = FuncSubclass()

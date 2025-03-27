@@ -634,10 +634,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         is_functional_config = all(
             key in config for key in functional_config_keys
         )
-        revivable_as_functional = (
-            cls in {Functional, Model}
-            or functional_like_constructor(cls)
-        )
+        revivable_as_functional = cls in {
+            Functional,
+            Model,
+        } or functional_like_constructor(cls)
         if is_functional_config and revivable_as_functional:
             # Revive Functional model
             # (but not Functional subclasses with
@@ -887,16 +887,18 @@ def functional_init_arguments(args, kwargs):
         or ("inputs" in kwargs and "outputs" in kwargs)
     )
 
+
 def functional_like_constructor(cls):
     # This test is permissive. Any constructor that could be passed
     # inputs and outputs is accepted. This test triggers Functional
     # deserialization when whe know we have a functional config so
     # it's OK to try anything that could work.
     init_args = inspect.signature(cls.__init__).parameters
-    funct_init_args = (
-                       ("inputs" in init_args and "outputs" in init_args) or
-                       ("args" in init_args or "kwargs" in init_args))
+    funct_init_args = ("inputs" in init_args and "outputs" in init_args) or (
+        "args" in init_args or "kwargs" in init_args
+    )
     return funct_init_args
+
 
 def strict_functional_like_constructor(cls):
     # This test is conservative. Only explcit "inputs" and "outputs"
@@ -904,7 +906,7 @@ def strict_functional_like_constructor(cls):
     # serialization and we want to do that in a subclass only when an explicitly
     # functional __init__(inputs, outputs) constructor exists in the subclass.
     init_args = inspect.signature(cls.__init__).parameters
-    funct_init_args = ("inputs" in init_args and "outputs" in init_args)
+    funct_init_args = "inputs" in init_args and "outputs" in init_args
     return funct_init_args
 
 

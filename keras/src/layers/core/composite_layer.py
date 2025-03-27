@@ -91,8 +91,9 @@ class CompositeLayer(Layer):
         # Internally, a CompositeLayer can also
         # be initialized from a Keras Function.
         if not isinstance(layers, Function):
-            if not ((isinstance(layers, (list, tuple)) and len(layers) > 0) or
-                    (callable(layers))
+            if not (
+                (isinstance(layers, (list, tuple)) and len(layers) > 0)
+                or (callable(layers))
             ):
                 raise ValueError(
                     f"CompositeLayer requires a layers parameter that is "
@@ -106,9 +107,9 @@ class CompositeLayer(Layer):
                 if len(layer_fn_params) != 1:
                     raise ValueError(
                         f"The function used to initialize a CompositeLayer "
-                        f"must take a single argument (the inputs). If multiple "
-                        f" inputs are required, use a list or a dictionary. "
-                        f"Got: {layer_fn_params} for {layer_fn}"
+                        f"must take a single argument (the inputs). If "
+                        f"multiple inputs are required, use a list or a "
+                        f"dictionary. Got: {layer_fn_params} for {layer_fn}"
                     )
 
         # Constructing from a Keras Function is useful
@@ -126,7 +127,7 @@ class CompositeLayer(Layer):
         self._allow_non_tensor_positional_args = True
 
     # Note: CompositeLayer does not have the following attributes:
-    # _inputs_struct, _outputs_struct, _inputs, _outputs as in 
+    # _inputs_struct, _outputs_struct, _inputs, _outputs as in
     # Functional model since those are private attributes of Function.
 
     @property
@@ -157,7 +158,7 @@ class CompositeLayer(Layer):
 
     def build(self, input_shape):
         # if __init__ from Function, build() should do nothing
-        assert(not isinstance(self._arg_layers, Function))
+        assert not isinstance(self._arg_layers, Function)
 
         def spec_to_input(spec):
             # InputSpec shapes have batch size as first
