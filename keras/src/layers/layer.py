@@ -17,6 +17,7 @@ And some more magic:
 """
 
 import collections
+import functools
 import inspect
 import math
 import warnings
@@ -1043,11 +1044,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 if self._remat_mode is not None:
                     outputs = self.rematerialized_call(
                         self.quantized_call, *args, **kwargs
-                    )
+                    )(*args, **kwargs)
                 else:
                     outputs = self.quantized_call(*args, **kwargs)
             elif self._remat_mode is not None:
-                outputs = self.rematerialized_call(self.call, *args, **kwargs)
+                outputs = self.rematerialized_call(self.call, *args, **kwargs)(
+                    *args, **kwargs
+                )
             else:
                 outputs = self.call(*args, **kwargs)
             if return_losses:
@@ -1601,13 +1604,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # Full rematerialization
         if self._remat_mode.mode == "full":
-            return remat.remat(layer_call)(*args, **kwargs)
+            return remat.remat(layer_call)
 
         # Apply rematerialization to specific layers
         elif self._remat_mode.mode == "list_of_layers" and (
             self.name in self._remat_mode.layer_names
         ):
-            return remat.remat(layer_call)(*args, **kwargs)
+            return remat.remat(layer_call)
 
         # Apply rematerialization based on output size threshold
         elif self._remat_mode.mode == "larger_than":
@@ -1619,20 +1622,24 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 output_size
                 and output_size > self._remat_mode.output_size_threshold
             ):
-                return remat.remat(layer_call)(*args, **kwargs)
+                return remat.remat(layer_call)
         elif self._remat_mode.mode == "activations":
             has_activation = (
                 hasattr(self, "activation") and self.activation is not None
             )
             if has_activation:
-                not_rematted_activation = self.activation
-                try:
-                    self.activation = remat.remat(not_rematted_activation)
-                    return layer_call(*args, **kwargs)
-                finally:
-                    self.activation = not_rematted_activation
 
-        return layer_call(*args, **kwargs)
+                @functools.wraps(layer_call)
+                def rematerialized_activation_call_wrapper(*args, **kwargs):
+                    original_activation = self.activation
+                    self.activation = remat.remat(original_activation)
+                    try:
+                        return layer_call(*args, **kwargs)
+                    finally:
+                        self.activation = original_activation
+
+                return rematerialized_activation_call_wrapper
+        return layer_call
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
