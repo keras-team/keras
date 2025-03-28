@@ -1594,6 +1594,30 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             self._parent_path = current_path()
         return backend.name_scope(self.name, caller=self)
 
+    def rematerialized_activation_call_wrapper(self, layer_call):
+        """Wrapper to enable remat specifically for layers with activations.
+
+        This wrapper temporarily replaces the layer's activation function with a
+        rematerialized version before calling the original layer's `call` method
+        and restores it afterward.
+
+        Args:
+            layer_call: The original `call` method of a layer.
+            *args: Positional arguments passed to the layer's `call` method.
+            **kwargs: Keyword arguments passed to the layer's `call` method.
+
+        Returns:
+            The result of the layer's `call` method.
+        """
+
+        original_activation = self.activation
+        rematted_activation = remat.remat(original_activation)
+        self.activation = rematted_activation
+        try:
+            return layer_call
+        finally:
+            self.activation = original_activation
+
     def rematerialized_call(self, layer_call, *args, **kwargs):
         """Enable rematerialization dynamically for layer's call method.
 
@@ -1637,13 +1661,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 hasattr(self, "activation") and self.activation is not None
             )
             if has_activation:
-                not_rematted_activation = self.activation
-                try:
-                    self.activation = remat.remat(not_rematted_activation)
-                    return layer_call
-                finally:
-                    self.activation = not_rematted_activation
-
+                return self.rematerialized_activation_call_wrapper(layer_call)
         return layer_call
 
 
