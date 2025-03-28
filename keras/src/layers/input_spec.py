@@ -100,6 +100,10 @@ class InputSpec:
             ("max_ndim=" + str(self.max_ndim)) if self.max_ndim else "",
             ("min_ndim=" + str(self.min_ndim)) if self.min_ndim else "",
             ("axes=" + str(self.axes)) if self.axes else "",
+            ("optional=" + str(self.optional)) if self.optional else "",
+            ("allow_last_axis_squeeze=" + str(self.allow_last_axis_squeeze))
+            if self.allow_last_axis_squeeze
+            else "",
         ]
         return f"InputSpec({', '.join(x for x in spec if x)})"
 
@@ -167,6 +171,11 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
             continue
         if x is None and spec.optional:
             continue
+        if x is None and not spec.optional:
+            raise ValueError(
+                f"Optional inputs must be declared in the input spec "
+                f"of a layer. Received input None for {spec}"
+            )
 
         # Having a shape/dtype is the only commonality of the various
         # tensor-like objects that may be passed. The most common kind of

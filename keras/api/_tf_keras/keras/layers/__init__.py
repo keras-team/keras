@@ -47,6 +47,7 @@ from keras.src.layers.convolutional.separable_conv2d import SeparableConv2D
 from keras.src.layers.convolutional.separable_conv2d import (
     SeparableConv2D as SeparableConvolution2D,
 )
+from keras.src.layers.core.composite_layer import CompositeLayer
 from keras.src.layers.core.dense import Dense
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.core.embedding import Embedding
