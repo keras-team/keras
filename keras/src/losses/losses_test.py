@@ -1372,7 +1372,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
         if backend.backend() == "tensorflow":
             expected_message = (
-                "Only axis=-1 is currently supported." " Received: axis=0"
+                "Only axis=-1 is currently supported. Received: axis=0"
             )
             escaped_message = re.escape(expected_message)
 
@@ -1538,7 +1538,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
         if backend.backend() == "tensorflow":
             expected_message = (
-                "Only axis=-1 is currently supported." " Received: axis=0"
+                "Only axis=-1 is currently supported. Received: axis=0"
             )
             escaped_message = re.escape(expected_message)
 
