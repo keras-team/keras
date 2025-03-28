@@ -857,7 +857,16 @@ def log1p(x):
 
 
 def log2(x):
-    raise NotImplementedError("`log2` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
+    log_x = ov_opset.log(x).output(0)
+    const_2 = ov_opset.constant(2, x_type).output(0)
+    log_2 = ov_opset.log(const_2).output(0)
+    result = ov_opset.divide(log_x, log_2).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def logaddexp(x1, x2):
