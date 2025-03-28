@@ -1642,7 +1642,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 @functools.wraps(layer_call)
                 def rematerialized_activation_call_wrapper(*args, **kwargs):
                     original_activation = self.activation
-                    self.activation = remat(original_activation)
+                    self.activation = remat.remat(original_activation)
                     try:
                         return layer_call(*args, **kwargs)
                     finally:
