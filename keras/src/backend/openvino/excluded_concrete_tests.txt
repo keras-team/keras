@@ -161,8 +161,4 @@ NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_take_along_axis
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
 NumpyTwoInputOpsCorrectnessTest::test_vdot
-
-
-
-
 NumpyTwoInputOpsCorrectnessTest::test_where
