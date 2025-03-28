@@ -1615,7 +1615,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self.activation = rematted_activation
         try:
             return layer_call
-        finally:
+        except:
             self.activation = original_activation
 
     def rematerialized_call(self, layer_call, *args, **kwargs):
