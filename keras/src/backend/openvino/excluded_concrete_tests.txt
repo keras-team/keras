@@ -34,7 +34,7 @@ NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
 NumpyDtypeTest::test_linspace
 NumpyDtypeTest::test_log10
-
+NumpyDtypeTest::test_log1p
 NumpyDtypeTest::test_log
 NumpyDtypeTest::test_logspace
 NumpyDtypeTest::test_matmul_
@@ -93,7 +93,6 @@ NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_expm1
-
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
 NumpyOneInputOpsCorrectnessTest::test_hstack
 NumpyOneInputOpsCorrectnessTest::test_imag
