@@ -347,7 +347,7 @@ class Functional(Function, Model):
                 x[0] = None
             return tuple(x)
 
-        def make_spec_for_tensor(x):
+        def make_spec_for_tensor(x, name=None):
             optional = False
             if isinstance(x._keras_history[0], InputLayer):
                 if x._keras_history[0].optional:
@@ -355,7 +355,7 @@ class Functional(Function, Model):
             return InputSpec(
                 shape=shape_with_no_batch_size(x.shape),
                 allow_last_axis_squeeze=True,
-                name=x._keras_history[0].name,
+                name=x._keras_history[0].name if name is None else name,
                 optional=optional,
             )
 
@@ -367,13 +367,7 @@ class Functional(Function, Model):
                 # Case where `_nested_inputs` is a plain dict of Inputs.
                 names = sorted(self._inputs_struct.keys())
                 return [
-                    InputSpec(
-                        shape=shape_with_no_batch_size(
-                            self._inputs_struct[name].shape
-                        ),
-                        allow_last_axis_squeeze=True,
-                        name=name,
-                    )
+                    make_spec_for_tensor(self._inputs_struct[name], name=name)
                     for name in names
                 ]
             return None  # Deeply nested dict: skip checks.

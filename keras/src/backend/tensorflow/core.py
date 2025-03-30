@@ -45,6 +45,7 @@ class Variable(
                 trainable=self.trainable,
                 name=self.name,
                 aggregation=self._map_aggregation(self.aggregation),
+                synchronization=self._map_synchronization(self.synchronization),
             )
 
     def _initialize_with_initializer(self, initializer):
@@ -124,6 +125,15 @@ class Variable(
             "only_first_replica": tf.VariableAggregation.ONLY_FIRST_REPLICA,
         }
         return mapping[aggregation]
+
+    def _map_synchronization(self, synchronization):
+        mapping = {
+            "none": tf.VariableSynchronization.NONE,
+            "on_read": tf.VariableSynchronization.ON_READ,
+            "on_write": tf.VariableSynchronization.ON_WRITE,
+            "auto": tf.VariableSynchronization.AUTO,
+        }
+        return mapping[synchronization]
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
