@@ -345,6 +345,8 @@ def argmax(x, axis=None, keepdims=False):
         k=1,
         axis=axis,
         mode="max",
+        sort="value",
+
     ).output(1)
 
     if not keepdims:
@@ -370,6 +372,7 @@ def argmin(x, axis=None, keepdims=False):
         k=1,
         axis=axis,
         mode="min",
+        sort="value",
     ).output(1)
 
     if not keepdims:
