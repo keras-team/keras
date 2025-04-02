@@ -266,8 +266,15 @@ class CompositeLayerTest(testing.TestCase):
         def layer_fn(x, y):
             return x + y
 
-        with self.assertRaisesRegex(ValueError, "take a single argument"):
+        with self.assertRaisesRegex(ValueError,
+                                    "must take 'inputs' as its first argument"):
             CompositeLayer(layer_fn)
+
+        # This is allowed
+        def layer_fn(inputs, constant_bias=0.1):
+            return inputs + constant_bias
+
+        CompositeLayer(layer_fn)(np.random.random((2, 32)))
 
     def test_serialization(self):
         def run_compsite_layer_serialization_test(layer):

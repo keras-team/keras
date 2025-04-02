@@ -103,13 +103,15 @@ class CompositeLayer(Layer):
             # error out on wrong layer_fn signature
             if callable(layers):
                 layer_fn = layers
-                layer_fn_params = inspect.signature(layer_fn).parameters
-                if len(layer_fn_params) != 1:
+                layer_fn_params = list(inspect.signature(layer_fn).parameters)
+                if len(layer_fn_params) < 1 or layer_fn_params[0] != 'inputs':
                     raise ValueError(
                         f"The function used to initialize a CompositeLayer "
-                        f"must take a single argument (the inputs). If "
-                        f"multiple inputs are required, use a list or a "
-                        f"dictionary. Got: {layer_fn_params} for {layer_fn}"
+                        f"must take 'inputs' as its first argument. Additional "
+                        f"arguments may be used for configuration. If multiple"
+                        f"inputs are required at runtime, pass a list or a "
+                        f"dictionary to \"inputs\". "
+                        f"Got: {layer_fn_params} for {layer_fn}"
                     )
 
         # Constructing from a Keras Function is useful
@@ -123,8 +125,12 @@ class CompositeLayer(Layer):
             self._function = None
             self.built = False
 
+        # Allow calling the layer on raw Python data (e.g list of numbers)
+        # to be similar to what Functional does.
         self._convert_input_args = True
-        self._allow_non_tensor_positional_args = True
+        # BUG: this is NOT useful and extra positional args are NOT allowed
+        # but _convert_input_args=True won't work without this flag.
+        self._allow_non_tensor_positional_args = False
 
     # Note: CompositeLayer does not have the following attributes:
     # _inputs_struct, _outputs_struct, _inputs, _outputs as in
