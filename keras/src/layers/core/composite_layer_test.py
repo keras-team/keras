@@ -263,11 +263,13 @@ class CompositeLayerTest(testing.TestCase):
         ):
             CompositeLayer([])
 
-        def layer_fn(x, y):
+        x = y = 0
+        def layer_fn():
             return x + y
 
-        with self.assertRaisesRegex(ValueError,
-                                    "must take 'inputs' as its first argument"):
+        with self.assertRaisesRegex(
+            ValueError, "must take the layer's inputs as its first argument"
+        ):
             CompositeLayer(layer_fn)
 
         # This is allowed

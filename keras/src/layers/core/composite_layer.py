@@ -34,8 +34,8 @@ class CompositeLayer(Layer):
 
     2. Using a function that defines a graph of layers:
        This allows more complex computation graphs.
-       The function must have a single input, which
-       can be a list or dictionary.
+       The first argument of the function will become
+       the inputs of the composite layer.
 
     ```python
     def layer_fn(x):
@@ -45,13 +45,21 @@ class CompositeLayer(Layer):
 
     # Create the composite layer using the function
     composite = layers.CompositeLayer(layer_fn)
+    ```
 
-    # for multiple inputs us a single arg that is a list or dict
-     def layer_fn(inputs):
+    Additional arguments in layer_fn can be used for configuration,
+    but only the first argument represents the layer's runtime
+    inputs. Use a dict or list as first argument if your layer
+    requires multiple inputs.
+
+    ```python
+    # Additional args for configuration.
+    # Multiple inputs passed as a list or dict to 'inputs' argument.
+     def layer_fn(inputs, dense_size=64):
         x0 = inputs[0] # inputs is a list
         x1 = inputs[1]
-        y0 = layers.Dense(64, activation='relu')(x0)
-        y1 = layers.Dense(64, activation='relu')(x1)
+        y0 = layers.Dense(dense_size, activation='relu')(x0)
+        y1 = layers.Dense(dense_size, activation='relu')(x1)
         return y0 + y1
 
     composite = layers.CompositeLayer(layer_fn)
@@ -104,13 +112,13 @@ class CompositeLayer(Layer):
             if callable(layers):
                 layer_fn = layers
                 layer_fn_params = list(inspect.signature(layer_fn).parameters)
-                if len(layer_fn_params) < 1 or layer_fn_params[0] != 'inputs':
+                if len(layer_fn_params) < 1:
                     raise ValueError(
                         f"The function used to initialize a CompositeLayer "
-                        f"must take 'inputs' as its first argument. Additional "
-                        f"arguments may be used for configuration. If multiple"
-                        f"inputs are required at runtime, pass a list or a "
-                        f"dictionary to \"inputs\". "
+                        f"must take the layer's inputs as its first argument. "
+                        f"Additional arguments may be used for configuration. "
+                        f"If multiple inputs are required at runtime, use a "
+                        f"list or a dictionary. "
                         f"Got: {layer_fn_params} for {layer_fn}"
                     )
 
