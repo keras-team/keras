@@ -5,8 +5,10 @@ import warnings
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
+from keras.src.trainers import compile_utils
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 
@@ -105,9 +107,8 @@ class ModelCheckpoint(Callback):
             decision to overwrite the current save file is made based on either
             the maximization or the minimization of the monitored quantity.
             For `val_acc`, this should be `"max"`, for `val_loss` this should be
-            `"min"`, etc. In `"auto"` mode, the mode is set to `"max"` if the
-            quantities monitored are `"acc"` or start with `"fmeasure"` and are
-            set to `"min"` for the rest of the quantities.
+            `"min"`, etc. In `"auto"` mode, the direction is automatically
+            inferred from the name of the monitored quantity.
         save_weights_only: if `True`, then only the model's weights will be
             saved (`model.save_weights(filepath)`), else the full model is
             saved (`model.save(filepath)`).
@@ -155,23 +156,8 @@ class ModelCheckpoint(Callback):
             )
             mode = "auto"
 
-        if mode == "min":
-            self.monitor_op = np.less
-            if self.best is None:
-                self.best = np.inf
-        elif mode == "max":
-            self.monitor_op = np.greater
-            if self.best is None:
-                self.best = -np.inf
-        else:
-            if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
-                self.monitor_op = np.greater
-                if self.best is None:
-                    self.best = -np.inf
-            else:
-                self.monitor_op = np.less
-                if self.best is None:
-                    self.best = np.inf
+        self.mode = mode
+        self.monitor_op = None
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -196,6 +182,51 @@ class ModelCheckpoint(Callback):
                     "(Keras model format). Received: "
                     f"filepath={self.filepath}"
                 )
+
+    def _set_monitor_op(self):
+        if self.mode == "min":
+            self.monitor_op = ops.less
+            if self.best is None:
+                self.best = np.inf
+        elif self.mode == "max":
+            self.monitor_op = ops.greater
+            if self.best is None:
+                self.best = -np.inf
+        else:
+            metric_name = self.monitor.removeprefix("val_")
+            if metric_name == "loss":
+                self.monitor_op = ops.less
+            if hasattr(self.model, "metrics"):
+                all_metrics = []
+                for m in self.model.metrics:
+                    if isinstance(
+                        m,
+                        (
+                            compile_utils.CompileMetrics,
+                            compile_utils.MetricsList,
+                        ),
+                    ):
+                        all_metrics.extend(m.metrics)
+                for m in all_metrics:
+                    if m.name == metric_name:
+                        if hasattr(m, "_direction"):
+                            if m._direction == "up":
+                                self.monitor_op = ops.greater
+                                if self.best is None:
+                                    self.best = -np.inf
+                            else:
+                                self.monitor_op = ops.less
+                                if self.best is None:
+                                    self.best = np.inf
+        if self.monitor_op is None:
+            raise ValueError(
+                f"ModelCheckpoint callback received monitor={self.monitor} "
+                "but Keras isn't able to automatically determine whether "
+                "that metric should be maximized or minimized. "
+                "Pass `mode='max'` in order to do model checkpointing based "
+                "on the highest metric value, or pass `mode='min'` "
+                "in order to use the lowest value."
+            )
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -297,6 +328,10 @@ class ModelCheckpoint(Callback):
                 is set to `"epoch"`.
             logs: the `logs` dict passed in to `on_batch_end` or `on_epoch_end`.
         """
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
+
         filepath = self._get_file_path(epoch, batch, logs)
 
         try:
