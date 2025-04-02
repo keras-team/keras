@@ -367,6 +367,44 @@ class SerializationLibTest(testing.TestCase):
         obj = serialization_lib.deserialize_keras_object(config)
         self.assertIs(obj, custom_registered_fn)
 
+    def test_layer_instance_as_activation(self):
+        """Tests serialization when activation is a Layer instance."""
+
+        # Dense layer with ReLU layer as activation
+        layer_dense_relu = keras.layers.Dense(
+            units=4, activation=keras.layers.ReLU(name="my_relu")
+        )
+        # Build the layer to ensure weights/state are initialized if needed
+        layer_dense_relu.build(input_shape=(None, 8))
+        _, restored_dense_relu, _ = self.roundtrip(layer_dense_relu)
+
+        # Verify the activation is correctly deserialized as a ReLU layer instance
+        self.assertIsInstance(restored_dense_relu.activation, keras.layers.ReLU)
+        # Verify properties are preserved
+        self.assertEqual(restored_dense_relu.activation.name, "my_relu")
+
+    def test_layer_instance_with_config_as_activation(self):
+        """Tests serialization when activation is a Layer instance with config."""
+
+        # Conv1D layer with LeakyReLU layer (with config) as activation
+        leaky_activation = keras.layers.LeakyReLU(
+            negative_slope=0.15, name="my_leaky"
+        )
+        layer_conv_leaky = keras.layers.Conv1D(
+            filters=2, kernel_size=3, activation=leaky_activation
+        )
+        # Build the layer
+        layer_conv_leaky.build(input_shape=(None, 10, 4))
+        _, restored_conv_leaky, _ = self.roundtrip(layer_conv_leaky)
+
+        # Verify the activation is correctly deserialized as LeakyReLU
+        self.assertIsInstance(
+            restored_conv_leaky.activation, keras.layers.LeakyReLU
+        )
+        # Verify configuration of the activation layer is preserved
+        self.assertEqual(restored_conv_leaky.activation.negative_slope, 0.15)
+        self.assertEqual(restored_conv_leaky.activation.name, "my_leaky")
+
 
 @keras.saving.register_keras_serializable()
 class MyDense(keras.layers.Layer):
