@@ -378,13 +378,15 @@ class SerializationLibTest(testing.TestCase):
         layer_dense_relu.build(input_shape=(None, 8))
         _, restored_dense_relu, _ = self.roundtrip(layer_dense_relu)
 
-        # Verify the activation is correctly deserialized as a ReLU layer instance
+        # Verify the activation is correctly deserialized as a ReLU layer
         self.assertIsInstance(restored_dense_relu.activation, keras.layers.ReLU)
         # Verify properties are preserved
         self.assertEqual(restored_dense_relu.activation.name, "my_relu")
 
     def test_layer_instance_with_config_as_activation(self):
-        """Tests serialization when activation is a Layer instance with config."""
+        """
+        Tests serialization when activation is a Layer instance with config.
+        """
 
         # Conv1D layer with LeakyReLU layer (with config) as activation
         leaky_activation = keras.layers.LeakyReLU(
