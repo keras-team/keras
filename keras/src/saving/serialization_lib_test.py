@@ -405,6 +405,22 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(restored_conv_leaky.activation.negative_slope, 0.15)
         self.assertEqual(restored_conv_leaky.activation.name, "my_leaky")
 
+    def test_layer_string_as_activation(self):
+        """Tests serialization when activation is a string."""
+
+        layer_dense_relu_string = keras.layers.Dense(units=4, activation="relu")
+        layer_dense_relu_string.build(input_shape=(None, 8))
+        _, restored_dense_relu_string, _ = self.roundtrip(
+            layer_dense_relu_string
+        )
+
+        # Verify the activation is correctly deserialized to the relu function
+        self.assertTrue(callable(restored_dense_relu_string.activation))
+        # Check if it resolves to the canonical keras activation function
+        self.assertEqual(
+            restored_dense_relu_string.activation, keras.activations.relu
+        )
+
 
 @keras.saving.register_keras_serializable()
 class MyDense(keras.layers.Layer):
