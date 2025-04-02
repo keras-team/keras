@@ -196,6 +196,8 @@ class ModelCheckpoint(Callback):
             metric_name = self.monitor.removeprefix("val_")
             if metric_name == "loss":
                 self.monitor_op = ops.less
+                if self.best is None:
+                    self.best = np.inf
             if hasattr(self.model, "metrics"):
                 all_metrics = []
                 for m in self.model.metrics:
@@ -218,15 +220,18 @@ class ModelCheckpoint(Callback):
                                 self.monitor_op = ops.less
                                 if self.best is None:
                                     self.best = np.inf
-        if self.monitor_op is None:
-            raise ValueError(
-                f"ModelCheckpoint callback received monitor={self.monitor} "
-                "but Keras isn't able to automatically determine whether "
-                "that metric should be maximized or minimized. "
-                "Pass `mode='max'` in order to do model checkpointing based "
-                "on the highest metric value, or pass `mode='min'` "
-                "in order to use the lowest value."
-            )
+        # if self.monitor_op is None:
+        #     # self.monitor_op = ops.less
+        #     # if self.best is None:
+        #     #     self.best = np.inf
+        #     raise ValueError(
+        #         f"ModelCheckpoint callback received monitor={self.monitor} "
+        #         "but Keras isn't able to automatically determine whether "
+        #         "that metric should be maximized or minimized. "
+        #         "Pass `mode='max'` in order to do model checkpointing based "
+        #         "on the highest metric value, or pass `mode='min'` "
+        #         "in order to use the lowest value."
+        #     )
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
