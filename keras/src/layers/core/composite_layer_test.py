@@ -1198,6 +1198,31 @@ class CompositeLayerTest(testing.TestCase):
 
         self.assertAllClose(model(data), model2(data))
 
+    def test_clone_recursive(self):
+        def layer_fn1(inputs):
+            return layers.Dense(32, name="dense_2")(inputs)
+        
+        layer1 = CompositeLayer(layer_fn1, name="sub")
+
+        def layer_fn2(inputs):
+            return layer1(inputs)
+
+        slayer = CompositeLayer(layer_fn2, name="subfunc")
+
+        inputs = layers.Input(shape=(16, 32))
+        outputs = slayer(inputs)
+        model = Model(inputs, outputs)
+
+        def call_fn(layer, *args, **kwargs):
+            if isinstance(layer, layers.Dense):
+                new_layer = layers.Dense(layer.units, name="dense_modified")
+                return new_layer(*args, **kwargs)
+            return layer(*args, **kwargs)
+
+        new_model = clone_model(model, call_function=call_fn, recursive=True)
+        sub = new_model.get_layer("subfunc").get_layer("sub")
+        self.assertEqual(sub.layers[1].name, "dense_modified")
+        
     def test_build_twice(self):
         def layer_fn(inputs):
             return layers.Dense(5)(inputs)

@@ -279,6 +279,29 @@ class CloneModelTest(testing.TestCase):
                 self.assertFalse(hasattr(l1, "flag"))
                 self.assertTrue(hasattr(l2, "flag"))
 
+    def test_recursive_level_2(self):
+        inputs = layers.Input(shape=(16, 32))
+        outputs = layers.Dense(32, name="dense_2")(inputs)
+        layer1 = models.Model(inputs, outputs, name="sub")
+
+        inputs = layers.Input(shape=(16, 32))
+        outputs = layer1(inputs)
+        slayer = models.Model(inputs, outputs, name="subfunc")
+
+        inputs = layers.Input(shape=(16, 32))
+        outputs = slayer(inputs)
+        model = models.Model(inputs, outputs)
+
+        def call_fn(layer, *args, **kwargs):
+            if isinstance(layer, layers.Dense):
+                new_layer = layers.Dense(layer.units, name="dense_modified")
+                return new_layer(*args, **kwargs)
+            return layer(*args, **kwargs)
+
+        new_model = clone_model(model, call_function=call_fn, recursive=True)
+        sub = new_model.get_layer("subfunc").get_layer("sub")
+        self.assertEqual(sub.layers[1].name, "dense_modified")
+
     def test_compiled_model_cloning(self):
         model = models.Sequential()
         model.add(layers.Input((3,)))

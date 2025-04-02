@@ -276,6 +276,7 @@ def _wrap_clone_function(
                     clone_function=clone_function,
                     call_function=call_function,
                     cache=cache,
+                    recursive=True
                 )
                 cache[id(layer)] = clone
                 return clone
