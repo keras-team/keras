@@ -1201,7 +1201,7 @@ class CompositeLayerTest(testing.TestCase):
     def test_clone_recursive(self):
         def layer_fn1(inputs):
             return layers.Dense(32, name="dense_2")(inputs)
-        
+
         layer1 = CompositeLayer(layer_fn1, name="sub")
 
         def layer_fn2(inputs):
@@ -1222,7 +1222,7 @@ class CompositeLayerTest(testing.TestCase):
         new_model = clone_model(model, call_function=call_fn, recursive=True)
         sub = new_model.get_layer("subfunc").get_layer("sub")
         self.assertEqual(sub.layers[1].name, "dense_modified")
-        
+
     def test_build_twice(self):
         def layer_fn(inputs):
             return layers.Dense(5)(inputs)
