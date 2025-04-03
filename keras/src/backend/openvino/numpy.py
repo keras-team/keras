@@ -1380,12 +1380,11 @@ def argpartition(x, kth, axis=-1):
         "`argpartition` is not supported with openvino backend"
     )
 
-@numpy_support
-def expm1(x):
-    """Calculates exp(x) - 1 element-wise.
 
-    >>> x = np.array([0.0, 1.0])
-    >>> print(expm1(x))
-    [0.        1.7182817]
-    """
-    return ov.exp(x) - ov.constant(1, dtype=x.dtype)
+def expm1(x):
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    one = ov_opset.constant(1.0, dtype=x.get_element_type())
+    return OpenVINOKerasTensor(ov_opset.subtract(ov_opset.exp(x), one).output(0))
