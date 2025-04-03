@@ -1379,3 +1379,13 @@ def argpartition(x, kth, axis=-1):
     raise NotImplementedError(
         "`argpartition` is not supported with openvino backend"
     )
+
+@numpy_support
+def expm1(x):
+    """Calculates exp(x) - 1 element-wise.
+
+    >>> x = np.array([0.0, 1.0])
+    >>> print(expm1(x))
+    [0.        1.7182817]
+    """
+    return ov.exp(x) - ov.constant(1, dtype=x.dtype)
