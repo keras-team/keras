@@ -1,0 +1,37 @@
+Metadata-Version: 2.1
+Name: tf_keras
+Version: 2.18.0
+Summary: Deep learning for humans.
+Home-page: https://keras.io/
+Download-URL: https://github.com/keras-team/tf-keras/tags
+Author: Keras team
+Author-email: keras-users@googlegroups.com
+License: Apache 2.0
+Keywords: keras,tensorflow,machine learning,deep learning
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Education
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Software Development
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.9
+Requires-Dist: tensorflow <2.19,>=2.18
+
+TF-Keras is a deep learning API written in Python,
+running on top of the machine learning platform TensorFlow.
+
+It was developed with a focus on enabling fast experimentation and
+providing a delightful developer experience.
+The purpose of TF-Keras is to give an *unfair advantage* to any developer
+looking to ship ML-powered apps.

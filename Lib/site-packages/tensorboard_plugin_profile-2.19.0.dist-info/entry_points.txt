@@ -1,0 +1,2 @@
+[tensorboard_plugins]
+profile = tensorboard_plugin_profile.profile_plugin_loader:ProfilePluginLoader

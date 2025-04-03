@@ -1,0 +1,57 @@
+Metadata-Version: 2.4
+Name: orbax-checkpoint
+Version: 0.11.10
+Summary: Orbax Checkpoint
+Keywords: JAX machine learning,checkpoint,training
+Author-email: Orbax Authors <orbax-dev@google.com>
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+License-File: LICENSE
+Requires-Dist: absl-py
+Requires-Dist: etils[epath, epy]
+Requires-Dist: typing_extensions
+Requires-Dist: msgpack
+Requires-Dist: jax >= 0.5.0
+Requires-Dist: numpy
+Requires-Dist: pyyaml
+Requires-Dist: tensorstore >= 0.1.71
+Requires-Dist: nest_asyncio
+Requires-Dist: protobuf
+Requires-Dist: humanize
+Requires-Dist: simplejson >= 3.16.0
+Requires-Dist: flax ; extra == "docs"
+Requires-Dist: google-cloud-logging ; extra == "docs"
+Requires-Dist: google-cloud-logging ; extra == "testing"
+Requires-Dist: mock ; extra == "testing"
+Requires-Dist: flax ; extra == "testing"
+Requires-Dist: pytest ; extra == "testing"
+Requires-Dist: pytest-xdist ; extra == "testing"
+Requires-Dist: chex ; extra == "testing"
+Project-URL: homepage, http://github.com/google/orbax
+Project-URL: repository, http://github.com/google/orbax
+Provides-Extra: docs
+Provides-Extra: testing
+
+# Orbax Checkpointing
+
+`pip install orbax-checkpoint` (latest PyPi release) OR
+
+`pip install 'git+https://github.com/google/orbax/#subdirectory=checkpoint'` (from this repository, at HEAD)
+
+`import orbax.checkpoint`
+
+Orbax includes a checkpointing library oriented towards JAX users, supporting a
+variety of different features required by different frameworks, including
+asynchronous checkpointing, various types, and various storage formats.
+We aim to provide a highly customizable and composable API which maximizes
+flexibility for diverse use cases.
+
+
+
+

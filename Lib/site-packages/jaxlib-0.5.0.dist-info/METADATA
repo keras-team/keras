@@ -1,0 +1,26 @@
+Metadata-Version: 2.1
+Name: jaxlib
+Version: 0.5.0
+Summary: XLA library for JAX
+Home-page: https://github.com/jax-ml/jax
+Author: JAX team
+Author-email: jax-dev@google.com
+License: Apache-2.0
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE.txt
+Requires-Dist: scipy >=1.11.1
+Requires-Dist: numpy >=1.25
+Requires-Dist: ml-dtypes >=0.2.0
+
+# jaxlib: support library for JAX
+
+jaxlib is the support library for JAX. While JAX itself is a pure Python package,
+jaxlib contains the binary (C/C++) parts of the library, including Python bindings,
+the XLA compiler, the PJRT runtime, and a handful of handwritten kernels.
+For more information, including installation and build instructions, refer to main
+JAX README: https://github.com/jax-ml/jax/.

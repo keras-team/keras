@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package tensorflow.profiler.empty;
+
+import public "tsl/profiler/protobuf/xplane.proto";

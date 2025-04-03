@@ -1,0 +1,184 @@
+Metadata-Version: 2.3
+Name: treescope
+Version: 0.1.9
+Summary: Treescope: An interactive HTML pretty-printer for ML research in IPython notebooks.
+Keywords: 
+Author-email: The Treescope Authors <treescope-dev@google.com>
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Intended Audience :: Science/Research
+Requires-Dist: numpy>=1.25.2
+Requires-Dist: pylint>=2.6.0 ; extra == "dev"
+Requires-Dist: pyink>=24.3.0 ; extra == "dev"
+Requires-Dist: ipython ; extra == "dev"
+Requires-Dist: jupyter ; extra == "dev"
+Requires-Dist: pytest>=8.2.2 ; extra == "dev"
+Requires-Dist: pytype ; extra == "dev"
+Requires-Dist: ipython ; extra == "docs"
+Requires-Dist: sphinx>=6.0.0,<7.3.0 ; extra == "docs"
+Requires-Dist: sphinx-book-theme>=1.0.1 ; extra == "docs"
+Requires-Dist: sphinxcontrib-katex ; extra == "docs"
+Requires-Dist: ipython>=8.8.0 ; extra == "docs"
+Requires-Dist: jax[cpu]>=0.4.23 ; extra == "docs"
+Requires-Dist: myst-nb>=1.0.0 ; extra == "docs"
+Requires-Dist: myst-parser>=3.0.1 ; extra == "docs"
+Requires-Dist: matplotlib>=3.5.0 ; extra == "docs"
+Requires-Dist: packaging==24.1 ; extra == "docs"
+Requires-Dist: palettable==3.3.3 ; extra == "docs"
+Requires-Dist: pandas==2.2.2 ; extra == "docs"
+Requires-Dist: plotly==5.22.0 ; extra == "docs"
+Requires-Dist: penzai~=0.2.4 ; extra == "docs"
+Requires-Dist: sphinx_contributors ; extra == "docs"
+Requires-Dist: sphinx-hoverxref ; extra == "docs"
+Requires-Dist: torch==2.3.1 ; extra == "docs"
+Requires-Dist: ipython ; extra == "notebook"
+Requires-Dist: palettable ; extra == "notebook"
+Requires-Dist: jax>=0.4.23 ; extra == "notebook"
+Requires-Dist: absl-py>=1.4.0 ; extra == "test"
+Requires-Dist: jax>=0.4.23 ; extra == "test"
+Requires-Dist: pytest>=8.2.2 ; extra == "test"
+Requires-Dist: torch>=2.0.0 ; extra == "test"
+Requires-Dist: pydantic>=2.0.0 ; extra == "test"
+Requires-Dist: omegaconf>=2.0.0 ; extra == "test"
+Project-URL: homepage, https://github.com/google-deepmind/treescope
+Project-URL: repository, https://github.com/google-deepmind/treescope
+Provides-Extra: dev
+Provides-Extra: docs
+Provides-Extra: notebook
+Provides-Extra: test
+
+# Treescope
+
+Treescope is an interactive HTML pretty-printer and N-dimensional array
+("tensor") visualizer, designed for machine learning and neural networks
+research in IPython notebooks. It's a drop-in replacement for the standard
+IPython/Colab renderer, and adds support for:
+
+* Expanding and collapsing subtrees of rendered objects, to let you focus on
+  the parts of your model that you care about,
+* Automatically embedding faceted visualizations of arbitrary-dimensional arrays
+  and tensors directly into the output renderings, so you can quickly understand
+  their shapes and the distribution of their values,
+* Color-coding parts of neural network models to emphasize shared structures,
+* Inserting "copy path" buttons that let you easily copy the path to any part of
+  a rendered object,
+* Customizing the visualization strategy to support rendering your own data
+  structures,
+* And more!
+
+Treescope was originally developed as the pretty-printer for the
+[Penzai neural network library](https://penzai.readthedocs.io/en/stable), but
+it also supports rendering neural networks developed with other libraries,
+including
+[Equinox](https://docs.kidger.site/equinox/),
+[Flax NNX](https://flax.readthedocs.io/en/latest/nnx/index.html),
+and
+[PyTorch](https://pytorch.org/docs/stable/).
+You can also use it with basic
+[JAX](https://jax.readthedocs.io/en/latest/)
+and
+[Numpy](https://numpy.org/doc/stable/)
+code.
+
+
+With Treescope, instead of looking at this:
+
+![Screenshot of a parameter dictionary without Treescope](docs/_static/readme_teaser_before.png)
+
+You could be looking at this:
+
+![Screenshot of a parameter dictionary using Treescope](docs/_static/readme_teaser_after.png)
+
+This is an interactive visualization; try clicking the `▶` buttons to expand
+parts of the output! (You can also hold shift while scrolling to
+scroll horizontally instead of vertically.)
+
+Documentation on Treescope can be found at
+[https://treescope.readthedocs.io](https://treescope.readthedocs.io).
+
+
+## Getting Started
+
+You can install Treescope using:
+
+```bash
+pip install treescope
+```
+
+and import it using:
+
+```python
+import treescope
+```
+
+To render a specific object in an IPython notebook with Treescope, you can use
+`treescope.show`, which is like `print` but produces a rich interactive output.
+
+Alternatively, you can simply configure Treescope as the default pretty printer
+for your notebook via:
+
+```python
+treescope.register_as_default()
+```
+
+To turn on automatic array visualization, you can run:
+
+```python
+treescope.active_autovisualizer.set_globally(treescope.ArrayAutovisualizer())
+```
+
+Or, if you'd like to both set up Treescope as the default pretty printer and
+enable automatic array visualization, you can simply run:
+
+```python
+treescope.basic_interactive_setup(autovisualize_arrays=True)
+```
+
+Once you've rendered an object, try clicking on it and pressing the `r` key!
+This turns on "roundtrip mode", and adds qualified names to every type in the
+visualization, making it easier to identify what the types in your object are.
+
+> [!TIP]
+> If Treescope's outputs are too verbose, or if you are using a terminal that
+> wraps lines, you can configure Treescope to abbreviate collapsed objects at a
+> given depth using:
+>
+> ```python
+> treescope.basic_interactive_setup(
+>     autovisualize_arrays=True,
+>     abbreviation_threshold=1,  # or a different value
+> )
+> ```
+>
+> You can also configure the abbreviation threshold manually by overriding
+> `treescope.abbreviation_threshold` using the `.set_globally` or `.set_scoped`
+> methods.
+
+For more information on how to use Treescope, check out the
+[Treescope documentation](https://treescope.readthedocs.io).
+
+Looking for a neural network library with first-class support for Treescope's
+visualization features?
+Try [Penzai](https://penzai.readthedocs.io/en/stable)!
+
+## Citation
+
+If you have found Treescope to be useful for your research, please consider
+citing the following writeup (also available on [arXiv](https://arxiv.org/abs/2408.00211)):
+
+```
+@article{johnson2024penzai,
+    author={Daniel D. Johnson},
+    title={{Penzai} + {Treescope}: A Toolkit for Interpreting, Visualizing, and Editing Models As Data},
+    year={2024},
+    journal={ICML 2024 Workshop on Mechanistic Interpretability}
+}
+```
+
+---
+
+*This is not an officially supported Google product.*
+

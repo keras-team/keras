@@ -1,0 +1,3902 @@
+<!doctype html><!--
+@license
+Copyright 2020 The TensorFlow Authors. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--><html><head>
+    <meta charset="utf-8">
+    <title>Trace Viewer</title>
+    
+    
+
+    
+    
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+  <meta http-equiv="origin-trial" content="AnYuQDtUf6OrWCmR9Okd67JhWVTbmnRedvPi1TEvAxac8+1p6o9q08FoDO6oCbLD0xEqev+SkZFiIhFSzlY9HgUAAABxeyJvcmlnaW4iOiJodHRwczovL2dvb2dsZXVzZXJjb250ZW50LmNvbTo0NDMiLCJmZWF0dXJlIjoiV2ViQ29tcG9uZW50c1YwIiwiZXhwaXJ5IjoxNjA0NjE0NTM4LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
+  <meta http-equiv="origin-trial" content="AkFXw3wHnOs/XXYqFXpc3diDLrRFd9PTgGs/gs43haZmngI/u1g8L4bDnSKLZkB6fecjmjTwcAMQFCpWMAoHSQEAAAB8eyJvcmlnaW4iOiJodHRwczovL2Nocm9taXVtLWJ1aWxkLXN0YXRzLmFwcHNwb3QuY29tOjQ0MyIsImZlYXR1cmUiOiJXZWJDb21wb25lbnRzVjAiLCJleHBpcnkiOjE2MTIyMjM5OTksImlzU3ViZG9tYWluIjp0cnVlfQ==">
+  <meta http-equiv="origin-trial" content="AtQY4wpX9+nj+Vn27cTgygzIPbtB2WoAoMQR5jK9mCm/H2gRIDH6MmGVAaziv9XnYTDKjhBnQYtecbTiIHCQiAIAAACEeyJvcmlnaW4iOiJodHRwczovL2Nocm9taXVtLWJ1aWxkLXN0YXRzLXN0YWdpbmcuYXBwc3BvdC5jb206NDQzIiwiZmVhdHVyZSI6IldlYkNvbXBvbmVudHNWMCIsImV4cGlyeSI6MTYxMjIyMzk5OSwiaXNTdWJkb21haW4iOnRydWV9">
+
+
+
+<style>
+  html, body {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+  }
+
+  .no-webcomponents-container.hidden {
+    display: none;
+  }
+
+  .no-webcomponents-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 80px;
+    font-family: Roboto, sans-serif;
+  }
+
+  .no-webcomponents-container .title {
+    font-size: 22px;
+    font-weight: bold;
+  }
+
+  .no-webcomponents-container .contents {
+    max-width: 600px;
+  }
+
+  #event-details {
+    float: right;
+    display: flex;
+    /* only display detail panel if content exists, up to 30% width */
+    width: fit-content;
+    max-width: 30%;
+    background-color: #ececec;
+  }
+
+  #side_panel_container,
+  #view_options_dropdown,
+  #view_console_button {
+    display: none;
+  }
+
+  input:focus {
+    outline: none;
+  }
+
+  tr-ui-b-tab-view {
+    height: fit-content;
+    float: left;
+    flex: 1;
+  }
+
+  tr-ui-a-single-thread-slice-sub-view  {
+    flex-direction: column !important;
+  }
+
+  tr-v-ui-scalar-span {
+    float: left;
+  }
+
+  tr-ui-find-control {
+    /* keep consistent with menubar total height 20px */
+    height: 20px;
+  }
+
+  /* Align height of different buttons on the menubar
+   * tr-ui-b-toolbar-button, button.tr-ui-b-dropdown
+   */
+  tr-ui-b-toolbar-button {
+    padding: 2px 0;
+    /* total height = 14px + 2*2padding + 1*2 border = 20px */
+    height: 14px;
+    cursor: pointer;
+    border: silver solid 1px;
+  }
+
+  #analysis {
+    flex-flow: row nowrap;
+    /* make vertical drag handle and the tabs covering the whole content height */
+    height: fit-content;
+    /* won't cover the whole window with super long content */
+    max-height: 40%;
+  }
+
+  #eventSummaryTable table.tr-ui-b-table {
+    /* Make text content wrap when the container resizes. */
+    overflow-wrap: anywhere;
+
+    /* Table layout fixed is needed since otherwise the td element's width don't
+     * get calculated properly for `resize: horizontal`. We set width to 100% so the table still
+     * dynamically reflows based on window width. */
+    table-layout:fixed;
+    width: 100%;
+  }
+
+  /* Columns in Event Summary Table. */
+  #eventSummaryTable thead.tr-ui-b-table > tr.tr-ui-b-table > td.tr-ui-b-table {
+    /* Allow Event Summary Table Columns width to be resizable */
+    resize: horizontal;
+    min-width: 100px;
+  }
+
+  /* Name Column in Event Summary Table. */
+  #eventSummaryTable thead.tr-ui-b-table > tr.tr-ui-b-table > td.tr-ui-b-table:first-child {
+    min-width: 350px;
+    width: 500px;
+    max-width: 900px;
+  }
+
+  #eventSummaryTable tr-ui-a-analysis-link {
+    /* Override Catapult CSS which sets this as no-wrap preventing resizing the HTML element. */
+    white-space: normal;
+  }
+
+  tr-ui-a-generic-object-view {
+    /* Help break the long op name */
+    overflow-wrap: anywhere;
+  }
+
+</style>
+
+
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+  </head><body><template id="overlay-template">
+  <style>
+    overlay-mask {
+      left: 0;
+      padding: 8px;
+      position: absolute;
+      top: 0;
+      z-index: 1000;
+      font-family: sans-serif;
+      -webkit-justify-content: center;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      height: 100%;
+      left: 0;
+      position: fixed;
+      top: 0;
+      width: 100%;
+    }
+    overlay-mask:focus {
+      outline: none;
+    }
+    overlay-vertical-centering-container {
+      -webkit-justify-content: center;
+      flex-direction: column;
+      display: flex;
+    }
+    overlay-frame {
+      z-index: 1100;
+      background: rgb(255, 255, 255);
+      border: 1px solid #ccc;
+      margin: 75px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    title-bar {
+      -webkit-align-items: center;
+      flex-direction: row;
+      border-bottom: 1px solid #ccc;
+      background-color: #ddd;
+      display: flex;
+      padding: 5px;
+      flex: 0 0 auto;
+    }
+    title {
+      display: inline;
+      font-weight: bold;
+      flex: 1 1 auto;
+    }
+    close-button {
+      -webkit-align-self: flex-end;
+      border: 1px solid #eee;
+      background-color: #999;
+      font-size: 10pt;
+      font-weight: bold;
+      padding: 2px;
+      text-align: center;
+      width: 16px;
+    }
+    close-button:hover {
+      background-color: #ddd;
+      border-color: black;
+      cursor: pointer;
+    }
+    overlay-content {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 10px;
+      min-width: 300px;
+      min-height: 0;
+    }
+    button-bar {
+      -webkit-align-items: baseline;
+      border-top: 1px solid #ccc;
+      display: flex;
+      flex: 0 0 auto;
+      flex-direction: row-reverse;
+      padding: 4px;
+    }
+  </style>
+
+  <overlay-mask>
+    <overlay-vertical-centering-container>
+      <overlay-frame>
+        <title-bar>
+          <title></title>
+          <close-button>✕</close-button>
+        </title-bar>
+        <overlay-content>
+          <content></content>
+        </overlay-content>
+        <button-bar></button-bar>
+      </overlay-frame>
+    </overlay-vertical-centering-container>
+  </overlay-mask>
+</template><dom-module id="tr-ui-a-analysis-link">
+  <template>
+    <style>
+    :host {
+      display: inline;
+      cursor: pointer;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    a {
+      text-decoration: underline;
+    }
+    </style>
+    <a href="{{href}}" on-click="onClicked_" on-mouseenter="onMouseEnter_" on-mouseleave="onMouseLeave_"><slot></slot></a>
+
+  </template>
+</dom-module><dom-module id="tr-ui-b-table">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+
+      table {
+        flex: 1 1 auto;
+        align-self: stretch;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-width: 0;
+        -webkit-user-select: initial;
+      }
+
+      tr > td {
+        padding: 2px 4px 2px 4px;
+        vertical-align: top;
+      }
+
+      table > tbody:focus {
+        outline: none;
+      }
+      table > tbody:focus[selection-mode="row"] > tr[selected],
+      table > tbody:focus[selection-mode="cell"] > tr > td[selected],
+      table > tbody:focus > tr.empty-row > td {
+        outline: 1px dotted #666666;
+        outline-offset: -1px;
+      }
+
+      button.toggle-button {
+        height: 15px;
+        line-height: 60%;
+        vertical-align: middle;
+        width: 100%;
+      }
+
+      button > * {
+        height: 15px;
+        vertical-align: middle;
+      }
+
+      td.button-column {
+        width: 30px;
+      }
+
+      table > thead > tr > td.sensitive:hover {
+        background-color: #fcfcfc;
+      }
+
+      table > thead > tr > td {
+        font-weight: bold;
+        text-align: left;
+
+        background-color: #eee;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        border-top: 1px solid #ffffff;
+        border-bottom: 1px solid #aaa;
+      }
+
+      table > tfoot {
+        background-color: #eee;
+        font-weight: bold;
+      }
+
+      /* Light row and cell highlight. */
+      table > tbody[row-highlight-style="light"] > tr[selected],
+      table > tbody[cell-highlight-style="light"] > tr > td[selected] {
+        background-color: rgb(213, 236, 229);  /* light turquoise */
+      }
+      table > tbody[row-highlight-style="light"] >
+          tr:not(.empty-row):not([selected]):hover,
+      table > tbody[cell-highlight-style="light"] >
+          tr:not(.empty-row):not([selected]) > td:hover {
+        background-color: #f6f6f6;  /* light grey */
+      }
+
+      /* Dark row and cell highlight. */
+      table > tbody[row-highlight-style="dark"] > tr[selected],
+      table > tbody[cell-highlight-style="dark"] > tr > td[selected] {
+        background-color: rgb(103, 199, 165);  /* turquoise */
+      }
+      table > tbody[row-highlight-style="dark"] >
+          tr:not(.empty-row):not([selected]):hover,
+      table > tbody[cell-highlight-style="dark"] >
+          tr:not(.empty-row):not([selected]) > td:hover {
+        background-color: #e6e6e6;  /* grey */
+      }
+      table > tbody[row-highlight-style="dark"] > tr:hover[selected],
+      table > tbody[cell-highlight-style="dark"] > tr[selected] > td:hover {
+        background-color: rgb(171, 217, 202);  /* semi-light turquoise */
+      }
+
+      table > colgroup > col[selected] {
+        background-color: #e6e6e6;  /* grey */
+      }
+
+      table > tbody > tr.empty-row > td {
+        color: #666;
+        font-style: italic;
+        text-align: center;
+      }
+
+      table > tbody.has-footer > tr:last-child > td {
+        border-bottom: 1px solid #aaa;
+      }
+
+      table > tfoot > tr:first-child > td {
+        border-top: 1px solid #ffffff;
+      }
+
+      :host([zebra]) table tbody tr:nth-child(even) {
+        background-color: #f4f4f4;
+      }
+
+      expand-button {
+        -webkit-user-select: none;
+        cursor: pointer;
+        margin-right: 3px;
+        font-size: smaller;
+        height: 1rem;
+      }
+
+      expand-button.button-expanded {
+        transform: rotate(90deg);
+      }
+    </style>
+    <table>
+      <colgroup id="cols">
+      </colgroup>
+      <thead id="head">
+      </thead>
+      <tbody id="body">
+      </tbody>
+      <tfoot id="foot">
+      </tfoot>
+    </table>
+  </template>
+</dom-module><dom-module id="tr-ui-b-table-header-cell">
+  <template>
+  <style>
+    :host {
+      -webkit-user-select: none;
+      display: flex;
+    }
+
+    span {
+      flex: 0 1 auto;
+    }
+
+    #side {
+      -webkit-user-select: none;
+      flex: 0 0 auto;
+      padding-left: 2px;
+      padding-right: 2px;
+      vertical-align: top;
+      font-size: 15px;
+      font-family: sans-serif;
+      line-height: 85%;
+      margin-left: 5px;
+    }
+
+    #side.disabled {
+      color: rgb(140, 140, 140);
+    }
+
+    #title:empty, #side:empty {
+      display: none;
+    }
+  </style>
+
+    <span id="title"></span>
+    <span id="side"></span>
+  </template>
+</dom-module><dom-module id="tr-v-ui-scalar-context-controller">
+  <template></template>
+</dom-module><dom-module id="tr-v-ui-scalar-span">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-end;
+      position: relative;
+      /* Limit the sparkline's negative z-index to the span only. */
+      isolation: isolate;
+    }
+
+    :host(.left-align) {
+      justify-content: flex-start;
+    }
+
+    :host(.inline) {
+      display: inline-flex;
+    }
+
+    #sparkline {
+      width: 0%;
+      position: absolute;
+      bottom: 0;
+      display: none;
+      height: 100%;
+      background-color: hsla(216, 100%, 94.5%, .75);
+      border-color: hsl(216, 100%, 89%);
+      box-sizing: border-box;
+      z-index: -1;
+    }
+    #sparkline.positive {
+      border-right-style: solid;
+      /* The border width must be kept in sync with buildSparklineStyle_(). */
+      border-right-width: 1px;
+    }
+    #sparkline:not(.positive) {
+      border-left-style: solid;
+      /* The border width must be kept in sync with buildSparklineStyle_(). */
+      border-left-width: 1px;
+    }
+    #sparkline.better {
+      background-color: hsla(115, 100%, 93%, .75);
+      border-color: hsl(118, 60%, 80%);
+    }
+    #sparkline.worse {
+      background-color: hsla(0, 100%, 88%, .75);
+      border-color: hsl(0, 100%, 80%);
+    }
+
+    #content {
+      white-space: nowrap;
+    }
+    #content, #significance, #warning {
+      flex-grow: 0;
+    }
+    #content.better {
+      color: green;
+    }
+    #content.worse {
+      color: red;
+    }
+
+    #significance svg {
+      margin-left: 4px;
+      display: none;
+      height: 1em;
+      vertical-align: text-top;
+      stroke-width: 4;
+      fill: rgba(0, 0, 0, 0);
+    }
+    #significance #insignificant {
+      stroke: black;
+    }
+    #significance #significantly_better {
+      stroke: green;
+    }
+    #significance #significantly_worse {
+      stroke: red;
+    }
+
+    #warning {
+      display: none;
+      margin-left: 4px;
+      height: 1em;
+      vertical-align: text-top;
+      stroke-width: 0;
+    }
+    #warning path {
+      fill: rgb(255, 185, 185);
+    }
+    #warning rect {
+      fill: red;
+    }
+    </style>
+
+    <span id="sparkline"></span>
+
+    <span id="content"></span>
+
+    <span id="significance">
+      
+      <svg id="insignificant" viewbox="0 0 128 128">
+        <circle cx="64" cy="64" r="60"></circle>
+        <circle cx="44" cy="44" r="4"></circle>
+        <circle cx="84" cy="44" r="4"></circle>
+        <line x1="36" x2="92" y1="80" y2="80"></line>
+      </svg>
+
+      
+      <svg id="significantly_better" viewbox="0 0 128 128">
+        <circle cx="64" cy="64" r="60"></circle>
+        <circle cx="44" cy="44" r="4"></circle>
+        <circle cx="84" cy="44" r="4"></circle>
+        <path d="M 28 64 Q 64 128 100 64"></path>
+      </svg>
+
+      
+      <svg id="significantly_worse" viewbox="0 0 128 128">
+        <circle cx="64" cy="64" r="60"></circle>
+        <circle cx="44" cy="44" r="4"></circle>
+        <circle cx="84" cy="44" r="4"></circle>
+        <path d="M 36 96 Q 64 48 92 96"></path>
+      </svg>
+    </span>
+
+    <svg id="warning" viewbox="0 0 128 128">
+      <path d="M 64 0 L 128 128 L 0 128 L 64 0"></path>
+      <rect height="84" width="8" x="60" y="0"></rect>
+      <rect height="24" width="8" x="60" y="100"></rect>
+    </svg>
+  </template>
+</dom-module><dom-module id="tr-ui-a-generic-object-view">
+  <template>
+    <style>
+    :host {
+      display: block;
+      font-family: monospace;
+    }
+    </style>
+    <div id="content">
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-generic-object-view-with-label">
+  <template>
+    <style>
+    :host {
+      display: block;
+    }
+    </style>
+  </template>
+</dom-module><dom-module id="tr-ui-b-drag-handle">
+  <template>
+    <style>
+    :host {
+      -webkit-user-select: none;
+      box-sizing: border-box;
+      display: block;
+    }
+
+    :host(.horizontal-drag-handle) {
+      background-image: -webkit-gradient(linear,
+                                         0 0, 0 100%,
+                                         from(#E5E5E5),
+                                         to(#D1D1D1));
+      border-bottom: 1px solid #8e8e8e;
+      border-top: 1px solid white;
+      cursor: ns-resize;
+      flex: 0 0 auto;
+      height: 7px;
+      position: relative;
+    }
+
+    :host(.vertical-drag-handle) {
+      background-image: -webkit-gradient(linear,
+                                         0 0, 100% 0,
+                                         from(#E5E5E5),
+                                         to(#D1D1D1));
+      border-left: 1px solid white;
+      border-right: 1px solid #8e8e8e;
+      cursor: ew-resize;
+      flex: 0 0 auto;
+      position: relative;
+      width: 7px;
+    }
+    </style>
+    <div></div>
+  </template>
+</dom-module><dom-module id="tv-ui-b-hotkey-controller">
+  <template>
+    <div></div>
+  </template>
+</dom-module><dom-module id="tr-ui-b-info-bar">
+  <template>
+    <style>
+    :host {
+      align-items: center;
+      flex: 0 0 auto;
+      background-color: rgb(252, 235, 162);
+      border-bottom: 1px solid #A3A3A3;
+      border-left: 1px solid white;
+      border-right: 1px solid #A3A3A3;
+      border-top: 1px solid white;
+      display: flex;
+      min-height: 26px;
+      padding: 0 3px 0 3px;
+    }
+
+    :host([hidden]) {
+      display: none !important;
+    }
+
+    #message { flex: 1 1 auto; }
+    </style>
+
+    <span id="message"></span>
+    <span id="buttons"></span>
+  </template>
+</dom-module><dom-module id="tr-ui-b-mouse-mode-icon">
+  <template>
+    <style>
+    :host {
+      display: block;
+      background-image: url(data:image/png;base64,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);
+      width: 27px;
+      height: 30px;
+    }
+    :host.active {
+      cursor: auto;
+    }
+    </style>
+  </template>
+</dom-module><dom-module id="tr-ui-b-mouse-mode-selector">
+  <template>
+    <style>
+    :host {
+
+      -webkit-user-drag: element;
+      -webkit-user-select: none;
+
+      background: #DDD;
+      border: 1px solid #BBB;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      left: calc(100% - 120px);
+      position: absolute;
+      top: 100px;
+      user-select: none;
+      width: 29px;
+      z-index: 20;
+    }
+
+    .drag-handle {
+      background: url(data:image/png;base64,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) 2px 3px no-repeat;
+      background-repeat: no-repeat;
+      border-bottom: 1px solid #BCBCBC;
+      cursor: move;
+      display: block;
+      height: 13px;
+      width: 27px;
+    }
+
+    .tool-button {
+      background-position: center center;
+      background-repeat: no-repeat;
+      border-bottom: 1px solid #BCBCBC;
+      border-top: 1px solid #F1F1F1;
+      cursor: pointer;
+    }
+
+    .buttons > .tool-button:last-child {
+      border-bottom: none;
+    }
+
+    </style>
+    <div class="drag-handle"></div>
+    <div class="buttons">
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-e-chrome-cc-display-item-list-item">
+  <template>
+    <style>
+      :host {
+        border-bottom: 1px solid #555;
+        display: block;
+        font-size: 12px;
+        padding: 3px 5px;
+      }
+
+      :host(:hover) {
+        background-color: #f0f0f0;
+        cursor: pointer;
+      }
+
+      .header {
+        font-weight: bold;
+        margin: 2px 0;
+      }
+
+      .header > .extra {
+        background-color: #777;
+        border-radius: 4px;
+        color: white;
+        margin: 0 6px;
+        text-decoration: none;
+        padding: 2px 4px;
+      }
+
+      .raw-details {
+        white-space: pre-wrap;
+      }
+
+      .details > dl {
+        margin: 0;
+      }
+
+      :host(:not([selected])) .details {
+        display: none;
+      }
+    </style>
+    <div class="header">
+      {{name}}
+      <template if="{{_computeIfSKP(richDetails)}}" is="dom-if">
+        <a class="extra" download="drawing.skp" href$="{{_computeHref(richDetails)}}" on-click="{{stopPropagation}}">SKP</a>
+      </template>
+    </div>
+    <div class="details">
+      <template if="{{rawDetails}}" is="dom-if">
+        <div class="raw-details">{{rawDetails}}</div>
+      </template>
+      <template if="{{richDetails}}" is="dom-if">
+        <dl>
+          <template if="{{richDetails.visualRect}}" is="dom-if">
+            <dt>Visual rect</dt>
+            <dd>{{richDetails.visualRect.x}},{{richDetails.visualRect.y}}
+                {{richDetails.visualRect.width}}×{{richDetails.visualRect.height}}
+            </dd>
+          </template>
+        </dl>
+      </template>
+    </div>
+  </template>
+
+</dom-module><template id="tr-ui-e-chrome-cc-display-item-debugger-template">
+  <left-panel>
+    <display-item-info>
+      <header>
+        <span class="title">Display Item List</span>
+        <span class="size"></span>
+        <div class="export">
+          <input class="dlfilename" type="text" value="displayitemlist.json">
+          <button class="dlexport">Export display item list</button>
+        </div>
+        <div class="export">
+          <input class="skpfilename" type="text" value="skpicture.skp">
+          <button class="skpexport">Export list as SkPicture</button>
+        </div>
+      </header>
+    </display-item-info>
+  </left-panel>
+  <right-panel>
+    <raster-area>
+      <canvas-scroller>
+        <canvas></canvas>
+      </canvas-scroller>
+    </raster-area>
+  </right-panel>
+</template><template id="quad-stack-view-template">
+  <style>
+  #chrome-left {
+    background-image: url(data:image/png;base64,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);
+    display: none;
+  }
+  #chrome-mid {
+    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAABICAYAAADRa1RpAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAB3RJTUUH3QcNFycE5v9iFQAAAQtJREFUOMvtkjGSWzEMQx/0eYrM3v8k3vgqycalSwlI8Ufyl3OBFMtGIgUCIEd6PB6RBEASqvfONSrJXrDNbNkQ8ywA2y/SmayW+ZIESTsiyQsxo40xmMS2aUmYbheHpCVd0+UqJGGMsey3mUyldoUvlY3D9rIN0K7Wbe/WbZ+y1yWtaVtrp3VJzAEX6ZVjc2p7b2mtnYhNdl6m05rwtfV/ltx7XypJTpXeO7Y5juOlchzHaWxyrJmuhLapqgIJONv05+srThBgiQpBTSRwGOr3rwccgWHUhJ7P5/YNlbd/2XiL78L/WajP240AQUihfnx84EDJjCHKHjTAbkimQDgBjAJ1/3kHAgEk/gL71AHEWVXPGQAAAABJRU5ErkJggg==);
+    display: none;
+  }
+  #chrome-right {
+    background-image: url(data:image/png;base64,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);
+    display: none;
+  }
+  </style>
+
+  <div id="header"></div>
+  <input id="stacking-distance-slider" max="400" min="1" step="1" type="range">
+  
+  <div id="canvas-scroller">
+    <canvas id="canvas"></canvas>
+  </div>
+  <img id="chrome-left">
+  <img id="chrome-mid">
+  <img id="chrome-right">
+</template><template id="tr-ui-e-chrome-cc-layer-tree-quad-stack-view-template">
+  <style>
+  #input-event {
+    background-image: url(data:image/png;base64,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);
+    display: none;
+  }
+  </style>
+  <img id="input-event">
+</template><template id="tr-ui-e-chrome-cc-picture-debugger-template">
+  <left-panel>
+    <picture-info>
+      <div>
+        <span class="title">Skia Picture</span>
+        <span class="size"></span>
+      </div>
+      <div>
+        <input class="filename" type="text" value="skpicture.skp">
+        <button class="export">Export</button>
+      </div>
+    </picture-info>
+  </left-panel>
+  <right-panel>
+    <tr-ui-e-chrome-cc-picture-ops-chart-view>
+    </tr-ui-e-chrome-cc-picture-ops-chart-view>
+    <raster-area><canvas></canvas></raster-area>
+  </right-panel>
+</template><dom-module id="tr-ui-a-stack-frame">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-event-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex: 0 1;
+      flex-direction: column;
+    }
+    #table {
+      flex: 0 1 auto;
+      align-self: stretch;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table">
+    </tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-chrome-cc-raster-task-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    #heading {
+      flex: 0 0 auto;
+    }
+    tr-ui-b-table {
+      font-size: 12px;
+    }
+    </style>
+
+    <div id="heading">
+      Rasterization costs in
+      <tr-ui-a-analysis-link id="link"></tr-ui-a-analysis-link>
+    </div>
+    <tr-ui-b-table id="content"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-chrome-codesearch">
+  <template>
+    <style>
+      :host {
+        white-space: nowrap;
+      }
+      #codesearchLink {
+        font-size: x-small;
+        margin-left: 20px;
+        text-decoration: none;
+      }
+    </style>
+    <a id="codesearchLink" on-click="onClick" target="_blank">🔍</a>
+  </template>
+</dom-module><style>
+.tr-ui-e-chrome-gpu-state-snapshot-view{background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAAZiS0dEAEwATABMYqp3KAAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB90JCQsBMCH7ZqYAAAAZdEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIEdJTVBXgQ4XAAAAUElEQVRYw+3WwQkAIAiF4Vc0hTO5/wiuURvYIcQOv1cRPhDlDXffSsrMsrYiQi/zU80FAACAVX3nt3lWAABA/x+ovnPyAAAA5AHyAAAA3wMOd34Xd+lsglgAAAAASUVORK5CYII=);display:flex;overflow:auto}.tr-ui-e-chrome-gpu-state-snapshot-view img{display:block;margin:16px auto 16px auto}
+</style><dom-module id="tr-ui-a-layout-tree-sub-view">
+  <template>
+    <style>
+    tr-ui-b-table {
+      font-size: 12px;
+    }
+    </style>
+    <div id="content"></div>
+  </template>
+</dom-module><template id="tr-ui-e-img-image-snapshot-view-template">
+  <style>
+    .image-info {
+      margin-bottom: 5px;
+    }
+
+    .image-info .title {
+      font-weight: bold;
+      margin-left: 5px;
+      margin-right: 5px;
+    }
+
+    .image-info .size {
+      margin-right: 5px;
+    }
+
+    .image-container {
+      min-height: 100px;
+      min-width: 200px;
+      overflow: auto;
+    }
+  </style>
+
+  <div class="image-info">
+    <span class="title">Image</span>
+    <span class="size">(unknown)</span>
+    <span class="instructions">
+      [ Drag with mouse to zoom in and out ]
+    </span>
+  </div>
+  <div class="image-container">
+    <img alt="Image snapshot">
+  </div>
+</template><dom-module id="tr-ui-e-s-frame-data-side-panel">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      width: 600px;
+      flex-direction: column;
+    }
+    table-container {
+      display: flex;
+      overflow: auto;
+      font-size: 12px;
+    }
+    </style>
+    <div>
+      Organize by:
+      <select id="select">
+        <option value="none">None</option>
+        <option value="tree">Frame Tree</option>
+      </select>
+    </div>
+    <table-container>
+      <tr-ui-b-table id="table"></tr-ui-b-table>
+    </table-container>
+  </template>
+</dom-module><dom-module id="tr-ui-b-chart-legend-key">
+  <template>
+    <style>
+      #checkbox {
+        margin: 0;
+        visibility: hidden;
+        vertical-align: text-top;
+      }
+      #label, #link {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        display: inline-block;
+      }
+    </style>
+
+    <input checked id="checkbox" type="checkbox">
+    <tr-ui-a-analysis-link id="link"></tr-ui-a-analysis-link>
+    <label id="label"></label>
+  </template>
+</dom-module><template id="chart-base-template">
+  <svg> 
+    <g id="chart-area" xmlns="http://www.w3.org/2000/svg">
+      <g class="x axis"></g>
+      <g class="y axis"></g>
+      <text id="title"></text>
+    </g>
+  </svg>
+</template><dom-module id="tr-ui-e-s-input-latency-side-panel">
+  <template>
+    <style>
+    :host {
+      flex-direction: column;
+      display: flex;
+    }
+    toolbar {
+      flex: 0 0 auto;
+      border-bottom: 1px solid black;
+      display: flex;
+    }
+    result-area {
+      flex: 1 1 auto;
+      display: block;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    </style>
+
+    <toolbar id="toolbar"></toolbar>
+    <result-area id="result_area"></result-area>
+  </template>
+</dom-module><dom-module id="tr-ui-b-heading">
+  <template>
+    <style>
+    :host {
+      background-color: rgb(243, 245, 247);
+      border-right: 1px solid #8e8e8e;
+      display: block;
+      height: 100%;
+      margin: 0;
+      padding: 0 5px 0 0;
+    }
+
+    heading {
+      display: block;
+      overflow-x: hidden;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    #arrow {
+      flex: 0 0 auto;
+      font-family: sans-serif;
+      margin-left: 5px;
+      margin-right: 5px;
+      width: 8px;
+    }
+
+    #link, #heading_content {
+      display: none;
+    }
+    </style>
+    <heading id="heading" on-click="onHeadingDivClicked_">
+      <span id="arrow"></span>
+      <span id="heading_content"></span>
+      <tr-ui-a-analysis-link id="link"></tr-ui-a-analysis-link>
+    </heading>
+  </template>
+</dom-module><style>
+.track-button{background-color:rgba(255,255,255,0.5);border:1px solid rgba(0,0,0,0.1);color:rgba(0,0,0,0.2);font-size:10px;height:12px;text-align:center;width:12px}.track-button:hover{background-color:rgba(255,255,255,1.0);border:1px solid rgba(0,0,0,0.5);box-shadow:0 0 .05em rgba(0,0,0,0.4);color:rgba(0,0,0,1)}.track-close-button{left:2px;position:absolute;top:2px}.track-collapse-button{left:3px;position:absolute;top:2px}
+</style><style>
+.object-instance-track{height:18px}
+</style><style>
+.tr-ui-e-system-stats-instance-track{height:500px}.tr-ui-e-system-stats-instance-track ul{list-style:none;list-style-position:outside;margin:0;overflow:hidden}
+</style><style>
+.tr-ui-e-system-stats-snapshot-view .subhead{font-size:small;padding-bottom:10px}.tr-ui-e-system-stats-snapshot-view ul{background-position:0 5px;background-repeat:no-repeat;cursor:pointer;font-family:monospace;list-style:none;margin:0;padding-left:15px}.tr-ui-e-system-stats-snapshot-view li{background-position:0 5px;background-repeat:no-repeat;cursor:pointer;list-style:none;margin:0;padding-left:15px}
+</style><dom-module id="tr-ui-e-v8-gc-objects-stats-table">
+  <template>
+    <style>
+    tr-ui-b-table {
+      flex: 0 0 auto;
+      align-self: stretch;
+      margin-top: 1em;
+      font-size: 12px;
+    }
+    .diff {
+      display: inline-block;
+      margin-top: 1em;
+      margin-left: 0.8em;
+    }
+    </style>
+    <div class="diff" id="diffOption">
+      Diff
+    </div>
+    <tr-ui-b-table id="diffTable"></tr-ui-b-table>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-multi-v8-gc-stats-thread-slice-sub-view">
+  <template>
+    <style>
+    </style>
+    <tr-ui-e-v8-gc-objects-stats-table id="gcObjectsStats">
+    </tr-ui-e-v8-gc-objects-stats-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-v8-ic-stats-table">
+  <template>
+    <style>
+    tr-ui-b-table {
+      flex: 0 0 auto;
+      align-self: stretch;
+      margin-top: 1em;
+      font-size: 12px;
+    }
+    #total {
+      margin-top: 1em;
+      margin-left: 0.8em;
+    }
+    #groupOption {
+      display: inline-block;
+      margin-top: 1em;
+      margin-left: 0.8em;
+    }
+    </style>
+    <div style="padding-right: 200px">
+      <div style="float:right;  border-style: solid; border-width: 1px; padding:20px">
+        X no feedback<br>
+        0 uninitialized<br>
+        . premonomorphic<br>
+        1 monomorphic<br>
+        ^ recompute handler<br>
+        P polymorphic<br>
+        N megamorphic<br>
+        G generic
+      </div>
+    </div>
+    <div id="total">
+    </div>
+    <div id="groupOption">
+      Group Key
+    </div>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-multi-v8-ic-stats-thread-slice-sub-view">
+  <template>
+    <tr-ui-e-v8-ic-stats-table id="table">
+    </tr-ui-e-v8-ic-stats-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-v8-runtime-call-stats-table">
+  <template>
+    <style>
+    #table, #blink_rcs_table {
+      flex: 0 0 auto;
+      align-self: stretch;
+      margin-top: 1em;
+      font-size: 12px;
+    }
+
+    #v8_rcs_heading, #blink_rcs_heading {
+        padding-top: 1em;
+        font-size: 18px;
+    }
+    </style>
+    <h1 id="v8_rcs_heading"></h1>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+    <h1 id="blink_rcs_heading"></h1>
+    <tr-ui-b-table id="blink_rcs_table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-multi-v8-thread-slice-sub-view">
+  <template>
+    <tr-ui-a-multi-thread-slice-sub-view id="content"></tr-ui-a-multi-thread-slice-sub-view>
+    <tr-ui-e-v8-runtime-call-stats-table id="runtimeCallStats"></tr-ui-e-v8-runtime-call-stats-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-single-v8-gc-stats-thread-slice-sub-view">
+  <template>
+    <tr-ui-a-single-event-sub-view id="content"></tr-ui-a-single-event-sub-view>
+    <tr-ui-e-v8-gc-objects-stats-table id="gcObjectsStats"></tr-ui-e-v8-gc-objects-stats-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-single-v8-ic-stats-thread-slice-sub-view">
+  <template>
+    <tr-ui-e-v8-ic-stats-table id="table">
+    </tr-ui-e-v8-ic-stats-table>
+  </template>
+</dom-module><dom-module id="tr-ui-e-single-v8-thread-slice-sub-view">
+  <template>
+    <tr-ui-a-single-thread-slice-sub-view id="content"></tr-ui-a-single-thread-slice-sub-view>
+    <tr-ui-e-v8-runtime-call-stats-table id="runtimeCallStats"></tr-ui-e-v8-runtime-call-stats-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-alert-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    #table {
+      flex: 1 1 auto;
+      align-self: stretch;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table">
+    </tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-b-tab-view">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #selection_description, #tabs {
+        font-size: 12px;
+      }
+
+      #selection_description {
+        display: inline-block;
+        font-weight: bold;
+        margin: 9px 0px 4px 20px;
+      }
+
+      #tabs {
+        flex: 0 0 auto;
+        border-top: 1px solid #8e8e8e;
+        border-bottom: 1px solid #8e8e8e;
+        background-color: #ececec;
+        overflow: hidden;
+        margin: 0;
+      }
+
+      #tabs input[type=radio] {
+        display: none;
+      }
+
+      #tabs tab label {
+        cursor: pointer;
+        display: inline-block;
+        border: 1px solid #ececec;
+        margin: 5px 0px 0px 15px;
+        padding: 3px 10px 3px 10px;
+      }
+
+      #tabs tab label span {
+        font-weight: bold;
+      }
+
+      #tabs:focus input[type=radio]:checked ~ label {
+        outline: dotted 1px #8e8e8e;
+        outline-offset: -2px;
+      }
+
+      #tabs input[type=radio]:checked ~ label {
+        background-color: white;
+        border: 1px solid #8e8e8e;
+        border-bottom: 1px solid white;
+      }
+
+      #subView {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+      }
+
+      #subView > * {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+    </style>
+    <div hidden="[[tabsHidden]]" id="tabs">
+      <label id="selection_description">[[label_]]</label>
+      <template is="dom-repeat" items="[[subViews_]]">
+        <tab>
+          <input checked="[[isChecked_(item)]]" id$="[[computeRadioId_(item)]]" name="tabs" on-change="onTabChanged_" type="radio">
+          <label for$="[[computeRadioId_(item)]]">
+            <template if="[[item.tabIcon]]" is="dom-if">
+              <span style$="[[item.tabIcon.style]]">[[item.tabIcon.text]]</span>
+            </template>
+            [[item.tabLabel]]
+          </label>
+        </tab>
+      </template>
+    </div>
+    <div id="subView"></div>
+    <slot>
+    </slot>
+  </template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-heap-details-breakdown-view">
+  <template>
+    <tr-ui-b-tab-view id="tabs"></tr-ui-b-tab-view>
+  </template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-heap-details-breakdown-view-tab">
+  <template>
+    <tr-v-ui-scalar-context-controller></tr-v-ui-scalar-context-controller>
+    <tr-ui-b-info-bar hidden id="info"></tr-ui-b-info-bar>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-heap-details-path-view">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+    <tr-v-ui-scalar-context-controller></tr-v-ui-scalar-context-controller>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-heap-details-pane">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #header {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        background-color: #eee;
+        border-bottom: 1px solid #8e8e8e;
+        border-top: 1px solid white;
+      }
+
+      #label {
+        flex: 1 1 auto;
+        padding: 8px;
+        font-size: 15px;
+        font-weight: bold;
+      }
+
+      #view_mode_container {
+        display: none;
+        flex: 0 0 auto;
+        padding: 5px;
+        font-size: 15px;
+      }
+
+      #contents {
+        flex: 1 0 auto;
+        align-self: stretch;
+        font-size: 12px;
+      }
+
+      #info_text {
+        padding: 8px;
+        color: #666;
+        font-style: italic;
+        text-align: center;
+      }
+
+      #split_view {
+        display: none;  /* Hide until memory allocator dumps are set. */
+        flex: 1 0 auto;
+        align-self: stretch;
+        flex-direction: row;
+      }
+
+      #path_view {
+        width: 50%;
+      }
+
+      #breakdown_view {
+        flex: 1 1 auto;
+        width: 0;
+      }
+
+      #path_view, #breakdown_view {
+        overflow-x: auto;  /* Show scrollbar if necessary. */
+      }
+    </style>
+    <div id="header">
+      <div id="label">Heap details</div>
+      <div id="view_mode_container">
+        <span>View mode:</span>
+        
+      </div>
+    </div>
+    <div id="contents">
+      <tr-ui-b-info-bar hidden id="info_bar">
+      </tr-ui-b-info-bar>
+
+      <div id="info_text">No heap dump selected</div>
+
+      <div id="split_view">
+        <tr-ui-a-memory-dump-heap-details-path-view id="path_view">
+        </tr-ui-a-memory-dump-heap-details-path-view>
+        <tr-ui-b-drag-handle id="drag_handle"></tr-ui-b-drag-handle>
+        <tr-ui-a-memory-dump-heap-details-breakdown-view id="breakdown_view">
+        </tr-ui-a-memory-dump-heap-details-breakdown-view>
+      </div>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-allocator-details-pane">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #label {
+        flex: 0 0 auto;
+        padding: 8px;
+
+        background-color: #eee;
+        border-bottom: 1px solid #8e8e8e;
+        border-top: 1px solid white;
+
+        font-size:  15px;
+        font-weight: bold;
+      }
+
+      #contents {
+        flex: 1 0 auto;
+        align-self: stretch;
+        font-size: 12px;
+      }
+
+      #info_text {
+        padding: 8px;
+        color: #666;
+        font-style: italic;
+        text-align: center;
+      }
+
+      #table {
+        display: none;  /* Hide until memory allocator dumps are set. */
+        flex: 1 0 auto;
+        align-self: stretch;
+        font-size: 12px;
+      }
+    </style>
+    <div id="label">Component details</div>
+    <div id="contents">
+      <div id="info_text">No memory allocator dump selected</div>
+      <tr-ui-b-table id="table"></tr-ui-b-table>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-vm-regions-details-pane">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #label {
+        flex: 0 0 auto;
+        padding: 8px;
+
+        background-color: #eee;
+        border-bottom: 1px solid #8e8e8e;
+        border-top: 1px solid white;
+
+        font-size:  15px;
+        font-weight: bold;
+      }
+
+      #contents {
+        flex: 1 0 auto;
+        align-self: stretch;
+        font-size: 12px;
+      }
+
+      #info_text {
+        padding: 8px;
+        color: #666;
+        font-style: italic;
+        text-align: center;
+      }
+
+      #table {
+        display: none;  /* Hide until memory dumps are set. */
+        flex: 1 0 auto;
+        align-self: stretch;
+        font-size: 12px;
+      }
+    </style>
+    <div id="label">Memory maps</div>
+    <div id="contents">
+      <div id="info_text">No memory maps selected</div>
+      <tr-ui-b-table id="table"></tr-ui-b-table>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-b-color-legend">
+  <template>
+    <style>
+    :host {
+      display: inline-block;
+    }
+
+    #square {
+      font-size: 150%;  /* Make the square bigger. */
+      line-height: 0%;  /* Prevent the square from increasing legend height. */
+    }
+    </style>
+    <span id="square"></span>
+    <span id="label"></span>
+  </template>
+</dom-module><dom-module id="tr-ui-b-view-specific-brushing-state">
+  <template></template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-overview-pane">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #label {
+        flex: 0 0 auto;
+        padding: 8px;
+
+        background-color: #eee;
+        border-bottom: 1px solid #8e8e8e;
+        border-top: 1px solid white;
+
+        font-size:  15px;
+        font-weight: bold;
+      }
+
+      #label a {
+        font-weight: normal;
+        float: right;
+      }
+
+      #contents {
+        flex: 1 0 auto;
+        align-self: stretch;
+        font-size: 12px;
+        overflow: auto;
+      }
+
+      #info_text {
+        padding: 8px;
+        color: #666;
+        font-style: italic;
+        text-align: center;
+      }
+
+      #table {
+        display: none;  /* Hide until memory dumps are set. */
+        flex: 1 0 auto;
+        align-self: stretch;
+        font-size: 12px;
+      }
+    </style>
+    <tr-ui-b-view-specific-brushing-state id="state" view-id="analysis.memory_dump_overview_pane">
+    </tr-ui-b-view-specific-brushing-state>
+    <div id="label">Overview <a href="https://chromium.googlesource.com/chromium/src/+/master/docs/memory-infra">Help</a></div>
+    <div id="contents">
+      <div id="info_text">No memory memory dumps selected</div>
+      <tr-ui-b-table id="table"></tr-ui-b-table>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-memory-dump-header-pane">
+  <template>
+    <style>
+      :host {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        background-color: #d0d0d0;
+        border-bottom: 1px solid #8e8e8e;
+        border-top: 1px solid white;
+      }
+
+      #label {
+        flex: 1 1 auto;
+        padding: 6px;
+        font-size: 15px;
+      }
+
+      #aggregation_mode_container {
+        display: none;
+        flex: 0 0 auto;
+        padding: 5px;
+        font-size: 15px;
+      }
+    </style>
+    
+    <div id="label"></div>
+    <div id="aggregation_mode_container">
+      <span>Metric aggregation:</span>
+      
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-stacked-pane-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #pane_container > * {
+      flex: 0 0 auto;
+    }
+    </style>
+    <div id="pane_container">
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-container-memory-dump-sub-view">
+  <template>
+    <style>
+    tr-ui-b-table {
+      font-size: 12px;
+    }
+    </style>
+    <div id="content"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-counter-sample-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    tr-ui-b-table {
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-event-summary-table">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    #table {
+      flex: 1 1 auto;
+      align-self: stretch;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table">
+    </tr-ui-b-table>
+    
+  </template>
+</dom-module><dom-module id="tr-ui-a-selection-summary-table">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    #table {
+      flex: 1 1 auto;
+      align-self: stretch;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table">
+    </tr-ui-b-table>
+    
+  </template>
+</dom-module><dom-module id="tr-ui-b-radio-picker">
+  <template>
+    <style>
+    :host([vertical]) #container {
+      flex-direction: column;
+    }
+    :host(:not[vertical]) #container {
+      flex-direction: row;
+    }
+    #container {
+      display: flex;
+    }
+    #container > div {
+      padding-left: 1em;
+      padding-bottom: 0.5em;
+    }
+    </style>
+    <div id="container"></div>
+  </template>
+</dom-module><dom-module id="tr-v-ui-breakdown-span">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    #table_container {
+      display: flex;
+      flex: 0 0 auto;
+    }
+    #table {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    </style>
+
+    <div id="empty">(empty)</div>
+    <div id="table_container">
+      <div id="container"></div>
+      <span>
+        <tr-ui-b-table id="table"></tr-ui-b-table>
+      </span>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-v-ui-collected-related-event-set-span">
+</dom-module><dom-module id="tr-v-ui-date-range-span">
+  <template>
+    <content></content>
+  </template>
+</dom-module><dom-module id="tr-v-ui-generic-set-span">
+  <template>
+    <style>
+      a {
+        display: block;
+      }
+    </style>
+
+    <tr-ui-a-generic-object-view id="generic"></tr-ui-a-generic-object-view>
+
+    <div id="links"></div>
+  </template>
+</dom-module><dom-module id="tr-v-ui-related-event-set-span">
+</dom-module><dom-module id="tr-v-ui-scalar-diagnostic-span">
+  <template>
+    <tr-v-ui-scalar-span id="scalar"></tr-v-ui-scalar-span>
+  </template>
+</dom-module><dom-module id="tr-v-ui-unmergeable-diagnostic-set-span">
+</dom-module><dom-module id="tr-v-ui-diagnostic-map-table">
+  <template>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-v-ui-scalar-map-table">
+  <template>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-v-ui-histogram-span">
+  <template>
+    <style>
+    #container {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+    #chart {
+      flex-grow: 1;
+      display: none;
+    }
+    #drag_handle, #diagnostics_tab_templates {
+      display: none;
+    }
+    #chart svg {
+      display: block;
+    }
+    #stats_container {
+      overflow-y: auto;
+    }
+    </style>
+
+    <div id="container">
+      <div id="chart"></div>
+      <div id="stats_container">
+        <tr-v-ui-scalar-map-table id="stats"></tr-v-ui-scalar-map-table>
+      </div>
+    </div>
+    <tr-ui-b-drag-handle id="drag_handle"></tr-ui-b-drag-handle>
+
+    <tr-ui-b-tab-view id="diagnostics"></tr-ui-b-tab-view>
+
+    <div id="diagnostics_tab_templates">
+      <tr-v-ui-diagnostic-map-table id="metric_diagnostics"></tr-v-ui-diagnostic-map-table>
+
+      <tr-v-ui-diagnostic-map-table id="metadata_diagnostics"></tr-v-ui-diagnostic-map-table>
+
+      <div id="sample_diagnostics_container">
+        <div id="merge_sample_diagnostics_container">
+          <input checked id="merge_sample_diagnostics" on-change="updateDiagnostics_" type="checkbox">
+          <label for="merge_sample_diagnostics">Merge Sample Diagnostics</label>
+        </div>
+        <tr-v-ui-diagnostic-map-table id="sample_diagnostics"></tr-v-ui-diagnostic-map-table>
+      </div>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-event-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      overflow: auto;
+    }
+    #content {
+      display: flex;
+      flex-direction: column;
+      flex: 0 1 auto;
+      align-self: stretch;
+    }
+    #content > * {
+      flex: 0 0 auto;
+      align-self: stretch;
+    }
+    #histogramContainer {
+      display: flex;
+    }
+
+    tr-ui-a-multi-event-summary-table {
+      border-bottom: 1px solid #aaa;
+    }
+
+    tr-ui-a-selection-summary-table  {
+      margin-top: 1.25em;
+      border-top: 1px solid #aaa;
+      background-color: #eee;
+      font-weight: bold;
+      margin-bottom: 1.25em;
+      border-bottom: 1px solid #aaa;
+    }
+    </style>
+    <div id="content">
+      <tr-ui-a-multi-event-summary-table id="eventSummaryTable">
+      </tr-ui-a-multi-event-summary-table>
+      <tr-ui-a-selection-summary-table id="selectionSummaryTable">
+      </tr-ui-a-selection-summary-table>
+      <tr-ui-b-radio-picker id="radioPicker">
+      </tr-ui-b-radio-picker>
+      <div id="histogramContainer">
+        <tr-v-ui-histogram-span id="histogramSpan">
+        </tr-v-ui-histogram-span>
+      </div>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-related-events">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    #table {
+      flex: 1 1 auto;
+      align-self: stretch;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-async-slice-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    #container {
+      display: flex;
+      flex: 1 1 auto;
+    }
+    #events {
+      margin-left: 8px;
+      flex: 0 1 200px;
+    }
+    </style>
+    <div id="container">
+      <tr-ui-a-multi-event-sub-view id="content"></tr-ui-a-multi-event-sub-view>
+      <div id="events">
+        <tr-ui-a-related-events id="relatedEvents"></tr-ui-a-related-events>
+      </div>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-cpu-slice-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    #content {
+      flex: 1 1 auto;
+    }
+    </style>
+    <tr-ui-a-multi-event-sub-view id="content"></tr-ui-a-multi-event-sub-view>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-flow-event-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    </style>
+    <tr-ui-a-multi-event-sub-view id="content"></tr-ui-a-multi-event-sub-view>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-instant-event-sub-view">
+  <template>
+    <style>
+    :host {
+      display: block;
+    }
+    </style>
+    <div id="content"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-object-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="content"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-frame-power-usage-chart">
+  <template>
+    <div id="content"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-power-sample-summary-table">
+  <template>
+    <style>
+    tr-ui-b-table {
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-power-sample-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+    }
+    #tables {
+      display: flex;
+      flex-direction: column;
+      width: 50%;
+    }
+    #chart {
+      width: 50%;
+    }
+    </style>
+    <div id="tables">
+      <tr-ui-a-power-sample-summary-table id="summaryTable">
+      </tr-ui-a-power-sample-summary-table>
+    </div>
+    <tr-ui-a-frame-power-usage-chart id="chart">
+    </tr-ui-a-frame-power-usage-chart>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-sample-sub-view">
+  <template>
+    <style>
+    :host { display: block; }
+    #control {
+      background-color: #e6e6e6;
+      background-image: -webkit-gradient(linear, 0 0, 0 100%,
+                                         from(#E5E5E5), to(#D1D1D1));
+      flex: 0 0 auto;
+      overflow-x: auto;
+    }
+    #control::-webkit-scrollbar { height: 0px; }
+    #control {
+      font-size: 12px;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      margin: 1px;
+      margin-right: 2px;
+    }
+    tr-ui-b-table {
+      font-size: 12px;
+    }
+    </style>
+    <div id="control">
+      Sample View Option
+    </div>
+    <tr-ui-b-table id="table">
+    </tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-thread-slice-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    #content {
+      display: flex;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    #content > tr-ui-a-related-events {
+      margin-left: 8px;
+      flex: 0 1 200px;
+    }
+    </style>
+    <div id="content"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-thread-time-slice-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    #content {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    </style>
+    <tr-ui-a-multi-event-sub-view id="content"></tr-ui-a-multi-event-sub-view>
+  </template>
+</dom-module><dom-module id="tr-ui-a-user-expectation-related-samples-table">
+  <template>
+    <style>
+    #table {
+      flex: 1 1 auto;
+      align-self: stretch;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-multi-user-expectation-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex: 1 1 auto;
+    }
+    #events {
+      margin-left: 8px;
+      flex: 0 1 200px;
+    }
+    </style>
+    <tr-ui-a-multi-event-sub-view id="realView"></tr-ui-a-multi-event-sub-view>
+    <div id="events">
+      <tr-ui-a-user-expectation-related-samples-table id="relatedSamples"></tr-ui-a-user-expectation-related-samples-table>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-async-slice-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+    }
+    #events {
+      display:flex;
+      flex-direction: column;
+    }
+    </style>
+    <tr-ui-a-single-event-sub-view id="content"></tr-ui-a-single-event-sub-view>
+    <div id="events">
+      <tr-ui-a-related-events id="relatedEvents"></tr-ui-a-related-events>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-cpu-slice-sub-view">
+  <template>
+    <style>
+    table {
+      border-collapse: collapse;
+      border-width: 0;
+      margin-bottom: 25px;
+      width: 100%;
+    }
+
+    table tr > td:first-child {
+      padding-left: 2px;
+    }
+
+    table tr > td {
+      padding: 2px 4px 2px 4px;
+      vertical-align: text-top;
+      width: 150px;
+    }
+
+    table td td {
+      padding: 0 0 0 0;
+      width: auto;
+    }
+    tr {
+      vertical-align: top;
+    }
+
+    tr:nth-child(2n+0) {
+      background-color: #e2e2e2;
+    }
+    </style>
+    <table>
+      <tbody><tr>
+        <td>Running process:</td><td id="process-name"></td>
+      </tr>
+      <tr>
+        <td>Running thread:</td><td id="thread-name"></td>
+      </tr>
+      <tr>
+        <td>Start:</td>
+        <td>
+          <tr-v-ui-scalar-span id="start">
+          </tr-v-ui-scalar-span>
+        </td>
+      </tr>
+      <tr>
+        <td>Duration:</td>
+        <td>
+          <tr-v-ui-scalar-span id="duration">
+          </tr-v-ui-scalar-span>
+        </td>
+      </tr>
+      <tr>
+        <td>Active slices:</td><td id="running-thread"></td>
+      </tr>
+      <tr>
+        <td>Args:</td>
+        <td>
+          <tr-ui-a-generic-object-view id="args">
+          </tr-ui-a-generic-object-view>
+        </td>
+      </tr>
+    </tbody></table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-flow-event-sub-view">
+  <template>
+    <style>
+    :host {
+      display: block;
+    }
+    </style>
+    <tr-ui-a-single-event-sub-view id="singleEventSubView">
+    </tr-ui-a-single-event-sub-view>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-frame-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    #asv {
+      flex: 0 0 auto;
+      align-self: stretch;
+    }
+    </style>
+    <tr-ui-a-alert-sub-view id="asv">
+    </tr-ui-a-alert-sub-view>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-instant-event-sub-view">
+  <template>
+    <style>
+    :host {
+      display: block;
+    }
+    </style>
+    <div id="content"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-object-instance-sub-view">
+  <template>
+    <style>
+    :host {
+      display: block;
+    }
+
+    #snapshots > * {
+      display: block;
+    }
+
+    :host {
+      overflow: auto;
+      display: block;
+    }
+
+    * {
+      -webkit-user-select: text;
+    }
+
+    .title {
+      border-bottom: 1px solid rgb(128, 128, 128);
+      font-size: 110%;
+      font-weight: bold;
+    }
+
+    td, th {
+      font-family: monospace;
+      vertical-align: top;
+    }
+    </style>
+    <div id="content"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-object-snapshot-sub-view">
+  <template>
+    <style>
+    #args {
+      white-space: pre;
+    }
+
+    :host {
+      overflow: auto;
+      display: flex;
+    }
+
+    ::content * {
+      -webkit-user-select: text;
+    }
+
+    ::content .title {
+      border-bottom: 1px solid rgb(128, 128, 128);
+      font-size: 110%;
+      font-weight: bold;
+    }
+
+    ::content td, th {
+      font-family: monospace;
+      vertical-align: top;
+    }
+    </style>
+    <slot></slot>
+  </template>
+</dom-module><dom-module id="tr-ui-a-power-sample-table">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-power-sample-sub-view">
+  <template>
+    <style>
+    :host { display: block; }
+    </style>
+    <tr-ui-a-power-sample-table id="samplesTable">
+    </tr-ui-a-power-sample-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-sample-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="content"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-thread-slice-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+    }
+    #events {
+      display: flex;
+      flex-direction: column;
+    }
+
+    </style>
+    <tr-ui-a-single-event-sub-view id="content"></tr-ui-a-single-event-sub-view>
+    <div id="events">
+      <tr-ui-a-related-events id="relatedEvents">
+      </tr-ui-a-related-events>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-thread-time-slice-sub-view">
+  <template>
+    <style>
+    table {
+      border-collapse: collapse;
+      border-width: 0;
+      margin-bottom: 25px;
+      width: 100%;
+    }
+
+    table tr > td:first-child {
+      padding-left: 2px;
+    }
+
+    table tr > td {
+      padding: 2px 4px 2px 4px;
+      vertical-align: text-top;
+      width: 150px;
+    }
+
+    table td td {
+      padding: 0 0 0 0;
+      width: auto;
+    }
+    tr {
+      vertical-align: top;
+    }
+
+    tr:nth-child(2n+0) {
+      background-color: #e2e2e2;
+    }
+    </style>
+    <table>
+      <tbody><tr>
+        <td>Running process:</td><td id="process-name"></td>
+      </tr>
+      <tr>
+        <td>Running thread:</td><td id="thread-name"></td>
+      </tr>
+      <tr>
+        <td>State:</td>
+        <td><b><span id="state"></span></b></td>
+      </tr>
+      <tr>
+        <td>Start:</td>
+        <td>
+          <tr-v-ui-scalar-span id="start">
+          </tr-v-ui-scalar-span>
+        </td>
+      </tr>
+      <tr>
+        <td>Duration:</td>
+        <td>
+          <tr-v-ui-scalar-span id="duration">
+          </tr-v-ui-scalar-span>
+        </td>
+      </tr>
+
+      <tr>
+        <td>On CPU:</td><td id="on-cpu"></td>
+      </tr>
+
+      <tr>
+        <td>Running instead:</td><td id="running-instead"></td>
+      </tr>
+
+      <tr>
+        <td>Args:</td><td id="args"></td>
+      </tr>
+    </tbody></table>
+  </template>
+</dom-module><dom-module id="tr-ui-a-single-user-expectation-sub-view">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: row;
+    }
+    #events {
+      display: flex;
+      flex-direction: column;
+    }
+    </style>
+    <tr-ui-a-single-event-sub-view id="realView"></tr-ui-a-single-event-sub-view>
+    <div id="events">
+      <tr-ui-a-user-expectation-related-samples-table id="relatedSamples"></tr-ui-a-user-expectation-related-samples-table>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-a-analysis-view">
+  <template>
+    <style>
+      :host {
+        background-color: white;
+        display: flex;
+        flex-direction: column;
+        height: 275px;
+        overflow: auto;
+      }
+
+      :host(.tall-mode) {
+        height: 525px;
+      }
+    </style>
+    <slot></slot>
+  </template>
+</dom-module><dom-module id="tr-ui-b-dropdown">
+  <template>
+    <style>
+    button {
+      @apply --dropdown-button;
+    }
+    button.open {
+      @apply --dropdown-button-open;
+    }
+    dialog {
+      position: absolute;
+      margin: 0;
+      padding: 1em;
+      border: 1px solid darkgrey;
+      @apply --dropdown-dialog;
+    }
+    </style>
+
+    <button id="button" on-tap="open">[[label]]</button>
+
+    <dialog id="dialog" on-cancel="close" on-tap="onDialogTap_">
+      <slot></slot>
+    </dialog>
+  </template>
+</dom-module><dom-module id="tr-ui-b-info-bar-group">
+  <template>
+    <style>
+    :host {
+      flex: 0 0 auto;
+      flex-direction: column;
+      display: flex;
+    }
+    </style>
+    <div id="messages"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-b-toolbar-button">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      background-color: #f8f8f8;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      color: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-self: stretch;
+      min-width: 23px;
+    }
+
+    :host(:hover) {
+      background-color: rgba(255, 255, 255, 1.0);
+      border-color: rgba(0, 0, 0, 0.8);
+      box-shadow: 0 0 .05em rgba(0, 0, 0, 0.4);
+      color: rgba(0, 0, 0, 1);
+    }
+
+    #aligner {
+      display: flex;
+      flex: 0 0 auto;
+      align-self: center;
+    }
+    </style>
+    <div id="aligner">
+      <slot></slot>
+    </div>
+  </template>
+</dom-module><style>
+.drawing-container{display:inline;overflow:auto;overflow-x:hidden;position:relative}.drawing-container-canvas{display:block;pointer-events:none;position:absolute;top:0}
+</style><style>
+.letter-dot-track {
+  height: 18px;
+}
+</style><style>
+.chart-track {
+  height: 30px;
+  position: relative;
+}
+</style><style>
+.cpu-usage-track {
+  height: 90px;
+}
+</style><style>
+.power-series-track {
+  height: 90px;
+}
+</style><style>
+.spacing-track{height:4px}
+</style><style>
+.rect-track{height:18px}
+</style><style>
+.thread-track{flex-direction:column;display:flex;position:relative}
+</style><style>
+.process-track-header{display:flex;flex:0 0 auto;background-image:-webkit-gradient(linear,0 0,100% 0,from(#E5E5E5),to(#D1D1D1));border-bottom:1px solid #8e8e8e;border-top:1px solid white;font-size:75%}.process-track-name{flex-grow:1}.process-track-name:before{content:'\25B8';padding:0 5px}.process-track-base.expanded .process-track-name:before{content:'\25BE'}.process-track-close{color:black;border:1px solid transparent;padding:0px 2px}.process-track-close:hover{border:1px solid grey}
+</style><style>
+.model-track {
+  flex-grow: 1;
+}
+</style><style>
+.x-axis-track {
+  height: 12px;
+}
+
+.x-axis-track.tall-mode {
+  height: 30px;
+}
+</style><dom-module id="tr-ui-timeline-track-view">
+  <template>
+    <style>
+    :host {
+      flex-direction: column;
+      display: flex;
+      position: relative;
+    }
+
+    :host ::content * {
+      -webkit-user-select: none;
+      cursor: default;
+    }
+
+    #drag_box {
+      background-color: rgba(0, 0, 255, 0.25);
+      border: 1px solid rgb(0, 0, 96);
+      font-size: 75%;
+      position: fixed;
+    }
+
+    #hint_text {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      font-size: 8pt;
+    }
+    </style>
+    <slot></slot>
+
+    <div id="drag_box"></div>
+    <div id="hint_text"></div>
+
+    <tv-ui-b-hotkey-controller id="hotkey_controller">
+    </tv-ui-b-hotkey-controller>
+  </template>
+</dom-module><dom-module id="tr-ui-find-control">
+  <template>
+    <style>
+      :host {
+        -webkit-user-select: none;
+        display: flex;
+        position: relative;
+      }
+      input {
+        -webkit-user-select: auto;
+        background-color: #f8f8f8;
+        border: 1px solid rgba(0, 0, 0, 0.5);
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        width: 170px;
+      }
+      input:focus {
+        background-color: white;
+      }
+      tr-ui-b-toolbar-button {
+        border-left: none;
+        margin: 0;
+      }
+      #hitCount {
+        left: 0;
+        opacity: 0.25;
+        pointer-events: none;
+        position: absolute;
+        text-align: right;
+        top: 2px;
+        width: 167px;
+        z-index: 1;
+      }
+      #spinner {
+        visibility: hidden;
+        width: 8px;
+        height: 8px;
+        left: 154px;
+        pointer-events: none;
+        position: absolute;
+        top: 4px;
+        z-index: 1;
+
+        border: 2px solid transparent;
+        border-bottom: 2px solid rgba(0, 0, 0, 0.5);
+        border-right: 2px solid rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+      }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+
+    <input id="filter" on-blur="filterBlur" on-focus="filterFocus" on-input="filterTextChanged" on-keydown="filterKeyDown" on-mouseup="filterMouseUp" type="text">
+    <div id="spinner"></div>
+    <tr-ui-b-toolbar-button on-click="findPrevious">
+      ←
+    </tr-ui-b-toolbar-button>
+    <tr-ui-b-toolbar-button on-click="findNext">
+      →
+    </tr-ui-b-toolbar-button>
+    <div id="hitCount">0 of 0</div>
+  </template>
+</dom-module><dom-module id="tr-ui-scripting-control">
+  <template>
+    <style>
+      :host {
+        flex: 1 1 auto;
+      }
+      .root {
+        font-family: monospace;
+        cursor: text;
+
+        padding: 2px;
+        margin: 2px;
+        border: 1px solid rgba(0, 0, 0, 0.5);
+        background: white;
+
+        height: 100px;
+        overflow-y: auto;
+
+        transition-property: opacity, height, padding, margin;
+        transition-duration: .2s;
+        transition-timing-function: ease-out;
+      }
+      .hidden {
+        margin-top: 0px;
+        margin-bottom: 0px;
+        padding-top: 0px;
+        padding-bottom: 0px;
+        height: 0px;
+        opacity: 0;
+      }
+      .focused {
+        outline: auto 5px -webkit-focus-ring-color;
+      }
+      #history {
+        -webkit-user-select: text;
+        color: #777;
+      }
+      #promptContainer {
+        display: flex;
+      }
+      #promptMark {
+        width: 1em;
+        color: #468;
+      }
+      #prompt {
+        flex: 1;
+        width: 100%;
+        border: none !important;
+        background-color: inherit !important;
+        font: inherit !important;
+        text-overflow: clip !important;
+        text-decoration: none !important;
+      }
+      #prompt:focus {
+        outline: none;
+      }
+    </style>
+
+    <div class="root hidden" id="root" on-focus="onConsoleFocus" tabindex="0">
+      <div id="history"></div>
+      <div id="promptContainer">
+        <span id="promptMark">&gt;</span>
+        <input id="prompt" on-blur="onConsoleBlur" on-keydown="promptKeyDown" on-keypress="promptKeyPress" type="text">
+       </div>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-side-panel-container">
+  <template>
+    <style>
+    :host {
+      align-items: stretch;
+      display: flex;
+      background-color: white;
+    }
+
+    :host([expanded]) > #side_panel_drag_handle,
+    :host([expanded]) > active-panel-container {
+      flex: 1 1 auto;
+      border-left: 1px solid black;
+      display: flex;
+    }
+
+    :host(:not([expanded])) > #side_panel_drag_handle,
+    :host(:not([expanded])) > active-panel-container {
+      display: none;
+    }
+
+    active-panel-container {
+      display: flex;
+    }
+
+    tab-strip {
+      flex: 0 0 auto;
+      flex-direction: column;
+      -webkit-user-select: none;
+      background-color: rgb(236, 236, 236);
+      border-left: 1px solid black;
+      cursor: default;
+      display: flex;
+      min-width: 18px; /* workaround for flexbox and writing-mode mixing bug */
+      padding: 10px 0 10px 0;
+      font-size: 12px;
+    }
+
+    tab-strip > tab-strip-label {
+      flex-shrink: 0;
+      -webkit-writing-mode: vertical-rl;
+      white-space: nowrap;
+      display: inline;
+      margin-right: 1px;
+      min-height: 20px;
+      padding: 15px 3px 15px 1px;
+    }
+
+    tab-strip >
+        tab-strip-label:not([enabled]) {
+      color: rgb(128, 128, 128);
+    }
+
+    tab-strip > tab-strip-label[selected] {
+      background-color: white;
+      border: 1px solid rgb(163, 163, 163);
+      border-left: none;
+      padding: 14px 2px 14px 1px;
+    }
+
+    #active_panel_container {
+      overflow: auto;
+    }
+    </style>
+
+    <tr-ui-b-drag-handle id="side_panel_drag_handle"></tr-ui-b-drag-handle>
+    <active-panel-container id="active_panel_container">
+    </active-panel-container>
+    <tab-strip id="tab_strip"></tab-strip>
+  </template>
+</dom-module><dom-module id="tr-ui-timeline-view-help-overlay">
+  <template>
+    <style>
+    :host {
+      flex: 1 1 auto;
+      flex-direction: row;
+      display: flex;
+      width: 700px;
+    }
+    .column {
+      width: 50%;
+    }
+    h2 {
+      font-size: 1.2em;
+      margin: 0;
+      margin-top: 5px;
+      text-align: center;
+    }
+    h3 {
+      margin: 0;
+      margin-left: 126px;
+      margin-top: 10px;
+    }
+    .pair {
+      flex: 1 1 auto;
+      flex-direction: row;
+      display: flex;
+    }
+    .command {
+      font-family: monospace;
+      margin-right: 5px;
+      text-align: right;
+      width: 150px;
+    }
+    .action {
+      font-size: 0.9em;
+      text-align: left;
+      width: 200px;
+    }
+    tr-ui-b-mouse-mode-icon {
+      border: 1px solid #888;
+      border-radius: 3px;
+      box-shadow: inset 0 0 2px rgba(0,0,0,0.3);
+      display: inline-block;
+      margin-right: 1px;
+      position: relative;
+      top: 4px;
+    }
+    .mouse-mode-icon.pan-mode {
+      background-position: -1px -11px;
+    }
+    .mouse-mode-icon.select-mode {
+      background-position: -1px -41px;
+    }
+    .mouse-mode-icon.zoom-mode {
+      background-position: -1px -71px;
+    }
+    .mouse-mode-icon.timing-mode {
+      background-position: -1px -101px;
+    }
+    </style>
+    <div class="column left">
+      <h2>Navigation</h2>
+      <div class="pair">
+        <div class="command">w/s</div>
+        <div class="action">Zoom in/out (+shift: faster)</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">a/d</div>
+        <div class="action">Pan left/right (+shift: faster)</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">→/shift-TAB</div>
+        <div class="action">Select previous event</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">←/TAB</div>
+        <div class="action">Select next event</div>
+      </div>
+
+      <h2>Mouse Controls</h2>
+      <div class="pair">
+        <div class="command">click</div>
+        <div class="action">Select event</div>
+      </div>
+      <div class="pair">
+        <div class="command">alt-mousewheel</div>
+        <div class="action">Zoom in/out</div>
+      </div>
+
+      <h3>
+        <tr-ui-b-mouse-mode-icon mode-name="SELECTION"></tr-ui-b-mouse-mode-icon>
+        Select mode
+      </h3>
+      <div class="pair">
+        <div class="command">drag</div>
+        <div class="action">Box select</div>
+      </div>
+
+      <div class="pair">
+        <div class="command"><span class="mod"></span>-click/drag</div>
+        <div class="action">Add events to the current selection</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">double click</div>
+        <div class="action">Select all events with same title</div>
+      </div>
+
+      <h3>
+        <tr-ui-b-mouse-mode-icon mode-name="PANSCAN"></tr-ui-b-mouse-mode-icon>
+        Pan mode
+      </h3>
+      <div class="pair">
+        <div class="command">drag</div>
+        <div class="action">Pan the view</div>
+      </div>
+
+      <h3>
+        <tr-ui-b-mouse-mode-icon mode-name="ZOOM"></tr-ui-b-mouse-mode-icon>
+        Zoom mode
+      </h3>
+      <div class="pair">
+        <div class="command">drag</div>
+        <div class="action">Zoom in/out by dragging up/down</div>
+      </div>
+
+      <h3>
+        <tr-ui-b-mouse-mode-icon mode-name="TIMING"></tr-ui-b-mouse-mode-icon>
+        Timing mode
+      </h3>
+      <div class="pair">
+        <div class="command">drag</div>
+        <div class="action">Create or move markers</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">double click</div>
+        <div class="action">Set marker range to slice</div>
+      </div>
+    </div>
+
+    <div class="column right">
+      <h2>General</h2>
+      <div class="pair">
+        <div class="command">1-4</div>
+        <div class="action">Switch mouse mode</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">shift</div>
+        <div class="action">Hold for temporary select</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">space</div>
+        <div class="action">Hold for temporary pan</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">/</div>
+        <div class="action">Search</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">enter</div>
+        <div class="action">Step through search results</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">f</div>
+        <div class="action">Zoom into selection</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">z/0</div>
+        <div class="action">Reset zoom and pan</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">g/G</div>
+        <div class="action">Toggle 60hz grid</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">v</div>
+        <div class="action">Highlight VSync</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">h</div>
+        <div class="action">Toggle low/high details</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">m</div>
+        <div class="action">Mark current selection</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">p</div>
+        <div class="action">Select power samples over current selection interval</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">`</div>
+        <div class="action">Show or hide the scripting console</div>
+      </div>
+
+      <div class="pair">
+        <div class="command">?</div>
+        <div class="action">Show help</div>
+      </div>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-timeline-view-metadata-overlay">
+  <template>
+    <style>
+    :host {
+      width: 700px;
+
+      overflow: auto;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-timeline-view">
+  <template>
+    <style>
+    :host {
+      flex-direction: column;
+      cursor: default;
+      display: flex;
+      font-family: sans-serif;
+      padding: 0;
+    }
+
+    #control {
+      background-color: #e6e6e6;
+      background-image: -webkit-gradient(linear, 0 0, 0 100%,
+          from(#E5E5E5), to(#D1D1D1));
+      flex: 0 0 auto;
+      overflow-x: auto;
+    }
+
+    #control::-webkit-scrollbar { height: 0px; }
+
+    #control > #bar {
+      font-size: 12px;
+      display: flex;
+      flex-direction: row;
+      margin: 1px;
+    }
+
+    #control > #bar > #title {
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      padding-right: 8px;
+      flex: 1 1 auto;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    #control > #bar > #left_controls,
+    #control > #bar > #right_controls {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      flex-shrink: 0;
+    }
+
+    #control > #bar > #left_controls > * { margin-right: 2px; }
+    #control > #bar > #right_controls > * { margin-left: 2px; }
+    #control > #collapsing_controls { display: flex; }
+
+    middle-container {
+      flex: 1 1 auto;
+      flex-direction: row;
+      border-bottom: 1px solid #8e8e8e;
+      display: flex;
+      min-height: 0;
+    }
+
+    middle-container ::content track-view-container {
+      flex: 1 1 auto;
+      display: flex;
+      min-height: 0;
+      min-width: 0;
+      overflow-x: hidden;
+    }
+
+    middle-container ::content track-view-container > * { flex: 1 1 auto; }
+    middle-container > x-timeline-view-side-panel-container { flex: 0 0 auto; }
+    tr-ui-b-drag-handle { flex: 0 0 auto; }
+    tr-ui-a-analysis-view { flex: 0 0 auto; }
+
+    tr-ui-b-dropdown {
+      --dropdown-button: {
+        -webkit-appearance: none;
+        align-items: normal;
+        background-color: rgb(248, 248, 248);
+        border: 1px solid rgba(0, 0, 0, 0.5);
+        box-sizing: content-box;
+        color: rgba(0, 0, 0, 0.8);
+        font-family: sans-serif;
+        font-size: 12px;
+        padding: 2px 5px;
+      }
+    }
+    </style>
+
+    <tv-ui-b-hotkey-controller id="hkc"></tv-ui-b-hotkey-controller>
+    <div id="control">
+      <div id="bar">
+        <div id="left_controls"></div>
+        <div id="title">
+          ^_^
+          <div style="padding-left: 3em">
+            Try the new <a href="https://ui.perfetto.dev">Perfetto UI</a>!
+            <a href="https://chromium.googlesource.com/catapult/+/refs/heads/main/tracing/docs/perfetto.md">Learn more</a>
+          </div>
+        </div>
+        <div id="right_controls">
+          <tr-ui-b-dropdown id="flow_event_filter_dropdown" label="Flow events"></tr-ui-b-dropdown>
+          <tr-ui-b-dropdown id="process_filter_dropdown" label="Processes"></tr-ui-b-dropdown>
+          <tr-ui-b-toolbar-button id="view_metadata_button">
+            M
+          </tr-ui-b-toolbar-button>
+          <tr-ui-b-dropdown id="view_options_dropdown" label="View Options"></tr-ui-b-dropdown>
+          <tr-ui-find-control id="view_find_control"></tr-ui-find-control>
+          <tr-ui-b-toolbar-button id="view_console_button">
+            »
+          </tr-ui-b-toolbar-button>
+          <tr-ui-b-toolbar-button id="view_help_button">
+            ?
+          </tr-ui-b-toolbar-button>
+        </div>
+      </div>
+      <div id="collapsing_controls"></div>
+      <tr-ui-b-info-bar-group id="import-warnings">
+      </tr-ui-b-info-bar-group>
+    </div>
+    <middle-container>
+      <slot></slot>
+
+      <tr-ui-side-panel-container id="side_panel_container">
+      </tr-ui-side-panel-container>
+    </middle-container>
+    <tr-ui-b-drag-handle id="drag_handle"></tr-ui-b-drag-handle>
+    <tr-ui-a-analysis-view id="analysis"></tr-ui-a-analysis-view>
+
+    <tr-v-ui-preferred-display-unit id="display_unit">
+    </tr-v-ui-preferred-display-unit>
+  </template>
+</dom-module><dom-module id="tr-ui-b-grouping-table">
+  <template>
+    <style>
+    :host {
+      display: flex;
+    }
+    #table {
+      flex: 1 1 auto;
+      font-size: 12px;
+    }
+    </style>
+    <tr-ui-b-table id="table"></tr-ui-b-table>
+  </template>
+</dom-module><dom-module id="tr-ui-b-grouping-table-groupby-picker">
+  <template>
+    <style>
+    #container {
+      display: flex;
+    }
+    #container *:not(:first-child) {
+      padding-left: 3px;
+      border-left: 1px solid black;
+      margin-left: 3px;
+    }
+    </style>
+
+    <div id="container"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-b-grouping-table-groupby-picker-group">
+  <template>
+    <style>
+    :host {
+      white-space: nowrap;
+    }
+    #left, #right {
+      user-select: none;
+      cursor: pointer;
+    }
+    </style>
+
+    <span id="left" on-click="moveLeft_">◀</span>
+    <input id="enabled" on-change="onEnableChanged_" type="checkbox">
+    <label for="enabled" id="label"></label>
+    <span id="right" on-click="moveRight_">▶</span>
+  </template>
+</dom-module><dom-module id="tr-ui-sp-file-size-stats-side-panel">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    toolbar {
+      align-items: center;
+      background-color: rgb(236, 236, 236);
+      border-bottom: 1px solid #8e8e8e;
+      display: flex;
+      flex-direction: row;
+      flex-direction: row;
+      flex: 0 0 auto;
+      font-size: 12px;
+      padding: 0 10px 0 10px;
+    }
+    table-container {
+      display: flex;
+      min-height: 0px;
+      overflow-y: auto;
+    }
+    </style>
+
+    <toolbar>
+      <span><b>Group by:</b></span>
+      <tr-ui-b-grouping-table-groupby-picker id="picker">
+      </tr-ui-b-grouping-table-groupby-picker>
+    </toolbar>
+    <table-container>
+      <tr-ui-b-grouping-table id="table"></tr-ui-b-grouping-table>
+    </table-container>
+  </template>
+</dom-module><dom-module id="tr-v-ui-histogram-set-controls-export">
+  <template>
+    <style>
+    :host {
+      display: grid;
+      grid-gap: 1em;
+      grid-template-rows: auto auto;
+      grid-template-columns: auto auto;
+    }
+    button {
+      -webkit-appearance: none;
+      border: 0;
+      font-size: initial;
+      padding: 5px;
+    }
+    </style>
+
+    <button on-tap="exportRawCsv_">raw CSV</button>
+    <button on-tap="exportRawJson_">raw JSON</button>
+    <button on-tap="exportMergedCsv_">merged CSV</button>
+    <button on-tap="exportMergedJson_">merged JSON</button>
+  </template>
+</dom-module><dom-module id="tr-v-ui-histogram-set-controls">
+  <template>
+    <style>
+    :host {
+      display: block;
+    }
+
+    #help, #feedback {
+      display: none;
+      margin-left: 20px;
+    }
+
+    #search_container {
+      display: inline-flex;
+      margin-right: 20px;
+      padding-bottom: 1px;
+      border-bottom: 1px solid darkgrey;
+    }
+
+    #search {
+      border: 0;
+      max-width: 20em;
+      outline: none;
+    }
+
+    #clear_search {
+      visibility: hidden;
+      height: 1em;
+      stroke: black;
+      stroke-width: 16;
+    }
+
+    #controls {
+      white-space: nowrap;
+    }
+
+    #show_overview, #hide_overview {
+      height: 1em;
+      margin-right: 20px;
+    }
+
+    #show_overview {
+      stroke: blue;
+      stroke-width: 16;
+    }
+
+    #show_overview:hover {
+      background: blue;
+      stroke: white;
+    }
+
+    #hide_overview {
+      display: none;
+      stroke-width: 18;
+      stroke: black;
+    }
+
+    #hide_overview:hover {
+      background: black;
+      stroke: white;
+    }
+
+    #reference_display_label {
+      display: none;
+      margin-right: 20px;
+    }
+
+    #alpha, #alpha_slider_container {
+      display: none;
+    }
+
+    #alpha {
+      margin-right: 20px;
+    }
+
+    #alpha_slider_container {
+      background: white;
+      border: 1px solid black;
+      flex-direction: column;
+      padding: 0.5em;
+      position: absolute;
+      z-index: 10; /* scalar-span uses z-index :-( */
+    }
+
+    #alpha_slider {
+      -webkit-appearance: slider-vertical;
+      align-self: center;
+      height: 200px;
+      width: 30px;
+    }
+
+    #statistic {
+      display: none;
+      margin-right: 20px;
+    }
+
+    #export {
+      margin-right: 20px;
+    }
+    </style>
+
+    <div id="controls">
+      <span id="search_container">
+        <input id="search" placeholder="Find Histogram name" value="{{searchQuery::keyup}}">
+        <svg id="clear_search" on-tap="clearSearch_" viewbox="0 0 128 128">
+          <g>
+          <title>Clear search</title>
+          <line x1="28" x2="100" y1="28" y2="100"></line>
+          <line x1="28" x2="100" y1="100" y2="28"></line>
+          </g>
+        </svg>
+      </span>
+
+      <svg id="show_overview" on-tap="toggleOverviewLineCharts_" viewbox="0 0 128 128">
+        <g>
+        <title>Show overview charts</title>
+        <line x1="19" x2="49" y1="109" y2="49"></line>
+        <line x1="49" x2="79" y1="49" y2="79"></line>
+        <line x1="79" x2="109" y1="79" y2="19"></line>
+        </g>
+      </svg>
+      <svg id="hide_overview" on-tap="toggleOverviewLineCharts_" viewbox="0 0 128 128">
+        <g>
+        <title>Hide overview charts</title>
+        <line x1="28" x2="100" y1="28" y2="100"></line>
+        <line x1="28" x2="100" y1="100" y2="28"></line>
+        </g>
+      </svg>
+
+      <select id="reference_display_label" value="{{referenceDisplayLabel::change}}">
+        <option value="">Select a reference column</option>
+      </select>
+
+      <button id="alpha" on-tap="openAlphaSlider_">α=[[alphaString]]</button>
+      <div id="alpha_slider_container">
+        <input id="alpha_slider" max="18" min="0" on-blur="closeAlphaSlider_" on-input="updateAlpha_" type="range" value="{{alphaIndex::change}}">
+      </div>
+
+      <select id="statistic" value="{{displayStatisticName::change}}">
+      </select>
+
+      <tr-ui-b-dropdown label="Export">
+        <tr-v-ui-histogram-set-controls-export>
+        </tr-v-ui-histogram-set-controls-export>
+      </tr-ui-b-dropdown>
+
+      <input checked="{{showAll::change}}" id="show_all" title="When unchecked, less important histograms are hidden." type="checkbox">
+      <label for="show_all" title="When unchecked, less important histograms are hidden.">Show all</label>
+
+      <a id="help">Help</a>
+      <a id="feedback">Feedback</a>
+    </div>
+
+    <tr-ui-b-grouping-table-groupby-picker id="picker">
+    </tr-ui-b-grouping-table-groupby-picker>
+  </template>
+</dom-module><dom-module id="tr-v-ui-histogram-set-table-cell">
+  <template>
+    <style>
+    #histogram_container {
+      display: flex;
+      flex-direction: row;
+    }
+
+    #missing, #empty, #unmergeable, #scalar {
+      flex-grow: 1;
+    }
+
+    #open_histogram, #close_histogram, #open_histogram svg, #close_histogram svg {
+      height: 1em;
+    }
+
+    #open_histogram svg {
+      margin-left: 4px;
+      stroke-width: 0;
+      stroke: blue;
+      fill: blue;
+    }
+    :host(:hover) #open_histogram svg {
+      background: blue;
+      stroke: white;
+      fill: white;
+    }
+
+    #scalar {
+      flex-grow: 1;
+      white-space: nowrap;
+    }
+
+    #histogram {
+      flex-grow: 1;
+    }
+
+    #close_histogram svg line {
+      stroke-width: 18;
+      stroke: black;
+    }
+    #close_histogram:hover svg {
+      background: black;
+    }
+    #close_histogram:hover svg line {
+      stroke: white;
+    }
+
+    #overview_container {
+      display: none;
+    }
+    </style>
+
+    <div id="histogram_container">
+      <span id="missing">(missing)</span>
+      <span id="empty">(empty)</span>
+      <span id="unmergeable">(unmergeable)</span>
+
+      <tr-v-ui-scalar-span id="scalar" on-click="openHistogram_"></tr-v-ui-scalar-span>
+
+      <span id="open_histogram" on-click="openHistogram_">
+        <svg viewbox="0 0 128 128">
+          <rect height="16" width="32" x="16" y="24"></rect>
+          <rect height="16" width="96" x="16" y="56"></rect>
+          <rect height="16" width="64" x="16" y="88"></rect>
+        </svg>
+      </span>
+
+      <span id="histogram"></span>
+
+      <span id="close_histogram" on-click="closeHistogram_">
+        <svg viewbox="0 0 128 128">
+          <line x1="28" x2="100" y1="28" y2="100"></line>
+          <line x1="28" x2="100" y1="100" y2="28"></line>
+        </svg>
+      </span>
+    </div>
+
+    <div id="overview_container">
+    </div>
+  </template>
+</dom-module><dom-module id="tr-v-ui-histogram-set-table-name-cell">
+  <template>
+    <style>
+    #name_container {
+      display: flex;
+    }
+
+    #name {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    #show_overview, #hide_overview, #show_overview svg, #hide_overview svg {
+      height: 1em;
+      margin-left: 5px;
+    }
+
+    #show_overview svg {
+      stroke: blue;
+      stroke-width: 16;
+    }
+
+    #show_overview:hover svg {
+      background: blue;
+      stroke: white;
+    }
+
+    #hide_overview {
+      display: none;
+    }
+
+    #hide_overview svg {
+      stroke-width: 18;
+      stroke: black;
+    }
+
+    #hide_overview:hover svg {
+      background: black;
+      stroke: white;
+    }
+
+    #open_histograms, #close_histograms, #open_histograms svg, #close_histograms svg {
+      height: 1em;
+    }
+
+    #close_histograms {
+      display: none;
+    }
+
+    #open_histograms svg {
+      margin-left: 4px;
+      stroke-width: 0;
+      stroke: blue;
+      fill: blue;
+    }
+    #open_histograms:hover svg {
+      background: blue;
+      stroke: white;
+      fill: white;
+    }
+
+    #close_histograms line {
+      stroke-width: 18;
+      stroke: black;
+    }
+    #close_histograms:hover {
+      background: black;
+    }
+    #close_histograms:hover line {
+      stroke: white;
+    }
+
+    #overview_container {
+      display: none;
+    }
+    </style>
+
+    <div id="name_container">
+      <span id="name"></span>
+
+      <span id="show_overview" on-click="showOverview_">
+        <svg viewbox="0 0 128 128">
+          <line x1="19" x2="49" y1="109" y2="49"></line>
+          <line x1="49" x2="79" y1="49" y2="79"></line>
+          <line x1="79" x2="109" y1="79" y2="19"></line>
+        </svg>
+      </span>
+
+      <span id="hide_overview" on-click="hideOverview_">
+        <svg viewbox="0 0 128 128">
+          <line x1="28" x2="100" y1="28" y2="100"></line>
+          <line x1="28" x2="100" y1="100" y2="28"></line>
+        </svg>
+      </span>
+
+      <span id="open_histograms" on-click="openHistograms_">
+        <svg viewbox="0 0 128 128">
+          <rect height="16" width="32" x="16" y="24"></rect>
+          <rect height="16" width="96" x="16" y="56"></rect>
+          <rect height="16" width="64" x="16" y="88"></rect>
+        </svg>
+      </span>
+
+      <span id="close_histograms" on-click="closeHistograms_">
+        <svg viewbox="0 0 128 128">
+          <line x1="28" x2="100" y1="28" y2="100"></line>
+          <line x1="28" x2="100" y1="100" y2="28"></line>
+        </svg>
+      </span>
+    </div>
+
+    <div id="overview_container">
+    </div>
+  </template>
+</dom-module><dom-module id="tr-v-ui-histogram-set-table">
+  <template>
+    <style>
+    :host {
+      min-height: 0px;
+      overflow: auto;
+    }
+    #table {
+      margin-top: 5px;
+    }
+    </style>
+
+    <tr-ui-b-table id="table">
+  </tr-ui-b-table></template>
+</dom-module><dom-module id="tr-v-ui-histogram-set-view">
+  <template>
+    <style>
+    :host {
+      font-family: sans-serif;
+    }
+
+    #zero {
+      color: red;
+      /* histogram-set-table is used by both metrics-side-panel and results.html.
+       * This font-size rule has no effect in results.html, but improves
+       * legibility in the metrics-side-panel, which sets font-size in order to
+       * make this table denser.
+       */
+      font-size: initial;
+    }
+
+    #container {
+      display: none;
+    }
+
+    </style>
+
+    <div id="zero">zero Histograms</div>
+
+    <div id="container">
+      <tr-v-ui-histogram-set-controls id="controls">
+      </tr-v-ui-histogram-set-controls>
+
+      <tr-v-ui-histogram-set-table id="table"></tr-v-ui-histogram-set-table>
+    </div>
+  </template>
+</dom-module><dom-module id="tr-ui-sp-metrics-side-panel">
+  <template>
+    <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+    }
+    div#error {
+      color: red;
+    }
+    #results {
+      font-size: 12px;
+    }
+    </style>
+
+    <top-left-controls id="top_left_controls"></top-left-controls>
+
+    <tr-v-ui-histogram-set-view id="results"></tr-v-ui-histogram-set-view>
+
+    <div id="error"></div>
+  </template>
+</dom-module><dom-module id="tr-ui-e-s-alerts-side-panel">
+  <template>
+    <style>
+    :host {
+      display: block;
+      width: 250px;
+    }
+    #content {
+      flex-direction: column;
+      display: flex;
+    }
+    tr-ui-b-table {
+      font-size: 12px;
+    }
+    </style>
+
+    <div id="content">
+      <toolbar id="toolbar"></toolbar>
+      <result-area id="result_area"></result-area>
+    </div>
+  </template>
+</dom-module><div class="no-webcomponents-container hidden">
+  <div class="contents">
+    <div class="title">The trace viewer is currently unavailable.</div>
+    <p>
+      For more details, see
+      <a href="https://github.com/tensorflow/tensorboard/issues/3209" rel="noopener" target="_blank">this issue</a>.
+    </p>
+    <br>
+    <br>
+    <p>
+      If you are running a Chromium-based browser, one workaround is to download
+      your data as JSON and load it in your browser's viewer at
+      "about://tracing". This run's data can be found here:
+    </p>
+  </div>
+</div><style>
+  /* Tooltip text */
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    background-color: white;
+    color: black;
+    font-weight: normal;
+    text-align: center;
+    padding: 5px;
+    text-align: left;
+
+    /* Position the tooltip text */
+    position: absolute;
+    z-index: 1000;
+    top: 56px;
+
+    /* Fade in tooltip */
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  /* Show the tooltip text when you mouse over the tooltip container */
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 0.9;
+  }
+
+  tr-ui-timeline-view {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+  /* The "throbber": a spinning loading indicator */
+  #throbber-initial,
+  #throbber {
+    /* Position: top right of the page, non-blocking to the trace events exploration */
+    position: fixed;
+    top: 10%;
+    right: 3%;
+    border: 14px solid #424242;
+    border-radius: 50%;
+    border-top: 14px solid #e6e6e6; /* control bar background color */
+    width: 40px;
+    height: 40px;
+    -webkit-animation: spin 1s linear infinite; /* Safari */
+    animation: spin 1s linear infinite;
+    z-index: 10;
+    /* Hide the throbber when it's inactive */
+    opacity: 0;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  #throbber-initial.active,
+  #throbber.active {
+    opacity: 0.8;
+    /* Wait a short time before showing the throbber (no delay for hiding). */
+    transition-delay: 0.3s;
+  }
+
+  #throbber-initial {
+    /* Put intial loading throbber on page center for better visibility */
+    top: 20%;
+    left: 50%;
+    margin-left: -128px;
+    width: 64px;
+    height: 64px;
+    border: 14px solid #fafafa;
+    border-radius: 50%;
+    border-top: 14px solid #e6e6e6; /* control bar background color */
+  }
+  #wait-msg {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-size: 20px;
+    z-index: 11;
+  }
+
+  .x-axis-track {
+    height: 24px;
+  }
+  #control.tr-ui-timeline-view {
+    align-content: center;
+    align-items: center;
+    min-height: 30px;
+    background-image: unset;
+    background-color: white;
+    border-bottom: 1px solid #dadce0;
+    border-top: 1px solid #dadce0;
+  }
+  #bar.tr-ui-timeline-view {
+    align-items: center;
+  }
+  #view_console_button.right-controls-button,
+  #backend_toggle_button,
+  #button.right-controls-button,
+  #expand_all_button,
+  #collapse_all_button{
+    height: 36px;
+    background-color: #f8f8f8;
+    border: #f8f8f8 solid 0.5px;
+    margin-left: 2px;
+    align-items: center;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  #backend_toggle_button {
+    color: #3f51b5;
+    font-weight: bold;
+  }
+  #view_console_button.right-controls-button:hover,
+  #button.right-controls-button:hover {
+    background-color: white;
+    border: #dadce0 solid 0.5px;
+  }
+  #expand_collapse_all_text_bar {
+    height: 36px;
+    margin-left: 2px;
+    align-items: center;
+    text-align: center;
+    padding-left: 25px;
+    padding-right: 5px;
+    padding-top: 2px;
+    display: flex;
+    justify-content: center;
+    font-size: 14px;
+  }
+  #dialog.right-controls-dialog {
+    padding:0px;
+    min-width:150px;
+    border:none;
+    border-radius:5px;
+  }
+  #view_find_control {
+    height: fit-content;
+    padding: 2px;
+  }
+  input.tr-ui-find-control {
+    width:250px;
+    min-height:36px;
+    border:none;
+    margin-left:12px;
+    padding-right:64px;
+    padding-left:5px;
+    cursor: text;
+  }
+  input.tr-ui-find-control:hover {
+    background-color: white;
+    border: #dadce0 solid 0.5px;
+    cursor: text;
+  }
+
+  tr-ui-b-toolbar-button.tr-ui-find-control {
+    border:none;
+    height: 36px;
+    width: 36px;
+    margin-left: 2px;
+  }
+
+  #spinner.tr-ui-find-control {
+    height: 12px;
+    width: 12px;
+    top: 12px;
+  }
+
+  #hitCount.tr-ui-find-control {
+    width: 245px; /* Make search hit number always visible */
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  tr-ui-b-heading {
+    background-color: transparent;
+    cursor: e-resize;
+  }
+
+  tr-ui-b-heading,
+  .process-track-header {
+    border: none;
+    display: flex;
+    align-items: center;
+  }
+
+  .process-track-header {
+    height: 36px;
+    font-size: 14px;
+    background-image: unset;
+    background-color: rgb(243, 245, 247);
+  }
+  .dragging {
+    opacity : 0.5;
+    border : 2px solid red;
+  }
+  .process-track-header:hover{
+    cursor: pointer;
+  }
+  /* Move the triangle button from process-track-name to process-track-header to enable track name selection */
+  .process-track-base.expanded .process-track-header:before {
+    content: '\25BE'; /* Down triangle */
+    cursor: pointer;
+  }
+  .process-track-header:before {
+    content: '\25B8'; /* Right triangle */
+    padding: 0 5px;
+    cursor: pointer;
+  }
+  .process-track-base.expanded .process-track-header {
+    background-image: unset;
+    background-color: #cbd6e3;
+  }
+
+  .process-track-drag-handle {
+    position: absolute;
+    left: 18px;
+    user-select: text;
+    flex-grow: unset;
+    cursor: grab;
+  }
+  .process-track-drag-handle:hover {
+    outline: none;
+    border: none;
+  }
+  .process-track-name {
+    position: absolute;
+    left: 36px;
+    user-select: text;
+    flex-grow: unset;
+    padding-right: 36px;
+    cursor: text;
+  }
+  .process-track-name:before {
+    display: none;
+  }
+  .process-track-base.expanded .process-track-name:before {
+    display: none;
+  }
+  #arrow.tr-ui-b-heading {
+    cursor: pointer;
+  }
+  .process-track-close {
+    color: #424242;
+    cursor: pointer;
+    border: none;
+    position: absolute;
+    right: 5px;
+  }
+  .process-track-close:hover {
+    outline: none;
+    border: none;
+  }
+  #codesearchLink {
+    display: none;
+  }
+  #process_filter_dropdown,
+  #flow_event_filter_dropdown {
+    display: none;
+  }
+  canvas.drawing-container-canvas {
+    border-left: 2px dotted #08a;
+  }
+</style><tf-trace-viewer></tf-trace-viewer><script src="trace_viewer_index.js"></script></body></html>

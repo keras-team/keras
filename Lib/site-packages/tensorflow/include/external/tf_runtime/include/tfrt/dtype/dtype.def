@@ -1,0 +1,139 @@
+// Copyright 2020 The TensorFlow Runtime Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//===- dtype.def ------------------------------------------------*- C++ -*-===//
+//
+// This file is a macro metaprogramming file for dealing with DType in a generic
+// way.
+//
+//===----------------------------------------------------------------------===//
+
+// To use this file, #define one of [DTYPE, DTYPE_TRIVIAL, DTYPE_NUMERIC,
+// DTYPE_FLOAT, DTYPE_INT] macro and include the file.  The first argument
+// provided is the enum name for the dtype, the second is the corresponding C++
+// type.
+
+// LINT.IfChange
+// The macros below define all TFRT dtypes.
+// DTYPE(ENUM, VALUE).
+#ifdef DTYPE
+DTYPE(UI8,        1)
+DTYPE(UI16,       2)
+DTYPE(UI32,       3)
+DTYPE(UI64,       4)
+DTYPE(I1,         5)
+DTYPE(I8,         6)
+DTYPE(I16,        7)
+DTYPE(I32,        8)
+DTYPE(I64,        9)
+DTYPE(F32,        10)
+DTYPE(F64,        11)
+DTYPE(Complex64,  12)
+DTYPE(Complex128, 13)
+
+//===----------------------------------------------------------------------===//
+// Non-trivial types
+//===----------------------------------------------------------------------===//
+// CAUTION: Core TFRT cannot interpret the value of following types!
+// We just define the buffer size of these types here and it is safe to create
+// or move the buffer. But to read its value, please reinterpret_cast to its
+// real implementation type.
+
+// Compact 16-bit encoding of floating point numbers.
+DTYPE(F16,        14)
+
+// Compact 16-bit encoding bfloat16 brain floating point numbers.
+DTYPE(BF16,       15)
+
+//===----------------------------------------------------------------------===//
+// Non-POD types
+//===----------------------------------------------------------------------===//
+
+DTYPE(String,     16)
+DTYPE(Resource,   17)
+DTYPE(Variant,    18)
+
+//===----------------------------------------------------------------------===//
+// Quantized types
+//===----------------------------------------------------------------------===//
+
+DTYPE(QUI8,  19)
+DTYPE(QUI16, 20)
+DTYPE(QI8,   21)
+DTYPE(QI16,  22)
+DTYPE(QI32,  23)
+
+#undef DTYPE
+#endif
+// LINT.ThenChange(//depot/tf_runtime/include/tfrt/dtype/dtype.h)
+
+// Trivial types supported by C++.
+#ifdef DTYPE_TRIVIAL
+// Add more dtypes as necessary.
+DTYPE_TRIVIAL(UI8)
+DTYPE_TRIVIAL(UI16)
+DTYPE_TRIVIAL(UI32)
+DTYPE_TRIVIAL(UI64)
+DTYPE_TRIVIAL(I1)
+DTYPE_TRIVIAL(I8)
+DTYPE_TRIVIAL(I16)
+DTYPE_TRIVIAL(I32)
+DTYPE_TRIVIAL(I64)
+DTYPE_TRIVIAL(F32)
+DTYPE_TRIVIAL(F64)
+
+#undef DTYPE_TRIVIAL
+#endif
+
+#ifdef DTYPE_NUMERIC
+
+DTYPE_NUMERIC(UI8)
+DTYPE_NUMERIC(UI16)
+DTYPE_NUMERIC(UI32)
+DTYPE_NUMERIC(UI64)
+DTYPE_NUMERIC(I8)
+DTYPE_NUMERIC(I16)
+DTYPE_NUMERIC(I32)
+DTYPE_NUMERIC(I64)
+DTYPE_NUMERIC(F16)
+DTYPE_NUMERIC(F32)
+DTYPE_NUMERIC(F64)
+
+#undef DTYPE_NUMERIC
+#endif
+
+// Trivial floating types.
+#ifdef DTYPE_FLOAT
+// Add more dtypes as necessary.
+DTYPE_FLOAT(F32)
+DTYPE_FLOAT(F64)
+
+#undef DTYPE_FLOAT
+#endif
+
+
+// Trivial integer types.
+#ifdef DTYPE_INT
+// Add more dtypes as necessary.
+DTYPE_INT(UI8)
+DTYPE_INT(UI16)
+DTYPE_INT(UI32)
+DTYPE_INT(UI64)
+DTYPE_INT(I8)
+DTYPE_INT(I16)
+DTYPE_INT(I32)
+DTYPE_INT(I64)
+
+#undef DTYPE_INT
+#endif

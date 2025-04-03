@@ -1,0 +1,60 @@
+// This file is part of Eigen, a lightweight C++ template library
+// for linear algebra.
+//
+// Copyright (C) 2008-2009 Gael Guennebaud <g.gael@free.fr>
+//
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#ifndef EIGEN_SPARSE_EXTRA_MODULE_H
+#define EIGEN_SPARSE_EXTRA_MODULE_H
+
+#include "../../Eigen/Sparse"
+
+#include "../../Eigen/src/Core/util/DisableStupidWarnings.h"
+
+#include <vector>
+#include <map>
+#include <unordered_map>
+#include <cstdlib>
+#include <cstring>
+#include <algorithm>
+#include <fstream>
+#include <sstream>
+
+#ifdef EIGEN_GOOGLEHASH_SUPPORT
+#include <google/dense_hash_map>
+#include <google/sparse_hash_map>
+#endif
+
+/**
+ * \defgroup SparseExtra_Module SparseExtra module
+ *
+ * This module contains some experimental features extending the sparse module:
+ * - A RandomSetter which is a wrapper object allowing to set/update a sparse matrix with random access.
+ * - A SparseInverse which calculates a sparse subset of the inverse of a sparse matrix corresponding to nonzeros of the
+ * input
+ * - MatrixMarket format(https://math.nist.gov/MatrixMarket/formats.html) readers and writers for sparse and dense
+ * matrices.
+ *
+ * \code
+ * #include <unsupported/Eigen/SparseExtra>
+ * \endcode
+ */
+
+// IWYU pragma: begin_exports
+#include "src/SparseExtra/RandomSetter.h"
+#include "src/SparseExtra/SparseInverse.h"
+
+#include "src/SparseExtra/MarketIO.h"
+
+#if !defined(_WIN32)
+#include <dirent.h>
+#include "src/SparseExtra/MatrixMarketIterator.h"
+#endif
+// IWYU pragma: end_exports
+
+#include "../../Eigen/src/Core/util/ReenableStupidWarnings.h"
+
+#endif  // EIGEN_SPARSE_EXTRA_MODULE_H
