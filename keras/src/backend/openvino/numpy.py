@@ -343,11 +343,19 @@ def argmax(x, axis=None, keepdims=False):
             axis = rank + axis
         k = ov_opset.constant(1, Type.i32).output(0)
     topk_outputs = ov_opset.topk(
-        x, k=k, axis=axis, mode="max", sort="value", stable=True, index_element_type=Type.i32
+        x,
+        k=k,
+        axis=axis,
+        mode="max",
+        sort="value",
+        stable=True,
+        index_element_type=Type.i32,
     )
     topk_indices = topk_outputs.output(1)
     if keepdims:
-        topk_indices = ov_opset.reshape(topk_indices, [-1 if i == axis else 1 for i in range(rank)]).output(0)
+        topk_indices = ov_opset.reshape(
+            topk_indices, [-1 if i == axis else 1 for i in range(rank)]
+        ).output(0)
     else:
         topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
     return OpenVINOKerasTensor(topk_indices)
@@ -370,11 +378,19 @@ def argmin(x, axis=None, keepdims=False):
             axis = rank + axis
         k = ov_opset.constant(1, Type.i32).output(0)
     topk_outputs = ov_opset.topk(
-        x, k=k, axis=axis, mode="min", sort="value", stable=True, index_element_type=Type.i32
+        x,
+        k=k,
+        axis=axis,
+        mode="min",
+        sort="value",
+        stable=True,
+        index_element_type=Type.i32,
     )
     topk_indices = topk_outputs.output(1)
     if keepdims:
-        topk_indices = ov_opset.reshape(topk_indices, [-1 if i == axis else 1 for i in range(rank)]).output(0)
+        topk_indices = ov_opset.reshape(
+            topk_indices, [-1 if i == axis else 1 for i in range(rank)]
+        ).output(0)
     else:
         topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
     return OpenVINOKerasTensor(topk_indices)
