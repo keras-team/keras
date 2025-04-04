@@ -712,15 +712,15 @@ def flip(x, axis=None):
     x = get_ov_output(x)
     rank = x.get_partial_shape().rank.get_length()
     if axis is None:
-        axes = list(range(rank))
+        axis = list(range(rank))
     else:
         if np.isscalar(axis):
             axis = [axis]
         else:
             axis = list(axis)
-        axes = [ax if ax >= 0 else ax + rank for ax in axes]
+        axis = [ax if ax >= 0 else ax + rank for ax in axis]
     shape_of_x = ov_opset.shape_of(x)
-    for ax in sorted(axes):
+    for ax in sorted(axis):
         dim_node = ov_opset.gather(
             shape_of_x,
             ov_opset.constant(ax, Type.i32).output(0),
@@ -729,7 +729,7 @@ def flip(x, axis=None):
         start = ov_opset.subtract(dim_node, ov_opset.constant(1, Type.i32).output(0)).output(0)
         stop  = ov_opset.constant(-1, Type.i32).output(0)
         step  = ov_opset.constant(-1, Type.i32).output(0)
-        
+
         reversed_indices = ov_opset.range(start, stop, step).output(0)
         x = ov_opset.gather(
             x,
