@@ -730,7 +730,7 @@ def flip(x, axis=None):
         stop  = ov_opset.constant(-1, Type.i64).output(0)
         step  = ov_opset.constant(-1, Type.i64).output(0)
 
-        reversed_indices = ov_opset.range(start, stop, step).output(0)
+        reversed_indices = ov_opset.range(start, stop, step,Type.i64).output(0)
         x = ov_opset.gather(
             x,
             reversed_indices,
