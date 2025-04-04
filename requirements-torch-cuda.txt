@@ -1,6 +1,5 @@
 # Tensorflow cpu-only version (needed for testing).
 tensorflow-cpu~=2.18.0
-tf2onnx
 
 # Torch with cuda support.
 # - torch is pinned to a version that is compatible with torch-xla
