@@ -634,21 +634,17 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         is_functional_config = all(
             key in config for key in functional_config_keys
         )
-        argspec = inspect.getfullargspec(cls.__init__)
-        functional_init_args = inspect.getfullargspec(Functional.__init__).args[
-            1:
-        ]
-        revivable_as_functional = (
-            cls in {Functional, Model}
-            or argspec.args[1:] == functional_init_args
-            or (argspec.varargs == "args" and argspec.varkw == "kwargs")
-        )
+        revivable_as_functional = cls in {
+            Functional,
+            Model,
+        } or functional_like_constructor(cls)
         if is_functional_config and revivable_as_functional:
             # Revive Functional model
-            # (but not Functional subclasses with a custom __init__)
-            from keras.src.models.functional import functional_from_config
+            # (but not Functional subclasses with
+            #  a custom non-functional __init__)
+            from keras.src.models.functional import function_from_config
 
-            return functional_from_config(
+            return function_from_config(
                 cls, config, custom_objects=custom_objects
             )
 
@@ -880,11 +876,38 @@ def model_from_json(json_string, custom_objects=None):
 
 
 def functional_init_arguments(args, kwargs):
+    # This test is permissive. Any argument combination that
+    # could be a Functional init is allowed. This test will be
+    # followed by an actual call of the Functional constructor
+    # so the worst case is that args are not what they should
+    # be and the constructor fails with an explicit error message.
     return (
-        (len(args) == 2)
+        (len(args) >= 2)
         or (len(args) == 1 and "outputs" in kwargs)
         or ("inputs" in kwargs and "outputs" in kwargs)
     )
+
+
+def functional_like_constructor(cls):
+    # This test is permissive. Any constructor that could be passed
+    # inputs and outputs is accepted. This test triggers Functional
+    # deserialization when whe know we have a functional config so
+    # it's OK to try anything that could work.
+    init_args = inspect.signature(cls.__init__).parameters
+    funct_init_args = ("inputs" in init_args and "outputs" in init_args) or (
+        "args" in init_args or "kwargs" in init_args
+    )
+    return funct_init_args
+
+
+def strict_functional_like_constructor(cls):
+    # This test is conservative. Only explcit "inputs" and "outputs"
+    # arguments with those names, are accepted. This test triggers Functional
+    # serialization and we want to do that in a subclass only when an explicitly
+    # functional __init__(inputs, outputs) constructor exists in the subclass.
+    init_args = inspect.signature(cls.__init__).parameters
+    funct_init_args = "inputs" in init_args and "outputs" in init_args
+    return funct_init_args
 
 
 def inject_functional_model_class(cls):

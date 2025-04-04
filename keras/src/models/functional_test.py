@@ -7,6 +7,7 @@ from absl.testing import parameterized
 
 from keras.src import applications
 from keras.src import backend
+from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import saving
@@ -261,8 +262,9 @@ class FunctionalTest(testing.TestCase):
             outputs = {"a": output_a, "b": output_b}
         else:
             outputs = out_type([output_a, output_b])
-        model = Functional(inputs, outputs)
+        model = Functional(inputs, outputs, name="funcmodel")
         model_restored = Functional.from_config(model.get_config())
+        self.assertEqual(model_restored.name, model.name)
 
         # Eager call
         in_val = np.random.random((2, 3))
@@ -738,6 +740,11 @@ class FunctionalTest(testing.TestCase):
         x1 = Input((10,), name="IT")
         x2 = Input((10,), name="IS")
         y = layers.subtract([x1, x2])
+        # Note: the test fails here only because the order of dict
+        # keys "IT", "IS" is different from the sorted order of the
+        # keys "IS", "IT". Otherwise, passing a list of inputs to
+        # a model expecting a dictionary of inputs seems to be allowed.
+        # as long as flattening the dict does not result in reordering.
         model = Model(inputs={"IT": x1, "IS": x2}, outputs=y)
         x1 = ops.ones((1, 10))
         x2 = ops.zeros((1, 10))
@@ -748,3 +755,109 @@ class FunctionalTest(testing.TestCase):
             "The structure of `inputs` doesn't match the expected structure",
         ):
             model([x1, x2])
+
+    def test_functional_subclass_serialization(self):
+        class FuncSubclass(Functional):
+            def __init__(self, name=None, **kwargs):
+                inputs = Input((4,), name="input")
+                y = layers.Dense(8)(inputs)
+                outputs = layers.Dense(4)(y)
+                super().__init__(inputs, outputs, name, **kwargs)
+
+        model = FuncSubclass()
+        data = ops.ones((8, 4))
+        output1 = model(data)  # build the model
+        temp_filepath = os.path.join(self.get_temp_dir(), "func_subclass.keras")
+        model.save(temp_filepath)
+
+        # Note: this recreates the model by calling FuncSubclass.__init__
+        # and does *not* test the functional.function_from_config method.
+
+        loaded_model = saving.load_model(
+            temp_filepath, custom_objects={"FuncSubclass": FuncSubclass}
+        )
+
+        output2 = loaded_model(data)
+        self.assertAllClose(output1, output2)
+
+    def test_functional_subclass_cfg_serialization(self):
+        class FuncSubclass(Model):
+            def __init__(self, name=None, **kwargs):
+                inputs = Input((4,), name="input")
+                y = layers.Dense(8)(inputs)
+                outputs = layers.Dense(4)(y)
+                # during deserilization, **kwargs already
+                # has "inputs" and "outputs"
+                super().__init__(inputs, outputs, name=name, **kwargs)
+
+        model = FuncSubclass()
+        data = ops.ones((8, 4))
+        model(data)  # build the model
+
+        # Note: this recreates the model by calling FuncSubclass.__init__
+        # and does *not* test the functional.function_from_config method.
+
+        config = model.get_config()
+        loaded_model = FuncSubclass.from_config(config)
+
+        # check the model works (weights were not saved
+        # so outputs cannot be compared)
+        loaded_model(data)
+
+    def test_functional_in_functional_with_reuse_serialization(self):
+        ini = initializers.Ones()
+
+        # sub-functional
+        inputs = Input((8,))
+        y = layers.Dense(6, kernel_initializer=ini)(inputs)
+        outputs = layers.Dense(8, kernel_initializer=ini)(y)
+        sub_model1 = Model(inputs, outputs, name="f1")
+
+        inputs = Input((8,))
+        y1 = sub_model1(inputs)
+        outputs = sub_model1(y1)  # reuse
+
+        model = Model(inputs, outputs)
+        data = ops.ones((2, 8))
+        output1 = model(data)  # build the model
+
+        # this recreates the model from the saved functional graph
+        # and *does* test the functional.function_from_config method.
+        config = model.get_config()
+        loaded_model = Model.from_config(config)
+
+        # check the model works
+        output2 = loaded_model(data)
+        # check both models return the same results
+        # (weights were initialized deterministically)
+        self.assertAllClose(output1, output2)
+
+    def test_functional_in_functional_with_reuse_saving(self):
+        # sub-functional
+        inputs = Input((8,))
+        y = layers.Dense(6)(inputs)
+        outputs = layers.Dense(8)(y)
+        sub_model1 = Model(inputs, outputs, name="f1")
+
+        inputs = Input((8,))
+        y1 = sub_model1(inputs)
+        outputs = sub_model1(y1)  # reuse
+
+        model = Model(inputs, outputs)
+        data = ops.ones((2, 8))
+        output1 = model(data)  # build the model
+
+        # this recreates the model from the saved functional graph
+        # and *does* test the functional.function_from_config method.
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "func_subclass_reuse.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # check the model works
+        output2 = loaded_model(data)
+        # check both models return the same results
+        # (weights were initialized deterministically)
+        self.assertAllClose(output1, output2)

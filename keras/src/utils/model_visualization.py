@@ -190,7 +190,13 @@ def make_node(layer, **kwargs):
 
 
 def remove_unused_edges(dot):
-    nodes = [v.get_name() for v in dot.get_nodes()]
+    nodes = []
+    for sub in dot.get_subgraph_list():
+        for node in sub.get_nodes():
+            nodes.append(node.get_name())
+    for node in dot.get_nodes():
+        nodes.append(node.get_name())
+    # nodes = [v.get_name() for v in dot.get_nodes()]
     for edge in dot.get_edges():
         if edge.get_destination() not in nodes:
             dot.del_edge(edge.get_source(), edge.get_destination())
@@ -243,8 +249,31 @@ def model_to_dot(
             "the model on a batch of data."
         )
 
+    from keras.src.layers.core.composite_layer import CompositeLayer
     from keras.src.models import functional
     from keras.src.models import sequential
+
+    # temporary workarounds until CompositeLayer is becomes
+    # the base class of all models and layers that have a
+    # "Keras functional" bahavior.
+    def is_functional(layer):
+        return (
+            isinstance(layer, functional.Functional)
+            or isinstance(layer, sequential.Sequential)
+            or isinstance(layer, CompositeLayer)
+        )
+
+    def keras_function(layer):
+        if isinstance(layer, functional.Functional):
+            return layer
+        elif isinstance(layer, sequential.Sequential):
+            return layer
+        elif isinstance(layer, CompositeLayer):
+            return layer._function
+        else:
+            raise ValueError(
+                "Layer is not a Keras Functional model or CompositeLayer."
+            )
 
     # from keras.src.layers import Wrapper
 
@@ -281,20 +310,22 @@ def model_to_dot(
 
     if isinstance(model, sequential.Sequential):
         layers = model.layers
-    elif not isinstance(model, functional.Functional):
+    elif not is_functional(model):
         # We treat subclassed models as a single node.
         node = make_node(model, **kwargs)
         dot.add_node(node)
         return dot
     else:
-        layers = model._operations
+        # functional case
+        function = keras_function(model)
+        layers = function._operations
 
     # Create graph nodes.
     sub_n_first_node = {}
     sub_n_last_node = {}
     for i, layer in enumerate(layers):
         # Process nested functional models.
-        if expand_nested and isinstance(layer, functional.Functional):
+        if expand_nested and is_functional(layer):
             submodel = model_to_dot(
                 layer,
                 show_shapes,
@@ -330,7 +361,7 @@ def model_to_dot(
         layer_id = str(id(layer))
         for i, node in enumerate(layer._inbound_nodes):
             node_key = make_node_key(layer, i)
-            if node_key in model._nodes:
+            if node_key in function._nodes:
                 for parent_node in node.parent_nodes:
                     inbound_layer = parent_node.operation
                     inbound_layer_id = str(id(inbound_layer))
@@ -340,25 +371,25 @@ def model_to_dot(
                         add_edge(dot, inbound_layer_id, layer_id)
                     else:
                         # if inbound_layer is not Functional
-                        if not isinstance(inbound_layer, functional.Functional):
+                        if not is_functional(inbound_layer):
                             # if current layer is not Functional
-                            if not isinstance(layer, functional.Functional):
+                            if not is_functional(layer):
                                 assert dot.get_node(inbound_layer_id)
                                 assert dot.get_node(layer_id)
                                 add_edge(dot, inbound_layer_id, layer_id)
                             # if current layer is Functional
-                            elif isinstance(layer, functional.Functional):
+                            elif is_functional(layer):
                                 add_edge(
                                     dot,
                                     inbound_layer_id,
                                     sub_n_first_node[layer.name].get_name(),
                                 )
                         # if inbound_layer is Functional
-                        elif isinstance(inbound_layer, functional.Functional):
+                        elif is_functional(inbound_layer):
                             name = sub_n_last_node[
                                 inbound_layer.name
                             ].get_name()
-                            if isinstance(layer, functional.Functional):
+                            if is_functional(layer):
                                 output_name = sub_n_first_node[
                                     layer.name
                                 ].get_name()
