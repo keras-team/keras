@@ -943,6 +943,11 @@ class VariableOpsDTypeTest(test_case.TestCase):
         x2_jax = jnp.ones((1,), dtype=dtype2)
         expected_dtype = standardize_dtype(jnp.add(x1_jax, x2_jax).dtype)
 
+        if backend.backend() == "mlx":
+            if expected_dtype == "complex128":
+                # mlx backend does not support complex128
+                expected_dtype = "complex64"
+
         self.assertDType(x1 + x2, expected_dtype)
         self.assertDType(x1.__radd__(x2), expected_dtype)
 
@@ -959,6 +964,11 @@ class VariableOpsDTypeTest(test_case.TestCase):
         x2_jax = jnp.ones((1,), dtype=dtype2)
         expected_dtype = standardize_dtype(jnp.add(x1_jax, x2_jax).dtype)
 
+        if backend.backend() == "mlx":
+            if expected_dtype == "complex128":
+                # mlx backend does not support complex128
+                expected_dtype = "complex64"
+
         self.assertDType(x1 - x2, expected_dtype)
         self.assertDType(x1.__rsub__(x2), expected_dtype)
 
@@ -974,6 +984,11 @@ class VariableOpsDTypeTest(test_case.TestCase):
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
         expected_dtype = standardize_dtype(jnp.add(x1_jax, x2_jax).dtype)
+
+        if backend.backend() == "mlx":
+            if expected_dtype == "complex128":
+                # mlx backend does not have complex128
+                expected_dtype = "complex64"
 
         self.assertDType(x1 * x2, expected_dtype)
         self.assertDType(x1.__rmul__(x2), expected_dtype)
@@ -1059,6 +1074,11 @@ class VariableOpsDTypeTest(test_case.TestCase):
         x2_jax = jnp.ones((1,), dtype=dtype2)
         expected_dtype = standardize_dtype(jnp.power(x1_jax, x2_jax).dtype)
 
+        if backend.backend() == "mlx":
+            if expected_dtype == "complex128":
+                # mlx backend does not support complex128
+                expected_dtype = "complex64"
+
         self.assertDType(x1**x2, expected_dtype)
         self.assertDType(x1.__rpow__(x2), expected_dtype)
 
@@ -1066,6 +1086,11 @@ class VariableOpsDTypeTest(test_case.TestCase):
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_matmul(self, dtypes):
+        if backend.backend() == "mlx":
+            input_dtypes = (dtype for dtype in dtypes if dtype is not None)
+            if any('int' in dtype or 'complex' in dtype for dtype in input_dtypes):
+                self.skipTest("mlx backend only supports matmul for real floating point types")
+
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes

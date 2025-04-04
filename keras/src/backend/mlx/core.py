@@ -2,6 +2,7 @@ import builtins
 import functools
 import warnings
 
+import ml_dtypes
 import mlx.core as mx
 import numpy as np
 
@@ -97,10 +98,14 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if x.dtype == np.float64:
             # mlx backend does not support float64
             x = x.astype(np.float32)
-        if standardize_dtype(x.dtype) == "bfloat16" and mlx_dtype is None:
+        if standardize_dtype(x.dtype) == "bfloat16":
+            # mlx currently fails to load a numpy array with dtype=bfloat16
+            # upcast to float32 to avoid error
+            x = x.astype(np.float32)
             # if a bfloat16 np.ndarray is passed to mx.array with dtype=None
             # it casts the output to complex64, so we force cast to bfloat16
-            mlx_dtype = mx.bfloat16
+            # (but by upcasting we avoid x.dtype=bfloat16 and mlx_dtype=None)
+            mlx_dtype = mx.bfloat16 if mlx_dtype is None else mlx_dtype
         return mx.array(x, dtype=mlx_dtype)
 
     if isinstance(x, list):
@@ -154,8 +159,9 @@ def convert_to_tensors(*xs):
 def convert_to_numpy(x):
     # Performs a copy. If we want 0-copy we can pass copy=False
     if isinstance(x, mx.array) and x.dtype == mx.bfloat16:
-        # mlx currently has an error passing bloat16 array to numpy
-        return np.array(x.astype(mx.float32))
+        # mlx currently has an error passing bfloat16 array to numpy
+        # upcast to float32 then downcast to bfloat16
+        return np.array(x.astype(mx.float32)).astype(ml_dtypes.bfloat16)
     return np.array(x)
 
 
