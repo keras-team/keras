@@ -707,7 +707,18 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    raise NotImplementedError("`flip` is not supported with openvino backend")
+    if axis == () or axis == []:
+        return x
+    x = get_ov_output(x)
+    if axis is None:
+        axis = list(range(len(x.get_shape())))
+    elif isinstance(axis, int):
+        axis = [axis]
+    else:
+        axis = list(axis)
+    axis_const = ov_opset.constant(axis, Type.i32).output(0)
+    flipped = ov_opset.reverse(x, axis_const, mode="index").output(0)
+    return OpenVINOKerasTensor(flipped)    
 
 
 def floor(x):
