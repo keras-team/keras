@@ -1,9 +1,9 @@
+import numpy as np
 import torch
 
 from keras.src import tree
-from keras.src.backend.torch.core import convert_to_tensor,get_device
-import torch.nn.utils.rnn as rnn_utils
-import numpy as np
+from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.core import get_device
 
 
 def rnn(
@@ -372,6 +372,7 @@ def rnn(
 
     return last_output, outputs, new_states
 
+
 def _is_sequence_right_padded(mask):
     """Check the mask tensor and see if it right padded.
 
@@ -394,15 +395,18 @@ def _is_sequence_right_padded(mask):
     Returns:
         boolean scalar tensor, whether the mask is strictly right padded.
     """
-    #Get max sequence length
+    # Get max sequence length
     max_seq_length = mask.shape[1]
-    #Count True values in each sequence
+    # Count True values in each sequence
     count_of_true = torch.sum(mask, dim=1)
-    #Create right padded mask
+    # Create right padded mask
     batch_size = mask.shape[0]
-    indices = torch.arange(max_seq_length,device = mask.device).repeat(batch_size, 1)
+    indices = torch.arange(max_seq_length, device=mask.device).repeat(
+        batch_size, 1
+    )
     right_padded_mask = indices < count_of_true.unsqueeze(1)
     return torch.all(mask == right_padded_mask)
+
 
 def _has_fully_masked_sequence(mask):
     # Cudnn kernel will error out if the input sequence contains any
@@ -410,8 +414,8 @@ def _has_fully_masked_sequence(mask):
     # to standard kernel, until the issue on cudnn side has been fixed.  For a
     # fully masked sequence, it will contain all Falses. To make it easy to
     # check, we inverse the boolean, check if any of the sequence has all True.
-    return torch.any(
-    torch.all(~mask, dim=1))
+    return torch.any(torch.all(~mask, dim=1))
+
 
 def _assert_valid_mask(mask):
     # Check if mask is valid for cuDNN
@@ -457,18 +461,17 @@ def _compute_sequence_length_from_mask(mask, batch_first):
     timestep_index = 0 if not batch_first else 1
     return torch.sum(mask.int(), dim=timestep_index)
 
-def prepare_lstm_weights(lstm,kernel,recurrent_kernel,bias,device):
+
+def prepare_lstm_weights(lstm, kernel, recurrent_kernel, bias, device):
     """Copies kernel and recurrent kernel weights in the Pytorch format
     We split the kernel and recurrent kernel weights, create associated
     torch tensors adapted to be in line with the Cudnn optimization.
-    After we have copied the weights, we ensure the paramters are on 
+    After we have copied the weights, we ensure the paramters are on
     the same device and memory layout is optimized for Cudnn.
-    
+
     """
 
     lstm = lstm.to(device)
-
-    input_size = lstm.input_size
     hidden_size = lstm.hidden_size
 
     # Convert gates from Keras [i,f,c,o] to PyTorch [i,f,g,o]
@@ -480,7 +483,7 @@ def prepare_lstm_weights(lstm,kernel,recurrent_kernel,bias,device):
 
     if bias is not None:
         # Split Keras combined bias into input and hidden biases
-        bias_ih_data = convert_to_tensor(bias,  dtype="float32")
+        bias_ih_data = convert_to_tensor(bias, dtype="float32")
         bias_hh_data = torch.zeros_like(bias_ih_data)
 
     else:
@@ -488,8 +491,8 @@ def prepare_lstm_weights(lstm,kernel,recurrent_kernel,bias,device):
         bias_hh_data = torch.zeros(4 * hidden_size, device=device)
 
     # Create PyTorch tensors for weights
-    weight_ih = convert_to_tensor(weight_ih_data,  dtype="float32").contiguous()
-    weight_hh = convert_to_tensor(weight_hh_data,  dtype="float32").contiguous()
+    weight_ih = convert_to_tensor(weight_ih_data, dtype="float32").contiguous()
+    weight_hh = convert_to_tensor(weight_hh_data, dtype="float32").contiguous()
     bias_ih = convert_to_tensor(bias_ih_data, dtype="float32").contiguous()
     bias_hh = convert_to_tensor(bias_hh_data, dtype="float32").contiguous()
 
@@ -515,9 +518,11 @@ def prepare_lstm_weights(lstm,kernel,recurrent_kernel,bias,device):
         if param.device != device:
             param.data = param.data.to(device)
 
+
 def _is_cuda_cudnn_available():
-    # We check if the cuda device is available and cudnn drivers are installed for it
+    # We check if the cuda device and drivers are available
     return torch.cuda.is_available() and torch.backends.cudnn.is_available()
+
 
 def cudnn_ok(
     activation,
@@ -539,6 +544,7 @@ def cudnn_ok(
         and _is_cuda_cudnn_available()
     )
 
+
 def lstm(
     inputs,
     initial_state_h,
@@ -554,10 +560,12 @@ def lstm(
     unroll=False,
     batch_first=True,
 ):
-
     cudnn_supported = cudnn_ok(
-        activation, recurrent_activation,unroll,
-        go_backwards, use_bias=bias is not None
+        activation,
+        recurrent_activation,
+        unroll,
+        go_backwards,
+        use_bias=bias is not None,
     )
 
     if not cudnn_supported:
@@ -575,10 +583,10 @@ def lstm(
     if isinstance(bias, Variable):
         bias = bias.value
 
-    #Convert to torch tensors
-    inputs = convert_to_tensor(inputs,dtype="float32")
-    initial_state_h = convert_to_tensor(initial_state_h,dtype="float32")
-    initial_state_c = convert_to_tensor(initial_state_c,dtype="float32")
+    # Convert to torch tensors
+    inputs = convert_to_tensor(inputs, dtype="float32")
+    initial_state_h = convert_to_tensor(initial_state_h, dtype="float32")
+    initial_state_c = convert_to_tensor(initial_state_c, dtype="float32")
     mask = convert_to_tensor(mask, dtype="bool")
     # Move all tensors to the same device
     inputs = inputs.to(device)
@@ -598,10 +606,11 @@ def lstm(
             batch_first,
             go_backwards,
             return_sequences,
-            device
+            device,
         )
     except Exception:
         raise NotImplementedError
+
 
 def _cudnn_lstm(
     inputs,
@@ -614,16 +623,16 @@ def _cudnn_lstm(
     batch_first,
     go_backwards,
     return_sequences,
-    device
-):  
+    device,
+):
     if mask is not None:
-      _assert_valid_mask(mask)
-      sequence_lengths = _compute_sequence_length_from_mask(mask, batch_first)
+        _assert_valid_mask(mask)
+        sequence_lengths = _compute_sequence_length_from_mask(mask, batch_first)
 
     # Ensure inputs are in batch_first format for consistency
     if not batch_first:
         inputs = inputs.permute(1, 0, 2)
-    
+
     seq_axis, batch_axis = (0, 1) if not batch_first else (1, 0)
 
     # If shape is [batch, hidden]; Make [1, batch, hidden]
@@ -634,7 +643,7 @@ def _cudnn_lstm(
     elif initial_state_h.dim() == 3 and initial_state_h.shape[1] == 1:
         initial_state_h = initial_state_h.permute(1, 0, 2)
         initial_state_c = initial_state_c.permute(1, 0, 2)
-    
+
     input_size = kernel.shape[0]
     hidden_size = recurrent_kernel.shape[0]
 
@@ -644,34 +653,39 @@ def _cudnn_lstm(
         hidden_size=hidden_size,
         num_layers=1,
         batch_first=True,
-        bidirectional=False
+        bidirectional=False,
     )
 
-    prepare_lstm_weights(lstm,kernel, recurrent_kernel, bias,device)
+    prepare_lstm_weights(lstm, kernel, recurrent_kernel, bias, device)
 
-    if mask is not None:  
-      # Sort and pack
-      sorted_lengths, sorted_indices = torch.sort(sequence_lengths, descending=True)
-      sorted_inputs = inputs[sorted_indices]
-      sorted_initial_h = initial_state_h[:, sorted_indices]
-      sorted_initial_c = initial_state_c[:, sorted_indices]
-      
-      # Create the packed sequence
-      packed_inputs = torch.nn.utils.rnn.pack_padded_sequence(
-          sorted_inputs, sorted_lengths.cpu(), batch_first
-      )
-      
-      # Process with LSTM (which handles the packed sequence correctly)
-      packed_outputs, (h_n, c_n) = lstm(packed_inputs, (sorted_initial_h, sorted_initial_c))
-      
-      # Unpack back to padded tensor
-      outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_outputs, batch_first)
-      
+    if mask is not None:
+        # Sort and pack
+        sorted_lengths, sorted_indices = torch.sort(
+            sequence_lengths, descending=True
+        )
+        sorted_inputs = inputs[sorted_indices]
+        sorted_initial_h = initial_state_h[:, sorted_indices]
+        sorted_initial_c = initial_state_c[:, sorted_indices]
+
+        # Create the packed sequence
+        packed_inputs = torch.nn.utils.rnn.pack_padded_sequence(
+            sorted_inputs, sorted_lengths.cpu(), batch_first
+        )
+
+        # Process with LSTM (which handles the packed sequence correctly)
+        packed_outputs, (h_n, c_n) = lstm(
+            packed_inputs, (sorted_initial_h, sorted_initial_c)
+        )
+
+        # Unpack back to padded tensor
+        outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(
+            packed_outputs, batch_first
+        )
+
     else:
+        # Run LSTM without packing for fixed-length sequences
+        outputs, (h_n, c_n) = lstm(inputs, (initial_state_h, initial_state_c))
 
-      # Run LSTM without packing for fixed-length sequences
-      outputs, (h_n, c_n) = lstm(inputs, (initial_state_h, initial_state_c))
-    
     outputs = outputs.detach().cpu()
     h_n = h_n.detach().cpu()
     c_n = c_n.detach().cpu()
@@ -684,12 +698,16 @@ def _cudnn_lstm(
     if mask is not None:
         last_output = h_n
     else:
-        last_output = outputs[:,-1] if batch_first else outputs[-1]
+        last_output = outputs[:, -1] if batch_first else outputs[-1]
 
     if not return_sequences:
-        outputs = last_output.unsqueeze(1) if batch_first else last_output.unsqueeze(0)
-    
-    return (last_output,outputs,(h_n,c_n))
+        outputs = (
+            last_output.unsqueeze(1)
+            if batch_first
+            else last_output.unsqueeze(0)
+        )
+
+    return (last_output, outputs, (h_n, c_n))
 
 
 def gru(*args, **kwargs):
