@@ -396,7 +396,7 @@ def argsort(x, axis=-1):
     if rank == 0:
         return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
     if axis is None:
-        flatten_shape = ov_opset.constant([-1] + [1] * (rank - 1), Type.i32).output(0)
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         x_shape_tensor = ov_opset.shape_of(x, Type.i32).output(0)
         k = ov_opset.reduce_prod(
