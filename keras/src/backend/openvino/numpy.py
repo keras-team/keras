@@ -718,7 +718,7 @@ def flip(x, axis=None):
         axis = list(axis)
     axis_const = ov_opset.constant(axis, Type.i32).output(0)
     flipped = ov_opset.reverse(x, axis_const, mode="index").output(0)
-    return OpenVINOKerasTensor(flipped)    
+    return OpenVINOKerasTensor(flipped)
 
 
 def floor(x):
