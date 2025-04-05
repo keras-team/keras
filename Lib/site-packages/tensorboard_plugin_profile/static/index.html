@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ProfilePlugin</title>
+  <script>
+    const base = document.createElement("base");
+    const defaultPath = '/data/plugin/profile';
+    let newPath = defaultPath + '/';
+    if (document.location.pathname.includes(defaultPath)) {
+      newPath = document.location.pathname.split(defaultPath)[0] + defaultPath + '/';
+    }
+    base.setAttribute("href", newPath);
+    const header = document.getElementsByTagName("head")[0];
+    header.insertBefore(base, header.firstChild);
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="styles.css">
+  <script src="zone.js"></script>
+</head>
+<body>
+  <app></app>
+  <script>
+    function loadBundle() {
+      const script = document.createElement('script');
+      script.src = 'bundle.js';
+      document.body.appendChild(script);
+      return script;
+    }
+
+    function loadChart(domain) {
+      const script = document.createElement('script');
+      script.src = `https://${domain}/charts/loader.js`;
+      document.body.appendChild(script);
+      script.onload = () => {
+        loadBundle();
+      }
+      return script;
+    }
+
+    function setReloadOfIFrame() {
+      try {
+        const iFrame = window.parent.document.querySelector('iframe');
+        iFrame.reload = () => {
+          document.dispatchEvent(new Event('tensorboard-reload'));
+        };
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    const script = loadChart('www.gstatic.com');
+    script.onerror = () => {
+      script.onerror = null;
+      document.body.removeChild(script);
+
+      loadChart('www.gstatic.cn');
+    }
+    setReloadOfIFrame();
+  </script>
+</body>
+</html>

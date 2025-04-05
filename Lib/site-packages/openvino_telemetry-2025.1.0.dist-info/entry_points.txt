@@ -1,0 +1,2 @@
+[console_scripts]
+opt_in_out = openvino_telemetry.opt_in_out:main

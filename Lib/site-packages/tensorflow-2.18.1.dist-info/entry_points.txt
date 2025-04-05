@@ -1,0 +1,8 @@
+[console_scripts]
+import_pb_to_tensorboard = tensorflow.python.tools.import_pb_to_tensorboard:main
+saved_model_cli = tensorflow.python.tools.saved_model_cli:main
+tensorboard = tensorboard.main:run_main
+tf_upgrade_v2 = tensorflow.tools.compatibility.tf_upgrade_v2_main:main
+tflite_convert = tensorflow.lite.python.tflite_convert:main
+toco = tensorflow.lite.python.tflite_convert:main
+toco_from_protos = tensorflow.lite.toco.python.toco_from_protos:main

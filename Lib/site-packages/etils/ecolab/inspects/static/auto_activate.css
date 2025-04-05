@@ -1,0 +1,12 @@
+.activate_inspect {
+  /* Top-left corner */
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+
+  visibility: hidden;
+}
+
+.inspect_activable:hover .activate_inspect {
+  visibility: visible;
+}

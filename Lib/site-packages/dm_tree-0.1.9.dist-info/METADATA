@@ -1,0 +1,89 @@
+Metadata-Version: 2.2
+Name: dm-tree
+Version: 0.1.9
+Summary: Tree is a library for working with nested data structures.
+Home-page: https://github.com/deepmind/tree
+Author: DeepMind
+Author-email: tree-copybara@google.com
+License: Apache 2.0
+Keywords: tree nest flatten
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Topic :: Software Development :: Libraries
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: absl-py>=0.6.1
+Requires-Dist: attrs>=18.2.0
+Requires-Dist: numpy>=1.21
+Requires-Dist: numpy>=1.21.2; python_version >= "3.10"
+Requires-Dist: numpy>=1.23.3; python_version >= "3.11"
+Requires-Dist: numpy>=1.26.0; python_version >= "3.12"
+Requires-Dist: numpy>=2.1.0; python_version >= "3.13"
+Requires-Dist: wrapt>=1.11.2
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# Tree
+
+`tree` is a library for working with nested data structures. In a way, `tree`
+generalizes the builtin `map` function which only supports flat sequences,
+and allows to apply a function to each "leaf" preserving the overall
+structure.
+
+```python
+>>> import tree
+>>> structure = [[1], [[[2, 3]]], [4]]
+>>> tree.flatten(structure)
+[1, 2, 3, 4]
+>>> tree.map_structure(lambda v: v**2, structure)
+[[1], [[[4, 9]]], [16]]
+```
+
+`tree` is backed by an optimized C++ implementation suitable for use in
+demanding applications, such as machine learning models.
+
+## Installation
+
+From PyPI:
+
+```shell
+$ pip install dm-tree
+```
+
+Directly from github using pip:
+
+```shell
+$ pip install git+git://github.com/deepmind/tree.git
+```
+
+Build from source:
+
+```shell
+$ python setup.py install
+```
+
+## Support
+
+If you are having issues, please let us know by filing an issue on our
+[issue tracker](https://github.com/deepmind/tree/issues).
+
+## License
+
+The project is licensed under the Apache 2.0 license.

@@ -1,0 +1,140 @@
+/****** Tree elements ******/
+
+/* Remove default bullets */
+.etils-tree-root li {
+  list-style-type: none;
+}
+
+/* Remove margins and padding from the parent ul */
+.etils-tree-root {
+  /* all: unset; */
+  margin: 0;
+  padding: 0;
+}
+
+/* Style the caret/arrow */
+.etils-caret {
+  cursor: pointer;
+}
+
+/* Create the caret/arrow with a unicode, and style it */
+.etils-caret::before {
+  content: "▶";
+  color: #616060;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.etils-caret-invisible {
+  cursor: auto;
+}
+
+.etils-caret-invisible::before {
+  color: rgba(0, 0, 0, 0);
+}
+
+/* Rotate the caret/arrow icon when clicked on (using JavaScript) */
+.etils-caret-down::before {
+  transform: rotate(90deg);
+}
+
+/* Hide the nested list */
+.etils-collapsible {
+  display: none;
+}
+
+/* Show the nested list when the user clicks on the caret/arrow (with JavaScript) */
+.etils-collapsible-active {
+  display: block;
+}
+
+/****** Switch ******/
+
+.etils-content-switch-expand {
+  border-style: solid;
+  border-width: 1px;
+  border-color: transparent;
+}
+
+.etils-content-switch:hover .etils-content-switch-expand {
+  border-color: #616060;
+}
+
+.etils-content-switch .etils-content-version-short {
+  display: inline;
+}
+
+.etils-content-switch .etils-content-version-long {
+  display: none;
+  white-space: pre-wrap;
+}
+
+.etils-content-switch.etils-switch-active .etils-content-version-short {
+  display: none;
+}
+
+.etils-content-switch.etils-switch-active .etils-content-version-long {
+  display: inline;
+}
+
+/****** Items (int, bool, list,...) ******/
+
+.etils-tree-root {
+  /* --color: #f8f8f2; */
+  --background-color: #f7f7f7;
+  --property-color: #087db2;
+  --string-color: #a31515;
+  --number-color: #008000;
+  --boolean-color: #0000ff;
+  --null-color: #af00db;
+  --preview-color: #888888;
+
+  background-color: var(--background-color);
+  /* color: var(--color); */
+  font-family: monospace;
+  font-size: 14px;
+}
+
+html[theme=dark] .etils-tree-root {
+  --background-color: #2c2c2c;
+  --property-color: #6fb3d2;
+  --string-color: #ce9178;
+  --number-color: #b5cea8;
+  --boolean-color: #569cd6;
+  --null-color: #c586c0;
+  --preview-color: #888888;
+}
+
+.etils-key-main {
+  color: var(--property-color);
+}
+
+.etils-preview {
+  color: var(--preview-color);
+}
+
+.etils-null {
+  color: var(--null-color);
+}
+
+.etils-fn {
+  color: var(--null-color);
+  font-style: italic;
+}
+
+.etils-string {
+  color: var(--string-color);
+}
+
+.etils-number {
+  color: var(--number-color);
+}
+
+.etils-boolean {
+  color: var(--boolean-color);
+}
+
+.etils-error {
+  /* color: rgb(255,122,136); */
+  color: var(--ansi-red);
+}
