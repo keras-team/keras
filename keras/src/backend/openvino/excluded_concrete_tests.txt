@@ -28,7 +28,6 @@ NumpyDtypeTest::test_floor
 NumpyDtypeTest::test_hstack
 NumpyDtypeTest::test_identity
 NumpyDtypeTest::test_inner
-NumpyDtypeTest::test_isclose
 NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
