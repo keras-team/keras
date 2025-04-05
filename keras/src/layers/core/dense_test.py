@@ -287,13 +287,15 @@ class DenseTest(testing.TestCase):
         # (lora_alpha / lora_rank) * (lora_kernel_a @ lora_kernel_b)
         base_kernel = ops.convert_to_numpy(layer._kernel)
         lora_update = np.matmul(
-            ops.convert_to_numpy(layer.lora_kernel_a.numpy()),
-            ops.convert_to_numpy(layer.lora_kernel_b.numpy()),
+            ops.convert_to_numpy(layer.lora_kernel_a),
+            ops.convert_to_numpy(layer.lora_kernel_b),
         )
         effective_kernel_expected = base_kernel + (3.0 / 2) * lora_update
 
         # Verify that the effective kernel matches expectation.
-        self.assertAllClose(layer.kernel.numpy(), effective_kernel_expected)
+        self.assertAllClose(
+            ops.convert_to_numpy(layer.kernel), effective_kernel_expected
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora_weight_name(self):
