@@ -771,18 +771,15 @@ def identity(n, dtype=None):
     n = get_ov_output(n)
     dtype = Type.f32 if dtype is None else dtype
     if isinstance(dtype, str):
-        ov_dtype = Type(dtype)
+        ov_dtype = OPENVINO_DTYPES[dtype]
     else:
         ov_dtype = dtype
     n32 = ov_opset.convert(n, Type.i32).output(0)
     identity_matrix = ov_opset.eye(
-        num_rows=n32, 
-        num_columns=n32, 
-        diagonal_index=0, 
-        output_type=ov_dtype
+        num_rows=n32, num_columns=n32, diagonal_index=0, output_type=ov_dtype
     )
     return OpenVINOKerasTensor(identity_matrix.output(0))
-   
+
 
 def imag(x):
     raise NotImplementedError("`imag` is not supported with openvino backend")
