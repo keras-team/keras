@@ -703,10 +703,7 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
-    element_type = None
-    if isinstance(x, OpenVINOKerasTensor):
-        element_type = x.output.get_element_type()
-    x = get_ov_output(x, element_type)
+    x = get_ov_output(x)
     one = ov_opset.constant(1.0, dtype=x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.subtract(ov_opset.exp(x), one).output(0))
 
@@ -1378,7 +1375,6 @@ def slogdet(x):
     raise NotImplementedError(
         "`slogdet` is not supported with openvino backend"
     )
-
 
 def argpartition(x, kth, axis=-1):
     raise NotImplementedError(
