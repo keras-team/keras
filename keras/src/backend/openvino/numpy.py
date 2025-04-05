@@ -1376,6 +1376,7 @@ def slogdet(x):
         "`slogdet` is not supported with openvino backend"
     )
 
+
 def argpartition(x, kth, axis=-1):
     raise NotImplementedError(
         "`argpartition` is not supported with openvino backend"
