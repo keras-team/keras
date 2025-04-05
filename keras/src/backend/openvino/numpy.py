@@ -778,21 +778,18 @@ def imag(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-
     abs_diff = ov_opset.abs(x1 - x2)
     abs_x2 = ov_opset.abs(x2)
-    rtol_tensor = ov_opset.constant(rtol, dtype=x1.dtype)
-    atol_tensor = ov_opset.constant(atol, dtype=x2.dtype)
+    rtol_tensor = ov_opset.constant(np.array(rtol, dtype=np.float32))
+    atol_tensor = ov_opset.constant(np.array(atol, dtype=np.float32))
     total_tolerance = atol_tensor + rtol_tensor * abs_x2
     is_close = ov_opset.less_equal(abs_diff, total_tolerance)
-
     if equal_nan:
         nan_a = ov_opset.isnan(x1)
         nan_b = ov_opset.isnan(x2)
         both_nan = ov_opset.logical_and(nan_a, nan_b)
         is_close = ov_opset.logical_or(is_close, both_nan)
-
-    return is_close
+    return OpenVINOKerasTensor(is_close.output(0))
 
 
 def isfinite(x):
