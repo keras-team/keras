@@ -736,6 +736,51 @@ class ConvBasicTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
+    def test_enable_lora_with_alpha(self):
+        # Create a Conv2D layer with a small kernel for simplicity.
+        layer = layers.Conv2D(filters=3, kernel_size=(2, 2), padding="valid")
+        # Use a fixed input shape: batch size 1, height=4, width=4, channels=3.
+        input_shape = (1, 4, 4, 3)
+        layer.build(input_shape)
+
+        # Set the base kernel to known, deterministic values.
+        base_kernel = np.linspace(
+            0, 1, num=np.prod(layer.kernel.shape), dtype=np.float32
+        )
+        base_kernel = base_kernel.reshape(layer.kernel.shape)
+        layer.kernel.assign(base_kernel)
+
+        # Enable LoRA with rank=2 and a custom lora_alpha value (e.g. 3.0).
+        layer.enable_lora(rank=2, lora_alpha=3.0)
+        self.assertEqual(layer.lora_rank, 2)
+        self.assertEqual(layer.lora_alpha, 3.0)
+
+        # For Conv2D, assume the LoRA weights have shapes:
+        #   lora_kernel_a: (kernel_height, kernel_width, in_channels, rank)
+        #   lora_kernel_b: (rank, out_channels)
+        lora_a_shape = layer.lora_kernel_a.shape
+        lora_b_shape = layer.lora_kernel_b.shape
+
+        # Assign known constant values to LoRA weights.
+        lora_a = np.full(lora_a_shape, 0.1, dtype=np.float32)
+        lora_b = np.full(lora_b_shape, 0.2, dtype=np.float32)
+        layer.lora_kernel_a.assign(lora_a)
+        layer.lora_kernel_b.assign(lora_b)
+
+        # Compute the expected delta.
+        # Flatten lora_kernel_a to shape (-1, rank),
+        # multiply with lora_kernel_b,
+        # then reshape to the kernel's shape.
+        scaling = 3.0 / 2  # lora_alpha / lora_rank
+        delta = np.matmul(lora_a.reshape(-1, 2), lora_b)
+        delta = delta.reshape(base_kernel.shape)
+        expected_effective_kernel = base_kernel + scaling * delta
+
+        # Compare the effective kernel computed via the property.
+        actual_effective_kernel = layer.kernel.numpy()
+        self.assertAllClose(actual_effective_kernel, expected_effective_kernel)
+
+    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Conv2D,

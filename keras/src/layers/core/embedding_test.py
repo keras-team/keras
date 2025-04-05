@@ -182,6 +182,38 @@ class EmbeddingTest(test_case.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
     @pytest.mark.requires_trainable_backend
+    def test_enable_lora_with_alpha(self):
+        # Create an Embedding layer without specifying lora_rank
+        layer = layers.Embedding(input_dim=3, output_dim=2)
+        layer.build((None,))  # Build the layer
+
+        # Set the base embeddings to known values.
+        base_emb = np.array(
+            [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype=np.float32
+        )
+        layer.embeddings.assign(base_emb)
+
+        # Enable LoRA with a custom alpha: rank=2, lora_alpha=3.0.
+        layer.enable_lora(2, lora_alpha=3.0)
+        self.assertEqual(layer.lora_rank, 2)
+        self.assertEqual(layer.lora_alpha, 3.0)
+
+        # Manually assign known values to lora weights.
+        a_val = np.array([[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]], dtype=np.float32)
+        b_val = np.array([[0.5, 0.5], [0.6, 0.6]], dtype=np.float32)
+        layer.lora_embeddings_a.assign(a_val)
+        layer.lora_embeddings_b.assign(b_val)
+
+        # Compute the expected delta.
+        # Scaling factor: (3.0 / 2) = 1.5
+        effective_delta = 1.5 * np.matmul(a_val, b_val)
+        expected_embeddings = base_emb + effective_delta
+
+        # Verify that the effective embeddings match expectation.
+        actual_embeddings = layer.embeddings.numpy()
+        self.assertAllClose(actual_embeddings, expected_embeddings)
+
+    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Embedding,
