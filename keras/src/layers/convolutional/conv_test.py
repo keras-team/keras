@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src import constraints
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 
@@ -777,7 +778,7 @@ class ConvBasicTest(testing.TestCase):
         expected_effective_kernel = base_kernel + scaling * delta
 
         # Compare the effective kernel computed via the property.
-        actual_effective_kernel = layer.kernel.numpy()
+        actual_effective_kernel = ops.convert_to_numpy(layer.kernel)
         self.assertAllClose(actual_effective_kernel, expected_effective_kernel)
 
     @pytest.mark.requires_trainable_backend

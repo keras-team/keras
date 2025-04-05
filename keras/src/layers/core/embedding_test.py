@@ -210,7 +210,7 @@ class EmbeddingTest(test_case.TestCase):
         expected_embeddings = base_emb + effective_delta
 
         # Verify that the effective embeddings match expectation.
-        actual_embeddings = layer.embeddings.numpy()
+        actual_embeddings = ops.convert_to_numpy(layer.embeddings)
         self.assertAllClose(actual_embeddings, expected_embeddings)
 
     @pytest.mark.requires_trainable_backend

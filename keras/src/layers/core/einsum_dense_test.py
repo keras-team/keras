@@ -400,7 +400,7 @@ class EinsumDenseTest(testing.TestCase):
         expected_kernel = base_kernel + expected_delta
 
         # Verify that the effective kernel property returns the expected value.
-        actual_kernel = layer.kernel.numpy()
+        actual_kernel = ops.convert_to_numpy(layer.kernel)
         self.assertAllClose(actual_kernel, expected_kernel)
 
     @pytest.mark.requires_trainable_backend

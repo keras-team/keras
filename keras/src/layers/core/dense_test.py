@@ -285,9 +285,10 @@ class DenseTest(testing.TestCase):
         # Manually compute the expected effective kernel:
         # effective_kernel = base_kernel +
         # (lora_alpha / lora_rank) * (lora_kernel_a @ lora_kernel_b)
-        base_kernel = layer._kernel.numpy()
+        base_kernel = ops.convert_to_numpy(layer._kernel)
         lora_update = np.matmul(
-            layer.lora_kernel_a.numpy(), layer.lora_kernel_b.numpy()
+            ops.convert_to_numpy(layer.lora_kernel_a.numpy()),
+            ops.convert_to_numpy(layer.lora_kernel_b.numpy()),
         )
         effective_kernel_expected = base_kernel + (3.0 / 2) * lora_update
 
