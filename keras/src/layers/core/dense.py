@@ -57,6 +57,11 @@ class Dense(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing
             `Dense` layer by calling `layer.enable_lora(rank)`.
+        lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            (lora_alpha / lora_rank), allowing you to fine-tune the strength of
+            the LoRA adjustment independently of the rank.
 
     Input shape:
         N-D tensor with shape: `(batch_size, ..., input_dim)`.
@@ -82,6 +87,7 @@ class Dense(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
@@ -95,6 +101,7 @@ class Dense(Layer):
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
@@ -135,9 +142,9 @@ class Dense(Layer):
                 "You must build the layer before accessing `kernel`."
             )
         if self.lora_enabled:
-            return self._kernel + ops.matmul(
-                self.lora_kernel_a, self.lora_kernel_b
-            )
+            return self._kernel + (
+                self.lora_alpha / self.lora_rank
+            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
         return self._kernel
 
     def call(self, inputs, training=None):
@@ -154,7 +161,11 @@ class Dense(Layer):
         return tuple(output_shape)
 
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.kernel_constraint:
             raise ValueError(
@@ -187,6 +198,7 @@ class Dense(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -261,6 +273,7 @@ class Dense(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -410,7 +423,7 @@ class Dense(Layer):
         if self.lora_enabled:
             lora_x = ops.matmul(inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
-            x = ops.add(x, lora_x)
+            x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -544,7 +557,8 @@ class Dense(Layer):
                 kernel_value = ops.divide(kernel_value, kernel_scale)
                 kernel_value = ops.add(
                     kernel_value,
-                    ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    (self.lora_alpha / self.lora_rank)
+                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 )
                 kernel_value, kernel_scale = quantizers.abs_max_quantize(
                     kernel_value, axis=0, to_numpy=True
