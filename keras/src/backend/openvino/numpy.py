@@ -709,7 +709,7 @@ def expm1(x):
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, ov_type)
     exp_x = ov_opset.exp(x).output(0)
-    const_one = ov_opset.constant(1, x_type)
+    const_one = ov_opset.constant(1, exp_x.get_element_type())
     result = ov_opset.subtract(exp_x, const_one).output(0)
     return OpenVINOKerasTensor(result)
 
