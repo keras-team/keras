@@ -703,7 +703,15 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
-    raise NotImplementedError("`expm1` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type)
+    exp_x = ov_opset.exp(x).output(0)
+    const_one = ov_opset.constant(1, exp_x.get_element_type())
+    result = ov_opset.subtract(exp_x, const_one).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def flip(x, axis=None):
