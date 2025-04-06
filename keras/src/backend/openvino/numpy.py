@@ -334,9 +334,7 @@ def argmax(x, axis=None, keepdims=False):
     if rank == 0:
         return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
     if axis is None:
-        flatten_shape = ov_opset.constant(
-            [-1] + [1] * (rank - 1), Type.i32
-        ).output(0)
+        flatten_shape = ov_opset.constant([-1] + [1] * (rank - 1), Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -366,9 +364,7 @@ def argmin(x, axis=None, keepdims=False):
     if rank == 0:
         return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
     if axis is None:
-        flatten_shape = ov_opset.constant(
-            [-1] + [1] * (rank - 1), Type.i32
-        ).output(0)
+        flatten_shape = ov_opset.constant([-1] + [1] * (rank - 1), Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -820,20 +816,7 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    if not isinstance(xs, (list, tuple)):
-        raise TypeError("Input to `hstack` must be a list or tuple of tensors.")
-    if len(xs) == 0:
-        raise ValueError("Input list to `hstack` cannot be empty.")
-    element_type = None
-    for x in xs:
-        if isinstance(x, OpenVINOKerasTensor):
-            element_type = x.output.get_element_type()
-            break
-    xs = [get_ov_output(x, element_type) for x in xs]
-    xs = _align_operand_types(xs[0], xs[1], "hstack()")
-    rank = len(xs[0].get_partial_shape())
-    axis = 1 if rank > 1 else 0
-    return OpenVINOKerasTensor(ov_opset.concat(xs, axis=axis).output(0))
+    raise NotImplementedError("`hstack` is not supported with openvino backend")
 
 
 def identity(n, dtype=None):
@@ -901,11 +884,24 @@ def linspace(
 
 def log(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
     return OpenVINOKerasTensor(ov_opset.log(x).output(0))
 
 
 def log10(x):
-    raise NotImplementedError("`log10` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
+    log_x = ov_opset.log(x).output(0)
+    const_10 = ov_opset.constant(10, x_type).output(0)
+    log_10 = ov_opset.log(const_10).output(0)
+    result = ov_opset.divide(log_x, log_10).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def log1p(x):
@@ -913,7 +909,16 @@ def log1p(x):
 
 
 def log2(x):
-    raise NotImplementedError("`log2` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
+    log_x = ov_opset.log(x).output(0)
+    const_2 = ov_opset.constant(2, x_type).output(0)
+    log_2 = ov_opset.log(const_2).output(0)
+    result = ov_opset.divide(log_x, log_2).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def logaddexp(x1, x2):
