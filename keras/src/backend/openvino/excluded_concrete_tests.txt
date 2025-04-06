@@ -32,7 +32,6 @@ NumpyDtypeTest::test_isclose
 NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
-NumpyDtypeTest::test_linspace
 NumpyDtypeTest::test_log1p
 NumpyDtypeTest::test_logaddexp
 NumpyDtypeTest::test_logspace
@@ -158,7 +157,6 @@ NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_isclose
-NumpyTwoInputOpsCorrectnessTest::test_linspace
 NumpyTwoInputOpsCorrectnessTest::test_logspace
 NumpyTwoInputOpsCorrectnessTest::test_outer
 NumpyTwoInputOpsCorrectnessTest::test_quantile
