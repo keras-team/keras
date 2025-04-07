@@ -1,6 +1,5 @@
 NumPyTestRot90
 NumpyArrayCreateOpsCorrectnessTest::test_eye
-NumpyArrayCreateOpsCorrectnessTest::test_identity
 NumpyArrayCreateOpsCorrectnessTest::test_tri
 NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
@@ -25,7 +24,6 @@ NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
 NumpyDtypeTest::test_hstack
-NumpyDtypeTest::test_identity
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isclose
 NumpyDtypeTest::test_isfinite
