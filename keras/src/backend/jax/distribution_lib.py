@@ -42,7 +42,7 @@ def distribute_variable(value, layout):
         jax.Array which is the distributed variable.
     """
     if not isinstance(layout, jax.sharding.Sharding):
-        layout = _to_jax_layout(layout)
+        layout = layout.backend_layout
     if isinstance(
         value, (jax.Array, jax.numpy.ndarray)
     ) and value.sharding.is_equivalent_to(layout, ndim=len(value.shape)):
@@ -79,7 +79,7 @@ def distribute_tensor(tensor, layout):
         Distributed value.
     """
     if not isinstance(layout, jax.sharding.Sharding):
-        layout = _to_jax_layout(layout)
+        layout = layout.backend_layout
     # TODO(scottzhu): This might not be a cheap check, we should consider
     # have some proper JAX API for doing this check.
     if jax_utils.is_in_jax_tracing_scope():
@@ -115,7 +115,7 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
         A global batch distributed according to `layout`.
     """
     if not isinstance(layout, jax.sharding.Sharding):
-        layout = _to_jax_layout(layout)
+        layout = layout.backend_layout
 
     num_model_replicas_total = layout.mesh.shape[batch_dim_name]
 
@@ -219,7 +219,7 @@ def process_id():
     return jax.process_index()
 
 
-def _to_jax_device(device_name):
+def _to_backend_device(device_name):
     if isinstance(device_name, jax.Device):
         return device_name
     device_type, device_id = device_name.split(":")
@@ -231,7 +231,7 @@ def _to_jax_device(device_name):
     raise ValueError(f"Device not found: {device_name}")
 
 
-def _to_jax_mesh(device_mesh):
+def _to_backend_mesh(device_mesh):
     """Convert the DeviceMesh to JAX backend specific Mesh.
 
     Args:
@@ -241,12 +241,12 @@ def _to_jax_mesh(device_mesh):
         A `jax.sharding.Mesh` instance.
     """
     shape = device_mesh.devices.shape
-    devices = [_to_jax_device(d) for d in device_mesh.devices.flatten()]
+    devices = [_to_backend_device(d) for d in device_mesh.devices.flatten()]
     devices = np.array(devices).reshape(shape)
     return jax.sharding.Mesh(devices, device_mesh.axis_names)
 
 
-def _to_jax_layout(tensor_layout):
+def _to_backend_layout(tensor_layout):
     """Convert the TensorLayout to JAX backend specific Sharding.
 
     Args:
@@ -261,5 +261,5 @@ def _to_jax_layout(tensor_layout):
             "for TensorLayout."
         )
     partition_spec = jax.sharding.PartitionSpec(*tensor_layout.axes)
-    jax_mesh = _to_jax_mesh(tensor_layout.device_mesh)
+    jax_mesh = tensor_layout.device_mesh.backend_mesh
     return jax.sharding.NamedSharding(jax_mesh, partition_spec)

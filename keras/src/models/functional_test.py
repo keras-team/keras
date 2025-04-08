@@ -11,11 +11,13 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.dtype_policies import dtype_policy
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
+from keras.src.models.model import model_from_json
 
 
 class FunctionalTest(testing.TestCase):
@@ -271,6 +273,19 @@ class FunctionalTest(testing.TestCase):
         # Symbolic call
         out_val = model_restored(Input(shape=(3,), batch_size=2))
         self.assertIsInstance(out_val, out_type)
+
+    def test_restored_nested_input(self):
+        input_a = Input(shape=(3,), batch_size=2, name="input_a")
+        x = layers.Dense(5)(input_a)
+        outputs = layers.Dense(4)(x)
+        model = Functional([[input_a]], outputs)
+
+        # Serialize and deserialize the model
+        json_config = model.to_json()
+        restored_json_config = model_from_json(json_config).to_json()
+
+        # Check that the serialized model is the same as the original
+        self.assertEqual(json_config, restored_json_config)
 
     @pytest.mark.requires_trainable_backend
     def test_layer_getters(self):
@@ -560,6 +575,26 @@ class FunctionalTest(testing.TestCase):
         self.assertAllClose(out, np.ones((2, 2)))
         # Note: it's not intended to work in symbolic mode (yet).
 
+    def test_optional_dict_inputs(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2", optional=True)
+        outputs = OptionalInputLayer()(i1, i2)
+        model = Model({"input1": i1, "input2": i2}, outputs)
+
+        # Eager test
+        out = model({"input1": np.ones((2, 2)), "input2": None})
+        self.assertAllClose(out, np.ones((2, 2)))
+        # Note: it's not intended to work in symbolic mode (yet).
+
     def test_warning_for_mismatched_inputs_structure(self):
         def is_input_warning(w):
             return str(w.message).startswith(
@@ -714,3 +749,19 @@ class FunctionalTest(testing.TestCase):
             "The structure of `inputs` doesn't match the expected structure",
         ):
             model([x1, x2])
+
+    def test_functional_with_dtype_policy(self):
+        original_dtype_policy = dtype_policy.dtype_policy()
+        try:
+            dtype_policy.set_dtype_policy("mixed_float16")
+
+            inputs = Input((10,), name="input")
+            outputs = layers.Dense(5)(inputs)
+            model = Model(inputs=inputs, outputs=outputs)
+
+            # Verify that no cast node appears in the graph.
+            self.assertLen(model.operations, 2)
+            self.assertIsInstance(model.operations[0], layers.InputLayer)
+            self.assertIsInstance(model.operations[1], layers.Dense)
+        finally:
+            dtype_policy.set_dtype_policy(original_dtype_policy)

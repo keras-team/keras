@@ -13,26 +13,29 @@ if backend() == "tensorflow":
     from tensorflow.python.trackable.data_structures import ListWrapper
     from tensorflow.python.trackable.data_structures import _DictWrapper
 
-    optree.register_pytree_node(
-        ListWrapper,
-        lambda x: (x, None),
-        lambda metadata, children: ListWrapper(list(children)),
-        namespace="keras",
-    )
+    try:
+        optree.register_pytree_node(
+            ListWrapper,
+            lambda x: (x, None),
+            lambda metadata, children: ListWrapper(list(children)),
+            namespace="keras",
+        )
 
-    def sorted_keys_and_values(d):
-        keys = sorted(list(d.keys()))
-        values = [d[k] for k in keys]
-        return values, keys, keys
+        def sorted_keys_and_values(d):
+            keys = sorted(list(d.keys()))
+            values = [d[k] for k in keys]
+            return values, keys, keys
 
-    optree.register_pytree_node(
-        _DictWrapper,
-        sorted_keys_and_values,
-        lambda metadata, children: _DictWrapper(
-            {key: child for key, child in zip(metadata, children)}
-        ),
-        namespace="keras",
-    )
+        optree.register_pytree_node(
+            _DictWrapper,
+            sorted_keys_and_values,
+            lambda metadata, children: _DictWrapper(
+                {key: child for key, child in zip(metadata, children)}
+            ),
+            namespace="keras",
+        )
+    except ValueError:
+        pass  # We may have already registered if we are reiporting keras.
 
 
 def is_nested(structure):

@@ -17,6 +17,7 @@ And some more magic:
 """
 
 import collections
+import functools
 import inspect
 import math
 import warnings
@@ -33,6 +34,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common import remat
+from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
@@ -40,6 +42,7 @@ from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
+from keras.src.ops.node import Node
 from keras.src.ops.operation import Operation
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -372,6 +375,18 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             # Reset attribute tracking (TF-specific)
             self._self_setattr_tracking = _self_setattr_tracking
 
+    def _build_at_init(self):
+        """Build the layer at `Layer.__init__`.
+
+        We can only safely mark the layer as `built=True` in `Layer.__init__` if
+        `build` is not overridden. Otherwise, it might cause the subclasses to
+        ignore the user's `build`.
+        """
+        if utils.is_default(self.build):
+            self.built = True
+            self._post_build()
+            self._lock_state()
+
     @property
     def path(self):
         """The path of the layer.
@@ -455,7 +470,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 self.build(config["input_shape"])
             elif "shapes_dict" in config:
                 self.build(**config["shapes_dict"])
-            self.built = True
 
     def _obj_type(self):
         return "Layer"
@@ -779,12 +793,19 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     def compute_mask(self, inputs, previous_mask):
         return previous_mask
 
+    def symbolic_call(self, *args, **kwargs):
+        # Node is created at the end of `__call__` instead of `symbolic_call`.
+        return self.compute_output_spec(*args, **kwargs)
+
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         self._check_super_called()
         self._called = True
 
-        #####################################
+        original_args = args
+        original_kwargs = kwargs
+
+        #############################################################
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
             return self.dtype_policy.convert_input(
@@ -795,7 +816,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         if (
             kwargs
             or len(args) != 1
-            or not backend.is_tensor(args[0])
+            or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
             or backend.standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
             args = tree.map_structure(maybe_convert, args)
@@ -805,11 +826,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
             for arg in tree.flatten(args):
-                if (
-                    not isinstance(arg, KerasTensor)
-                    and not backend.is_tensor(arg)
-                    and arg is not None
-                ):
+                if not is_backend_tensor_or_symbolic(arg, allow_none=True):
                     raise ValueError(
                         "Only input tensors may be passed as "
                         "positional arguments. The following argument value "
@@ -920,8 +937,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                             outputs, layout
                         )
 
-                if not self.built:
-                    self.built = True
+                self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
@@ -946,6 +962,17 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         finally:
             # Destroy call context if we created it
             self._maybe_reset_call_context()
+
+        ################################################
+        # 8. Add a node in the graph for symbolic calls.
+        if any_symbolic_tensors(original_args, original_kwargs):
+            Node(
+                operation=self,
+                call_args=original_args,
+                call_kwargs=original_kwargs,
+                outputs=outputs,
+            )
+
         return outputs
 
     def call(self, *args, **kwargs):
@@ -1043,11 +1070,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 if self._remat_mode is not None:
                     outputs = self.rematerialized_call(
                         self.quantized_call, *args, **kwargs
-                    )
+                    )(*args, **kwargs)
                 else:
                     outputs = self.quantized_call(*args, **kwargs)
             elif self._remat_mode is not None:
-                outputs = self.rematerialized_call(self.call, *args, **kwargs)
+                outputs = self.rematerialized_call(self.call, *args, **kwargs)(
+                    *args, **kwargs
+                )
             else:
                 outputs = self.call(*args, **kwargs)
             if return_losses:
@@ -1601,13 +1630,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # Full rematerialization
         if self._remat_mode.mode == "full":
-            return remat.remat(layer_call)(*args, **kwargs)
+            return remat.remat(layer_call)
 
         # Apply rematerialization to specific layers
         elif self._remat_mode.mode == "list_of_layers" and (
             self.name in self._remat_mode.layer_names
         ):
-            return remat.remat(layer_call)(*args, **kwargs)
+            return remat.remat(layer_call)
 
         # Apply rematerialization based on output size threshold
         elif self._remat_mode.mode == "larger_than":
@@ -1619,20 +1648,24 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 output_size
                 and output_size > self._remat_mode.output_size_threshold
             ):
-                return remat.remat(layer_call)(*args, **kwargs)
+                return remat.remat(layer_call)
         elif self._remat_mode.mode == "activations":
             has_activation = (
                 hasattr(self, "activation") and self.activation is not None
             )
             if has_activation:
-                not_rematted_activation = self.activation
-                try:
-                    self.activation = remat.remat(not_rematted_activation)
-                    return layer_call(*args, **kwargs)
-                finally:
-                    self.activation = not_rematted_activation
 
-        return layer_call(*args, **kwargs)
+                @functools.wraps(layer_call)
+                def rematerialized_activation_call_wrapper(*args, **kwargs):
+                    original_activation = self.activation
+                    self.activation = remat.remat(original_activation)
+                    try:
+                        return layer_call(*args, **kwargs)
+                    finally:
+                        self.activation = original_activation
+
+                return rematerialized_activation_call_wrapper
+        return layer_call
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):

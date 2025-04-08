@@ -720,7 +720,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "Received: "
             f"output.shape={output.shape}"
         )
-    if target.shape != output.shape[:-1]:
+    output_shape_without_class_dim = list(output.shape)
+    del output_shape_without_class_dim[axis]
+
+    if list(target.shape) != output_shape_without_class_dim:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape "
             "up until the last dimension: "
@@ -1018,6 +1021,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     if bias is not None:
         raise ValueError(

@@ -1172,6 +1172,8 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             sample size, and `"mean_with_sample_weight"` sums the loss and
             divides by the sum of the sample weights. `"none"` and `None`
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        axis: The axis along which to compute crossentropy (the features
+            axis). Defaults to `-1`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
@@ -1217,6 +1219,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         from_logits=False,
         ignore_class=None,
         reduction="sum_over_batch_size",
+        axis=-1,
         name="sparse_categorical_crossentropy",
         dtype=None,
     ):
@@ -1227,6 +1230,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             dtype=dtype,
             from_logits=from_logits,
             ignore_class=ignore_class,
+            axis=axis,
         )
         self.from_logits = from_logits
         self.ignore_class = ignore_class
@@ -1307,12 +1311,12 @@ class Dice(LossFunctionWrapper):
     >>> y_pred = [[[[0.0], [1.0]], [[0.0], [1.0]]],
     ...           [[[0.4], [0.0]], [[0.0], [0.9]]]]
     >>> axis = (1, 2, 3)
-    >>> loss = keras.losses.dice(y_true, y_pred, axis=axis)
+    >>> loss = keras.losses.Dice(axis=axis, reduction=None)(y_true, y_pred)
     >>> assert loss.shape == (2,)
     >>> loss
     array([0.5, 0.75757575], shape=(2,), dtype=float32)
 
-    >>> loss = keras.losses.dice(y_true, y_pred)
+    >>> loss = keras.losses.Dice()(y_true, y_pred)
     >>> assert loss.shape == ()
     >>> loss
     array(0.6164384, shape=(), dtype=float32)
@@ -1499,6 +1503,86 @@ class Circle(LossFunctionWrapper):
                 "gamma": self.gamma,
                 "margin": self.margin,
                 "remove_diagonal": self.remove_diagonal,
+            }
+        )
+        return config
+
+
+@keras_export("keras.losses.CategoricalGeneralizedCrossEntropy")
+class CategoricalGeneralizedCrossEntropy(LossFunctionWrapper):
+    """Computes the Generalized Cross Entropy loss between `y_true` & `y_pred`.
+
+    Generalized Cross Entropy (GCE) is a noise-robust loss function
+    that provides better robustness against noisy labels than
+    standard cross entropy.
+    It generalizes both cross entropy and mean absolute error through
+    the parameter q, where values closer to 1 make the loss more robust
+    to noisy labels.
+
+    Formula:
+    ```python
+    loss = (1 - p**q) / q
+    ```
+    where `p` is the predicted probability for the true class and `q`
+    is the noise parameter.
+
+    Args:
+        q: Float in range `(0, 1)`. It is the noise parameter.
+           Controls the behavior of the loss:
+            - As `q` approaches 0: Behaves more like cross entropy
+            - As `q` approaches 1: Behaves more like mean absolute error
+           Defaults to `0.5`
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
+
+    Example:
+    ```python
+    y_true = np.array([0, 1, 0, 1])
+    y_pred = np.array([[0.7, 0.3], [0.2, 0.8], [0.6, 0.4], [0.4, 0.6]])
+    keras.losses.CategoricalGeneralizedCrossEntropy()(y_true, y_pred)
+    ```
+
+    References:
+        - [Zhang, Sabuncu, 2018](https://arxiv.org/abs/1805.07836)
+          ("Generalized Cross Entropy Loss for Training
+            Deep Neural Networks with Noisy Labels")
+    """
+
+    def __init__(
+        self,
+        q=0.5,
+        reduction="sum_over_batch_size",
+        name="categorical_generalized_cross_entropy",
+        dtype=None,
+    ):
+        if not 0 < q < 1:
+            raise ValueError("q must be in the interval (0, 1)")
+        super().__init__(
+            categorical_generalized_cross_entropy,
+            name=name,
+            reduction=reduction,
+            dtype=dtype,
+            q=q,
+        )
+        self.q = q
+
+    def get_config(self):
+        config = Loss.get_config(self)
+        config.update(
+            {
+                "q": self.q,
             }
         )
         return config
@@ -2363,11 +2447,23 @@ def binary_focal_crossentropy(
 
     >>> y_true = [[0, 1], [0, 0]]
     >>> y_pred = [[0.6, 0.4], [0.4, 0.6]]
-    >>> loss = keras.losses.binary_focal_crossentropy(
+    >>> # In this instance, the first sample in the second batch is the
+    >>> # 'easier' example.
+    >>> focal_loss = keras.losses.binary_focal_crossentropy(
     ...        y_true, y_pred, gamma=2)
     >>> assert loss.shape == (2,)
-    >>> loss
+    >>> focal_loss
     array([0.330, 0.206], dtype=float32)
+    >>> # Compare with binary_crossentropy
+    >>> bce_loss = keras.losses.binary_focal_crossentropy(
+    ...        y_true, y_pred)
+    >>> bce_loss
+    array([0.916, 0.714], dtype=float32)
+    >>> # Binary focal crossentropy loss attributes more importance to the
+    >>> # harder example which results in a higher loss for the first batch
+    >>> # when normalized by binary cross entropy loss
+    >>> focal_loss/bce_loss
+    array([0.360, 0.289]
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
@@ -2451,6 +2547,24 @@ def dice(y_true, y_pred, axis=None):
 
     Returns:
         Dice loss value.
+
+    Example:
+
+    >>> y_true = [[[[1.0], [1.0]], [[0.0], [0.0]]],
+    ...           [[[1.0], [1.0]], [[0.0], [0.0]]]]
+    >>> y_pred = [[[[0.0], [1.0]], [[0.0], [1.0]]],
+    ...           [[[0.4], [0.0]], [[0.0], [0.9]]]]
+    >>> axis = (1, 2, 3)
+    >>> loss = keras.losses.dice(y_true, y_pred, axis=axis)
+    >>> assert loss.shape == (2,)
+    >>> loss
+    array([0.5, 0.75757575], shape=(2,), dtype=float32)
+
+    >>> loss = keras.losses.dice(y_true, y_pred)
+    >>> assert loss.shape == ()
+    >>> loss
+    array(0.6164384, shape=(), dtype=float32)
+
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
@@ -2597,3 +2711,54 @@ def circle(
     circle_loss = ops.softplus(p_loss + n_loss)
     backend.set_keras_mask(circle_loss, circle_loss > 0)
     return circle_loss
+
+
+@keras_export("keras.losses.categorical_generalized_cross_entropy")
+def categorical_generalized_cross_entropy(y_true, y_pred, q):
+    """Computes the Generalized Cross Entropy loss.
+
+    Generalized Cross Entropy (GCE) is a noise-robust loss function that
+    provides better robustness against noisy labels than standard cross entropy.
+    It generalizes both cross entropy and mean absolute error through
+    the parameter q, where values closer to 1 make the loss more robust
+    to noisy labels.
+
+    Formula:
+    ```python
+    loss = (1 - p**q) / q
+    ```
+    where `p` is the predicted probability for the true class and `q`
+    is the noise parameter.
+
+    Args:
+        y_true: Ground truth labels. Expected to contain *integer class indices*
+            with shape `[batch_size]` or `[batch_size, 1]`.
+        y_pred: The predicted class probabilities, with shape
+            `[batch_size, num_classes]`.
+        q: Float in range `(0, 1)`. It is the noise parameter.
+           Controls the behavior of the loss:
+            - As `q` approaches 0: Behaves more like cross entropy
+            - As `q` approaches 1: Behaves more like mean absolute error
+
+    Returns:
+        GCE loss values with shape `[batch_size]`.
+    ```
+
+    References:
+        - [Zhang, Sabuncu, 2018](https://arxiv.org/abs/1805.07836)
+          ("Generalized Cross Entropy Loss for Training
+            Deep Neural Networks with Noisy Labels")
+    """
+
+    # Convert y_true to integer type and one-hot encode
+    y_true_one_hot = ops.one_hot(
+        ops.cast(y_true, "int"), num_classes=ops.shape(y_pred)[-1]
+    )
+    y_true_one_hot = ops.cast(y_true_one_hot, y_pred.dtype)
+    # Calculate the probability of the true class
+    p = ops.sum(y_pred * y_true_one_hot, axis=-1)
+
+    # Compute the GCE loss for q in (0,1)
+    gce_loss = (1 - ops.power(p, q)) / q
+
+    return gce_loss

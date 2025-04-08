@@ -1,5 +1,5 @@
 import pickle
-from unittest.mock import patch
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -14,9 +14,24 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
-from keras.src.backend.common import remat
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
+from keras.src.utils import traceback_utils
+
+
+class MockRemat:
+    """Mock remat by returning a wrapper Mock calling the original function"""
+
+    def __init__(self):
+        self.rematted_functions = {}
+
+    def __call__(self, func):
+        if func in self.rematted_functions:
+            return self.rematted_functions[func]
+
+        wrapped_func = mock.Mock(wraps=func)
+        self.rematted_functions[func] = wrapped_func
+        return wrapped_func
 
 
 class LayerTest(testing.TestCase):
@@ -173,9 +188,10 @@ class LayerTest(testing.TestCase):
     def test_layer_with_remat(self):
         """Test rematerialization on a simple layer."""
         # Create a mock to track calls to remat
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class SomeLayer(layers.Layer):
                 def call(self, x):
@@ -194,14 +210,16 @@ class LayerTest(testing.TestCase):
             # Assert outputs are the same
             self.assertAllClose(output_no_remat, output_with_remat)
 
-            # Ensure remat was applied in the second case
-            mock_remat.assert_called()
+        # Ensure remat was applied in the second case
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_quantized_layer_with_remat(self):
         """Test rematerialization on a quantized layer."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
             input_tensor = backend.random.uniform((2, 4))
 
             # Case 2: With rematerialization
@@ -211,17 +229,20 @@ class LayerTest(testing.TestCase):
                 layer.quantize("float8")
                 layer(input_tensor)
 
-            # Ensure remat was applied
-            mock_remat.assert_called()
+        # Ensure remat was applied
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_functional_model_with_remat(self):
         if backend.backend() in ("openvino", "numpy"):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        traceback_utils.enable_traceback_filtering()
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
             # Define model inputs
             inputs = Input(shape=(32, 32, 3))
 
@@ -241,14 +262,17 @@ class LayerTest(testing.TestCase):
             y_train = np.random.random((10, 64)).astype(np.float32)
 
             # Run training to ensure `RematScope` is applied correctly
-            model.fit(x_train, y_train, epochs=1, batch_size=2)
-            self.assertGreater(mock_remat.call_count, 1)
+            model.fit(x_train, y_train, epochs=1, batch_size=2, verbose=0)
+
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_remat_wrapper_list_of_layers(self):
         """Test rematerialization using list_of_layers mode."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class TestLayer(layers.Layer):
                 def call(self, x):
@@ -270,14 +294,16 @@ class LayerTest(testing.TestCase):
             self.assertAllClose(output_test, input_tensor + 1)
             self.assertAllClose(output_other, input_tensor * 2)
 
-            # Ensure remat was applied to the correct layer
-            mock_remat.assert_called_once()
+        # Ensure remat was applied to the correct layer
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_remat_larger_than_mode(self):
         """Test rematerialization using larger_than mode."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class TestLayer(layers.Layer):
                 def compute_output_shape(self, input_shape):
@@ -294,14 +320,16 @@ class LayerTest(testing.TestCase):
 
             self.assertAllClose(output, input_tensor + 1)
 
-            # Ensure remat was applied
-            mock_remat.assert_called()
+        # Ensure remat was applied
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_remat_larger_than_mode_high_threshold(self):
         """Test rematerialization using larger_than mode."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class TestLayer(layers.Layer):
                 def compute_output_shape(self, input_shape):
@@ -318,8 +346,8 @@ class LayerTest(testing.TestCase):
 
             self.assertAllClose(output, input_tensor + 1)
 
-            # Ensure remat was applied
-            mock_remat.assert_not_called()
+        # Ensure remat was not applied
+        self.assertLen(mock_remat.rematted_functions, 0)
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
@@ -645,7 +673,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     dtype="float32",
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast.
@@ -661,7 +689,7 @@ class LayerTest(testing.TestCase):
                     initializer="ones",
                     trainable=True,
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast.
@@ -679,7 +707,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     autocast=False,
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast `self.v`.
@@ -698,7 +726,7 @@ class LayerTest(testing.TestCase):
                 self.inner_one = InnerLayerOne()
                 self.inner_two = InnerLayerTwo()
                 self.inner_three = InnerLayerThree()
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should autocast.
@@ -740,7 +768,7 @@ class LayerTest(testing.TestCase):
         )
         model.compile(loss="mse")
         targets = np.array([[[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [1.0, 1.0]]])
-        loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets)
+        loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets, verbose=0)
         self.assertAllClose(loss, 0.0)
 
     @pytest.mark.skipif(
@@ -862,7 +890,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     regularizer="l1",
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 x = backend.convert_to_tensor(x, dtype="float32")
@@ -1007,7 +1035,6 @@ class LayerTest(testing.TestCase):
             def build(self, bar_shape, foo_shape):
                 self.foo_shape = foo_shape
                 self.bar_shape = bar_shape
-                self.built = True
 
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
@@ -1016,7 +1043,6 @@ class LayerTest(testing.TestCase):
             def build(self, baz_shape, foo_shape):
                 self.foo_shape = foo_shape
                 self.baz_shape = baz_shape
-                self.built = True
 
             def call(self, foo, bar=None, baz=None):
                 return foo[:, 0] + bar[:, 0] + baz[:, 0]
@@ -1024,7 +1050,6 @@ class LayerTest(testing.TestCase):
         class SingleArgument(layers.Layer):
             def build(self, anything_whatsoever):
                 self.foo_shape = anything_whatsoever
-                self.built = True
 
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]

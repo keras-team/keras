@@ -148,7 +148,6 @@ class RNN(Layer):
                 shape=(self.units, self.units),
                 initializer='uniform',
                 name='recurrent_kernel')
-            self.built = True
 
         def call(self, inputs, states):
             prev_output = states[0]
@@ -284,7 +283,6 @@ class RNN(Layer):
                         f"batch size: sequence.shape={sequences_shape}"
                     )
                 self._create_state_variables(sequences_shape[0])
-        self.built = True
 
     @tracking.no_automatic_dependency_tracking
     def _create_state_variables(self, batch_size):
