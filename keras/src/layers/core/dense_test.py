@@ -273,18 +273,18 @@ class DenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
-        # Create a Dense layer and build it.
+        # Create a `Dense` layer and build it.
         layer = layers.Dense(units=8)
         layer.build((None, 4))
 
-        # Enable LoRA with rank=2 and lora_alpha=3.0.
+        # Enable LoRA with `rank`=2 and `lora_alpha`=3.0.
         layer.enable_lora(2, lora_alpha=3.0)
         self.assertEqual(layer.lora_rank, 2)
         self.assertEqual(layer.lora_alpha, 3.0)
 
         # Manually compute the expected effective kernel:
-        # effective_kernel = base_kernel +
-        # (lora_alpha / lora_rank) * (lora_kernel_a @ lora_kernel_b)
+        # `effective_kernel_expected` = `base_kernel` +
+        # `lora_alpha / lora_rank` * `lora_kernel_a @ lora_kernel_b`
         base_kernel = ops.convert_to_numpy(layer._kernel)
         lora_update = np.matmul(
             ops.convert_to_numpy(layer.lora_kernel_a),

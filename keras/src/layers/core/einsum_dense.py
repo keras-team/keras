@@ -61,8 +61,8 @@ class EinsumDense(Layer):
          lora_alpha: Optional integer. If set, this parameter scales the
             low-rank adaptation delta (computed as the product of two lower-rank
             trainable matrices) during the forward pass. The delta is scaled by
-            (lora_alpha / lora_rank), allowing you to fine-tune the strength of
-            the LoRA adjustment independently of the rank.
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
 
     Examples:

@@ -363,16 +363,17 @@ class EinsumDenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
-        # Use a simple equation that mimics a Dense layer behavior.
+        # Use a simple equation that mimics a `Dense` layer behavior.
         equation = "ab,bc->ac"
-        output_shape = 3  # This means the kernel shape will be (input_dim, 3)
+        output_shape = 3  # This means the kernel shape will be (input_dim, 3).
         bias_axes = None
 
-        # Create and build the EinsumDense layer with an input shape (None, 2)
+        # Create and build the `EinsumDense` layer
+        # with an input shape (None, 2).
         layer = layers.EinsumDense(
             equation=equation, output_shape=output_shape, bias_axes=bias_axes
         )
-        # Build the layer with an input shape of (batch, 2)
+        # Build the layer with an input shape of (batch, 2).
         layer.build((None, 2))
 
         # Set the base kernel weights to a known value.
@@ -381,21 +382,21 @@ class EinsumDenseTest(testing.TestCase):
         )
         layer._kernel.assign(base_kernel)
 
-        # Enable LoRA with rank=2 and a custom lora_alpha=3.0.
+        # Enable LoRA with `rank`=2 and a custom `lora_alpha`=3.0.
         layer.enable_lora(rank=2, lora_alpha=3.0)
         self.assertEqual(layer.lora_rank, 2)
         self.assertEqual(layer.lora_alpha, 3.0)
 
         # The expected shapes are:
-        #   base_kernel: (2, 3)
-        #   lora_kernel_a: (2, 2) and lora_kernel_b: (2, 3)
+        #   `base_kernel`: (2, 3)
+        #   `lora_kernel_a`: (2, 2) and `lora_kernel_b`: (2, 3)
         a_val = np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32)
         b_val = np.array([[0.5, 0.6, 0.7], [0.8, 0.9, 1.0]], dtype=np.float32)
         layer.lora_kernel_a.assign(a_val)
         layer.lora_kernel_b.assign(b_val)
 
         # Compute expected effective kernel.
-        # Scaling factor is lora_alpha / lora_rank = 3.0 / 2 = 1.5
+        # Scaling factor is `lora_alpha / lora_rank` = 3.0 / 2 = 1.5
         expected_delta = 1.5 * np.matmul(a_val, b_val)
         expected_kernel = base_kernel + expected_delta
 

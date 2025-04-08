@@ -738,7 +738,7 @@ class ConvBasicTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
-        # Create a Conv2D layer with a small kernel for simplicity.
+        # Create a `Conv2D` layer with a small kernel for simplicity.
         layer = layers.Conv2D(filters=3, kernel_size=(2, 2), padding="valid")
         # Use a fixed input shape: batch size 1, height=4, width=4, channels=3.
         input_shape = (1, 4, 4, 3)
@@ -751,14 +751,14 @@ class ConvBasicTest(testing.TestCase):
         base_kernel = base_kernel.reshape(layer.kernel.shape)
         layer.kernel.assign(base_kernel)
 
-        # Enable LoRA with rank=2 and a custom lora_alpha value (e.g. 3.0).
+        # Enable LoRA with `rank`=2 and a custom `lora_alpha` value (e.g. 3.0).
         layer.enable_lora(rank=2, lora_alpha=3.0)
         self.assertEqual(layer.lora_rank, 2)
         self.assertEqual(layer.lora_alpha, 3.0)
 
-        # For Conv2D, assume the LoRA weights have shapes:
-        #   lora_kernel_a: (kernel_height, kernel_width, in_channels, rank)
-        #   lora_kernel_b: (rank, out_channels)
+        # For `Conv2D`, assume the LoRA weights have shapes:
+        #   `lora_kernel_a`: (kernel_height, kernel_width, in_channels, rank)
+        #   `lora_kernel_b`: (rank, out_channels)
         lora_a_shape = layer.lora_kernel_a.shape
         lora_b_shape = layer.lora_kernel_b.shape
 
@@ -769,10 +769,10 @@ class ConvBasicTest(testing.TestCase):
         layer.lora_kernel_b.assign(lora_b)
 
         # Compute the expected delta.
-        # Flatten lora_kernel_a to shape (-1, rank),
-        # multiply with lora_kernel_b,
+        # Flatten `lora_kernel_a` to shape (-1, `rank`),
+        # multiply with `lora_kernel_b`,
         # then reshape to the kernel's shape.
-        scaling = 3.0 / 2  # lora_alpha / lora_rank
+        scaling = 3.0 / 2  # `lora_alpha / lora_rank`
         delta = np.matmul(lora_a.reshape(-1, 2), lora_b)
         delta = delta.reshape(base_kernel.shape)
         expected_effective_kernel = base_kernel + scaling * delta

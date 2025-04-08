@@ -183,7 +183,7 @@ class EmbeddingTest(test_case.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
-        # Create an Embedding layer without specifying lora_rank
+        # Create an `Embedding` layer without specifying `lora_rank`
         layer = layers.Embedding(input_dim=3, output_dim=2)
         layer.build((None,))  # Build the layer
 
@@ -193,7 +193,7 @@ class EmbeddingTest(test_case.TestCase):
         )
         layer.embeddings.assign(base_emb)
 
-        # Enable LoRA with a custom alpha: rank=2, lora_alpha=3.0.
+        # Enable LoRA with a custom alpha: `rank`=2, `lora_alpha`=3.0.
         layer.enable_lora(2, lora_alpha=3.0)
         self.assertEqual(layer.lora_rank, 2)
         self.assertEqual(layer.lora_alpha, 3.0)
