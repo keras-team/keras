@@ -1,12 +1,12 @@
 # Tensorflow.
 tensorflow-cpu~=2.19.0;sys_platform != 'darwin'
-tensorflow~=2.19.0;sys_platform == 'darwin'
-tf_keras~=2.19.0
+tf_keras
 tf2onnx
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0+cpu
+torch==2.6.0+cpu;sys_platform != 'darwin'
+torch==2.6.0;sys_platform == 'darwin'
 torch-xla==2.6.0;sys_platform != 'darwin'
 
 # Jax.
@@ -14,6 +14,9 @@ torch-xla==2.6.0;sys_platform != 'darwin'
 # Note that we test against the latest JAX on GPU.
 jax[cpu]==0.5.0
 flax
+
+# pre-commit checks (formatting, linting, etc.)
+pre-commit
 
 # Common deps.
 -r requirements-common.txt
