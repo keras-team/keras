@@ -18,7 +18,6 @@ NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
-NumpyDtypeTest::test_expm1
 NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
@@ -29,7 +28,6 @@ NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
 NumpyDtypeTest::test_linspace
-NumpyDtypeTest::test_log10
 NumpyDtypeTest::test_log1p
 NumpyDtypeTest::test_log
 NumpyDtypeTest::test_logspace
@@ -86,7 +84,6 @@ NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
-NumpyOneInputOpsCorrectnessTest::test_expm1
 NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
 NumpyOneInputOpsCorrectnessTest::test_hstack
