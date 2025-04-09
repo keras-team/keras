@@ -402,6 +402,9 @@ class CompositeLayerTest(testing.TestCase):
         # Symbolic call
         input = Input(shape=(20,), batch_size=8)
         out_val = recreated_layer(input)
+        # Test with a different batch size:
+        # The layer was first called with batch_size=2
+        # and is now called with batch_size=8
         self.assertEqual(out_val.shape, (8, 10))
 
     def test_class_serialization(self):
@@ -1060,6 +1063,10 @@ class CompositeLayerTest(testing.TestCase):
         ]
         layer.input_spec = input_spec
 
+        # symbolic test
+        x1 = Input((2,))
+        x2 = Input((2,))
+        out = layer([x1, x2])
         # Eager test
         data = np.ones((8, 2))
         out = layer([None, data])
@@ -1072,6 +1079,44 @@ class CompositeLayerTest(testing.TestCase):
             ValueError, "Optional inputs must be declared"
         ):
             out = layer([data, None])
+
+    def test_no_batch_input(self):
+
+        def layer_fn(inputs):
+            x, y, idx = inputs # idx does not have a batch size
+                               # this happens in LLM text generation
+                               # with cache_update_idx
+            start = [0, idx, 0, 0]
+            return ops.slice_update(x, start, y)
+
+        layer = CompositeLayer(layer_fn)
+
+        spec = (InputSpec(shape=(None, 16, 4, 8)),
+                InputSpec(shape=(None, 1, 4, 8)),
+                InputSpec(shape=(), dtype="int32")) # no batch size
+        # input with no batch size defined through manual input_spec
+        layer.input_spec = spec
+
+        #layer(inputs)
+        layer((np.zeros((32, 16, 4, 8)),
+              np.zeros((32, 1, 4, 8)),
+              backend.convert_to_tensor(0)))
+
+        def layer_fn(inputs):
+            x, mul = inputs # mul does not have a batch size
+            return x * mul
+
+        layer = CompositeLayer(layer_fn)
+
+        # input with no batch size defined by calling the layer
+        inputs = (Input(shape=(16,)),
+                 Input(batch_shape=()))
+
+        layer(inputs) # symbolic call
+        # numerical call
+        result = layer((np.ones((32, 16)),
+                        backend.convert_to_tensor(2)))
+        self.assertAllClose(result, np.ones((32, 16)) * 2)        
 
     # Keeping this as a manual test so that pydot
     # and graphvizare not required for testing.

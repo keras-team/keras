@@ -10,6 +10,7 @@ from keras.src.models.functional import function_from_config
 from keras.src.models.functional import run_through_graph_with_training_and_mask
 from keras.src.models.functional import serialize_functional_config
 from keras.src.ops.function import Function
+from keras.src.utils import tracking
 
 
 @keras_export(["keras.layers.CompositeLayer"])
@@ -175,10 +176,9 @@ class CompositeLayer(Layer):
         assert not isinstance(self._arg_layers, Function)
 
         def spec_to_input(spec):
-            # InputSpec shapes have batch size as first
-            # dimension but InputLayer shapes do not.
+            # InputSpec shapes have batch size as first dim
             return Input(
-                shape=spec.shape[1:],
+                batch_shape=spec.shape,
                 dtype=spec.dtype,
                 name=spec.name,
                 optional=spec.optional,
@@ -190,10 +190,12 @@ class CompositeLayer(Layer):
             # optional inputs (set with InputSpec(optional=True)
             inputs = tree.map_structure(spec_to_input, self.input_spec)
         else:
-            # In this code path, there are no optional inputs and
-            # input_shape cannot have None fields.
+            # In this code path, there are no optional inputs.
             inputs = tree.map_shape_structure(
-                lambda x: Input(shape=x[1:], dtype=self.input_dtype),
+                # Force the batch size to None wherever possible
+                lambda shape: Input(batch_shape=(None,)+tuple(shape[1:])
+                                   if len(shape)>=1 else shape,
+                                   dtype=self.input_dtype),
                 input_shape,
             )
 
@@ -326,4 +328,18 @@ class CompositeLayer(Layer):
 
     @input_spec.setter
     def input_spec(self, value):
-        self._manual_input_spec = value
+            self._manual_input_spec = value
+
+    # Workaroubd for the fact that during input_spec assignemnt,
+    # Layer.__setattr__ is called first which wraps the assigned 
+    # value in a TrackableList, which then interferes with
+    # _function._assert_input_compatibility. This cannot be fixed
+    # by adding DotNotTrackScope in input_spec.setter because
+    # Layer.__setattr__ is called before input_spec setter.
+    def __setattr__(self, name, value):
+        if name == "input_spec":
+            with tracking.DotNotTrackScope():
+                return super().__setattr__(name, value)
+        return super().__setattr__(name, value)
+        
+            
