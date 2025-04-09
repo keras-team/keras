@@ -850,9 +850,22 @@ def imag(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    raise NotImplementedError(
-        "`isclose` is not supported with openvino backend"
-    )
+    dtype = OPENVINO_DTYPES[config.floatx()]
+
+    x1 = ov_opset.convert(get_ov_output(x1), dtype)
+    x2 = ov_opset.convert(get_ov_output(x2), dtype)
+    rtol = ov_opset.convert(get_ov_output(rtol), dtype)
+    atol = ov_opset.convert(get_ov_output(atol), dtype)
+
+    abs_diff = ov_opset.abs(x1 - x2)
+    abs_x2 = ov_opset.abs(x2)
+    total_tolerance = atol + rtol * abs_x2
+    is_close = ov_opset.less_equal(abs_diff, total_tolerance)
+    if equal_nan:
+        both_nan = ov_opset.logical_and(ov_opset.isnan(x1), ov_opset.isnan(x2))
+        is_close = ov_opset.logical_or(is_close, both_nan)
+
+    return OpenVINOKerasTensor(is_close.output(0))
 
 
 def isfinite(x):
