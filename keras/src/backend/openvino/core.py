@@ -73,7 +73,10 @@ def get_ov_output(x, ov_type=None):
             ov_type = Type.i32
         x = ov_opset.constant(x, ov_type).output(0)
     elif isinstance(x, np.ndarray):
-        x = ov_opset.constant(x).output(0)
+        if x.dtype == np.dtype("bfloat16"):
+            x = ov_opset.constant(x, OPENVINO_DTYPES["bfloat16"]).output(0)
+        else:
+            x = ov_opset.constant(x).output(0)
     elif np.isscalar(x):
         x = ov_opset.constant(x).output(0)
     elif isinstance(x, KerasVariable):
@@ -615,3 +618,12 @@ def custom_gradient(fun):
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
         return outputs
+
+
+def remat(f):
+    warnings.warn(
+        "Rematerialization memory optimization is not supported by the "
+        "OpenVino backend. Please switch to JAX, TensorFlow, or PyTorch to "
+        "utilize this feature."
+    )
+    return f

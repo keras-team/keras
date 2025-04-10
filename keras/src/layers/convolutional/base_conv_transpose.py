@@ -186,7 +186,6 @@ class BaseConvTranspose(Layer):
             )
         else:
             self.bias = None
-        self.built = True
 
     def call(self, inputs):
         outputs = ops.conv_transpose(

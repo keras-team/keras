@@ -762,8 +762,51 @@ class SavingTest(testing.TestCase):
         self.assertLen(model.layers, 3)  # Input + 2 Dense layers
         self._test_inference_after_instantiation(model)
 
+    @parameterized.named_parameters(
+        ("efficientnet_b0_512", "efficientnet_b0", 1),  # Only 1 sharded file.
+        ("efficientnet_b0_10", "efficientnet_b0", 0.01),
+    )
+    def test_weights_sharding(self, model_name, max_shard_size):
+        from keras.src.applications import efficientnet
 
-@pytest.mark.requires_trainable_backend
+        if backend.image_data_format() == "channels_last":
+            shape = (224, 224, 3)
+        else:
+            shape = (3, 224, 224)
+
+        if model_name == "efficientnet_b0":
+            model_fn = efficientnet.EfficientNetB0
+
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "mymodel.weights.json")
+        )
+        model = model_fn(weights=None, input_shape=shape)
+        ref_input = np.random.random((1, *shape)).astype("float32")
+        ref_output = model.predict(ref_input)
+
+        # Save the sharded files.
+        saving_lib.save_weights_only(
+            model, temp_filepath, max_shard_size=max_shard_size
+        )
+        self.assertIn("mymodel.weights.json", os.listdir(temp_filepath.parent))
+        if max_shard_size == 512:
+            # 1 sharded file + 1 config file = 2.
+            self.assertLen(os.listdir(temp_filepath.parent), 2)
+        elif max_shard_size == 10:
+            # 3 sharded file + 1 config file = 4.
+            self.assertLen(os.listdir(temp_filepath.parent), 4)
+
+        with open(temp_filepath, "r") as f:
+            sharding_config = json.load(f)
+        self.assertIn("metadata", sharding_config)
+        self.assertIn("weight_map", sharding_config)
+
+        # Instantiate new model and load the sharded files.
+        model = model_fn(weights=None, input_shape=shape)
+        saving_lib.load_weights_only(model, temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+
 class SavingAPITest(testing.TestCase):
     def test_saving_api_errors(self):
         from keras.src.saving import saving_api
@@ -1101,3 +1144,194 @@ class SavingBattleTest(testing.TestCase):
             model = _get_basic_functional_model()
             model.save_weights(temp_filepath)
             model.load_weights(temp_filepath)
+
+
+class SavingH5IOStoreTest(testing.TestCase):
+    def test_h5_io_store_basics(self):
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))
+
+        # Pre-defined data.
+        a = np.random.random((2, 4)).astype("float32")
+        b = np.random.random((4, 8)).astype("int32")
+
+        # Set.
+        store = saving_lib.H5IOStore(temp_filepath, mode="w")
+        vars_store = store.make("vars")
+        vars_store["a"] = a
+        vars_store["b"] = b
+        vars_store["c"] = 42
+        self.assertAllClose(vars_store["a"], a)
+        self.assertAllClose(vars_store["b"], b)
+        self.assertEqual(int(vars_store["c"][()]), 42)
+
+        # Delete.
+        del vars_store["c"]
+
+        # Contain.
+        self.assertNotIn("c", vars_store)
+
+        store.close()
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Get.
+        store = saving_lib.H5IOStore(temp_filepath, mode="r")
+        vars_store = store.get("vars")
+        self.assertAllClose(vars_store["a"], a)
+        self.assertAllClose(vars_store["b"], b)
+        self.assertNotIn("c", vars_store)
+
+    def test_h5_io_store_lora(self):
+        # For `keras_hub.models.backbone.save_lora_weights` and
+        # `keras_hub.models.backbone.load_lora_weights`
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "layer.lora.h5"))
+        layer = keras.layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.enable_lora(4)
+
+        ref_input = np.random.random((1, 8)).astype("float32")
+        ref_output = layer(ref_input)
+
+        # Save the LoRA weights.
+        store = saving_lib.H5IOStore(temp_filepath, mode="w")
+        lora_store = store.make("lora")
+        lora_store["rank"] = layer.lora_rank
+        inner_store = store.make("lora/0")
+        inner_store["lora_kernel_a"] = layer.lora_kernel_a
+        inner_store["lora_kernel_b"] = layer.lora_kernel_b
+        store.close()
+
+        # Load the LoRA weights.
+        revived_layer = keras.layers.Dense(units=16)
+        revived_layer.build((None, 8))
+        store = saving_lib.H5IOStore(temp_filepath, mode="r")
+        lora_store = store.get("lora")
+        revived_layer.enable_lora(int(lora_store["rank"][()]))
+        lora_kernel_a = store.get("lora/0")["lora_kernel_a"]
+        lora_kernel_b = store.get("lora/0")["lora_kernel_b"]
+        revived_layer._kernel.assign(layer._kernel)
+        revived_layer.bias.assign(layer.bias)
+        revived_layer.lora_kernel_a.assign(lora_kernel_a)
+        revived_layer.lora_kernel_b.assign(lora_kernel_b)
+        self.assertAllClose(revived_layer(ref_input), ref_output, atol=1e-6)
+
+    def test_h5_io_store_exception_raised(self):
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))
+
+        # Bad `path_or_io`.
+        with self.assertRaisesRegex(
+            TypeError,
+            (
+                r"`path_or_io` should be a `str`, `pathlib.Path` or "
+                r"`io.BytesIO` object."
+            ),
+        ):
+            saving_lib.H5IOStore(None, mode="w")
+
+        # Bad `mode`.
+        with self.assertRaisesRegex(
+            ValueError, r"`mode` should be either 'w' or 'r'."
+        ):
+            saving_lib.H5IOStore(temp_filepath, mode="x")
+
+        # No archive when using `io.BytesIO` as `path_or_io`.
+        with self.assertRaisesRegex(
+            ValueError,
+            (
+                r"When `path_or_io` is an `io.BytesIO` object, `archive` "
+                r"should be `None`."
+            ),
+        ):
+            saving_lib.H5IOStore(BytesIO(), archive="archive", mode="w")
+
+        store = saving_lib.H5IOStore(temp_filepath, mode="w")
+
+        # Bad `metadata`.
+        with self.assertRaisesRegex(
+            ValueError, r"`metadata` should be a dict or `None`."
+        ):
+            store.make("vars", metadata="metadata")
+
+        store.close()
+
+        store = saving_lib.H5IOStore(temp_filepath, mode="r")
+        vars_store = store.get("vars")
+
+        # Set in read mode.
+        with self.assertRaisesRegex(
+            ValueError, r"Setting a value is only allowed in write mode."
+        ):
+            vars_store["weights"] = np.random.random((2, 4)).astype("float32")
+
+        # Delete in read mode.
+        with self.assertRaisesRegex(
+            ValueError, r"Deleting a value is only allowed in write mode."
+        ):
+            del vars_store["weights"]
+
+    def test_sharded_h5_io_store_basics(self):
+        name = "sharded_store"
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), f"{name}.json"))
+
+        # Pre-defined data.
+        a = np.random.random((2, 4)).astype("float32")
+        b = np.random.random((4, 8)).astype("int32")
+
+        # Set.
+        store = saving_lib.ShardedH5IOStore(temp_filepath, mode="w")
+        vars_store = store.make("vars")
+        vars_store["a"] = a
+        vars_store["b"] = b
+        vars_store["c"] = 42
+        self.assertAllClose(vars_store["a"], a)
+        self.assertAllClose(vars_store["b"], b)
+        self.assertEqual(int(vars_store["c"][()]), 42)
+
+        # Delete.
+        del vars_store["c"]
+
+        # Contain.
+        self.assertNotIn("c", vars_store)
+
+        store.close()
+        self.assertTrue(os.path.exists(temp_filepath))
+        self.assertTrue(
+            os.path.exists(temp_filepath.with_name(f"{name}_00000.weights.h5"))
+        )
+
+        # Get.
+        store = saving_lib.ShardedH5IOStore(temp_filepath, mode="r")
+        vars_store = store.get("vars")
+        self.assertAllClose(vars_store["a"], a)
+        self.assertAllClose(vars_store["b"], b)
+        self.assertNotIn("c", vars_store)
+
+    def test_sharded_h5_io_store_exception_raised(self):
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))
+
+        # Bad `path_or_io`.
+        with self.assertRaisesRegex(
+            TypeError,
+            r"`path_or_io` should be a `str`, `pathlib.Path` object. ",
+        ):
+            saving_lib.ShardedH5IOStore(None, mode="w")
+
+        # Bad `mode`.
+        with self.assertRaisesRegex(
+            ValueError, r"`mode` should be either 'w' or 'r'."
+        ):
+            saving_lib.ShardedH5IOStore(temp_filepath, mode="x")
+
+        store = saving_lib.ShardedH5IOStore(
+            temp_filepath, max_shard_size=0.00001, mode="w"
+        )
+        vars_store = store.make("vars")
+
+        # Too large data.
+        with self.assertRaisesRegex(
+            ValueError, r"exceeds the maximum shard size"
+        ):
+            vars_store["weights"] = np.random.random((100, 100)).astype(
+                "float32"
+            )
+
+        store.close()

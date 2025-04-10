@@ -10,6 +10,7 @@ from keras.src.backend import standardize_data_format
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
+from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
@@ -2544,6 +2545,7 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
         flash_attention=None,
+        attn_logits_soft_cap=None,
     ):
         return backend.nn.dot_product_attention(
             query,
@@ -2554,6 +2556,7 @@ class DotProductAttention(Operation):
             scale=scale,
             is_causal=self.is_causal,
             flash_attention=flash_attention,
+            attn_logits_soft_cap=attn_logits_soft_cap,
         )
 
     def compute_output_spec(
@@ -2565,6 +2568,7 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
         flash_attention=None,
+        attn_logits_soft_cap=None,
     ):
         return KerasTensor(query.shape, dtype=query.dtype)
 
@@ -2581,6 +2585,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     """Scaled dot product attention function.
 
@@ -2619,6 +2624,9 @@ def dot_product_attention(
             attempt to use flash attention if the required conditions are met.
             Typically, the inputs must be in float16 and bfloat16 dtype and the
             input layout requirements may vary depending on the backend.
+        attn_logits_soft_cap: The value limit for maximum value of the
+            attention logits before the softmax function is applied. This is
+            only supported in JAX TPU backend. Defaults to None.
 
     Returns:
         An array of the attention output with the same shape of `query`.
@@ -2631,6 +2639,21 @@ def dot_product_attention(
     >>> keras.ops.nn.dot_product_attention(query, key, value).shape
     (2, 4, 8, 16)
     """
+    if attn_logits_soft_cap is not None:
+        if backend.backend() == "jax":
+            import jax
+
+            if jax.devices()[0].platform != "tpu":
+                raise ValueError(
+                    "attn_logits_soft_cap is only supported for JAX on TPU. "
+                    "Set attn_logits_soft_cap=None when not using JAX on TPU."
+                )
+        else:
+            raise ValueError(
+                "attn_logits_soft_cap is only supported for JAX on TPU. "
+                "Set attn_logits_soft_cap=None when not using JAX on TPU."
+            )
+
     if any_symbolic_tensors((query, key, value)):
         return DotProductAttention(is_causal=is_causal).symbolic_call(
             query,
@@ -2640,6 +2663,7 @@ def dot_product_attention(
             mask=mask,
             scale=scale,
             flash_attention=flash_attention,
+            attn_logits_soft_cap=attn_logits_soft_cap,
         )
     return backend.nn.dot_product_attention(
         query,
@@ -2650,4 +2674,151 @@ def dot_product_attention(
         scale=scale,
         is_causal=is_causal,
         flash_attention=flash_attention,
+        attn_logits_soft_cap=attn_logits_soft_cap,
     )
+
+
+class RMSNorm(Operation):
+    def __init__(self, scale, axis=-1, epsilon=None):
+        super().__init__()
+        self.axis = axis
+        self.scale = scale
+        self.epsilon = epsilon
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape)
+
+    def call(self, x):
+        return _rms_normalization(
+            x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
+        )
+
+
+@keras_export(
+    [
+        "keras.ops.rms_normalization",
+        "keras.ops.nn.rms_normalization",
+    ]
+)
+def rms_normalization(x, scale=1, axis=-1, epsilon=None):
+    """Performs Root Mean Square (RMS) normalization on `x`.
+
+    The Keras operation implements the operation as described in
+    [Root Mean Square Layer Normalization](https://arxiv.org/pdf/1910.07467)
+    by Biao Zhang et al.
+
+    The operation is different from LayerNormalization with RMS scaling.
+
+    It is defined as `rms_normalization(x) = x * rsqrt(mean(square(x))) * scale`
+
+    Args:
+        x: Input tensor.
+        axis: The axis or axes along which to perform normalization.
+            Default to -1.
+        scale: Optional scaling factor for the normalization.
+        epsilon: A lower bound value for the norm.
+            Defaults to `backend.epsilon()`.
+
+    Returns:
+        The normalized array.
+
+    Example:
+
+    >>> x = np.random.rand(1, 10)
+    >>> x_norm = keras.ops.rms_normalization(x, (10,))
+    >>> print(x_norm)
+    array([[0.69384296, 0.94444374, 0.16551171, 0.05749961, 1.11008865,
+        0.52475186, 1.57686807, 1.69893307, 1.27292764, 0.30819128]])
+    """
+    if any_symbolic_tensors((x,)):
+        return RMSNorm(scale=scale, axis=axis, epsilon=epsilon).symbolic_call(x)
+    return _rms_normalization(x, scale=scale, axis=axis, epsilon=epsilon)
+
+
+def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) == 0:
+        x = backend.numpy.expand_dims(x, axis=0)
+    if epsilon is None:
+        epsilon = backend.epsilon()
+
+    if not is_keras_tensor(scale):
+        scale = backend.convert_to_tensor(scale, dtype=x.dtype)
+    if not is_keras_tensor(epsilon):
+        epsilon = backend.convert_to_tensor(epsilon, dtype=x.dtype)
+
+    rrms = backend.math.rsqrt(
+        backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)
+        + epsilon
+    )
+    return (x * rrms) * scale
+
+
+class Polar(Operation):
+    def __init__(self):
+        super().__init__()
+
+    def compute_output_spec(self, abs_, angle):
+        return KerasTensor(shape=abs_.shape)
+
+    def call(self, x):
+        return _polar(x)
+
+
+@keras_export(["keras.ops.polar", "keras.ops.nn.polar"])
+def polar(abs_, angle):
+    """Constructs a complex tensor whose elements are Cartesian
+    coordinates corresponding to the polar coordinates
+    with absolute value `abs` and angle `angle`.
+
+    The operation is numerically equivalent to `torch.polar()`.
+    It is not equivalent to `scipy.lingalg.polar()` which performs
+    Singular Value Decomposition.
+
+    Given the magnitude (`abs_`) and angle (`angle`), this function computes the
+    corresponding complex number in the form of `real + imaginary * 1j`, where:
+    - `real = abs_ * cos(angle)`
+    - `imaginary = abs_ * sin(angle)`
+
+    Args:
+        abs_: The magnitude (absolute value) of the complex number.
+        angle: The angle (in radians) of the complex number.
+
+    Returns:
+        A complex number (or array of complex numbers) with the same shape as
+        `abs_` and `angle`.
+
+    Example:
+
+    >>> abs_ = keras.random.normal((1, 2))
+    >>> angle = keras.random.normal((1, 2))
+    >>> keras.ops.nn.polar(abs_, angle).shape
+    (1, 2)
+    >>> keras.ops.nn.polar(abs_, angle)
+    Array([[0.63185346-0.59370506j, 0.48960376-0.31677645j]], dtype=complex64)
+    """
+    if any_symbolic_tensors((abs_, angle)):
+        return Polar().symbolic_call(abs_, angle)
+    return _polar(abs_, angle)
+
+
+def _polar(abs_, angle):
+    """Internal implementation of the polar function.
+
+    Args:
+        abs_: The magnitude (absolute value) of the complex number.
+        angle: The angle (in radians) of the complex number.
+
+    Returns:
+        A complex number (or array of complex numbers) with the same shape as
+        `abs_` and `angle`.
+    """
+    abs_ = backend.convert_to_tensor(abs_)
+    angle = backend.convert_to_tensor(angle)
+
+    real = abs_ * backend.numpy.cos(angle)
+    imaginary = abs_ * backend.numpy.sin(angle)
+
+    result = backend.math._get_complex_tensor_from_tuple((real, imaginary))
+
+    return result

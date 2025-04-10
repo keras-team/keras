@@ -77,7 +77,6 @@ class AdditiveAttention(Attention):
                 dtype=self.dtype,
                 trainable=True,
             )
-        self.built = True
 
     def _calculate_scores(self, query, key):
         """Calculates attention scores as a nonlinear sum of query and key.

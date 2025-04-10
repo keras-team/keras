@@ -10,7 +10,6 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validatio
     densify_bounding_boxes,
 )
 from keras.src.random.seed_generator import SeedGenerator
-from keras.src.utils import backend_utils
 
 
 @keras_export("keras.layers.RandomCrop")
@@ -124,9 +123,6 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            if backend_utils.in_tf_graph():
-                self.backend.set_backend("tensorflow")
-
             images = self.backend.cast(images, self.compute_dtype)
             crop_box_hstart, crop_box_wstart = transformation
             if self.backend.name == "mlx":
@@ -184,8 +180,6 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 )
                 # Resize may have upcasted the outputs
                 images = self.backend.cast(images, self.compute_dtype)
-
-            self.backend.reset()
         return images
 
     def transform_labels(self, labels, transformation, training=True):

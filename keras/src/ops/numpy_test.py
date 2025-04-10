@@ -20,59 +20,68 @@ from keras.src.testing.test_utils import named_product
 
 
 class NumPyTestRot90(testing.TestCase):
-    def test_basic(self):
-        array = np.array([[1, 2], [3, 4]])
+    def test_basic_rotation(self):
+        array = np.array([[1, 2, 3], [4, 5, 6]])
         rotated = knp.rot90(array)
-        expected = np.array([[2, 4], [1, 3]])
+        expected = np.rot90(array)
         self.assertAllClose(rotated, expected)
 
-    def test_multiple_k(self):
+    @parameterized.named_parameters(
+        ("k_0", 0, [[1, 2], [3, 4]]),
+        ("k_1", 1, [[2, 4], [1, 3]]),
+        ("k_2", 2, [[4, 3], [2, 1]]),
+        ("k_neg1", -1, [[3, 1], [4, 2]]),
+        ("k_5", 5, [[2, 4], [1, 3]]),  # k=5 ≡ k=1 (mod 4)
+        ("k_6", 6, [[4, 3], [2, 1]]),  # k=6 ≡ k=2 (mod 4)
+    )
+    def test_k_parameter_variations(self, k, expected):
         array = np.array([[1, 2], [3, 4]])
+        rotated = knp.rot90(array, k=k)
+        expected = np.array(expected)
+        self.assertAllClose(rotated, expected)
+        print(k)
 
-        # k=2 (180 degrees rotation)
-        rotated = knp.rot90(array, k=2)
-        expected = np.array([[4, 3], [2, 1]])
+    @parameterized.named_parameters(
+        ("axes_0_1", (0, 1)), ("axes_1_2", (1, 2)), ("axes_0_2", (0, 2))
+    )
+    def test_3d_operations(self, axes):
+        array_3d = np.arange(12).reshape(3, 2, 2)
+        rotated = knp.rot90(array_3d, axes=axes)
+        expected = np.rot90(array_3d, axes=axes)
         self.assertAllClose(rotated, expected)
 
-        # k=3 (270 degrees rotation)
-        rotated = knp.rot90(array, k=3)
-        expected = np.array([[3, 1], [4, 2]])
+    @parameterized.named_parameters(
+        ("single_image", np.random.random((4, 4, 3))),
+        ("batch_images", np.random.random((2, 4, 4, 3))),
+    )
+    def test_image_processing(self, array):
+        np.random.seed(0)
+        rotated = knp.rot90(array, axes=(0, 1))
+        expected = np.rot90(array, axes=(0, 1))
         self.assertAllClose(rotated, expected)
 
-        # k=4 (full rotation)
-        rotated = knp.rot90(array, k=4)
-        expected = array
+    @parameterized.named_parameters(
+        ("single_row", [[1, 2, 3]]),
+        ("single_column", [[1], [2], [3]]),
+        ("negative_values", [[-1, 0], [1, -2]]),
+    )
+    def test_edge_conditions(self, array):
+        numpy_array = np.array(array)
+        rotated = knp.rot90(numpy_array)
+        expected = np.rot90(numpy_array)
         self.assertAllClose(rotated, expected)
 
-    def test_axes(self):
-        array = np.arange(8).reshape((2, 2, 2))
-        rotated = knp.rot90(array, k=1, axes=(1, 2))
-        expected = np.array([[[1, 3], [0, 2]], [[5, 7], [4, 6]]])
-        self.assertAllClose(rotated, expected)
-
-    def test_single_image(self):
-        array = np.random.random((4, 4, 3))
-        rotated = knp.rot90(array, k=1, axes=(0, 1))
-        expected = np.rot90(array, k=1, axes=(0, 1))
-        self.assertAllClose(rotated, expected)
-
-    def test_batch_images(self):
-        array = np.random.random((2, 4, 4, 3))
-        rotated = knp.rot90(array, k=1, axes=(1, 2))
-        expected = np.rot90(array, k=1, axes=(1, 2))
-        self.assertAllClose(rotated, expected)
-
-    def test_invalid_axes(self):
-        array = np.array([[1, 2], [3, 4]])
-        with self.assertRaisesRegex(ValueError, "Invalid axes"):
-            knp.rot90(array, axes=(0, 0))
-
-    def test_invalid_rank(self):
-        array = np.array([1, 2, 3])  # 1D array
-        with self.assertRaisesRegex(
-            ValueError, "Input array must have at least 2 dimensions"
-        ):
-            knp.rot90(array)
+    @parameterized.named_parameters(
+        ("1D_array", np.array([1, 2, 3]), None),
+        ("duplicate_axes", np.array([[1, 2], [3, 4]]), (0, 0)),
+    )
+    def test_error_conditions(self, array, axes):
+        if axes is None:
+            with self.assertRaises(ValueError):
+                knp.rot90(array)
+        else:
+            with self.assertRaises(ValueError):
+                knp.rot90(array, axes=axes)
 
 
 class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
@@ -1605,6 +1614,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.sign(x).shape, (None, 3))
 
+    def test_signbit(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.signbit(x).shape, (None, 3))
+
     def test_sin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.sin(x).shape, (None, 3))
@@ -2169,6 +2182,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.sign(x).shape, (2, 3))
 
+    def test_signbit(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.signbit(x).shape, (2, 3))
+
     def test_sin(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.sin(x).shape, (2, 3))
@@ -2439,6 +2456,18 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.arctan2(x, y), np.arctan2(x, y))
 
         self.assertAllClose(knp.Arctan2()(x, y), np.arctan2(x, y))
+
+        a = np.array([0.0, 0.0, 0.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0])
+        b = np.array([0.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 0.0, 0.0])
+
+        self.assertAllClose(knp.arctan2(a, b), np.arctan2(a, b))
+        self.assertAllClose(knp.Arctan2()(a, b), np.arctan2(a, b))
+
+        m = np.array([[3, 4], [7, 8]], dtype=np.int8)
+        n = np.array([[1, 2], [3, 4]], dtype=float)
+
+        self.assertAllClose(knp.arctan2(m, n), np.arctan2(m, n))
+        self.assertAllClose(knp.Arctan2()(m, n), np.arctan2(m, n))
 
     def test_bitwise_and(self):
         x = np.array([2, 5, 255])
@@ -4331,6 +4360,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.sign(x), np.sign(x))
         self.assertAllClose(knp.Sign()(x), np.sign(x))
 
+    def test_signbit(self):
+        x = np.array([[0.0, -0.0, -1.1e-45], [1.1e-38, 2, -1]])
+        self.assertAllClose(knp.signbit(x), np.signbit(x))
+        self.assertAllClose(knp.Signbit()(x), np.signbit(x))
+
     def test_sin(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
         self.assertAllClose(knp.sin(x), np.sin(x))
@@ -6220,16 +6254,16 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.BitwiseXor().symbolic_call(x1, x2), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+        named_product(dtypes=itertools.product(INT_DTYPES, INT_DTYPES + [None]))
     )
     def test_bitwise_left_shift(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
+        x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
+        x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(jnp.left_shift(x1_jax, x2_jax).dtype)
 
         self.assertDType(knp.bitwise_left_shift(x1, x2), expected_dtype)
@@ -6240,16 +6274,16 @@ class NumpyDtypeTest(testing.TestCase):
     # left_shift is same as bitwise_left_shift
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+        named_product(dtypes=itertools.product(INT_DTYPES, INT_DTYPES + [None]))
     )
     def test_bitwise_right_shift(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
+        x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
+        x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(
             jnp.right_shift(x1_jax, x2_jax).dtype
         )
@@ -8075,6 +8109,23 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Sign().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_signbit(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.signbit(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.signbit(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Signbit().symbolic_call(x).dtype),
             expected_dtype,
         )
 

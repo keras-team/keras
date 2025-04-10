@@ -34,7 +34,7 @@ class Discretization(TFDataLayer):
             and `[2., +inf)`.
             If this option is set, `adapt()` should not be called.
         num_bins: The integer number of bins to compute.
-            If this option is set,
+            If this option is set, `bin_boundaries` should not be set and
             `adapt()` should be called to learn the bin boundaries.
         epsilon: Error tolerance, typically a small fraction
             close to zero (e.g. 0.01). Higher values of epsilon increase
@@ -130,17 +130,17 @@ class Discretization(TFDataLayer):
                 f"Received: `num_bins={num_bins}`"
             )
         if num_bins is not None and bin_boundaries is not None:
-            if len(bin_boundaries) != num_bins - 1:
-                raise ValueError(
-                    "Both `num_bins` and `bin_boundaries` should not be "
-                    f"set. Received: `num_bins={num_bins}` and "
-                    f"`bin_boundaries={bin_boundaries}`"
-                )
+            raise ValueError(
+                "Both `num_bins` and `bin_boundaries` should not be set. "
+                f"Received: `num_bins={num_bins}` and "
+                f"`bin_boundaries={bin_boundaries}`"
+            )
+        if num_bins is None and bin_boundaries is None:
+            raise ValueError(
+                "You need to set either `num_bins` or `bin_boundaries`."
+            )
 
-        self.input_bin_boundaries = bin_boundaries
-        self.bin_boundaries = (
-            bin_boundaries if bin_boundaries is not None else []
-        )
+        self.bin_boundaries = bin_boundaries
         self.num_bins = num_bins
         self.epsilon = epsilon
         self.output_mode = output_mode
@@ -150,9 +150,6 @@ class Discretization(TFDataLayer):
             self.summary = None
         else:
             self.summary = np.array([[], []], dtype="float32")
-
-    def build(self, input_shape=None):
-        self.built = True
 
     @property
     def input_dtype(self):
@@ -183,7 +180,7 @@ class Discretization(TFDataLayer):
                 repeating dataset, you must specify the `steps` argument. This
                 argument is not supported with array inputs or list inputs.
         """
-        if self.input_bin_boundaries is not None:
+        if self.num_bins is None:
             raise ValueError(
                 "Cannot adapt a Discretization layer that has been initialized "
                 "with `bin_boundaries`, use `num_bins` instead."
@@ -204,14 +201,14 @@ class Discretization(TFDataLayer):
         self.summary = merge_summaries(summary, self.summary, self.epsilon)
 
     def finalize_state(self):
-        if self.input_bin_boundaries is not None:
+        if self.num_bins is None:
             return
         self.bin_boundaries = get_bin_boundaries(
             self.summary, self.num_bins
         ).tolist()
 
     def reset_state(self):
-        if self.input_bin_boundaries is not None:
+        if self.num_bins is None:
             return
         self.summary = np.array([[], []], dtype="float32")
 
@@ -225,6 +222,13 @@ class Discretization(TFDataLayer):
         return
 
     def call(self, inputs):
+        if self.bin_boundaries is None:
+            raise ValueError(
+                "You need to either pass the `bin_boundaries` argument at "
+                "construction time or call `adapt(dataset)` before you can "
+                "start using the `Discretization` layer."
+            )
+
         indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
         return numerical_utils.encode_categorical_inputs(
             indices,
@@ -245,6 +249,23 @@ class Discretization(TFDataLayer):
             "name": self.name,
             "dtype": self.dtype,
         }
+
+    @classmethod
+    def from_config(cls, config, custom_objects=None):
+        if (
+            config.get("bin_boundaries", None) is not None
+            and config.get("num_bins", None) is not None
+        ):
+            # After `adapt` was called, both `bin_boundaries` and `num_bins` are
+            # populated, but `__init__` won't let us create a new layer with
+            # both `bin_boundaries` and `num_bins`. We therefore apply
+            # `bin_boundaries` after creation.
+            config = config.copy()
+            bin_boundaries = config.pop("bin_boundaries")
+            discretization = cls(**config)
+            discretization.bin_boundaries = bin_boundaries
+            return discretization
+        return cls(**config)
 
 
 def summarize(values, epsilon):

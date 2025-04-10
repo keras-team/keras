@@ -338,6 +338,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
     def learning_rate(self, learning_rate):
         self.inner_optimizer.learning_rate = learning_rate
 
+    @property
+    def iterations(self):
+        return self.inner_optimizer.iterations
+
     def scale_loss(self, loss):
         scale = self.dynamic_scale if self.built else self.initial_scale
         return loss * scale

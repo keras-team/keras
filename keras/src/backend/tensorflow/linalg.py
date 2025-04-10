@@ -169,7 +169,7 @@ def qr(x, mode="reduced"):
 
 def solve(a, b):
     # tensorflow.linalg.solve only supports same rank inputs
-    if tf.rank(b) == tf.rank(a) - 1:
+    if b.shape.ndims == a.shape.ndims - 1:
         b = tf.expand_dims(b, axis=-1)
         return tf.squeeze(tf.linalg.solve(a, b), axis=-1)
     return tf.linalg.solve(a, b)

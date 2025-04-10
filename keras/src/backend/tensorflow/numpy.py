@@ -24,7 +24,17 @@ from keras.src.backend.tensorflow.core import shape as shape_op
 
 
 def rot90(array, k=1, axes=(0, 1)):
-    """Rotate an array by 90 degrees in the specified plane."""
+    """Rotate an array by 90 degrees in the specified plane.
+
+    Args:
+        array: Input tensor
+        k: Number of 90-degree rotations (default=1)
+        axes: Tuple of two axes that define the plane of rotation.
+        Defaults to (0, 1).
+
+    Returns:
+        Rotated tensor with correct shape transformation
+    """
     array = convert_to_tensor(array)
 
     if array.shape.rank < 2:
@@ -53,14 +63,26 @@ def rot90(array, k=1, axes=(0, 1)):
 
     shape = tf.shape(array)
     non_rot_shape = shape[:-2]
-    rot_shape = shape[-2:]
+    h, w = shape[-2], shape[-1]
 
-    array = tf.reshape(array, tf.concat([[-1], rot_shape], axis=0))
+    array = tf.reshape(array, tf.concat([[-1], [h, w]], axis=0))
 
-    for _ in range(k):
-        array = tf.transpose(array, [0, 2, 1])
-        array = tf.reverse(array, axis=[1])
-    array = tf.reshape(array, tf.concat([non_rot_shape, rot_shape], axis=0))
+    array = tf.reverse(array, axis=[2])
+    array = tf.transpose(array, [0, 2, 1])
+
+    if k % 2 == 1:
+        final_h, final_w = w, h
+    else:
+        final_h, final_w = h, w
+
+    if k > 1:
+        array = tf.reshape(array, tf.concat([[-1], [final_h, final_w]], axis=0))
+        for _ in range(k - 1):
+            array = tf.reverse(array, axis=[2])
+            array = tf.transpose(array, [0, 2, 1])
+
+    final_shape = tf.concat([non_rot_shape, [final_h, final_w]], axis=0)
+    array = tf.reshape(array, final_shape)
 
     inv_perm = [0] * len(perm)
     for i, p in enumerate(perm):
@@ -837,43 +859,56 @@ def _keepdims(x, y, axis):
 
 
 def argmax(x, axis=None, keepdims=False):
-    x_float = tf.cast(x, tf.float32)
-    is_negative_zero = tf.logical_and(
-        tf.equal(x_float, 0.0),
-        tf.less(
-            tf.bitwise.bitwise_and(
-                tf.bitcast(x_float, tf.int32),
-                # tf.float32 sign bit
-                tf.constant(0x80000000, dtype=tf.int32),
-            ),
-            0,
-        ),
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or x.ndim == 0:
+        _x = x
+        if axis is None:
+            x = tf.reshape(x, [-1])
+        y = tf.argmax(x, axis=axis, output_type="int32")
+        if keepdims:
+            y = _keepdims(_x, y, axis)
+        return y
+
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
+    dtype = dtypes.result_type(dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
+    x = tf.where(
+        is_negative_zero, -np.finfo(standardize_dtype(x.dtype)).tiny, x
     )
-    non_zero_mask = tf.not_equal(x_float, 0.0)
-    masked_abs = (
-        tf.abs(x_float)
-        + (1.0 - tf.cast(non_zero_mask, tf.float32)) * tf.float32.max
-    )
-    min_non_zero = tf.reduce_min(masked_abs) - 1e-9
-    x_adjusted = tf.where(is_negative_zero, -min_non_zero, x_float)
+    _x = x
     if axis is None:
-        x_adjusted = tf.reshape(x_adjusted, [-1])
-        y = tf.argmax(x_adjusted, axis=0, output_type=tf.int32)
-        if keepdims:
-            y = tf.reshape(y, [1, 1])
-    else:
-        rank = tf.rank(x_adjusted)
-        axis_tensor = tf.convert_to_tensor(axis, dtype=tf.int32)
-        positive_axis = tf.cond(
-            axis_tensor < 0, lambda: axis_tensor + rank, lambda: axis_tensor
-        )
-        y = tf.argmax(x_adjusted, axis=positive_axis, output_type=tf.int32)
-        if keepdims:
-            y = tf.expand_dims(y, axis=positive_axis)
+        x = tf.reshape(x, [-1])
+    y = tf.argmax(x, axis=axis, output_type="int32")
+    if keepdims:
+        y = _keepdims(_x, y, axis)
     return y
 
 
 def argmin(x, axis=None, keepdims=False):
+    from keras.src.testing.test_case import uses_cpu
+
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+        _x = x
+        if axis is None:
+            x = tf.reshape(x, [-1])
+        y = tf.argmin(x, axis=axis, output_type="int32")
+        if keepdims:
+            y = _keepdims(_x, y, axis)
+        return y
+
+    # Fix the flush-to-zero (FTZ) issue based on this issue:
+    # https://github.com/jax-ml/jax/issues/24280
+    dtype = dtypes.result_type(dtype, "float32")
+    x = cast(x, dtype)
+    is_negative_zero = tf.logical_and(tf.equal(x, 0.0), signbit(x))
+    x = tf.where(
+        is_negative_zero, -np.finfo(standardize_dtype(x.dtype)).tiny, x
+    )
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
@@ -972,10 +1007,11 @@ def bitwise_xor(x, y):
 
 def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = tf.cast(x, dtype)
-    y = tf.cast(y, dtype)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = tf.cast(x, dtype)
+        y = tf.cast(y, dtype)
     return tf.bitwise.left_shift(x, y)
 
 
@@ -985,10 +1021,11 @@ def left_shift(x, y):
 
 def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = tf.cast(x, dtype)
-    y = tf.cast(y, dtype)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = tf.cast(x, dtype)
+        y = tf.cast(y, dtype)
     return tf.bitwise.right_shift(x, y)
 
 
@@ -2028,6 +2065,26 @@ def sign(x):
 
 
 @sparse.elementwise_unary
+def signbit(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        return tf.fill(tf.shape(x), False)
+    elif "int" in ori_dtype:
+        return x < 0
+    else:
+        x = cast(x, "float32")
+        return tf.less(
+            tf.bitwise.bitwise_and(
+                tf.bitcast(x, tf.int32),
+                # tf.float32 sign bit
+                tf.constant(tf.int32.min, dtype=tf.int32),
+            ),
+            0,
+        )
+
+
+@sparse.elementwise_unary
 def sin(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
@@ -2349,8 +2406,16 @@ def tril(x, k=0):
         mask = i >= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
+    if isinstance(k, int):
+        if k >= 0:
+            return tf.linalg.band_part(x, -1, k)
+        return _negative_k_branch()
+
+    # when `k` is a tensor
     return tf.cond(
-        k >= 0, lambda: tf.linalg.band_part(x, -1, k), _negative_k_branch
+        tf.greater_equal(k, 0),
+        lambda: tf.linalg.band_part(x, -1, k),
+        _negative_k_branch,
     )
 
 
@@ -2364,8 +2429,16 @@ def triu(x, k=0):
         mask = i <= j - k
         return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
 
+    if isinstance(k, int):
+        if k <= 0:
+            return tf.linalg.band_part(x, -k, -1)
+        return _positive_k_branch()
+
+    # when `k` is a tensor
     return tf.cond(
-        k <= 0, lambda: tf.linalg.band_part(x, -k, -1), _positive_k_branch
+        tf.less_equal(k, 0),
+        lambda: tf.linalg.band_part(x, -k, -1),
+        _positive_k_branch,
     )
 
 
