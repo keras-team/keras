@@ -1,3 +1,0 @@
-[console_scripts]
-humanfriendly = humanfriendly.cli:main
-

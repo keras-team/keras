@@ -1,3 +1,0 @@
-functorch
-torch
-torchgen

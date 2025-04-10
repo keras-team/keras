@@ -1,2 +1,0 @@
-flax
-flaxlib_src

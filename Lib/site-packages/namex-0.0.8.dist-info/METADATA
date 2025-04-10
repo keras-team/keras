@@ -1,8 +1,0 @@
-Metadata-Version: 2.1
-Name: namex
-Version: 0.0.8
-Summary: A simple utility to separate the implementation of your Python package and its public API surface.
-Author: Francois Chollet
-Author-email: francois.chollet@gmail.com
-License-File: LICENSE
-

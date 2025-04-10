@@ -1,1 +1,0 @@
-Bx_zero_pointJ

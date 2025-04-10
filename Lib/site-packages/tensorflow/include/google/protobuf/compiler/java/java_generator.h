@@ -1,6 +1,0 @@
-#ifndef GOOGLE_PROTOBUF_COMPILER_JAVA_JAVA_GENERATOR_H_
-#define GOOGLE_PROTOBUF_COMPILER_JAVA_JAVA_GENERATOR_H_
-
-#include <google/protobuf/compiler/java/generator.h>
-
-#endif  // GOOGLE_PROTOBUF_COMPILER_JAVA_JAVA_GENERATOR_H_

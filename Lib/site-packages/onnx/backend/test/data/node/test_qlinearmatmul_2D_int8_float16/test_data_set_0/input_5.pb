@@ -1,1 +1,0 @@
-Bb_zero_pointJó

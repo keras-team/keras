@@ -1,3 +1,0 @@
-syntax = "proto3";
-
-import public "tsl/protobuf/error_codes.proto";

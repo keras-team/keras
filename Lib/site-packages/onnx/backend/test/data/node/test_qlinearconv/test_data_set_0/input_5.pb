@@ -1,1 +1,0 @@
-Bw_zero_pointJÿ
