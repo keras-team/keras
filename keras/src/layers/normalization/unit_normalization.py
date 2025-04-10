@@ -37,7 +37,8 @@ class UnitNormalization(Layer):
                 f"Received: axis={axis}"
             )
         self.supports_masking = True
-        self.built = True
+
+        self._build_at_init()
 
     def call(self, inputs):
         return ops.normalize(inputs, axis=self.axis, order=2, epsilon=1e-12)

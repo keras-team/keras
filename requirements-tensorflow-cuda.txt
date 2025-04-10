@@ -4,9 +4,7 @@ tf2onnx
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.1.0
-torchvision>=0.16.0
-torch-xla
+torch==2.6.0+cpu
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]

@@ -199,7 +199,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if is_tensor(x):
         device = get_device()
         if x.device != device:
-            x = x.to(device)
+            if x.is_meta:
+                x = torch.empty_like(x, device=device)
+            else:
+                x = x.to(device)
         if dtype is None:
             return x
         return x.to(to_torch_dtype(dtype))
@@ -659,6 +662,22 @@ def unstack(x, num=None, axis=0):
 def random_seed_dtype():
     # uint32 doesn't exist in torch, use int32 instead.
     return "int32"
+
+
+def remat(f):
+    """Implementation of rematerialization.
+
+    Args:
+        f: The function or operation to rematerialize.
+    Returns:
+        A function wrapping f that defines a custom gradient, which
+        recomputes f on the backwards pass of a gradient call.
+    """
+
+    def wrapped(*args, **kwargs):
+        return torch.utils.checkpoint.checkpoint(f, *args, use_reentrant=False)
+
+    return wrapped
 
 
 class custom_gradient:

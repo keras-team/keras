@@ -6,8 +6,11 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 from jax import lax
 from jax import nn as jnn
-from jax.experimental.pallas.ops.tpu import (
-    flash_attention as flash_attention_tpu,
+from jax.experimental.pallas.ops.tpu.splash_attention import (
+    splash_attention_kernel,
+)
+from jax.experimental.pallas.ops.tpu.splash_attention import (
+    splash_attention_mask,
 )
 
 from keras.src import backend
@@ -1036,6 +1039,8 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
             )
         return False
 
+    if jax.devices()[0].platform == "tpu":
+        return True
     try:
         # Check if cuDNN is installed and raise RuntimeError if cuDNN is not
         # detected
@@ -1109,6 +1114,44 @@ def _dot_product_attention_core(
     return jnp.einsum("BNTS,BSNH->BTNH", probs, value)
 
 
+def wrap_flash_attention(
+    query,
+    key,
+    value,
+    decoder_segment_ids,
+    custom_mask=None,
+    attn_logits_soft_cap=None,
+):
+    if decoder_segment_ids is not None:
+        assert query.shape[2] == decoder_segment_ids.q.shape[1], (
+            "Sharding along sequence dimension not allowed in tpu kernel "
+            "attention"
+        )
+
+    if custom_mask is not None:
+        mask = splash_attention_mask.NumpyMask(array=custom_mask)
+
+    else:
+        mask = splash_attention_mask.CausalMask(
+            shape=(query.shape[2], query.shape[2])
+        )
+
+    # Create multi-head mask
+    multi_head_mask = splash_attention_mask.MultiHeadMask(
+        masks=(mask,) * query.shape[1]
+    )
+    splash_kernel = splash_attention_kernel.make_splash_mha(
+        mask=multi_head_mask,
+        head_shards=1,
+        q_seq_shards=1,
+        attn_logits_soft_cap=attn_logits_soft_cap,
+    )
+
+    return jax.vmap(splash_kernel)(
+        query, key, value, segment_ids=decoder_segment_ids
+    )
+
+
 def dot_product_attention(
     query,
     key,
@@ -1118,6 +1161,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
@@ -1134,17 +1178,29 @@ def dot_product_attention(
         # Use `raise_error=True` to provide more details if the inputs failed to
         # use flash attention
         _can_use_flash_attention(query, key, value, bias, raise_error=True)
-    if jax.devices()[0].platform == "tpu" and flash_attention:
-        # Use TPU-optimized flash attention from Pallas
-        return flash_attention_tpu(
+
+    if jax.devices()[0].platform == "tpu":
+        # Transpose to ('batch', 'heads', 'length', 'kv')
+        query = jnp.transpose(query, axes=(0, 2, 1, 3))
+        key = jnp.transpose(key, axes=(0, 2, 1, 3))
+        value = jnp.transpose(value, axes=(0, 2, 1, 3))
+        B, H, S, KV = query.shape
+
+        segment_ids = jnp.ones([B, S])
+        # {token_ids, padding_mask, segment_ids} enable packing
+        out = wrap_flash_attention(
             query,
             key,
             value,
-            ab=bias,
-            segment_ids=mask,
-            causal=is_causal,
-            sm_scale=scale,
+            decoder_segment_ids=splash_attention_kernel.SegmentIds(
+                segment_ids, segment_ids
+            ),
+            custom_mask=mask,
+            attn_logits_soft_cap=attn_logits_soft_cap,
         )
+        out = jnp.transpose(out, axes=(0, 2, 1, 3))
+        return out
+
     # `dot_product_attention` is only available in jax>=0.4.31
     if hasattr(jax.nn, "dot_product_attention"):
         return jax.nn.dot_product_attention(

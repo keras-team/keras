@@ -87,9 +87,11 @@ from keras.src.ops.nn import moments
 from keras.src.ops.nn import multi_hot
 from keras.src.ops.nn import normalize
 from keras.src.ops.nn import one_hot
+from keras.src.ops.nn import polar
 from keras.src.ops.nn import psnr
 from keras.src.ops.nn import relu
 from keras.src.ops.nn import relu6
+from keras.src.ops.nn import rms_normalization
 from keras.src.ops.nn import selu
 from keras.src.ops.nn import separable_conv
 from keras.src.ops.nn import sigmoid
@@ -231,6 +233,7 @@ from keras.src.ops.numpy import round
 from keras.src.ops.numpy import searchsorted
 from keras.src.ops.numpy import select
 from keras.src.ops.numpy import sign
+from keras.src.ops.numpy import signbit
 from keras.src.ops.numpy import sin
 from keras.src.ops.numpy import sinh
 from keras.src.ops.numpy import size

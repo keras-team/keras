@@ -10,16 +10,16 @@ from keras.src.utils.module_utils import torch_xla
 
 
 class TorchExportArchive:
-    def track(self, resource):
+    def _track_layer(self, layer):
         raise NotImplementedError(
-            "`track` is not implemented in the torch backend. Use"
-            "`track_and_add_endpoint` instead."
+            "`track` is not supported for `Layer`s and `Model`s in the torch "
+            "backend. Use `track_and_add_endpoint` instead."
         )
 
     def add_endpoint(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
-            "`add_endpoint` is not implemented in the torch backend. Use"
-            "`track_and_add_endpoint` instead."
+            "`add_endpoint` is not supported for `Layer`s and `Model`s in the "
+            "torch backend. Use `track_and_add_endpoint` instead."
         )
 
     def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):

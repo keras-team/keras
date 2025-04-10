@@ -5,6 +5,7 @@ import jax.numpy as jnp
 
 from keras.src import backend
 from keras.src.backend.jax.core import convert_to_tensor
+from keras.src.random.seed_generator import draw_seed
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -464,7 +465,7 @@ def affine_transform(
     # transform the indices
     coordinates = jnp.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = jnp.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += jnp.reshape(a=offset, shape=(*offset.shape, 1, 1, 1))
+    coordinates += jnp.reshape(offset, shape=(*offset.shape, 1, 1, 1))
 
     # apply affine transformation
     _map_coordinates = functools.partial(
@@ -489,6 +490,152 @@ MAP_COORDINATES_FILL_MODES = {
     "mirror",
     "reflect",
 }
+
+
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    if start_points.shape[-2:] != (4, 2) or start_points.ndim not in (2, 3):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if end_points.shape[-2:] != (4, 2) or end_points.ndim not in (2, 3):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+    if start_points.shape != end_points.shape:
+        raise ValueError(
+            "start_points and end_points must have the same shape."
+            f" Received start_points.shape={start_points.shape}, "
+            f"end_points.shape={end_points.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = jnp.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if len(start_points.shape) == 2:
+        start_points = jnp.expand_dims(start_points, axis=0)
+    if len(end_points.shape) == 2:
+        end_points = jnp.expand_dims(end_points, axis=0)
+
+    if data_format == "channels_first":
+        images = jnp.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+    transforms = compute_homography_matrix(
+        jnp.asarray(start_points, dtype="float32"),
+        jnp.asarray(end_points, dtype="float32"),
+    )
+
+    x, y = jnp.meshgrid(jnp.arange(width), jnp.arange(height), indexing="xy")
+    grid = jnp.stack([x.ravel(), y.ravel(), jnp.ones_like(x).ravel()], axis=0)
+
+    def transform_coordinates(transform):
+        denom = transform[6] * grid[0] + transform[7] * grid[1] + 1.0
+        x_in = (
+            transform[0] * grid[0] + transform[1] * grid[1] + transform[2]
+        ) / denom
+        y_in = (
+            transform[3] * grid[0] + transform[4] * grid[1] + transform[5]
+        ) / denom
+        return jnp.stack([y_in, x_in], axis=0)
+
+    transformed_coords = jax.vmap(transform_coordinates)(transforms)
+
+    def interpolate_image(image, coords):
+        def interpolate_channel(channel_img):
+            return jax.scipy.ndimage.map_coordinates(
+                channel_img,
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                mode="constant",
+                cval=fill_value,
+            ).reshape(height, width)
+
+        return jax.vmap(interpolate_channel, in_axes=0)(
+            jnp.moveaxis(image, -1, 0)
+        )
+
+    output = jax.vmap(interpolate_image, in_axes=(0, 0))(
+        images, transformed_coords
+    )
+    output = jnp.moveaxis(output, 1, -1)
+
+    if data_format == "channels_first":
+        output = jnp.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = jnp.squeeze(output, axis=0)
+
+    return output
+
+
+def compute_homography_matrix(start_points, end_points):
+    start_x, start_y = start_points[..., 0], start_points[..., 1]
+    end_x, end_y = end_points[..., 0], end_points[..., 1]
+
+    zeros = jnp.zeros_like(end_x)
+    ones = jnp.ones_like(end_x)
+
+    x_rows = jnp.stack(
+        [
+            end_x,
+            end_y,
+            ones,
+            zeros,
+            zeros,
+            zeros,
+            -start_x * end_x,
+            -start_x * end_y,
+        ],
+        axis=-1,
+    )
+    y_rows = jnp.stack(
+        [
+            zeros,
+            zeros,
+            zeros,
+            end_x,
+            end_y,
+            ones,
+            -start_y * end_x,
+            -start_y * end_y,
+        ],
+        axis=-1,
+    )
+
+    coefficient_matrix = jnp.concatenate([x_rows, y_rows], axis=1)
+
+    target_vector = jnp.expand_dims(
+        jnp.concatenate([start_x, start_y], axis=-1), axis=-1
+    )
+
+    homography_matrix = jnp.linalg.solve(coefficient_matrix, target_vector)
+
+    return homography_matrix.squeeze(-1)
 
 
 def map_coordinates(
@@ -522,3 +669,193 @@ def map_coordinates(
     return jax.scipy.ndimage.map_coordinates(
         inputs, coordinates, order, fill_mode, fill_value
     )
+
+
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    def _create_gaussian_kernel(kernel_size, sigma, dtype):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = jnp.arange(size, dtype=dtype) - (size - 1) / 2
+            kernel1d = jnp.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / jnp.sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return jnp.outer(kernel1d_y, kernel1d_x)
+
+        kernel = _get_gaussian_kernel2d(kernel_size, sigma)[
+            jnp.newaxis, jnp.newaxis, :, :
+        ]
+        return kernel
+
+    images = convert_to_tensor(images)
+    sigma = convert_to_tensor(sigma)
+    dtype = images.dtype
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images[jnp.newaxis, ...]
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        images = jnp.transpose(images, (0, 3, 1, 2))
+
+    num_channels = images.shape[1]
+    kernel = _create_gaussian_kernel(kernel_size, sigma, dtype)
+
+    kernel = jnp.tile(kernel, (num_channels, 1, 1, 1))
+
+    blurred_images = jax.lax.conv_general_dilated(
+        images,
+        kernel,
+        window_strides=(1, 1),
+        padding="SAME",
+        dimension_numbers=("NCHW", "OIHW", "NCHW"),
+        feature_group_count=num_channels,
+    )
+
+    if data_format == "channels_last":
+        blurred_images = jnp.transpose(blurred_images, (0, 2, 3, 1))
+
+    if need_squeeze:
+        blurred_images = blurred_images.squeeze(axis=0)
+
+    return blurred_images
+
+
+def elastic_transform(
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
+    seed=None,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Expected of one "
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
+        )
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    images = convert_to_tensor(images)
+    alpha = convert_to_tensor(alpha)
+    sigma = convert_to_tensor(sigma)
+    input_dtype = images.dtype
+    kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = jnp.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        batch_size, height, width, channels = images.shape
+        channel_axis = -1
+    else:
+        batch_size, channels, height, width = images.shape
+        channel_axis = 1
+
+    seed = draw_seed(seed)
+    dx = (
+        jax.random.normal(
+            seed, shape=(batch_size, height, width), dtype=input_dtype
+        )
+        * sigma
+    )
+    dy = (
+        jax.random.normal(
+            seed, shape=(batch_size, height, width), dtype=input_dtype
+        )
+        * sigma
+    )
+
+    dx = gaussian_blur(
+        jnp.expand_dims(dx, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+    dy = gaussian_blur(
+        jnp.expand_dims(dy, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+
+    dx = jnp.squeeze(dx)
+    dy = jnp.squeeze(dy)
+
+    x, y = jnp.meshgrid(jnp.arange(width), jnp.arange(height))
+    x, y = x[None, :, :], y[None, :, :]
+
+    distorted_x = x + alpha * dx
+    distorted_y = y + alpha * dy
+
+    transformed_images = jnp.zeros_like(images)
+
+    if data_format == "channels_last":
+        for i in range(channels):
+            transformed_images = transformed_images.at[..., i].set(
+                jnp.stack(
+                    [
+                        map_coordinates(
+                            images[b, ..., i],
+                            [distorted_y[b], distorted_x[b]],
+                            order=AFFINE_TRANSFORM_INTERPOLATIONS[
+                                interpolation
+                            ],
+                            fill_mode=fill_mode,
+                            fill_value=fill_value,
+                        )
+                        for b in range(batch_size)
+                    ]
+                )
+            )
+    else:
+        for i in range(channels):
+            transformed_images = transformed_images.at[:, i, :, :].set(
+                jnp.stack(
+                    [
+                        map_coordinates(
+                            images[b, i, ...],
+                            [distorted_y[b], distorted_x[b]],
+                            order=AFFINE_TRANSFORM_INTERPOLATIONS[
+                                interpolation
+                            ],
+                            fill_mode=fill_mode,
+                            fill_value=fill_value,
+                        )
+                        for b in range(batch_size)
+                    ]
+                )
+            )
+
+    if need_squeeze:
+        transformed_images = jnp.squeeze(transformed_images, axis=0)
+    transformed_images = transformed_images.astype(input_dtype)
+
+    return transformed_images
