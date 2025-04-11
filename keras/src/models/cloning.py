@@ -192,7 +192,12 @@ def clone_model(
             #       It would represent the cloned CompositeLayer with
             #       the correct class name but not call the __init__
             #       method of the subclass which could create problems.
-            return CompositeLayer(function, model.name)
+            new_model = CompositeLayer(function, model.name)
+
+            # copy manual input spec if any
+            if hasattr(model, "_manual_input_spec"):
+                new_model.input_spec = model.input_spec
+            return new_model
 
         # If the get_config() method is the same as a regular Functional
         # model, we're safe to use _clone_function_object (which relies
@@ -402,6 +407,12 @@ def _clone_function_object(
             f"Received: clone_function={clone_function}"
         )
 
+    if function_obj is None:
+        raise ValueError(
+            "The model has no graph of layers. It is probably not built yet. "
+            "Please build it by calling it on a batch of data before calling "
+            "clone_model."
+        )
     if not isinstance(function_obj, Function):
         raise ValueError(
             "Expected `model` argument "

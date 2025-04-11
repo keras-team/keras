@@ -188,7 +188,12 @@ class Function(Operation):
 
     def _assert_input_compatibility(self, inputs):
         try:
-            tree.assert_same_structure(inputs, self._inputs_struct)
+            # We first normalize to tuples before performing the check to
+            # suppress warnings when encountering mismatched tuples and lists.
+            tree.assert_same_structure(
+                tree.lists_to_tuples(inputs),
+                tree.lists_to_tuples(self._inputs_struct),
+        )
         except ValueError:
             raise ValueError(
                 "Function was called with an invalid input structure. "

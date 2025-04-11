@@ -15,6 +15,7 @@ from keras.src import saving
 from keras.src import testing
 from keras.src import tree
 from keras.src.layers.core.composite_layer import CompositeLayer
+from keras.src.layers.core.dense import Dense
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
 from keras.src.models.model import Model
@@ -1080,6 +1081,45 @@ class CompositeLayerTest(testing.TestCase):
         ):
             out = layer([data, None])
 
+    # This is still problematic because of spurius
+    # wrapping of _manual_input_spec in ListWrapper etc...
+    # def test_list_vs_tuple_input_spec2(self):
+    #     def layer_fn(inputs):
+    #         a, l = inputs
+    #         b, c = l
+    #         a = Dense(8)(a)
+    #         b = Dense(8)(b)
+    #         c = Dense(8)(c)
+    #         return a+b+c
+
+    #     layer = CompositeLayer(layer_fn)
+    #     layer.input_spec = (InputSpec(shape=(None, 8)),
+    #                         [InputSpec(shape=(None, 8)),
+    #                          InputSpec(shape=(None, 8))])
+    #     sym_inputs =  (Input(shape=(None, 8)),
+    #                    [Input(shape=(None, 8)),
+    #                    Input(shape=(None, 8))])
+    #     layer(sym_inputs)
+
+    def test_list_vs_tuple_input_spec(self):
+        def layer_fn(inputs):
+            a, b = inputs
+            a = Dense(8)(a)
+            b = Dense(8)(b)
+            return a+b
+
+        layer = CompositeLayer(layer_fn)
+        layer.input_spec = (InputSpec(shape=(None, 8)), # tuple
+                             InputSpec(shape=(None, 8)))
+        sym_inputs =  [Input(batch_shape=(None, 8)), # list
+                       Input(batch_shape=(None, 8))]
+        layer(sym_inputs)
+        layer.input_spec = [InputSpec(shape=(None, 8)), # list
+                             InputSpec(shape=(None, 8))]
+        sym_inputs =  (Input(batch_shape=(None, 8)), # tuple
+                       Input(batch_shape=(None, 8)))
+        layer(sym_inputs)
+
     def test_no_batch_input(self):
 
         def layer_fn(inputs):
@@ -1276,6 +1316,48 @@ class CompositeLayerTest(testing.TestCase):
         new_model = clone_model(model, call_function=call_fn, recursive=True)
         sub = new_model.get_layer("subfunc").get_layer("sub")
         self.assertEqual(sub.layers[1].name, "dense_modified")
+
+    def test_clone_with_input_spec(self):
+        def layer_fn(inputs):
+            return layers.Dense(12)(inputs)
+
+        layer1 = CompositeLayer(layer_fn)
+        layer1.input_spec = InputSpec(shape=(None, 12), optional=True)
+
+        def layer_fn2(inputs):
+            x = layers.Dense(12)(inputs)
+            return layer1(x)
+        
+        layer2 = CompositeLayer(layer_fn2)
+        layer2.input_spec = InputSpec(shape=(None, 12), optional=True)
+
+        layer2(ops.ones(shape=(8,12))) # build it
+
+        def call_fn(layer, *args, **kwargs):
+          return layer(*args, **kwargs)
+        
+        new_layer = clone_model(layer2, clone_function=lambda x:x,
+                                        call_function=call_fn,
+                                        recursive=True)
+        self.assertEqual(new_layer.input_spec, layer2.input_spec)
+        self.assertEqual(new_layer.layers[2].input_spec, layer1.input_spec)
+
+    def test_clone_before_build(self):
+        def layer_fn(inputs):
+            return layers.Dense(12)(inputs)
+        
+        layer = CompositeLayer(layer_fn)
+
+        def call_fn(layer, *args, **kwargs):
+          return layer(*args, **kwargs)
+        
+        with self.assertRaisesRegex(
+            ValueError, "model has no graph of layers. It is probably not built"
+        ):
+            clone_model(layer, clone_function=lambda x:x,
+                               call_function=call_fn,
+                               recursive=True)
+
 
     def test_build_twice(self):
         def layer_fn(inputs):
