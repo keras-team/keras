@@ -81,7 +81,6 @@ NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_correlate
 NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diag
-NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
