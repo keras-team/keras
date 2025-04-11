@@ -813,7 +813,8 @@ def elastic_transform(
 
     alpha = convert_to_tensor(alpha, dtype=input_dtype)
     sigma = convert_to_tensor(sigma, dtype=input_dtype)
-    kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
+    kernel_factor = convert_to_tensor(sigma, dtype="int32")
+    kernel_size = (6 * kernel_factor | 1, 6 * kernel_factor | 1)
 
     need_squeeze = False
     if len(images.shape) == 3:
@@ -828,6 +829,10 @@ def elastic_transform(
         channel_axis = 1
 
     seed = draw_seed(seed)
+
+    if batch_size is None:
+        batch_size = 1
+
     dx = (
         tf.random.stateless_normal(
             shape=(batch_size, height, width),

@@ -80,6 +80,11 @@ class BaseConv(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing layer by calling
             `layer.enable_lora(rank)`.
+        lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
     """
 
     def __init__(
@@ -102,6 +107,7 @@ class BaseConv(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
@@ -124,6 +130,7 @@ class BaseConv(Layer):
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
         self.input_spec = InputSpec(min_ndim=self.rank + 2)
         self.data_format = self.data_format
@@ -215,7 +222,7 @@ class BaseConv(Layer):
             self.bias = None
         self.built = True
         if self.lora_rank:
-            self.enable_lora(self.lora_rank)
+            self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
     @property
     def kernel(self):
@@ -224,9 +231,9 @@ class BaseConv(Layer):
                 "You must build the layer before accessing `kernel`."
             )
         if self.lora_enabled:
-            return self._kernel + ops.matmul(
-                self.lora_kernel_a, self.lora_kernel_b
-            )
+            return self._kernel + (
+                self.lora_alpha / self.lora_rank
+            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
         return self._kernel
 
     def convolution_op(self, inputs, kernel):
@@ -268,7 +275,11 @@ class BaseConv(Layer):
         )
 
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.kernel_constraint:
             raise ValueError(
@@ -301,6 +312,7 @@ class BaseConv(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -363,6 +375,7 @@ class BaseConv(Layer):
         )
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return config
 
     def _check_load_own_variables(self, store):

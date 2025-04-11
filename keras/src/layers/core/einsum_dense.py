@@ -58,6 +58,11 @@ class EinsumDense(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing
             `EinsumDense` layer by calling `layer.enable_lora(rank)`.
+         lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
 
     Examples:
@@ -125,6 +130,7 @@ class EinsumDense(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -142,6 +148,7 @@ class EinsumDense(Layer):
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
 
     def build(self, input_shape):
@@ -184,7 +191,7 @@ class EinsumDense(Layer):
             self.bias = None
         self.built = True
         if self.lora_rank:
-            self.enable_lora(self.lora_rank)
+            self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
     @property
     def kernel(self):
@@ -193,9 +200,9 @@ class EinsumDense(Layer):
                 "You must build the layer before accessing `kernel`."
             )
         if self.lora_enabled:
-            return self._kernel + ops.matmul(
-                self.lora_kernel_a, self.lora_kernel_b
-            )
+            return self._kernel + (
+                self.lora_alpha / self.lora_rank
+            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
         return self._kernel
 
     def compute_output_shape(self, _):
@@ -210,7 +217,11 @@ class EinsumDense(Layer):
         return x
 
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.kernel_constraint:
             raise ValueError(
@@ -243,6 +254,7 @@ class EinsumDense(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -321,6 +333,7 @@ class EinsumDense(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -525,7 +538,7 @@ class EinsumDense(Layer):
         if self.lora_enabled:
             lora_x = ops.einsum(self.equation, inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
-            x = ops.add(x, lora_x)
+            x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
         if self.bias is not None:
             x += self.bias
         if self.activation is not None:
@@ -700,7 +713,8 @@ class EinsumDense(Layer):
                 kernel_value = ops.divide(kernel_value, kernel_scale)
                 kernel_value = ops.add(
                     kernel_value,
-                    ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    (self.lora_alpha / self.lora_rank)
+                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 )
                 kernel_value, kernel_scale = quantizers.abs_max_quantize(
                     kernel_value, axis=self._kernel_reduced_axes, to_numpy=True

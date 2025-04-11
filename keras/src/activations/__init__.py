@@ -116,7 +116,7 @@ def get(identifier):
     if identifier is None:
         return linear
     if isinstance(identifier, dict):
-        obj = deserialize(identifier)
+        obj = serialization_lib.deserialize_keras_object(identifier)
     elif isinstance(identifier, str):
         obj = ALL_OBJECTS_DICT.get(identifier, None)
     else:

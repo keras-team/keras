@@ -20,7 +20,7 @@ class TrackingTest(testing.TestCase):
         v2 = backend.Variable(2.0)
         lst = tracking.TrackedList([], tracker)
         lst.append(v1)
-        lst.append(None)
+        lst.append(float("nan"))
         lst.append(v2)
         lst.append(0)
 
@@ -38,7 +38,7 @@ class TrackingTest(testing.TestCase):
 
         lst2 = tracking.TrackedList([], tracker)
         lst2.append(v1)
-        lst2.append(None)
+        lst2.append(float("nan"))
         lst2.append(v2)
         lst2.append(0)
 

@@ -1,0 +1,31 @@
+repos:
+  - repo: local
+    hooks:
+      - id: api-gen
+        name: api_gen
+        entry: |
+          bash shell/api_gen.sh
+          git status
+          clean=$(git status | grep "nothing to commit")
+          if [ -z "$clean" ]; then
+            echo "Please run shell/api_gen.sh to generate API."
+            exit 1
+          fi
+        language: system
+        stages: [pre-commit, manual]
+        require_serial: true
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.2
+    hooks:
+      - id: ruff
+        args: [--config, pyproject.toml, --fix, .]
+        stages: [pre-commit]
+      - id: ruff-format
+        args: [--config, pyproject.toml, .]
+        stages: [pre-commit]
+      - id: ruff
+        args: [--config, pyproject.toml, .]
+        stages: [manual]
+      - id: ruff-format
+        args: ["--check", --config, pyproject.toml, .]
+        stages: [manual]

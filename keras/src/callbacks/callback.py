@@ -76,6 +76,19 @@ class Callback:
 
     @property
     def model(self):
+        if backend.backend() == "torch":
+            from torch.nn.parallel import DistributedDataParallel
+
+            if isinstance(self._model, DistributedDataParallel):
+                # Keras Callbacks expect to work with Keras models. e.g
+                # ModelCheckpoint and EarlyStopping both attempt to call
+                # keras-specific APIs on the value returned from this
+                # property. If this callback was created against a DDP
+                # wrapper instead of the underlying keras.Model, it is
+                # likely to fail. Return self._model.module for DDP
+                # instances instead.
+                return self._model.module
+
         if backend.backend() == "jax" and hasattr(
             self._model, "jax_state_sync"
         ):

@@ -17,10 +17,12 @@ def get_input_signature(model):
             "The model provided has not yet been built. It must be built "
             "before export."
         )
-    if isinstance(model, (models.Functional, models.Sequential)):
+    if isinstance(model, models.Functional):
+        input_signature = [
+            tree.map_structure(make_input_spec, model._inputs_struct)
+        ]
+    elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
-        if isinstance(input_signature, list) and len(input_signature) > 1:
-            input_signature = [input_signature]
     else:
         input_signature = _infer_input_signature_from_model(model)
         if not input_signature or not model._called:
