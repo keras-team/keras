@@ -72,7 +72,9 @@ class Softmax(Layer):
         if mask is not None:
             # Apply the mask to the softmax output to ensure that masked
             # values are set to 0 in case the entire axis is masked.
-            outputs = outputs * backend.cast(mask, outputs.dtype)
+            outputs = backend.numpy.multiply(
+                outputs, backend.cast(mask, outputs.dtype)
+            )
 
         return outputs
 
