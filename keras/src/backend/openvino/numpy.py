@@ -766,13 +766,17 @@ def greater_equal(x1, x2):
 def hstack(xs):
     ov_outputs = [get_ov_output(x) for x in xs]
     ref_rank = len(ov_outputs[0].get_partial_shape())
+    ref_type = ov_outputs[0].get_element_type()
     aligned = []
     for x in ov_outputs:
+        if x.get_element_type() != ref_type:
+            x = ov_opset.convert(x, ref_type)
         if len(x.get_partial_shape()) == 1 and ref_rank > 1:
             x = ov_opset.unsqueeze(x, ov_opset.constant([0], dtype=np.int64))
         aligned.append(x)
     result = ov_opset.concat(aligned, axis=1)
     return OpenVINOKerasTensor(result.output(0))
+
 
 
 def identity(n, dtype=None):
