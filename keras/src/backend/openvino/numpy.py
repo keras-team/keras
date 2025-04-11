@@ -842,7 +842,6 @@ def hstack(xs):
     return OpenVINOKerasTensor(result.output(0))
 
 
-
 def identity(n, dtype=None):
     n = get_ov_output(n)
     dtype = Type.f32 if dtype is None else dtype
