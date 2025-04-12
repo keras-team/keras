@@ -628,6 +628,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     if node_rank < 2:
         raise ValueError(
             "Input tensor must have at least rank 2 for diagonal extraction."
+            f"but received shape {node_partial_shape} with rank {node_rank}."
         )
 
     primary_axis_norm = axis1 % node_rank
