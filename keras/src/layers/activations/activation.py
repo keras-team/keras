@@ -28,6 +28,8 @@ class Activation(Layer):
         self.activation = activations.get(activation)
         self.built = True
 
+        self._build_at_init()
+
     def call(self, inputs):
         return self.activation(inputs)
 

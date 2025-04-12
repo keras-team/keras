@@ -565,6 +565,22 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                     ),
                 )
 
+                # Ensure that the subclass layer doesn't mark itself as built
+                # when `build` is overriden.
+
+                class ModifiedBuildLayer(layer_cls):
+                    def build(self, *args, **kwargs):
+                        pass
+
+                layer = ModifiedBuildLayer(**init_kwargs)
+                self.assertFalse(
+                    layer.built,
+                    msg=(
+                        f"The `build` of {type(layer)} is overriden, so it "
+                        "should not be built after instantiation."
+                    ),
+                )
+
         # Eager call test and compiled training test.
         if input_data is not None or input_shape is not None:
             if input_data is None:
@@ -642,6 +658,13 @@ def uses_gpu():
     # Condition used to skip tests when using the GPU
     devices = distribution.list_devices()
     if any(d.startswith("gpu") for d in devices):
+        return True
+    return False
+
+
+def uses_cpu():
+    devices = distribution.list_devices()
+    if any(d.startswith("cpu") for d in devices):
         return True
     return False
 

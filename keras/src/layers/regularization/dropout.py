@@ -54,6 +54,8 @@ class Dropout(Layer):
         self.supports_masking = True
         self.built = True
 
+        self._build_at_init()
+
     def call(self, inputs, training=False):
         if training and self.rate > 0:
             return backend.random.dropout(

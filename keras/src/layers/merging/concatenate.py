@@ -97,7 +97,6 @@ class Concatenate(Merge):
                 )
                 if len(unique_dims) > 1:
                     raise ValueError(err_msg)
-        self.built = True
 
     def _merge_function(self, inputs):
         return ops.concatenate(inputs, axis=self.axis)

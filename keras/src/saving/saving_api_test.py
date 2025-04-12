@@ -1,4 +1,5 @@
 import os
+import pathlib
 import unittest.mock as mock
 
 import numpy as np
@@ -249,6 +250,20 @@ class LoadWeightsTests(test_case.TestCase):
         model = self.get_model()
         with self.assertRaisesRegex(ValueError, "File format not supported"):
             model.load_weights("invalid_extension.pkl")
+
+    def test_load_sharded_weights(self):
+        src_model = self.get_model()
+        temp_filepath = pathlib.Path(
+            os.path.join(self.get_temp_dir(), "test_weights.weights.json")
+        )
+        src_model.save_weights(temp_filepath, max_shard_size=1)
+        self.assertLen(os.listdir(temp_filepath.parent), 2)
+        src_weights = src_model.get_weights()
+        dest_model = self.get_model()
+        dest_model.load_weights(temp_filepath)
+        dest_weights = dest_model.get_weights()
+        for orig, loaded in zip(src_weights, dest_weights):
+            self.assertAllClose(orig, loaded)
 
 
 class SaveModelTestsWarning(test_case.TestCase):

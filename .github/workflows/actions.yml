@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.9]
+        python-version: [3.10]
         backend: [tensorflow, jax, torch, numpy, openvino, mlx]
     name: Run tests
     runs-on: ubuntu-latest
@@ -116,10 +116,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.9
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -136,23 +136,7 @@ jobs:
           pip install -r requirements-openvino.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
-      - name: Check for API changes
-        run: |
-          bash shell/api_gen.sh
-          git status
-          clean=$(git status | grep "nothing to commit")
-          if [ -z "$clean" ]; then
-            echo "Please run shell/api_gen.sh to generate API."
-            exit 1
-          fi
-      - name: Lint
-        run: bash shell/lint.sh
-      - name: Check for API changes
-        run: |
-          bash shell/api_gen.sh
-          git status
-          clean=$(git status | grep "nothing to commit")
-          if [ -z "$clean" ]; then
-            echo "Please run shell/api_gen.sh to generate API."
-            exit 1
-          fi
+      - name: Install pre-commit
+        run: pip install pre-commit && pre-commit install
+      - name: Run pre-commit
+        run: pre-commit run --all-files --hook-stage manual

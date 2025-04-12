@@ -36,13 +36,17 @@ class Variable(
         return self.value.handle
 
     def _initialize(self, value):
-        self._value = tf.Variable(
-            value,
-            dtype=self._dtype,
-            trainable=self.trainable,
-            name=self.name,
-            aggregation=self._map_aggregation(self.aggregation),
-        )
+        if isinstance(value, tf.Variable):
+            self._value = value
+        else:
+            self._value = tf.Variable(
+                value,
+                dtype=self._dtype,
+                trainable=self.trainable,
+                name=self.name,
+                aggregation=self._map_aggregation(self.aggregation),
+                synchronization=self._map_synchronization(self.synchronization),
+            )
 
     def _initialize_with_initializer(self, initializer):
         self._initialize(lambda: initializer(self._shape, dtype=self._dtype))
@@ -122,6 +126,15 @@ class Variable(
         }
         return mapping[aggregation]
 
+    def _map_synchronization(self, synchronization):
+        mapping = {
+            "none": tf.VariableSynchronization.NONE,
+            "on_read": tf.VariableSynchronization.ON_READ,
+            "on_write": tf.VariableSynchronization.ON_WRITE,
+            "auto": tf.VariableSynchronization.AUTO,
+        }
+        return mapping[synchronization]
+
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
@@ -138,7 +151,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             x = tf.convert_to_tensor(x)
             return tf.cast(x, dtype)
         return tf.convert_to_tensor(x, dtype=dtype)
-    elif dtype is not None and not x.dtype == dtype:
+    elif dtype is not None and not standardize_dtype(x.dtype) == dtype:
         if isinstance(x, tf.SparseTensor):
             x_shape = x.shape
             x = tf.cast(x, dtype)
@@ -638,6 +651,18 @@ def random_seed_dtype():
 
 def custom_gradient(fun):
     return tf.custom_gradient(f=fun)
+
+
+def remat(f):
+    """Implementation of rematerialization.
+
+    Args:
+        f: The function or operation to rematerialize.
+    Returns:
+        A function wrapping f that defines a custom gradient, which
+        recomputes f on the backwards pass of a gradient call.
+    """
+    return tf.recompute_grad(f)
 
 
 class name_scope(base_name_scope):

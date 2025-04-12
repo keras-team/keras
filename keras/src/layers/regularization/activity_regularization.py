@@ -29,6 +29,8 @@ class ActivityRegularization(Layer):
         self.l2 = l2
         self.built = True
 
+        self._build_at_init()
+
     def call(self, inputs):
         return inputs
 

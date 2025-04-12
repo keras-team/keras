@@ -1238,8 +1238,8 @@ class ModelTest(testing.TestCase):
             with self.assertRaisesRegex(
                 NotImplementedError,
                 (
-                    r"`ExportArchive` is only compatible with "
-                    r"TensorFlow, JAX and Torch backends."
+                    r"`export_saved_model` only currently supports the "
+                    r"tensorflow, jax and torch backends."
                 ),
             ):
                 model.export(temp_filepath, format="tf_saved_model")

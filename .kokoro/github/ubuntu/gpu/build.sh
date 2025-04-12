@@ -3,9 +3,9 @@ set -x
 
 cd "${KOKORO_ROOT}/"
 
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 
-PYTHON_BINARY="/usr/bin/python3.9"
+PYTHON_BINARY="/usr/bin/python3.10"
 
 "${PYTHON_BINARY}" -m venv venv
 source venv/bin/activate

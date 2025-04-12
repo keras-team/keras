@@ -590,13 +590,10 @@ class TextVectorization(Layer):
             # dimension to the bounding shape of the ragged dimension.
             shape[-1] = self._output_sequence_length
             outputs = lookup_data.to_tensor(default_value=0, shape=shape)
-        else:
-            outputs = lookup_data
-
         # If we have a dense tensor, we need to pad/trim directly.
-        if self._output_sequence_length is not None:
+        elif self._output_sequence_length is not None:
             # Maybe trim the output.
-            outputs = outputs[..., : self._output_sequence_length]
+            outputs = lookup_data[..., : self._output_sequence_length]
 
             # Maybe pad the output. We need to be careful to use dynamic shape
             # here as required_space_to_batch_paddings requires a fully known
@@ -610,6 +607,13 @@ class TextVectorization(Layer):
                     shape, padded_shape
                 )
                 outputs = tf.pad(outputs, padding)
+                # Because `tf.pad` used a dynamic shape, the output shape is
+                # dynamic. Apply the known static `_output_sequence_length`.
+                static_padded_shape = lookup_data.shape.as_list()
+                static_padded_shape[-1] = self._output_sequence_length
+                outputs.set_shape(static_padded_shape)
+        else:
+            outputs = lookup_data
 
         return backend_utils.convert_tf_tensor(outputs)
 

@@ -40,6 +40,8 @@ class GaussianNoise(layers.Layer):
         self.supports_masking = True
         self.built = True
 
+        self._build_at_init()
+
     def call(self, inputs, training=False):
         if training and self.stddev > 0:
             return inputs + backend.random.normal(

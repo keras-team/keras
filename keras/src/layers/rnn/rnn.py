@@ -148,7 +148,6 @@ class RNN(Layer):
                 shape=(self.units, self.units),
                 initializer='uniform',
                 name='recurrent_kernel')
-            self.built = True
 
         def call(self, inputs, states):
             prev_output = states[0]
@@ -284,7 +283,6 @@ class RNN(Layer):
                         f"batch size: sequence.shape={sequences_shape}"
                     )
                 self._create_state_variables(sequences_shape[0])
-        self.built = True
 
     @tracking.no_automatic_dependency_tracking
     def _create_state_variables(self, batch_size):
@@ -331,6 +329,12 @@ class RNN(Layer):
             cell_kwargs["training"] = training
 
         def step(inputs, states):
+            # Create new tensor copies when using PyTorch backend
+            # with stateful=True. This prevents in-place modifications
+            # that would otherwise break PyTorch's autograd functionality
+            # by modifying tensors needed for gradient computation.
+            if backend.backend() == "torch" and self.stateful:
+                states = tree.map_structure(ops.copy, states)
             output, new_states = self.cell(inputs, states, **cell_kwargs)
             if not tree.is_nested(new_states):
                 new_states = [new_states]

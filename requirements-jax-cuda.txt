@@ -4,12 +4,9 @@ tf2onnx
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.1.0
-torchvision>=0.16.0
-torch-xla
+torch==2.6.0+cpu
 
 # Jax with cuda support.
-# TODO: Higher version breaks CI.
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 jax[cuda12]==0.4.28
 flax

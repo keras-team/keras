@@ -1417,7 +1417,10 @@ class BitwiseLeftShift(Operation):
         return backend.numpy.bitwise_left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1451,7 +1454,10 @@ class LeftShift(Operation):
         return backend.numpy.left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1483,7 +1489,10 @@ class BitwiseRightShift(Operation):
         return backend.numpy.bitwise_right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1517,7 +1526,10 @@ class RightShift(Operation):
         return backend.numpy.right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -5065,6 +5077,33 @@ def sign(x):
     if any_symbolic_tensors((x,)):
         return Sign().symbolic_call(x)
     return backend.numpy.sign(x)
+
+
+class Signbit(Operation):
+    def call(self, x):
+        return backend.numpy.signbit(x)
+
+    def compute_output_spec(self, x):
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype="bool", sparse=sparse)
+
+
+@keras_export(["keras.ops.signbit", "keras.ops.numpy.signbit"])
+def signbit(x):
+    """Return the sign bit of the elements of `x`.
+
+    The output boolean tensor contains `True` where the sign of `x` is negative,
+    and `False` otherwise.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor of same shape as `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Signbit().symbolic_call(x)
+    return backend.numpy.signbit(x)
 
 
 class Sin(Operation):

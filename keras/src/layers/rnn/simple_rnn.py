@@ -150,7 +150,6 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
             )
         else:
             self.bias = None
-        self.built = True
 
     def call(self, sequence, states, training=False):
         prev_output = states[0] if isinstance(states, (list, tuple)) else states

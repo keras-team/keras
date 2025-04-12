@@ -27,9 +27,7 @@ class Variable(KerasVariable):
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
         if distribution is not None:
-            self._layout = distribution_lib._to_jax_layout(
-                distribution.get_variable_layout(self)
-            )
+            self._layout = distribution.get_variable_layout(self).backend_layout
         else:
             self._layout = None
         self._direct_assign(value)
@@ -365,6 +363,18 @@ def custom_gradient(fun):
     return jax.custom_gradient(fun=fun)
 
 
+def remat(f):
+    """Implementation of rematerialization.
+
+    Args:
+        f: The function or operation to rematerialize.
+    Returns:
+        A function wrapping f that defines a custom gradient, which
+        recomputes f on the backwards pass of a gradient call.
+    """
+    return jax.checkpoint(f)
+
+
 class name_scope(base_name_scope):
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
@@ -398,7 +408,7 @@ def device_scope(device_name):
     if isinstance(device_name, str):
         # We support string value like "cpu:0", "gpu:1", etc.
         device_name = device_name.lower()
-        jax_device = distribution_lib._to_jax_device(device_name)
+        jax_device = distribution_lib._to_backend_device(device_name)
     elif not isinstance(device_name, jax.Device):
         raise ValueError(
             "Invalid value for argument `device_name`. "
