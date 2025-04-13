@@ -47,13 +47,9 @@ def rnn(
 
     def _expand_mask(mask_t, input_t, fixed_dim=1):
         if tree.is_nested(mask_t):
-            raise ValueError(
-                f"mask_t is expected to be tensor, but got {mask_t}"
-            )
+            raise ValueError(f"mask_t is expected to be tensor, but got {mask_t}")
         if tree.is_nested(input_t):
-            raise ValueError(
-                f"input_t is expected to be tensor, but got {input_t}"
-            )
+            raise ValueError(f"input_t is expected to be tensor, but got {input_t}")
         rank_diff = len(input_t.shape) - len(mask_t.shape)
         for _ in range(rank_diff):
             mask_t = torch.unsqueeze(mask_t, -1)
@@ -79,9 +75,7 @@ def rnn(
             return input_t
 
         if tree.is_nested(inputs):
-            processed_input = tree.map_structure(
-                _process_single_input_t, inputs
-            )
+            processed_input = tree.map_structure(_process_single_input_t, inputs)
         else:
             processed_input = (_process_single_input_t(inputs),)
 
@@ -111,14 +105,10 @@ def rnn(
 
                 flat_states = tree.flatten(states)
                 flat_new_states = tree.flatten(new_states)
-                tiled_mask_t = tuple(
-                    _expand_mask(mask_t, s) for s in flat_states
-                )
+                tiled_mask_t = tuple(_expand_mask(mask_t, s) for s in flat_states)
                 flat_final_states = tuple(
                     torch.where(m, s, ps)
-                    for m, s, ps in zip(
-                        tiled_mask_t, flat_new_states, flat_states
-                    )
+                    for m, s, ps in zip(tiled_mask_t, flat_new_states, flat_states)
                 )
                 states = tree.pack_sequence_as(states, flat_final_states)
 
@@ -147,9 +137,7 @@ def rnn(
         else:  # mask is None
             for i in range(time_steps):
                 inp = _get_input_tensor(i)
-                output, states = step_function(
-                    inp, tuple(states) + tuple(constants)
-                )
+                output, states = step_function(inp, tuple(states) + tuple(constants))
                 if return_all_outputs:
                     successive_outputs.append(output)
                     successive_states.append(states)
@@ -238,8 +226,7 @@ def rnn(
 
             def compute_masked_output(mask_t, flat_out, flat_mask):
                 return tuple(
-                    torch.where(mask_t, o, zo)
-                    for (o, zo) in zip(flat_out, flat_mask)
+                    torch.where(mask_t, o, zo) for (o, zo) in zip(flat_out, flat_mask)
                 )
 
         else:
@@ -305,9 +292,7 @@ def rnn(
                 flat_zero_output,
             )
             while time < time_steps_t and it < max_iterations:
-                final_outputs = _step(
-                    time, output_ta_t, prev_output, *new_states
-                )
+                final_outputs = _step(time, output_ta_t, prev_output, *new_states)
                 time, output_ta_t, prev_output = final_outputs[:3]
                 new_states = final_outputs[3:]
                 it += 1
@@ -337,9 +322,7 @@ def rnn(
                 for ta, out in zip(output_ta_t, flat_output):
                     ta[ta_index_to_write] = out
 
-                new_states = tree.pack_sequence_as(
-                    initial_states, flat_new_state
-                )
+                new_states = tree.pack_sequence_as(initial_states, flat_new_state)
                 return (time + 1, output_ta_t) + tuple(new_states)
 
             it = 0
@@ -401,9 +384,7 @@ def _is_sequence_right_padded(mask):
     count_of_true = torch.sum(mask, dim=1)
     # Create right padded mask
     batch_size = mask.shape[0]
-    indices = torch.arange(max_seq_length, device=mask.device).repeat(
-        batch_size, 1
-    )
+    indices = torch.arange(max_seq_length, device=mask.device).repeat(batch_size, 1)
     right_padded_mask = indices < count_of_true.unsqueeze(1)
     return torch.all(mask == right_padded_mask)
 
@@ -528,7 +509,6 @@ def cudnn_ok(
     activation,
     recurrent_activation,
     unroll,
-    go_backwards,
     use_bias=True,
 ):
     from keras.src import activations
@@ -536,11 +516,9 @@ def cudnn_ok(
 
     return (
         activation in (activations.tanh, torch.tanh, ops.tanh)
-        and recurrent_activation
-        in (activations.sigmoid, torch.sigmoid, ops.sigmoid)
+        and recurrent_activation in (activations.sigmoid, torch.sigmoid, ops.sigmoid)
         and not unroll
         and use_bias
-        and not go_backwards
         and _is_cuda_cudnn_available()
     )
 
@@ -564,7 +542,6 @@ def lstm(
         activation,
         recurrent_activation,
         unroll,
-        go_backwards,
         use_bias=bias is not None,
     )
 
@@ -587,12 +564,22 @@ def lstm(
     inputs = convert_to_tensor(inputs, dtype="float32")
     initial_state_h = convert_to_tensor(initial_state_h, dtype="float32")
     initial_state_c = convert_to_tensor(initial_state_c, dtype="float32")
-    mask = convert_to_tensor(mask, dtype="bool")
+    if mask is not None:
+        mask = convert_to_tensor(mask, dtype="bool")
+
+    # Preprocess for go_backwards by flipping the sequence
+    if go_backwards:
+        seq_dim = 1 if batch_first else 0
+        inputs = torch.flip(inputs, dims=[seq_dim])
+        if mask is not None:
+            mask = torch.flip(mask, dims=[seq_dim])
+
     # Move all tensors to the same device
     inputs = inputs.to(device)
     initial_state_h = initial_state_h.to(device)
     initial_state_c = initial_state_c.to(device)
-    mask = mask.to(device)
+    if mask is not None:
+        mask = mask.to(device)
 
     try:
         return _cudnn_lstm(
@@ -652,7 +639,7 @@ def _cudnn_lstm(
         input_size=input_size,
         hidden_size=hidden_size,
         num_layers=1,
-        batch_first=True,
+        batch_first=batch_first,
         bidirectional=False,
     )
 
@@ -660,9 +647,7 @@ def _cudnn_lstm(
 
     if mask is not None:
         # Sort and pack
-        sorted_lengths, sorted_indices = torch.sort(
-            sequence_lengths, descending=True
-        )
+        sorted_lengths, sorted_indices = torch.sort(sequence_lengths, descending=True)
         sorted_inputs = inputs[sorted_indices]
         sorted_initial_h = initial_state_h[:, sorted_indices]
         sorted_initial_c = initial_state_c[:, sorted_indices]
@@ -678,20 +663,18 @@ def _cudnn_lstm(
         )
 
         # Unpack back to padded tensor
-        outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(
-            packed_outputs, batch_first
-        )
+        outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_outputs, batch_first)
 
     else:
         # Run LSTM without packing for fixed-length sequences
         outputs, (h_n, c_n) = lstm(inputs, (initial_state_h, initial_state_c))
 
-    outputs = outputs.detach().cpu()
-    h_n = h_n.detach().cpu()
-    c_n = c_n.detach().cpu()
+    outputs = outputs.detach().clone().cpu()
+    h_n = h_n.detach().clone().cpu()
+    c_n = c_n.detach().clone().cpu()
     # Reshape hidden states for return
-    h_n = h_n.squeeze(0)  # Remove num_layers=1 dimension
-    c_n = c_n.squeeze(0)  # Remove num_layers=1 dimension
+    h_n = h_n.squeeze(batch_axis)  # Remove num_layers=1 dimension
+    c_n = c_n.squeeze(batch_axis)  # Remove num_layers=1 dimension
 
     # Return appropriate outputs based on return_sequences flag
 
@@ -701,13 +684,12 @@ def _cudnn_lstm(
         last_output = outputs[:, -1] if batch_first else outputs[-1]
 
     if not return_sequences:
-        outputs = (
-            last_output.unsqueeze(1)
-            if batch_first
-            else last_output.unsqueeze(0)
-        )
+        outputs = last_output.unsqueeze(1) if batch_first else last_output.unsqueeze(0)
 
-    return (last_output, outputs, (h_n, c_n))
+    if go_backwards and return_sequences:
+        outputs = torch.flip(outputs, dims=[seq_axis])
+
+    return last_output, outputs, [h_n, c_n]
 
 
 def gru(*args, **kwargs):
