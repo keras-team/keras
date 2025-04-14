@@ -97,7 +97,6 @@ NumpyOneInputOpsCorrectnessTest::test_hstack
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
-NumpyOneInputOpsCorrectnessTest::test_log1p
 NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
