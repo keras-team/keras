@@ -220,9 +220,13 @@ def clone_model(
             new_model = Functional(
                 cloned_inputs, cloned_outputs, name=model.name
             )
+            # copy compiled config if any
             if model.compiled:
                 compiled_config = model.get_compile_config()
                 new_model.compile_from_config(compiled_config)
+            # copy manual input spec if any
+            if hasattr(model, "_manual_input_spec"):
+                new_model.input_spec = model.input_spec
             return new_model
 
     # Case of a custom model class

@@ -8,6 +8,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.layers.input_spec import InputSpec
 from keras.src.models.cloning import clone_model
 from keras.src.models.functional import Functional
 
@@ -553,3 +554,30 @@ class CloneModelTest(testing.TestCase):
         # cloned as a vanilla Functional
         model2 = clone_model(model)
         self.assertTrue(model2.__class__ == Functional)
+
+    def test_clone_with_input_spec(self):
+        def layer_fn(inputs):
+            return layers.Dense(12)(inputs)
+
+        inputs = layers.Input(shape=(12,))
+        model1 = models.Model(inputs, layer_fn(inputs))
+        model1.input_spec = InputSpec(shape=(None, 12), optional=True)
+
+        def layer_fn2(inputs):
+            x = layers.Dense(12)(inputs)
+            return model1(x)
+        
+        inputs2 = layers.Input(shape=(12,))
+        model2 = models.Model(inputs2, layer_fn2(inputs2))
+        model2.input_spec = InputSpec(shape=(None, 12), optional=True)
+
+        model2(ops.ones(shape=(8,12)))
+
+        def call_fn(layer, *args, **kwargs):
+          return layer(*args, **kwargs)
+        
+        new_model = clone_model(model2, clone_function=lambda x:x,
+                                        call_function=call_fn,
+                                        recursive=True)
+        self.assertEqual(new_model.input_spec, model2.input_spec)
+        self.assertEqual(new_model.layers[2].input_spec, model1.input_spec)
