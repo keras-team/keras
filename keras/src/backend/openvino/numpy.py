@@ -865,6 +865,7 @@ def log1p(x):
     result = ov_opset.log(added).output(0)
     return OpenVINOKerasTensor(result)
 
+
 def log2(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
