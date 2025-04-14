@@ -673,8 +673,8 @@ def _cudnn_lstm(
     h_n = h_n.detach().clone().cpu()
     c_n = c_n.detach().clone().cpu()
     # Reshape hidden states for return
-    h_n = h_n.squeeze(batch_axis)  # Remove num_layers=1 dimension
-    c_n = c_n.squeeze(batch_axis)  # Remove num_layers=1 dimension
+    h_n = h_n.squeeze(batch_axis)
+    c_n = c_n.squeeze(batch_axis)
 
     # Return appropriate outputs based on return_sequences flag
 
