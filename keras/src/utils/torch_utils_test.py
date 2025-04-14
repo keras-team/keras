@@ -239,8 +239,10 @@ class TorchUtilsTest(testing.TestCase):
 
     def test_build_model(self):
         x = keras.Input([4])
-        z = TorchModuleWrapper(torch.nn.Linear(4, 8), out_shape=[None, 8])(x)
-        y = TorchModuleWrapper(torch.nn.Linear(8, 16), out_shape=[None, 16])(z)
+        z = TorchModuleWrapper(torch.nn.Linear(4, 8), output_shape=[None, 8])(x)
+        y = TorchModuleWrapper(torch.nn.Linear(8, 16), output_shape=[None, 16])(
+            z
+        )
         model = keras.Model(x, y)
-        out = model.predict(np.zeros([5, 4]))
-        self.assertEqual(out.shape, (5, 16))
+        self.assertEqual(model.predict(np.zeros([5, 4])).shape, (5, 16))
+        self.assertEqual(model(np.zeros([5, 4])).shape, (5, 16))

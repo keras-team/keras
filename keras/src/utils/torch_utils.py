@@ -25,7 +25,7 @@ class TorchModuleWrapper(Layer):
             instance, then its parameters must be initialized before
             passing the instance to `TorchModuleWrapper` (e.g. by calling
             it once).
-        out_shape :The shape of the output of this layer. It helps Keras
+        output_shape :The shape of the output of this layer. It helps Keras
             perform automatic shape inference.
         name: The name of the layer (string).
 
@@ -82,7 +82,7 @@ class TorchModuleWrapper(Layer):
     ```
     """
 
-    def __init__(self, module, name=None, out_shape=None, **kwargs):
+    def __init__(self, module, name=None, output_shape=None, **kwargs):
         super().__init__(name=name, **kwargs)
         import torch.nn as nn
 
@@ -100,7 +100,7 @@ class TorchModuleWrapper(Layer):
 
         self.module = module.to(get_device())
         self._track_module_parameters()
-        self.out_shape = out_shape
+        self.output_shape = output_shape
 
     def parameters(self, recurse=True):
         return self.module.parameters(recurse=recurse)
@@ -142,9 +142,9 @@ class TorchModuleWrapper(Layer):
         self.module.load_state_dict(state_dict)
 
     def compute_output_shape(self, input_shape):
-        if self.out_shape is None:
+        if self.output_shape is None:
             return super().compute_output_shape(input_shape)
-        return self.out_shape
+        return self.output_shape
 
     def get_config(self):
         base_config = super().get_config()
@@ -152,7 +152,10 @@ class TorchModuleWrapper(Layer):
 
         buffer = io.BytesIO()
         torch.save(self.module, buffer)
-        config = {"module": buffer.getvalue(), "out_shape": self.out_shape}
+        config = {
+            "module": buffer.getvalue(),
+            "output_shape": self.output_shape,
+        }
         return {**base_config, **config}
 
     @classmethod
