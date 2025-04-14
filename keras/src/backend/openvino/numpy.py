@@ -1043,9 +1043,9 @@ def ndim(x):
 
 
 def nonzero(x):
-    raise NotImplementedError(
-        "`nonzero` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    res = ov_opset.non_zero(data=x,output_type='i32').output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def not_equal(x1, x2):
