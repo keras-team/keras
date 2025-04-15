@@ -328,11 +328,67 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmax` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    if rank == 0:
+        return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
+    if axis is None:
+        flatten_shape = ov_opset.constant(
+            [-1] + [1] * (rank - 1), Type.i32
+        ).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+        k = ov_opset.constant(1, Type.i32).output(0)
+    else:
+        if axis < 0:
+            axis = rank + axis
+        k = ov_opset.constant(1, Type.i32).output(0)
+    topk_outputs = ov_opset.topk(
+        x,
+        k=k,
+        axis=axis,
+        mode="max",
+        sort="value",
+        stable=True,
+        index_element_type=Type.i32,
+    )
+    topk_indices = topk_outputs.output(1)
+    if not keepdims:
+        topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
+    return OpenVINOKerasTensor(topk_indices)
 
 
 def argmin(x, axis=None, keepdims=False):
-    raise NotImplementedError("`argmin` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    if rank == 0:
+        return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
+    if axis is None:
+        flatten_shape = ov_opset.constant(
+            [-1] + [1] * (rank - 1), Type.i32
+        ).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+        k = ov_opset.constant(1, Type.i32).output(0)
+    else:
+        if axis < 0:
+            axis = rank + axis
+        k = ov_opset.constant(1, Type.i32).output(0)
+    topk_outputs = ov_opset.topk(
+        x,
+        k=k,
+        axis=axis,
+        mode="min",
+        sort="value",
+        stable=True,
+        index_element_type=Type.i32,
+    )
+    topk_indices = topk_outputs.output(1)
+    if not keepdims:
+        topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
+    return OpenVINOKerasTensor(topk_indices)
 
 
 def argsort(x, axis=-1):
@@ -703,7 +759,15 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
-    raise NotImplementedError("`expm1` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type)
+    exp_x = ov_opset.exp(x).output(0)
+    const_one = ov_opset.constant(1, exp_x.get_element_type())
+    result = ov_opset.subtract(exp_x, const_one).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def flip(x, axis=None):
@@ -768,9 +832,17 @@ def hstack(xs):
 
 
 def identity(n, dtype=None):
-    raise NotImplementedError(
-        "`identity` is not supported with openvino backend"
+    n = get_ov_output(n)
+    dtype = Type.f32 if dtype is None else dtype
+    if isinstance(dtype, str):
+        ov_dtype = OPENVINO_DTYPES[dtype]
+    else:
+        ov_dtype = dtype
+    n32 = ov_opset.convert(n, Type.i32).output(0)
+    identity_matrix = ov_opset.eye(
+        num_rows=n32, num_columns=n32, diagonal_index=0, output_type=ov_dtype
     )
+    return OpenVINOKerasTensor(identity_matrix.output(0))
 
 
 def imag(x):
@@ -778,9 +850,22 @@ def imag(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    raise NotImplementedError(
-        "`isclose` is not supported with openvino backend"
-    )
+    dtype = OPENVINO_DTYPES[config.floatx()]
+
+    x1 = ov_opset.convert(get_ov_output(x1), dtype)
+    x2 = ov_opset.convert(get_ov_output(x2), dtype)
+    rtol = ov_opset.convert(get_ov_output(rtol), dtype)
+    atol = ov_opset.convert(get_ov_output(atol), dtype)
+
+    abs_diff = ov_opset.abs(x1 - x2)
+    abs_x2 = ov_opset.abs(x2)
+    total_tolerance = atol + rtol * abs_x2
+    is_close = ov_opset.less_equal(abs_diff, total_tolerance)
+    if equal_nan:
+        both_nan = ov_opset.logical_and(ov_opset.isnan(x1), ov_opset.isnan(x2))
+        is_close = ov_opset.logical_or(is_close, both_nan)
+
+    return OpenVINOKerasTensor(is_close.output(0))
 
 
 def isfinite(x):

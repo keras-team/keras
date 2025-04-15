@@ -5,6 +5,7 @@ import pytest
 import torch
 from absl.testing import parameterized
 
+import keras
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
@@ -235,3 +236,13 @@ class TorchUtilsTest(testing.TestCase):
         new_mw = TorchModuleWrapper.from_config(config)
         for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
             self.assertAllClose(ref_w, new_w, atol=1e-5)
+
+    def test_build_model(self):
+        x = keras.Input([4])
+        z = TorchModuleWrapper(torch.nn.Linear(4, 8), output_shape=[None, 8])(x)
+        y = TorchModuleWrapper(torch.nn.Linear(8, 16), output_shape=[None, 16])(
+            z
+        )
+        model = keras.Model(x, y)
+        self.assertEqual(model.predict(np.zeros([5, 4])).shape, (5, 16))
+        self.assertEqual(model(np.zeros([5, 4])).shape, (5, 16))

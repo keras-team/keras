@@ -449,11 +449,7 @@ class JAXTrainer(base_trainer.Trainer):
 
                 # Override with model metrics instead of last step logs if
                 # needed.
-                # The jax spmd_mode is need for multi-process context, since the
-                # metrics values are replicated, and we don't want to do a all
-                # gather, and only need the local copy of the value.
-                with jax.spmd_mode("allow_all"):
-                    epoch_logs = dict(self._get_metrics_result_or_logs(logs))
+                epoch_logs = dict(self._get_metrics_result_or_logs(logs))
 
                 # Run validation.
                 if validation_data is not None and self._should_eval(
@@ -605,11 +601,7 @@ class JAXTrainer(base_trainer.Trainer):
         # Reattach state back to model (if not already done by a callback).
         self.jax_state_sync()
 
-        # The jax spmd_mode is need for multi-process context, since the
-        # metrics values are replicated, and we don't want to do a all
-        # gather, and only need the local copy of the value.
-        with jax.spmd_mode("allow_all"):
-            logs = self._get_metrics_result_or_logs(logs)
+        logs = self._get_metrics_result_or_logs(logs)
         callbacks.on_test_end(logs)
         self._jax_state = None
         if not use_cached_eval_dataset:

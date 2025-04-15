@@ -1,13 +1,10 @@
 NumPyTestRot90
 NumpyArrayCreateOpsCorrectnessTest::test_eye
-NumpyArrayCreateOpsCorrectnessTest::test_identity
 NumpyArrayCreateOpsCorrectnessTest::test_tri
 NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_all
 NumpyDtypeTest::test_any
-NumpyDtypeTest::test_argmax
-NumpyDtypeTest::test_argmin
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_bitwise
@@ -21,14 +18,11 @@ NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
-NumpyDtypeTest::test_expm1
 NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
 NumpyDtypeTest::test_hstack
-NumpyDtypeTest::test_identity
 NumpyDtypeTest::test_inner
-NumpyDtypeTest::test_isclose
 NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
@@ -79,8 +73,6 @@ NumpyDtypeTest::test_square_bool
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_all
 NumpyOneInputOpsCorrectnessTest::test_any
-NumpyOneInputOpsCorrectnessTest::test_argmax
-NumpyOneInputOpsCorrectnessTest::test_argmin
 NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
@@ -90,7 +82,6 @@ NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
-NumpyOneInputOpsCorrectnessTest::test_expm1
 NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
 NumpyOneInputOpsCorrectnessTest::test_hstack
@@ -156,7 +147,6 @@ NumpyTwoInputOpsCorrectnessTest::test_digitize
 NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_inner
-NumpyTwoInputOpsCorrectnessTest::test_isclose
 NumpyTwoInputOpsCorrectnessTest::test_logspace
 NumpyTwoInputOpsCorrectnessTest::test_outer
 NumpyTwoInputOpsCorrectnessTest::test_quantile

@@ -65,6 +65,11 @@ class Embedding(Layer):
             computation cost of fine-tuning large embedding layers.
             You can also enable LoRA on an existing
             `Embedding` layer by calling `layer.enable_lora(rank)`.
+        lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
 
     Input shape:
         2D tensor with shape: `(batch_size, input_length)`.
@@ -83,6 +88,7 @@ class Embedding(Layer):
         mask_zero=False,
         weights=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         input_length = kwargs.pop("input_length", None)
@@ -100,6 +106,7 @@ class Embedding(Layer):
         self.supports_masking = mask_zero
         self.autocast = False
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
 
         if weights is not None:
@@ -129,9 +136,10 @@ class Embedding(Layer):
     @property
     def embeddings(self):
         if self.lora_enabled:
-            return self._embeddings + ops.matmul(
-                self.lora_embeddings_a, self.lora_embeddings_b
-            )
+            return self._embeddings + (
+                self.lora_alpha / self.lora_rank
+            ) * ops.matmul(self.lora_embeddings_a, self.lora_embeddings_b)
+
         return self._embeddings
 
     def call(self, inputs):
@@ -149,7 +157,11 @@ class Embedding(Layer):
         return (*input_shape, self.output_dim)
 
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.embeddings_constraint:
             raise ValueError(
@@ -182,6 +194,7 @@ class Embedding(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -246,6 +259,7 @@ class Embedding(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -339,7 +353,9 @@ class Embedding(Layer):
         if self.lora_enabled:
             lora_outputs = ops.take(self.lora_embeddings_a, inputs, axis=0)
             lora_outputs = ops.matmul(lora_outputs, self.lora_embeddings_b)
-            outputs = ops.add(outputs, lora_outputs)
+            outputs = ops.add(
+                outputs, (self.lora_alpha / self.lora_rank) * lora_outputs
+            )
         return outputs
 
     def quantize(self, mode, type_check=True):

@@ -58,15 +58,25 @@ class Softmax(Layer):
             inputs += adder
         if isinstance(self.axis, (tuple, list)):
             if len(self.axis) > 1:
-                return backend.numpy.exp(
+                outputs = backend.numpy.exp(
                     inputs
                     - backend.math.logsumexp(
                         inputs, axis=self.axis, keepdims=True
                     )
                 )
             else:
-                return activations.softmax(inputs, axis=self.axis[0])
-        return activations.softmax(inputs, axis=self.axis)
+                outputs = activations.softmax(inputs, axis=self.axis[0])
+        else:
+            outputs = activations.softmax(inputs, axis=self.axis)
+
+        if mask is not None:
+            # Apply the mask to the softmax output to ensure that masked
+            # values are set to 0 in case the entire axis is masked.
+            outputs = backend.numpy.multiply(
+                outputs, backend.cast(mask, outputs.dtype)
+            )
+
+        return outputs
 
     def get_config(self):
         config = super().get_config()
