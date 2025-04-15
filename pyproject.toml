@@ -49,6 +49,7 @@ include = ["keras", "keras.*"]
 
 [tool.ruff]
 line-length = 80
+exclude = ["keras/src/namex"]
 
 [tool.ruff.lint]
 select = [
