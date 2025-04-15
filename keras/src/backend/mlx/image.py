@@ -655,3 +655,33 @@ def _compute_weight_mat(
         weights,
         0,
     )
+
+
+def elastic_transform(
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
+    seed=None,
+    data_format=None,
+):
+    raise NotImplementedError("elastic_transform not yet implemented in mlx.")
+
+
+def perspective_transform(
+    images,
+    start_points,
+    end_points,
+    interpolation="bilinear",
+    fill_value=0,
+    data_format=None,
+):
+    raise NotImplementedError("perspective_transform not yet implemented in mlx.")
+
+
+def gaussian_blur(
+    images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
+):
+    raise NotImplementedError("gaussian_blur not yet implemented in mlx.")

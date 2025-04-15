@@ -6279,11 +6279,14 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        print(f'(input) dtype1: {dtype1}, dtype2: {dtype2}')
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(jnp.left_shift(x1_jax, x2_jax).dtype)
+        print('expected_dtype', expected_dtype)
+        print('(mlx) dtype', knp.bitwise_left_shift(x1, x2).dtype)
 
         self.assertDType(knp.bitwise_left_shift(x1, x2), expected_dtype)
         self.assertDType(
