@@ -1044,7 +1044,7 @@ def ndim(x):
 
 def nonzero(x):
     x = get_ov_output(x)
-    res = ov_opset.non_zero(data=x,output_type='i32').output(0)
+    res = ov_opset.non_zero(data=x, output_type="i32").output(0)
     return OpenVINOKerasTensor(res)
 
 
