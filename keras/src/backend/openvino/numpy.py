@@ -834,7 +834,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
         dtype = OPENVINO_DTYPES[config.floatx()]
 
     div = num - 1 if endpoint else num
-    step = (stop - start) / backend.cast(div, dtype)
+    step = (stop - start) / ov_opset.convert(div, dtype)
 
     indices = ov_opset.arange(num, dtype=dtype)
 
