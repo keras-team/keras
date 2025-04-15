@@ -355,111 +355,31 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
 
         def run_output_asserts(layer, output, eager=False):
             if expected_output_shape is not None:
-                if isinstance(expected_output_shape, tuple) and is_shape_tuple(
-                    expected_output_shape[0]
-                ):
-                    self.assertIsInstance(output, tuple)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_shape),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_shape = tuple(v.shape for v in output)
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, tuple):
-                    self.assertEqual(
-                        expected_output_shape,
-                        output.shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, dict):
-                    self.assertIsInstance(output, dict)
-                    self.assertEqual(
-                        set(output.keys()),
-                        set(expected_output_shape.keys()),
-                        msg="Unexpected output dict keys",
-                    )
-                    output_shape = {k: v.shape for k, v in output.items()}
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, list):
-                    self.assertIsInstance(output, list)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_shape),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_shape = [v.shape for v in output]
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-                else:
-                    raise ValueError(
-                        "The type of expected_output_shape is not supported"
-                    )
+
+                def verify_shape(expected_shape, x):
+                    return expected_shape == x.shape
+
+                shapes_match = tree.map_structure_up_to(
+                    output, verify_shape, expected_output_shape, output
+                )
+                self.assertTrue(
+                    all(tree.flatten(shapes_match)),
+                    msg=f"Expected output shapes {expected_output_shape} but "
+                    f"received {tree.map_structure(lambda x: x.shape, output)}",
+                )
             if expected_output_dtype is not None:
-                if isinstance(expected_output_dtype, tuple):
-                    self.assertIsInstance(output, tuple)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_dtype),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_dtype = tuple(
-                        backend.standardize_dtype(v.dtype) for v in output
-                    )
-                    self.assertEqual(
-                        expected_output_dtype,
-                        output_dtype,
-                        msg="Unexpected output dtype",
-                    )
-                elif isinstance(expected_output_dtype, dict):
-                    self.assertIsInstance(output, dict)
-                    self.assertEqual(
-                        set(output.keys()),
-                        set(expected_output_dtype.keys()),
-                        msg="Unexpected output dict keys",
-                    )
-                    output_dtype = {
-                        k: backend.standardize_dtype(v.dtype)
-                        for k, v in output.items()
-                    }
-                    self.assertEqual(
-                        expected_output_dtype,
-                        output_dtype,
-                        msg="Unexpected output dtype",
-                    )
-                elif isinstance(expected_output_dtype, list):
-                    self.assertIsInstance(output, list)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_dtype),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_dtype = [
-                        backend.standardize_dtype(v.dtype) for v in output
-                    ]
-                    self.assertEqual(
-                        expected_output_dtype,
-                        output_dtype,
-                        msg="Unexpected output dtype",
-                    )
-                else:
-                    output_dtype = tree.flatten(output)[0].dtype
-                    self.assertEqual(
-                        expected_output_dtype,
-                        backend.standardize_dtype(output_dtype),
-                        msg="Unexpected output dtype",
-                    )
+
+                def verify_dtype(expected_dtype, x):
+                    return expected_dtype == backend.standardize_dtype(x.dtype)
+
+                dtypes_match = tree.map_structure(
+                    verify_dtype, expected_output_dtype, output
+                )
+                self.assertTrue(
+                    all(tree.flatten(dtypes_match)),
+                    msg=f"Expected output dtypes {expected_output_dtype} but "
+                    f"received {tree.map_structure(lambda x: x.dtype, output)}",
+                )
             if expected_output_sparse:
                 for x in tree.flatten(output):
                     self.assertSparse(x)
