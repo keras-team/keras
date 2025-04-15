@@ -821,13 +821,34 @@ def less_equal(x1, x2):
     x1, x2 = _align_operand_types(x1, x2, "less_equal()")
     return OpenVINOKerasTensor(ov_opset.less_equal(x1, x2).output(0))
 
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
+    if not isinstance(num, int):
+        raise TypeError("num must be an integer")
+    if num < 0:
+        raise ValueError("num must be non-negative")
 
-def linspace(
-    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
-):
-    raise NotImplementedError(
-        "`linspace` is not supported with openvino backend"
-    )
+    start = get_ov_output(start)
+    stop = get_ov_output(stop)
+
+    if dtype is None:
+        dtype = OPENVINO_DTYPES[config.floatx()]
+
+    div = num - 1 if endpoint else num
+    step = (stop - start) / backend.cast(div, dtype)
+
+    indices = ov_opset.arange(num, dtype=dtype)
+
+    result = start + indices * step
+
+    if endpoint and num > 1:
+        result = ov_opset.scatter(result, ov_opset.constant(num - 1, dtype=Type.i32), stop)
+
+    if axis != 0:
+        result = ov_opset.unsqueeze(result, ov_opset.constant(axis, Type.i32))
+
+    if retstep:
+        return result, step
+    return result
 
 
 def log(x):

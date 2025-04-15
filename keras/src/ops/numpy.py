@@ -3468,100 +3468,51 @@ class Linspace(Operation):
 
 
 @keras_export(["keras.ops.linspace", "keras.ops.numpy.linspace"])
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0, *, device=None):
-    if not isinstance(num, int):
-        raise TypeError("num must be an integer")
-    if num < 0:
-        raise ValueError("num must be non-negative")
+def linspace(
+    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
+):
+    """Return evenly spaced numbers over a specified interval.
 
-    if isinstance(start, KerasTensor) or isinstance(stop, KerasTensor):
-        start_shape = start.shape if isinstance(start, KerasTensor) else backend.shape(start)
-        stop_shape = stop.shape if isinstance(stop, KerasTensor) else backend.shape(stop)
+    Returns `num` evenly spaced samples, calculated over the interval
+    `[start, stop]`.
 
-        try:
-            base_shape = np.broadcast_shapes(start_shape, stop_shape)
-        except ValueError:
-            raise ValueError("`start` and `stop` shapes are incompatible for broadcasting.")
+    The endpoint of the interval can optionally be excluded.
 
-        output_shape = list(base_shape)
-        axis_adj = axis if axis >= 0 else len(output_shape) + axis + 1
-        output_shape.insert(axis_adj, num)
+    Args:
+        start: The starting value of the sequence.
+        stop: The end value of the sequence, unless `endpoint` is set to
+            `False`. In that case, the sequence consists of all but the last
+            of `num + 1` evenly spaced samples, so that `stop` is excluded.
+            Note that the step size changes when `endpoint` is `False`.
+        num: Number of samples to generate. Defaults to `50`. Must be
+            non-negative.
+        endpoint: If `True`, `stop` is the last sample. Otherwise, it is
+            not included. Defaults to `True`.
+        retstep: If `True`, return `(samples, step)`, where `step` is the
+            spacing between samples.
+        dtype: The type of the output tensor.
+        axis: The axis in the result to store the samples. Relevant only if
+            start or stop are array-like. Defaults to `0`.
 
-        if dtype is None:
-            dtype = backend.floatx()
-        else:
-            dtype = backend.standardize_dtype(dtype)
+    Note:
+        Torch backend does not support `axis` argument.
 
-        result = KerasTensor(shape=tuple(output_shape), dtype=dtype)
-        if retstep:
-            step_shape = base_shape
-            step = KerasTensor(shape=tuple(step_shape), dtype=dtype)
-            return result, step
-        return result
+    Returns:
+        A tensor of evenly spaced numbers.
+        If `retstep` is `True`, returns `(samples, step)`
+    """
+    if any_symbolic_tensors((start, stop)):
+        return Linspace(num, endpoint, retstep, dtype, axis)(start, stop)
+    return backend.numpy.linspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        retstep=retstep,
+        dtype=dtype,
+        axis=axis,
+    )
 
-    start = backend.convert_to_tensor(start)
-    stop = backend.convert_to_tensor(stop)
-
-    computation_dtype = backend.floatx()
-    start = backend.cast(start, computation_dtype)
-    stop = backend.cast(stop, computation_dtype)
-
-    if dtype is None:
-        output_dtype = computation_dtype
-    else:
-        output_dtype = backend.standardize_dtype(dtype)
-
-    if num == 0:
-        base_shape = backend.shape(start)
-        output_shape = list(base_shape)
-        axis_adj = axis if axis >= 0 else len(base_shape) + axis + 1
-        output_shape.insert(axis_adj, 0)
-        result = backend.numpy.zeros(output_shape, dtype=output_dtype)
-        if retstep:
-            step = stop - start
-            return result, step
-        return result
-    elif num == 1:
-        result = backend.numpy.expand_dims(start, axis=axis)
-        result = backend.cast(result, output_dtype)
-        if retstep:
-            step = stop - start
-            return result, step
-        return result
-
-    div = num - 1 if endpoint else num
-    step = (stop - start) / backend.cast(div, computation_dtype)
-
-    indices = backend.numpy.arange(num, dtype=computation_dtype)
-
-    if backend.shape(start) == () and backend.shape(stop) == ():
-        result = start + indices * step
-    else:
-        start_np, stop_np = np.broadcast_arrays(start.numpy(), stop.numpy())
-        start = backend.convert_to_tensor(start_np, dtype=computation_dtype)
-        stop = backend.convert_to_tensor(stop_np, dtype=computation_dtype)
-        base_shape = backend.shape(start)
-        output_shape = list(base_shape)
-        axis_adj = axis if axis >= 0 else len(base_shape) + axis + 1
-        output_shape.insert(axis_adj, num)
-
-        indices_shape = [1] * len(output_shape)
-        indices_shape[axis_adj] = num
-        indices = backend.numpy.reshape(indices, indices_shape)
-        indices = backend.numpy.broadcast_to(indices, output_shape)
-
-        start = backend.numpy.expand_dims(start, axis=axis_adj)
-        start = backend.numpy.broadcast_to(start, output_shape)
-        step = backend.numpy.expand_dims(step, axis=axis_adj)
-        step = backend.numpy.broadcast_to(step, output_shape)
-
-        result = start + indices * step
-
-    result = backend.cast(result, output_dtype)
-
-    if retstep:
-        return result, step
-    return result
 
 class Log(Operation):
     def call(self, x):
