@@ -1036,7 +1036,10 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 
 
 def ndim(x):
-    raise NotImplementedError("`ndim` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    x_dim = x_shape.rank.get_length()
+    return x_dim
 
 
 def nonzero(x):
