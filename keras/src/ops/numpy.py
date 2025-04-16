@@ -5425,15 +5425,17 @@ class Take(Operation):
         x_shape = list(x.shape)
         if isinstance(indices, KerasTensor):
             indices_shape = list(indices.shape)
+            ragged = indices.ragged
         else:
             indices_shape = list(getattr(np.array(indices), "shape", []))
+            ragged = False
         if self.axis is None:
             return KerasTensor(indices_shape, dtype=x.dtype)
 
         # make sure axis is non-negative
         axis = len(x_shape) + self.axis if self.axis < 0 else self.axis
         output_shape = x_shape[:axis] + indices_shape + x_shape[axis + 1 :]
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=x.dtype, ragged=ragged)
 
 
 @keras_export(["keras.ops.take", "keras.ops.numpy.take"])

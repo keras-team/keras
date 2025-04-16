@@ -3078,15 +3078,59 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         if backend.backend() == "tensorflow":
             import tensorflow as tf
 
-            indices = tf.SparseTensor([[0, 0], [1, 2]], [1, 2], (2, 3))
+            indices = tf.SparseTensor([[0, 0], [1, 2]], [-1, 2], (2, 3))
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
-            indices = jax_sparse.BCOO(([1, 2], [[0, 0], [1, 2]]), shape=(2, 3))
+            indices = jax_sparse.BCOO(([-1, 2], [[0, 0], [1, 2]]), shape=(2, 3))
 
         self.assertAllClose(
             knp.take(x, indices, axis=axis),
             np.take(x, backend.convert_to_numpy(indices), axis=axis),
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            [
+                {"testcase_name": "axis_none", "axis": None},
+                {"testcase_name": "axis_0", "axis": 0},
+                {"testcase_name": "axis_1", "axis": 1},
+                {"testcase_name": "axis_minus1", "axis": -1},
+            ],
+            dtype=[
+                "float16",
+                "float32",
+                "float64",
+                "uint8",
+                "int8",
+                "int16",
+                "int32",
+            ],
+        )
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_RAGGED_TENSORS,
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_take_ragged(self, dtype, axis):
+        rng = np.random.default_rng(0)
+        x = (4 * rng.standard_normal((3, 4, 5))).astype(dtype)
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            indices = tf.ragged.constant([[2], [0, -1, 1]])
+            mask = backend.convert_to_numpy(tf.ones_like(indices))
+
+        if axis == 0:
+            mask = np.expand_dims(mask, (2, 3))
+        elif axis == 1:
+            mask = np.expand_dims(mask, (2,))
+
+        self.assertAllClose(
+            knp.take(x, indices, axis=axis),
+            np.take(x, backend.convert_to_numpy(indices), axis=axis)
+            * mask.astype(dtype),
         )
 
     def test_take_along_axis(self):
