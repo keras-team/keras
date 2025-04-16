@@ -112,3 +112,21 @@ class RandAugmentTest(testing.TestCase):
             bounding_box_format="xyxy",
         )
         ds.map(layer)
+    
+    def test_rand_augment_tf_graph_mode(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((4, 8, 8, 3))
+        else:
+            input_data = np.random.random((4, 3, 8, 8))
+        layer = layers.RandAugment(data_format=data_format, seed=42, num_ops=1)
+
+        # using tf.data.Dataset.map applies the function in graph mode
+        # lambda gets shuffled transform index
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(
+            lambda x: layer.get_random_transformation(x)[0]
+        )
+        results = []
+        for output in ds:
+            results.append(output.numpy())
+        self.assertFalse(np.all(results[0] == results[1]))
