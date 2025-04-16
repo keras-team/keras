@@ -26,6 +26,15 @@ def sigmoid(x):
     return output
 
 
+def sparse_sigmoid(x, b=4):
+    x = convert_to_tensor(x)
+    return tf.where(
+        x <= -1,
+        tf.constant(0.0, dtype=x.dtype),
+        tf.where(x >= 1, tf.constant(1.0, dtype=x.dtype), 0.5 * (x + 1)),
+    )
+
+
 def tanh(x):
     return tf.nn.tanh(x)
 
