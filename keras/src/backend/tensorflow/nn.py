@@ -26,7 +26,7 @@ def sigmoid(x):
     return output
 
 
-def sparse_sigmoid(x, b=4):
+def sparse_sigmoid(x):
     x = convert_to_tensor(x)
     return tf.where(
         x <= -1,
