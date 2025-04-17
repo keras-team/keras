@@ -40,6 +40,10 @@ def _ref_hard_sigmoid(x):
     return z
 
 
+def _ref_sparse_sigmoid(x):
+    return np.where(x <= -1, 0, np.where(x >= 1, 1, 0.5 * (x + 1)))
+
+
 def _ref_log_sigmoid(x):
     return -1 * _ref_softplus(-x)
 
@@ -339,6 +343,45 @@ class ActivationsTest(testing.TestCase):
         expected_positive_above_1 = np.ones((2, 5))
         self.assertAllClose(
             result_positive_above_1, expected_positive_above_1, rtol=1e-05
+        )
+
+    def test_sparse_sigmoid(self):
+        # Basic test for random values between 0 and 1
+        x = np.random.uniform(0, 1, (2, 5))
+        result = activations.sparse_sigmoid(x[np.newaxis, :])[0]
+        expected = np.vectorize(_ref_sparse_sigmoid)(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+        # Test with 1D array
+        x_1d = np.random.uniform(-10, 10, 5)
+        result_1d = activations.sparse_sigmoid(x_1d)
+        expected_1d = np.vectorize(_ref_sparse_sigmoid)(x_1d)
+        self.assertAllClose(result_1d, expected_1d, rtol=1e-05)
+
+        # Test with 3D array
+        x_3d = np.random.uniform(-10, 10, (3, 3, 3))
+        result_3d = activations.sparse_sigmoid(x_3d)
+        expected_3d = np.vectorize(_ref_sparse_sigmoid)(x_3d)
+        self.assertAllClose(result_3d, expected_3d, rtol=1e-05)
+
+        # Test large positive values
+        x_large_positive = np.random.uniform(10, 100, (2, 5))
+        result_large_positive = activations.sparse_sigmoid(x_large_positive)
+        expected_large_positive = np.vectorize(_ref_sparse_sigmoid)(
+            x_large_positive
+        )
+        self.assertAllClose(
+            result_large_positive, expected_large_positive, rtol=1e-05
+        )
+
+        # Test large negative values
+        x_large_negative = np.random.uniform(-100, -10, (2, 5))
+        result_large_negative = activations.sparse_sigmoid(x_large_negative)
+        expected_large_negative = np.vectorize(_ref_sparse_sigmoid)(
+            x_large_negative
+        )
+        self.assertAllClose(
+            result_large_negative, expected_large_negative, rtol=1e-05
         )
 
     def test_log_sigmoid(self):

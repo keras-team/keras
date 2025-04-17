@@ -31,6 +31,17 @@ def sigmoid(x):
     return np.array(1.0, x.dtype) / (np.array(1.0, x.dtype) + np.exp(-x))
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return np.where(
+        x <= -1,
+        np.array(0.0, x.dtype),
+        np.where(
+            x >= 1, np.array(1.0, x.dtype), np.array(0.5 * (x + 1), x.dtype)
+        ),
+    )
+
+
 def tanh(x):
     return np.tanh(x)
 
