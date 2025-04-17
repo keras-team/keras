@@ -16,7 +16,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.global_state import clear_session
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.losses.losses import MeanSquaredError
+from keras.src.losses.loss import Loss
 from keras.src.models import Model
 from keras.src.utils import traceback_utils
 
@@ -446,6 +446,11 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 while True:
                     yield data
 
+            # Single op loss to avoid compilation issues with ragged / sparse.
+            class TestLoss(Loss):
+                def __call__(self, y_true, y_pred, sample_weight=None):
+                    return ops.sum(y_pred)
+
             # test the "default" path for each backend by setting
             # jit_compile="auto".
             # for tensorflow and jax backends auto is jitted
@@ -463,9 +468,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             if backend.backend() == "tensorflow" and input_sparse:
                 jit_compile = False
             model.compile(
-                optimizer="sgd",
-                loss=MeanSquaredError(reduction="sum"),
-                jit_compile=jit_compile,
+                optimizer="sgd", loss=TestLoss(), jit_compile=jit_compile
             )
             model.fit(data_generator(), steps_per_epoch=1, verbose=0)
 
