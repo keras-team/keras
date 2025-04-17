@@ -24,7 +24,10 @@ import re
 import shutil
 
 # Needed because importing torch after TF causes the runtime to crash
-import torch  # noqa: F401
+try:
+    import torch  # noqa: F401
+except ImportError:
+    pass
 
 package = "keras"
 build_directory = "tmp_build_dir"
@@ -81,7 +84,6 @@ def build(root_path, is_nightly=False, rc_index=None):
 
     try:
         copy_source_to_build_directory(root_path)
-        move_tf_keras_directory()
 
         from keras.src.version import __version__  # noqa: E402
 
@@ -90,28 +92,6 @@ def build(root_path, is_nightly=False, rc_index=None):
     finally:
         # Clean up: remove the build directory (no longer needed)
         shutil.rmtree(build_directory)
-
-
-def move_tf_keras_directory():
-    """Move `keras/api/_tf_keras` to `keras/_tf_keras`, update references."""
-    shutil.move(os.path.join(package, "api", "_tf_keras"), "keras")
-    with open(os.path.join(package, "api", "__init__.py")) as f:
-        contents = f.read()
-        contents = contents.replace("from keras.api import _tf_keras", "")
-    with open(os.path.join(package, "api", "__init__.py"), "w") as f:
-        f.write(contents)
-    # Replace `keras.api._tf_keras` with `keras._tf_keras`.
-    for root, _, fnames in os.walk(os.path.join(package, "_tf_keras")):
-        for fname in fnames:
-            if fname.endswith(".py"):
-                tf_keras_fpath = os.path.join(root, fname)
-                with open(tf_keras_fpath) as f:
-                    contents = f.read()
-                    contents = contents.replace(
-                        "keras.api._tf_keras", "keras._tf_keras"
-                    )
-                with open(tf_keras_fpath, "w") as f:
-                    f.write(contents)
 
 
 def build_and_save_output(root_path, __version__):
