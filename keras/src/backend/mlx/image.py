@@ -678,7 +678,9 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    raise NotImplementedError("perspective_transform not yet implemented in mlx.")
+    raise NotImplementedError(
+        "perspective_transform not yet implemented in mlx."
+    )
 
 
 def gaussian_blur(

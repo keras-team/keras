@@ -4810,15 +4810,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             functional_result = knp.argpartition(x, 2)
             class_result = knp.Argpartition(2)(x)
             expected_result = np.argpartition(x, 2)
-            
+
             self.assertEqual(x[functional_result[2]], x[expected_result[2]])
             self.assertEqual(x[class_result[2]], x[expected_result[2]])
-            
+
             kth_value = x[functional_result[2]]
             for i in range(2):
                 self.assertLessEqual(x[functional_result[i]], kth_value)
                 self.assertLessEqual(x[class_result[i]], kth_value)
-            
+
             for i in range(3, len(x)):
                 self.assertGreaterEqual(x[functional_result[i]], kth_value)
                 self.assertGreaterEqual(x[class_result[i]], kth_value)
@@ -6279,14 +6279,14 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
-        print(f'(input) dtype1: {dtype1}, dtype2: {dtype2}')
+        print(f"(input) dtype1: {dtype1}, dtype2: {dtype2}")
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(jnp.left_shift(x1_jax, x2_jax).dtype)
-        print('expected_dtype', expected_dtype)
-        print('(mlx) dtype', knp.bitwise_left_shift(x1, x2).dtype)
+        print("expected_dtype", expected_dtype)
+        print("(mlx) dtype", knp.bitwise_left_shift(x1, x2).dtype)
 
         self.assertDType(knp.bitwise_left_shift(x1, x2), expected_dtype)
         self.assertDType(

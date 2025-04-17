@@ -87,7 +87,7 @@ class ConstantInitializersTest(testing.TestCase):
         if backend.backend() == "jax" or backend.backend() == "mlx":
             # TODO(mostafa-mahmoud): investigate the cases
             # of non-small error in jax and torch
-             # for mlx, minor precision differences with float64 on linux
+            # for mlx, minor precision differences with float64 on linux
             tol_kwargs = {"atol": 1e-4, "rtol": 1e-6}
 
         initializer = initializers.STFT("real", None)

@@ -1087,9 +1087,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
     )
     def test_matmul(self, dtypes):
         if backend.backend() == "mlx":
-            input_dtypes = (dtype for dtype in dtypes if dtype is not None)
-            if any('int' in dtype or 'complex' in dtype for dtype in input_dtypes):
-                self.skipTest("mlx backend only supports matmul for real floating point types")
+            result_dtype = backend.result_type(*dtypes)
+            if "float" not in result_dtype:
+                self.skipTest(
+                    "mlx backend only supports matmul for real floating point "
+                    "types"
+                )
 
         import jax.numpy as jnp
 

@@ -64,12 +64,12 @@ def top_k(x, k, sorted=True):
     x = convert_to_tensor(x)
     indices = mx.argpartition(mx.negative(x), k, axis=-1)[..., :k]
     values = mx.take_along_axis(x, indices, axis=-1)
-    
+
     if sorted:
         sort_indices = mx.argsort(mx.negative(values), axis=-1)
         values = mx.take_along_axis(values, sort_indices, axis=-1)
         indices = mx.take_along_axis(indices, sort_indices, axis=-1)
-    
+
     return values, indices
 
 

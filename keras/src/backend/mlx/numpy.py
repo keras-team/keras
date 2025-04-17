@@ -275,7 +275,7 @@ def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
     if not isinstance(y, int):
         y = convert_to_tensor(y)
-    
+
     # handle result dtype to match other backends
     types = [x.dtype]
     if is_tensor(y):
@@ -1597,14 +1597,20 @@ def rot90(array, k=1, axes=(0, 1)):
 def signbit(x):
     x = convert_to_tensor(x)
 
-    if x.dtype in (mx.float16, mx.float32, mx.float64, mx.bfloat16, mx.complex64):
+    if x.dtype in (
+        mx.float16,
+        mx.float32,
+        mx.float64,
+        mx.bfloat16,
+        mx.complex64,
+    ):
         if x.dtype == mx.complex64:
             # check sign of real part for complex numbers
             real_part = mx.real(x)
             return signbit(real_part)
         zeros = x == 0
         # this works because in mlx 1/0=inf and 1/-0=-inf
-        neg_zeros = (1/x == mx.array(float('-inf'))) & zeros
+        neg_zeros = (1 / x == mx.array(float("-inf"))) & zeros
         return mx.where(zeros, neg_zeros, x < 0)
     elif x.dtype in (mx.uint8, mx.uint16, mx.uint32, mx.uint64):
         # unsigned integers never negative
@@ -1614,6 +1620,6 @@ def signbit(x):
         return x < 0
     elif x.dtype == mx.bool_:
         # for boolean array, return false
-        return mx.zeros_like(x).astype(mx.bool_)    
+        return mx.zeros_like(x).astype(mx.bool_)
     else:
         raise ValueError(f"Unsupported dtype in `signbit`: {x.dtype}")
