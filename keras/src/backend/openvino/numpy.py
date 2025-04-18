@@ -5,6 +5,8 @@ from openvino import Type
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.variables import standardize_dtype
+from keras.src.backend.openvino.core import DTYPES_MAX
+from keras.src.backend.openvino.core import DTYPES_MIN
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
@@ -1030,9 +1032,29 @@ def moveaxis(x, source, destination):
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
-    raise NotImplementedError(
-        "`nan_to_num` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    dtype = x.get_element_type()
+    shape_x = ov_opset.shape_of(x).output(0)
+    nan_vector = ov_opset.broadcast(
+        ov_opset.constant(nan, dtype), shape_x
+    ).output(0)
+    posinf_val = posinf if posinf is not None else DTYPES_MAX[dtype]
+    neginf_val = neginf if neginf is not None else DTYPES_MIN[dtype]
+    posinf_vector = ov_opset.broadcast(
+        ov_opset.constant(posinf_val, dtype), shape_x
+    ).output(0)
+    neginf_vector = ov_opset.broadcast(
+        ov_opset.constant(neginf_val, dtype), shape_x
+    ).output(0)
+    nan_mask = ov_opset.is_nan(x).output(0)
+    x = ov_opset.select(nan_mask, nan_vector, x).output(0)
+    inf_const = ov_opset.constant(np.PINF, dtype)
+    posinf_mask = ov_opset.equal(x, inf_const).output(0)
+    x = ov_opset.select(posinf_mask, posinf_vector, x).output(0)
+    ninf_const = ov_opset.constant(np.NINF, dtype)
+    neginf_mask = ov_opset.equal(x, ninf_const).output(0)
+    x = ov_opset.select(neginf_mask, neginf_vector, x).output(0)
+    return OpenVINOKerasTensor(x)
 
 
 def ndim(x):
