@@ -92,7 +92,6 @@ NumpyOneInputOpsCorrectnessTest::test_log1p
 NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
-NumpyOneInputOpsCorrectnessTest::test_median
 NumpyOneInputOpsCorrectnessTest::test_meshgrid
 NumpyOneInputOpsCorrectnessTest::test_min
 NumpyOneInputOpsCorrectnessTest::test_moveaxis

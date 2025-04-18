@@ -996,7 +996,111 @@ def maximum(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
-    raise NotImplementedError("`median` is not supported with openvino backend")
+    x = get_ov_output(x)
+    
+    # Flatten the tensor if axis is None
+    if axis is None:
+        original_shape = ov_opset.shape_of(x, dtype=Type.i64).output(0)
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+        
+    # Convert axis to constant
+    axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
+    
+    # Get the shape of the tensor
+    shape = ov_opset.shape_of(x, dtype=Type.i64).output(0)
+    
+    # Compute the length of the axis
+    if axis is not None:
+        indices = ov_opset.constant([axis], dtype=Type.i32).output(0)
+        length = ov_opset.gather(shape, indices, 0).output(0)
+    else:
+        length = ov_opset.shape_of(shape, dtype=Type.i64).output(0)
+        length = ov_opset.reshape(length, ov_opset.constant([], dtype=Type.i32).output(0), False).output(0)
+    
+    # Sort the tensor along the axis
+    sorted_x = ov_opset.topk(x, length, axis, "value", "ascending", "f32").output(0)
+    
+    # Get the indices of the middle elements
+    const_2 = ov_opset.constant(2, dtype=Type.i64).output(0)
+    mid_index = ov_opset.floor_mod(length, const_2).output(0)
+    is_odd = ov_opset.equal(mid_index, ov_opset.constant(1, dtype=Type.i64).output(0)).output(0)
+    
+    # Calculate indices for middle elements
+    half_length = ov_opset.divide(length, const_2).output(0)
+    floor_half_length = ov_opset.floor(half_length).output(0)
+    floor_half_length = ov_opset.convert(floor_half_length, Type.i64).output(0)
+    ceil_half_length = ov_opset.ceiling(half_length).output(0)
+    ceil_half_length = ov_opset.convert(ceil_half_length, Type.i64).output(0)
+    
+    # Create a slice to extract the median value(s)
+    slice_begin = ov_opset.constant([0], dtype=Type.i64).output(0)
+    slice_begin_with_axis = ov_opset.broadcast(slice_begin, ov_opset.shape_of(shape, dtype=Type.i64).output(0)).output(0)
+    
+    # For odd length, take the middle element
+    # For even length, take the average of two middle elements
+    mid_elem_indices = ov_opset.select(is_odd, floor_half_length, floor_half_length).output(0)
+    
+    # Get the middle element(s)
+    if axis is not None:
+        # Prepare indices for gather
+        gather_indices = ov_opset.range(
+            ov_opset.constant(0, dtype=Type.i64).output(0),
+            mid_elem_indices,
+            ov_opset.constant(1, dtype=Type.i64).output(0),
+            "i64"
+        ).output(0)
+        
+        # Get the middle element
+        middle_elem = ov_opset.gather(sorted_x, mid_elem_indices, axis).output(0)
+        
+        # If even length, get the element before the middle and calculate average
+        prev_mid_elem_indices = ov_opset.subtract(mid_elem_indices, ov_opset.constant(1, dtype=Type.i64).output(0)).output(0)
+        prev_middle_elem = ov_opset.gather(sorted_x, prev_mid_elem_indices, axis).output(0)
+        
+        # Calculate the median: if odd use middle element, if even use average of two middle elements
+        median_value = ov_opset.select(
+            is_odd,
+            middle_elem,
+            ov_opset.divide(
+                ov_opset.add(middle_elem, prev_middle_elem).output(0),
+                ov_opset.constant(2.0, dtype=middle_elem.get_element_type()).output(0)
+            ).output(0)
+        ).output(0)
+    else:
+        # For flattened tensor
+        mid_index_scalar = ov_opset.convert(mid_elem_indices, Type.i32).output(0)
+        middle_elem = ov_opset.gather(sorted_x, mid_index_scalar, 0).output(0)
+        
+        prev_mid_elem_indices = ov_opset.subtract(mid_elem_indices, ov_opset.constant(1, dtype=Type.i64).output(0)).output(0)
+        prev_mid_index_scalar = ov_opset.convert(prev_mid_elem_indices, Type.i32).output(0)
+        prev_middle_elem = ov_opset.gather(sorted_x, prev_mid_index_scalar, 0).output(0)
+        
+        median_value = ov_opset.select(
+            is_odd,
+            middle_elem,
+            ov_opset.divide(
+                ov_opset.add(middle_elem, prev_middle_elem).output(0),
+                ov_opset.constant(2.0, dtype=middle_elem.get_element_type()).output(0)
+            ).output(0)
+        ).output(0)
+    
+    # Reshape if needed
+    if keepdims:
+        # Create keepdims shape
+        keep_shape = shape
+        if axis is not None:
+            one_tensor = ov_opset.constant(1, dtype=Type.i64).output(0)
+            indices = ov_opset.constant([axis], dtype=Type.i32).output(0)
+            keep_shape = ov_opset.scatter_elements_update(shape, indices, one_tensor, 0).output(0)
+        median_value = ov_opset.reshape(median_value, keep_shape, False).output(0)
+    elif axis is None and x.get_partial_shape().rank.get_length() > 1:
+        # Reshape back to scalar for axis=None case if original input was not a scalar
+        scalar_shape = ov_opset.constant([], dtype=Type.i32).output(0)
+        median_value = ov_opset.reshape(median_value, scalar_shape, False).output(0)
+    
+    return OpenVINOKerasTensor(median_value)
 
 
 def meshgrid(*x, indexing="xy"):
