@@ -998,17 +998,14 @@ def maximum(x1, x2):
 def median(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     
-    # Flatten the tensor if axis is None
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
     
-    # Get the shape of the tensor
     shape = ov_opset.shape_of(x).output(0)
     shape = ov_opset.convert(shape, Type.i64).output(0)
     
-    # Compute the length of the axis
     if axis is not None:
         indices = ov_opset.constant([axis], Type.i32).output(0)
         length = ov_opset.gather(shape, indices, 0).output(0)
@@ -1017,20 +1014,16 @@ def median(x, axis=None, keepdims=False):
         length = ov_opset.convert(length, Type.i64).output(0)
         length = ov_opset.reshape(length, ov_opset.constant([], Type.i32).output(0), False).output(0)
     
-    # Sort the tensor along the axis
-    sorted_x = ov_opset.topk(x, length, axis, "value", "ascending", "f32").output(0)
+    sorted_x = ov_opset.topk(x, length, axis, "min", "value", "i32").output(0)
     
-    # Check if length is odd or even
     const_2 = ov_opset.constant(2, Type.i64).output(0)
     mid_index = ov_opset.floor_mod(length, const_2).output(0)
     is_odd = ov_opset.equal(mid_index, ov_opset.constant(1, Type.i64).output(0)).output(0)
     
-    # Calculate middle index
     half_length = ov_opset.divide(length, const_2).output(0)
     floor_half_length = ov_opset.floor(half_length).output(0)
     floor_half_length = ov_opset.convert(floor_half_length, Type.i64).output(0)
     
-    # Get middle element and element before it (for even case)
     mid_index_scalar = ov_opset.convert(floor_half_length, Type.i32).output(0)
     middle_elem = ov_opset.gather(sorted_x, mid_index_scalar, axis).output(0)
     
@@ -1038,7 +1031,6 @@ def median(x, axis=None, keepdims=False):
     prev_mid_index_scalar = ov_opset.convert(prev_mid_index, Type.i32).output(0)
     prev_middle_elem = ov_opset.gather(sorted_x, prev_mid_index_scalar, axis).output(0)
     
-    # Calculate median: if odd use middle element, if even use average of two middle elements
     median_value = ov_opset.select(
         is_odd,
         middle_elem,
@@ -1048,9 +1040,7 @@ def median(x, axis=None, keepdims=False):
         ).output(0)
     ).output(0)
     
-    # Reshape if needed
     if keepdims:
-        # Create keepdims shape
         keep_shape = shape
         if axis is not None:
             one_tensor = ov_opset.constant(1, Type.i64).output(0)
