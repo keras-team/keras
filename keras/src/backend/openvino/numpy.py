@@ -1051,7 +1051,8 @@ def median(x, axis=None, keepdims=False):
     elif axis is None and x.get_partial_shape().rank.get_length() > 1:
         scalar_shape = ov_opset.constant([], Type.i32).output(0)
         median_value = ov_opset.reshape(median_value, scalar_shape, False).output(0)
-    
+
+    median_value = ov_opset.convert(median_value, x.get_element_type()).output(0)
     return OpenVINOKerasTensor(median_value)
 
 
