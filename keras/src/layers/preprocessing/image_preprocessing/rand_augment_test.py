@@ -150,3 +150,26 @@ class RandAugmentTest(testing.TestCase):
                 results.add(layer.augmentations[i].name)
         print(results)
         self.assertTrue(len(results) > 1)
+
+    def test_rand_augment_model(self):
+        from keras.src.models import Sequential
+
+        data_format = backend.config.image_data_format()
+        N = 32
+        if data_format == "channels_last":
+            input_data = np.random.random((N, 8, 8, 3))
+        else:
+            input_data = np.random.random((N, 3, 8, 8))
+        y_true = np.random.random((N, 1))
+        
+        model = Sequential([
+            layers.Input(input_data.shape[1:], dtype="float32"),
+            layers.RandAugment(data_format=data_format, seed=42, num_ops=2),
+            layers.Flatten(),
+            layers.Dense(10, activation="relu"),
+            layers.Dense(1),
+        ])
+        model.compile(loss="mse")
+        model.summary()
+
+        model.fit(input_data, y_true, batch_size=2, epochs=40)
