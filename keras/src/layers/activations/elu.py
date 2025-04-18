@@ -23,7 +23,6 @@ class ELU(Layer):
         super().__init__(**kwargs)
         self.alpha = alpha
         self.supports_masking = True
-        self.built = True
 
         self._build_at_init()
 
