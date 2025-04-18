@@ -1,11 +1,10 @@
 import keras.src.layers as layers
-import keras.src.ops as ops
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
-from keras.src.random import SeedGenerator, shuffle
+from keras.src.random import SeedGenerator
 from keras.src.utils import backend_utils
 
 
