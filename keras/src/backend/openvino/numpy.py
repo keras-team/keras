@@ -1009,12 +1009,13 @@ def median(x, axis=None, keepdims=False):
     if axis is not None:
         indices = ov_opset.constant([axis], Type.i32).output(0)
         length = ov_opset.gather(shape, indices, 0).output(0)
+        length = ov_opset.reshape(length, ov_opset.constant([], Type.i32).output(0), False).output(0)
     else:
         length = ov_opset.shape_of(shape).output(0)
         length = ov_opset.convert(length, Type.i64).output(0)
         length = ov_opset.reshape(length, ov_opset.constant([], Type.i32).output(0), False).output(0)
     
-    sorted_x = ov_opset.topk(x, length, axis, "min", "value", "i32").output(0)
+    sorted_x = ov_opset.topk(x, length, axis, "min", "value").output(0)
     
     const_2 = ov_opset.constant(2, Type.i64).output(0)
     mid_index = ov_opset.floor_mod(length, const_2).output(0)
