@@ -1,5 +1,6 @@
 import keras.src.layers as layers
 import keras.src.ops as ops
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -129,6 +130,7 @@ class RandAugment(BaseImagePreprocessingLayer):
                 value_range=self.value_range, data_format=data_format, **kwargs
             )
         ]
+        self.num_layers = len(self.augmentations)
 
     def build(self, input_shape):
         for augmentation_layer in self.augmentations:
@@ -145,12 +147,13 @@ class RandAugment(BaseImagePreprocessingLayer):
                 augmentation_layer.backend.set_backend("tensorflow")
 
         transformation = []
-        idx = shuffle(
-            ops.arange(len(self.augmentations), dtype="int32"),
-            seed=self.generator,
+        idx = self.backend.random.shuffle(
+            self.backend.numpy.arange(self.num_layers, dtype="int32"),
+            seed=self._get_seed_generator(self.backend._backend),
         )
         
-        for augmentation_layer in self.augmentations:
+        for i in range(self.num_layers):
+            augmentation_layer = self.augmentations[i]
             transformation.append(
                 augmentation_layer.get_random_transformation(
                     data,
@@ -160,25 +163,34 @@ class RandAugment(BaseImagePreprocessingLayer):
             )
 
         return idx, transformation
+    
+    def _apply_augs(self, transformation, func_name, inputs):
+        aug_index, transforms = transformation
+        
 
+        def get_fn(aug, xform):
+            def func(x):
+                if isinstance(x, dict):
+                    z = tree.map_structure(self.backend.numpy.copy, x)
+                    return getattr(aug, func_name)(z, xform)
+                return getattr(aug, func_name)(x, xform)
+            return func
+        
+        def body(i, loop_var):
+            idx = aug_index[i]
+            return self.backend.core.switch(
+                idx,
+                [get_fn(aug, xform) for aug, xform in zip(self.augmentations, transforms)],
+                loop_var,
+            )
+        
+        return self.backend.core.fori_loop(0, self.num_ops, body, inputs)
+    
     def transform_images(self, images, transformation, training=True):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
 
-            aug_index, transforms = transformation
-            def get_img_aug(aug, xform):
-                def func(img):
-                    return aug.transform_images(img, xform)
-                return func
-            
-            def body(i, img):
-                idx = aug_index[i]
-                aug_funcs = []
-                for aug, xform in zip(self.augmentations, transforms):
-                    aug_funcs.append(get_img_aug(aug, xform))
-                return ops.switch(idx, aug_funcs, img)
-            
-            images = ops.fori_loop(0, self.num_ops, body, images)
+            images = self._apply_augs(transformation, "transform_images", images)
             
         images = self.backend.cast(images, self.compute_dtype)
         return images
@@ -193,15 +205,7 @@ class RandAugment(BaseImagePreprocessingLayer):
         training=True,
     ):
         if training:
-            aug_index, transforms = transformation
-            def body(i, bb):
-                idx = aug_index[i]
-                aug_funcs = []
-                for aug, xform in zip(self.augmentations, transforms):
-                    aug_funcs.append(lambda x: aug.transform_bounding_boxes(x, xform))
-                return ops.switch(idx, aug_funcs, bb)
-            
-            bounding_boxes = ops.fori_loop(0, self.num_ops, body, bounding_boxes)
+            bounding_boxes = self._apply_augs(transformation, "transform_bounding_boxes", bounding_boxes)
         return bounding_boxes
 
     def transform_segmentation_masks(
