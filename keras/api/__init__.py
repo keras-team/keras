@@ -41,6 +41,9 @@ from keras.src.backend.common.remat import RematScope
 from keras.src.backend.common.remat import remat
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
+from keras.src.backend.exports import Variable
+from keras.src.backend.exports import device
+from keras.src.backend.exports import name_scope
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.src.initializers.initializer import Initializer

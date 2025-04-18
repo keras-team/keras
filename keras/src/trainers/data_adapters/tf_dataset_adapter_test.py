@@ -323,6 +323,9 @@ class TestTFDatasetAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
 
         batch_count = 0
         for batch in it:

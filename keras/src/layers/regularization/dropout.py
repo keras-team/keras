@@ -52,7 +52,6 @@ class Dropout(Layer):
         if rate > 0:
             self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
-        self.built = True
 
         self._build_at_init()
 

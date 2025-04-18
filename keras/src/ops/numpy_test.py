@@ -4804,8 +4804,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_argpartition(self):
         x = np.array([3, 4, 2, 1])
-        self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
-        self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
+        if backend.backend() == "mlx":
+            # order is not gauranteed for mlx backend
+            # check kth element and prior and post elements accordingly
+            functional_result = knp.argpartition(x, 2)
+            class_result = knp.Argpartition(2)(x)
+            expected_result = np.argpartition(x, 2)
+
+            self.assertEqual(x[functional_result[2]], x[expected_result[2]])
+            self.assertEqual(x[class_result[2]], x[expected_result[2]])
+
+            kth_value = x[functional_result[2]]
+            self.assertTrue(np.all(x[functional_result[:2]] <= kth_value))
+            self.assertTrue(np.all(x[functional_result[3:]] >= kth_value))
+
+            self.assertTrue(np.all(x[class_result[:2]] <= kth_value))
+            self.assertTrue(np.all(x[class_result[3:]] >= kth_value))
+        else:
+            self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
+            self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
 
         x = np.array([[3, 4, 2], [1, 3, 4]])
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
