@@ -168,7 +168,12 @@ def get_tensor_spec(batches):
 
         dtype = backend.standardize_dtype(x.dtype)
         if isinstance(x, tf.RaggedTensor):
-            return tf.RaggedTensorSpec(shape=shape, dtype=dtype)
+            return tf.RaggedTensorSpec(
+                shape=shape,
+                dtype=dtype,
+                ragged_rank=x.ragged_rank,
+                row_splits_dtype=x.row_splits.dtype,
+            )
         if (
             isinstance(x, tf.SparseTensor)
             or is_scipy_sparse(x)

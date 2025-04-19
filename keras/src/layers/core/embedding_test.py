@@ -61,6 +61,27 @@ class EmbeddingTest(test_case.TestCase):
             supports_masking=False,
         )
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_RAGGED_TENSORS,
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_ragged(self):
+        self.run_layer_test(
+            layers.Embedding,
+            {"input_dim": 5, "output_dim": 4},
+            input_shape=(2, 3),
+            input_dtype="int32",
+            input_ragged=True,
+            expected_output_shape=(2, None, 4),
+            expected_output_ragged=True,
+            expected_num_trainable_weights=1,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
+            # run_training_check=False,
+        )
+
     def test_correctness(self):
         layer = layers.Embedding(input_dim=3, output_dim=2)
         layer.build()

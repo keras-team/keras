@@ -166,7 +166,7 @@ class GeneratorDataAdapterTest(testing.TestCase):
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors",
     )
-    def test_scipy_sparse_tensors(self, generator_type):
+    def test_sparse_tensors(self, generator_type):
         if generator_type == "tf":
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 4))
             y = tf.SparseTensor([[0, 0], [1, 1]], [3.0, 4.0], (2, 2))
@@ -197,3 +197,33 @@ class GeneratorDataAdapterTest(testing.TestCase):
             self.assertIsInstance(by, expected_class)
             self.assertEqual(bx.shape, (2, 4))
             self.assertEqual(by.shape, (2, 2))
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_RAGGED_TENSORS,
+        reason="Backend does not support ragged tensors",
+    )
+    def test_ragged_tensors(self):
+        x = tf.ragged.constant(
+            [[[0.0, 1.0]], [[2.0, 3.0], [4.0, 5.0]]], ragged_rank=1
+        )
+        y = tf.ragged.constant(
+            [[[0.0, 1.0]], [[0.0, 1.0], [0.0, 1.0]]], ragged_rank=1
+        )
+
+        def generate():
+            for _ in range(4):
+                yield x, y
+
+        adapter = generator_data_adapter.GeneratorDataAdapter(generate())
+
+        if backend.backend() == "tensorflow":
+            it = adapter.get_tf_dataset()
+            expected_class = tf.RaggedTensor
+
+        for batch in it:
+            self.assertEqual(len(batch), 2)
+            bx, by = batch
+            self.assertIsInstance(bx, expected_class)
+            self.assertIsInstance(by, expected_class)
+            self.assertEqual(bx.shape, (2, None, 2))
+            self.assertEqual(by.shape, (2, None, 2))
