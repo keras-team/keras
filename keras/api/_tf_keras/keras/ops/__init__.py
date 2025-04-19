@@ -114,6 +114,7 @@ from keras.src.ops.numpy import add
 from keras.src.ops.numpy import all
 from keras.src.ops.numpy import amax
 from keras.src.ops.numpy import amin
+from keras.src.ops.numpy import angle
 from keras.src.ops.numpy import any
 from keras.src.ops.numpy import append
 from keras.src.ops.numpy import arange

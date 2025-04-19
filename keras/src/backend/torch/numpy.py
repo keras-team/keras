@@ -264,6 +264,11 @@ def all(x, axis=None, keepdims=False):
     return cast(x, "bool")
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    return torch.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:

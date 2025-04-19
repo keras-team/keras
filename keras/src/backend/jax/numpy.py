@@ -246,6 +246,16 @@ def all(x, axis=None, keepdims=False):
     return jnp.all(x, axis=axis, keepdims=keepdims)
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
+    return jnp.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     return jnp.any(x, axis=axis, keepdims=keepdims)
 
