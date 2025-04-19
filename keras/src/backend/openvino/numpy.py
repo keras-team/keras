@@ -1118,7 +1118,28 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    raise NotImplementedError("`prod` is not supported with openvino backend")
+    #raise NotImplementedError("`prod` is not supported with openvino backend")
+    if axis == () or axis == []:
+        return x
+
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+
+    if x_type == Type.boolean:
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
+        )
+
+    return OpenVINOKerasTensor(ov_opset.reduce_prod(x, axis, keepdims).output(0))
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
