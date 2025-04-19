@@ -14,7 +14,6 @@ NumpyDtypeTest::test_correlate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_cumsum_bool
-NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
@@ -79,7 +78,6 @@ NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_correlate
 NumpyOneInputOpsCorrectnessTest::test_cumprod
-NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
