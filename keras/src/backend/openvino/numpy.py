@@ -1034,26 +1034,21 @@ def moveaxis(x, source, destination):
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = get_ov_output(x)
     dtype = x.get_element_type()
-    shape_x = ov_opset.shape_of(x).output(0)
-    nan_vector = ov_opset.broadcast(
-        ov_opset.constant(nan, dtype), shape_x
+    nan_val = ov_opset.constant(nan, dtype).output(0)
+    posinf_val = ov_opset.constant(
+        posinf if posinf is not None else DTYPES_MAX[dtype], dtype
     ).output(0)
-    posinf_val = posinf if posinf is not None else DTYPES_MAX[dtype]
-    neginf_val = neginf if neginf is not None else DTYPES_MIN[dtype]
-    posinf_vector = ov_opset.broadcast(
-        ov_opset.constant(posinf_val, dtype), shape_x
+    neginf_val = ov_opset.constant(
+        neginf if neginf is not None else DTYPES_MIN[dtype], dtype
     ).output(0)
-    neginf_vector = ov_opset.broadcast(
-        ov_opset.constant(neginf_val, dtype), shape_x
-    ).output(0)
-    nan_mask = ov_opset.is_nan(x).output(0)
-    x = ov_opset.select(nan_mask, nan_vector, x).output(0)
-    inf_const = ov_opset.constant(np.inf, dtype)
+    nan_mask = ov_opset.is_nan(ov_opset.convert(x, Type.f32)).output(0)
+    x = ov_opset.select(nan_mask, nan_val, x).output(0)
+    inf_const = ov_opset.constant(DTYPES_MAX[dtype], dtype)
     posinf_mask = ov_opset.equal(x, inf_const).output(0)
-    x = ov_opset.select(posinf_mask, posinf_vector, x).output(0)
-    ninf_const = ov_opset.constant(-np.inf, dtype)
+    x = ov_opset.select(posinf_mask, posinf_val, x).output(0)
+    ninf_const = ov_opset.constant(DTYPES_MIN[dtype], dtype)
     neginf_mask = ov_opset.equal(x, ninf_const).output(0)
-    x = ov_opset.select(neginf_mask, neginf_vector, x).output(0)
+    x = ov_opset.select(neginf_mask, neginf_val, x).output(0)
     return OpenVINOKerasTensor(x)
 
 

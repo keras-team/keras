@@ -38,7 +38,6 @@ NumpyDtypeTest::test_meshgrid
 NumpyDtypeTest::test_min
 NumpyDtypeTest::test_moveaxis
 NumpyDtypeTest::test_multiply
-NumpyDtypeTest::test_nan
 NumpyDtypeTest::test_outer_
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_prod
