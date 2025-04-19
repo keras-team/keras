@@ -33,7 +33,6 @@ NumpyDtypeTest::test_logspace
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_max
 NumpyDtypeTest::test_mean
-NumpyDtypeTest::test_median
 NumpyDtypeTest::test_meshgrid
 NumpyDtypeTest::test_min
 NumpyDtypeTest::test_moveaxis
@@ -92,7 +91,6 @@ NumpyOneInputOpsCorrectnessTest::test_log1p
 NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
-NumpyOneInputOpsCorrectnessTest::test_median
 NumpyOneInputOpsCorrectnessTest::test_meshgrid
 NumpyOneInputOpsCorrectnessTest::test_min
 NumpyOneInputOpsCorrectnessTest::test_moveaxis

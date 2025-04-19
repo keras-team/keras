@@ -988,15 +988,72 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
 
-def maximum(x1, x2):
-    x1 = get_ov_output(x1)
-    x2 = get_ov_output(x2)
-    x1, x2 = _align_operand_types(x1, x2, "maximum()")
-    return OpenVINOKerasTensor(ov_opset.maximum(x1, x2).output(0))
-
-
 def median(x, axis=None, keepdims=False):
-    raise NotImplementedError("`median` is not supported with openvino backend")
+    x = get_ov_output(x)
+    original_type = x.get_element_type()
+    is_bool = original_type == Type.boolean
+    if is_bool:
+        x = ov_opset.convert(x, Type.i32).output(0)
+    elif original_type not in (Type.f32, Type.f64):
+        x = ov_opset.convert(x, Type.f32).output(0)
+    if axis is None:
+        x = ov_opset.reshape(x, ov_opset.constant([-1], Type.i32).output(0), False).output(0)
+        axis = 0
+    shape = ov_opset.convert(ov_opset.shape_of(x).output(0), Type.i64).output(0)
+    rank = x.get_partial_shape().rank.get_length()
+    axis_const = ov_opset.constant([axis], Type.i32).output(0)
+    axis_length = ov_opset.reshape(
+        ov_opset.gather(shape, axis_const, 0).output(0),
+        ov_opset.constant([], Type.i32).output(0),
+        False
+    ).output(0)
+    const_zero = ov_opset.constant(0, Type.i64).output(0)
+    is_empty = ov_opset.equal(axis_length, const_zero).output(0)
+    zero_value = ov_opset.constant(0.0 if not is_bool else 0, x.get_element_type()).output(0)
+    if axis is None:
+        if keepdims:
+            result_shape = ov_opset.constant([1] * rank, Type.i32).output(0)
+        else:
+            result_shape = ov_opset.constant([], Type.i32).output(0)
+    else:
+        if keepdims:
+            one_i64 = ov_opset.constant([1], Type.i64).output(0)
+            result_shape = ov_opset.scatter_elements_update(shape, axis_const, one_i64, 0).output(0)
+        else:
+            kept_axes = [i for i in range(rank) if i != axis]
+            kept_const = ov_opset.constant(kept_axes, Type.i32).output(0)
+            result_shape = ov_opset.gather(shape, kept_const, 0).output(0)
+    empty_result = ov_opset.reshape(zero_value, result_shape, False).output(0)
+    sorted_values = ov_opset.topk(x, axis_length, axis, "min", "value").output(0)
+    const_one = ov_opset.constant(1, Type.i64).output(0)
+    mod_two = ov_opset.floor_mod(axis_length, ov_opset.constant(2, Type.i64).output(0)).output(0)
+    is_odd = ov_opset.equal(mod_two, const_one).output(0)
+    half = ov_opset.floor(ov_opset.divide(axis_length, ov_opset.constant(2, Type.i64).output(0)).output(0)).output(0)
+    half = ov_opset.convert(half, Type.i64).output(0)
+    mid_index = ov_opset.convert(half, Type.i32).output(0)
+    prev_index = ov_opset.convert(ov_opset.subtract(half, const_one).output(0), Type.i32).output(0)
+    mid_elem = ov_opset.gather(sorted_values, mid_index, axis).output(0)
+    prev_elem = ov_opset.gather(sorted_values, prev_index, axis).output(0)
+    if is_bool:
+        sum_middle = ov_opset.add(mid_elem, prev_elem).output(0)
+        is_two = ov_opset.equal(sum_middle, ov_opset.constant(2, Type.i32).output(0)).output(0)
+        is_one = ov_opset.equal(sum_middle, ov_opset.constant(1, Type.i32).output(0)).output(0)
+        even_result = ov_opset.select(
+            is_two,
+            ov_opset.constant(1, Type.i32).output(0),
+            ov_opset.select(is_one, ov_opset.constant(1, Type.i32).output(0), ov_opset.constant(0, Type.i32).output(0))
+        ).output(0)
+    else:
+        even_result = ov_opset.divide(
+            ov_opset.add(mid_elem, prev_elem).output(0),
+            ov_opset.constant(2.0, x.get_element_type()).output(0)
+        ).output(0)
+    median_result = ov_opset.select(is_odd, mid_elem, even_result).output(0)
+    if keepdims or (axis is None and rank > 1):
+        median_result = ov_opset.reshape(median_result, result_shape, False).output(0)
+    final_result = ov_opset.select(is_empty, empty_result, median_result).output(0)
+    return OpenVINOKerasTensor(ov_opset.convert(final_result, original_type).output(0))
+
 
 
 def meshgrid(*x, indexing="xy"):
