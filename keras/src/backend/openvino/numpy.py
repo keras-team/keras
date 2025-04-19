@@ -1041,13 +1041,17 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     neginf_val = ov_opset.constant(
         neginf if neginf is not None else DTYPES_MIN[dtype], dtype
     ).output(0)
+    posinf_mask = ov_opset.is_inf(
+        ov_opset.convert(x, Type.f32),
+        {"detect_positive": True, "detect_negative": False},
+    ).output(0)
+    neginf_mask = ov_opset.is_inf(
+        ov_opset.convert(x, Type.f32),
+        {"detect_positive": False, "detect_negative": True},
+    ).output(0)
     nan_mask = ov_opset.is_nan(ov_opset.convert(x, Type.f32)).output(0)
     x = ov_opset.select(nan_mask, nan_val, x).output(0)
-    inf_const = ov_opset.constant(DTYPES_MAX[dtype], dtype)
-    posinf_mask = ov_opset.equal(x, inf_const).output(0)
     x = ov_opset.select(posinf_mask, posinf_val, x).output(0)
-    ninf_const = ov_opset.constant(DTYPES_MIN[dtype], dtype)
-    neginf_mask = ov_opset.equal(x, ninf_const).output(0)
     x = ov_opset.select(neginf_mask, neginf_val, x).output(0)
     return OpenVINOKerasTensor(x)
 
