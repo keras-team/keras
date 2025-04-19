@@ -4,7 +4,6 @@ import warnings
 import numpy as np
 import openvino as ov
 import openvino.runtime.opset14 as ov_opset
-import torch
 from openvino import Model
 from openvino import Tensor
 from openvino import compile_model
@@ -43,34 +42,34 @@ OPENVINO_DTYPES = {
 }
 
 DTYPES_MAX = {
-    ov.Type.bf16: torch.finfo(torch.bfloat16).max,
-    ov.Type.f16: torch.finfo(torch.float16).max,
-    ov.Type.f32: torch.finfo(torch.float32).max,
-    ov.Type.f64: torch.finfo(torch.float64).max,
-    ov.Type.u8: torch.iinfo(torch.uint8).max,
-    ov.Type.u16: torch.iinfo(torch.uint16).max,
-    ov.Type.u32: torch.iinfo(torch.uint32).max,
-    ov.Type.u64: torch.iinfo(torch.uint64).max,
-    ov.Type.i8: torch.iinfo(torch.int8).max,
-    ov.Type.i16: torch.iinfo(torch.int16).max,
-    ov.Type.i32: torch.iinfo(torch.int32).max,
-    ov.Type.i64: torch.iinfo(torch.int64).max,
+    ov.Type.bf16: 3.38953139e38,
+    ov.Type.f16: np.finfo(np.float16).max,
+    ov.Type.f32: np.finfo(np.float32).max,
+    ov.Type.f64: np.finfo(np.float64).max,
+    ov.Type.u8: np.iinfo(np.uint8).max,
+    ov.Type.u16: np.iinfo(np.uint16).max,
+    ov.Type.u32: np.iinfo(np.uint32).max,
+    ov.Type.u64: np.iinfo(np.uint64).max,
+    ov.Type.i8: np.iinfo(np.int8).max,
+    ov.Type.i16: np.iinfo(np.int16).max,
+    ov.Type.i32: np.iinfo(np.int32).max,
+    ov.Type.i64: np.iinfo(np.int64).max,
     ov.Type.boolean: 1,
 }
 
 DTYPES_MIN = {
-    ov.Type.bf16: torch.finfo(torch.bfloat16).min,
-    ov.Type.f16: torch.finfo(torch.float16).min,
-    ov.Type.f32: torch.finfo(torch.float32).min,
-    ov.Type.f64: torch.finfo(torch.float64).min,
-    ov.Type.u8: torch.iinfo(torch.uint8).min,
-    ov.Type.u16: torch.iinfo(torch.uint16).min,
-    ov.Type.u32: torch.iinfo(torch.uint32).min,
-    ov.Type.u64: torch.iinfo(torch.uint64).min,
-    ov.Type.i8: torch.iinfo(torch.int8).min,
-    ov.Type.i16: torch.iinfo(torch.int16).min,
-    ov.Type.i32: torch.iinfo(torch.int32).min,
-    ov.Type.i64: torch.iinfo(torch.int64).min,
+    ov.Type.bf16: -3.38953139e38,
+    ov.Type.f16: np.finfo(np.float16).min,
+    ov.Type.f32: np.finfo(np.float32).min,
+    ov.Type.f64: np.finfo(np.float64).min,
+    ov.Type.u8: np.iinfo(np.uint8).min,
+    ov.Type.u16: np.iinfo(np.uint16).min,
+    ov.Type.u32: np.iinfo(np.uint32).min,
+    ov.Type.u64: np.iinfo(np.uint64).min,
+    ov.Type.i8: np.iinfo(np.int8).min,
+    ov.Type.i16: np.iinfo(np.int16).min,
+    ov.Type.i32: np.iinfo(np.int32).min,
+    ov.Type.i64: np.iinfo(np.int64).min,
     ov.Type.boolean: 0,
 }
 
