@@ -997,63 +997,77 @@ def maximum(x1, x2):
 
 def median(x, axis=None, keepdims=False):
     x = get_ov_output(x)
-    
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    
-    shape = ov_opset.shape_of(x).output(0)
-    shape = ov_opset.convert(shape, Type.i64).output(0)
-    
-    if axis is not None:
-        indices = ov_opset.constant([axis], Type.i32).output(0)
-        length = ov_opset.gather(shape, indices, 0).output(0)
-        length = ov_opset.reshape(length, ov_opset.constant([], Type.i32).output(0), False).output(0)
-    else:
-        length = ov_opset.shape_of(shape).output(0)
-        length = ov_opset.convert(length, Type.i64).output(0)
-        length = ov_opset.reshape(length, ov_opset.constant([], Type.i32).output(0), False).output(0)
-    
-    sorted_x = ov_opset.topk(x, length, axis, "min", "value").output(0)
-    
-    const_2 = ov_opset.constant(2, Type.i64).output(0)
-    mid_index = ov_opset.floor_mod(length, const_2).output(0)
-    is_odd = ov_opset.equal(mid_index, ov_opset.constant(1, Type.i64).output(0)).output(0)
-    
-    half_length = ov_opset.divide(length, const_2).output(0)
-    floor_half_length = ov_opset.floor(half_length).output(0)
-    floor_half_length = ov_opset.convert(floor_half_length, Type.i64).output(0)
-    
-    mid_index_scalar = ov_opset.convert(floor_half_length, Type.i32).output(0)
-    middle_elem = ov_opset.gather(sorted_x, mid_index_scalar, axis).output(0)
-    
-    prev_mid_index = ov_opset.subtract(floor_half_length, ov_opset.constant(1, Type.i64).output(0)).output(0)
-    prev_mid_index_scalar = ov_opset.convert(prev_mid_index, Type.i32).output(0)
-    prev_middle_elem = ov_opset.gather(sorted_x, prev_mid_index_scalar, axis).output(0)
-    
-    median_value = ov_opset.select(
-        is_odd,
-        middle_elem,
-        ov_opset.divide(
-            ov_opset.add(middle_elem, prev_middle_elem).output(0),
-            ov_opset.constant(2.0, middle_elem.get_element_type()).output(0)
-        ).output(0)
-    ).output(0)
-    
-    if keepdims:
-        keep_shape = shape
-        if axis is not None:
-            one_tensor = ov_opset.constant(1, Type.i64).output(0)
-            indices = ov_opset.constant([axis], Type.i32).output(0)
-            keep_shape = ov_opset.scatter_elements_update(shape, indices, one_tensor, 0).output(0)
-        median_value = ov_opset.reshape(median_value, keep_shape, False).output(0)
-    elif axis is None and x.get_partial_shape().rank.get_length() > 1:
-        scalar_shape = ov_opset.constant([], Type.i32).output(0)
-        median_value = ov_opset.reshape(median_value, scalar_shape, False).output(0)
+    original_type = x.get_element_type()
+    is_bool = original_type == Type.boolean
 
-    median_value = ov_opset.convert(median_value, x.get_element_type()).output(0)
-    return OpenVINOKerasTensor(median_value)
+    if is_bool:
+        x = ov_opset.convert(x, Type.i32).output(0)
+    elif original_type not in (Type.f32, Type.f64):
+        x = ov_opset.convert(x, Type.f32).output(0)
+
+    if axis is None:
+        x = ov_opset.reshape(x, ov_opset.constant([-1], Type.i32).output(0), False).output(0)
+        axis = 0
+
+    shape = ov_opset.convert(ov_opset.shape_of(x).output(0), Type.i64).output(0)
+    axis_const = ov_opset.constant([axis], Type.i32).output(0)
+    axis_length = ov_opset.reshape(
+        ov_opset.gather(shape, axis_const, 0).output(0),
+        ov_opset.constant([], Type.i32).output(0),
+        False
+    ).output(0)
+
+    const_zero = ov_opset.constant(0, Type.i64).output(0)
+    is_empty = ov_opset.equal(axis_length, const_zero).output(0)
+    zero_value = ov_opset.constant(0.0 if not is_bool else 0, x.get_element_type()).output(0)
+
+    result_shape = shape
+    if keepdims:
+        result_shape = ov_opset.select(
+            is_empty,
+            shape,
+            ov_opset.scatter_elements_update(shape, axis_const, ov_opset.constant([1], Type.i64).output(0), 0).output(0)
+        ).output(0)
+    elif axis is None and x.get_partial_shape().rank.get_length() > 1:
+        result_shape = ov_opset.constant([], Type.i32).output(0)
+
+    empty_result = ov_opset.reshape(zero_value, result_shape, False).output(0)
+
+    sorted_values = ov_opset.topk(x, axis_length, axis, "min", "value").output(0)
+
+    const_one = ov_opset.constant(1, Type.i64).output(0)
+    is_odd = ov_opset.equal(ov_opset.floor_mod(axis_length, ov_opset.constant(2, Type.i64).output(0)).output(0), const_one).output(0)
+
+    half = ov_opset.floor(ov_opset.divide(axis_length, ov_opset.constant(2, Type.i64).output(0)).output(0)).output(0)
+    half = ov_opset.convert(half, Type.i64).output(0)
+
+    mid_index = ov_opset.convert(half, Type.i32).output(0)
+    prev_index = ov_opset.convert(ov_opset.subtract(half, const_one).output(0), Type.i32).output(0)
+
+    mid_elem = ov_opset.gather(sorted_values, mid_index, axis).output(0)
+    prev_elem = ov_opset.gather(sorted_values, prev_index, axis).output(0)
+
+    if is_bool:
+        sum_middle = ov_opset.add(mid_elem, prev_elem).output(0)
+        is_two = ov_opset.equal(sum_middle, ov_opset.constant(2, Type.i32).output(0)).output(0)
+        is_one = ov_opset.equal(sum_middle, ov_opset.constant(1, Type.i32).output(0)).output(0)
+        even_result = ov_opset.select(is_two, ov_opset.constant(1, Type.i32).output(0),
+                                      ov_opset.select(is_one, ov_opset.constant(1, Type.i32).output(0),
+                                                      ov_opset.constant(0, Type.i32).output(0))).output(0)
+    else:
+        even_result = ov_opset.divide(
+            ov_opset.add(mid_elem, prev_elem).output(0),
+            ov_opset.constant(2.0, x.get_element_type()).output(0)
+        ).output(0)
+
+    median_result = ov_opset.select(is_odd, mid_elem, even_result).output(0)
+
+    if keepdims or (axis is None and x.get_partial_shape().rank.get_length() > 1):
+        median_result = ov_opset.reshape(median_result, result_shape, False).output(0)
+
+    final_result = ov_opset.select(is_empty, empty_result, median_result).output(0)
+    return OpenVINOKerasTensor(ov_opset.convert(final_result, original_type).output(0))
+
 
 
 def meshgrid(*x, indexing="xy"):
