@@ -668,9 +668,8 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         result_keras_dtype = ov_to_keras_type(ov_input_node.get_element_type())
         result_numpy_dtype = np.dtype(result_keras_dtype)
         empty_np_repr = np.empty((0,), dtype=result_numpy_dtype)
-        empty_ov_const = ov_opset.constant(
-            empty_np_repr, ov_input_node.get_element_type()
-        ).output(0)
+        empty_ov_const = get_ov_output(empty_np_repr, ov_input_node.get_element_type())
+
         original_shape_node = ov_opset.shape_of(ov_input_node, Type.i64)
         batch_dims_indices = [
             i
@@ -678,15 +677,14 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
             if i != primary_axis_norm and i != secondary_axis_norm
         ]
         if not batch_dims_indices:
-            final_empty_shape = get_ov_output([0], Type.i64)
+            final_empty_shape = ov_opset.constant([0], dtype=Type.i64).output(0)
         else:
-            batch_dims_indices_node = get_ov_output(
-                batch_dims_indices, Type.i64
-            )
+            batch_dims_indices_node = ov_opset.constant(batch_dims_indices,
+                                                        dtype=Type.i64).output(0)
             batch_shape_vals = ov_opset.gather(
                 original_shape_node, batch_dims_indices_node, axis=0
             )
-            zero_dim = get_ov_output([0], Type.i64)
+            zero_dim = ov_opset.constant([0], dtype=Type.i64).output(0)
             final_empty_shape = ov_opset.concat(
                 [batch_shape_vals, zero_dim], axis=0
             )
@@ -704,27 +702,30 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         if i != primary_axis_norm and i != secondary_axis_norm
     ]
     perm_order = batch_dims_indices + [primary_axis_norm, secondary_axis_norm]
-    perm_node = get_ov_output(perm_order, Type.i64)
+    perm_node = ov_opset.constant(perm_order, dtype=Type.i64).output(0)
     transposed_node = ov_opset.transpose(ov_input_node, perm_node)
 
-    reshape_target_shape_node = get_ov_output(
-        [-1, size_dim1, size_dim2], Type.i64
-    )
+    reshape_target_shape_list = [-1, size_dim1, size_dim2]
+    reshape_target_shape_node = ov_opset.constant(reshape_target_shape_list,
+                                                  dtype=Type.i64).output(0)
     reshaped_for_gather = ov_opset.reshape(
         transposed_node, reshape_target_shape_node, special_zero=True
     )
 
     shape_of_reshaped = ov_opset.shape_of(reshaped_for_gather, Type.i64)
+    gather_index_node = ov_opset.constant(0, dtype=Type.i64).output(0)
     flat_batch_size_node = ov_opset.gather(
-        shape_of_reshaped, indices=get_ov_output(0, Type.i64), axis=0
+        shape_of_reshaped, indices=gather_index_node, axis=0
     )
 
+    unsqueeze_axes_node = ov_opset.constant([0], dtype=Type.i64).output(0)
     indices_unsqueezed = ov_opset.unsqueeze(
-        gather_indices_constant_2d, axes=get_ov_output(0, Type.i64)
+        gather_indices_constant_2d, axes=unsqueeze_axes_node
     )
 
-    diag_len_node = get_ov_output([diag_len], Type.i64)
-    two_node = get_ov_output([2], Type.i64)
+    diag_len_node = ov_opset.constant([diag_len], dtype=Type.i64).output(0)
+    two_node = ov_opset.constant([2], dtype=Type.i64).output(0)
+
     broadcast_indices_shape = ov_opset.concat(
         [flat_batch_size_node, diag_len_node, two_node], axis=0
     )
@@ -739,22 +740,22 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
     original_shape_node = ov_opset.shape_of(ov_input_node, Type.i64)
     if not batch_dims_indices:
-        final_target_shape = get_ov_output([diag_len], Type.i64)
+        final_target_shape = diag_len_node # Reuse the node
     else:
-        batch_dims_indices_node = get_ov_output(batch_dims_indices, Type.i64)
+        batch_dims_indices_node = ov_opset.constant(batch_dims_indices,
+                                                    dtype=Type.i64).output(0)
         original_batch_shape_vals = ov_opset.gather(
             original_shape_node, batch_dims_indices_node, axis=0
         )
-        diag_len_dim_node = get_ov_output([diag_len], Type.i64)
         final_target_shape = ov_opset.concat(
-            [original_batch_shape_vals, diag_len_dim_node], axis=0
+            [original_batch_shape_vals, diag_len_node], axis=0
         )
 
     final_result = ov_opset.reshape(
         gathered_diagonals, final_target_shape, special_zero=False
     )
 
-    return OpenVINOKerasTensor(final_result)
+    return OpenVINOKerasTensor(final_result.output(0))
 
 
 def diff(a, n=1, axis=-1):
