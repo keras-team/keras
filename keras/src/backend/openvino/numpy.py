@@ -1116,14 +1116,51 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0)
     )
 
+'''
+Helper Function to convert the string dtype to ov type
+'''
+def string_to_ov_type(dtype_str):
+    from openvino.runtime import Type
+    mapping = {
+        "bool": Type.boolean,
+        "int8": Type.i8,
+        "int16": Type.i16,
+        "int32": Type.i32,
+        "int64": Type.i64,
+        "uint8": Type.u8,
+        "uint16": Type.u16,
+        "uint32": Type.u32,
+        "uint64": Type.u64,
+        "float16": Type.f16,
+        "float32": Type.f32,
+        "float64": Type.f64,
+    }
+    return mapping[dtype_str]
+
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    #raise NotImplementedError("`prod` is not supported with openvino backend")
     if axis == () or axis == []:
         return x
 
     x = get_ov_output(x)
     x_type = x.get_element_type()
+
+    # Promote dtype if not explicitly specified
+    if dtype is None:
+        if x_type == Type.boolean:
+            promoted_dtype = Type.i32
+        elif x_type in (Type.i8, Type.i16):
+            promoted_dtype = Type.i32
+        elif x_type in (Type.u8, Type.u16):
+            promoted_dtype = Type.u32
+        else:
+            promoted_dtype = x_type
+    else:
+        promoted_dtype = string_to_ov_type(dtype)
+
+    # Cast to promoted dtype if necessary
+    if x_type != promoted_dtype:
+        x = ov_opset.convert(x, promoted_dtype).output(0)
 
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
@@ -1133,11 +1170,6 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     if isinstance(axis, tuple):
         axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
-
-    if x_type == Type.boolean:
-        return OpenVINOKerasTensor(
-            ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
-        )
 
     return OpenVINOKerasTensor(ov_opset.reduce_prod(x, axis, keepdims).output(0))
 
