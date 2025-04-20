@@ -735,7 +735,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     )
 
     final_gather_indices = ov_opset.broadcast(
-        indices_unsqueezed, broadcast_indices_shape, mode="NUMPY"
+        indices_unsqueezed, broadcast_indices_shape
     )
 
     gathered_diagonals = ov_opset.gather_nd(
