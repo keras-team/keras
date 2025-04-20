@@ -668,7 +668,9 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         result_keras_dtype = ov_to_keras_type(ov_input_node.get_element_type())
         result_numpy_dtype = np.dtype(result_keras_dtype)
         empty_np_repr = np.empty((0,), dtype=result_numpy_dtype)
-        empty_ov_const = get_ov_output(empty_np_repr, ov_input_node.get_element_type())
+        empty_ov_const = get_ov_output(
+            empty_np_repr, ov_input_node.get_element_type()
+        )
 
         original_shape_node = ov_opset.shape_of(ov_input_node, Type.i64)
         batch_dims_indices = [
@@ -679,8 +681,9 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         if not batch_dims_indices:
             final_empty_shape = ov_opset.constant([0], dtype=Type.i64).output(0)
         else:
-            batch_dims_indices_node = ov_opset.constant(batch_dims_indices,
-                                                        dtype=Type.i64).output(0)
+            batch_dims_indices_node = ov_opset.constant(
+                batch_dims_indices, dtype=Type.i64
+            ).output(0)
             batch_shape_vals = ov_opset.gather(
                 original_shape_node, batch_dims_indices_node, axis=0
             )
@@ -706,8 +709,9 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     transposed_node = ov_opset.transpose(ov_input_node, perm_node)
 
     reshape_target_shape_list = [-1, size_dim1, size_dim2]
-    reshape_target_shape_node = ov_opset.constant(reshape_target_shape_list,
-                                                  dtype=Type.i64).output(0)
+    reshape_target_shape_node = ov_opset.constant(
+        reshape_target_shape_list, dtype=Type.i64
+    ).output(0)
     reshaped_for_gather = ov_opset.reshape(
         transposed_node, reshape_target_shape_node, special_zero=True
     )
@@ -740,10 +744,11 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
     original_shape_node = ov_opset.shape_of(ov_input_node, Type.i64)
     if not batch_dims_indices:
-        final_target_shape = diag_len_node # Reuse the node
+        final_target_shape = diag_len_node  # Reuse the node
     else:
-        batch_dims_indices_node = ov_opset.constant(batch_dims_indices,
-                                                    dtype=Type.i64).output(0)
+        batch_dims_indices_node = ov_opset.constant(
+            batch_dims_indices, dtype=Type.i64
+        ).output(0)
         original_batch_shape_vals = ov_opset.gather(
             original_shape_node, batch_dims_indices_node, axis=0
         )
