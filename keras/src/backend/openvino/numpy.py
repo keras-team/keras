@@ -1116,11 +1116,15 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0)
     )
 
-'''
+
+"""
 Helper Function to convert the string dtype to ov type
-'''
+"""
+
+
 def string_to_ov_type(dtype_str):
     from openvino.runtime import Type
+
     mapping = {
         "bool": Type.boolean,
         "int8": Type.i8,
@@ -1171,7 +1175,9 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
 
-    return OpenVINOKerasTensor(ov_opset.reduce_prod(x, axis, keepdims).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.reduce_prod(x, axis, keepdims).output(0)
+    )
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
