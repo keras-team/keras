@@ -1024,9 +1024,37 @@ def mod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    raise NotImplementedError(
-        "`moveaxis` is not supported with openvino backend"
-    )
+    if isinstance(source, int):
+        source = [source]
+    if isinstance(destination, int):
+        destination = [destination]
+
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+
+    source = [s + rank if s < 0 else s for s in source]
+    destination = [d + rank if d < 0 else d for d in destination]
+
+    axes = list(range(rank))
+
+    for axis in sorted(source, reverse=True):
+        axes.pop(axis)
+
+    for dest, src in sorted(zip(destination, source)):
+        axes.insert(dest, src)
+
+    perm = ov_opset.constant(axes, dtype=Type.i32).output(0)
+
+    x_type = x.get_element_type()
+    if x_type == Type.bf16:
+        x = ov_opset.convert(x, Type.f32).output(0)
+        result = ov_opset.transpose(x, perm).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.convert(result, Type.bf16).output(0)
+        )
+
+    return OpenVINOKerasTensor(ov_opset.transpose(x, perm).output(0))
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
