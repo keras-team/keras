@@ -717,9 +717,9 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     )
 
     shape_of_reshaped = ov_opset.shape_of(reshaped_for_gather, Type.i64)
-    gather_index_node = ov_opset.constant(0, dtype=Type.i64).output(0)
+    gather_index_node_1d = ov_opset.constant([0], dtype=Type.i64).output(0)
     flat_batch_size_node = ov_opset.gather(
-        shape_of_reshaped, indices=gather_index_node, axis=0
+        shape_of_reshaped, indices=gather_index_node_1d, axis=0
     )
 
     unsqueeze_axes_node = ov_opset.constant([0], dtype=Type.i64).output(0)
