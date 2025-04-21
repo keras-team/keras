@@ -100,8 +100,8 @@ class GeneratorDataAdapterTest(testing.TestCase):
                 self.assertEqual(by.shape, (2, 2))
             if use_sample_weight:
                 self.assertIsInstance(bsw, expected_class)
-            for i in range(by.shape[0]):
-                sample_order.append(by[i, 0])
+            for j in range(by.shape[0]):
+                sample_order.append(by[j, 0])
         self.assertAllClose(sample_order, list(range(34)))
 
     def test_with_different_shapes(self):
