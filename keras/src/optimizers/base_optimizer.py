@@ -424,6 +424,11 @@ class BaseOptimizer(KerasSaveable):
             self._check_variables_are_known(trainable_variables)
 
         with backend.name_scope(self.name, caller=self):
+            # Filter empty gradients.
+            grads, trainable_variables = self._filter_empty_gradients(
+                grads, trainable_variables
+            )
+
             # Overwrite targeted variables directly with their gradients if
             # their `overwrite_with_gradient` is set.
             grads, trainable_variables = (
@@ -432,10 +437,6 @@ class BaseOptimizer(KerasSaveable):
                 )
             )
 
-            # Filter empty gradients.
-            grads, trainable_variables = self._filter_empty_gradients(
-                grads, trainable_variables
-            )
             if len(list(grads)) == 0:
                 return
 
