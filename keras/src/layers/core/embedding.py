@@ -159,8 +159,9 @@ class Embedding(Layer):
 
     def compute_output_spec(self, inputs):
         output_shape = (*inputs.shape, self.output_dim)
+        ragged = getattr(inputs, "ragged", False)
         return KerasTensor(
-            output_shape, dtype=self.compute_dtype, ragged=inputs.ragged
+            output_shape, dtype=self.compute_dtype, ragged=ragged
         )
 
     def enable_lora(
