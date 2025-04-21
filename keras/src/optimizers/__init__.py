@@ -5,6 +5,7 @@ from keras.src.optimizers.adagrad import Adagrad
 from keras.src.optimizers.adam import Adam
 from keras.src.optimizers.adamax import Adamax
 from keras.src.optimizers.adamw import AdamW
+from keras.src.optimizers.dispatch_optimizer import DispatchOptimizer
 from keras.src.optimizers.ftrl import Ftrl
 from keras.src.optimizers.lion import Lion
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer

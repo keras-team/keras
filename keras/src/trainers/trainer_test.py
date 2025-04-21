@@ -1758,6 +1758,40 @@ class TestTrainer(testing.TestCase):
         self.assertNotEqual(first_kernel, np.ones_like(first_kernel))
 
     @pytest.mark.requires_trainable_backend
+    def test_adds_dispatch_optimizer(self):
+        # Basic Dense layer with custom optimizer for its variables.
+        class DenseWithCustomOptimizer(layers.Dense):
+            def __init__(self, optimizer, **kwargs):
+                super().__init__(**kwargs)
+                self.optimizer = optimizer
+
+            def add_weight(self, **kwargs):
+                w = super().add_weight(**kwargs)
+                w.optimizer = self.optimizer
+                return w
+
+        custom_optimizer = optimizers.SGD()
+        model = keras.Sequential(
+            [
+                layers.Dense(2),
+                DenseWithCustomOptimizer(custom_optimizer, units=1),
+            ]
+        )
+        loss = losses.MeanSquaredError()
+        model.compile(optimizer="adam", loss=loss)
+        x = np.ones((16, 2))
+        y = np.zeros((16, 1))
+        model.fit(x, y, batch_size=4)
+
+        # After model compile, the model's optimizer is a dispatcher.
+        self.assertIsInstance(model.optimizer, optimizers.DispatchOptimizer)
+        self.assertEqual(len(model.optimizer._optimizers), 2)
+        # The custom optimizer is shared between the two variables, and was
+        # used for `apply`.
+        self.assertEqual(len(custom_optimizer._trainable_variables), 2)
+        self.assertNotEqual(custom_optimizer.iterations, 0)
+
+    @pytest.mark.requires_trainable_backend
     def test_training_arg(self):
         model = TrainingTestingLayer()
         model.compile(optimizer="rmsprop", loss="mse")

@@ -71,9 +71,25 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
         else:
             variable.assign_sub(value)
 
-    def _var_key(self, variable):
+    def _convert_to_tf_variable(self, variable):
         if isinstance(variable, backend.Variable):
-            variable = variable.value  # Convert to tf.Variable
+            tf_variable = variable.value
+            # Copy additional properties.
+            if getattr(variable, "optimizer", None) is not None:
+                tf_variable.optimizer = variable.optimizer
+            if getattr(variable, "overwrite_with_gradient", False):
+                tf_variable.overwrite_with_gradient = True
+            return tf_variable
+        elif isinstance(variable, tf.Variable):
+            return variable
+        else:
+            raise ValueError(
+                f"Variable {variable} must be of type keras.Variable or "
+                f"tf.Variable, received {value.__class__.__name__}."
+            )
+
+    def _var_key(self, variable):
+        variable = self._convert_to_tf_variable(variable)
         if hasattr(variable, "_distributed_container"):
             variable = variable._distributed_container()
         elif (
@@ -98,8 +114,7 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
                     variable.assign_sub(variable * wd * lr)
 
             for variable in variables:
-                if isinstance(variable, backend.Variable):
-                    variable = variable.value  # Convert to tf.Variable
+                variable = self._convert_to_tf_variable(variable)
                 distribution.extended.update(
                     variable, weight_decay_fn, group=False
                 )

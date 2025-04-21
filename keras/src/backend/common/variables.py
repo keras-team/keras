@@ -154,6 +154,8 @@ class Variable:
         # whether this variable should be overwritten by the computed gradient.
         # Ref: https://github.com/google/flax/blob/main/flax/linen/fp8_ops.py
         self._overwrite_with_gradient = False
+        # Per-variable optimizer.
+        self._optimizer = None
         if isinstance(initializer, str):
             from keras.src import initializers
 
@@ -371,6 +373,26 @@ class Variable:
                 f"Received: regularizer={value}"
             )
         self._regularizer = value
+
+    @property
+    def optimizer(self):
+        """Per-variable custom optimizer."""
+        return self._optimizer
+
+    @optimizer.setter
+    def optimizer(self, value):
+        from keras.src import optimizers
+
+        if isinstance(value, str):
+            value = optimizers.get(value)
+
+        if value is not None and not isinstance(value, optimizers.Optimizer):
+            raise ValueError(
+                "Invalid value for attribute `optimizer`. Expected an "
+                "instance of `keras.optimizers.Optimizer`, or `None`. "
+                f"Received: regularizer={value}"
+            )
+        self._optimizer = value
 
     @property
     def constraint(self):

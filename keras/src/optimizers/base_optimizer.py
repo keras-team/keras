@@ -204,6 +204,13 @@ class BaseOptimizer(KerasSaveable):
     def _track_variable(self, variable):
         self._tracker.add_to_store("variables", variable)
 
+    def _has_custom_optimizer(self, variable):
+        return (
+            hasattr(variable, "optimizer")
+            and variable.optimizer is not None
+            and variable.optimizer != self
+        )
+
     @tracking.no_automatic_dependency_tracking
     def build(self, variables):
         if self.use_ema:
@@ -211,6 +218,13 @@ class BaseOptimizer(KerasSaveable):
         if self.gradient_accumulation_steps:
             self._accumulated_gradients = []
         for i, variable in enumerate(variables):
+            if self._has_custom_optimizer(variable):
+                warnings.warn(
+                    f"Variable {variable} has a custom optimizer "
+                    f"{variable.optimizer} that is being ignored. "
+                    "See `keras.optimizers.DispatchOptimizer` to allow "
+                    "dispatching to the correct per-variable optimizer."
+                )
             self._trainable_variables_indices[self._var_key(variable)] = i
             if self.use_ema:
                 self._model_variables_moving_average.append(
@@ -568,7 +582,7 @@ class BaseOptimizer(KerasSaveable):
             )
         if len(trainable_variables) != len(self._trainable_variables):
             raise ValueError(
-                "Argument `optimizer_variables` must be a list of tensors "
+                "Argument `trainable_variables` must be a list of tensors "
                 "corresponding 1:1 to the trainable variables list that "
                 "the optimizer was built with. Received "
                 f"len(trainable_variables) == {len(trainable_variables)} "

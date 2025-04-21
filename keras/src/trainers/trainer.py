@@ -7,6 +7,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.optimizers.dispatch_optimizer import DispatchOptimizer
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
@@ -946,6 +947,39 @@ class Trainer:
         if self.compiled and hasattr(self, "_compile_config"):
             return self._compile_config.serialize()
 
+    def _build_optimizer(self):
+        """Builds the trainer's optimizer.
+
+        If any trainable variables have a custom per-variable optimizer
+        attribute `variable.optimizer`, this also inserts a dispatcher to handle
+        them.
+        """
+        # Check if we should support per-variable optimizers.
+        has_per_variable_optimizers = False
+        for tv in self.trainable_variables:
+            if (
+                hasattr(tv, "optimizer")
+                and tv.optimizer is not None
+                and tv.optimizer != self.optimizer
+                and not isinstance(tv.optimizer, DispatchOptimizer)
+            ):
+                has_per_variable_optimizers = True
+                break
+
+        if has_per_variable_optimizers:
+            # To keep proper loss-scaling, we need to insert the
+            # dispatcher between the LossScaleOptimizer and
+            # its inner optimizer.
+            if isinstance(self.optimizer, LossScaleOptimizer):
+                inner_optimizer = self.optimizer.inner_optimizer
+                self.optimizer.inner_optimizer = DispatchOptimizer(
+                    inner_optimizer
+                )
+            else:
+                self.optimizer = DispatchOptimizer(self.optimizer)
+
+        self.optimizer.build(self.trainable_variables)
+
     def compile_from_config(self, config):
         """Compiles the model with the information given in config.
 
@@ -972,7 +1006,7 @@ class Trainer:
         self.compile(**config)
         if hasattr(self, "optimizer") and self.built:
             # Create optimizer variables.
-            self.optimizer.build(self.trainable_variables)
+            self._build_optimizer()
 
     def _should_eval(self, epoch, validation_freq):
         epoch = epoch + 1  # one-index the user-facing epoch.
@@ -1120,7 +1154,7 @@ class Trainer:
                 )
         if optimizer_unbuilt:
             # Build optimizer
-            self.optimizer.build(self.trainable_variables)
+            self._build_optimizer()
         self._post_build()
 
 
