@@ -911,7 +911,9 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     if not isinstance(num, int) or num < 0:
-        raise ValueError(f"Expected 'num' to be a positive integer, got {num}")
+        raise ValueError(
+            f"Expected 'num' to be a non-negative integer, got {num}"
+        )
     if not isinstance(axis, int):
         raise TypeError(f"Expected 'axis' to be an integer, got {type(axis)}")
 
@@ -935,12 +937,13 @@ def linspace(
 
     if num == 0:
         shape = [0]
-        if hasattr(start, "get_partial_shape"):
-            start_shape = list(start.get_partial_shape())
-            if len(start_shape) != 0 and not start_shape[0].is_dynamic:
-                shape = [0] + [dim.get_length() for dim in start_shape[1:]]
+        start_shape = start.get_partial_shape()
+        if start_shape.rank.is_static and start_shape.rank.get_length() > 0:
+            shape = [0] + [dim.get_length() for dim in start_shape[1:]]
         empty = ov_opset.reshape(
-            ov_opset.constant([], dtype), shape, special_zero=False
+            ov_opset.constant([], dtype),
+            ov_opset.constant(shape, dtype=Type.i64),
+            special_zero=False,
         ).output(0)
         return (
             OpenVINOKerasTensor(empty)
@@ -969,11 +972,13 @@ def linspace(
         dtype,
     ).output(0)
 
+    # Broadcast step and start with explicit shape matching
+    target_shape = ov_opset.shape_of(range_indices)
     broadcast_step = ov_opset.broadcast(
-        step, ov_opset.shape_of(range_indices)
+        step, target_shape, broadcast_spec="NUMPY"
     ).output(0)
     broadcast_start = ov_opset.broadcast(
-        start, ov_opset.shape_of(range_indices)
+        start, target_shape, broadcast_spec="NUMPY"
     ).output(0)
 
     linspace_vals = ov_opset.add(
