@@ -1042,7 +1042,7 @@ def moveaxis(x, source, destination):
         axes.pop(axis)
 
     for dest, src in sorted(zip(destination, source)):
-        axes.insert(dest, src)
+        axes[dest] = src
 
     perm = ov_opset.constant(axes, dtype=Type.i32).output(0)
 
