@@ -1147,24 +1147,6 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         return x
 
     x = get_ov_output(x)
-    x_type = x.get_element_type()
-
-    # Promote dtype if not explicitly specified
-    if dtype is None:
-        if x_type == Type.boolean:
-            promoted_dtype = Type.i32
-        elif x_type in (Type.i8, Type.i16):
-            promoted_dtype = Type.i32
-        elif x_type in (Type.u8, Type.u16):
-            promoted_dtype = Type.u32
-        else:
-            promoted_dtype = x_type
-    else:
-        promoted_dtype = string_to_ov_type(dtype)
-
-    # Cast to promoted dtype if necessary
-    if x_type != promoted_dtype:
-        x = ov_opset.convert(x, promoted_dtype).output(0)
 
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
