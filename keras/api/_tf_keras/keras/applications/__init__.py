@@ -11,6 +11,7 @@ from keras.api.applications import efficientnet_v2
 from keras.api.applications import imagenet_utils
 from keras.api.applications import inception_resnet_v2
 from keras.api.applications import inception_v3
+from keras.api.applications import lpips
 from keras.api.applications import mobilenet
 from keras.api.applications import mobilenet_v2
 from keras.api.applications import mobilenet_v3
@@ -46,6 +47,7 @@ from keras.src.applications.efficientnet_v2 import EfficientNetV2M
 from keras.src.applications.efficientnet_v2 import EfficientNetV2S
 from keras.src.applications.inception_resnet_v2 import InceptionResNetV2
 from keras.src.applications.inception_v3 import InceptionV3
+from keras.src.applications.lpips import LPIPS
 from keras.src.applications.mobilenet import MobileNet
 from keras.src.applications.mobilenet_v2 import MobileNetV2
 from keras.src.applications.mobilenet_v3 import MobileNetV3Large
