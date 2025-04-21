@@ -1157,9 +1157,12 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
 
-    return OpenVINOKerasTensor(
-        ov_opset.reduce_prod(x, axis, keepdims).output(0)
-    )
+    result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
+
+    if dtype:
+        result = ov_opset.convert(result, string_to_ov_type(dtype)).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
