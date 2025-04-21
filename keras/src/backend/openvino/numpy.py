@@ -910,7 +910,7 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
-    if not isinstance(num, int) or num <= 0:
+    if not isinstance(num, int) or num < 0:
         raise ValueError(f"Expected 'num' to be a positive integer, got {num}")
     if not isinstance(axis, int):
         raise TypeError(f"Expected 'axis' to be an integer, got {type(axis)}")
@@ -933,6 +933,24 @@ def linspace(
     start = ov_opset.convert(start, dtype)
     stop = ov_opset.convert(stop, dtype)
 
+    if num == 0:
+        shape = [0]
+        if hasattr(start, "get_partial_shape"):
+            start_shape = list(start.get_partial_shape())
+            if len(start_shape) != 0 and not start_shape[0].is_dynamic:
+                shape = [0] + [dim.get_length() for dim in start_shape[1:]]
+        empty = ov_opset.reshape(
+            ov_opset.constant([], dtype), shape, special_zero=False
+        ).output(0)
+        return (
+            OpenVINOKerasTensor(empty)
+            if not retstep
+            else (
+                OpenVINOKerasTensor(empty),
+                OpenVINOKerasTensor(ov_opset.constant(0, dtype)),
+            )
+        )
+
     num_const = ov_opset.constant(num, dtype=Type.i32).output(0)
     num_f = ov_opset.convert(num_const, dtype).output(0)
 
@@ -950,24 +968,24 @@ def linspace(
         ov_opset.constant(1, dtype),
         dtype,
     ).output(0)
-    linspace_vals = ov_opset.add(
-        ov_opset.multiply(range_indices, step), start
+
+    broadcast_step = ov_opset.broadcast(
+        step, ov_opset.shape_of(range_indices)
+    ).output(0)
+    broadcast_start = ov_opset.broadcast(
+        start, ov_opset.shape_of(range_indices)
     ).output(0)
 
-    if axis < 0 or axis >= len(linspace_vals.shape):
-        raise ValueError(
-            f"Invalid axis {axis} for reshaping the tensor with shape {linspace_vals.shape}"
-        )
+    linspace_vals = ov_opset.add(
+        ov_opset.multiply(range_indices, broadcast_step), broadcast_start
+    ).output(0)
 
     if axis != 0:
-        shape = [-1]
-        linspace_vals = ov_opset.reshape(linspace_vals, shape, False).output(0)
         linspace_vals = ov_opset.unsqueeze(
             linspace_vals, ov_opset.constant(axis, Type.i32)
         ).output(0)
 
     result = OpenVINOKerasTensor(linspace_vals)
-
     if retstep:
         return result, OpenVINOKerasTensor(step)
     return result
