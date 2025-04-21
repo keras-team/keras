@@ -910,9 +910,67 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
-    raise NotImplementedError(
-        "`linspace` is not supported with openvino backend"
-    )
+    if not isinstance(num, int) or num <= 0:
+        raise ValueError(f"Expected 'num' to be a positive integer, got {num}")
+    if not isinstance(axis, int):
+        raise TypeError(f"Expected 'axis' to be an integer, got {type(axis)}")
+
+    if stop is None:
+        start, stop = get_ov_output(0), get_ov_output(start)
+    else:
+        start, stop = get_ov_output(start), get_ov_output(stop)
+
+    if dtype is None:
+        result_type = dtypes.result_type(
+            ov_to_keras_type(start.get_element_type()),
+            ov_to_keras_type(stop.get_element_type()),
+            "float32",
+        )
+        dtype = OPENVINO_DTYPES[result_type]
+    else:
+        dtype = OPENVINO_DTYPES[standardize_dtype(dtype)]
+
+    start = ov_opset.convert(start, dtype)
+    stop = ov_opset.convert(stop, dtype)
+
+    num_const = ov_opset.constant(num, dtype=Type.i32).output(0)
+    num_f = ov_opset.convert(num_const, dtype).output(0)
+
+    if endpoint:
+        step = ov_opset.subtract(stop, start)
+        denom = ov_opset.subtract(num_f, ov_opset.constant(1, dtype))
+        step = ov_opset.divide(step, denom)
+    else:
+        step = ov_opset.subtract(stop, start)
+        step = ov_opset.divide(step, num_f)
+
+    range_indices = ov_opset.range(
+        ov_opset.constant(0, dtype),
+        num_f,
+        ov_opset.constant(1, dtype),
+        dtype,
+    ).output(0)
+    linspace_vals = ov_opset.add(
+        ov_opset.multiply(range_indices, step), start
+    ).output(0)
+
+    if axis < 0 or axis >= len(linspace_vals.shape):
+        raise ValueError(
+            f"Invalid axis {axis} for reshaping the tensor with shape {linspace_vals.shape}"
+        )
+
+    if axis != 0:
+        shape = [-1]
+        linspace_vals = ov_opset.reshape(linspace_vals, shape, False).output(0)
+        linspace_vals = ov_opset.unsqueeze(
+            linspace_vals, ov_opset.constant(axis, Type.i32)
+        ).output(0)
+
+    result = OpenVINOKerasTensor(linspace_vals)
+
+    if retstep:
+        return result, OpenVINOKerasTensor(step)
+    return result
 
 
 def log(x):
@@ -983,9 +1041,20 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    raise NotImplementedError(
-        "`logspace` is not supported with openvino backend"
+    if not isinstance(base, (int, float)) or base <= 0:
+        raise ValueError(f"Expected 'base' to be a positive number, got {base}")
+
+    lin_vals = linspace(
+        start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
     )
+    if isinstance(lin_vals, tuple):
+        lin_vals = lin_vals[0]
+    lin_vals = get_ov_output(lin_vals)
+    dtype = lin_vals.get_element_type()
+
+    base_const = ov_opset.constant(base, dtype).output(0)
+    logspace_vals = ov_opset.power(base_const, lin_vals).output(0)
+    return OpenVINOKerasTensor(logspace_vals)
 
 
 def maximum(x1, x2):
