@@ -968,21 +968,23 @@ def linspace(
     stop = ensure_tensor_has_dim(stop)
     step = ensure_tensor_has_dim(step)
 
-    if (
-        start.get_output_partial_shape(0).rank.get_length() == 1
-        and start.get_output_partial_shape(0).get_dimension(0).is_static
-    ):
-        range_shape = ov_opset.shape_of(range_vals)
-        start_shape = ov_opset.shape_of(start)
-        target_shape = ov_opset.concat([range_shape, start_shape[1:]], 0)
-        step_broadcast = ov_opset.broadcast(step, target_shape).output(0)
-        start_broadcast = ov_opset.broadcast(start, target_shape).output(0)
-    else:
-        range_shape = ov_opset.shape_of(range_vals)
-        start_shape = ov_opset.shape_of(start)
-        target_shape = ov_opset.concat([range_shape, start_shape], 0)
-        step_broadcast = ov_opset.broadcast(step, target_shape).output(0)
-        start_broadcast = ov_opset.broadcast(start, target_shape).output(0)
+    range_shape = ov_opset.shape_of(range_vals)
+    start_shape = ov_opset.shape_of(start)
+
+    rank_len = start.get_output_partial_shape(0).rank.get_length()
+    rank_const = ov_opset.constant([rank_len], Type.i64)
+
+    start_shape_sliced = ov_opset.slice(
+        start_shape,
+        ov_opset.constant([1], Type.i64),
+        rank_const,
+        ov_opset.constant([1], Type.i64),
+    )
+
+    target_shape = ov_opset.concat([range_shape, start_shape_sliced], 0)
+
+    step_broadcast = ov_opset.broadcast(step, target_shape).output(0)
+    start_broadcast = ov_opset.broadcast(start, target_shape).output(0)
 
     linspace_vals = ov_opset.add(
         ov_opset.multiply(range_vals, step_broadcast), start_broadcast
@@ -993,7 +995,7 @@ def linspace(
             linspace_vals, ov_opset.constant(axis, Type.i32)
         ).output(0)
 
-    empty_shape = ov_opset.concat([zero_i64, ov_opset.shape_of(start)], 0)
+    empty_shape = ov_opset.concat([zero_i64, start_shape], 0)
     empty_array = ov_opset.broadcast(
         ov_opset.constant([], dtype), empty_shape
     ).output(0)
