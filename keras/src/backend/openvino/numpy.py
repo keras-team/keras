@@ -1115,6 +1115,13 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     lin_vals = get_ov_output(lin_vals)
     dtype = lin_vals.get_element_type()
 
+    if isinstance(num, (int, np.integer)) and num == 0:
+        empty_shape = ov_opset.shape_of(lin_vals)
+        empty = ov_opset.broadcast(
+            ov_opset.constant([], dtype), empty_shape, broadcast_spec="NUMPY"
+        ).output(0)
+        return OpenVINOKerasTensor(empty)
+
     base_const = ov_opset.constant(base, dtype)
     base_reshaped = ov_opset.reshape(
         base_const, ov_opset.constant([], dtype=Type.i64), False
