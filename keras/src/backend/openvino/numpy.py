@@ -1115,24 +1115,30 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     lin_vals = get_ov_output(lin_vals)
     dtype = lin_vals.get_element_type()
 
-    if isinstance(num, (int, np.integer)) and num == 0:
-        empty_shape = ov_opset.shape_of(lin_vals)
-        empty = ov_opset.broadcast(
-            ov_opset.constant([], dtype), empty_shape, broadcast_spec="NUMPY"
-        ).output(0)
-        return OpenVINOKerasTensor(empty)
+    if hasattr(num, "get_output_element"):
+        num_tensor = num
+    else:
+        num_tensor = ov_opset.constant(num, dtype=Type.i32)
+
+    is_zero = ov_opset.equal(num_tensor, ov_opset.constant(0, dtype=Type.i32))
+
+    empty_shape = ov_opset.shape_of(lin_vals)
+    empty = ov_opset.broadcast(
+        ov_opset.constant([], dtype), empty_shape, broadcast_spec="NUMPY"
+    ).output(0)
 
     base_const = ov_opset.constant(base, dtype)
     base_reshaped = ov_opset.reshape(
         base_const, ov_opset.constant([], dtype=Type.i64), False
     )
-
     base_broadcast = ov_opset.broadcast(
         base_reshaped, ov_opset.shape_of(lin_vals), broadcast_spec="NUMPY"
     ).output(0)
-    logspace_vals = ov_opset.power(base_broadcast, lin_vals).output(0)
 
-    return OpenVINOKerasTensor(logspace_vals)
+    logspace_vals = ov_opset.power(base_broadcast, lin_vals).output(0)
+    final_vals = ov_opset.select(is_zero, empty, logspace_vals)
+
+    return OpenVINOKerasTensor(final_vals)
 
 
 def maximum(x1, x2):
