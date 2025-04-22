@@ -4,7 +4,7 @@ NumpyArrayCreateOpsCorrectnessTest::test_tri
 NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_all
-NumpyDtypeTest::test_angle_
+NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_any
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
@@ -73,7 +73,7 @@ NumpyDtypeTest::test_clip_bool
 NumpyDtypeTest::test_square_bool
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_all
-NumpyOneInputOpsCorrectnessTest::test_angle_
+NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_any
 NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
