@@ -336,8 +336,6 @@ class Angle(Operation):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
         if dtype == "int64":
             dtype = backend.floatx()
-        elif dtype == "bfloat16":
-            dtype = backend.floatx()
         else:
             dtype = dtypes.result_type(dtype, float)
         return KerasTensor(x.shape, dtype=dtype)
