@@ -940,18 +940,18 @@ def linspace(
     stop = ov_opset.convert(stop, dtype)
 
     zero = ov_opset.constant(0, dtype=Type.i32)
-    zero_i64 = ov_opset.constant(0, dtype=Type.i64)
+    zero_i64 = ov_opset.constant([0], dtype=Type.i64)
     one = ov_opset.constant(1, dtype=Type.i32)
     one_f = ov_opset.convert(one, dtype)
-
     num_f = ov_opset.convert(num_const, dtype)
-
     is_zero = ov_opset.equal(num_const, zero)
     is_one = ov_opset.equal(num_const, one)
 
-    denom = ov_opset.subtract(num_f, one_f) if endpoint else num_f
-    denom = ov_opset.select(is_one, one_f, denom)
-
+    denom = (
+        ov_opset.select(is_one, one_f, ov_opset.subtract(num_f, one_f))
+        if endpoint
+        else num_f
+    )
     step = ov_opset.divide(ov_opset.subtract(stop, start), denom)
 
     range_vals = ov_opset.range(
@@ -983,8 +983,12 @@ def linspace(
 
     target_shape = ov_opset.concat([range_shape, start_shape_sliced], 0)
 
-    step_broadcast = ov_opset.broadcast(step, target_shape).output(0)
-    start_broadcast = ov_opset.broadcast(start, target_shape).output(0)
+    step_broadcast = ov_opset.broadcast(
+        step, target_shape, broadcast_spec="NUMPY"
+    ).output(0)
+    start_broadcast = ov_opset.broadcast(
+        start, target_shape, broadcast_spec="NUMPY"
+    ).output(0)
 
     linspace_vals = ov_opset.add(
         ov_opset.multiply(range_vals, step_broadcast), start_broadcast
@@ -997,7 +1001,7 @@ def linspace(
 
     empty_shape = ov_opset.concat([zero_i64, start_shape], 0)
     empty_array = ov_opset.broadcast(
-        ov_opset.constant([], dtype), empty_shape
+        ov_opset.constant([], dtype), empty_shape, broadcast_spec="NUMPY"
     ).output(0)
 
     single_val = start
@@ -1089,21 +1093,24 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if not isinstance(base, (int, float)) or base <= 0:
         raise ValueError(f"Expected 'base' to be a positive number, got {base}")
 
-    lin_results = linspace(
+    lin_vals = linspace(
         start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
     )
-    lin_vals = lin_results[0] if isinstance(lin_results, tuple) else lin_results
+    if isinstance(lin_vals, tuple):
+        lin_vals = lin_vals[0]
 
-    lin_node = lin_vals.node
-    result_dtype = lin_node.get_element_type()
+    lin_vals = get_ov_output(lin_vals)
+    dtype = lin_vals.get_element_type()
 
-    base_const = ov_opset.constant(base, result_dtype)
+    base_const = ov_opset.constant(base, dtype)
+    base_reshaped = ov_opset.reshape(
+        base_const, ov_opset.constant([], dtype=Type.i64), False
+    )
 
     base_broadcast = ov_opset.broadcast(
-        base_const, ov_opset.shape_of(lin_node)
+        base_reshaped, ov_opset.shape_of(lin_vals), broadcast_spec="NUMPY"
     ).output(0)
-
-    logspace_vals = ov_opset.power(base_broadcast, lin_node).output(0)
+    logspace_vals = ov_opset.power(base_broadcast, lin_vals).output(0)
 
     return OpenVINOKerasTensor(logspace_vals)
 
