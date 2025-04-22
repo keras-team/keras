@@ -1798,10 +1798,12 @@ def not_equal(x1, x2):
     return tf.not_equal(x1, x2)
 
 
+@sparse.elementwise_unary
 def ones_like(x, dtype=None):
     return tf.ones_like(x, dtype=dtype)
 
 
+@sparse.elementwise_unary
 def zeros_like(x, dtype=None):
     return tf.zeros_like(x, dtype=dtype)
 
@@ -2185,6 +2187,15 @@ def swapaxes(x, axis1, axis2):
 
 
 def take(x, indices, axis=None):
+    x = convert_to_tensor(x)
+    if axis is None:
+        x = tf.reshape(x, (-1,))
+        axis = 0
+
+    def fix_negative_indices(i):
+        # Correct the indices using "fill" mode which is the same as in jax
+        return tf.where(i < 0, i + tf.cast(tf.shape(x)[axis], i.dtype), i)
+
     if isinstance(indices, tf.SparseTensor):
         if x.dtype not in (tf.float16, tf.float32, tf.float64, tf.bfloat16):
             warnings.warn(
@@ -2192,35 +2203,34 @@ def take(x, indices, axis=None):
                 f"`x.dtype={x.dtype}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return take(x, convert_to_tensor(indices, sparse=False), axis=axis)
-        if axis is None:
-            x = tf.reshape(x, (-1,))
+            indices = convert_to_tensor(indices, sparse=False)
         elif axis != 0:
             warnings.warn(
                 "`take` with the TensorFlow backend does not support "
                 f"`axis={axis}` when `indices` is a sparse tensor; "
                 "densifying `indices`."
             )
-            return take(x, convert_to_tensor(indices, sparse=False), axis=axis)
-        output = tf.nn.safe_embedding_lookup_sparse(
-            embedding_weights=tf.convert_to_tensor(x),
-            sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
-            default_id=0,
-        )
-        output.set_shape(indices.shape + output.shape[len(indices.shape) :])
-        return output
+            indices = convert_to_tensor(indices, sparse=False)
+        else:
+            indices = sparse.sparse_with_values(
+                indices, fix_negative_indices(indices.values)
+            )
+            # `expand_dims` on `indices` prevents combiner from being applied.
+            output = tf.nn.safe_embedding_lookup_sparse(
+                embedding_weights=tf.convert_to_tensor(x),
+                sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
+                default_id=0,
+            )
+            output.set_shape(indices.shape + output.shape[len(indices.shape) :])
+            return output
+    elif isinstance(indices, tf.RaggedTensor):
+        indices = indices.with_values(fix_negative_indices(indices.values))
+        if axis == 0:
+            return tf.nn.embedding_lookup(x, indices)
+        else:
+            return tf.gather(x, indices, axis=axis)
 
-    x = convert_to_tensor(x)
-    indices = convert_to_tensor(indices)
-    if axis is None:
-        x = tf.reshape(x, [-1])
-        axis = 0
-    # Correct the indices using "fill" mode which is the same as in jax
-    indices = tf.where(
-        indices < 0,
-        indices + tf.cast(tf.shape(x)[axis], indices.dtype),
-        indices,
-    )
+    indices = fix_negative_indices(convert_to_tensor(indices))
     return tf.gather(x, indices, axis=axis)
 
 

@@ -100,6 +100,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sigmoid(x).shape, (None, 2, 3))
 
+    def test_sparse_sigmoid(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.sparse_sigmoid(x).shape, (None, 2, 3))
+
     def test_softplus(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softplus(x).shape, (None, 2, 3))
@@ -785,6 +789,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.sigmoid(x).shape, (1, 2, 3))
 
+    def test_sparse_sigmoid(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.sparse_sigmoid(x).shape, (1, 2, 3))
+
     def test_softplus(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.softplus(x).shape, (1, 2, 3))
@@ -1305,6 +1313,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knn.sigmoid(x), [0.26894143, 0.5, 0.7310586, 0.880797, 0.95257413]
         )
+
+    def test_sparse_sigmoid(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(knn.sparse_sigmoid(x), [0.0, 0.5, 1.0, 1.0, 1.0])
 
     def test_softplus(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -2880,6 +2892,24 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Sigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sparse_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.sparse_sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.sparse_sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.SparseSigmoid().symbolic_call(x).dtype),
             expected_dtype,
         )
 
