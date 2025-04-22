@@ -1106,15 +1106,6 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if not isinstance(base, (int, float)) or base <= 0:
         raise ValueError(f"Expected 'base' to be a positive number, got {base}")
 
-    lin_vals = linspace(
-        start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
-    )
-    if isinstance(lin_vals, tuple):
-        lin_vals = lin_vals[0]
-
-    lin_vals = get_ov_output(lin_vals)
-    dtype = lin_vals.get_element_type()
-
     if hasattr(num, "get_output_element"):
         num_tensor = num
     else:
@@ -1122,10 +1113,27 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
     is_zero = ov_opset.equal(num_tensor, ov_opset.constant(0, dtype=Type.i32))
 
-    empty_shape = ov_opset.shape_of(lin_vals)
-    empty = ov_opset.broadcast(
-        ov_opset.constant([], dtype), empty_shape, broadcast_spec="NUMPY"
+    start_tensor = get_ov_output(start)
+    empty_shape = ov_opset.concat(
+        [
+            ov_opset.constant([0], dtype=Type.i64),
+            ov_opset.shape_of(start_tensor),
+        ],
+        0,
+    )
+    empty_array = ov_opset.broadcast(
+        ov_opset.constant([], dtype or Type.f32),
+        empty_shape,
+        broadcast_spec="NUMPY",
     ).output(0)
+
+    lin_vals = linspace(
+        start, stop, num=num_tensor, endpoint=endpoint, dtype=dtype, axis=axis
+    )
+    if isinstance(lin_vals, tuple):
+        lin_vals = lin_vals[0]
+    lin_vals = get_ov_output(lin_vals)
+    dtype = lin_vals.get_element_type()
 
     base_const = ov_opset.constant(base, dtype)
     base_reshaped = ov_opset.reshape(
@@ -1134,10 +1142,9 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     base_broadcast = ov_opset.broadcast(
         base_reshaped, ov_opset.shape_of(lin_vals), broadcast_spec="NUMPY"
     ).output(0)
+    log_vals = ov_opset.power(base_broadcast, lin_vals).output(0)
 
-    logspace_vals = ov_opset.power(base_broadcast, lin_vals).output(0)
-    final_vals = ov_opset.select(is_zero, empty, logspace_vals)
-
+    final_vals = ov_opset.select(is_zero, empty_array, log_vals)
     return OpenVINOKerasTensor(final_vals)
 
 
