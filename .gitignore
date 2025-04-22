@@ -13,7 +13,7 @@ obj/**
 tmp/**
 .vs/
 dist/**
-*.egg-info/*
+**/*.egg-info/*
 .vscode
 examples/**/*.jpg
 .python-version
