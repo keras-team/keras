@@ -7,6 +7,7 @@ import mlx.core as mx
 from keras.src import backend
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import to_mlx_dtype
+from keras.src.backend.mlx.random import mlx_draw_seed
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -657,17 +658,55 @@ def _compute_weight_mat(
     )
 
 
-def elastic_transform(
-    images,
-    alpha=20.0,
-    sigma=5.0,
-    interpolation="bilinear",
-    fill_mode="reflect",
-    fill_value=0.0,
-    seed=None,
-    data_format=None,
-):
-    raise NotImplementedError("elastic_transform not yet implemented in mlx.")
+def compute_homography_matrix(start_points, end_points):
+    # as implemented for the jax backend
+    start_points = convert_to_tensor(start_points, dtype=mx.float32)
+    end_points = convert_to_tensor(end_points, dtype=mx.float32)
+
+    start_x, start_y = start_points[..., 0], start_points[..., 1]
+    end_x, end_y = end_points[..., 0], end_points[..., 1]
+
+    zeros = mx.zeros_like(end_x)
+    ones = mx.ones_like(end_x)
+
+    x_rows = mx.stack(
+        [
+            end_x,
+            end_y,
+            ones,
+            zeros,
+            zeros,
+            zeros,
+            -start_x * end_x,
+            -start_x * end_y,
+        ],
+        axis=-1,
+    )
+    y_rows = mx.stack(
+        [
+            zeros,
+            zeros,
+            zeros,
+            end_x,
+            end_y,
+            ones,
+            -start_y * end_x,
+            -start_y * end_y,
+        ],
+        axis=-1,
+    )
+
+    coefficient_matrix = mx.concatenate([x_rows, y_rows], axis=1)
+
+    target_vector = mx.expand_dims(
+        mx.concatenate([start_x, start_y], axis=-1), axis=-1
+    )
+
+    # solve the linear system: coefficient_matrix * homography = target_vector
+    with mx.stream(mx.cpu):
+        homography_matrix = mx.linalg.solve(coefficient_matrix, target_vector)
+
+    return homography_matrix.squeeze(-1)
 
 
 def perspective_transform(
@@ -678,12 +717,314 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    raise NotImplementedError(
-        "perspective_transform not yet implemented in mlx."
+    # perspective_transform based on implementation in jax backend
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected one of "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    if start_points.shape[-2:] != (4, 2) or start_points.ndim not in (2, 3):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if end_points.shape[-2:] != (4, 2) or end_points.ndim not in (2, 3):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+    if start_points.shape != end_points.shape:
+        raise ValueError(
+            "start_points and end_points must have the same shape."
+            f" Received start_points.shape={start_points.shape}, "
+            f"end_points.shape={end_points.shape}"
+        )
+
+    images = convert_to_tensor(images)
+    start_points = convert_to_tensor(start_points)
+    end_points = convert_to_tensor(end_points)
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = mx.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if len(start_points.shape) == 2:
+        start_points = mx.expand_dims(start_points, axis=0)
+    if len(end_points.shape) == 2:
+        end_points = mx.expand_dims(end_points, axis=0)
+
+    if data_format == "channels_first":
+        images = mx.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+
+    transforms = compute_homography_matrix(
+        mx.array(start_points, dtype=mx.float32),
+        mx.array(end_points, dtype=mx.float32),
     )
+
+    x, y = mx.meshgrid(mx.arange(width), mx.arange(height), indexing="xy")
+    grid = mx.stack(
+        [x.flatten(), y.flatten(), mx.ones_like(x).flatten()], axis=0
+    )
+
+    outputs = []
+    for b in range(batch_size):
+        transform = transforms[b]
+
+        # apply homography to grid coordinates
+        denom = transform[6] * grid[0] + transform[7] * grid[1] + 1.0
+        x_in = (
+            transform[0] * grid[0] + transform[1] * grid[1] + transform[2]
+        ) / denom
+        y_in = (
+            transform[3] * grid[0] + transform[4] * grid[1] + transform[5]
+        ) / denom
+
+        coords = mx.stack([y_in, x_in], axis=0)
+
+        transformed = mx.zeros((height, width, channels), dtype=images.dtype)
+        for c in range(channels):
+            transformed_channel = map_coordinates(
+                images[b, :, :, c],
+                coords,
+                order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                fill_mode="constant",
+                fill_value=fill_value,
+            ).reshape(height, width)
+
+            transformed = transformed.at[:, :, c].add(transformed_channel)
+
+        outputs.append(transformed)
+
+    output = mx.stack(outputs, axis=0)
+
+    if data_format == "channels_first":
+        output = mx.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = mx.squeeze(output, axis=0)
+
+    return output
 
 
 def gaussian_blur(
     images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
 ):
-    raise NotImplementedError("gaussian_blur not yet implemented in mlx.")
+    # gaussian_blur similar to jax backend
+    def _create_gaussian_kernel(kernel_size, sigma, dtype, num_channels):
+        def _get_gaussian_kernel1d(size, sigma):
+            x = mx.arange(size, dtype=dtype) - (size - 1) / 2
+            kernel1d = mx.exp(-0.5 * (x / sigma) ** 2)
+            return kernel1d / mx.sum(kernel1d)
+
+        def _get_gaussian_kernel2d(size, sigma):
+            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
+            return mx.outer(kernel1d_y, kernel1d_x)
+
+        kernel2d = _get_gaussian_kernel2d(kernel_size, sigma)
+
+        # mlx expects kernel with shape (C_out, spatial..., C_in)
+        # for depthwise convolution with groups=C, we need (C, H, W, 1)
+        kernel = kernel2d.reshape(1, kernel_size[0], kernel_size[1], 1)
+        kernel = mx.tile(kernel, (num_channels, 1, 1, 1))
+
+        return kernel
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    data_format = backend.standardize_data_format(data_format)
+    images = convert_to_tensor(images)
+    sigma = convert_to_tensor(sigma)
+    dtype = images.dtype
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images[mx.newaxis, ...]
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = mx.transpose(images, (0, 2, 3, 1))
+
+    num_channels = images.shape[-1]
+
+    # mx.arange can only take integer input values
+    kernel_size = tuple(int(k) for k in kernel_size)
+    kernel = _create_gaussian_kernel(kernel_size, sigma, dtype, num_channels)
+
+    # get padding for 'same' behavior
+    pad_h = max(0, (kernel_size[0] - 1) // 2)
+    pad_w = max(0, (kernel_size[1] - 1) // 2)
+    padding = ((pad_h, pad_h), (pad_w, pad_w))
+
+    blurred_images = mx.conv_general(
+        images,
+        kernel,
+        stride=1,
+        padding=padding,
+        kernel_dilation=1,
+        input_dilation=1,
+        groups=num_channels,
+        flip=False,
+    )
+
+    if data_format == "channels_first":
+        blurred_images = mx.transpose(blurred_images, (0, 3, 1, 2))
+
+    if need_squeeze:
+        blurred_images = mx.squeeze(blurred_images, axis=0)
+
+    return blurred_images
+
+
+def elastic_transform(
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
+    seed=None,
+    data_format=None,
+):
+    # elastic_transform based on implementation in jax backend
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected one of "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Expected one of "
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
+        )
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    images = convert_to_tensor(images)
+    alpha = convert_to_tensor(alpha)
+    sigma = convert_to_tensor(sigma)
+    input_dtype = images.dtype
+    kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = mx.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        batch_size, height, width, channels = images.shape
+        channel_axis = -1
+    else:
+        batch_size, channels, height, width = images.shape
+        channel_axis = 1
+
+    mlx_seed = mlx_draw_seed(seed)
+    if mlx_seed is not None:
+        seed_dx, seed_dy = mx.random.split(mlx_seed)
+    else:
+        seed_dx, seed_dy = mlx_draw_seed(None), mlx_draw_seed(None)
+
+    dx = mx.random.normal(
+        shape=(batch_size, height, width),
+        loc=0.0,
+        scale=sigma,
+        dtype=input_dtype,
+        key=seed_dx,
+    )
+
+    dy = mx.random.normal(
+        shape=(batch_size, height, width),
+        loc=0.0,
+        scale=sigma,
+        dtype=input_dtype,
+        key=seed_dy,
+    )
+
+    dx = gaussian_blur(
+        mx.expand_dims(dx, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+    dy = gaussian_blur(
+        mx.expand_dims(dy, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+
+    dx = mx.squeeze(dx, axis=channel_axis)
+    dy = mx.squeeze(dy, axis=channel_axis)
+
+    x_vals = mx.arange(width)
+    y_vals = mx.arange(height)
+    x, y = mx.meshgrid(x_vals, y_vals, indexing="xy")
+    x = mx.expand_dims(x, axis=0)
+    y = mx.expand_dims(y, axis=0)
+
+    distorted_x = x + alpha * dx
+    distorted_y = y + alpha * dy
+
+    transformed_images = mx.zeros_like(images)
+    if data_format == "channels_last":
+        for i in range(channels):
+            transformed_channel = []
+            for b in range(batch_size):
+                transformed_channel.append(
+                    map_coordinates(
+                        images[b, :, :, i],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
+                    )
+                )
+            transformed_images = transformed_images.at[:, :, :, i].add(
+                mx.stack(transformed_channel)
+            )
+    else:  # channels_first
+        for i in range(channels):
+            transformed_channel = []
+            for b in range(batch_size):
+                transformed_channel.append(
+                    map_coordinates(
+                        images[b, i, :, :],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
+                    )
+                )
+            transformed_images = transformed_images.at[:, i, :, :].add(
+                mx.stack(transformed_channel)
+            )
+
+    if need_squeeze:
+        transformed_images = mx.squeeze(transformed_images, axis=0)
+
+    transformed_images = transformed_images.astype(input_dtype)
+
+    return transformed_images
