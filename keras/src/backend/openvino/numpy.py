@@ -961,12 +961,11 @@ def linspace(
     )
 
     def unsqueeze_for_broadcasting(tensor):
-        if len(tensor.get_partial_shape()) == 0:
+        if tensor.get_input_partial_shape(0).rank == 0:
             return ov_opset.unsqueeze(tensor, ov_opset.constant(0, Type.i64))
         return tensor
 
-    if len(start.get_partial_shape()) == 0:
-        # Scalar case
+    if start.get_input_partial_shape(0).rank == 0:
         linspace_vals = ov_opset.add(
             ov_opset.multiply(range_vals, step), start
         ).output(0)
@@ -999,7 +998,7 @@ def linspace(
 
     single_val = start
 
-    if axis != 0 and len(single_val.get_partial_shape()) > 0:
+    if axis != 0 and start.get_input_partial_shape(0).rank > 0:
         single_val = ov_opset.unsqueeze(
             single_val, ov_opset.constant(axis, Type.i32)
         ).output(0)
