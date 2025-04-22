@@ -974,7 +974,7 @@ def linspace(
     rank_len = start.get_output_partial_shape(0).rank.get_length()
     rank_const = ov_opset.constant([rank_len], Type.i64)
 
-    start_shape_sliced = ov_opset.slice(
+    start_shape_sliced = ov_opset.strided_slice(
         start_shape,
         ov_opset.constant([1], Type.i64),
         rank_const,
@@ -982,6 +982,17 @@ def linspace(
     )
 
     target_shape = ov_opset.concat([range_shape, start_shape_sliced], 0)
+
+    def ensure_minimum_shape(tensor):
+        shape = tensor.get_output_partial_shape(0)
+        if shape.rank.get_length() == 1 and shape[0].get_length() == 0:
+            return ov_opset.reshape(
+                tensor, ov_opset.constant([1], dtype=Type.i64), False
+            )
+        return tensor
+
+    step = ensure_minimum_shape(step)
+    start = ensure_minimum_shape(start)
 
     step_broadcast = ov_opset.broadcast(
         step, target_shape, broadcast_spec="NUMPY"
