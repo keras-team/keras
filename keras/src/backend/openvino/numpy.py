@@ -949,11 +949,8 @@ def linspace(
     is_zero = ov_opset.equal(num_const, zero)
     is_one = ov_opset.equal(num_const, one)
 
-    if endpoint:
-        denom = ov_opset.subtract(num_f, one_f)
-        denom = ov_opset.select(is_one, one_f, denom)
-    else:
-        denom = num_f
+    denom = ov_opset.subtract(num_f, one_f) if endpoint else num_f
+    denom = ov_opset.select(is_one, one_f, denom)
 
     step = ov_opset.divide(ov_opset.subtract(stop, start), denom)
 
@@ -961,31 +958,35 @@ def linspace(
         ov_opset.constant(0, dtype), num_f, one_f, dtype
     )
 
-    def unsqueeze_for_broadcasting(tensor):
-        if tensor.get_input_partial_shape(0).rank == 0:
+    def ensure_tensor_has_dim(tensor):
+        shape = tensor.get_output_partial_shape(0)
+        if shape.rank.get_length() == 0:
             return ov_opset.unsqueeze(tensor, ov_opset.constant(0, Type.i64))
         return tensor
 
-    if start.get_input_partial_shape(0).rank == 0:
-        linspace_vals = ov_opset.add(
-            ov_opset.multiply(range_vals, step), start
-        ).output(0)
+    start = ensure_tensor_has_dim(start)
+    stop = ensure_tensor_has_dim(stop)
+    step = ensure_tensor_has_dim(step)
+
+    if (
+        start.get_output_partial_shape(0).rank.get_length() == 1
+        and start.get_output_partial_shape(0).get_dimension(0).is_static
+    ):
+        range_shape = ov_opset.shape_of(range_vals)
+        start_shape = ov_opset.shape_of(start)
+        target_shape = ov_opset.concat([range_shape, start_shape[1:]], 0)
+        step_broadcast = ov_opset.broadcast(step, target_shape).output(0)
+        start_broadcast = ov_opset.broadcast(start, target_shape).output(0)
     else:
         range_shape = ov_opset.shape_of(range_vals)
         start_shape = ov_opset.shape_of(start)
-
         target_shape = ov_opset.concat([range_shape, start_shape], 0)
+        step_broadcast = ov_opset.broadcast(step, target_shape).output(0)
+        start_broadcast = ov_opset.broadcast(start, target_shape).output(0)
 
-        step_broadcast = ov_opset.broadcast(
-            unsqueeze_for_broadcasting(step), target_shape
-        ).output(0)
-        start_broadcast = ov_opset.broadcast(
-            unsqueeze_for_broadcasting(start), target_shape
-        ).output(0)
-
-        linspace_vals = ov_opset.add(
-            ov_opset.multiply(range_vals, step_broadcast), start_broadcast
-        ).output(0)
+    linspace_vals = ov_opset.add(
+        ov_opset.multiply(range_vals, step_broadcast), start_broadcast
+    ).output(0)
 
     if axis != 0:
         linspace_vals = ov_opset.unsqueeze(
@@ -998,8 +999,7 @@ def linspace(
     ).output(0)
 
     single_val = start
-
-    if axis != 0 and start.get_input_partial_shape(0).rank > 0:
+    if axis != 0 and start.get_output_partial_shape(0).rank.get_length() > 0:
         single_val = ov_opset.unsqueeze(
             single_val, ov_opset.constant(axis, Type.i32)
         ).output(0)
