@@ -906,33 +906,47 @@ def less_equal(x1, x2):
     x1, x2 = _align_operand_types(x1, x2, "less_equal()")
     return OpenVINOKerasTensor(ov_opset.less_equal(x1, x2).output(0))
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
-    if not isinstance(num, int):
-        raise TypeError("num must be an integer")
-    if num < 0:
-        raise ValueError("num must be non-negative")
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):  
+    if not isinstance(num, int):  
+        raise TypeError("num must be an integer")  
+    if num < 0:  
+        raise ValueError("num must be non-negative")  
 
-    start = get_ov_output(start)
-    stop = get_ov_output(stop)
+    start = get_ov_output(start)  
+    stop = get_ov_output(stop)  
 
-    if dtype is None:
-        dtype = OPENVINO_DTYPES[config.floatx()]
+    if dtype is None:  
+        dtype = OPENVINO_DTYPES[config.floatx()]  
 
-    div = num - 1 if endpoint else num
-    step = (stop - start) / ov_opset.convert(div, dtype)
+    # Convert inputs to specified dtype  
+    start = ov_opset.convert(start, dtype)  
+    stop = ov_opset.convert(stop, dtype)  
 
-    indices = ov_opset.arange(num, dtype=dtype)
+    div = num - 1 if endpoint else num  
+    div_const = ov_opset.constant(div, dtype=dtype)  
+    
+    delta = ov_opset.subtract(stop, start)  
+    step = ov_opset.divide(delta, div_const)  
 
-    result = start + indices * step
+    indices = ov_opset.range(  
+        ov_opset.constant(0, dtype=dtype),  
+        ov_opset.constant(num, dtype=dtype),  
+        ov_opset.constant(1, dtype=dtype)  
+    )  
+    
+    scaled_indices = ov_opset.multiply(indices, step)  
+    result = ov_opset.add(start, scaled_indices)  
 
-    if endpoint and num > 1:
-        result = ov_opset.scatter(result, ov_opset.constant(num - 1, dtype=Type.i32), stop)
+    if endpoint and num > 1:  
+        last_idx = ov_opset.constant(num - 1, dtype=Type.i32)  
+        result = ov_opset.scatter_element_update(result, last_idx, stop)  
 
-    if axis != 0:
-        result = ov_opset.unsqueeze(result, ov_opset.constant(axis, Type.i32))
+    if axis != 0:  
+        axis_const = ov_opset.constant([axis], dtype=Type.i64)  
+        result = ov_opset.unsqueeze(result, axis_const)  
 
-    if retstep:
-        return result, step
+    if retstep:  
+        return result, step  
     return result
 
 
