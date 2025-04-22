@@ -940,6 +940,7 @@ def linspace(
     stop = ov_opset.convert(stop, dtype)
 
     zero = ov_opset.constant(0, dtype=Type.i32)
+    zero_i64 = ov_opset.constant(0, dtype=Type.i64)
     one = ov_opset.constant(1, dtype=Type.i32)
     one_f = ov_opset.convert(one, dtype)
 
@@ -991,7 +992,7 @@ def linspace(
             linspace_vals, ov_opset.constant(axis, Type.i32)
         ).output(0)
 
-    empty_shape = ov_opset.concat([zero, ov_opset.shape_of(start)], 0)
+    empty_shape = ov_opset.concat([zero_i64, ov_opset.shape_of(start)], 0)
     empty_array = ov_opset.broadcast(
         ov_opset.constant([], dtype), empty_shape
     ).output(0)
