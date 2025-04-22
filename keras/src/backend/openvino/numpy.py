@@ -913,101 +913,115 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     if num < 0:  
         raise ValueError("num must be non-negative")  
     
-    if num == 0:  
-        if dtype is None:  
-            ov_dtype = OPENVINO_DTYPES[config.floatx()]  
-        else:  
-            ov_dtype = OPENVINO_DTYPES[dtype]  
-        result = ov_opset.constant([], ov_dtype, shape=[0]).output(0)  
-        if retstep:  
-            step = ov_opset.constant(float("nan"), ov_dtype).output(0)  
-            return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
-        return OpenVINOKerasTensor(result)  
-
-    start = get_ov_output(start)  
-    stop = get_ov_output(stop)  
-
+    start_ov = get_ov_output(start)  
+    stop_ov = get_ov_output(stop)  
+    
     if dtype is None:  
         ov_dtype = OPENVINO_DTYPES[config.floatx()]  
     else:  
         ov_dtype = OPENVINO_DTYPES[dtype]  
-
-    start = ov_opset.convert(start, ov_dtype).output(0)  
-    stop = ov_opset.convert(stop, ov_dtype).output(0)  
-
-    if num == 1:  
-        if endpoint:  
-            result = ov_opset.convert(stop, ov_dtype).output(0)  
+    
+    start_ov = ov_opset.convert(start_ov, ov_dtype).output(0)  
+    stop_ov = ov_opset.convert(stop_ov, ov_dtype).output(0)  
+    
+    start_shape = start_ov.get_shape()  
+    stop_shape = stop_ov.get_shape()  
+    
+    if num == 0:  
+        if len(start_shape) == 0 and len(stop_shape) == 0:  
+            result = ov_opset.constant(np.array([], dtype=np.dtype(dtype or config.floatx()))).output(0)  
         else:  
-            result = ov_opset.convert(start, ov_dtype).output(0)  
-        if axis != 0:  
-            axis_const = ov_opset.constant([axis], Type.i64).output(0)  
-            result = ov_opset.unsqueeze(result, axis_const).output(0)  
+            out_shape = list(np.broadcast(  
+                np.empty(start_shape, dtype=bool),  
+                np.empty(stop_shape, dtype=bool)  
+            ).shape)  
+            out_shape.insert(axis, 0)  
+            
+            empty_np = np.empty(out_shape, dtype=np.dtype(dtype or config.floatx()))  
+            empty_np = np.reshape(empty_np, [-1])  
+            result = ov_opset.constant(empty_np).output(0)  
+            
+            shape_const = ov_opset.constant(np.array(out_shape, dtype=np.int64)).output(0)  
+            result = ov_opset.reshape(result, shape_const).output(0)  
+        
         if retstep:  
-            step = ov_opset.subtract(stop, start).output(0)  
+            delta = ov_opset.subtract(stop_ov, start_ov).output(0)  
+            step = delta  
             return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
         return OpenVINOKerasTensor(result)  
-
-    div = num - 1 if endpoint else num  
-    div_const = ov_opset.constant(div, ov_dtype).output(0)  
-    delta = ov_opset.subtract(stop, start).output(0)  
-    step = ov_opset.divide(delta, div_const).output(0)  
-
-    type_to_str = {  
-        Type.f16: "f16",  
-        Type.f32: "f32",  
-        Type.f64: "f64",  
-        Type.bf16: "bf16",  
-        Type.i8: "i8",  
-        Type.i16: "i16",  
-        Type.i32: "i32",  
-        Type.i64: "i64",  
-        Type.u8: "u8",  
-        Type.u16: "u16",  
-        Type.u32: "u32",  
-        Type.u64: "u64"  
-    }  
     
-    type_str = type_to_str.get(ov_dtype, "f32")  
+    is_scalar_start = len(start_shape) == 0  
+    is_scalar_stop = len(stop_shape) == 0  
     
-    indices = ov_opset.range(  
-        ov_opset.constant(0, Type.i32).output(0),  
-        ov_opset.constant(num, Type.i32).output(0),  
-        ov_opset.constant(1, Type.i32).output(0),  
-        type_str  
-    ).output(0)  
+    if not (is_scalar_start and is_scalar_stop):  
+        broadcast_shape = list(np.broadcast(  
+            np.empty(start_shape, dtype=bool),  
+            np.empty(stop_shape, dtype=bool)  
+        ).shape)  
+        
+        if not is_scalar_start and tuple(start_shape) != tuple(broadcast_shape):  
+            shape_const = ov_opset.constant(np.array(broadcast_shape, dtype=np.int64)).output(0)  
+            start_ov = ov_opset.broadcast(start_ov, shape_const).output(0)  
+        
+        if not is_scalar_stop and tuple(stop_shape) != tuple(broadcast_shape):  
+            shape_const = ov_opset.constant(np.array(broadcast_shape, dtype=np.int64)).output(0)  
+            stop_ov = ov_opset.broadcast(stop_ov, shape_const).output(0)  
     
-    scaled_indices = ov_opset.multiply(indices, step).output(0)  
-    result = ov_opset.add(start, scaled_indices).output(0)  
-
-    if endpoint and num > 1:  
-        all_but_last = ov_opset.slice(  
-            result,  
-            ov_opset.constant([0], Type.i64).output(0),  
-            ov_opset.constant([num-1], Type.i64).output(0),  
-            ov_opset.constant([1], Type.i64).output(0),  
-            ov_opset.constant([0], Type.i64).output(0)  
+    if num == 1:  
+        if endpoint:  
+            result = stop_ov  
+        else:  
+            result = start_ov  
+            
+        step = ov_opset.subtract(stop_ov, start_ov).output(0)  
+        
+        if not (is_scalar_start and is_scalar_stop):  
+            out_shape = list(result.get_shape())  
+            out_shape.insert(axis, 1)  
+            shape_const = ov_opset.constant(np.array(out_shape, dtype=np.int64)).output(0)  
+            result = ov_opset.reshape(result, shape_const).output(0)  
+    else:  
+        div = num - 1 if endpoint else num  
+        div_const = ov_opset.constant(div, ov_dtype).output(0)  
+        delta = ov_opset.subtract(stop_ov, start_ov).output(0)  
+        step = ov_opset.divide(delta, div_const).output(0)  
+        
+        out_shape = list(start_ov.get_shape() if not is_scalar_start else stop_ov.get_shape() if not is_scalar_stop else [])  
+        
+        indices = ov_opset.range(  
+            ov_opset.constant(0, ov_dtype).output(0),  
+            ov_opset.constant(num, ov_dtype).output(0),  
+            ov_opset.constant(1, ov_dtype).output(0)  
         ).output(0)  
         
-        stop_shape = stop.get_shape()  
-        result_shape = result.get_shape()  
-        
-        if len(stop_shape) < len(result_shape):  
-            for _ in range(len(result_shape) - len(stop_shape)):  
-                stop = ov_opset.unsqueeze(  
-                    stop,  
-                    ov_opset.constant([0], Type.i64).output(0)  
-                ).output(0)  
-        
-        result = ov_opset.concat([all_but_last, stop], 0).output(0)  
-
-    if axis != 0:  
-        axis_const = ov_opset.constant([axis], Type.i64).output(0)  
-        result = ov_opset.unsqueeze(result, axis_const).output(0)  
-
+        if not (is_scalar_start and is_scalar_stop):  
+            expanded_shape = list(out_shape)  
+            expanded_shape.insert(axis, 1)  
+            shape_const = ov_opset.constant(np.array(expanded_shape, dtype=np.int64)).output(0)  
+            
+            start_reshaped = ov_opset.reshape(start_ov, shape_const).output(0)  
+            step_reshaped = ov_opset.reshape(step, shape_const).output(0)  
+            
+            indices_shape = [1] * len(expanded_shape)  
+            indices_shape[axis] = num  
+            indices_shape_const = ov_opset.constant(np.array(indices_shape, dtype=np.int64)).output(0)  
+            indices_reshaped = ov_opset.reshape(indices, indices_shape_const).output(0)  
+            
+            indices_times_step = ov_opset.multiply(indices_reshaped, step_reshaped).output(0)  
+            result = ov_opset.add(start_reshaped, indices_times_step).output(0)  
+        else:  
+            indices_times_step = ov_opset.multiply(indices, step).output(0)  
+            result = ov_opset.add(start_ov, indices_times_step).output(0)  
+            
+            if axis != 0:  
+                out_shape = [1] * (axis+1)  
+                out_shape[axis] = num  
+                shape_const = ov_opset.constant(np.array(out_shape, dtype=np.int64)).output(0)  
+                result = ov_opset.reshape(result, shape_const).output(0)  
+    
     if retstep:  
         return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
-    return OpenVINOKerasTensor(result)  
+    return OpenVINOKerasTensor(result)
 
 
 def log(x):
