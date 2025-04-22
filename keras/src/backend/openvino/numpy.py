@@ -979,6 +979,8 @@ def linspace(
         ov_opset.constant([1], Type.i64),
         rank_const,
         ov_opset.constant([1], Type.i64),
+        begin_mask=[0],
+        end_mask=[0],
     )
 
     target_shape = ov_opset.concat([range_shape, start_shape_sliced], 0)
