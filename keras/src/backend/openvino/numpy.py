@@ -912,6 +912,17 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
         raise TypeError("num must be an integer")  
     if num < 0:  
         raise ValueError("num must be non-negative")  
+    
+    if num == 0:  
+        if dtype is None:  
+            ov_dtype = OPENVINO_DTYPES[config.floatx()]  
+        else:  
+            ov_dtype = OPENVINO_DTYPES[dtype]  
+        result = ov_opset.constant([], ov_dtype, shape=[0]).output(0)  
+        if retstep:  
+            step = ov_opset.constant(float("nan"), ov_dtype).output(0)  
+            return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
+        return OpenVINOKerasTensor(result)  
 
     start = get_ov_output(start)  
     stop = get_ov_output(stop)  
@@ -924,10 +935,19 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     start = ov_opset.convert(start, ov_dtype).output(0)  
     stop = ov_opset.convert(stop, ov_dtype).output(0)  
 
-    start_shape = start.get_shape()  
-    stop_shape = stop.get_shape()  
-    is_array_input = len(start_shape) > 0 or len(stop_shape) > 0  
-    
+    if num == 1:  
+        if endpoint:  
+            result = ov_opset.convert(stop, ov_dtype).output(0)  
+        else:  
+            result = ov_opset.convert(start, ov_dtype).output(0)  
+        if axis != 0:  
+            axis_const = ov_opset.constant([axis], Type.i64).output(0)  
+            result = ov_opset.unsqueeze(result, axis_const).output(0)  
+        if retstep:  
+            step = ov_opset.subtract(stop, start).output(0)  
+            return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
+        return OpenVINOKerasTensor(result)  
+
     div = num - 1 if endpoint else num  
     div_const = ov_opset.constant(div, ov_dtype).output(0)  
     delta = ov_opset.subtract(stop, start).output(0)  
@@ -957,26 +977,29 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
         type_str  
     ).output(0)  
     
-    if is_array_input:  
-        new_shape = []  
-        new_shape.append(num)  
-        for _ in range(len(start_shape)):  
-            new_shape.append(1)  
-        indices = ov_opset.reshape(indices,   
-                                   ov_opset.constant(new_shape, Type.i64).output(0),  
-                                   special_zero=False).output(0)  
-    
     scaled_indices = ov_opset.multiply(indices, step).output(0)  
     result = ov_opset.add(start, scaled_indices).output(0)  
 
     if endpoint and num > 1:  
-        last_idx = ov_opset.constant(num - 1, Type.i32).output(0)  
-        result = ov_opset.scatter_elements_update(  
-            result,   
-            last_idx,   
-            stop,  
-            axis=0  
+        all_but_last = ov_opset.slice(  
+            result,  
+            ov_opset.constant([0], Type.i64).output(0),  
+            ov_opset.constant([num-1], Type.i64).output(0),  
+            ov_opset.constant([1], Type.i64).output(0),  
+            ov_opset.constant([0], Type.i64).output(0)  
         ).output(0)  
+        
+        stop_shape = stop.get_shape()  
+        result_shape = result.get_shape()  
+        
+        if len(stop_shape) < len(result_shape):  
+            for _ in range(len(result_shape) - len(stop_shape)):  
+                stop = ov_opset.unsqueeze(  
+                    stop,  
+                    ov_opset.constant([0], Type.i64).output(0)  
+                ).output(0)  
+        
+        result = ov_opset.concat([all_but_last, stop], 0).output(0)  
 
     if axis != 0:  
         axis_const = ov_opset.constant([axis], Type.i64).output(0)  
@@ -984,7 +1007,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
 
     if retstep:  
         return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
-    return OpenVINOKerasTensor(result)
+    return OpenVINOKerasTensor(result)  
 
 
 def log(x):
