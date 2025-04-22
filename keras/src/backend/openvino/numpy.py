@@ -929,13 +929,28 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     delta = ov_opset.subtract(stop, start).output(0)  
     step = ov_opset.divide(delta, div_const).output(0)  
 
-    dtype_str = str(ov_dtype).split('.')[-1]
+    type_to_str = {  
+        Type.f16: "f16",  
+        Type.f32: "f32",  
+        Type.f64: "f64",  
+        Type.bf16: "bf16",  
+        Type.i8: "i8",  
+        Type.i16: "i16",  
+        Type.i32: "i32",  
+        Type.i64: "i64",  
+        Type.u8: "u8",  
+        Type.u16: "u16",  
+        Type.u32: "u32",  
+        Type.u64: "u64"  
+    }  
+    
+    type_str = type_to_str.get(ov_dtype, "f32")
     
     indices = ov_opset.range(  
         ov_opset.constant(0, Type.i32).output(0),  
         ov_opset.constant(num, Type.i32).output(0),  
         ov_opset.constant(1, Type.i32).output(0),  
-        dtype_str 
+        type_str
     ).output(0)  
     
     scaled_indices = ov_opset.multiply(indices, step).output(0)  
