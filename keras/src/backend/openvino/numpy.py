@@ -914,6 +914,8 @@ def linspace(
         num_const = num.node
     elif hasattr(num, "get_output_element"):
         num_const = num
+    elif hasattr(num, "output"):
+        num_const = num.output(0)
     else:
         if not isinstance(num, (int, np.integer)):
             raise ValueError(
@@ -943,7 +945,9 @@ def linspace(
     zero_i64 = ov_opset.constant([0], dtype=Type.i64)
     one = ov_opset.constant(1, dtype=Type.i32)
     one_f = ov_opset.convert(one, dtype)
+
     num_f = ov_opset.convert(num_const, dtype)
+
     is_zero = ov_opset.equal(num_const, zero)
     is_one = ov_opset.equal(num_const, one)
 
@@ -1110,10 +1114,16 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if not isinstance(base, (int, float)) or base <= 0:
         raise ValueError(f"Expected 'base' to be a positive number, got {base}")
 
-    if hasattr(num, "get_output_element"):
-        num_tensor = num
-    else:
+    if isinstance(num, (int, np.integer)):
         num_tensor = ov_opset.constant(num, dtype=Type.i32)
+    elif hasattr(num, "get_output_element"):
+        num_tensor = num
+    elif isinstance(num, ov_opset.Constant):
+        num_tensor = num.output(0)
+    else:
+        raise ValueError(
+            f"Expected 'num' to be an integer or tensor, got {type(num)}"
+        )
 
     is_zero = ov_opset.equal(num_tensor, ov_opset.constant(0, dtype=Type.i32))
 
