@@ -1015,7 +1015,7 @@ def linspace(
     empty_shape = ov_opset.concat([zero_i64, start_shape], 0)
     empty_const = ov_opset.constant([], dtype)
     empty_const = ov_opset.reshape(
-        empty_const, ov_opset.constant([1], dtype=Type.i64), False
+        empty_const, ov_opset.constant([0], dtype=Type.i64), False
     )
     empty_array = ov_opset.broadcast(
         empty_const, empty_shape, broadcast_spec="NUMPY"
@@ -1134,7 +1134,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
     empty_const = ov_opset.constant([], dtype_resolved)
     empty_const = ov_opset.reshape(
-        empty_const, ov_opset.constant([1], dtype=shape_dtype), False
+        empty_const, ov_opset.constant([0], dtype=shape_dtype), False
     )
     empty_array = ov_opset.broadcast(
         empty_const, empty_shape, broadcast_spec="NUMPY"
