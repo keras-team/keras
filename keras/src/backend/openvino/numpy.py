@@ -906,6 +906,7 @@ def less_equal(x1, x2):
     x1, x2 = _align_operand_types(x1, x2, "less_equal()")
     return OpenVINOKerasTensor(ov_opset.less_equal(x1, x2).output(0))
 
+
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):  
     if not isinstance(num, int):  
         raise TypeError("num must be an integer")  
@@ -916,38 +917,41 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     stop = get_ov_output(stop)  
 
     if dtype is None:  
-        dtype = OPENVINO_DTYPES[config.floatx()]  
+        ov_dtype = OPENVINO_DTYPES[config.floatx()]  
+    else:  
+        ov_dtype = OPENVINO_DTYPES[dtype]  
 
-    # Convert inputs to specified dtype  
-    start = ov_opset.convert(start, dtype)  
-    stop = ov_opset.convert(stop, dtype)  
+    start = ov_opset.convert(start, ov_dtype).output(0)  
+    stop = ov_opset.convert(stop, ov_dtype).output(0)  
 
     div = num - 1 if endpoint else num  
-    div_const = ov_opset.constant(div, dtype=dtype)  
-    
-    delta = ov_opset.subtract(stop, start)  
-    step = ov_opset.divide(delta, div_const)  
+    div_const = ov_opset.constant(div, ov_dtype).output(0)  
+    delta = ov_opset.subtract(stop, start).output(0)  
+    step = ov_opset.divide(delta, div_const).output(0)  
 
-    indices = ov_opset.range(  
-        ov_opset.constant(0, dtype=dtype),  
-        ov_opset.constant(num, dtype=dtype),  
-        ov_opset.constant(1, dtype=dtype)  
-    )  
+    dtype_str = str(ov_dtype).split('.')[-1]
     
-    scaled_indices = ov_opset.multiply(indices, step)  
-    result = ov_opset.add(start, scaled_indices)  
+    indices = ov_opset.range(  
+        ov_opset.constant(0, Type.i32).output(0),  
+        ov_opset.constant(num, Type.i32).output(0),  
+        ov_opset.constant(1, Type.i32).output(0),  
+        dtype_str 
+    ).output(0)  
+    
+    scaled_indices = ov_opset.multiply(indices, step).output(0)  
+    result = ov_opset.add(start, scaled_indices).output(0)  
 
     if endpoint and num > 1:  
-        last_idx = ov_opset.constant(num - 1, dtype=Type.i32)  
-        result = ov_opset.scatter_element_update(result, last_idx, stop)  
+        last_idx = ov_opset.constant(num - 1, Type.i32).output(0)  
+        result = ov_opset.scatter_element_update(result, last_idx, stop).output(0)  
 
     if axis != 0:  
-        axis_const = ov_opset.constant([axis], dtype=Type.i64)  
-        result = ov_opset.unsqueeze(result, axis_const)  
+        axis_const = ov_opset.constant([axis], Type.i64).output(0)  
+        result = ov_opset.unsqueeze(result, axis_const).output(0)  
 
     if retstep:  
-        return result, step  
-    return result
+        return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
+    return OpenVINOKerasTensor(result)
 
 
 def log(x):
