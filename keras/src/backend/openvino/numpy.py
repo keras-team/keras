@@ -1013,8 +1013,12 @@ def linspace(
         ).output(0)
 
     empty_shape = ov_opset.concat([zero_i64, start_shape], 0)
+    empty_const = ov_opset.constant([], dtype)
+    empty_const = ov_opset.reshape(
+        empty_const, ov_opset.constant([1], dtype=Type.i64), False
+    )
     empty_array = ov_opset.broadcast(
-        ov_opset.constant([], dtype), empty_shape, broadcast_spec="NUMPY"
+        empty_const, empty_shape, broadcast_spec="NUMPY"
     ).output(0)
 
     single_val = start
@@ -1114,17 +1118,26 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     is_zero = ov_opset.equal(num_tensor, ov_opset.constant(0, dtype=Type.i32))
 
     start_tensor = get_ov_output(start)
+    shape_dtype = Type.i64
+    dtype_resolved = (
+        OPENVINO_DTYPES["float32"]
+        if dtype is None
+        else OPENVINO_DTYPES[standardize_dtype(dtype)]
+    )
+
     empty_shape = ov_opset.concat(
         [
-            ov_opset.constant([0], dtype=Type.i64),
+            ov_opset.constant([0], dtype=shape_dtype),
             ov_opset.shape_of(start_tensor),
         ],
         0,
     )
+    empty_const = ov_opset.constant([], dtype_resolved)
+    empty_const = ov_opset.reshape(
+        empty_const, ov_opset.constant([1], dtype=shape_dtype), False
+    )
     empty_array = ov_opset.broadcast(
-        ov_opset.constant([], dtype or Type.f32),
-        empty_shape,
-        broadcast_spec="NUMPY",
+        empty_const, empty_shape, broadcast_spec="NUMPY"
     ).output(0)
 
     lin_vals = linspace(
@@ -1135,9 +1148,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     lin_vals = get_ov_output(lin_vals)
     dtype = lin_vals.get_element_type()
 
-    base_const = ov_opset.constant(base, dtype)
+    base_const = ov_opset.constant(
+        base, OPENVINO_DTYPES[standardize_dtype(str(dtype))]
+    )
     base_reshaped = ov_opset.reshape(
-        base_const, ov_opset.constant([], dtype=Type.i64), False
+        base_const, ov_opset.constant([], dtype=shape_dtype), False
     )
     base_broadcast = ov_opset.broadcast(
         base_reshaped, ov_opset.shape_of(lin_vals), broadcast_spec="NUMPY"
