@@ -924,6 +924,11 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     start = ov_opset.convert(start, ov_dtype).output(0)  
     stop = ov_opset.convert(stop, ov_dtype).output(0)  
 
+    # Check if we're dealing with arrays  
+    start_shape = start.get_shape()  
+    stop_shape = stop.get_shape()  
+    is_array_input = len(start_shape) > 0 or len(stop_shape) > 0  
+    
     div = num - 1 if endpoint else num  
     div_const = ov_opset.constant(div, ov_dtype).output(0)  
     delta = ov_opset.subtract(stop, start).output(0)  
@@ -944,21 +949,31 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
         Type.u64: "u64"  
     }  
     
-    type_str = type_to_str.get(ov_dtype, "f32")
+    type_str = type_to_str.get(ov_dtype, "f32")  
     
     indices = ov_opset.range(  
         ov_opset.constant(0, Type.i32).output(0),  
         ov_opset.constant(num, Type.i32).output(0),  
         ov_opset.constant(1, Type.i32).output(0),  
-        type_str
+        type_str  
     ).output(0)  
+    
+    if is_array_input:  
+        # For array inputs, we need to reshape the indices  
+        # to properly broadcast with multidimensional steps  
+        new_shape = []  
+        new_shape.append(num)  
+        for _ in range(len(start_shape)):  
+            new_shape.append(1)  
+        indices = ov_opset.reshape(indices, ov_opset.constant(new_shape, Type.i64).output(0)).output(0)  
     
     scaled_indices = ov_opset.multiply(indices, step).output(0)  
     result = ov_opset.add(start, scaled_indices).output(0)  
 
     if endpoint and num > 1:  
         last_idx = ov_opset.constant(num - 1, Type.i32).output(0)  
-        result = ov_opset.scatter_element_update(result, last_idx, stop).output(0)  
+        # Fix 1: Use the correct function name  
+        result = ov_opset.scatter_elements_update(result, last_idx, stop).output(0)  
 
     if axis != 0:  
         axis_const = ov_opset.constant([axis], Type.i64).output(0)  
@@ -966,9 +981,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
 
     if retstep:  
         return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
-    return OpenVINOKerasTensor(result)
-
-
+    return OpenVINOKerasTensor(result)  
 def log(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
