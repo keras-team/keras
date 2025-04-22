@@ -936,22 +936,18 @@ def linspace(
     stop = ov_opset.convert(stop, dtype)
 
     if num == 0:
-        shape = [0]
-        start_shape = start.get_partial_shape()
-        if start_shape.rank.is_static and start_shape.rank.get_length() > 0:
-            shape = [0] + [dim.get_length() for dim in start_shape[1:]]
-        empty = ov_opset.reshape(
-            ov_opset.constant([], dtype),
-            ov_opset.constant(shape, dtype=Type.i64),
-            special_zero=False,
+        shape = ov_opset.shape_of(start)
+        empty_shape = ov_opset.concat(
+            [ov_opset.constant([0], dtype=Type.i64), shape], 0
         ).output(0)
+        empty = ov_opset.broadcast(
+            ov_opset.constant([], dtype), empty_shape, broadcast_spec="NUMPY"
+        ).output(0)
+        empty_tensor = OpenVINOKerasTensor(empty)
         return (
-            OpenVINOKerasTensor(empty)
-            if not retstep
-            else (
-                OpenVINOKerasTensor(empty),
-                OpenVINOKerasTensor(ov_opset.constant(0, dtype)),
-            )
+            (empty_tensor, OpenVINOKerasTensor(ov_opset.constant(0, dtype)))
+            if retstep
+            else empty_tensor
         )
 
     num_const = ov_opset.constant(num, dtype=Type.i32).output(0)
@@ -972,8 +968,16 @@ def linspace(
         dtype,
     ).output(0)
 
-    # Broadcast step and start with explicit shape matching
-    target_shape = ov_opset.shape_of(range_indices)
+    step_shape = ov_opset.shape_of(step)
+    step_rank = ov_opset.shape_of(step_shape)
+    cond = ov_opset.equal(step_rank, ov_opset.constant([0], dtype=Type.i64))
+    step = ov_opset.unsqueeze(step, ov_opset.constant(0, Type.i64)).output(0)
+    step = ov_opset.select(cond, step, step).output(0)
+
+    target_shape = ov_opset.concat(
+        [ov_opset.shape_of(range_indices), ov_opset.shape_of(step)[1:]], 0
+    ).output(0)
+
     broadcast_step = ov_opset.broadcast(
         step, target_shape, broadcast_spec="NUMPY"
     ).output(0)
