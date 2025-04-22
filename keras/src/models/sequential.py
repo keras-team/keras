@@ -215,9 +215,11 @@ class Sequential(Model):
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
 
-    def call(self, inputs, training=None, mask=None):
+    def call(self, inputs, training=None, mask=None, **kwargs):
         if self._functional:
-            return self._functional.call(inputs, training=training, mask=mask)
+            return self._functional.call(
+                inputs, training=training, mask=mask, **kwargs
+            )
 
         # Fallback: Just apply the layer sequence.
         # This typically happens if `inputs` is a nested struct.
@@ -226,12 +228,16 @@ class Sequential(Model):
             # `outputs` are the outputs of `layer` applied to `inputs`. At the
             # end of each iteration `inputs` is set to `outputs` to prepare for
             # the next layer.
-            kwargs = {}
+            layer_kwargs = {}
             if layer._call_has_mask_arg:
-                kwargs["mask"] = mask
+                layer_kwargs["mask"] = mask
             if layer._call_has_training_arg and training is not None:
-                kwargs["training"] = training
-            outputs = layer(inputs, **kwargs)
+                layer_kwargs["training"] = training
+            for flag, value in kwargs.items():
+                # only inject if this layer’s signature actually has that arg
+                if getattr(layer, "_call_has_flag_arg", {}).get(flag, False):
+                    layer_kwargs[flag] = value
+            outputs = layer(inputs, **layer_kwargs)
             inputs = outputs
 
             mask = tree.map_structure(backend.get_keras_mask, outputs)
@@ -254,15 +260,17 @@ class Sequential(Model):
             "Use `add()` and `pop()` to change the layers in this model."
         )
 
-    def compute_output_spec(self, inputs, training=None, mask=None):
+    def compute_output_spec(self, inputs, training=None, mask=None, **kwargs):
         if self._functional:
             return self._functional.compute_output_spec(
-                inputs, training=training, mask=mask
+                inputs, training=training, mask=mask, **kwargs
             )
         # Direct application
         for layer in self.layers:
+            # TODO: Should we pass kwargs to compute_output_spec?
             outputs = layer.compute_output_spec(
-                inputs, training=training
+                inputs,
+                training=training,
             )  # Ignore mask
             inputs = outputs
         return outputs

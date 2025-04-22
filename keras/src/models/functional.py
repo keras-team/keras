@@ -170,7 +170,7 @@ class Functional(Function, Model):
             "Please use another name."
         )
 
-    def call(self, inputs, training=None, mask=None):
+    def call(self, inputs, training=None, mask=None, **kwargs):
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -181,7 +181,10 @@ class Functional(Function, Model):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
         outputs = self._run_through_graph(
-            inputs, operation_fn=lambda op: operation_fn(op, training=training)
+            inputs,
+            operation_fn=lambda op: operation_fn(
+                op, training=training, **kwargs
+            ),
         )
         return unpack_singleton(outputs)
 
@@ -624,14 +627,25 @@ def functional_from_config(cls, config, custom_objects=None):
     )
 
 
-def operation_fn(operation, training):
+def operation_fn(operation, training=None, **flags):
+    """Wraps each op to inject `training` and any other execution flags."""
+
     def call(*args, **kwargs):
+        # 1) Propagate training
         if (
-            hasattr(operation, "_call_has_training_arg")
-            and operation._call_has_training_arg
+            getattr(operation, "_call_has_flag_arg", {}).get("training", False)
             and training is not None
         ):
             kwargs["training"] = training
+
+        # 2) Propagate any other registered flags
+        for name, value in flags.items():
+            if (
+                getattr(operation, "_call_has_flag_arg", {}).get(name, False)
+                and value is not None
+            ):
+                kwargs[name] = value
+
         return operation(*args, **kwargs)
 
     return call
