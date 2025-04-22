@@ -345,7 +345,7 @@ class Angle(Operation):
 
 @keras_export(["keras.ops.angle", "keras.ops.numpy.angle"])
 def angle(x):
-    """Element-wise angle (or phase) of a complex tensor.
+    """Element-wise angle of a complex tensor.
 
     Arguments:
         x: Input tensor. Can be real or complex.
