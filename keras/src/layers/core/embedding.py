@@ -8,6 +8,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 
 
@@ -155,6 +156,13 @@ class Embedding(Layer):
 
     def compute_output_shape(self, input_shape):
         return (*input_shape, self.output_dim)
+
+    def compute_output_spec(self, inputs):
+        output_shape = self.compute_output_shape(inputs.shape)
+        ragged = getattr(inputs, "ragged", False)
+        return KerasTensor(
+            output_shape, dtype=self.compute_dtype, ragged=ragged
+        )
 
     def enable_lora(
         self,

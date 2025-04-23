@@ -36,6 +36,11 @@ def sigmoid(x):
     return jnn.sigmoid(x)
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return jnn.sparse_sigmoid(x)
+
+
 def tanh(x):
     x = convert_to_tensor(x)
     return jnn.tanh(x)

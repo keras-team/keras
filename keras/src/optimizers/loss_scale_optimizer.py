@@ -102,6 +102,12 @@ class LossScaleOptimizer(optimizer.Optimizer):
             ),
         )
 
+    def _overwrite_variable_with_gradient(self, variable):
+        return (
+            hasattr(variable, "overwrite_with_gradient")
+            and variable.overwrite_with_gradient
+        )
+
     def _stateless_handle_finite_grads(
         self, optimizer_variables, grads, trainable_variables
     ):
@@ -130,7 +136,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
             # Unscale gradients.
             scale = self.dynamic_scale
             unscaled_grads = [
-                g if g is None else ops.divide(g, scale) for g in grads
+                g
+                if g is None or self._overwrite_variable_with_gradient(v)
+                else ops.divide(g, scale)
+                for g, v in zip(grads, trainable_variables)
             ]
             (
                 new_trainable_variables,
@@ -171,8 +180,12 @@ class LossScaleOptimizer(optimizer.Optimizer):
     def _stateful_handle_finite_grads(self, grads, trainable_variables):
         scale = self.dynamic_scale
         # Unscale gradients.
+        tvs = trainable_variables or self._trainable_variables
         unscaled_grads = [
-            g if g is None else ops.divide(g, scale) for g in grads
+            g
+            if g is None or self._overwrite_variable_with_gradient(v)
+            else ops.divide(g, scale)
+            for g, v in zip(grads, tvs)
         ]
         self.inner_optimizer.apply(
             unscaled_grads, trainable_variables=trainable_variables

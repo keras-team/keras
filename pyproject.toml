@@ -44,11 +44,14 @@ Repository = "https://github.com/keras-team/keras"
 [tool.setuptools.dynamic]
 version = {attr = "keras.src.version.__version__"}
 
-[tool.setuptools.packages.find]
-include = ["keras", "keras.*"]
+[tool.setuptools.package-dir]
+"" = "."
+"keras" = "keras/api"  # Remap api/ to the root of the package.
+"keras.src" = "keras/src"
 
 [tool.ruff]
 line-length = 80
+exclude = ["keras/src/namex"]
 
 [tool.ruff.lint]
 select = [

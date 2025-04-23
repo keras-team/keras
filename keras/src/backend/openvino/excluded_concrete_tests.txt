@@ -38,7 +38,6 @@ NumpyDtypeTest::test_min
 NumpyDtypeTest::test_moveaxis
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_nan
-NumpyDtypeTest::test_nonzero
 NumpyDtypeTest::test_outer_
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_prod
@@ -88,7 +87,6 @@ NumpyOneInputOpsCorrectnessTest::test_hstack
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
-NumpyOneInputOpsCorrectnessTest::test_log1p
 NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
@@ -97,8 +95,6 @@ NumpyOneInputOpsCorrectnessTest::test_meshgrid
 NumpyOneInputOpsCorrectnessTest::test_min
 NumpyOneInputOpsCorrectnessTest::test_moveaxis
 NumpyOneInputOpsCorrectnessTest::test_nan_to_num
-NumpyOneInputOpsCorrectnessTest::test_ndim
-NumpyOneInputOpsCorrectnessTest::test_nonzero
 NumpyOneInputOpsCorrectnessTest::test_pad_float16_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float32_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float64_constant_2
