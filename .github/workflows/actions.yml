@@ -126,7 +126,5 @@ jobs:
           pip install -r requirements.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
-      - name: Install pre-commit
-        run: pip install pre-commit && pre-commit install
       - name: Run pre-commit
         run: pre-commit run --all-files --hook-stage manual
