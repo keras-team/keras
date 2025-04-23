@@ -1598,7 +1598,7 @@ class LayerTest(testing.TestCase):
         out_true = seq(sample_input, foo_mode=True)
         self.assertAllClose(out_true, sample_input + 1.0)
 
-        # foo_mode omitted -> foo_mode defaults to False in the signature -> no change
+        # foo_mode omitted -> foo_mode defaults to False -> no change
         out_false = seq(sample_input)
         self.assertAllClose(out_false, sample_input)
 
@@ -1611,6 +1611,6 @@ class LayerTest(testing.TestCase):
         y1 = model(sample_input, foo_mode=True)
         self.assertAllClose(y1, sample_input + 1.0)
 
-        # foo_mode omitted -> foo_mode defaults to False in the signature -> no change
+        # foo_mode omitted -> foo_mode defaults to False -> no change
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)

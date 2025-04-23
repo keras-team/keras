@@ -1703,8 +1703,6 @@ class CallSpec:
         # a layer, if user specifies them in their call without adding to spec,
         # we remove them to be able to bind variables. User is not using
         # `training` anyway so we can ignore.
-        # TODO: If necessary use workaround for `mask`
-        # TODO: We shouldn't need to hard-code this here, ideally should be picked up from builtin args.
         if "training" in kwargs and "training" not in signature.parameters:
             kwargs.pop("training")
             bound_args = signature.bind(*args, **kwargs)
