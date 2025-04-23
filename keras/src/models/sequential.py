@@ -267,10 +267,10 @@ class Sequential(Model):
             )
         # Direct application
         for layer in self.layers:
-            # TODO: Should we pass kwargs to compute_output_spec?
             outputs = layer.compute_output_spec(
                 inputs,
                 training=training,
+                **kwargs,
             )  # Ignore mask
             inputs = outputs
         return outputs
