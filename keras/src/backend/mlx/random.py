@@ -19,8 +19,9 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_mlx_dtype(dtype)
     seed = mlx_draw_seed(seed)
-    sample = mx.random.normal(shape=shape, dtype=dtype, key=seed)
-    return sample * stddev + mean
+    return mx.random.normal(
+        shape=shape, loc=mean, scale=stddev, dtype=dtype, key=seed
+    )
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
