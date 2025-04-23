@@ -918,18 +918,34 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     
     if dtype is None:  
         ov_dtype = OPENVINO_DTYPES[config.floatx()]  
+        numpy_dtype = np.dtype(config.floatx())  
     else:  
-        try:  
-            ov_dtype = OPENVINO_DTYPES[dtype]  
-        except KeyError:  
+        if dtype == "bfloat16":  
             ov_dtype = OPENVINO_DTYPES["float32"]  
+            numpy_dtype = np.dtype("float32")  
+        else:  
+            ov_dtype = OPENVINO_DTYPES[dtype]  
+            numpy_dtype = np.dtype(dtype)  
     
     start_ov = ov_opset.convert(start_ov, ov_dtype).output(0)  
     stop_ov = ov_opset.convert(stop_ov, ov_dtype).output(0)  
     
+    start_shape = start_ov.get_shape()  
+    stop_shape = stop_ov.get_shape()  
+    
     if num == 0:  
-        empty_array = np.array([], dtype=np.dtype(dtype or config.floatx()))  
-        result = ov_opset.constant(empty_array).output(0)  
+        if len(start_shape) == 0 and len(stop_shape) == 0:  
+            empty_array = np.array([], dtype=numpy_dtype)  
+            result = ov_opset.constant(empty_array).output(0)  
+        else:  
+            broadcast_shape = list(np.broadcast(  
+                np.empty(start_shape, dtype=bool),  
+                np.empty(stop_shape, dtype=bool)  
+            ).shape)  
+            broadcast_shape.insert(axis, 0)  
+            
+            empty_array = np.empty(broadcast_shape, dtype=numpy_dtype)  
+            result = ov_opset.constant(empty_array).output(0)  
         
         if retstep:  
             delta = ov_opset.subtract(stop_ov, start_ov).output(0)  
@@ -938,35 +954,64 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     
     if num == 1:  
         if endpoint:  
-            result = start_ov if retstep else stop_ov  
+            result = start_ov  
         else:  
             result = start_ov  
+        
+        if len(start_shape) > 0 or len(stop_shape) > 0:  
+            broadcast_shape = list(np.broadcast(  
+                np.empty(start_shape, dtype=bool),  
+                np.empty(stop_shape, dtype=bool)  
+            ).shape)  
+            broadcast_shape.insert(axis, 1)  
             
+            shape_const = ov_opset.constant(np.array(broadcast_shape, dtype=np.int64)).output(0)  
+            result = ov_opset.reshape(result, shape_const).output(0)  
+        
         if retstep:  
             delta = ov_opset.subtract(stop_ov, start_ov).output(0)  
             return OpenVINOKerasTensor(result), OpenVINOKerasTensor(delta)  
         return OpenVINOKerasTensor(result)  
     
-    div = num - 1 if endpoint else num  
-    div_const = ov_opset.constant(div, ov_dtype).output(0)  
+    div = num - 1 if endpoint else num
+    div_const = ov_opset.constant(float(div)).output(0)  
     delta = ov_opset.subtract(stop_ov, start_ov).output(0)  
     step = ov_opset.divide(delta, div_const).output(0)  
     
-    indices = ov_opset.range(  
-        ov_opset.constant(0, element_type=ov_dtype).output(0),  
-        ov_opset.constant(num, element_type=ov_dtype).output(0),  
-        ov_opset.constant(1, element_type=ov_dtype).output(0),  
-        output_type=ov_dtype  
-    ).output(0)  
+    indices_np = np.arange(num, dtype=numpy_dtype)  
+    indices = ov_opset.constant(indices_np).output(0)  
     
-    scaled_indices = ov_opset.multiply(indices, step).output(0)  
-    result = ov_opset.add(start_ov, scaled_indices).output(0)  
+    is_scalar_input = len(start_shape) == 0 and len(stop_shape) == 0  
     
-    if axis != 0:  
-        out_shape = [1] * (axis + 1)  
-        out_shape[axis] = num  
-        shape_const = ov_opset.constant(np.array(out_shape, dtype=np.int64)).output(0)  
-        result = ov_opset.reshape(result, shape_const, special_zero=False).output(0)  
+    if is_scalar_input:  
+        scaled_indices = ov_opset.multiply(indices, step).output(0)  
+        result = ov_opset.add(start_ov, scaled_indices).output(0)  
+        
+        if axis != 0:  
+            out_shape = [1] * (axis + 1)  
+            out_shape[axis] = num  
+            shape_const = ov_opset.constant(np.array(out_shape, dtype=np.int64)).output(0)  
+            result = ov_opset.reshape(result, shape_const).output(0)  
+    else:  
+        broadcast_shape = list(np.broadcast(  
+            np.empty(start_shape, dtype=bool),  
+            np.empty(stop_shape, dtype=bool)  
+        ).shape)  
+        
+        expanded_shape = broadcast_shape.copy()  
+        expanded_shape.insert(axis, 1)  
+        
+        shape_const = ov_opset.constant(np.array(expanded_shape, dtype=np.int64)).output(0)  
+        start_reshaped = ov_opset.reshape(start_ov, shape_const).output(0)  
+        step_reshaped = ov_opset.reshape(step, shape_const).output(0)  
+        
+        indices_shape = [1] * len(expanded_shape)  
+        indices_shape[axis] = num  
+        indices_shape_const = ov_opset.constant(np.array(indices_shape, dtype=np.int64)).output(0)  
+        indices_reshaped = ov_opset.reshape(indices, indices_shape_const).output(0)  
+        
+        scaled_indices = ov_opset.multiply(indices_reshaped, step_reshaped).output(0)  
+        result = ov_opset.add(start_reshaped, scaled_indices).output(0)  
     
     if retstep:  
         return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)  
