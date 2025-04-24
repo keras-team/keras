@@ -314,13 +314,13 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # 1. collect names that should be auto‑propagated
         builtin_flags = {"training"}
-        custom_flags = set(getattr(self, "call_context_flags", ()))
-        self._call_context_flags = builtin_flags | custom_flags
+        custom_flags = set(getattr(self, "call_context_args", ()))
+        self._call_context_args = builtin_flags | custom_flags
 
         # 2. remember which of them exist in *this* call signature
         self._call_has_flag_arg = {
             flag: (flag in call_signature_parameters)
-            for flag in self._call_context_flags
+            for flag in self._call_context_args
         }
 
         self._supports_masking = not utils.is_default(self.compute_mask)
@@ -847,7 +847,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # Caches info about `call()` signature, args, kwargs.
         call_spec = CallSpec(
-            self._call_signature, self._call_context_flags, args, kwargs
+            self._call_signature, self._call_context_args, args, kwargs
         )
 
         ############################################
@@ -872,7 +872,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # across nested calls.
         call_context = self._get_call_context()
 
-        for flag in self._call_context_flags:
+        for flag in self._call_context_args:
             self._resolve_and_populate_arg(
                 flag, call_spec, call_context, kwargs
             )
@@ -1123,7 +1123,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         else:
             # Use compute_output_shape() to return the right output spec
             call_spec = CallSpec(
-                self._call_signature, self._call_context_flags, args, kwargs
+                self._call_signature, self._call_context_args, args, kwargs
             )
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
@@ -1702,13 +1702,13 @@ def is_backend_tensor_or_symbolic(x, allow_none=False):
 
 
 class CallSpec:
-    def __init__(self, signature, call_context_flags, args, kwargs):
+    def __init__(self, signature, call_context_args, args, kwargs):
         # Strip out user-supplied execution flags that this layer’s `call()`
         # does not accept (otherwise `signature.bind` would raise).
         # This includes built-in flags like `training`, and user-defined flags
         call_args = {
             flag: kwargs.pop(flag)
-            for flag in call_context_flags
+            for flag in call_context_args
             if flag in kwargs and flag not in signature.parameters
         }
 

@@ -642,7 +642,7 @@ def operation_fn(operation, training=None, **flags):
         # 2) Propagate any other registered flags
         for name, value in flags.items():
             if (
-                name in getattr(operation, "_call_context_flags", {})
+                name in getattr(operation, "_call_context_args", {})
                 and value is not None
             ):
                 kwargs[name] = value
