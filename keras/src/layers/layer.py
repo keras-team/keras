@@ -994,7 +994,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             value = call_context.get_value(arg_name)
         # 3) else: default from the call() signature
         else:
-            value = call_spec.arguments_dict.get(arg_name)
+            value = call_spec.arguments_dict.get(arg_name, None)
 
         # stash it for downstream layers
         call_context.set_value(arg_name, value)
