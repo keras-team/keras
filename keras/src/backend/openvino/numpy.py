@@ -1016,7 +1016,46 @@ def meshgrid(*x, indexing="xy"):
 
 
 def min(x, axis=None, keepdims=False, initial=None):
-    raise NotImplementedError("`min` is not supported with openvino backend")
+    x = get_ov_output(x)
+    original_type = x.get_element_type()
+    x_type = original_type
+    x_shape = x.get_partial_shape().to_shape()
+
+    is_bool = x_type == Type.boolean
+    if is_bool:
+        x = ov_opset.convert(x, Type.i32).output(0)
+        x_type = Type.i32
+
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return OpenVINOKerasTensor(x)
+
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+
+    if isinstance(axis, tuple):
+        axis = list(axis)
+
+    axis_const = ov_opset.constant(axis, Type.i32).output(0)
+    min_result = ov_opset.reduce_min(x, axis_const, keepdims).output(0)
+
+    if initial is not None:
+        initial_tensor = ov_opset.constant(initial, x_type).output(0)
+        min_result = ov_opset.minimum(min_result, initial_tensor).output(0)
+
+    if keepdims:
+        result_shape = [1] * len(x_shape)
+        min_result = ov_opset.reshape(
+            min_result,
+            ov_opset.constant(result_shape, Type.i32).output(0),
+            False,
+        ).output(0)
+
+    if is_bool:
+        min_result = ov_opset.convert(min_result, Type.boolean).output(0)
+
+    return OpenVINOKerasTensor(min_result)
 
 
 def minimum(x1, x2):
