@@ -627,20 +627,12 @@ def functional_from_config(cls, config, custom_objects=None):
     )
 
 
-def operation_fn(operation, training=None, **flags):
+def operation_fn(operation, **call_context_args):
     """Wraps each op to inject `training` and any other execution flags."""
 
     def call(*args, **kwargs):
-        # 1) Propagate training
-        if (
-            hasattr(operation, "_call_has_training_arg")
-            and operation._call_has_training_arg
-            and training is not None
-        ):
-            kwargs["training"] = training
-
-        # 2) Propagate any other registered flags
-        for name, value in flags.items():
+        # Propagate all registered call-context args
+        for name, value in call_context_args.items():
             if (
                 name in getattr(operation, "_call_context_args", {})
                 and value is not None

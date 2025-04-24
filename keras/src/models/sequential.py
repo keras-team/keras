@@ -228,15 +228,16 @@ class Sequential(Model):
             # `outputs` are the outputs of `layer` applied to `inputs`. At the
             # end of each iteration `inputs` is set to `outputs` to prepare for
             # the next layer.
-            layer_kwargs = {}
+            layer_kwargs = {
+                k: kwargs[k]
+                # only inject if this layer’s signature actually has that arg
+                for k in getattr(layer, "_call_has_context_arg", {})
+                if k in kwargs
+            }
             if layer._call_has_mask_arg:
                 layer_kwargs["mask"] = mask
             if layer._call_has_training_arg and training is not None:
                 layer_kwargs["training"] = training
-            for flag, value in kwargs.items():
-                # only inject if this layer’s signature actually has that arg
-                if getattr(layer, "_call_has_flag_arg", {}).get(flag, False):
-                    layer_kwargs[flag] = value
             outputs = layer(inputs, **layer_kwargs)
             inputs = outputs
 

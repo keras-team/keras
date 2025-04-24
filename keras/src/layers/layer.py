@@ -313,14 +313,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._call_has_mask_arg = "mask" in call_signature_parameters
 
         # 1. collect names that should be auto‑propagated
-        builtin_flags = {"training"}
-        custom_flags = set(getattr(self, "call_context_args", ()))
-        self._call_context_args = builtin_flags | custom_flags
+        builtin_context_args = {"training"}
+        custom_context_args = set(getattr(self, "call_context_args", ()))
+        self._call_context_args = builtin_context_args | custom_context_args
 
         # 2. remember which of them exist in *this* call signature
-        self._call_has_flag_arg = {
-            flag: (flag in call_signature_parameters)
-            for flag in self._call_context_args
+        self._call_has_context_arg = {
+            arg: (arg in call_signature_parameters)
+            for arg in self._call_context_args
         }
 
         self._supports_masking = not utils.is_default(self.compute_mask)
@@ -872,9 +872,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # across nested calls.
         call_context = self._get_call_context()
 
-        for flag in self._call_context_args:
+        for context_arg in self._call_context_args:
             self._resolve_and_populate_arg(
-                flag, call_spec, call_context, kwargs
+                context_arg, call_spec, call_context, kwargs
             )
 
         ##############################
@@ -1000,7 +1000,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         call_context.set_value(arg_name, value)
 
         # only inject it if this layer actually accepts it and it's not None
-        if self._call_has_flag_arg.get(arg_name, False) and value is not None:
+        if (
+            self._call_has_context_arg.get(arg_name, False)
+            and value is not None
+        ):
             kwargs[arg_name] = value
 
     @traceback_utils.filter_traceback
@@ -1703,20 +1706,18 @@ def is_backend_tensor_or_symbolic(x, allow_none=False):
 
 class CallSpec:
     def __init__(self, signature, call_context_args, args, kwargs):
-        # Strip out user-supplied execution flags that this layer’s `call()`
+        # Strip out user-supplied call-context args that this layer’s `call()`
         # does not accept (otherwise `signature.bind` would raise).
-        # This includes built-in flags like `training`, and user-defined flags
+        # This includes built-in args like `training`, and user-defined args.
         call_args = {
-            flag: kwargs.pop(flag)
-            for flag in call_context_args
-            if flag in kwargs and flag not in signature.parameters
+            context_arg: kwargs.pop(context_arg)
+            for context_arg in call_context_args
+            if context_arg in kwargs and context_arg not in signature.parameters
         }
 
         bound_args = signature.bind(*args, **kwargs)
 
         # 3. Combine the two dicts.
-        # Put `popped_flags` first so values coming from `bound_args` win
-        # if for any reason the same key appears in both.
         self.user_arguments_dict = {**call_args, **bound_args.arguments}
 
         bound_args.apply_defaults()
