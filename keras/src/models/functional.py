@@ -628,7 +628,7 @@ def functional_from_config(cls, config, custom_objects=None):
 
 
 def operation_fn(operation, **call_context_args):
-    """Wraps each op to inject `training` and any other execution flags."""
+    """Wraps each op to inject the call-context args."""
 
     def call(*args, **kwargs):
         # Propagate all registered call-context args
