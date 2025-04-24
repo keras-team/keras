@@ -846,7 +846,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                     )
 
         # Caches info about `call()` signature, args, kwargs.
-        call_spec = CallSpec(self._call_signature, args, kwargs)
+        call_spec = CallSpec(
+            self._call_signature, self._call_context_flags, args, kwargs
+        )
 
         ############################################
         # 3. Check input spec for 1st positional arg.
@@ -1120,7 +1122,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             return super().compute_output_spec(*args, **kwargs)
         else:
             # Use compute_output_shape() to return the right output spec
-            call_spec = CallSpec(self._call_signature, args, kwargs)
+            call_spec = CallSpec(
+                self._call_signature, self._call_context_flags, args, kwargs
+            )
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
                 self.compute_output_shape,
@@ -1698,19 +1702,23 @@ def is_backend_tensor_or_symbolic(x, allow_none=False):
 
 
 class CallSpec:
-    def __init__(self, signature, args, kwargs):
-        # `training` and `mask` are special kwargs that are always available in
-        # a layer, if user specifies them in their call without adding to spec,
-        # we remove them to be able to bind variables. User is not using
-        # `training` anyway so we can ignore.
-        if "training" in kwargs and "training" not in signature.parameters:
-            kwargs.pop("training")
-            bound_args = signature.bind(*args, **kwargs)
-        else:
-            bound_args = signature.bind(*args, **kwargs)
-        self.user_arguments_dict = {
-            k: v for k, v in bound_args.arguments.items()
+    def __init__(self, signature, call_context_flags, args, kwargs):
+        # Strip out user-supplied execution flags that this layer’s `call()`
+        # does not accept (otherwise `signature.bind` would raise).
+        # This includes built-in flags like `training`, and user-defined flags
+        call_args = {
+            flag: kwargs.pop(flag)
+            for flag in call_context_flags
+            if flag in kwargs and flag not in signature.parameters
         }
+
+        bound_args = signature.bind(*args, **kwargs)
+
+        # 3. Combine the two dicts.
+        # Put `popped_flags` first so values coming from `bound_args` win
+        # if for any reason the same key appears in both.
+        self.user_arguments_dict = {**call_args, **bound_args.arguments}
+
         bound_args.apply_defaults()
         arg_dict = {}
         arg_names = []

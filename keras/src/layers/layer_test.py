@@ -1559,12 +1559,50 @@ class LayerTest(testing.TestCase):
                 super().__init__()
                 self.inner = Inner()
 
-            def call(self, x, foo_mode=None):
+            def call(self, x):
                 # Outer doesn’t even need to re‑inject explicitly:
                 # our base class will propagate foo_mode automatically
                 return self.inner(x)
 
         layer = Outer()
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
+        self.assertEqual(int(layer(np.array(0))), 0)
+
+    def test_context_args_with_triple_nesting_and_priority(self):
+        class Inner(layers.Layer):
+            call_context_flags = ("foo_mode",)
+
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Middle(layers.Layer):
+            call_context_flags = ("foo_mode",)
+
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            # The default value of foo_mode is False
+            def call(self, x, foo_mode=False):
+                return self.inner(x)
+
+        class Outer(layers.Layer):
+            call_context_flags = ("foo_mode",)
+
+            def __init__(self):
+                super().__init__()
+                self.middle = Middle()
+
+            def call(self, x):
+                # Outer explicitly sets foo_mode=False when calling Inner,
+                # so the value being passed here should be ignored.
+                return self.middle(x)
+
+        layer = Outer()
+
+        # The value of foo_mode is set to True in the call to Outer,
+        # so it should automatically propagate to Inner through Middle.
+        # Middle's default value of foo_mode=False should be ignored.
         self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
         self.assertEqual(int(layer(np.array(0))), 0)
 
@@ -1584,7 +1622,7 @@ class LayerTest(testing.TestCase):
                 super().__init__()
                 self.inner = Inner()
 
-            def call(self, x, foo_mode=None):
+            def call(self, x):
                 # We don’t explicitly pass foo_mode here—Base Layer.__call__
                 # should inject it into `self.inner`
                 return self.inner(x)

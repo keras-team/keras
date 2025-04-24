@@ -633,7 +633,8 @@ def operation_fn(operation, training=None, **flags):
     def call(*args, **kwargs):
         # 1) Propagate training
         if (
-            getattr(operation, "_call_has_flag_arg", {}).get("training", False)
+            hasattr(operation, "_call_has_training_arg")
+            and operation._call_has_training_arg
             and training is not None
         ):
             kwargs["training"] = training
@@ -641,7 +642,7 @@ def operation_fn(operation, training=None, **flags):
         # 2) Propagate any other registered flags
         for name, value in flags.items():
             if (
-                getattr(operation, "_call_has_flag_arg", {}).get(name, False)
+                name in getattr(operation, "_call_context_flags", {})
                 and value is not None
             ):
                 kwargs[name] = value
