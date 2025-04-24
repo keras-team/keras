@@ -63,6 +63,7 @@ ignore = [
     "E722",  # do not use bare 'except'
     "E741",  # ambiguous variable name
     "E731",  # do not assign a `lambda` expression, use a `def`
+    "F811",  # redefined-while-unused
 ]
 
 [tool.ruff.lint.per-file-ignores]
