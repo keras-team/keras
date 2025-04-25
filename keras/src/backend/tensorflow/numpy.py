@@ -1798,10 +1798,12 @@ def not_equal(x1, x2):
     return tf.not_equal(x1, x2)
 
 
+@sparse.elementwise_unary
 def ones_like(x, dtype=None):
     return tf.ones_like(x, dtype=dtype)
 
 
+@sparse.elementwise_unary
 def zeros_like(x, dtype=None):
     return tf.zeros_like(x, dtype=dtype)
 

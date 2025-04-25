@@ -234,6 +234,21 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
         self.assertEqual(variable_layout.axes, (None,))
 
+    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
+    def test_get_variable_layout_with_explicit_layout(self):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+
+        explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
+        explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
+
+        variable = backend.Variable(initializer=[1, 2, 3])
+        variable._layout = explicit_layout
+        variable_layout = distribution.get_variable_layout(variable)
+        self.assertIs(variable_layout.device_mesh, explicit_mesh)
+        self.assertEqual(variable_layout.axes, explicit_layout.axes)
+
     def test_get_tensor_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh
@@ -319,6 +334,22 @@ class ModelParallelDistributionTest(testing.TestCase):
 
         layout = distribution.get_tensor_layout("/model/layer/other_tensor")
         self.assertIsNone(layout)
+
+    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
+    def test_get_variable_layout_with_explicit_layout(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map, batch_dim_name="data"
+        )
+
+        explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
+        explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
+        variable = backend.Variable(initializer=[1, 2, 3], name="kernel")
+        variable._layout = explicit_layout
+        variable_layout = distribution.get_variable_layout(variable)
+        self.assertIs(variable_layout.device_mesh, explicit_mesh)
+        self.assertEqual(variable_layout.axes, explicit_layout.axes)
 
     def test_distribute_dataset(self):
         # We can only verify the single worker/process case in OSS for now.
