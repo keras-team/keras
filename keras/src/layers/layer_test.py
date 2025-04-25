@@ -1576,14 +1576,11 @@ class LayerTest(testing.TestCase):
                 return x + (1 if foo_mode else 0)
 
         class Middle(layers.Layer):
-            call_context_args = ("foo_mode",)
-
             def __init__(self):
                 super().__init__()
                 self.inner = Inner()
 
-            # The default value of foo_mode is False
-            def call(self, x, foo_mode=False):
+            def call(self, x):
                 return self.inner(x)
 
         class Outer(layers.Layer):
@@ -1602,7 +1599,6 @@ class LayerTest(testing.TestCase):
 
         # The value of foo_mode is set to True in the call to Outer,
         # so it should automatically propagate to Inner through Middle.
-        # Middle's default value of foo_mode=False should be ignored.
         self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
         self.assertEqual(int(layer(np.array(0))), 0)
 
