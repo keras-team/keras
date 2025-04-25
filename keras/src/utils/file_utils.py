@@ -425,7 +425,7 @@ def is_remote_path(filepath):
     """
     if re.match(
         r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|/tfhub|.*://).*$",
-        str(filepath)
+        str(filepath),
     ):
         return True
     return False
