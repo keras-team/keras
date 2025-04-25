@@ -911,62 +911,69 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     dtype = dtype or config.floatx()
-    dtype = OPENVINO_DTYPES[dtype]
+    ov_dtype = OPENVINO_DTYPES[dtype]
 
-    start_node = get_ov_output(start, dtype)
-    stop_node = get_ov_output(stop, dtype)
+    start_node = get_ov_output(start, ov_dtype)
+    stop_node = get_ov_output(stop, ov_dtype)
+    start_node, stop_node = _align_operand_types(
+        start_node, stop_node, "linspace()"
+    )
 
     if isinstance(num, OpenVINOKerasTensor):
         num_node = get_ov_output(num, Type.i32)
     elif isinstance(num, int):
         num_node = ov_opset.constant(num, Type.i32).output(0)
     else:
-        raise TypeError(f"`num` must be an int or tensor. Got {type(num)}")
+        raise TypeError("`num` must be an int or OpenVINOKerasTensor.")
 
-    # Adjust stop if endpoint is False
+    zero_const = ov_opset.constant(0, Type.i32).output(0)
+    one_const = ov_opset.constant(1, Type.i32).output(0)
+
+    effective_num = num_node
     if not endpoint:
-        num_minus_1 = ov_opset.subtract(
-            num_node, ov_opset.constant(1, Type.i32)
-        ).output(0)
-        step = ov_opset.divide(
-            ov_opset.subtract(stop_node, start_node),
-            ov_opset.convert(num_minus_1, dtype),
-        ).output(0)
-        stop_node = ov_opset.subtract(stop_node, step).output(0)
+        effective_num = ov_opset.subtract(num_node, one_const).output(0)
 
-    linspace_node = ov_opset.linspace(
-        start_node, stop_node, num_node, dtype
+    # Compute step = (stop - start) / (num - 1)
+    step_node = ov_opset.divide(
+        ov_opset.subtract(stop_node, start_node),
+        ov_opset.convert(effective_num, ov_dtype),
     ).output(0)
 
-    # Handle axis reshaping
-    if axis != 0:
-        # Determine rank of the new shape
-        if isinstance(num, int):
-            num_val = num
-        else:
-            # Fallback to placeholder rank if dynamic — safe default
-            num_val = -1
-        rank = axis + 1 if axis >= 0 else abs(axis) + 1
-        target_shape = [1] * rank
-        target_shape[axis] = num_val
-        shape_const = ov_opset.constant(target_shape, Type.i32).output(0)
-        linspace_node = ov_opset.reshape(
-            linspace_node, shape_const, special_zero=False
-        ).output(0)
+    range_node = ov_opset.range(
+        zero_const, num_node, one_const, Type.i32
+    ).output(0)
+
+    range_node = ov_opset.convert(range_node, ov_dtype).output(0)
+
+    rank_start = start_node.get_partial_shape().rank.get_length()
+    if axis < 0:
+        axis = rank_start + 1 + axis
+
+    rank = max(axis + 1, rank_start + 1)
+    # rank = len(start_node.get_partial_shape()) + 1
+
+    target_shape = [1] * rank
+    target_shape[axis] = -1
+
+    shape_const = ov_opset.constant(target_shape, Type.i32).output(0)
+    range_node = ov_opset.reshape(
+        range_node, shape_const, special_zero=False
+    ).output(0)
+
+    broadcast_shape = ov_opset.shape_of(range_node, Type.i32).output(0)
+    step_broadcast = ov_opset.broadcast(step_node, broadcast_shape).output(0)
+    start_broadcast = ov_opset.broadcast(start_node, broadcast_shape).output(0)
+
+    linspace_result = ov_opset.add(
+        start_broadcast,
+        ov_opset.multiply(step_broadcast, range_node).output(0),
+    ).output(0)
 
     if retstep:
-        step = ov_opset.divide(
-            ov_opset.subtract(stop_node, start_node),
-            ov_opset.convert(
-                ov_opset.subtract(
-                    num_node, ov_opset.constant(1, Type.i32)
-                ).output(0),
-                dtype,
-            ),
-        ).output(0)
-        return OpenVINOKerasTensor(linspace_node), OpenVINOKerasTensor(step)
-
-    return OpenVINOKerasTensor(linspace_node)
+        return OpenVINOKerasTensor(linspace_result), OpenVINOKerasTensor(
+            step_node
+        )
+    return OpenVINOKerasTensor(linspace_result)
 
 
 def log(x):
