@@ -14,6 +14,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.optimizers.rmsprop import RMSprop
@@ -1505,6 +1506,48 @@ class TestTrainer(testing.TestCase):
                 model_2.predict(x, batch_size=batch_size),
             )
             self.assertAllClose(model.evaluate(x, y), model_2.evaluate(x, y))
+
+    @pytest.mark.requires_trainable_backend
+    def test_max_epochs_and_steps(self):
+        batch_size = 8
+        epochs = 4
+        num_batches = 10
+        data_size = num_batches * batch_size
+        x, y = np.ones((data_size, 4)), np.ones((data_size, 1))
+        model = ExampleModel(units=1)
+        model.compile(
+            loss="mse",
+            optimizer="sgd",
+            metrics=[EpochAgnosticMeanSquaredError()],
+        )
+        step_observer = StepObserver()
+        model.fit(
+            x=x,
+            y=y,
+            batch_size=batch_size,
+            epochs=epochs,
+            callbacks=[step_observer],
+            verbose=0,
+        )
+        self.assertEqual(step_observer.epoch_begin_count, epochs)
+        self.assertEqual(step_observer.begin_count, num_batches * epochs)
+        try:
+            config.set_max_epochs(2)
+            config.set_max_steps_per_epoch(3)
+            step_observer = StepObserver()
+            model.fit(
+                x=x,
+                y=y,
+                batch_size=batch_size,
+                epochs=epochs,
+                callbacks=[step_observer],
+                verbose=0,
+            )
+            self.assertEqual(step_observer.epoch_begin_count, 2)
+            self.assertEqual(step_observer.begin_count, 6)
+        finally:
+            config.set_max_epochs(None)
+            config.set_max_steps_per_epoch(None)
 
     @parameterized.named_parameters(
         named_product(

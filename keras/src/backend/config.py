@@ -15,6 +15,10 @@ _IMAGE_DATA_FORMAT = "channels_last"
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
 
+# Cap run duration for debugging.
+_MAX_EPOCHS = None
+_MAX_STEPS_PER_EPOCH = None
+
 
 @keras_export(["keras.config.floatx", "keras.backend.floatx"])
 def floatx():
@@ -304,7 +308,10 @@ if "KERAS_BACKEND" in os.environ:
     _backend = os.environ["KERAS_BACKEND"]
     if _backend:
         _BACKEND = _backend
-
+if "KERAS_MAX_EPOCHS" in os.environ:
+    _MAX_EPOCHS = int(os.environ["KERAS_MAX_EPOCHS"])
+if "KERAS_MAX_STEPS_PER_EPOCH" in os.environ:
+    _MAX_STEPS_PER_EPOCH = int(os.environ["KERAS_MAX_STEPS_PER_EPOCH"])
 
 if _BACKEND != "tensorflow":
     # If we are not running on the tensorflow backend, we should stop tensorflow
@@ -333,3 +340,66 @@ def backend():
 
     """
     return _BACKEND
+
+
+@keras_export(["keras.config.set_max_epochs"])
+def set_max_epochs(max_epochs):
+    """Limit the maximum number of epochs for any call to fit.
+
+    This will cap the number of epochs for any training run using `model.fit()`.
+    This is purely for debugging, and can also be set via the `KERAS_MAX_EPOCHS`
+    environment variable to quickly run a script without modifying its source.
+
+    Args:
+        max_epochs: The integer limit on the number of epochs or `None`. If
+            `None`, no limit is applied.
+    """
+    global _MAX_EPOCHS
+    _MAX_EPOCHS = max_epochs
+
+
+@keras_export(["keras.config.set_max_steps_per_epoch"])
+def set_max_steps_per_epoch(max_steps_per_epoch):
+    """Limit the maximum number of steps for any call to fit/evaluate/predict.
+
+    This will cap the number of steps for single epoch of a call to `fit()`,
+    `evaluate()`, or `predict()`. This is purely for debugging, and can also be
+    set via the `KERAS_MAX_STEPS_PER_EPOCH` environment variable to quickly run
+    a scrip without modifying its source.
+
+    Args:
+        max_epochs: The integer limit on the number of epochs or `None`. If
+            `None`, no limit is applied.
+    """
+    global _MAX_STEPS_PER_EPOCH
+    _MAX_STEPS_PER_EPOCH = max_steps_per_epoch
+
+
+@keras_export(["keras.config.max_epochs"])
+def max_epochs():
+    """Get the maximum number of epochs for any call to fit.
+
+    Retrieves the limit on the number of epochs set by
+    `keras.config.set_max_epochs` or the `KERAS_MAX_EPOCHS` environment
+    variable.
+
+    Returns:
+        The integer limit on the number of epochs or `None`, if no limit has
+        been set.
+    """
+    return _MAX_EPOCHS
+
+
+@keras_export(["keras.config.max_steps_per_epoch"])
+def max_steps_per_epoch():
+    """Get the maximum number of steps for any call to fit/evaluate/predict.
+
+    Retrieves the limit on the number of epochs set by
+    `keras.config.set_max_steps_per_epoch` or the `KERAS_MAX_STEPS_PER_EPOCH`
+    environment variable.
+
+    Args:
+        max_epochs: The integer limit on the number of epochs or `None`. If
+            `None`, no limit is applied.
+    """
+    return _MAX_STEPS_PER_EPOCH
