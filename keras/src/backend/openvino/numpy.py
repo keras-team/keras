@@ -933,7 +933,6 @@ def linspace(
     if not endpoint:
         effective_num = ov_opset.subtract(num_node, one_const).output(0)
 
-    # Compute step = (stop - start) / (num - 1)
     step_node = ov_opset.divide(
         ov_opset.convert(
             ov_opset.subtract(stop_node, start_node), ov_dtype
@@ -948,7 +947,7 @@ def linspace(
     range_node = ov_opset.convert(range_node, ov_dtype).output(0)
 
     rank_start = start_node.get_partial_shape().rank.get_length()
-    if rank_start is None or rank_start == 0:
+    if rank_start is None or rank_start < 1:
         rank_start = 1
 
     if axis < 0:
