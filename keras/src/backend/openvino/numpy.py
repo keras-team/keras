@@ -910,137 +910,63 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
-    if hasattr(num, "node"):
-        num_const = num.node
-    elif hasattr(num, "get_output_element"):
-        num_const = num
-    elif hasattr(num, "output"):
-        num_const = num.output(0)
+    dtype = dtype or config.floatx()
+    dtype = OPENVINO_DTYPES[dtype]
+
+    start_node = get_ov_output(start, dtype)
+    stop_node = get_ov_output(stop, dtype)
+
+    if isinstance(num, OpenVINOKerasTensor):
+        num_node = get_ov_output(num, Type.i32)
+    elif isinstance(num, int):
+        num_node = ov_opset.constant(num, Type.i32).output(0)
     else:
-        if not isinstance(num, (int, np.integer)):
-            raise ValueError(
-                f"Expected 'num' to be an integer or tensor, got {type(num)}"
-            )
-        num_const = ov_opset.constant(num, dtype=Type.i32)
+        raise TypeError(f"`num` must be an int or tensor. Got {type(num)}")
 
-    if not isinstance(axis, int):
-        raise TypeError(f"Expected 'axis' to be an integer, got {type(axis)}")
+    # Adjust stop if endpoint is False
+    if not endpoint:
+        num_minus_1 = ov_opset.subtract(
+            num_node, ov_opset.constant(1, Type.i32)
+        ).output(0)
+        step = ov_opset.divide(
+            ov_opset.subtract(stop_node, start_node),
+            ov_opset.convert(num_minus_1, dtype),
+        ).output(0)
+        stop_node = ov_opset.subtract(stop_node, step).output(0)
 
-    start, stop = get_ov_output(start), get_ov_output(stop)
-
-    if dtype is None:
-        result_type = dtypes.result_type(
-            ov_to_keras_type(start.get_element_type()),
-            ov_to_keras_type(stop.get_element_type()),
-            "float32",
-        )
-        dtype = OPENVINO_DTYPES[result_type]
-    else:
-        dtype = OPENVINO_DTYPES[standardize_dtype(dtype)]
-
-    start = ov_opset.convert(start, dtype)
-    stop = ov_opset.convert(stop, dtype)
-
-    zero = ov_opset.constant(0, dtype=Type.i32)
-    zero_i64 = ov_opset.constant([0], dtype=Type.i64)
-    one = ov_opset.constant(1, dtype=Type.i32)
-    one_f = ov_opset.convert(one, dtype)
-
-    num_f = ov_opset.convert(num_const, dtype)
-
-    is_zero = ov_opset.equal(num_const, zero)
-    is_one = ov_opset.equal(num_const, one)
-
-    denom = (
-        ov_opset.select(is_one, one_f, ov_opset.subtract(num_f, one_f))
-        if endpoint
-        else num_f
-    )
-    step = ov_opset.divide(ov_opset.subtract(stop, start), denom)
-
-    range_vals = ov_opset.range(
-        ov_opset.constant(0, dtype), num_f, one_f, dtype
-    )
-
-    def ensure_tensor_has_dim(tensor):
-        shape = tensor.get_output_partial_shape(0)
-        if shape.rank.get_length() == 0:
-            return ov_opset.unsqueeze(tensor, ov_opset.constant(0, Type.i64))
-        return tensor
-
-    start = ensure_tensor_has_dim(start)
-    stop = ensure_tensor_has_dim(stop)
-    step = ensure_tensor_has_dim(step)
-
-    range_shape = ov_opset.shape_of(range_vals)
-    start_shape = ov_opset.shape_of(start)
-
-    rank_len = start.get_output_partial_shape(0).rank.get_length()
-    rank_const = ov_opset.constant([rank_len], Type.i64)
-
-    start_shape_sliced = ov_opset.strided_slice(
-        start_shape,
-        ov_opset.constant([1], Type.i64),
-        rank_const,
-        ov_opset.constant([1], Type.i64),
-        begin_mask=[0],
-        end_mask=[0],
-    )
-
-    target_shape = ov_opset.concat([range_shape, start_shape_sliced], 0)
-
-    def ensure_minimum_shape(tensor):
-        shape = tensor.get_output_partial_shape(0)
-        if shape.rank.get_length() == 1 and shape[0].get_length() == 0:
-            return ov_opset.reshape(
-                tensor, ov_opset.constant([1], dtype=Type.i64), False
-            )
-        return tensor
-
-    step = ensure_minimum_shape(step)
-    start = ensure_minimum_shape(start)
-
-    step_broadcast = ov_opset.broadcast(
-        step, target_shape, broadcast_spec="NUMPY"
-    ).output(0)
-    start_broadcast = ov_opset.broadcast(
-        start, target_shape, broadcast_spec="NUMPY"
+    linspace_node = ov_opset.linspace(
+        start_node, stop_node, num_node, dtype
     ).output(0)
 
-    linspace_vals = ov_opset.add(
-        ov_opset.multiply(range_vals, step_broadcast), start_broadcast
-    ).output(0)
-
+    # Handle axis reshaping
     if axis != 0:
-        linspace_vals = ov_opset.unsqueeze(
-            linspace_vals, ov_opset.constant(axis, Type.i32)
+        # Determine rank of the new shape
+        if isinstance(num, int):
+            num_val = num
+        else:
+            # Fallback to placeholder rank if dynamic — safe default
+            num_val = -1
+        rank = axis + 1 if axis >= 0 else abs(axis) + 1
+        target_shape = [1] * rank
+        target_shape[axis] = num_val
+        shape_const = ov_opset.constant(target_shape, Type.i32).output(0)
+        linspace_node = ov_opset.reshape(
+            linspace_node, shape_const, special_zero=False
         ).output(0)
-
-    empty_shape = ov_opset.concat([zero_i64, start_shape], 0)
-    empty_const = ov_opset.constant([], dtype)
-    empty_const = ov_opset.reshape(
-        empty_const, ov_opset.constant([0], dtype=Type.i64), False
-    )
-    empty_array = ov_opset.broadcast(
-        empty_const, empty_shape, broadcast_spec="NUMPY"
-    ).output(0)
-
-    single_val = start
-    if axis != 0 and start.get_output_partial_shape(0).rank.get_length() > 0:
-        single_val = ov_opset.unsqueeze(
-            single_val, ov_opset.constant(axis, Type.i32)
-        ).output(0)
-
-    result = ov_opset.select(
-        is_zero, empty_array, ov_opset.select(is_one, single_val, linspace_vals)
-    )
 
     if retstep:
-        nan_val = ov_opset.constant(np.nan, dtype)
-        step_result = ov_opset.select(is_zero, nan_val, step)
-        return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step_result)
+        step = ov_opset.divide(
+            ov_opset.subtract(stop_node, start_node),
+            ov_opset.convert(
+                ov_opset.subtract(
+                    num_node, ov_opset.constant(1, Type.i32)
+                ).output(0),
+                dtype,
+            ),
+        ).output(0)
+        return OpenVINOKerasTensor(linspace_node), OpenVINOKerasTensor(step)
 
-    return OpenVINOKerasTensor(result)
+    return OpenVINOKerasTensor(linspace_node)
 
 
 def log(x):
@@ -1111,66 +1037,9 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    if not isinstance(base, (int, float)) or base <= 0:
-        raise ValueError(f"Expected 'base' to be a positive number, got {base}")
-
-    if isinstance(num, (int, np.integer)):
-        num_tensor = ov_opset.constant(num, dtype=Type.i32)
-    elif hasattr(num, "get_output_element"):
-        num_tensor = num
-    elif isinstance(num, ov_opset.Constant):
-        num_tensor = num.output(0)
-    else:
-        raise ValueError(
-            f"Expected 'num' to be an integer or tensor, got {type(num)}"
-        )
-
-    is_zero = ov_opset.equal(num_tensor, ov_opset.constant(0, dtype=Type.i32))
-
-    start_tensor = get_ov_output(start)
-    shape_dtype = Type.i64
-    dtype_resolved = (
-        OPENVINO_DTYPES["float32"]
-        if dtype is None
-        else OPENVINO_DTYPES[standardize_dtype(dtype)]
+    raise NotImplementedError(
+        "`logspace` is not supported with openvino backend"
     )
-
-    empty_shape = ov_opset.concat(
-        [
-            ov_opset.constant([0], dtype=shape_dtype),
-            ov_opset.shape_of(start_tensor),
-        ],
-        0,
-    )
-    empty_const = ov_opset.constant([], dtype_resolved)
-    empty_const = ov_opset.reshape(
-        empty_const, ov_opset.constant([0], dtype=shape_dtype), False
-    )
-    empty_array = ov_opset.broadcast(
-        empty_const, empty_shape, broadcast_spec="NUMPY"
-    ).output(0)
-
-    lin_vals = linspace(
-        start, stop, num=num_tensor, endpoint=endpoint, dtype=dtype, axis=axis
-    )
-    if isinstance(lin_vals, tuple):
-        lin_vals = lin_vals[0]
-    lin_vals = get_ov_output(lin_vals)
-    dtype = lin_vals.get_element_type()
-
-    base_const = ov_opset.constant(
-        base, OPENVINO_DTYPES[standardize_dtype(str(dtype))]
-    )
-    base_reshaped = ov_opset.reshape(
-        base_const, ov_opset.constant([], dtype=shape_dtype), False
-    )
-    base_broadcast = ov_opset.broadcast(
-        base_reshaped, ov_opset.shape_of(lin_vals), broadcast_spec="NUMPY"
-    ).output(0)
-    log_vals = ov_opset.power(base_broadcast, lin_vals).output(0)
-
-    final_vals = ov_opset.select(is_zero, empty_array, log_vals)
-    return OpenVINOKerasTensor(final_vals)
 
 
 def maximum(x1, x2):
