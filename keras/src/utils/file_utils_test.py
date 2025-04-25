@@ -726,6 +726,9 @@ class IsRemotePathTest(test_case.TestCase):
             file_utils.is_remote_path("/placer/prod/scratch/home/some/path")
         )
 
+    def test_tfhub_remote_path(self):
+        self.assertTrue(file_utils.is_remote_path("/tfhub/some/path"))
+
     def test_cfs_remote_path(self):
         self.assertTrue(file_utils.is_remote_path("/cfs/some/path"))
 
