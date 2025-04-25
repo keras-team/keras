@@ -1717,7 +1717,7 @@ class CallSpec:
 
         bound_args = signature.bind(*args, **kwargs)
 
-        # 3. Combine the two dicts.
+        # Combine the two dicts.
         self.user_arguments_dict = {**call_args, **bound_args.arguments}
 
         bound_args.apply_defaults()
