@@ -728,6 +728,16 @@ def all(x, axis=None, keepdims=False):
     return tf.reduce_all(x, axis=axis, keepdims=keepdims)
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    return tf.math.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     x = tf.cast(x, "bool")
     return tf.reduce_any(x, axis=axis, keepdims=keepdims)

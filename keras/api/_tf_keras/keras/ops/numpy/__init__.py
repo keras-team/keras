@@ -10,6 +10,7 @@ from keras.src.ops.numpy import add as add
 from keras.src.ops.numpy import all as all
 from keras.src.ops.numpy import amax as amax
 from keras.src.ops.numpy import amin as amin
+from keras.src.ops.numpy import angle as angle
 from keras.src.ops.numpy import any as any
 from keras.src.ops.numpy import append as append
 from keras.src.ops.numpy import arange as arange
