@@ -1,5 +1,6 @@
 import numpy as np
-import openvino.runtime.opset14 as ov_opset
+from openvino import opset14 as ov_opset
+"""import openvino.runtime.opset14 as ov_opset"""
 from openvino import Type
 
 from keras.src.backend import config
@@ -1085,7 +1086,22 @@ def ones_like(x, dtype=None):
 
 
 def outer(x1, x2):
-    raise NotImplementedError("`outer` is not supported with openvino backend")
+    assert isinstance(x1, list), "`outer` is supported only for `x1` list"
+    assert isinstance(x2, list), "`outer` is supported only for `x2` list"
+
+    x2=broadcast_to(x2, x1)
+    x=[]
+    for elem in x1:
+        x.append(multiply(elem, x2))
+    res = ov_opset.concat(x, 0).output(0)
+    return OpenVINOKerasTensor(res)
+
+
+    """
+    Flatten tensors if not already of rank <=1 (how?)
+    Broadcast x1 to match x2
+    Concatenate each scalar product
+    """
 
 
 def pad(x, pad_width, mode="constant", constant_values=None):
