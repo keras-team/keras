@@ -953,7 +953,7 @@ def linspace(
     if axis < 0:
         axis += rank_start  # + axis  + 1
 
-    rank = max(axis + 1, rank_start)
+    rank = max(axis, rank_start)
     # rank = len(start_node.get_partial_shape()) + 1
 
     target_shape = [1] * rank
