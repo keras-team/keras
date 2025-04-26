@@ -37,6 +37,11 @@ def add(x1, x2):
     return jnp.add(x1, x2)
 
 
+def bartlett(x):
+    x = convert_to_tensor(x)
+    return jnp.bartlett(x)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     # Note: bincount is never tracable / jittable because the output shape
     # depends on the values in x.
