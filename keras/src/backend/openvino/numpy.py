@@ -951,7 +951,7 @@ def linspace(
 
         # Normalize axis
         if axis < 0:
-            axis += input_rank + 1
+            axis += input_rank
 
         step = ov_opset.constant([1], Type.i32).output(0)
         pre_shape = ov_opset.slice(
