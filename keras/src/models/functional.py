@@ -288,7 +288,13 @@ class Functional(Function, Model):
 
     def _standardize_inputs(self, inputs):
         raise_exception = False
-        if isinstance(inputs, dict) and not isinstance(
+        if (
+            isinstance(self._inputs_struct, list)
+            and len(self._inputs_struct) == 1
+            and ops.is_tensor(inputs)
+        ):
+            inputs = [inputs]
+        elif isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
         ):
             # This is to avoid warning
