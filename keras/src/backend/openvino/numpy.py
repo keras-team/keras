@@ -965,9 +965,8 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    raise NotImplementedError(
-        "`logaddexp` is not supported with openvino backend"
-    )
+    m = maximum(x1, x2)
+    return add(m, log(add(exp(subtract(x1, m)), exp(subtract(x2, m)))))
 
 
 def logical_and(x1, x2):
