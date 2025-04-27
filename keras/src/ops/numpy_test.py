@@ -1716,6 +1716,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             knp.argpartition(x, (1, 3))
 
+    def test_angle(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.angle(x).shape, (None, 3))
+
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_mean(self):
@@ -2284,6 +2288,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             knp.argpartition(x, (1, 3))
+
+    def test_angle(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.angle(x).shape, (2, 3))
 
 
 class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
@@ -4859,6 +4867,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[[3, 4], [2, 3]], [[1, 2], [0, 1]]])
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
+
+    def test_angle(self):
+        x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
+        self.assertAllClose(knp.angle(x), np.angle(x))
+
+        self.assertAllClose(knp.Angle()(x), np.angle(x))
 
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
@@ -8765,6 +8779,25 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.ZerosLike().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_angle(self, dtype):
+        import jax.numpy as jnp
+
+        if dtype == "bfloat16":
+            self.skipTest("Weirdness with numpy")
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.angle(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Angle().symbolic_call(x).dtype),
             expected_dtype,
         )
 
