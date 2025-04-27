@@ -947,18 +947,18 @@ def linspace(
     range_node = ov_opset.convert(range_node, ov_dtype).output(0)
 
     start_shape = ov_opset.shape_of(start_node, Type.i32).output(0)
-    rank_start = start_node.get_partial_shape().rank.get_length()
+    rank = start_node.get_partial_shape().rank.get_length()
 
-    if rank_start is None or rank_start < 1:
-        rank_start = 1
+    if rank is None or rank < 1:
+        rank = 1
 
     if axis < 0:
-        axis += rank_start
+        axis += rank
 
-    final_rank = max(axis, rank_start)
+    # final_rank = max(axis, rank_start)
 
     dims = []
-    for i in range(final_rank):
+    for i in range(rank):
         if i < axis:
             dims.append(
                 ov_opset.slice(
