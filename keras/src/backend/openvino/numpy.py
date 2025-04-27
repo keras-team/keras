@@ -946,22 +946,42 @@ def linspace(
 
     range_node = ov_opset.convert(range_node, ov_dtype).output(0)
 
-    rank = start_node.get_partial_shape().rank.get_length()
-    # if rank_start is None or rank_start < 1:
-    #     rank_start = 1
+    start_shape = ov_opset.shape_of(start_node, Type.i32).output(0)
+    rank_start = start_node.get_partial_shape().rank.get_length()
+
+    if rank_start is None or rank_start < 1:
+        rank_start = 1
 
     if axis < 0:
-        axis += rank  # + axis  + 1
+        axis += rank_start
 
-    # rank = max(axis, rank)
-    # rank = len(start_node.get_partial_shape()) + 1
+    final_rank = max(axis + 1, rank_start)
 
-    target_shape = [1] * rank
-    target_shape[axis] = -1
+    dims = []
+    for i in range(final_rank):
+        if i < axis:
+            dims.append(
+                ov_opset.slice(
+                    start_shape,
+                    ov_opset.constant([i], Type.i32).output(0),
+                    ov_opset.constant([i + 1], Type.i32).output(0),
+                ).output(0)
+            )
+        elif i == axis:
+            dims.append(ov_opset.constant([-1], Type.i32).output(0))
+        else:
+            dims.append(
+                ov_opset.slice(
+                    start_shape,
+                    ov_opset.constant([i - 1], Type.i32).output(0),
+                    ov_opset.constant([i], Type.i32).output(0),
+                ).output(0)
+            )
 
-    shape_const = ov_opset.constant(target_shape, Type.i32).output(0)
+    target_shape = ov_opset.concat(dims, axis=0).output(0)
+
     range_node = ov_opset.reshape(
-        range_node, shape_const, special_zero=False
+        range_node, target_shape, special_zero=False
     ).output(0)
 
     broadcast_shape = ov_opset.shape_of(range_node, Type.i32).output(0)
@@ -970,7 +990,7 @@ def linspace(
 
     linspace_result = ov_opset.add(
         start_broadcast,
-        ov_opset.multiply(step_broadcast, range_node).output(0),
+        ov_opset.multiply(step_broadcast, range_node),
     ).output(0)
 
     if retstep:
