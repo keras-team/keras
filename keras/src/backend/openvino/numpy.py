@@ -989,8 +989,14 @@ def linspace(
     start_node = expand_along_axis(start_node, normalized_axis)
 
     broadcast_shape = ov_opset.shape_of(range_node, Type.i32).output(0)
-    step_broadcast = ov_opset.broadcast(step_node, broadcast_shape).output(0)
-    start_broadcast = ov_opset.broadcast(start_node, broadcast_shape).output(0)
+    step_broadcast = ov_opset.reshape(
+        step_node, broadcast_shape, special_zero=False
+    ).output(0)
+    start_broadcast = ov_opset.reshape(
+        start_node, broadcast_shape, special_zero=False
+    ).output(0)
+    # step_broadcast = ov_opset.broadcast(step_node, broadcast_shape).output(0)
+    # start_broadcast = ov_opset.broadcast(start_node, broadcast_shape).output(0)
 
     linspace_result = ov_opset.add(
         start_broadcast,
