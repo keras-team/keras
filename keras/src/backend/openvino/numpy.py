@@ -955,7 +955,7 @@ def linspace(
     if axis < 0:
         axis += rank_start
 
-    final_rank = max(axis + 1, rank_start)
+    final_rank = max(axis, rank_start)
 
     dims = []
     for i in range(final_rank):
