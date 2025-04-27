@@ -1,6 +1,5 @@
 import numpy as np
 from openvino import opset14 as ov_opset
-"""import openvino.runtime.opset14 as ov_opset"""
 from openvino import Type
 
 from keras.src.backend import config
@@ -13,6 +12,7 @@ from keras.src.backend.openvino.core import (
 )
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import convert_to_numpy as convert_to_numpy
 
 
 def add(x1, x2):
@@ -1086,19 +1086,33 @@ def ones_like(x, dtype=None):
 
 
 def outer(x1, x2):
-    assert isinstance(x1, list), "`outer` is supported only for `x1` list"
-    assert isinstance(x2, list), "`outer` is supported only for `x2` list"
 
-    x2=broadcast_to(x2, x1)
+    x1_np=convert_to_numpy(x1)
+    x2_np=convert_to_numpy(x2)
+
+    if x1_np.ndim==0 and x2_np.ndim==0:
+        res=get_ov_output(np.array([[multiply(x1, x2)]]))
+        return OpenVINOKerasTensor(res)
+    elif x1_np.ndim==0:
+        new_x2=x2_np.flatten()
+        new_x1=np.broadcast_to(x1_np, new_x2.shape)
+    elif x2_np.ndim==0:
+        new_x1=x1_np.flatten()
+        new_x2=np.broadcast_to(x2_np, new_x1)
+    else:
+        new_x1=x1_np.flatten()
+        flat_x2=x2_np.flatten()
+        new_x2=np.broadcast_to(flat_x2, new_x1.shape)
+
     x=[]
-    for elem in x1:
-        x.append(multiply(elem, x2))
+    for elem in new_x1:
+        x.append(multiply(elem, new_x2))
     res = ov_opset.concat(x, 0).output(0)
     return OpenVINOKerasTensor(res)
 
 
     """
-    Flatten tensors if not already of rank <=1 (how?)
+    Flatten tensors if not already of rank <=1
     Broadcast x1 to match x2
     Concatenate each scalar product
     """
