@@ -940,49 +940,50 @@ def linspace(
         ov_opset.convert(effective_num, ov_dtype),
     ).output(0)
 
-    range_node = ov_opset.range(
-        zero_const, num_node, one_const, Type.i32
-    ).output(0)
+    def expand_node(node, node_shape, axis, final_rank):
+        dims = []
+        for i in range(final_rank):
+            if i < axis:
+                dims.append(
+                    ov_opset.slice(
+                        node_shape,
+                        ov_opset.constant([i], Type.i32).output(0),
+                        ov_opset.constant([i + 1], Type.i32).output(0),
+                    ).output(0)
+                )
+            elif i == axis:
+                dims.append(ov_opset.constant([1], Type.i32).output(0))
+            else:
+                dims.append(
+                    ov_opset.slice(
+                        node_shape,
+                        ov_opset.constant([i - 1], Type.i32).output(0),
+                        ov_opset.constant([i], Type.i32).output(0),
+                    ).output(0)
+                )
+        expanded_shape = ov_opset.concat(dims, axis=0).output(0)
+        return ov_opset.reshape(
+            node, expanded_shape, special_zero=False
+        ).output(0)
 
-    range_node = ov_opset.convert(range_node, ov_dtype).output(0)
-
-    start_shape = ov_opset.shape_of(start_node, Type.i32).output(0)
     rank = start_node.get_partial_shape().rank.get_length()
-
     if rank is None or rank < 1:
         rank = 1
 
     if axis < 0:
         axis += rank
 
-    # final_rank = max(axis, rank_start)
-
-    dims = []
-    for i in range(rank):
-        if i < axis:
-            dims.append(
-                ov_opset.slice(
-                    start_shape,
-                    ov_opset.constant([i], Type.i32).output(0),
-                    ov_opset.constant([i + 1], Type.i32).output(0),
-                ).output(0)
-            )
-        elif i == axis:
-            dims.append(ov_opset.constant([-1], Type.i32).output(0))
-        else:
-            dims.append(
-                ov_opset.slice(
-                    start_shape,
-                    ov_opset.constant([i - 1], Type.i32).output(0),
-                    ov_opset.constant([i], Type.i32).output(0),
-                ).output(0)
-            )
-
-    target_shape = ov_opset.concat(dims, axis=0).output(0)
-
-    range_node = ov_opset.reshape(
-        range_node, target_shape, special_zero=False
+    range_node = ov_opset.range(
+        zero_const, num_node, one_const, Type.i32
     ).output(0)
+    range_node = ov_opset.convert(range_node, ov_dtype).output(0)
+
+    step_node_shape = ov_opset.shape_of(step_node, Type.i32).output(0)
+    start_node_shape = ov_opset.shape_of(start_node, Type.i32).output(0)
+
+    range_node = expand_node(range_node, start_node_shape, axis, rank)
+    step_node = expand_node(step_node, step_node_shape, axis, rank)
+    start_node = expand_node(start_node, start_node_shape, axis, rank)
 
     broadcast_shape = ov_opset.shape_of(range_node, Type.i32).output(0)
     step_broadcast = ov_opset.broadcast(step_node, broadcast_shape).output(0)
@@ -997,6 +998,7 @@ def linspace(
         return OpenVINOKerasTensor(linspace_result), OpenVINOKerasTensor(
             step_node
         )
+
     return OpenVINOKerasTensor(linspace_result)
 
 
