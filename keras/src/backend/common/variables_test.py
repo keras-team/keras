@@ -8,6 +8,7 @@ from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
+from keras.src import optimizers
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import shape_equal
@@ -418,6 +419,18 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
                 "while in a stateless scope. This is disallowed.",
             ):
                 v._deferred_initialize()
+
+    def test_optimizer_setter(self):
+        v = backend.Variable(
+            initializer=initializers.RandomNormal(),
+            shape=(2, 2),
+        )
+        self.assertIsNone(v.optimizer)
+        v.optimizer = "sgd"
+        self.assertTrue(isinstance(v.optimizer, optimizers.Optimizer))
+
+        with self.assertRaisesRegex(ValueError, "Invalid value"):
+            v.optimizer = True
 
 
 class VariableDtypeShapeNdimRepr(test_case.TestCase):
