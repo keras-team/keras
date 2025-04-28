@@ -1106,10 +1106,6 @@ def outer(x1, x2):
         #print("flattening both")
         new_x1=x1_np.flatten()
         new_x2=x2_np.flatten()
-        if (new_x2.shape)[0]>(new_x1.shape)[0]:
-            new_x1=np.broadcast_to(new_x1, new_x2.shape)
-        else:
-            new_x2=np.broadcast_to(new_x2, new_x1.shape)
 
     x=[]
     for elem in new_x1:
