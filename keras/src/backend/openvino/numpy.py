@@ -1195,8 +1195,52 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     )
 
 
+"""
+Helper Function to convert the string dtype to ov type
+"""
+
+
+def string_to_ov_type(dtype_str):
+    from openvino.runtime import Type
+
+    mapping = {
+        "bool": Type.boolean,
+        "int8": Type.i8,
+        "int16": Type.i16,
+        "int32": Type.i32,
+        "int64": Type.i64,
+        "uint8": Type.u8,
+        "uint16": Type.u16,
+        "uint32": Type.u32,
+        "uint64": Type.u64,
+        "float16": Type.f16,
+        "float32": Type.f32,
+        "float64": Type.f64,
+    }
+    return mapping[dtype_str]
+
+
 def prod(x, axis=None, keepdims=False, dtype=None):
-    raise NotImplementedError("`prod` is not supported with openvino backend")
+    if axis == () or axis == []:
+        return x
+
+    x = get_ov_output(x)
+
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+
+    result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
+
+    if dtype:
+        result = ov_opset.convert(result, string_to_ov_type(dtype)).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
