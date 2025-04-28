@@ -1091,24 +1091,34 @@ def outer(x1, x2):
     x2_np=convert_to_numpy(x2)
 
     if x1_np.ndim==0 and x2_np.ndim==0:
+        #print("0d\n")
         res=get_ov_output(np.array([[multiply(x1, x2)]]))
         return OpenVINOKerasTensor(res)
     elif x1_np.ndim==0:
+        #print("one is 0d\n")
         new_x2=x2_np.flatten()
         new_x1=np.broadcast_to(x1_np, new_x2.shape)
     elif x2_np.ndim==0:
+        #print("other is 0d\n")
         new_x1=x1_np.flatten()
         new_x2=np.broadcast_to(x2_np, new_x1)
     else:
+        #print("flattening both")
         new_x1=x1_np.flatten()
-        flat_x2=x2_np.flatten()
-        new_x2=np.broadcast_to(flat_x2, new_x1.shape)
+        new_x2=x2_np.flatten()
+        if (new_x2.shape)[0]>(new_x1.shape)[0]:
+            new_x1=np.broadcast_to(new_x1, new_x2.shape)
+        else:
+            new_x2=np.broadcast_to(new_x2, new_x1.shape)
 
     x=[]
     for elem in new_x1:
+        #print("adding scaled tensor\n")
         x.append(multiply(elem, new_x2))
-    res = ov_opset.concat(x, 0).output(0)
-    return OpenVINOKerasTensor(res)
+        print(x)
+    res = stack(x)
+    #print("concatenated\n")
+    return res
 
 
     """
