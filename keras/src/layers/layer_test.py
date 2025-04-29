@@ -1569,6 +1569,8 @@ class LayerTest(testing.TestCase):
         self.assertEqual(int(layer(np.array(0))), 0)
 
     def test_register_call_context_arguments(self):
+        """Validate that registering call-context args works as expected."""
+
         class MyLayer(layers.Layer):
             def call(self, x):
                 return x
@@ -1580,6 +1582,9 @@ class LayerTest(testing.TestCase):
         self.assertCountEqual(layer.call_context_args, ("foo_mode", "training"))
 
     def test_register_call_context_arguments_after_call(self):
+        """Validate that registering call-context args after the layer has
+        been called raises an error."""
+
         class MyLayer(layers.Layer):
             def call(self, x):
                 return x
@@ -1593,6 +1598,11 @@ class LayerTest(testing.TestCase):
             layer.register_call_context_args("foo_mode")
 
     def test_context_args_with_triple_nesting_and_priority(self):
+        """Validate that call-context args are propagated correctly
+        through multiple layers, and that the most specific value is used
+        when multiple values are passed down the call-stack.
+        """
+
         class Inner(layers.Layer):
             call_context_args = ("foo_mode",)
 
@@ -1625,7 +1635,36 @@ class LayerTest(testing.TestCase):
         self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
         self.assertEqual(int(layer(np.array(0))), 0)
 
+    def test_context_arg_propagation_without_declaration(self):
+        """Validate that layer does not resolve a propagated arg if it is not
+        declared as a call-context arg in the layer itself."""
+
+        class Inner(layers.Layer):
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Wrapper(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                return self.inner(x)
+
+        layer = Wrapper()
+        layer.register_call_context_args("foo_mode")
+
+        # The value of foo_mode is set to True in the call to Wrapper,
+        # However, it is not declared as a call-context arg in Inner,
+        # so it should not resolve to True inside Inner (and instead
+        # default to False).
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 0)
+
     def test_call_context_args_with_func_seq_models_as_layers(self):
+        """Validate that call-context args are propagated correctly
+        through functional and sequential models when used as layers.
+        """
+
         class Inner(layers.Layer):
             call_context_args = ("foo_mode",)
 
