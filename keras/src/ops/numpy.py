@@ -7040,7 +7040,7 @@ class ViewAsComplex(Operation):
         x = backend.convert_to_tensor(x)
         if len(x.shape) < 1 or x.shape[-1] != 2:
             raise ValueError(
-                "Input tensor must have last dimension == 2 (real and imag parts)."
+                "Input tensor's last dimension must be 2 (real and imaginary)."
             )
         return x[..., 0] + 1j * x[..., 1]
 
@@ -7091,7 +7091,7 @@ def view_as_complex(x):
     x = backend.convert_to_tensor(x)
     if len(x.shape) < 1 or x.shape[-1] != 2:
         raise ValueError(
-            "Last dimension of input must be size 2 (real and imaginary parts). "
+            "Last dimension of input must be size 2 (real and imaginary). "
             f"Received shape: {x.shape}"
         )
     real_part = x[..., 0]
@@ -7111,7 +7111,8 @@ def view_as_real(x):
         x: A complex tensor.
 
     Returns:
-        A real tensor where the last dimension contains the real and imaginary parts.
+        A real tensor where the last dimension contains the
+        real and imaginary parts.
 
     Example:
     ```

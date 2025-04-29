@@ -8915,7 +8915,9 @@ class ViewAsComplexRealTest(testing.TestCase):
 
     def test_view_as_complex_invalid_shape(self):
         bad_input = np.array([1.0, 2.0, 3.0])  # Last dimension not size 2
-        with self.assertRaisesRegex(ValueError, "Last dimension of input must be size 2"):
+        with self.assertRaisesRegex(
+            ValueError, "Last dimension of input must be size 2"
+        ):
             knp.view_as_complex(bad_input)
 
     def test_view_as_real_invalid_dtype(self):
