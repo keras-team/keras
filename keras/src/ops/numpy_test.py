@@ -8892,6 +8892,10 @@ class HistogramTest(testing.TestCase):
             hist_op(input_tensor)
 
 
+@pytest.mark.skipif(
+    backend() == "openvino",
+    reason="Complex dtype is not supported on OpenVINO backend.",
+)
 class ViewAsComplexRealTest(testing.TestCase):
     def test_view_as_complex_basic(self):
         real_imag = np.array([[1.0, 2.0], [3.0, 4.0]])
