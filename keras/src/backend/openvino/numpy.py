@@ -994,11 +994,11 @@ def linspace(
 
     eq_zero = ov_opset.equal(step, zero).output(0)
     any_zero = ov_opset.reduce_logical_or(
-        eq_zero, ov_opset.constant([0], Type.i64), False
+        eq_zero, ov_opset.constant([0], Type.i32), False
     ).output(0)
     y_norm = ov_opset.multiply(seq, step).output(0)
     y_denorm = ov_opset.multiply(
-        ov_opset.divide(seq, div_f).output(0), delta
+        ov_opset.convert(ov_opset.divide(seq, div_f).output(0)).output(0), delta
     ).output(0)
     y_pos = ov_opset.select(any_zero, y_denorm, y_norm).output(0)
 
@@ -1009,12 +1009,12 @@ def linspace(
 
     if endpoint:
         idx = ov_opset.subtract(num, one_i).output(0)
-        idx64 = ov_opset.convert(idx, Type.i64).output(0)
+        idx32 = ov_opset.convert(idx, Type.i32).output(0)
         idx_tensor = ov_opset.reshape(
-            idx64, ov_opset.constant([1], Type.i64)
+            idx32, ov_opset.constant([1], Type.i32)
         ).output(0)
         stop_tensor = ov_opset.reshape(
-            stop, ov_opset.constant([1], Type.i64)
+            stop, ov_opset.constant([1], Type.i32)
         ).output(0)
         y = ov_opset.scatter_elements_update(
             y, idx_tensor, stop_tensor, 0
