@@ -1647,7 +1647,7 @@ class LayerTest(testing.TestCase):
         sample_input = np.array([[1.0], [2.0]])
 
         # Sequential model
-        seq = models.Sequential([Outer()])
+        seq = models.Sequential([layers.Identity(), Outer()])
         # Tell the Sequential model to propagate foo_mode down
         # the call-stack
         seq.register_call_context_args("foo_mode")
@@ -1662,7 +1662,8 @@ class LayerTest(testing.TestCase):
 
         # Functional model
         inp = Input(shape=(1,))
-        out = Outer()(inp)
+        out = layers.Identity()(inp)
+        out = Outer()(out)
         model = models.Model(inp, out)
         # Tell the Functional model to propagate foo_mode down
         # the call-stack
