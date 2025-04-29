@@ -981,7 +981,7 @@ def linspace(
     one = ov_opset.convert(one_i, dtype).output(0)
     num_f = ov_opset.convert(num, dtype).output(0)
 
-    seq = ov_opset.range(zero, num_f, one).output(0)
+    seq = ov_opset.range(zero, num_f, one, dtype).output(0)
 
     delta = ov_opset.subtract(stop, start).output(0)
     div_f = ov_opset.convert(div, dtype).output(0)
