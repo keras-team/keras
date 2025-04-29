@@ -1746,7 +1746,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     @property
     def call_context_args(self):
-        """Tuple of user-supplied context-arg names."""
+        """Tuple of all context-args registered with this layer."""
         return tuple(self._call_context_args)
 
 
