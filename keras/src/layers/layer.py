@@ -1697,7 +1697,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 return rematerialized_activation_call_wrapper
         return layer_call
 
-    def register_call_context_args(self, *names: str) -> None:
+    def register_call_context_args(self, *names):
         """Register call-context args to be propagated by this layer.
 
         This is useful in registering custom context-args with predefined
