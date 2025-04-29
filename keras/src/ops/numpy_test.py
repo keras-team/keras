@@ -8904,9 +8904,7 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_complex(real_imag)
 
         self.assertEqual(result.shape, expected.shape)
-        self.assertEqual(
-            np.dtype(result.dtype).name, np.dtype(expected.dtype).name
-        )
+        self.assertEqual(result.dtype, expected.dtype)
         self.assertAllClose(result, expected)
 
     def test_view_as_real_basic(self):
@@ -8916,9 +8914,7 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_real(complex_tensor)
 
         self.assertEqual(result.shape, expected.shape)
-        self.assertEqual(
-            np.dtype(result.dtype).name, np.dtype(expected.dtype).name
-        )
+        self.assertEqual(result.dtype, expected.dtype)
         self.assertAllClose(result, expected)
 
     def test_view_as_complex_invalid_shape(self):
@@ -8949,9 +8945,7 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_complex(x)
 
         self.assertEqual(result.shape, expected.shape)
-        self.assertEqual(
-            np.dtype(result.dtype).name, np.dtype(expected.dtype).name
-        )
+        self.assertEqual(result.dtype, expected.dtype)
         self.assertAllClose(result, expected)
 
     def test_view_as_real_multi_dimensional(self):
