@@ -1086,7 +1086,6 @@ def ones_like(x, dtype=None):
 
 
 def outer(x1, x2):
-
     x1_np=convert_to_numpy(x1)
     x2_np=convert_to_numpy(x2)
 
@@ -1111,10 +1110,20 @@ def outer(x1, x2):
     for elem in new_x1:
         #print("adding scaled tensor\n")
         x.append(multiply(elem, new_x2))
-        print(x)
-    res = stack(x)
+    res = get_ov_output(stack(x))
+    x1=get_ov_output(x1)
+    x2=get_ov_output(x2)
+    x1_type = ov_to_keras_type(x1.get_element_type())
+    x2_type = ov_to_keras_type(x2.get_element_type())
+
+    dtype=dtypes.result_type(x1_type, x2_type)
+    result_type = OPENVINO_DTYPES[dtype]
+
+    res=ov_opset.convert(res, result_type).output(0)
+    return OpenVINOKerasTensor(res)
+    # res=stack(x)
+    # return res
     #print("concatenated\n")
-    return res
 
 
     """
