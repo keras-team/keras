@@ -8893,7 +8893,7 @@ class HistogramTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend() == "openvino",
+    backend.backend() == "openvino",
     reason="Complex dtype is not supported on OpenVINO backend.",
 )
 class ViewAsComplexRealTest(testing.TestCase):
