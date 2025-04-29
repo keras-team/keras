@@ -66,6 +66,25 @@ class LossScaleOptimizerTest(testing.TestCase):
         self.assertAllClose(vars, [[1.0, 2.0, 3.0, 4.0]], rtol=1e-4, atol=1e-4)
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
+    def test_finite_step_with_overwrite(self, stateless):
+        self._skip_test_for_stateless(stateless)
+
+        inner_optimizer = SGD(learning_rate=0.5)
+        optimizer = LossScaleOptimizer(inner_optimizer)
+        grads = [ops.array([1.0, 6.0, 7.0, 2.0])]
+        vars = [backend.Variable([1.0, 2.0, 3.0, 4.0])]
+        vars[0].overwrite_with_gradient = True
+
+        if stateless:
+            optimizer.build(vars)
+            vars, _ = optimizer.stateless_apply(
+                optimizer.variables, grads, vars
+            )
+        else:
+            optimizer.apply(grads, vars)
+        self.assertAllClose(vars, grads)
+
+    @parameterized.named_parameters(("stateless", True), ("stateful", False))
     def test_downscaling(self, stateless):
         self._skip_test_for_stateless(stateless)
 

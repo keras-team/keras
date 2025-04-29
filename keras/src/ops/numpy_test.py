@@ -1712,6 +1712,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             knp.argpartition(x, (1, 3))
 
+    def test_angle(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.angle(x).shape, (None, 3))
+
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_mean(self):
@@ -2280,6 +2284,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             knp.argpartition(x, (1, 3))
+
+    def test_angle(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.angle(x).shape, (2, 3))
 
 
 class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
@@ -3078,15 +3086,59 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         if backend.backend() == "tensorflow":
             import tensorflow as tf
 
-            indices = tf.SparseTensor([[0, 0], [1, 2]], [1, 2], (2, 3))
+            indices = tf.SparseTensor([[0, 0], [1, 2]], [-1, 2], (2, 3))
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
-            indices = jax_sparse.BCOO(([1, 2], [[0, 0], [1, 2]]), shape=(2, 3))
+            indices = jax_sparse.BCOO(([-1, 2], [[0, 0], [1, 2]]), shape=(2, 3))
 
         self.assertAllClose(
             knp.take(x, indices, axis=axis),
             np.take(x, backend.convert_to_numpy(indices), axis=axis),
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            [
+                {"testcase_name": "axis_none", "axis": None},
+                {"testcase_name": "axis_0", "axis": 0},
+                {"testcase_name": "axis_1", "axis": 1},
+                {"testcase_name": "axis_minus1", "axis": -1},
+            ],
+            dtype=[
+                "float16",
+                "float32",
+                "float64",
+                "uint8",
+                "int8",
+                "int16",
+                "int32",
+            ],
+        )
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_RAGGED_TENSORS,
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_take_ragged(self, dtype, axis):
+        rng = np.random.default_rng(0)
+        x = (4 * rng.standard_normal((3, 4, 5))).astype(dtype)
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            indices = tf.ragged.constant([[2], [0, -1, 1]])
+            mask = backend.convert_to_numpy(tf.ones_like(indices))
+
+        if axis == 0:
+            mask = np.expand_dims(mask, (2, 3))
+        elif axis == 1:
+            mask = np.expand_dims(mask, (2,))
+
+        self.assertAllClose(
+            knp.take(x, indices, axis=axis),
+            np.take(x, backend.convert_to_numpy(indices), axis=axis)
+            * mask.astype(dtype),
         )
 
     def test_take_along_axis(self):
@@ -4806,6 +4858,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
+    def test_angle(self):
+        x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
+        self.assertAllClose(knp.angle(x), np.angle(x))
+
+        self.assertAllClose(knp.Angle()(x), np.angle(x))
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
@@ -5053,6 +5111,7 @@ class SparseTest(testing.TestCase):
         "imag",
         "log1p",
         "negative",
+        "ones_like",
         "real",
         "round",
         "sign",
@@ -5062,6 +5121,7 @@ class SparseTest(testing.TestCase):
         "square",
         "tan",
         "tanh",
+        "zeros_like",
     ]
     ELEMENTWISE_UNARY_OPS_TESTS = [
         {
@@ -5243,10 +5303,11 @@ class SparseTest(testing.TestCase):
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_sparse_tensor(x)
         x_np = backend.convert_to_numpy(x)
+        expected = np_op(x_np) * backend.convert_to_numpy(knp.ones_like(x))
 
-        self.assertAllClose(op_function(x), np_op(x_np))
+        self.assertAllClose(op_function(x), expected)
         self.assertSameSparseness(op_function(x), x)
-        self.assertAllClose(op_class()(x), np_op(x_np))
+        self.assertAllClose(op_class()(x), expected)
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(ELEMENTWISE_UNARY_OPS_TESTS)
@@ -5259,10 +5320,11 @@ class SparseTest(testing.TestCase):
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_indexed_slices(x)
         x_np = backend.convert_to_numpy(x)
+        expected = np_op(x_np) * backend.convert_to_numpy(knp.ones_like(x))
 
-        self.assertAllClose(op_function(x), np_op(x_np))
+        self.assertAllClose(op_function(x), expected)
         self.assertSameSparseness(op_function(x), x)
-        self.assertAllClose(op_class()(x), np_op(x_np))
+        self.assertAllClose(op_class()(x), expected)
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
@@ -6229,16 +6291,16 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.BitwiseXor().symbolic_call(x1, x2), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+        named_product(dtypes=itertools.product(INT_DTYPES, INT_DTYPES + [None]))
     )
     def test_bitwise_left_shift(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
+        x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
+        x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(jnp.left_shift(x1_jax, x2_jax).dtype)
 
         self.assertDType(knp.bitwise_left_shift(x1, x2), expected_dtype)
@@ -6249,16 +6311,16 @@ class NumpyDtypeTest(testing.TestCase):
     # left_shift is same as bitwise_left_shift
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+        named_product(dtypes=itertools.product(INT_DTYPES, INT_DTYPES + [None]))
     )
     def test_bitwise_right_shift(self, dtypes):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1,), dtype=dtype1)
-        x2 = knp.ones((1,), dtype=dtype2)
+        x2 = knp.ones((1,), dtype=dtype2) if dtype2 else 1
         x1_jax = jnp.ones((1,), dtype=dtype1)
-        x2_jax = jnp.ones((1,), dtype=dtype2)
+        x2_jax = jnp.ones((1,), dtype=dtype2) if dtype2 else 1
         expected_dtype = standardize_dtype(
             jnp.right_shift(x1_jax, x2_jax).dtype
         )
@@ -8691,6 +8753,25 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.ZerosLike().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_angle(self, dtype):
+        import jax.numpy as jnp
+
+        if dtype == "bfloat16":
+            self.skipTest("Weirdness with numpy")
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(standardize_dtype(knp.angle(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Angle().symbolic_call(x).dtype),
             expected_dtype,
         )
 

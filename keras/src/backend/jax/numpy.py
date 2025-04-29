@@ -246,6 +246,16 @@ def all(x, axis=None, keepdims=False):
     return jnp.all(x, axis=axis, keepdims=keepdims)
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
+    return jnp.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     return jnp.any(x, axis=axis, keepdims=keepdims)
 
@@ -439,7 +449,8 @@ def bitwise_xor(x, y):
 
 def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
     return jnp.left_shift(x, y)
 
 
@@ -449,7 +460,8 @@ def left_shift(x, y):
 
 def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
     return jnp.right_shift(x, y)
 
 
@@ -893,10 +905,12 @@ def not_equal(x1, x2):
     return jnp.not_equal(x1, x2)
 
 
+@sparse.elementwise_unary(linear=False)
 def ones_like(x, dtype=None):
     return jnp.ones_like(x, dtype=dtype)
 
 
+@sparse.elementwise_unary(linear=True)
 def zeros_like(x, dtype=None):
     return jnp.zeros_like(x, dtype=dtype)
 

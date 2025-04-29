@@ -3,6 +3,7 @@
 import datetime
 import io
 import json
+import math
 import os
 import pathlib
 import shutil
@@ -23,11 +24,13 @@ from keras.src.saving.serialization_lib import ObjectSharingScope
 from keras.src.saving.serialization_lib import deserialize_keras_object
 from keras.src.saving.serialization_lib import serialize_keras_object
 from keras.src.trainers.compile_utils import CompileMetrics
+from keras.src.utils import dtype_utils
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 from keras.src.utils import naming
 from keras.src.utils import plot_model
 from keras.src.utils.model_visualization import check_pydot
+from keras.src.utils.summary_utils import readable_memory_size
 from keras.src.utils.summary_utils import weight_memory_size
 from keras.src.version import __version__ as keras_version
 
@@ -510,7 +513,9 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     return model
 
 
-def save_weights_only(model, filepath, objects_to_skip=None):
+def save_weights_only(
+    model, filepath, max_shard_size=None, objects_to_skip=None
+):
     """Save only the weights of a model to a target filepath.
 
     Supports both `.weights.h5` and `.keras`.
@@ -522,13 +527,20 @@ def save_weights_only(model, filepath, objects_to_skip=None):
             "by using `build()`."
         )
 
-    filepath = str(filepath)
+    filepath_str = str(filepath)
     tmp_dir = None
     remote_filepath = None
-    if not filepath.endswith(".weights.h5"):
+    if max_shard_size is None and not filepath_str.endswith(".weights.h5"):
         raise ValueError(
-            "Invalid `filepath` argument: expected a `.weights.h5` extension. "
-            f"Received: filepath={filepath}"
+            "The filename must end in `.weights.h5`. "
+            f"Received: filepath={filepath_str}"
+        )
+    elif max_shard_size is not None and not filepath_str.endswith(
+        ("weights.h5", "weights.json")
+    ):
+        raise ValueError(
+            "The filename must end in `.weights.json` when `max_shard_size` is "
+            f"specified. Received: filepath={filepath_str}"
         )
     try:
         if file_utils.is_remote_path(filepath):
@@ -537,7 +549,10 @@ def save_weights_only(model, filepath, objects_to_skip=None):
             remote_filepath = filepath
             filepath = local_filepath
 
-        weights_store = H5IOStore(filepath, mode="w")
+        if max_shard_size is not None:
+            weights_store = ShardedH5IOStore(filepath, max_shard_size, mode="w")
+        else:
+            weights_store = H5IOStore(filepath, mode="w")
         if objects_to_skip is not None:
             visited_saveables = set(id(o) for o in objects_to_skip)
         else:
@@ -572,18 +587,22 @@ def load_weights_only(
 
     archive = None
     tmp_dir = None
-    filepath = str(filepath)
+    filepath_str = str(filepath)
 
     try:
-        if file_utils.is_remote_path(filepath):
+        if file_utils.is_remote_path(filepath_str):
             tmp_dir = get_temp_dir()
-            local_filepath = os.path.join(tmp_dir, os.path.basename(filepath))
-            file_utils.copy(filepath, local_filepath)
-            filepath = local_filepath
+            local_filepath = os.path.join(
+                tmp_dir, os.path.basename(filepath_str)
+            )
+            file_utils.copy(filepath_str, local_filepath)
+            filepath_str = filepath = local_filepath
 
-        if filepath.endswith(".weights.h5"):
+        if filepath_str.endswith("weights.h5"):
             weights_store = H5IOStore(filepath, mode="r")
-        elif filepath.endswith(".keras"):
+        elif filepath_str.endswith("weights.json"):
+            weights_store = ShardedH5IOStore(filepath, mode="r")
+        elif filepath_str.endswith(".keras"):
             archive = zipfile.ZipFile(filepath, "r")
             weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
 
@@ -693,6 +712,19 @@ def _save_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
+    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+        raise ValueError(
+            "Expected `weights_store` to be an instance of "
+            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            f"Received: {weights_store} of type {type(weights_store)}"
+        )
+    if not isinstance(assets_store, (DiskIOStore, type(None))):
+        raise ValueError(
+            "Expected `assets_store` to be an instance of "
+            "`DiskIOStore` or `None`. "
+            f"Received: {assets_store} of type {type(assets_store)}"
+        )
+
     # If the saveable has already been saved, skip it.
     if id(saveable) in visited_saveables:
         return
@@ -745,6 +777,19 @@ def _load_state(
     error_msgs=None,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
+
+    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+        raise ValueError(
+            "Expected `weights_store` to be an instance of "
+            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            f"Received: {weights_store} of type {type(weights_store)}"
+        )
+    if not isinstance(assets_store, (DiskIOStore, type(None))):
+        raise ValueError(
+            "Expected `assets_store` to be an instance of "
+            "`DiskIOStore` or `None`. "
+            f"Received: {assets_store} of type {type(assets_store)}"
+        )
 
     if visited_saveables and id(saveable) in visited_saveables:
         return
@@ -945,112 +990,349 @@ class DiskIOStore:
 
 
 class H5IOStore:
-    def __init__(self, root_path, archive=None, mode="r"):
-        """Numerical variable store backed by HDF5.
+    """Numerical variable store backed by HDF5.
 
-        If `archive` is specified, then `root_path` refers to the filename
-        inside the archive.
+    Args:
+        path_or_io: `str`, `pathlib.Path` or `io.BytesIO` object. The path where
+            to save the model.
+        archive: Optional `zipfile.ZipFile` object. If specified, the h5 file
+            will be saved inside the archive and `path_or_io` will be used as
+            the filename.
+        mode: `str`. One of {`"r"`, `"w"`}. The mode to open the h5 file.
+            Defaults to `"r"`.
+    """
 
-        If `archive` is not specified, then `root_path` refers to the path of
-        the h5 file on disk.
-        """
-        self.root_path = root_path
+    def __init__(self, path_or_io, archive=None, mode="r"):
+        if mode not in ("w", "r"):
+            raise ValueError(
+                f"`mode` should be either 'w' or 'r'. Received: {mode}"
+            )
+        if isinstance(path_or_io, (str, pathlib.Path)):
+            self.path_or_io = pathlib.Path(path_or_io)
+        elif isinstance(path_or_io, io.BytesIO):
+            if archive is not None:
+                raise ValueError(
+                    "When `path_or_io` is an `io.BytesIO` object, `archive` "
+                    "should be `None`."
+                )
+            self.path_or_io = path_or_io
+        else:
+            raise TypeError(
+                "`path_or_io` should be a `str`, `pathlib.Path` or "
+                f"`io.BytesIO` object. Received: path_or_io={path_or_io} of "
+                f"type {type(path_or_io)}."
+            )
         self.mode = mode
         self.archive = archive
         self.io_file = None
 
+        # Init H5 file.
+        self.h5_file = self._get_h5_file(self.path_or_io)
+
+        # Init H5 entry group.
+        self._h5_entry_path = None
+        self._h5_entry_group = {}
+        self._h5_entry_metadata = None
+        self._h5_entry_initialized = False
+
+    def __bool__(self):
+        # Delegate `__bool__` to the underlying `h5_file`. Otherwise, Python
+        # will mistakenly using `__len__` to determine the value.
+        return self.h5_file.__bool__()
+
+    def _get_h5_file(self, path_or_io):
         if self.archive:
             if self.mode == "w":
                 self.io_file = io.BytesIO()
             else:
-                self.io_file = self.archive.open(self.root_path, "r")
-            self.h5_file = h5py.File(self.io_file, mode=self.mode)
+                self.io_file = self.archive.open(str(path_or_io), "r")
+            return h5py.File(self.io_file, mode=self.mode)
         else:
-            self.h5_file = h5py.File(root_path, mode=self.mode)
+            return h5py.File(path_or_io, mode=self.mode)
 
     def make(self, path, metadata=None):
-        return H5Entry(self.h5_file, path, mode="w", metadata=metadata)
+        """Make a new H5 entry group.
+
+        This method is only available in write mode. It defers the creation of
+        the H5 entry group until `__setitem__` is called, preventing the
+        creation of empty groups.
+
+        Args:
+            path: `str`. The variable path.
+            metadata: Optional `dict`. The metadata to save with the H5 entry
+                group. Defaults to `None`.
+        """
+        if self.mode != "w":
+            raise ValueError("`make` is only allowed in write mode.")
+        if not isinstance(metadata, (dict, type(None))):
+            raise ValueError(
+                f"`metadata` should be a dict or `None`. Received: {metadata}"
+            )
+
+        self._h5_entry_path = path
+        if metadata:
+            self._create_h5_group(path, metadata=metadata)
+        else:
+            # Defer to `__setitem__` for H5 group creation to prevent the
+            # creation of empty groups when the store is unused.
+            self._h5_entry_group = {}
+            self._h5_entry_initialized = False
+        return self
 
     def get(self, path):
-        return H5Entry(self.h5_file, path, mode="r")
+        """Get the H5 entry group.
+
+        This method is only available in read mode.
+
+        Args:
+            path: `str`. The variable path.
+        """
+        if self.mode != "r":
+            raise ValueError("`get` is only allowed in read mode.")
+
+        self._h5_entry_path = path
+        self._h5_entry_group = {}  # Defaults to an empty dict if not found.
+        if not path:
+            if "vars" in self.h5_file:
+                self._h5_entry_group = self.h5_file["vars"]
+        elif path in self.h5_file and "vars" in self.h5_file[path]:
+            self._h5_entry_group = self.h5_file[path]["vars"]
+        else:
+            # No hit. Fix for 2.13 compatibility.
+            if "_layer_checkpoint_dependencies" in self.h5_file:
+                path = path.replace("layers", "_layer_checkpoint_dependencies")
+                if path in self.h5_file and "vars" in self.h5_file[path]:
+                    self._h5_entry_group = self.h5_file[path]["vars"]
+        self._h5_entry_initialized = True
+        return self
 
     def close(self):
         self.h5_file.close()
         if self.mode == "w" and self.archive:
-            self.archive.writestr(self.root_path, self.io_file.getvalue())
+            self.archive.writestr(str(self.path_or_io), self.io_file.getvalue())
         if self.io_file:
             self.io_file.close()
 
+    # H5 entry level methods.
 
-class H5Entry:
-    """Leaf entry in a H5IOStore."""
-
-    def __init__(self, h5_file, path, mode, metadata=None):
-        self.h5_file = h5_file
-        self.path = path
-        self.mode = mode
-        self.metadata = metadata
-
-        if mode == "w":
-            if not path:
-                self.group = self.h5_file.create_group("vars")
-            else:
-                self.group = self.h5_file.create_group(self.path).create_group(
-                    "vars"
-                )
-            if self.metadata:
-                for k, v in self.metadata.items():
-                    self.group.attrs[k] = v
+    def _create_h5_group(self, path, metadata=None):
+        if not path:
+            self._h5_entry_group = self.h5_file.create_group("vars")
         else:
-            found = False
-            if not path:
-                if "vars" in self.h5_file:
-                    self.group = self.h5_file["vars"]
-                    found = True
-            elif path in self.h5_file and "vars" in self.h5_file[path]:
-                self.group = self.h5_file[path]["vars"]
-                found = True
-            else:
-                # No hit.
-                # Fix for 2.13 compatibility
-                if "_layer_checkpoint_dependencies" in self.h5_file:
-                    path = path.replace(
-                        "layers", "_layer_checkpoint_dependencies"
-                    )
-                    self.path = path
-                    if path in self.h5_file and "vars" in self.h5_file[path]:
-                        self.group = self.h5_file[path]["vars"]
-                        found = True
-            if not found:
-                self.group = {}
+            self._h5_entry_group = self.h5_file.create_group(path).create_group(
+                "vars"
+            )
+        if metadata:
+            for k, v in metadata.items():
+                self._h5_entry_group.attrs[k] = v
+
+        self._h5_entry_initialized = True
 
     def __len__(self):
-        return self.group.__len__()
+        return self._h5_entry_group.__len__()
 
     def keys(self):
-        return self.group.keys()
+        return self._h5_entry_group.keys()
 
     def items(self):
-        return self.group.items()
+        return self._h5_entry_group.items()
 
     def values(self):
-        return self.group.values()
+        return self._h5_entry_group.values()
+
+    def __getitem__(self, key):
+        value = self._h5_entry_group[key]
+        if (
+            hasattr(value, "attrs")
+            and "dtype" in value.attrs
+            and value.attrs["dtype"] == "bfloat16"
+        ):
+            value = np.array(value, dtype=ml_dtypes.bfloat16)
+        return value
 
     def __setitem__(self, key, value):
         if self.mode != "w":
             raise ValueError("Setting a value is only allowed in write mode.")
+        if not self._h5_entry_initialized:
+            self._create_h5_group(self._h5_entry_path)
+
         value = backend.convert_to_numpy(value)
         if backend.standardize_dtype(value.dtype) == "bfloat16":
-            ds = self.group.create_dataset(key, data=value)
+            ds = self._h5_entry_group.create_dataset(key, data=value)
             ds.attrs["dtype"] = "bfloat16"
         else:
-            self.group[key] = value
+            self._h5_entry_group[key] = value
 
-    def __getitem__(self, name):
-        value = self.group[name]
-        if "dtype" in value.attrs and value.attrs["dtype"] == "bfloat16":
-            value = np.array(value, dtype=ml_dtypes.bfloat16)
-        return value
+    def __delitem__(self, key):
+        if self.mode != "w":
+            raise ValueError("Deleting a value is only allowed in write mode.")
+        del self._h5_entry_group[key]
+
+    def __contains__(self, item):
+        return item in self._h5_entry_group
+
+
+class ShardedH5IOStore(H5IOStore):
+    """Sharded numerical variable store backed by HDF5.
+
+    Args:
+        path_or_io: `str` or `pathlib.Path` object. The path where to save the
+            model.
+        max_shard_size: `int` or `float`. Maximum size in GB for each sharded
+            file. If `None`, no sharding will be done. Defaults to `None`.
+        archive: Optional `zipfile.ZipFile` object. If specified, the h5 file
+            will be saved inside the archive and `path_or_io` will be used as
+            the filename.
+        mode: `str`. One of {'r', 'w'}. The mode to open the h5 file. Defaults
+            to `"r"`.
+    """
+
+    def __init__(self, path_or_io, max_shard_size=5, archive=None, mode="r"):
+        if mode not in ("w", "r"):
+            raise ValueError(
+                f"`mode` should be either 'w' or 'r'. Received: {mode}"
+            )
+        if not isinstance(path_or_io, (str, pathlib.Path)):
+            raise TypeError(
+                "`path_or_io` should be a `str`, `pathlib.Path` object. "
+                f"Received: path_or_io={path_or_io} of type {type(path_or_io)}."
+            )
+        self.path = pathlib.Path(path_or_io)
+        self.mode = mode
+        self.archive = archive
+        self.io_file = None
+
+        self.max_shard_size = float(max_shard_size)
+        self.base_name = self.path.stem.replace(".weights", "")
+
+        if self.path.suffix != ".json":
+            method = "Saving" if self.mode == "w" else "Loading"
+            new_path = self.path.with_suffix(".json")
+            warnings.warn(
+                f"{method} sharded weights requires `*.json` as the "
+                f"extension. The original path: {str(self.path)} will be "
+                f"renamed to {str(new_path)}."
+            )
+            self.path = new_path
+
+        # Init H5 entry group.
+        self._h5_entry_path = None
+        self._h5_entry_group = {}
+        self._h5_entry_metadata = None
+        self._h5_entry_initialized = False
+
+        # Init shard parameters.
+        self.current_shard_index = 0
+        self.current_shard_size = 0
+        self.total_shard_size = 0  # In bytes.
+        self.current_shard_path = None
+        if self.mode == "w":
+            self.sharding_config = {
+                "metadata": {
+                    "total_size": 0,
+                },
+                "weight_map": {},
+            }
+        else:
+            if self.archive:
+                self.sharding_config = json.loads(
+                    self.archive.open(str(self.path), "r").read()
+                )
+            else:
+                with open(self.path, "r") as map_file:
+                    self.sharding_config = json.load(map_file)
+        self.h5_file = self._create_new_shard_file()
+
+    def get(self, path):
+        """Get the H5 entry group.
+
+        This method is only available in read mode. If the path is not found in
+        the current shard, it will switch to the correct shard.
+
+        Args:
+            path: `str`. The variable path.
+        """
+        if not path:
+            parsed_path = "/vars"
+        else:
+            parsed_path = path
+
+        # If not found, check shard map and switch files.
+        weight_map = self.sharding_config["weight_map"]
+        filename = weight_map.get(parsed_path) or weight_map.get(
+            "/" + parsed_path + "/vars"
+        )
+
+        if filename is not None and filename != self.current_shard_path.name:
+            self.close()
+            self.h5_file = self._get_h5_file(self.path.with_name(filename))
+        return super().get(path)
+
+    def close(self):
+        self.h5_file.close()
+        if self.mode == "w":
+            self.sharding_config["metadata"]["total_size"] = (
+                self.total_shard_size
+            )
+            json_str = json.dumps(self.sharding_config, indent=4)
+            if self.archive:
+                self.archive.writestr(str(self.path), json_str)
+                self.archive.writestr(
+                    str(self.current_shard_path), self.io_file.getvalue()
+                )
+            else:
+                with open(self.path, "w") as f:
+                    f.write(json_str)
+        if self.io_file:
+            self.io_file.close()
+
+    # Shard-specific methods.
+
+    def _create_new_shard_file(self):
+        new_shard_path = (
+            f"{self.base_name}_{self.current_shard_index:05}.weights.h5"
+        )
+        self.current_shard_index += 1
+        self.current_shard_path = self.path.with_name(new_shard_path)
+        return self._get_h5_file(self.current_shard_path)
+
+    # H5 entry level methods.
+
+    def __setitem__(self, key, value):
+        # Accumulate `current_shard_size`.
+        value = backend.convert_to_numpy(value)
+        dtype = backend.standardize_dtype(value.dtype)
+        weight_counts = math.prod(value.shape)
+        per_param_size = dtype_utils.dtype_size(dtype)
+        value_size = weight_counts * per_param_size / (8.0 * 1024**3)  # To GB.
+        self.total_shard_size += weight_counts * per_param_size / 8  # In bytes.
+        if value_size > self.max_shard_size:
+            value_size_str = readable_memory_size(value_size * 1024**3)
+            max_shard_size_str = readable_memory_size(
+                self.max_shard_size * 1024**3
+            )
+            raise ValueError(
+                f"The size of {key} is {value_size_str} which "
+                f"exceeds the maximum shard size {max_shard_size_str}. You "
+                "can increase the `max_shard_size` parameter to accommodate "
+                "the size."
+            )
+
+        # Create a new shard if the current shard is full.
+        self.current_shard_size += value_size
+        if self.current_shard_size > self.max_shard_size:
+            self.close()
+            self.h5_file = self._create_new_shard_file()
+            self.make(self._h5_entry_path)
+            self.current_shard_size = value_size
+
+        super().__setitem__(key, value)
+
+        variable_path = self._h5_entry_group.name
+        if variable_path not in self.sharding_config["weight_map"]:
+            self.sharding_config["weight_map"][variable_path] = (
+                self.current_shard_path.name
+            )
 
 
 class NpzIOStore:

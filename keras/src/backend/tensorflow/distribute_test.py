@@ -137,6 +137,24 @@ class DistributeTest(testing.TestCase):
             self.assertEqual(v2.aggregation, "sum")
             self.assertEqual(v2.value.aggregation, tf.VariableAggregation.SUM)
 
+    def test_variable_synchronization(self):
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+
+        with strategy.scope():
+            x = np.random.random((4, 4))
+            v1 = backend.Variable(x, dtype="float32")
+            self.assertEqual(v1.synchronization, "auto")
+            # AUTO with MirroredStrategy defaults to ON_WRITE
+            self.assertEqual(
+                v1.value.synchronization, tf.VariableSynchronization.ON_WRITE
+            )
+
+            v2 = backend.Variable(x, dtype="float32", synchronization="on_read")
+            self.assertEqual(v2.synchronization, "on_read")
+            self.assertEqual(
+                v2.value.synchronization, tf.VariableSynchronization.ON_READ
+            )
+
     def test_seed_generator(self):
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
         with strategy.scope():

@@ -199,7 +199,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if is_tensor(x):
         device = get_device()
         if x.device != device:
-            x = x.to(device)
+            if x.is_meta:
+                x = torch.empty_like(x, device=device)
+            else:
+                x = x.to(device)
         if dtype is None:
             return x
         return x.to(to_torch_dtype(dtype))
@@ -575,8 +578,9 @@ def scatter_update(inputs, indices, updates):
     updates = convert_to_tensor(updates)
     indices = torch.transpose(indices, 0, 1)
 
-    inputs[tuple(indices)] = updates
-    return inputs
+    outputs = torch.clone(inputs)
+    outputs[tuple(indices)] = updates
+    return outputs
 
 
 def slice(inputs, start_indices, shape):

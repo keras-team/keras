@@ -264,6 +264,17 @@ def all(x, axis=None, keepdims=False):
     return cast(x, "bool")
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+
+    # torch.angle doesn't support float16 with cuda
+    if get_device() != "cpu" and ori_dtype == "float16":
+        x = cast(x, "float32")
+        return cast(torch.angle(x), "float16")
+    return torch.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
@@ -479,7 +490,8 @@ def bitwise_xor(x, y):
 
 def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
     return torch.bitwise_left_shift(x, y)
 
 
@@ -489,7 +501,8 @@ def left_shift(x, y):
 
 def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if not isinstance(y, int):
+        y = convert_to_tensor(y)
     return torch.bitwise_right_shift(x, y)
 
 

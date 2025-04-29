@@ -170,7 +170,7 @@ class Functional(Function, Model):
             "Please use another name."
         )
 
-    def call(self, inputs, training=None, mask=None):
+    def call(self, inputs, training=None, mask=None, **kwargs):
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -181,7 +181,10 @@ class Functional(Function, Model):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
         outputs = self._run_through_graph(
-            inputs, operation_fn=lambda op: operation_fn(op, training=training)
+            inputs,
+            operation_fn=lambda op: operation_fn(
+                op, training=training, **kwargs
+            ),
         )
         return unpack_singleton(outputs)
 
@@ -285,7 +288,13 @@ class Functional(Function, Model):
 
     def _standardize_inputs(self, inputs):
         raise_exception = False
-        if isinstance(inputs, dict) and not isinstance(
+        if (
+            isinstance(self._inputs_struct, list)
+            and len(self._inputs_struct) == 1
+            and ops.is_tensor(inputs)
+        ):
+            inputs = [inputs]
+        elif isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
         ):
             # This is to avoid warning
@@ -347,7 +356,7 @@ class Functional(Function, Model):
                 x[0] = None
             return tuple(x)
 
-        def make_spec_for_tensor(x):
+        def make_spec_for_tensor(x, name=None):
             optional = False
             if isinstance(x._keras_history[0], InputLayer):
                 if x._keras_history[0].optional:
@@ -355,7 +364,7 @@ class Functional(Function, Model):
             return InputSpec(
                 shape=shape_with_no_batch_size(x.shape),
                 allow_last_axis_squeeze=True,
-                name=x._keras_history[0].name,
+                name=x._keras_history[0].name if name is None else name,
                 optional=optional,
             )
 
@@ -367,13 +376,7 @@ class Functional(Function, Model):
                 # Case where `_nested_inputs` is a plain dict of Inputs.
                 names = sorted(self._inputs_struct.keys())
                 return [
-                    InputSpec(
-                        shape=shape_with_no_batch_size(
-                            self._inputs_struct[name].shape
-                        ),
-                        allow_last_axis_squeeze=True,
-                        name=name,
-                    )
+                    make_spec_for_tensor(self._inputs_struct[name], name=name)
                     for name in names
                 ]
             return None  # Deeply nested dict: skip checks.
@@ -630,14 +633,18 @@ def functional_from_config(cls, config, custom_objects=None):
     )
 
 
-def operation_fn(operation, training):
+def operation_fn(operation, **call_context_args):
+    """Wraps each op to inject the call-context args."""
+
     def call(*args, **kwargs):
-        if (
-            hasattr(operation, "_call_has_training_arg")
-            and operation._call_has_training_arg
-            and training is not None
-        ):
-            kwargs["training"] = training
+        # Propagate all registered call-context args
+        for name, value in call_context_args.items():
+            if (
+                name in getattr(operation, "_call_context_args", {})
+                and value is not None
+            ):
+                kwargs[name] = value
+
         return operation(*args, **kwargs)
 
     return call

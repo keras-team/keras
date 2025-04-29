@@ -96,6 +96,7 @@ class Variable:
         trainable=True,
         autocast=True,
         aggregation="none",
+        synchronization="auto",
         name=None,
     ):
         name = name or auto_name(self.__class__.__name__)
@@ -113,13 +114,28 @@ class Variable:
             "only_first_replica",
         ):
             raise ValueError(
-                "Invalid valid for argument `aggregation`. Expected "
+                "Invalid value for argument `aggregation`. Expected "
                 "one of `None`, `'none'`, `'mean'`, `'sum'`, "
                 "`'only_first_replica'`. "
                 f"Received: aggregation={aggregation}"
             )
         if aggregation is None:
             aggregation = "none"
+        if synchronization not in (
+            None,
+            "none",
+            "on_read",
+            "on_write",
+            "auto",
+        ):
+            raise ValueError(
+                "Invalid value for argument `synchronization`. Expected "
+                "one of `None`, `'none'`, `'on_read'`, `'on_write'`, "
+                "`'auto'`. "
+                f"Received: synchronization={synchronization}"
+            )
+        if synchronization is None:
+            synchronization = "none"
         self._name = name
         parent_path = current_path()
         if parent_path:
@@ -133,6 +149,7 @@ class Variable:
         self._trainable = bool(trainable)
         self._autocast = bool(autocast)
         self._aggregation = aggregation
+        self._synchronization = synchronization
         # `self._overwrite_with_gradient` is an internal property to determine
         # whether this variable should be overwritten by the computed gradient.
         # Ref: https://github.com/google/flax/blob/main/flax/linen/fp8_ops.py
@@ -226,6 +243,11 @@ class Variable:
     def aggregation(self):
         """The strategy for aggregating this variable."""
         return self._aggregation
+
+    @property
+    def synchronization(self):
+        """The strategy for synchronizing this variable."""
+        return self._synchronization
 
     @property
     def value(self):
@@ -542,12 +564,12 @@ def standardize_dtype(dtype):
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
+    elif hasattr(dtype, "__name__"):
+        dtype = dtype.__name__
     elif hasattr(dtype, "__str__") and (
         "torch" in str(dtype) or "jax.numpy" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
-    elif hasattr(dtype, "__name__"):
-        dtype = dtype.__name__
 
     if dtype not in dtypes.ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
