@@ -1697,6 +1697,58 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 return rematerialized_activation_call_wrapper
         return layer_call
 
+    def register_call_context_args(self, *names: str) -> None:
+        """Register call-context args to be propagated by this layer.
+
+        This is useful in registering custom context-args with predefined
+        layer and model classes so that they know which arguments to
+        propagate down their call-stack.
+
+        Can be invoked any time *before* the layer is called.
+
+        Example:
+        ```
+        class Inner(layers.Layer):
+            call_context_args = ("foo_mode",)
+
+            def call(self, x, foo_mode=False):
+                # If foo_mode=True add 1, otherwise add 0
+                add_val = ops.where(foo_mode, 1.0, 0.0)
+                return x + add_val
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                # We don’t explicitly pass foo_mode here—Base Layer.__call__
+                # should inject it into `self.inner`
+                return self.inner(x)
+
+        sample_input = np.array([[1.0], [2.0]])
+
+        # Sequential model
+        seq = models.Sequential([Outer()])
+
+        # Tell the Sequential model to propagate foo_mode down
+        # the call-stack
+        seq.register_call_context_args("foo_mode")
+
+        # foo_mode=True -> input + 1
+        out_true = seq(sample_input, foo_mode=True)
+        """
+        if self._called:
+            raise RuntimeError(
+                "Cannot add call-context args after the layer has been called."
+            )
+        self._call_context_args = self._call_context_args | set(names)
+
+    @property
+    def call_context_args(self):
+        """Tuple of user-supplied context-arg names."""
+        return tuple(self._custom_context_args)
+
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:

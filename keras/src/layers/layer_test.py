@@ -1584,8 +1584,6 @@ class LayerTest(testing.TestCase):
                 return self.inner(x)
 
         class Outer(layers.Layer):
-            call_context_args = ("foo_mode",)
-
             def __init__(self):
                 super().__init__()
                 self.middle = Middle()
@@ -1596,6 +1594,7 @@ class LayerTest(testing.TestCase):
                 return self.middle(x)
 
         layer = Outer()
+        layer.register_call_context_args("foo_mode")
 
         # The value of foo_mode is set to True in the call to Outer,
         # so it should automatically propagate to Inner through Middle.
@@ -1612,8 +1611,6 @@ class LayerTest(testing.TestCase):
                 return x + add_val
 
         class Outer(layers.Layer):
-            call_context_args = ("foo_mode",)
-
             def __init__(self):
                 super().__init__()
                 self.inner = Inner()
@@ -1627,6 +1624,9 @@ class LayerTest(testing.TestCase):
 
         # Sequential model
         seq = models.Sequential([Outer()])
+        # Tell the Sequential model to propagate foo_mode down
+        # the call-stack
+        seq.register_call_context_args("foo_mode")
 
         # foo_mode=True -> input + 1
         out_true = seq(sample_input, foo_mode=True)
@@ -1640,6 +1640,9 @@ class LayerTest(testing.TestCase):
         inp = Input(shape=(1,))
         out = Outer()(inp)
         model = models.Model(inp, out)
+        # Tell the Functional model to propagate foo_mode down
+        # the call-stack
+        model.register_call_context_args("foo_mode")
 
         # foo_mode=True -> input + 1
         y1 = model(sample_input, foo_mode=True)
