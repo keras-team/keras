@@ -1747,7 +1747,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     @property
     def call_context_args(self):
         """Tuple of user-supplied context-arg names."""
-        return tuple(self._custom_context_args)
+        return tuple(self._call_context_args)
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):

@@ -1568,6 +1568,30 @@ class LayerTest(testing.TestCase):
         self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
         self.assertEqual(int(layer(np.array(0))), 0)
 
+    def test_register_call_context_arguments(self):
+        class MyLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = MyLayer()
+
+        layer.register_call_context_args("foo_mode")
+
+        self.assertCountEqual(layer.call_context_args, ("foo_mode", "training"))
+
+    def test_register_call_context_arguments_after_call(self):
+        class MyLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = MyLayer()
+        layer(np.array(0))
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Cannot add call-context args after the layer has been called.",
+        ):
+            layer.register_call_context_args("foo_mode")
+
     def test_context_args_with_triple_nesting_and_priority(self):
         class Inner(layers.Layer):
             call_context_args = ("foo_mode",)
