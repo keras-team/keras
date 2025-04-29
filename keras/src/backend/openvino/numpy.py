@@ -1031,7 +1031,7 @@ def linspace(
             idx, ov_opset.constant([1], Type.i32), False
         ).output(0)
         shape_start = ov_opset.shape_of(start).output(0)
-        one_const = ov_opset.constant([1], Type.i32)
+        one_const = ov_opset.constant([1], Type.i64)
         stop_shape = ov_opset.concat([one_const, shape_start], 0).output(0)
         stop_tensor = ov_opset.reshape(stop, stop_shape, False).output(0)
         y = ov_opset.scatter_elements_update(
