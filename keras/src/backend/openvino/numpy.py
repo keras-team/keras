@@ -1,6 +1,7 @@
 import numpy as np
 import openvino.runtime.opset14 as ov_opset
 from openvino import Type
+
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.variables import standardize_dtype
