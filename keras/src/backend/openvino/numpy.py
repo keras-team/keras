@@ -983,13 +983,19 @@ def linspace(
 
     seq = ov_opset.range(zero, num_f, one, dtype).output(0)
 
-    delta = ov_opset.subtract(stop, start).output(0)
+    delta = ov_opset.convert(
+        ov_opset.subtract(stop, start).output(0), dtype
+    ).output(0)
     div_f = ov_opset.convert(div, dtype).output(0)
 
-    nan_const = ov_opset.constant(float("nan"), dtype).output(0)
     cond = ov_opset.greater(div, zero_i).output(0)
 
-    step_val = ov_opset.divide(delta, div_f).output(0)
+    nan_const = ov_opset.convert(
+        ov_opset.divide(zero, zero).output(0), dtype
+    ).output(0)
+    step_val = ov_opset.convert(
+        ov_opset.divide(delta, div_f).output(0), dtype
+    ).output(0)
     step = ov_opset.select(cond, step_val, nan_const).output(0)
 
     eq_zero = ov_opset.equal(step, zero).output(0)
@@ -998,7 +1004,8 @@ def linspace(
     ).output(0)
     y_norm = ov_opset.multiply(seq, step).output(0)
     y_denorm = ov_opset.multiply(
-        ov_opset.convert(ov_opset.divide(seq, div_f).output(0)).output(0), delta
+        ov_opset.divide(seq, div_f).output(0),
+        delta,
     ).output(0)
     y_pos = ov_opset.select(any_zero, y_denorm, y_norm).output(0)
 
