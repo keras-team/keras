@@ -7051,8 +7051,6 @@ class ViewAsComplex(Operation):
 class ViewAsReal(Operation):
     def call(self, x):
         x = backend.convert_to_tensor(x)
-        if not x.dtype.is_complex:
-            raise TypeError("Input tensor must be a complex type.")
         real_part = real(x)
         imag_part = imag(x)
         return stack((real_part, imag_part), axis=-1)
