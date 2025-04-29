@@ -7038,7 +7038,7 @@ def histogram(x, bins=10, range=None):
 class ViewAsComplex(Operation):
     def call(self, x):
         x = backend.convert_to_tensor(x)
-        if x.shape.rank < 1 or x.shape[-1] != 2:
+        if len(x.shape) < 1 or x.shape[-1] != 2:
             raise ValueError(
                 "Input tensor must have last dimension == 2 (real and imag parts)."
             )
@@ -7089,7 +7089,7 @@ def view_as_complex(x):
         return ViewAsComplex().symbolic_call(x)
 
     x = backend.convert_to_tensor(x)
-    if x.shape.rank < 1 or x.shape[-1] != 2:
+    if len(x.shape) < 1 or x.shape[-1] != 2:
         raise ValueError(
             "Last dimension of input must be size 2 (real and imaginary parts). "
             f"Received shape: {x.shape}"
@@ -7129,10 +7129,6 @@ def view_as_real(x):
         return ViewAsReal().symbolic_call(x)
 
     x = backend.convert_to_tensor(x)
-    if not x.dtype.is_complex:
-        raise TypeError(
-            f"Input tensor must be complex. Received dtype: {x.dtype}"
-        )
     real_part = real(x)
     imag_part = imag(x)
     return stack((real_part, imag_part), axis=-1)
