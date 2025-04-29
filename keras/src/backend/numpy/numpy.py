@@ -138,6 +138,16 @@ def all(x, axis=None, keepdims=False):
     return np.all(x, axis=axis, keepdims=keepdims)
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
+    return np.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     return np.any(x, axis=axis, keepdims=keepdims)

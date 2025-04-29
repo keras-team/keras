@@ -1,3 +1,4 @@
+pre-commit
 namex>=0.0.8
 ruff
 pytest
@@ -22,3 +23,4 @@ dm_tree
 coverage!=7.6.5  # 7.6.5 breaks CI
 # for onnx_test.py
 onnxruntime
+openvino

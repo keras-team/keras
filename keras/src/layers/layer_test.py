@@ -1544,3 +1544,107 @@ class LayerTest(testing.TestCase):
         layer = MyDenseLayer(10)
         output = layer(inputs)
         self.assertAllEqual(output.shape, (10, 10))
+
+    def test_call_context_args_with_custom_layers(self):
+        class Inner(layers.Layer):
+            call_context_args = ("foo_mode",)
+
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Outer(layers.Layer):
+            call_context_args = ("foo_mode",)
+
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                # Outer doesn’t even need to re‑inject explicitly:
+                # our base class will propagate foo_mode automatically
+                return self.inner(x)
+
+        layer = Outer()
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
+        self.assertEqual(int(layer(np.array(0))), 0)
+
+    def test_context_args_with_triple_nesting_and_priority(self):
+        class Inner(layers.Layer):
+            call_context_args = ("foo_mode",)
+
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Middle(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                return self.inner(x)
+
+        class Outer(layers.Layer):
+            call_context_args = ("foo_mode",)
+
+            def __init__(self):
+                super().__init__()
+                self.middle = Middle()
+
+            def call(self, x):
+                # Outer explicitly sets foo_mode=False when calling Inner,
+                # so the value being passed here should be ignored.
+                return self.middle(x)
+
+        layer = Outer()
+
+        # The value of foo_mode is set to True in the call to Outer,
+        # so it should automatically propagate to Inner through Middle.
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
+        self.assertEqual(int(layer(np.array(0))), 0)
+
+    def test_call_context_args_with_func_seq_models_as_layers(self):
+        class Inner(layers.Layer):
+            call_context_args = ("foo_mode",)
+
+            def call(self, x, foo_mode=False):
+                # If foo_mode=True add 1, otherwise add 0
+                add_val = ops.where(foo_mode, 1.0, 0.0)
+                return x + add_val
+
+        class Outer(layers.Layer):
+            call_context_args = ("foo_mode",)
+
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                # We don’t explicitly pass foo_mode here—Base Layer.__call__
+                # should inject it into `self.inner`
+                return self.inner(x)
+
+        sample_input = np.array([[1.0], [2.0]])
+
+        # Sequential model
+        seq = models.Sequential([Outer()])
+
+        # foo_mode=True -> input + 1
+        out_true = seq(sample_input, foo_mode=True)
+        self.assertAllClose(out_true, sample_input + 1.0)
+
+        # foo_mode omitted -> foo_mode defaults to False -> no change
+        out_false = seq(sample_input)
+        self.assertAllClose(out_false, sample_input)
+
+        # Functional model
+        inp = Input(shape=(1,))
+        out = Outer()(inp)
+        model = models.Model(inp, out)
+
+        # foo_mode=True -> input + 1
+        y1 = model(sample_input, foo_mode=True)
+        self.assertAllClose(y1, sample_input + 1.0)
+
+        # foo_mode omitted -> foo_mode defaults to False -> no change
+        y2 = model(sample_input)
+        self.assertAllClose(y2, sample_input)

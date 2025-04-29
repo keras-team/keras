@@ -328,6 +328,41 @@ class Any(Operation):
         )
 
 
+class Angle(Operation):
+    def call(self, x):
+        return backend.numpy.angle(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.angle", "keras.ops.numpy.angle"])
+def angle(x):
+    """Element-wise angle of a complex tensor.
+
+    Arguments:
+        x: Input tensor. Can be real or complex.
+
+    Returns:
+        Output tensor of same shape as x. containing the angle of each element
+        (in radians).
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor([[1 + 3j, 2 - 5j], [4 - 3j, 3 + 2j]])
+    >>> keras.ops.angle(x)
+    array([[ 1.2490457, -1.19029  ],
+       [-0.6435011,  0.5880026]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Angle().symbolic_call(x)
+    return backend.numpy.angle(x)
+
+
 @keras_export(["keras.ops.any", "keras.ops.numpy.any"])
 def any(x, axis=None, keepdims=False):
     """Test whether any array element along a given axis evaluates to `True`.

@@ -415,7 +415,7 @@ def is_remote_path(filepath):
 
     This function checks if the filepath represents a known remote pattern
     such as GCS (`/gcs`), CNS (`/cns`), CFS (`/cfs`), HDFS (`/hdfs`), Placer
-    (`/placer`), or a URL (`.*://`).
+    (`/placer`), TFHub (`/tfhub`), or a URL (`.*://`).
 
     Args:
         filepath (str): The path to be checked.
@@ -424,7 +424,8 @@ def is_remote_path(filepath):
         bool: True if the filepath is a recognized remote path, otherwise False
     """
     if re.match(
-        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|.*://).*$", str(filepath)
+        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|/tfhub|.*://).*$",
+        str(filepath),
     ):
         return True
     return False

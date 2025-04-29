@@ -312,6 +312,17 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._call_has_training_arg = "training" in call_signature_parameters
         self._call_has_mask_arg = "mask" in call_signature_parameters
 
+        # 1. collect names that should be auto‑propagated
+        builtin_context_args = {"training"}
+        custom_context_args = set(getattr(self, "call_context_args", ()))
+        self._call_context_args = builtin_context_args | custom_context_args
+
+        # 2. remember which of them exist in *this* call signature
+        self._call_has_context_arg = {
+            arg: (arg in call_signature_parameters)
+            for arg in self._call_context_args
+        }
+
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
         self._convert_input_args = True
@@ -835,7 +846,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                     )
 
         # Caches info about `call()` signature, args, kwargs.
-        call_spec = CallSpec(self._call_signature, args, kwargs)
+        call_spec = CallSpec(
+            self._call_signature, self._call_context_args, args, kwargs
+        )
 
         ############################################
         # 3. Check input spec for 1st positional arg.
@@ -859,18 +872,10 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # across nested calls.
         call_context = self._get_call_context()
 
-        # This is the value explicitly passed by the user
-        training = call_spec.user_arguments_dict.get("training", None)
-        if training is None:
-            # Wasn't passed explicitly: use context value
-            training = call_context.training
-            if training is None:
-                # Get signature default value
-                training = call_spec.arguments_dict.get("training", None)
-        call_context.training = training
-        if self._call_has_training_arg and training is not None:
-            # Only populate arg if it has a concrete value
-            kwargs["training"] = training
+        for context_arg in self._call_context_args:
+            self._resolve_and_populate_arg(
+                context_arg, call_spec, call_context, kwargs
+            )
 
         ##############################
         # 6. Populate mask argument(s)
@@ -977,6 +982,29 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
     def call(self, *args, **kwargs):
         raise self._not_implemented_error(self.call)
+
+    def _resolve_and_populate_arg(
+        self, arg_name, call_spec, call_context, kwargs
+    ):
+        # 1) user explicitly passed it?
+        if arg_name in call_spec.user_arguments_dict:
+            value = call_spec.user_arguments_dict[arg_name]
+        # 2) else: inherited from outer layer call?
+        elif call_context.get_value(arg_name) is not None:
+            value = call_context.get_value(arg_name)
+        # 3) else: default from the call() signature
+        else:
+            value = call_spec.arguments_dict.get(arg_name, None)
+
+        # stash it for downstream layers
+        call_context.set_value(arg_name, value)
+
+        # only inject it if this layer actually accepts it and it's not None
+        if (
+            self._call_has_context_arg.get(arg_name, False)
+            and value is not None
+        ):
+            kwargs[arg_name] = value
 
     @traceback_utils.filter_traceback
     def stateless_call(
@@ -1097,7 +1125,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             return super().compute_output_spec(*args, **kwargs)
         else:
             # Use compute_output_shape() to return the right output spec
-            call_spec = CallSpec(self._call_signature, args, kwargs)
+            call_spec = CallSpec(
+                self._call_signature, self._call_context_args, args, kwargs
+            )
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
                 self.compute_output_shape,
@@ -1675,20 +1705,21 @@ def is_backend_tensor_or_symbolic(x, allow_none=False):
 
 
 class CallSpec:
-    def __init__(self, signature, args, kwargs):
-        # `training` and `mask` are special kwargs that are always available in
-        # a layer, if user specifies them in their call without adding to spec,
-        # we remove them to be able to bind variables. User is not using
-        # `training` anyway so we can ignore.
-        # TODO: If necessary use workaround for `mask`
-        if "training" in kwargs and "training" not in signature.parameters:
-            kwargs.pop("training")
-            bound_args = signature.bind(*args, **kwargs)
-        else:
-            bound_args = signature.bind(*args, **kwargs)
-        self.user_arguments_dict = {
-            k: v for k, v in bound_args.arguments.items()
+    def __init__(self, signature, call_context_args, args, kwargs):
+        # Strip out user-supplied call-context args that this layer’s `call()`
+        # does not accept (otherwise `signature.bind` would raise).
+        # This includes built-in args like `training`, and user-defined args.
+        call_args = {
+            context_arg: kwargs.pop(context_arg)
+            for context_arg in call_context_args
+            if context_arg in kwargs and context_arg not in signature.parameters
         }
+
+        bound_args = signature.bind(*args, **kwargs)
+
+        # Combine the two dicts.
+        self.user_arguments_dict = {**call_args, **bound_args.arguments}
+
         bound_args.apply_defaults()
         arg_dict = {}
         arg_names = []
@@ -1850,7 +1881,14 @@ def update_shapes_dict_for_target_fn(
 class CallContext:
     def __init__(self, entry_layer):
         self.entry_layer = entry_layer
-        self.training = None
+
+    def get_value(self, arg_name, default=None):
+        """Get the context value for `arg_name`, or `default` if unset."""
+        return getattr(self, arg_name, default)
+
+    def set_value(self, arg_name, value):
+        """Set `arg_name` = `value` on this context object."""
+        setattr(self, arg_name, value)
 
 
 def is_shape_tuple(s):
