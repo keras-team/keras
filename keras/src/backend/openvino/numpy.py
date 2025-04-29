@@ -982,6 +982,10 @@ def linspace(
     num_f = ov_opset.convert(num, dtype).output(0)
 
     seq = ov_opset.range(zero, num_f, one, dtype).output(0)
+    ndim = len(start.shape)
+    dims = [-1] + [1] * ndim
+    dims_const = ov_opset.constant(dims, Type.i32)
+    seq = ov_opset.reshape(seq, dims_const, False).output(0)
 
     delta = ov_opset.convert(
         ov_opset.subtract(stop, start).output(0), dtype
@@ -1002,26 +1006,31 @@ def linspace(
     any_zero = ov_opset.reduce_logical_or(
         eq_zero, ov_opset.constant([0], Type.i32), False
     ).output(0)
+
     y_norm = ov_opset.multiply(seq, step).output(0)
     y_denorm = ov_opset.multiply(
         ov_opset.divide(seq, div_f).output(0),
         delta,
     ).output(0)
-    y_pos = ov_opset.select(any_zero, y_denorm, y_norm).output(0)
+    y_pos = ov_opset.convert(
+        ov_opset.select(any_zero, y_denorm, y_norm).output(0), dtype
+    ).output(0)
 
-    y_zero = ov_opset.multiply(seq, delta).output(0)
+    y_zero = ov_opset.convert(
+        ov_opset.multiply(seq, delta).output(0), dtype
+    ).output(0)
     y = ov_opset.add(
         ov_opset.select(cond, y_pos, y_zero).output(0), start
     ).output(0)
 
     if endpoint:
         idx = ov_opset.subtract(num, one_i).output(0)
-        idx32 = ov_opset.convert(idx, Type.i32).output(0)
+        idx = ov_opset.convert(idx, Type.i32).output(0)
         idx_tensor = ov_opset.reshape(
-            idx32, ov_opset.constant([1], Type.i32)
+            idx, ov_opset.constant([1], Type.i32), False
         ).output(0)
         stop_tensor = ov_opset.reshape(
-            stop, ov_opset.constant([1], Type.i32)
+            stop, ov_opset.constant([1], Type.i32), False
         ).output(0)
         y = ov_opset.scatter_elements_update(
             y, idx_tensor, stop_tensor, 0
@@ -1033,13 +1042,12 @@ def linspace(
         pre = ov_opset.range(one_i, axis_p1, one_i).output(0)
         post = ov_opset.range(axis_p1, rank, one_i).output(0)
         zero_i = ov_opset.reshape(
-            zero_i, ov_opset.constant([1], Type.i32)
+            zero_i, ov_opset.constant([1], Type.i32), False
         ).output(0)
         perm = ov_opset.concat([pre, zero_i, post], 0).output(0)
         y = ov_opset.transpose(y, perm).output(0)
 
     y = ov_opset.convert(y, dtype).output(0)
-
     return (y, step) if retstep else y
 
 
