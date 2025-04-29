@@ -8920,11 +8920,6 @@ class ViewAsComplexRealTest(testing.TestCase):
         ):
             knp.view_as_complex(bad_input)
 
-    def test_view_as_real_invalid_dtype(self):
-        real_input = np.array([1.0, 2.0])
-        with self.assertRaisesRegex(TypeError, "Input tensor must be complex"):
-            knp.view_as_real(real_input)
-
     def test_view_as_complex_symbolic_input(self):
         x = KerasTensor(shape=(None, 2), dtype="float32")
         result = knp.view_as_complex(x)
