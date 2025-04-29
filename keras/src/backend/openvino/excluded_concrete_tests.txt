@@ -101,7 +101,6 @@ NumpyOneInputOpsCorrectnessTest::test_pad_int8_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_uint8_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_int32_constant_2
 NumpyOneInputOpsCorrectnessTest::test_prod
-NumpyOneInputOpsCorrectnessTest::test_ravel
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reciprocal
 NumpyOneInputOpsCorrectnessTest::test_repeat
