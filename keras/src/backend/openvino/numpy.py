@@ -1020,18 +1020,20 @@ def linspace(
         ov_opset.multiply(seq, delta).output(0), dtype
     ).output(0)
     y = ov_opset.add(
-        ov_opset.select(cond, y_pos, y_zero).output(0), start
+        ov_opset.convert(ov_opset.select(cond, y_pos, y_zero).output(0), dtype),
+        start,
     ).output(0)
 
     if endpoint:
         idx = ov_opset.subtract(num, one_i).output(0)
-        idx = ov_opset.convert(idx, Type.i32).output(0)
+        idx = ov_opset.convert(idx, Type.i64).output(0)
         idx_tensor = ov_opset.reshape(
-            idx, ov_opset.constant([1], Type.i32), False
+            idx, ov_opset.constant([1], Type.i64), False
         ).output(0)
-        stop_tensor = ov_opset.reshape(
-            stop, ov_opset.constant([1], Type.i32), False
-        ).output(0)
+        shape_start = ov_opset.shape(start).output(0)
+        one_const = ov_opset.constant([1], Type.i64)
+        stop_shape = ov_opset.concat([one_const, shape_start], 0).output(0)
+        stop_tensor = ov_opset.reshape(stop, stop_shape, False).output(0)
         y = ov_opset.scatter_elements_update(
             y, idx_tensor, stop_tensor, 0
         ).output(0)
