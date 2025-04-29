@@ -7033,3 +7033,106 @@ def histogram(x, bins=10, range=None):
             f"Received: input.shape={x.shape}"
         )
     return backend.numpy.histogram(x, bins=bins, range=range)
+
+
+class ViewAsComplex(Operation):
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        if x.shape.rank < 1 or x.shape[-1] != 2:
+            raise ValueError(
+                "Input tensor must have last dimension == 2 (real and imag parts)."
+            )
+        return x[..., 0] + 1j * x[..., 1]
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape[:-1], dtype="complex64")
+
+
+class ViewAsReal(Operation):
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        if not x.dtype.is_complex:
+            raise TypeError("Input tensor must be a complex type.")
+        real_part = real(x)
+        imag_part = imag(x)
+        return stack((real_part, imag_part), axis=-1)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape + (2,), dtype="float32")
+
+
+@keras_export(["keras.ops.view_as_complex", "keras.ops.numpy.view_as_complex"])
+def view_as_complex(x):
+    """Converts a real tensor with shape `(..., 2)` to a complex tensor,
+    where the last dimension represents the real and imaginary components
+    of a complex tensor.
+
+    Args:
+        x: A real tensor with last dimension of size 2.
+
+    Returns:
+        A complex tensor with shape `x.shape[:-1]`.
+
+    Example:
+
+    ```
+    >>> import numpy as np
+    >>> from keras import ops
+
+    >>> real_imag = np.array([[1.0, 2.0], [3.0, 4.0]])
+    >>> complex_tensor = ops.view_as_complex(real_imag)
+    >>> complex_tensor
+    array([1.+2.j, 3.+4.j])
+    ```
+    """
+    if any_symbolic_tensors((x,)):
+        return ViewAsComplex().symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    if x.shape.rank < 1 or x.shape[-1] != 2:
+        raise ValueError(
+            "Last dimension of input must be size 2 (real and imaginary parts). "
+            f"Received shape: {x.shape}"
+        )
+    real_part = x[..., 0]
+    imag_part = x[..., 1]
+
+    return backend.cast(real_part, dtype="complex64") + 1j * backend.cast(
+        imag_part, dtype="complex64"
+    )
+
+
+@keras_export(["keras.ops.view_as_real", "keras.ops.numpy.view_as_real"])
+def view_as_real(x):
+    """Converts a complex tensor to a real tensor with shape `(..., 2)`,
+    where the last dimension represents the real and imaginary components.
+
+    Args:
+        x: A complex tensor.
+
+    Returns:
+        A real tensor where the last dimension contains the real and imaginary parts.
+
+    Example:
+    ```
+    >>> import numpy as np
+    >>> from keras import ops
+
+    >>> complex_tensor = np.array([1 + 2j, 3 + 4j])
+    >>> real_imag = ops.view_as_real(complex_tensor)
+    >>> real_imag
+    array([[1., 2.],
+           [3., 4.]])
+    ```
+    """
+    if any_symbolic_tensors((x,)):
+        return ViewAsReal().symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    if not x.dtype.is_complex:
+        raise TypeError(
+            f"Input tensor must be complex. Received dtype: {x.dtype}"
+        )
+    real_part = real(x)
+    imag_part = imag(x)
+    return stack((real_part, imag_part), axis=-1)

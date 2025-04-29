@@ -8890,3 +8890,69 @@ class HistogramTest(testing.TestCase):
             ValueError, "Input tensor must be 1-dimensional"
         ):
             hist_op(input_tensor)
+
+
+class ViewAsComplexRealTest(testing.TestCase):
+    def test_view_as_complex_basic(self):
+        real_imag = np.array([[1.0, 2.0], [3.0, 4.0]])
+        expected = np.array([1.0 + 2.0j, 3.0 + 4.0j], dtype=np.complex64)
+
+        result = knp.view_as_complex(real_imag)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(result.dtype, expected.dtype)
+        self.assertAllClose(result, expected)
+
+    def test_view_as_real_basic(self):
+        complex_tensor = np.array([1 + 2j, 3 + 4j], dtype=np.complex64)
+        expected = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
+
+        result = knp.view_as_real(complex_tensor)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(result.dtype, expected.dtype)
+        self.assertAllClose(result, expected)
+
+    def test_view_as_complex_invalid_shape(self):
+        bad_input = np.array([1.0, 2.0, 3.0])  # Last dimension not size 2
+        with self.assertRaisesRegex(ValueError, "Last dimension of input must be size 2"):
+            knp.view_as_complex(bad_input)
+
+    def test_view_as_real_invalid_dtype(self):
+        real_input = np.array([1.0, 2.0])
+        with self.assertRaisesRegex(TypeError, "Input tensor must be complex"):
+            knp.view_as_real(real_input)
+
+    def test_view_as_complex_symbolic_input(self):
+        x = KerasTensor(shape=(None, 2), dtype="float32")
+        result = knp.view_as_complex(x)
+
+        self.assertEqual(result.shape, (None,))
+        self.assertEqual(result.dtype, "complex64")
+
+    def test_view_as_real_symbolic_input(self):
+        x = KerasTensor(shape=(None,), dtype="complex64")
+        result = knp.view_as_real(x)
+
+        self.assertEqual(result.shape, (None, 2))
+        self.assertEqual(result.dtype, "float32")
+
+    def test_view_as_complex_multi_dimensional(self):
+        x = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32)
+        expected = np.array([[1 + 2j, 3 + 4j]], dtype=np.complex64)
+
+        result = knp.view_as_complex(x)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(result.dtype, expected.dtype)
+        self.assertAllClose(result, expected)
+
+    def test_view_as_real_multi_dimensional(self):
+        x = np.array([[1 + 2j, 3 + 4j]], dtype=np.complex64)
+        expected = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32)
+
+        result = knp.view_as_real(x)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(result.dtype, expected.dtype)
+        self.assertAllClose(result, expected)

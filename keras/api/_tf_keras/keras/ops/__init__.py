@@ -271,6 +271,8 @@ from keras.src.ops.numpy import unravel_index as unravel_index
 from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize
+from keras.src.ops.numpy import view_as_complex as view_as_complex
+from keras.src.ops.numpy import view_as_real as view_as_real
 from keras.src.ops.numpy import vstack as vstack
 from keras.src.ops.numpy import where as where
 from keras.src.ops.numpy import zeros as zeros
