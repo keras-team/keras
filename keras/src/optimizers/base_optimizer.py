@@ -204,21 +204,19 @@ class BaseOptimizer(KerasSaveable):
     def _track_variable(self, variable):
         self._tracker.add_to_store("variables", variable)
 
+    def _overwrite_variable_with_gradient(self, variable):
+        return getattr(variable, "overwrite_with_gradient", False)
+
     @tracking.no_automatic_dependency_tracking
     def build(self, variables):
         if self.use_ema:
-            self._model_variables_moving_average = []
+            self._model_variables_moving_average = self.add_optimizer_variables(
+                variables, "average"
+            )
         if self.gradient_accumulation_steps:
             self._accumulated_gradients = []
         for i, variable in enumerate(variables):
             self._trainable_variables_indices[self._var_key(variable)] = i
-            if self.use_ema:
-                self._model_variables_moving_average.append(
-                    self.add_variable_from_reference(
-                        variable,
-                        name="average",
-                    )
-                )
             if self.gradient_accumulation_steps:
                 self._accumulated_gradients.append(
                     self.add_variable_from_reference(
@@ -322,6 +320,49 @@ class BaseOptimizer(KerasSaveable):
             dtype=reference_variable.dtype,
             name=name,
         )
+
+    def add_optimizer_variables(
+        self, trainable_variables, name, initializer="zeros"
+    ):
+        """Add optimizer variables from the list of trainable model variables.
+
+        Create an optimizer variable based on the information of the supplied
+        model variables.  For example, in SGD optimizer momemtum, for each model
+        variable, a corresponding momemtum variable is created of the same shape
+        and dtype.
+
+        Note that trainable variables with `v.overwrite_with_gradient == True`
+        will insert `None`, into the output list, since the optimizer variable
+        will not be used anyways, and could be wasteful.
+
+        Args:
+            trainable_variables: `keras.Variable`, the corresponding model
+                variable to the optimizer variable to be created.
+            name: The name prefix of the optimizer variable to be created. The
+                variable name will follow the pattern
+                `{variable_name}_{trainable_variable.name}`, e.g.,
+                `momemtum/dense_1`. Defaults to `None`.
+            initializer: Initializer object to use to populate the initial
+                variable value, or string name of a built-in initializer (e.g.
+                `"random_normal"`). If unspecified, defaults to `"zeros"`.
+
+        Returns:
+            A list of optimizer variables, in the format of `keras.Variable`s.
+        """
+        optimizer_variables = []
+        for variable in trainable_variables:
+            if not self._overwrite_variable_with_gradient(variable):
+                optimizer_variables.append(
+                    self.add_variable_from_reference(
+                        variable,
+                        name=name,
+                        initializer=initializer,
+                    )
+                )
+            else:
+                optimizer_variables.append(None)
+
+        return optimizer_variables
 
     def _check_variables_are_known(self, variables):
         for v in variables:
@@ -544,7 +585,8 @@ class BaseOptimizer(KerasSaveable):
 
     def _backend_reset_gradient_accumulators(self):
         for g_acc in self._accumulated_gradients:
-            g_acc.assign(ops.zeros(g_acc.shape, dtype=g_acc.dtype))
+            if g_acc is not None:
+                g_acc.assign(ops.zeros(g_acc.shape, dtype=g_acc.dtype))
 
     def _backend_increment_gradient_accumulators(self, grads, acc_grads):
         new_g_accs = [(g + acc_g) for g, acc_g in zip(grads, acc_grads)]
@@ -711,8 +753,8 @@ class BaseOptimizer(KerasSaveable):
         After the update, the processed pairs will be filtered out.
         """
         # Shortcut for `tf.Variable` because it doesn't have a
-        # `overwrite_with_gradient` attr
-        if any(not hasattr(v, "overwrite_with_gradient") for v in vars):
+        # `overwrite_with_gradient` attr.
+        if not any(self._overwrite_variable_with_gradient(v) for v in vars):
             return grads, vars
 
         # Shallow copies
@@ -722,7 +764,7 @@ class BaseOptimizer(KerasSaveable):
         # Iterate from right to left for safe popping
         for i in range(len(filtered_grads) - 1, -1, -1):
             g, v = filtered_grads[i], filtered_vars[i]
-            if v.overwrite_with_gradient:
+            if self._overwrite_variable_with_gradient(v):
                 if self.gradient_accumulation_steps:
                     # Utilize a stateless manner for JAX compatibility
                     steps = self.gradient_accumulation_steps
@@ -886,11 +928,12 @@ class BaseOptimizer(KerasSaveable):
             for var, average in zip(
                 trainable_variables, self._model_variables_moving_average
             ):
-                not_first_step = ops.not_equal(self.iterations, 0)
-                momentum = (
-                    ops.cast(not_first_step, var.dtype) * self.ema_momentum
-                )
-                average.assign(momentum * average + (1 - momentum) * var)
+                if average is not None:
+                    not_first_step = ops.not_equal(self.iterations, 0)
+                    momentum = (
+                        ops.cast(not_first_step, var.dtype) * self.ema_momentum
+                    )
+                    average.assign(momentum * average + (1 - momentum) * var)
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables
@@ -909,7 +952,8 @@ class BaseOptimizer(KerasSaveable):
         for var, average_var in zip(
             trainable_variables, self._model_variables_moving_average
         ):
-            var.assign(average_var)
+            if average_var is not None:
+                var.assign(average_var)
 
     def finalize_variable_values(self, var_list):
         """Set the final value of model's trainable variables.
