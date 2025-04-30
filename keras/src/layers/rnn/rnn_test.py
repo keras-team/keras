@@ -381,4 +381,15 @@ class RNNTest(testing.TestCase):
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         self.run_class_serialization_test(layer)
 
+    def test_stacked_rnn_mask(self):
+        sequence = np.ones((2, 3, 4))
+        mask = np.array([[True, True, True], [True, True, False]])
+        cell_kwargs = dict(
+            units=1, kernel_initializer="ones", recurrent_initializer="ones"
+        )
+        rnn_cells = [layers.LSTMCell(**cell_kwargs) for _ in range(2)]
+        stacked_rnn = layers.RNN(rnn_cells)
+        output = stacked_rnn(sequence, mask=mask)
+        self.assertAllClose(np.array([[0.7793], [0.5998]]), output, atol=1e-4)
+
     # TODO: test masking
