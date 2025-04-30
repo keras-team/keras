@@ -128,7 +128,6 @@ class Embedding(Layer):
                 name="embeddings",
                 regularizer=self.embeddings_regularizer,
                 constraint=self.embeddings_constraint,
-                trainable=True,
             )
         self.built = True
         if self.lora_rank:
