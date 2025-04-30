@@ -1002,10 +1002,10 @@ def linspace(
     ).output(0)
     step = ov_opset.select(cond, step_val, nan_const).output(0)
 
-    s_shape = ov_opset.shape_of(start).output(0)
-    one_tensor = ov_opset.constant([1], Type.i32)
-    s_shape = ov_opset.concat([one_tensor, s_shape], 0).output(0)
-    step = ov_opset.reshape(step, s_shape, False).output(0)
+    target_shape = ov_opset.shape_of(start).output(0)
+    one_tensor = ov_opset.constant([1], Type.i64)
+    target_shape = ov_opset.concat([one_tensor, target_shape], 0).output(0)
+    step = ov_opset.reshape(step, target_shape, False).output(0)
 
     eq_zero = ov_opset.equal(step, zero).output(0)
     any_zero = ov_opset.reduce_logical_or(
@@ -1032,7 +1032,6 @@ def linspace(
     if endpoint:
         idx = ov_opset.subtract(num, one_i).output(0)
         idx = ov_opset.convert(idx, Type.i32).output(0)
-        target_shape = ov_opset.concat([one_tensor, s_shape], 0).output(0)
         # idx_tensor = ov_opset.reshape(
         #     idx, ov_opset.constant([1], Type.i64), False
         # ).output(0)
