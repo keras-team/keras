@@ -963,6 +963,8 @@ def linspace(
     start = get_ov_output(start, dtype)
     stop = get_ov_output(stop, dtype)
     # start, stop = _align_operand_types(start, stop, "linspace()")
+    start = ov_opset.convert(start, dtype).output(0)
+    stop = ov_opset.convert(stop, dtype).output(0)
 
     if isinstance(num, OpenVINOKerasTensor):
         num = get_ov_output(num, Type.i32)
@@ -976,6 +978,8 @@ def linspace(
     axis_i = ov_opset.constant(axis, Type.i32).output(0)
 
     div = ov_opset.subtract(num, one_i).output(0) if endpoint else num
+    # div = ov_opset.convert(div, dtype).output(0)
+    div = ov_opset.convert(div, Type.i32).output(0)
 
     zero = ov_opset.convert(zero_i, dtype).output(0)
     one = ov_opset.convert(one_i, dtype).output(0)
@@ -990,7 +994,6 @@ def linspace(
     delta = ov_opset.convert(
         ov_opset.subtract(stop, start).output(0), dtype
     ).output(0)
-    div_f = ov_opset.convert(div, dtype).output(0)
 
     cond = ov_opset.greater(div, zero_i).output(0)
 
@@ -998,7 +1001,7 @@ def linspace(
         ov_opset.divide(zero, zero).output(0), dtype
     ).output(0)
     step_val = ov_opset.convert(
-        ov_opset.divide(delta, div_f).output(0), dtype
+        ov_opset.divide(delta, div).output(0), dtype
     ).output(0)
     step = ov_opset.select(cond, step_val, nan_const).output(0)
 
@@ -1014,7 +1017,7 @@ def linspace(
 
     y_norm = ov_opset.multiply(seq, step).output(0)
     y_denorm = ov_opset.multiply(
-        ov_opset.divide(seq, div_f).output(0),
+        ov_opset.divide(seq, div).output(0),
         delta,
     ).output(0)
     y_pos = ov_opset.convert(
