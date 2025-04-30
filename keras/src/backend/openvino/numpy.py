@@ -1056,7 +1056,7 @@ def linspace(
         y = ov_opset.transpose(y, perm).output(0)
 
     y = ov_opset.convert(y, dtype).output(0)
-    return (y, step) if retstep else y
+    return (OpenVINOKerasTensor(y), step) if retstep else OpenVINOKerasTensor(y)
 
 
 def log(x):
