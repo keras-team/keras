@@ -315,12 +315,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # 1. collect names that should be auto‑propagated
         builtin_context_args = {"training"}
         custom_context_args = set(getattr(self, "call_context_args", ()))
-        self._call_context_args = builtin_context_args | custom_context_args
+        self._call_ctx_args = builtin_context_args | custom_context_args
 
         # 2. remember which of them exist in *this* call signature
         self._call_has_context_arg = {
             arg: (arg in call_signature_parameters)
-            for arg in self._call_context_args
+            for arg in self._call_ctx_args
         }
 
         self._supports_masking = not utils.is_default(self.compute_mask)
@@ -847,7 +847,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # Caches info about `call()` signature, args, kwargs.
         call_spec = CallSpec(
-            self._call_signature, self._call_context_args, args, kwargs
+            self._call_signature, self._call_ctx_args, args, kwargs
         )
 
         ############################################
@@ -872,7 +872,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # across nested calls.
         call_context = self._get_call_context()
 
-        for context_arg in self._call_context_args:
+        for context_arg in self._call_ctx_args:
             self._resolve_and_populate_arg(
                 context_arg, call_spec, call_context, kwargs
             )
@@ -1126,7 +1126,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         else:
             # Use compute_output_shape() to return the right output spec
             call_spec = CallSpec(
-                self._call_signature, self._call_context_args, args, kwargs
+                self._call_signature, self._call_ctx_args, args, kwargs
             )
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
@@ -1742,12 +1742,12 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             raise RuntimeError(
                 "Cannot add call-context args after the layer has been called."
             )
-        self._call_context_args = self._call_context_args | set(names)
+        self._call_ctx_args = self._call_ctx_args | set(names)
 
     @property
-    def call_context_args(self):
+    def _call_context_args(self):
         """Tuple of all context-args registered with this layer."""
-        return tuple(self._call_context_args)
+        return tuple(self._call_ctx_args)
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
