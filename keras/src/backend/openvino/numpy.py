@@ -978,8 +978,8 @@ def linspace(
     axis_i = ov_opset.constant(axis, Type.i32).output(0)
 
     div = ov_opset.subtract(num, one_i).output(0) if endpoint else num
-    # div = ov_opset.convert(div, dtype).output(0)
-    div = ov_opset.convert(div, Type.i32).output(0)
+    div = ov_opset.convert(div, dtype).output(0)
+    # div = ov_opset.convert(div, Type.i32).output(0)
 
     zero = ov_opset.convert(zero_i, dtype).output(0)
     one = ov_opset.convert(one_i, dtype).output(0)
