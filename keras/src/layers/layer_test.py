@@ -1577,9 +1577,11 @@ class LayerTest(testing.TestCase):
 
         layer = MyLayer()
 
-        layer.register_call_context_args("foo_mode")
+        layer._register_call_context_args("foo_mode")
 
-        self.assertCountEqual(layer.call_context_args, ("foo_mode", "training"))
+        self.assertCountEqual(
+            layer._call_context_args, ("foo_mode", "training")
+        )
 
     def test_register_call_context_arguments_after_call(self):
         """Validate that registering call-context args after the layer has
@@ -1595,7 +1597,7 @@ class LayerTest(testing.TestCase):
             RuntimeError,
             "Cannot add call-context args after the layer has been called.",
         ):
-            layer.register_call_context_args("foo_mode")
+            layer._register_call_context_args("foo_mode")
 
     def test_context_args_with_triple_nesting_and_priority(self):
         """Validate that call-context args are propagated correctly
@@ -1628,7 +1630,7 @@ class LayerTest(testing.TestCase):
                 return self.middle(x)
 
         layer = Outer()
-        layer.register_call_context_args("foo_mode")
+        layer._register_call_context_args("foo_mode")
 
         # The value of foo_mode is set to True in the call to Outer,
         # so it should automatically propagate to Inner through Middle.
@@ -1652,7 +1654,7 @@ class LayerTest(testing.TestCase):
                 return self.inner(x)
 
         layer = Wrapper()
-        layer.register_call_context_args("foo_mode")
+        layer._register_call_context_args("foo_mode")
 
         # The value of foo_mode is set to True in the call to Wrapper,
         # However, it is not declared as a call-context arg in Inner,
@@ -1689,7 +1691,7 @@ class LayerTest(testing.TestCase):
         seq = models.Sequential([layers.Identity(), Outer()])
         # Tell the Sequential model to propagate foo_mode down
         # the call-stack
-        seq.register_call_context_args("foo_mode")
+        seq._register_call_context_args("foo_mode")
 
         # foo_mode=True -> input + 1
         out_true = seq(sample_input, foo_mode=True)
@@ -1706,7 +1708,7 @@ class LayerTest(testing.TestCase):
         model = models.Model(inp, out)
         # Tell the Functional model to propagate foo_mode down
         # the call-stack
-        model.register_call_context_args("foo_mode")
+        model._register_call_context_args("foo_mode")
 
         # foo_mode=True -> input + 1
         y1 = model(sample_input, foo_mode=True)
