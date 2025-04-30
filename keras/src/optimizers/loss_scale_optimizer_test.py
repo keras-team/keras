@@ -49,6 +49,26 @@ class LossScaleOptimizerTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
+    def test_finite_step_with_inner_loss_scale(self, stateless):
+        self._skip_test_for_stateless(stateless)
+
+        # Ensure that the inner loss scale does not interfere with the update.
+        inner_optimizer = SGD(learning_rate=0.5, loss_scale_factor=100)
+        optimizer = LossScaleOptimizer(inner_optimizer)
+        grads = [ops.array([1.0, 6.0, 7.0, 2.0]) * optimizer.initial_scale]
+        vars = [backend.Variable([1.0, 2.0, 3.0, 4.0])]
+        if stateless:
+            optimizer.build(vars)
+            vars, _ = optimizer.stateless_apply(
+                optimizer.variables, grads, vars
+            )
+        else:
+            optimizer.apply(grads, vars)
+        self.assertAllClose(
+            vars, [[0.5, -1.0, -0.5, 3.0]], rtol=1e-4, atol=1e-4
+        )
+
+    @parameterized.named_parameters(("stateless", True), ("stateful", False))
     def test_infinite_step(self, stateless):
         self._skip_test_for_stateless(stateless)
 
