@@ -983,7 +983,7 @@ def linspace(
     zero = ov_opset.constant(0.0, dtype).output(0)
     one = ov_opset.constant(1.0, dtype).output(0)
     num_f = ov_opset.convert(num, dtype).output(0)
-    seq = ov_opset.range(zero, num_f, one).output(0)
+    seq = ov_opset.range(zero, num_f, one, dtype).output(0)
 
     ndim = len(start.shape)
     dims = ov_opset.concat(
