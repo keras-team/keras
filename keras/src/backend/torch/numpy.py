@@ -430,6 +430,11 @@ def average(x, axis=None, weights=None):
     return torch.mean(x, axis)
 
 
+def bartlett(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.bartlett(x)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
