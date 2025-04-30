@@ -972,6 +972,7 @@ def linspace(
         num = ov_opset.constant(num, Type.i32).output(0)
     else:
         raise TypeError("`num` must be an int or OpenVINOKerasTensor.")
+    num = ov_opset.convert(num, Type.i32).output(0)
 
     zero_i = ov_opset.constant(0, Type.i32).output(0)
     one_i = ov_opset.constant(1, Type.i32).output(0)
