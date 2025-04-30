@@ -204,6 +204,9 @@ class BaseOptimizer(KerasSaveable):
     def _track_variable(self, variable):
         self._tracker.add_to_store("variables", variable)
 
+    def _get_variable_updater(self, variable):
+        return getattr(variable, "updater", None)
+
     @tracking.no_automatic_dependency_tracking
     def build(self, variables):
         if self.use_ema:
@@ -212,6 +215,11 @@ class BaseOptimizer(KerasSaveable):
             self._accumulated_gradients = []
         for i, variable in enumerate(variables):
             self._trainable_variables_indices[self._var_key(variable)] = i
+            custom_updater = self._get_variable_updater(variable)
+            if custom_updater is not None:
+                # Build the updater.
+                custom_updater.build(self, variable)
+
             if self.use_ema:
                 self._model_variables_moving_average.append(
                     self.add_variable_from_reference(
@@ -431,10 +439,8 @@ class BaseOptimizer(KerasSaveable):
 
             # Overwrite targeted variables directly with their gradients if
             # their `overwrite_with_gradient` is set.
-            grads, trainable_variables = (
-                self._overwrite_variables_directly_with_gradients(
-                    grads, trainable_variables
-                )
+            grads, trainable_variables = self.__handle_custom_updaters(
+                grads, trainable_variables
             )
 
             if len(list(grads)) == 0:
@@ -698,21 +704,14 @@ class BaseOptimizer(KerasSaveable):
             return self._learning_rate()
         return self._learning_rate
 
-    def _overwrite_variables_directly_with_gradients(self, grads, vars):
-        """Overwrite the variables directly by their gradients.
-
-        This method is designed for a special case where we want to overwrite
-        the variable directly with its computed gradient. For example, in float8
-        training, new `scale` and `amax_history` are computed as gradients, and
-        we want to overwrite them directly instead of following the typical
-        procedure such as gradient descent with a learning rate, gradient
-        clipping and weight decaying.
+    def __handle_custom_updaters(self, grads, vars):
+        """Update any variable that has a custom updater.
 
         After the update, the processed pairs will be filtered out.
         """
         # Shortcut for `tf.Variable` because it doesn't have a
-        # `overwrite_with_gradient` attr
-        if any(not hasattr(v, "overwrite_with_gradient") for v in vars):
+        # `updater` attr.
+        if not any(self._get_variable_updater(v) is not None for v in vars):
             return grads, vars
 
         # Shallow copies
@@ -722,33 +721,8 @@ class BaseOptimizer(KerasSaveable):
         # Iterate from right to left for safe popping
         for i in range(len(filtered_grads) - 1, -1, -1):
             g, v = filtered_grads[i], filtered_vars[i]
-            if v.overwrite_with_gradient:
-                if self.gradient_accumulation_steps:
-                    # Utilize a stateless manner for JAX compatibility
-                    steps = self.gradient_accumulation_steps
-                    is_update_step = (self._iterations + 1) % steps == 0
-                    acc_g = self._accumulated_gradients[
-                        self._get_variable_index(v)
-                    ]
-                    # `ops.maximum` is utilized for gradient accumulation for
-                    # `overwrite_with_gradient=True` variables
-                    new_g_acc = ops.cond(
-                        is_update_step,
-                        lambda: ops.zeros(g.shape, dtype=g.dtype),
-                        lambda: ops.maximum(g, acc_g),
-                    )
-                    new_g = ops.cond(
-                        is_update_step,
-                        lambda: ops.maximum(g, acc_g),
-                        lambda: g,
-                    )
-                    new_v = ops.cond(
-                        is_update_step, lambda: new_g, lambda: v.value
-                    )
-                    v.assign(new_v)
-                    acc_g.assign(new_g_acc)
-                else:
-                    v.assign(g)
+            if v.updater:
+                v.updater.update_step(g, v)
                 filtered_grads.pop(i)
                 filtered_vars.pop(i)
         return filtered_grads, filtered_vars
@@ -925,6 +899,11 @@ class BaseOptimizer(KerasSaveable):
             # model variable value with its moving average stored inside
             # optimizer.
             self._overwrite_model_variables_with_average_value(var_list)
+
+        for var in var_list:
+            updater = self._get_variable_updater(var)
+            if updater is not None:
+                updater.finalize_variable_value(var)
 
     def _obj_type(self):
         return "Optimizer"

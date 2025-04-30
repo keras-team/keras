@@ -152,6 +152,19 @@ class OptimizerTest(testing.TestCase):
         optimizer.apply_gradients([(grad, v)])
         self.assertAlmostEqual(np.min(v), 0.0)
 
+    def test_custom_variable_updater(self):
+        class IncrementVariable(optimizers.VariableUpdater):
+            def update_step(self, gradient, variable):
+                variable.assign_add(1.0)
+
+        orig_value = np.random.random((2, 2)) - 1.0
+        v = backend.Variable(orig_value)
+        v.updater = IncrementVariable()
+        optimizer = optimizers.SGD(learning_rate=0.0001)
+        grad = backend.numpy.zeros((2, 2))
+        optimizer.apply_gradients([(grad, v)])
+        self.assertAllClose(v, orig_value + 1)
+
     def test_get_method(self):
         obj = optimizers.get("sgd")
         self.assertIsInstance(obj, optimizers.SGD)
@@ -298,7 +311,7 @@ class OptimizerTest(testing.TestCase):
         self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
         self.assertAllClose(v2, [[1.0, 2.0], [3.0, 4.0]])
         self.assertAllClose(
-            optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
+            v.updater.gradient_accumulator, [[1.0, 1.0], [1.0, 1.0]]
         )
         self.assertAllClose(
             optimizer._accumulated_gradients[1], [[1.0, 1.0], [1.0, 1.0]]
@@ -311,7 +324,7 @@ class OptimizerTest(testing.TestCase):
         self.assertAllClose(v, [[2.0, 2.0], [2.0, 2.0]])
         self.assertAllClose(v2, [[-0.5, 0.5], [1.5, 2.5]])
         self.assertAllClose(
-            optimizer._accumulated_gradients[0], [[0.0, 0.0], [0.0, 0.0]]
+            v.updater.gradient_accumulator, [[0.0, 0.0], [0.0, 0.0]]
         )
         self.assertAllClose(
             optimizer._accumulated_gradients[1], [[0.0, 0.0], [0.0, 0.0]]
@@ -324,7 +337,7 @@ class OptimizerTest(testing.TestCase):
         self.assertAllClose(v, [[2.0, 2.0], [2.0, 2.0]])
         self.assertAllClose(v2, [[-0.5, 0.5], [1.5, 2.5]])
         self.assertAllClose(
-            optimizer._accumulated_gradients[0], [[1.0, 1.0], [1.0, 1.0]]
+            v.updater.gradient_accumulator, [[1.0, 1.0], [1.0, 1.0]]
         )
         self.assertAllClose(
             optimizer._accumulated_gradients[1], [[1.0, 1.0], [1.0, 1.0]]

@@ -24,5 +24,6 @@ from keras.src.optimizers.loss_scale_optimizer import (
 from keras.src.optimizers.muon import Muon as Muon
 from keras.src.optimizers.nadam import Nadam as Nadam
 from keras.src.optimizers.optimizer import Optimizer as Optimizer
+from keras.src.optimizers.optimizer import VariableUpdater as VariableUpdater
 from keras.src.optimizers.rmsprop import RMSprop as RMSprop
 from keras.src.optimizers.sgd import SGD as SGD

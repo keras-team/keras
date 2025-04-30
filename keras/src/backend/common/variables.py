@@ -150,6 +150,8 @@ class Variable:
         self._autocast = bool(autocast)
         self._aggregation = aggregation
         self._synchronization = synchronization
+        # Custom variable updater.
+        self._updater = None
         # `self._overwrite_with_gradient` is an internal property to determine
         # whether this variable should be overwritten by the computed gradient.
         # Ref: https://github.com/google/flax/blob/main/flax/linen/fp8_ops.py
@@ -335,6 +337,29 @@ class Variable:
         return self._path
 
     @property
+    def updater(self):
+        """Custom variable updater.
+
+        This property is designed for special-casing variable updates during
+        training, such as quantized float8 `scale` and `amax_history`, where
+        the gradients represent updated scale factors, or for updating large
+        embedding tables, where we need to handle sparse updates to a dense
+        table.
+        """
+        return self._updater
+
+    @updater.setter
+    def updater(self, updater):
+        from keras.src import optimizers
+
+        if not isinstance(updater, optimizers.VariableUpdater):
+            raise TypeError(
+                "`updater` must be a `keras.optimizers.VariableUpdater`. "
+                f"Received: {updater.__class__.__name__}."
+            )
+        self._updater = updater
+
+    @property
     def overwrite_with_gradient(self):
         """Whether this variable should be overwritten by the gradient.
 
@@ -355,6 +380,9 @@ class Variable:
                 f"Received: {value}"
             )
         self._overwrite_with_gradient = value
+        from keras.src import optimizers
+
+        self._updater = optimizers.OverwriteScaleWithGradientUpdater()
 
     @property
     def regularizer(self):
