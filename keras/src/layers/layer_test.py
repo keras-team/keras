@@ -1547,16 +1547,17 @@ class LayerTest(testing.TestCase):
 
     def test_call_context_args_with_custom_layers(self):
         class Inner(layers.Layer):
-            call_context_args = ("foo_mode",)
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
 
             def call(self, x, foo_mode=None):
                 return x + (1 if foo_mode else 0)
 
         class Outer(layers.Layer):
-            call_context_args = ("foo_mode",)
-
             def __init__(self):
                 super().__init__()
+                self._register_call_context_args("foo_mode")
                 self.inner = Inner()
 
             def call(self, x):
@@ -1607,6 +1608,10 @@ class LayerTest(testing.TestCase):
 
         class Inner(layers.Layer):
             call_context_args = ("foo_mode",)
+
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
 
             def call(self, x, foo_mode=None):
                 return x + (1 if foo_mode else 0)
@@ -1668,7 +1673,9 @@ class LayerTest(testing.TestCase):
         """
 
         class Inner(layers.Layer):
-            call_context_args = ("foo_mode",)
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
 
             def call(self, x, foo_mode=False):
                 # If foo_mode=True add 1, otherwise add 0

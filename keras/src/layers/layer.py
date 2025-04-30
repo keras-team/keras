@@ -306,21 +306,21 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._losses_override = []
 
         self._call_signature = inspect.signature(self.call)
-        call_signature_parameters = [
+        self.call_signature_parameters = [
             p.name for p in self._call_signature.parameters.values()
         ]
-        self._call_has_training_arg = "training" in call_signature_parameters
-        self._call_has_mask_arg = "mask" in call_signature_parameters
+        self._call_has_training_arg = (
+            "training" in self.call_signature_parameters
+        )
+        self._call_has_mask_arg = "mask" in self.call_signature_parameters
 
         # 1. collect names that should be auto‑propagated
-        builtin_context_args = {"training"}
-        custom_context_args = set(getattr(self, "call_context_args", ()))
-        self._call_ctx_args = builtin_context_args | custom_context_args
+        self._call_context_args = {"training"}
 
         # 2. remember which of them exist in *this* call signature
         self._call_has_context_arg = {
-            arg: (arg in call_signature_parameters)
-            for arg in self._call_ctx_args
+            arg: (arg in self.call_signature_parameters)
+            for arg in self._call_context_args
         }
 
         self._supports_masking = not utils.is_default(self.compute_mask)
@@ -847,7 +847,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # Caches info about `call()` signature, args, kwargs.
         call_spec = CallSpec(
-            self._call_signature, self._call_ctx_args, args, kwargs
+            self._call_signature, self._call_context_args, args, kwargs
         )
 
         ############################################
@@ -872,7 +872,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # across nested calls.
         call_context = self._get_call_context()
 
-        for context_arg in self._call_ctx_args:
+        for context_arg in self._call_context_args:
             self._resolve_and_populate_arg(
                 context_arg, call_spec, call_context, kwargs
             )
@@ -1126,7 +1126,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         else:
             # Use compute_output_shape() to return the right output spec
             call_spec = CallSpec(
-                self._call_signature, self._call_ctx_args, args, kwargs
+                self._call_signature, self._call_context_args, args, kwargs
             )
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
@@ -1698,18 +1698,29 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return layer_call
 
     def _register_call_context_args(self, *names):
-        """Register call-context args to be propagated by this layer.
+        """Registers call-context args for this layer.
 
-        This is useful in registering custom context-args with predefined
-        layer and model classes so that they know which arguments to
-        propagate down their call-stack.
+        If this layer declares a `call()` method that accepts
+        one or more of the given args, those args will be
+        automatically injected into the call signature of this
+        layer. This layer will also propagate the args to any
+        nested sublayers that are called from within this layer.
 
-        Can be invoked any time *before* the layer is called.
+        If this layer doesn't declare a `call()` method that
+        accepts one or more of the given args, these args will
+        simply be propagated to any nested sublayers without
+        being injected into the call signature of this layer.
+        This is useful for propagating custom arguments
+        from top-level layers/models to sublayers.
 
         Example:
         ```
         class Inner(layers.Layer):
-            call_context_args = ("foo_mode",)
+
+            def __init__(self):
+                super().__init__()
+                # Register `foo_mode` as a call-context arg
+                self._register_call_context_args("foo_mode")
 
             def call(self, x, foo_mode=False):
                 # If foo_mode=True add 1, otherwise add 0
@@ -1722,7 +1733,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 self.inner = Inner()
 
             def call(self, x):
-                # We don’t explicitly pass foo_mode here—Base Layer.__call__
+                # We don't explicitly pass foo_mode here—Base Layer.__call__
                 # should inject it into `self.inner`
                 return self.inner(x)
 
@@ -1742,12 +1753,11 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             raise RuntimeError(
                 "Cannot add call-context args after the layer has been called."
             )
-        self._call_ctx_args = self._call_ctx_args | set(names)
+        self._call_context_args = self._call_context_args | set(names)
 
-    @property
-    def _call_context_args(self):
-        """Tuple of all context-args registered with this layer."""
-        return tuple(self._call_ctx_args)
+        self._call_has_context_arg.update(
+            {arg: (arg in self.call_signature_parameters) for arg in names}
+        )
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
