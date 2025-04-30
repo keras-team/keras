@@ -306,20 +306,20 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         self._losses_override = []
 
         self._call_signature = inspect.signature(self.call)
-        call_signature_parameters = [
+        self.call_signature_parameters = [
             p.name for p in self._call_signature.parameters.values()
         ]
-        self._call_has_training_arg = "training" in call_signature_parameters
-        self._call_has_mask_arg = "mask" in call_signature_parameters
+        self._call_has_training_arg = (
+            "training" in self.call_signature_parameters
+        )
+        self._call_has_mask_arg = "mask" in self.call_signature_parameters
 
         # 1. collect names that should be auto‑propagated
-        builtin_context_args = {"training"}
-        custom_context_args = set(getattr(self, "call_context_args", ()))
-        self._call_context_args = builtin_context_args | custom_context_args
+        self._call_context_args = {"training"}
 
         # 2. remember which of them exist in *this* call signature
         self._call_has_context_arg = {
-            arg: (arg in call_signature_parameters)
+            arg: (arg in self.call_signature_parameters)
             for arg in self._call_context_args
         }
 
@@ -1696,6 +1696,68 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
                 return rematerialized_activation_call_wrapper
         return layer_call
+
+    def _register_call_context_args(self, *names):
+        """Registers call-context args for this layer.
+
+        If this layer declares a `call()` method that accepts
+        one or more of the given args, those args will be
+        automatically injected into the call signature of this
+        layer. This layer will also propagate the args to any
+        nested sublayers that are called from within this layer.
+
+        If this layer doesn't declare a `call()` method that
+        accepts one or more of the given args, these args will
+        simply be propagated to any nested sublayers without
+        being injected into the call signature of this layer.
+        This is useful for propagating custom arguments
+        from top-level layers/models to sublayers.
+
+        Example:
+        ```
+        class Inner(layers.Layer):
+
+            def __init__(self):
+                super().__init__()
+                # Register `foo_mode` as a call-context arg
+                self._register_call_context_args("foo_mode")
+
+            def call(self, x, foo_mode=False):
+                # If foo_mode=True add 1, otherwise add 0
+                add_val = ops.where(foo_mode, 1.0, 0.0)
+                return x + add_val
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                # We don't explicitly pass foo_mode here—Base Layer.__call__
+                # should inject it into `self.inner`
+                return self.inner(x)
+
+        sample_input = np.array([[1.0], [2.0]])
+
+        # Sequential model
+        seq = models.Sequential([Outer()])
+
+        # Tell the Sequential model to propagate foo_mode down
+        # the call-stack
+        seq.register_call_context_args("foo_mode")
+
+        # foo_mode=True -> input + 1
+        out_true = seq(sample_input, foo_mode=True)
+        """
+        if self._called:
+            raise RuntimeError(
+                "Cannot add call-context args after the layer has been called."
+            )
+        self._call_context_args = self._call_context_args | set(names)
+
+        self._call_has_context_arg.update(
+            {arg: (arg in self.call_signature_parameters) for arg in names}
+        )
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
