@@ -1,4 +1,5 @@
 import numpy as np
+import openvino.runtime.opset1 as ov1
 import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
@@ -773,7 +774,49 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    raise NotImplementedError("`flip` is not supported with openvino backend")
+    if axis in ((), []):
+        return x
+    x = get_ov_output(x)
+    rank = x.get_partial_shape().rank.get_length()
+
+    if axis is None:
+        axes = list(range(rank))
+    else:
+        if np.isscalar(axis):
+            axes = [int(axis)]
+        else:
+            axes = [int(a) for a in axis]
+        axes = [(a + rank) if a < 0 else a for a in axes]
+    for ax in sorted(axes):
+        shape = ov_opset.shape_of(x)
+
+        seq_dim = ov_opset.gather(
+            shape,
+            ov_opset.constant(ax, Type.i64),
+            ov_opset.constant(0, Type.i64),
+        ).output(0)
+
+        batch_axis = 0 if ax != 0 else 1
+        batch_dim = ov_opset.gather(
+            shape,
+            ov_opset.constant(batch_axis, Type.i64),
+            ov_opset.constant(0, Type.i64),
+        ).output(0)
+
+        dims_vec = ov_opset.unsqueeze(
+            batch_dim,
+            ov_opset.constant([0], Type.i64),
+        ).output(0)
+
+        seq_lengths = ov_opset.broadcast(seq_dim, dims_vec).output(0)
+
+        x = ov1.reverse_sequence(
+            x,
+            seq_lengths,
+            batch_axis,
+            ax,
+        ).output(0)
+    return OpenVINOKerasTensor(x)
 
 
 def floor(x):
