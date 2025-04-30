@@ -957,7 +957,7 @@ def linspace(
         Size of spacing between samples.
     """
 
-    dtype = dtype or config.floatx()
+    dtype = standardize_dtype(dtype) or config.floatx()
     dtype = OPENVINO_DTYPES[dtype]
 
     start = get_ov_output(start, dtype)
