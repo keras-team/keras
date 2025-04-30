@@ -102,12 +102,6 @@ class LossScaleOptimizer(optimizer.Optimizer):
             ),
         )
 
-    def _overwrite_variable_with_gradient(self, variable):
-        return (
-            hasattr(variable, "overwrite_with_gradient")
-            and variable.overwrite_with_gradient
-        )
-
     def _stateless_handle_finite_grads(
         self, optimizer_variables, grads, trainable_variables
     ):

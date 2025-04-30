@@ -159,24 +159,13 @@ class Ftrl(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self._accumulators = []
-        self._linears = []
-        for var in var_list:
-            self._accumulators.append(
-                self.add_variable(
-                    shape=var.shape,
-                    dtype=var.dtype,
-                    name="accumulator",
-                    initializer=initializers.Constant(
-                        self.initial_accumulator_value,
-                    ),
-                )
-            )
-            self._linears.append(
-                self.add_variable_from_reference(
-                    reference_variable=var, name="linear"
-                )
-            )
+        accumulator_initializer = initializers.Constant(
+            self.initial_accumulator_value,
+        )
+        self._accumulators = self.add_optimizer_variables(
+            var_list, "accumulator", initializer=accumulator_initializer
+        )
+        self._linears = self.add_optimizer_variables(var_list, "linear")
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
