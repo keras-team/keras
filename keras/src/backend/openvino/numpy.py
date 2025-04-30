@@ -958,11 +958,11 @@ def linspace(
     """
 
     dtype = standardize_dtype(dtype) or config.floatx()
-    dtype = OPENVINO_DTYPES[dtype]
+    out_dtype = OPENVINO_DTYPES[dtype]
+    dtype = OPENVINO_DTYPES[config.floatx()]
 
     start = get_ov_output(start, dtype)
     stop = get_ov_output(stop, dtype)
-    # start, stop = _align_operand_types(start, stop, "linspace()")
     start = ov_opset.convert(start, dtype).output(0)
     stop = ov_opset.convert(stop, dtype).output(0)
 
@@ -980,33 +980,35 @@ def linspace(
     div = ov_opset.subtract(num, one_i).output(0) if endpoint else num
     div = ov_opset.convert(div, dtype).output(0)
 
-    zero = ov_opset.convert(zero_i, dtype).output(0)
-    one = ov_opset.convert(one_i, dtype).output(0)
+    zero = ov_opset.constant(0.0, dtype).output(0)
+    one = ov_opset.constant(1.0, dtype).output(0)
     num_f = ov_opset.convert(num, dtype).output(0)
+    seq = ov_opset.range(zero, num_f, one).output(0)
 
-    seq = ov_opset.range(zero, num_f, one, dtype).output(0)
     ndim = len(start.shape)
-    dims = [-1] + [1] * ndim
-    dims_const = ov_opset.constant(dims, Type.i32)
-    seq = ov_opset.reshape(seq, dims_const, False).output(0)
-
-    delta = ov_opset.convert(
-        ov_opset.subtract(stop, start).output(0), dtype
+    dims = ov_opset.concat(
+        [
+            ov_opset.constant([-1], Type.i32),
+            ov_opset.constant([1] * ndim, Type.i32),
+        ],
+        0,
     ).output(0)
+    seq = ov_opset.reshape(seq, dims, False).output(0)
+
+    delta = ov_opset.subtract(stop, start).output(0)
 
     cond = ov_opset.greater(div, zero).output(0)
-
-    nan_const = ov_opset.convert(
-        ov_opset.divide(zero, zero).output(0), dtype
-    ).output(0)
-    step_val = ov_opset.convert(
-        ov_opset.divide(delta, div).output(0), dtype
-    ).output(0)
+    nan_const = ov_opset.constant(float("nan"), dtype).output(0)
+    step_val = ov_opset.divide(delta, div).output(0)
     step = ov_opset.select(cond, step_val, nan_const).output(0)
 
-    target_shape = ov_opset.shape_of(start).output(0)
-    one_tensor = ov_opset.constant([1], Type.i64)
-    target_shape = ov_opset.concat([one_tensor, target_shape], 0).output(0)
+    target_shape = ov_opset.concat(
+        [
+            ov_opset.constant([1], Type.i64),
+            ov_opset.shape_of(start).output(0),
+        ],
+        0,
+    ).output(0)
     step = ov_opset.reshape(step, target_shape, False).output(0)
 
     eq_zero = ov_opset.equal(step, zero).output(0)
@@ -1034,10 +1036,6 @@ def linspace(
     if endpoint:
         idx = ov_opset.subtract(num, one_i).output(0)
         idx = ov_opset.convert(idx, Type.i32).output(0)
-        # idx_tensor = ov_opset.reshape(
-        #     idx, ov_opset.constant([1], Type.i64), False
-        # ).output(0)
-        # stop_tensor = ov_opset.reshape(stop, s_shape, False).output(0)
         idx_tensor = ov_opset.broadcast(idx, target_shape).output(0)
         stop_tensor = ov_opset.broadcast(stop, target_shape).output(0)
         y = ov_opset.scatter_elements_update(
@@ -1055,8 +1053,12 @@ def linspace(
         perm = ov_opset.concat([pre, zero_i, post], 0).output(0)
         y = ov_opset.transpose(y, perm).output(0)
 
-    y = ov_opset.convert(y, dtype).output(0)
-    return (OpenVINOKerasTensor(y), step) if retstep else OpenVINOKerasTensor(y)
+    y = ov_opset.convert(y, out_dtype).output(0)
+    if retstep:
+        return OpenVINOKerasTensor(y), ov_opset.convert(step, out_dtype).output(
+            0
+        )
+    return OpenVINOKerasTensor(y)
 
 
 def log(x):
