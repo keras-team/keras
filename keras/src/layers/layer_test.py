@@ -1607,8 +1607,6 @@ class LayerTest(testing.TestCase):
         """
 
         class Inner(layers.Layer):
-            call_context_args = ("foo_mode",)
-
             def __init__(self):
                 super().__init__()
                 self._register_call_context_args("foo_mode")
