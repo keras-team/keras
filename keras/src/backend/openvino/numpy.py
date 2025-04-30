@@ -962,7 +962,7 @@ def linspace(
 
     start = get_ov_output(start, dtype)
     stop = get_ov_output(stop, dtype)
-    start, stop = _align_operand_types(start, stop, "linspace()")
+    # start, stop = _align_operand_types(start, stop, "linspace()")
 
     if isinstance(num, OpenVINOKerasTensor):
         num = get_ov_output(num, Type.i32)
