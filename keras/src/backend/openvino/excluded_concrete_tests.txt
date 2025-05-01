@@ -9,6 +9,7 @@ NumpyDtypeTest::test_any
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_bartlett
+NumpyDtypeTest::test_blackman
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
@@ -77,6 +78,7 @@ NumpyOneInputOpsCorrectnessTest::test_any
 NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_bartlett
+NumpyOneInputOpsCorrectnessTest::test_blackman
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_correlate
@@ -154,4 +156,5 @@ NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyTwoInputOpsCorrectnessTest::test_where
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_bartlett
+NumpyOneInputOpsDynamicShapeTest::test_blackman
 NumpyOneInputOpsStaticShapeTest::test_angle
