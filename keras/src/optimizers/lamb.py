@@ -94,8 +94,13 @@ class Lamb(optimizer.Optimizer):
         beta_1_power = ops.power(
             ops.cast(self.beta_1, variable.dtype), local_step
         )
+        if variable.dtype == "bfloat16":
+            # 0.996 is the largest number less than 1 in BF16
+            beta_2_power = ops.minimum(self.beta_2, 0.996)
+        else:
+            beta_2_power = self.beta_2
         beta_2_power = ops.power(
-            ops.cast(self.beta_2, variable.dtype), local_step
+            ops.cast(beta_2_power, variable.dtype), local_step
         )
 
         m = self._momentums[self._get_variable_index(variable)]
