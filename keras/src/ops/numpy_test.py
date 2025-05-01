@@ -8904,7 +8904,7 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_complex(real_imag)
 
         self.assertEqual(result.shape, expected.shape)
-        self.assertEqual(result.dtype, expected.dtype)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
         self.assertAllClose(result, expected)
 
     def test_view_as_real_basic(self):
@@ -8914,7 +8914,7 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_real(complex_tensor)
 
         self.assertEqual(result.shape, expected.shape)
-        self.assertEqual(result.dtype, expected.dtype)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
         self.assertAllClose(result, expected)
 
     def test_view_as_complex_invalid_shape(self):
@@ -8929,14 +8929,14 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_complex(x)
 
         self.assertEqual(result.shape, (None,))
-        self.assertEqual(result.dtype, "complex64")
+        self.assertEqual(standardize_dtype(result.dtype), "complex64")
 
     def test_view_as_real_symbolic_input(self):
         x = KerasTensor(shape=(None,), dtype="complex64")
         result = knp.view_as_real(x)
 
         self.assertEqual(result.shape, (None, 2))
-        self.assertEqual(result.dtype, "float32")
+        self.assertEqual(standardize_dtype(result.dtype), "float32")
 
     def test_view_as_complex_multi_dimensional(self):
         x = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32)
@@ -8945,7 +8945,7 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_complex(x)
 
         self.assertEqual(result.shape, expected.shape)
-        self.assertEqual(result.dtype, expected.dtype)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
         self.assertAllClose(result, expected)
 
     def test_view_as_real_multi_dimensional(self):
@@ -8955,5 +8955,5 @@ class ViewAsComplexRealTest(testing.TestCase):
         result = knp.view_as_real(x)
 
         self.assertEqual(result.shape, expected.shape)
-        self.assertEqual(result.dtype, expected.dtype)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
         self.assertAllClose(result, expected)
