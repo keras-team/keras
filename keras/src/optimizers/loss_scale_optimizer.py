@@ -60,6 +60,9 @@ class LossScaleOptimizer(optimizer.Optimizer):
         self.inner_optimizer = inner_optimizer
         self.initial_scale = initial_scale
         self.dynamic_growth_steps = dynamic_growth_steps
+        # Disable the inner optimizer's loss scaling, otherwise
+        # gradients will be scaled twice.
+        self.inner_optimizer.loss_scale_factor = None
 
     @tracking.no_automatic_dependency_tracking
     def build(self, var_list):
@@ -100,12 +103,6 @@ class LossScaleOptimizer(optimizer.Optimizer):
             lambda: self._stateless_handle_non_finite_grads(
                 optimizer_variables, trainable_variables
             ),
-        )
-
-    def _overwrite_variable_with_gradient(self, variable):
-        return (
-            hasattr(variable, "overwrite_with_gradient")
-            and variable.overwrite_with_gradient
         )
 
     def _stateless_handle_finite_grads(

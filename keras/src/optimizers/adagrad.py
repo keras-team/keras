@@ -70,17 +70,10 @@ class Adagrad(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self._accumulators = []
         initializer = initializers.Constant(self.initial_accumulator_value)
-        for var in var_list:
-            self._accumulators.append(
-                self.add_variable(
-                    shape=var.shape,
-                    initializer=initializer,
-                    dtype=var.dtype,
-                    name="accumulator",
-                )
-            )
+        self._accumulators = self.add_optimizer_variables(
+            var_list, "accumulator", initializer=initializer
+        )
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
