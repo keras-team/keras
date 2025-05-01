@@ -131,6 +131,21 @@ def add(x1, x2):
     return tf.add(x1, x2)
 
 
+def bartlett(x):
+    x = convert_to_tensor(x, dtype=config.floatx())
+    if x == 0:
+        return tf.constant([])
+    if x == 1:
+        return tf.ones([1])
+
+    n = tf.range(x)
+    half = (x - 1) / 2
+
+    window = tf.where(n <= half, 2.0 * n / (x - 1), 2.0 - 2.0 * n / (x - 1))
+
+    return window
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]

@@ -94,25 +94,17 @@ class RMSprop(optimizer.Optimizer):
 
         super().build(var_list)
 
-        self._velocities = []
-        for var in var_list:
-            self._velocities.append(
-                self.add_variable_from_reference(var, "velocity")
-            )
+        self._velocities = self.add_optimizer_variables(var_list, "velocity")
 
         self._momentums = []
         if self.momentum > 0:
-            for var in var_list:
-                self._momentums.append(
-                    self.add_variable_from_reference(var, "momentum")
-                )
+            self._momentums = self.add_optimizer_variables(var_list, "momentum")
 
         self._average_gradients = []
         if self.centered:
-            for var in var_list:
-                self._average_gradients.append(
-                    self.add_variable_from_reference(var, "average_gradient")
-                )
+            self._average_gradients = self.add_optimizer_variables(
+                var_list, "average_gradient"
+            )
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""

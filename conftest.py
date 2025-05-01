@@ -38,7 +38,7 @@ def pytest_collection_modifyitems(config, items):
             ]
 
     requires_trainable_backend = pytest.mark.skipif(
-        backend() == "numpy" or backend() == "openvino",
+        backend() in ["numpy", "openvino"],
         reason="Trainer not implemented for NumPy and OpenVINO backend.",
     )
     for item in items:

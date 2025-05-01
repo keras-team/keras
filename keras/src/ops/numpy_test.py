@@ -1220,6 +1220,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             weights = KerasTensor((None, 4))
             knp.average(x, weights=weights)
 
+    def test_bartlett(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertEqual(knp.bartlett(x).shape[0], x)
+
     def test_bitwise_invert(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.bitwise_invert(x).shape, (None, 3))
@@ -3590,6 +3594,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.average(x, axis=1, weights=weights_1d),
         )
 
+    def test_bartlett(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertAllClose(knp.bartlett(x), np.bartlett(x))
+
+        self.assertAllClose(knp.Bartlett()(x), np.bartlett(x))
+
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
@@ -5552,6 +5562,22 @@ class NumpyDtypeTest(testing.TestCase):
             self.assertEqual(
                 knp.Add().symbolic_call(x, 1.0).dtype, expected_dtype
             )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_bartlett(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.bartlett(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.bartlett(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Bartlett().symbolic_call(x).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(named_product(dtype=INT_DTYPES))
     def test_bincount(self, dtype):

@@ -305,6 +305,11 @@ def average(x, axis=None, weights=None):
     return np.average(x, weights=weights, axis=axis)
 
 
+def bartlett(x):
+    x = convert_to_tensor(x)
+    return np.bartlett(x).astype(config.floatx())
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")

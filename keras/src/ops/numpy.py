@@ -1210,6 +1210,35 @@ def average(x, axis=None, weights=None):
     return backend.numpy.average(x, weights=weights, axis=axis)
 
 
+class Bartlett(Operation):
+    def call(self, x):
+        return backend.numpy.bartlett(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.bartlett", "keras.ops.numpy.bartlett"])
+def bartlett(x):
+    """Bartlett window function.
+    The Bartlett window is a triangular window that rises then falls linearly.
+
+    Args:
+        x: Scalar or 1D Tensor. Window length.
+
+    Returns:
+        A 1D tensor containing the Bartlett window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.bartlett(x)
+    array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Bartlett().symbolic_call(x)
+    return backend.numpy.bartlett(x)
+
+
 class Bincount(Operation):
     def __init__(self, weights=None, minlength=0, sparse=False):
         super().__init__()
