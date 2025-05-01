@@ -1206,7 +1206,11 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def ravel(x):
-    raise NotImplementedError("`ravel` is not supported with openvino backend")
+    x = get_ov_output(x)
+    target_shape = ov_opset.constant([-1], dtype=Type.i32).output(0)
+    return OpenVINOKerasTensor(
+        ov_opset.reshape(x, target_shape, special_zero=False).output(0)
+    )
 
 
 def real(x):
