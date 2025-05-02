@@ -1,5 +1,4 @@
 import numpy as np
-import openvino.runtime.opset1 as ov1
 import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
@@ -810,7 +809,7 @@ def flip(x, axis=None):
 
         seq_lengths = ov_opset.broadcast(seq_dim, dims_vec).output(0)
 
-        x = ov1.reverse_sequence(
+        x = ov_opset.reverse_sequence(
             x,
             seq_lengths,
             batch_axis,
