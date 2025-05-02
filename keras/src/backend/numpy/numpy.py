@@ -310,6 +310,11 @@ def bartlett(x):
     return np.bartlett(x).astype(config.floatx())
 
 
+def hamming(x):
+    x = convert_to_tensor(x)
+    return np.hamming(x).astype(config.floatx())
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")

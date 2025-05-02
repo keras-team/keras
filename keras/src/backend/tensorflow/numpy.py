@@ -146,6 +146,11 @@ def bartlett(x):
     return window
 
 
+def hamming(x):
+    x = convert_to_tensor(x)
+    return tf.signal.hamming_window(x)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
