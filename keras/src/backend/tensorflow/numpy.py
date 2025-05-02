@@ -1999,7 +1999,7 @@ def unravel_index(x, shape):
 
     if None in shape:
         raise ValueError(
-            "`shape` argument cannot contain `None`. Received: shape={shape}"
+            f"`shape` argument cannot contain `None`. Received: shape={shape}"
         )
 
     if x.ndim == 1:
