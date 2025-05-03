@@ -77,6 +77,11 @@ class ConstantInitializersTest(testing.TestCase):
 
     @skip_if_backend("openvino", "openvino backend does not support `arange`")
     def test_stft_initializer(self):
+        if backend.backend() == "mlx":
+            # for mlx backend force on to cpu for float64
+            self.mlx_cpu_context = backend.core.enable_float64()
+            self.mlx_cpu_context.__enter__()
+
         shape = (256, 1, 513)
         time_range = np.arange(256).reshape((-1, 1, 1))
         freq_range = (np.arange(513) / 1024.0).reshape((1, 1, -1))
@@ -142,3 +147,6 @@ class ConstantInitializersTest(testing.TestCase):
         # Test compatible class_name
         initializer = initializers.get("STFTInitializer")
         self.assertIsInstance(initializer, initializers.STFT)
+
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context.__exit__(None, None, None)

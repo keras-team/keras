@@ -21,7 +21,7 @@ except ImportError:
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
-IS_THREAD_SAFE = True
+IS_THREAD_SAFE = False  # True
 
 MLX_DTYPES = {
     "float16": mx.float16,
@@ -594,6 +594,18 @@ class custom_gradient:
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
         return outputs
+
+
+def remat(f):
+    """Implementation of rematerialization.
+
+    Args:
+        f: The function or operation to rematerialize.
+    Returns:
+        A function wrapping f that defines a custom gradient, which
+        recomputes f on the backwards pass of a gradient call.
+    """
+    return mx.checkpoint(f)
 
 
 def enable_float64():
