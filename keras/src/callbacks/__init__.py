@@ -13,3 +13,4 @@ from keras.src.callbacks.remote_monitor import RemoteMonitor
 from keras.src.callbacks.swap_ema_weights import SwapEMAWeights
 from keras.src.callbacks.tensorboard import TensorBoard
 from keras.src.callbacks.terminate_on_nan import TerminateOnNaN
+from keras.src.callbacks.memory_usage_callback import MemoryUsageCallback
