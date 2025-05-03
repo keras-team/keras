@@ -1544,3 +1544,181 @@ class LayerTest(testing.TestCase):
         layer = MyDenseLayer(10)
         output = layer(inputs)
         self.assertAllEqual(output.shape, (10, 10))
+
+    def test_call_context_args_with_custom_layers(self):
+        class Inner(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+                self.inner = Inner()
+
+            def call(self, x):
+                # Outer doesn’t even need to re‑inject explicitly:
+                # our base class will propagate foo_mode automatically
+                return self.inner(x)
+
+        layer = Outer()
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
+        self.assertEqual(int(layer(np.array(0))), 0)
+
+    def test_register_call_context_arguments(self):
+        """Validate that registering call-context args works as expected."""
+
+        class MyLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = MyLayer()
+
+        layer._register_call_context_args("foo_mode")
+
+        self.assertCountEqual(
+            layer._call_context_args, ("foo_mode", "training")
+        )
+
+    def test_register_call_context_arguments_after_call(self):
+        """Validate that registering call-context args after the layer has
+        been called raises an error."""
+
+        class MyLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = MyLayer()
+        layer(np.array(0))
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Cannot add call-context args after the layer has been called.",
+        ):
+            layer._register_call_context_args("foo_mode")
+
+    def test_context_args_with_triple_nesting_and_priority(self):
+        """Validate that call-context args are propagated correctly
+        through multiple layers, and that the most specific value is used
+        when multiple values are passed down the call-stack.
+        """
+
+        class Inner(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Middle(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                return self.inner(x)
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.middle = Middle()
+
+            def call(self, x):
+                # Outer explicitly sets foo_mode=False when calling Inner,
+                # so the value being passed here should be ignored.
+                return self.middle(x)
+
+        layer = Outer()
+        layer._register_call_context_args("foo_mode")
+
+        # The value of foo_mode is set to True in the call to Outer,
+        # so it should automatically propagate to Inner through Middle.
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
+        self.assertEqual(int(layer(np.array(0))), 0)
+
+    def test_context_arg_propagation_without_declaration(self):
+        """Validate that layer does not resolve a propagated arg if it is not
+        declared as a call-context arg in the layer itself."""
+
+        class Inner(layers.Layer):
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Wrapper(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                return self.inner(x)
+
+        layer = Wrapper()
+        layer._register_call_context_args("foo_mode")
+
+        # The value of foo_mode is set to True in the call to Wrapper,
+        # However, it is not declared as a call-context arg in Inner,
+        # so it should not resolve to True inside Inner (and instead
+        # default to False).
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 0)
+
+    def test_call_context_args_with_func_seq_models_as_layers(self):
+        """Validate that call-context args are propagated correctly
+        through functional and sequential models when used as layers.
+        """
+
+        class Inner(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+
+            def call(self, x, foo_mode=False):
+                # If foo_mode=True add 1, otherwise add 0
+                add_val = ops.where(foo_mode, 1.0, 0.0)
+                return x + add_val
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                # We don’t explicitly pass foo_mode here—Base Layer.__call__
+                # should inject it into `self.inner`
+                return self.inner(x)
+
+        sample_input = np.array([[1.0], [2.0]])
+
+        # Sequential model
+        seq = models.Sequential([layers.Identity(), Outer()])
+        # Tell the Sequential model to propagate foo_mode down
+        # the call-stack
+        seq._register_call_context_args("foo_mode")
+
+        # foo_mode=True -> input + 1
+        out_true = seq(sample_input, foo_mode=True)
+        self.assertAllClose(out_true, sample_input + 1.0)
+
+        # foo_mode omitted -> foo_mode defaults to False -> no change
+        out_false = seq(sample_input)
+        self.assertAllClose(out_false, sample_input)
+
+        # Functional model
+        inp = Input(shape=(1,))
+        out = layers.Identity()(inp)
+        out = Outer()(out)
+        model = models.Model(inp, out)
+        # Tell the Functional model to propagate foo_mode down
+        # the call-stack
+        model._register_call_context_args("foo_mode")
+
+        # foo_mode=True -> input + 1
+        y1 = model(sample_input, foo_mode=True)
+        self.assertAllClose(y1, sample_input + 1.0)
+
+        # foo_mode omitted -> foo_mode defaults to False -> no change
+        y2 = model(sample_input)
+        self.assertAllClose(y2, sample_input)

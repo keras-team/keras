@@ -26,6 +26,15 @@ def sigmoid(x):
     return output
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return tf.where(
+        x <= -1,
+        tf.constant(0.0, dtype=x.dtype),
+        tf.where(x >= 1, tf.constant(1.0, dtype=x.dtype), 0.5 * (x + 1)),
+    )
+
+
 def tanh(x):
     return tf.nn.tanh(x)
 
@@ -344,7 +353,7 @@ def depthwise_conv(
     if num_spatial_dims > 2:
         raise ValueError(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
-            "{inputs.ndim}."
+            f"{inputs.ndim}."
         )
     # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.

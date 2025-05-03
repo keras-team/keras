@@ -37,6 +37,11 @@ def add(x1, x2):
     return jnp.add(x1, x2)
 
 
+def bartlett(x):
+    x = convert_to_tensor(x)
+    return jnp.bartlett(x)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     # Note: bincount is never tracable / jittable because the output shape
     # depends on the values in x.
@@ -244,6 +249,16 @@ def abs(x):
 
 def all(x, axis=None, keepdims=False):
     return jnp.all(x, axis=axis, keepdims=keepdims)
+
+
+def angle(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
+    return jnp.angle(x)
 
 
 def any(x, axis=None, keepdims=False):
@@ -895,10 +910,12 @@ def not_equal(x1, x2):
     return jnp.not_equal(x1, x2)
 
 
+@sparse.elementwise_unary(linear=False)
 def ones_like(x, dtype=None):
     return jnp.ones_like(x, dtype=dtype)
 
 
+@sparse.elementwise_unary(linear=True)
 def zeros_like(x, dtype=None):
     return jnp.zeros_like(x, dtype=dtype)
 

@@ -248,11 +248,10 @@ class ModelCheckpoint(Callback):
             current = logs.get(self.monitor)
             if current is None:
                 warnings.warn(
-                    f"Can save best model only with {self.monitor} "
-                    "available, skipping.",
+                    f"Can save best model only with {self.monitor} available.",
                     stacklevel=2,
                 )
-                return False
+                return True
             elif (
                 isinstance(current, np.ndarray) or backend.is_tensor(current)
             ) and len(current.shape) > 0:

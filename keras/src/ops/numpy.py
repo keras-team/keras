@@ -328,6 +328,41 @@ class Any(Operation):
         )
 
 
+class Angle(Operation):
+    def call(self, x):
+        return backend.numpy.angle(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.angle", "keras.ops.numpy.angle"])
+def angle(x):
+    """Element-wise angle of a complex tensor.
+
+    Arguments:
+        x: Input tensor. Can be real or complex.
+
+    Returns:
+        Output tensor of same shape as x. containing the angle of each element
+        (in radians).
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor([[1 + 3j, 2 - 5j], [4 - 3j, 3 + 2j]])
+    >>> keras.ops.angle(x)
+    array([[ 1.2490457, -1.19029  ],
+       [-0.6435011,  0.5880026]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Angle().symbolic_call(x)
+    return backend.numpy.angle(x)
+
+
 @keras_export(["keras.ops.any", "keras.ops.numpy.any"])
 def any(x, axis=None, keepdims=False):
     """Test whether any array element along a given axis evaluates to `True`.
@@ -1173,6 +1208,35 @@ def average(x, axis=None, weights=None):
     if any_symbolic_tensors((x,)):
         return Average(axis=axis).symbolic_call(x, weights=weights)
     return backend.numpy.average(x, weights=weights, axis=axis)
+
+
+class Bartlett(Operation):
+    def call(self, x):
+        return backend.numpy.bartlett(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.bartlett", "keras.ops.numpy.bartlett"])
+def bartlett(x):
+    """Bartlett window function.
+    The Bartlett window is a triangular window that rises then falls linearly.
+
+    Args:
+        x: Scalar or 1D Tensor. Window length.
+
+    Returns:
+        A 1D tensor containing the Bartlett window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.bartlett(x)
+    array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Bartlett().symbolic_call(x)
+    return backend.numpy.bartlett(x)
 
 
 class Bincount(Operation):
@@ -2219,7 +2283,7 @@ class Diagonal(Operation):
         if len(x_shape) < 2:
             raise ValueError(
                 "`diagonal` requires an array of at least two dimensions, but "
-                "`x` is of shape {x.shape}."
+                f"`x` is of shape {x.shape}."
             )
 
         shape_2d = [x_shape[self.axis1], x_shape[self.axis2]]
@@ -4391,7 +4455,8 @@ class OnesLike(Operation):
     def compute_output_spec(self, x, dtype=None):
         if dtype is None:
             dtype = x.dtype
-        return KerasTensor(x.shape, dtype=dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.ones_like", "keras.ops.numpy.ones_like"])
@@ -4417,7 +4482,8 @@ class ZerosLike(Operation):
     def compute_output_spec(self, x, dtype=None):
         if dtype is None:
             dtype = x.dtype
-        return KerasTensor(x.shape, dtype=dtype)
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(
@@ -5425,15 +5491,17 @@ class Take(Operation):
         x_shape = list(x.shape)
         if isinstance(indices, KerasTensor):
             indices_shape = list(indices.shape)
+            ragged = indices.ragged
         else:
             indices_shape = list(getattr(np.array(indices), "shape", []))
+            ragged = False
         if self.axis is None:
             return KerasTensor(indices_shape, dtype=x.dtype)
 
         # make sure axis is non-negative
         axis = len(x_shape) + self.axis if self.axis < 0 else self.axis
         output_shape = x_shape[:axis] + indices_shape + x_shape[axis + 1 :]
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=x.dtype, ragged=ragged)
 
 
 @keras_export(["keras.ops.take", "keras.ops.numpy.take"])

@@ -93,7 +93,6 @@ the package has been imported.
 
 **Note:** The OpenVINO backend is an inference-only backend, meaning it is designed only for running model
 predictions using `model.predict()` method.
-To use `openvino` backend, install the required dependencies from the `requirements-openvino.txt` file.
 
 ## Backwards compatibility
 

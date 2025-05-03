@@ -264,6 +264,17 @@ def all(x, axis=None, keepdims=False):
     return cast(x, "bool")
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+
+    # torch.angle doesn't support float16 with cuda
+    if get_device() != "cpu" and ori_dtype == "float16":
+        x = cast(x, "float32")
+        return cast(torch.angle(x), "float16")
+    return torch.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
@@ -417,6 +428,11 @@ def average(x, axis=None, weights=None):
             weights, dim=-1
         )
     return torch.mean(x, axis)
+
+
+def bartlett(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.bartlett(x)
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):

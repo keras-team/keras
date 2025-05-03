@@ -160,15 +160,18 @@ class Muon(optimizer.Optimizer):
         self.muon_velocities = {}
 
         for var in var_list:
-            self.adam_momentums[var.path] = self.add_variable_from_reference(
-                reference_variable=var, name="momentum"
-            )
-            if self._should_use_adamw(var):
-                self.adam_velocities[var.path] = (
+            if not self._overwrite_variable_with_gradient(var):
+                self.adam_momentums[var.path] = (
                     self.add_variable_from_reference(
-                        reference_variable=var, name="velocity"
+                        reference_variable=var, name="momentum"
                     )
                 )
+                if self._should_use_adamw(var):
+                    self.adam_velocities[var.path] = (
+                        self.add_variable_from_reference(
+                            reference_variable=var, name="velocity"
+                        )
+                    )
 
     def update_step(self, gradient, variable, learning_rate):
         if self._should_use_adamw(variable):
@@ -237,15 +240,14 @@ class Muon(optimizer.Optimizer):
         return X
 
     def zeropower_via_newtonschulz5(self, x, steps: int):
-        """
-        We apply the Newton-Schulz iteration to compute matrix G.
-        We select a quintic iteration that maximizes the slope at zero.
-        This approach helps minimize steps, even if the iteration doesn't fully
-        converge across the interval.
-        The result isn't exactly UV^T (from the SVD of G),
-        but rather an approximation like US'V^T. Despite this approximation,
-        model performance remains unaffected
-        compared to using the exact UV^T from the SVD.
+        """We apply the Newton-Schulz iteration to compute matrix G.
+
+        We select a quintic iteration that maximizes the slope at zero. This
+        approach helps minimize steps, even if the iteration doesn't fully
+        converge across the interval. The result isn't exactly UV^T (from the
+        SVD of G), but rather an approximation like US'V^T. Despite this
+        approximation, model performance remains unaffected compared to using
+        the exact UV^T from the SVD.
         """
         shape = ops.shape(x)
         assert len(shape) >= 2

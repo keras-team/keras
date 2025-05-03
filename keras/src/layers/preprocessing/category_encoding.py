@@ -157,7 +157,7 @@ class CategoryEncoding(TFDataLayer):
             if self.output_mode != "count":
                 raise ValueError(
                     "`count_weights` is not used when `output_mode` is not "
-                    "`'count'`. Received `count_weights={count_weights}`."
+                    f"`'count'`. Received `count_weights={count_weights}`."
                 )
             count_weights = self.backend.convert_to_tensor(
                 count_weights, dtype=self.compute_dtype

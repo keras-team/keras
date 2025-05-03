@@ -138,6 +138,16 @@ def all(x, axis=None, keepdims=False):
     return np.all(x, axis=axis, keepdims=keepdims)
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
+    return np.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     return np.any(x, axis=axis, keepdims=keepdims)
@@ -293,6 +303,11 @@ def average(x, axis=None, weights=None):
     if weights is not None:
         weights = weights.astype(dtype)
     return np.average(x, weights=weights, axis=axis)
+
+
+def bartlett(x):
+    x = convert_to_tensor(x)
+    return np.bartlett(x).astype(config.floatx())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):

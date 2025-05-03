@@ -5,6 +5,8 @@ from openvino import Type
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.variables import standardize_dtype
+from keras.src.backend.openvino.core import DTYPES_MAX
+from keras.src.backend.openvino.core import DTYPES_MIN
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
@@ -938,7 +940,17 @@ def log10(x):
 
 
 def log1p(x):
-    raise NotImplementedError("`log1p` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type)
+
+    one_const = ov_opset.constant(1, x_type).output(0)
+    added = ov_opset.add(x, one_const).output(0)
+    result = ov_opset.log(added).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def log2(x):
@@ -1006,7 +1018,46 @@ def meshgrid(*x, indexing="xy"):
 
 
 def min(x, axis=None, keepdims=False, initial=None):
-    raise NotImplementedError("`min` is not supported with openvino backend")
+    x = get_ov_output(x)
+    original_type = x.get_element_type()
+    x_type = original_type
+    x_shape = x.get_partial_shape().to_shape()
+
+    is_bool = x_type == Type.boolean
+    if is_bool:
+        x = ov_opset.convert(x, Type.i32).output(0)
+        x_type = Type.i32
+
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return OpenVINOKerasTensor(x)
+
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+
+    if isinstance(axis, tuple):
+        axis = list(axis)
+
+    axis_const = ov_opset.constant(axis, Type.i32).output(0)
+    min_result = ov_opset.reduce_min(x, axis_const, keepdims).output(0)
+
+    if initial is not None:
+        initial_tensor = ov_opset.constant(initial, x_type).output(0)
+        min_result = ov_opset.minimum(min_result, initial_tensor).output(0)
+
+    if keepdims:
+        result_shape = [1] * len(x_shape)
+        min_result = ov_opset.reshape(
+            min_result,
+            ov_opset.constant(result_shape, Type.i32).output(0),
+            False,
+        ).output(0)
+
+    if is_bool:
+        min_result = ov_opset.convert(min_result, Type.boolean).output(0)
+
+    return OpenVINOKerasTensor(min_result)
 
 
 def minimum(x1, x2):
@@ -1030,19 +1081,49 @@ def moveaxis(x, source, destination):
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
-    raise NotImplementedError(
-        "`nan_to_num` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    dtype = x.get_element_type()
+    if dtype.is_integral():
+        return OpenVINOKerasTensor(x)
+    isfloat64 = True if dtype == Type.f64 else False
+    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = ov_opset.convert(x, Type.f32).output(0)
+        dtype = Type.f32
+    nan_val = ov_opset.constant(nan, dtype).output(0)
+    posinf_val = ov_opset.constant(
+        posinf if posinf is not None else DTYPES_MAX[dtype], dtype
+    ).output(0)
+    neginf_val = ov_opset.constant(
+        neginf if neginf is not None else DTYPES_MIN[dtype], dtype
+    ).output(0)
+    posinf_mask = ov_opset.is_inf(
+        x,
+        {"detect_positive": True, "detect_negative": False},
+    ).output(0)
+    neginf_mask = ov_opset.is_inf(
+        x,
+        {"detect_positive": False, "detect_negative": True},
+    ).output(0)
+    nan_mask = ov_opset.is_nan(x).output(0)
+    x = ov_opset.select(nan_mask, nan_val, x).output(0)
+    x = ov_opset.select(posinf_mask, posinf_val, x).output(0)
+    x = ov_opset.select(neginf_mask, neginf_val, x).output(0)
+    if isfloat64:
+        x = ov_opset.convert(x, Type.f64).output(0)
+    return OpenVINOKerasTensor(x)
 
 
 def ndim(x):
-    raise NotImplementedError("`ndim` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = ov_opset.shape_of(x).output(0)
+    x_dim = ov_opset.shape_of(x_shape, "i64")
+    return x_dim
 
 
 def nonzero(x):
-    raise NotImplementedError(
-        "`nonzero` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    res = ov_opset.non_zero(data=x, output_type="i32").output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def not_equal(x1, x2):
@@ -1125,7 +1206,11 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def ravel(x):
-    raise NotImplementedError("`ravel` is not supported with openvino backend")
+    x = get_ov_output(x)
+    target_shape = ov_opset.constant([-1], dtype=Type.i32).output(0)
+    return OpenVINOKerasTensor(
+        ov_opset.reshape(x, target_shape, special_zero=False).output(0)
+    )
 
 
 def real(x):

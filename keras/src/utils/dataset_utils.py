@@ -406,7 +406,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     if left_size + right_size > total_length:
         raise ValueError(
             "The sum of `left_size` and `right_size` should "
-            "be smaller than the {total_length}. "
+            f"be smaller than the {total_length}. "
             f"Received: left_size + right_size = {left_size + right_size}"
             f"and total_length = {total_length}"
         )

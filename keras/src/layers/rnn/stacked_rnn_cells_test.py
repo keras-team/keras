@@ -275,3 +275,14 @@ class StackedRNNTest(testing.TestCase):
         self.assertEqual(shape[1][1], (2, 10))
         self.assertEqual(shape[2][0], (2, 10))
         self.assertEqual(shape[2][1], (2, 10))
+
+    def test_stacked_lstm_cell_mask(self):
+        sequence = np.ones((2, 3, 4))
+        mask = np.array([[True, True, True], [True, True, False]])
+        cell_kwargs = dict(
+            units=1, kernel_initializer="ones", recurrent_initializer="ones"
+        )
+        rnn_cells = [layers.LSTMCell(**cell_kwargs) for _ in range(2)]
+        stacked_rnn = layers.RNN(rnn_cells)
+        output = stacked_rnn(sequence, mask=mask)
+        self.assertAllClose(np.array([[0.7793], [0.5998]]), output, atol=1e-4)
