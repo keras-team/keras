@@ -21,7 +21,8 @@ except ImportError:
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
-IS_THREAD_SAFE = False  # True
+# TODO: follow updates and adjust to thread safe when possible
+IS_THREAD_SAFE = False  # False as of mlx 0.24.0
 
 MLX_DTYPES = {
     "float16": mx.float16,
