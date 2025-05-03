@@ -665,7 +665,7 @@ def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
             raise ValueError(
-                "Expected input to have rank >= 1. Received scalar input {a}."
+                f"Expected input to have rank >= 1. Received scalar input {a}."
             )
 
 
@@ -674,7 +674,7 @@ def _assert_2d(*arrays):
         if a.ndim < 2:
             raise ValueError(
                 "Expected input to have rank >= 2. "
-                "Received input with shape {a.shape}."
+                f"Received input with shape {a.shape}."
             )
 
 

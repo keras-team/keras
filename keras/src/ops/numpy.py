@@ -2283,7 +2283,7 @@ class Diagonal(Operation):
         if len(x_shape) < 2:
             raise ValueError(
                 "`diagonal` requires an array of at least two dimensions, but "
-                "`x` is of shape {x.shape}."
+                f"`x` is of shape {x.shape}."
             )
 
         shape_2d = [x_shape[self.axis1], x_shape[self.axis2]]
