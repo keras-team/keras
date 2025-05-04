@@ -1070,7 +1070,7 @@ class ViewAsReal(Operation):
         return KerasTensor(shape=x.shape + (2,), dtype="float32")
 
 
-@keras_export(["keras.ops.view_as_complex", "keras.ops.math.view_as_complex"])
+@keras_export("keras.ops.view_as_complex")
 def view_as_complex(x):
     """Converts a real tensor with shape `(..., 2)` to a complex tensor,
     where the last dimension represents the real and imaginary components
@@ -1111,7 +1111,7 @@ def view_as_complex(x):
     )
 
 
-@keras_export(["keras.ops.view_as_real", "keras.ops.math.view_as_real"])
+@keras_export("keras.ops.view_as_real")
 def view_as_real(x):
     """Converts a complex tensor to a real tensor with shape `(..., 2)`,
     where the last dimension represents the real and imaginary components.
