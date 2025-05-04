@@ -1,7 +1,6 @@
 import os
 import glob
 import tempfile
-import warnings
 
 from contextlib import redirect_stdout
 from io import StringIO
@@ -18,6 +17,7 @@ from keras.src.testing import TestCase
 from keras.src import backend as K
 
 # Skip all tests if psutil is not installed
+
 try:
     import psutil
 except ImportError:
@@ -48,6 +48,7 @@ class MemoryUsageCallbackTest(TestCase):
         out = StringIO()
         with redirect_stdout(out):
             # Mock GPU memory for predictability
+
             with patch.object(
                 MemoryUsageCallback, "_get_gpu_memory", return_value=42.0
             ):
@@ -62,13 +63,16 @@ class MemoryUsageCallbackTest(TestCase):
                 )
         log = out.getvalue().splitlines()
         # Check epoch logs
+
         for i in range(self.epochs):
             assert any(f"Epoch {i} start" in line for line in log)
             assert any(f"Epoch {i} end" in line for line in log)
         # Check batch logs count
+
         batch_lines = [l for l in log if l.startswith("Batch")]
         assert len(batch_lines) == self.total_batches
         # Confirm GPU part present
+
         assert any("GPU Memory: 42.00 MB" in l for l in log)
 
     @pytest.mark.requires_trainable_backend
@@ -76,6 +80,7 @@ class MemoryUsageCallbackTest(TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             tb_dir = os.path.join(tmpdir, "tb")
             # Mock CPU/GPU memory
+
             with patch.object(
                 MemoryUsageCallback, "_get_gpu_memory", return_value=10.0
             ), patch.object(MemoryUsageCallback, "_get_cpu_memory", return_value=5.0):
@@ -106,12 +111,15 @@ class MemoryUsageCallbackTest(TestCase):
                 reload(mod)
                 _ = mod.MemoryUsageCallback()
         # restore
+
         if orig is not None:
             sys.modules["psutil"] = orig
             reload(mod)
 
 
 # Backend-specific tests
+
+
 @pytest.mark.requires_trainable_backend
 def test_torch_gpu_memory(monkeypatch):
     monkeypatch.setattr(K, "backend", lambda: "torch")

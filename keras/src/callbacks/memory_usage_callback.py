@@ -6,6 +6,7 @@ from keras.src.callbacks.callback import Callback
 from keras.src import backend as K
 
 # Attempt to import psutil for CPU memory
+
 try:
     import psutil
 except ImportError:
@@ -56,7 +57,7 @@ class MemoryUsageCallback(Callback):
 
         if tensorboard_log_dir:
             try:
-                import tensorflow as tf  
+                import tensorflow as tf
 
                 logdir = os.path.expanduser(tensorboard_log_dir)
                 self.tb_writer = tf.summary.create_file_writer(logdir)
@@ -79,7 +80,7 @@ class MemoryUsageCallback(Callback):
         backend = K.backend()
         try:
             if backend == "tensorflow":
-                import tensorflow as tf  
+                import tensorflow as tf
 
                 gpus = tf.config.list_physical_devices("GPU")
                 if not gpus:
@@ -89,9 +90,8 @@ class MemoryUsageCallback(Callback):
                     info = tf.config.experimental.get_memory_info(gpu.name)
                     total += info.get("current", 0)
                 return total / (1024**2)
-
             if backend == "torch":
-                import torch  
+                import torch
 
                 if not torch.cuda.is_available():
                     return None
@@ -100,9 +100,8 @@ class MemoryUsageCallback(Callback):
                     for i in range(torch.cuda.device_count())
                 )
                 return total / (1024**2)
-
             if backend == "jax":
-                import jax  
+                import jax
 
                 devs = [d for d in jax.devices() if d.platform == "gpu"]
                 if not devs:
@@ -112,7 +111,6 @@ class MemoryUsageCallback(Callback):
                     stats = getattr(d, "memory_stats", lambda: {})()
                     total += stats.get("bytes_in_use", stats.get("allocated_bytes", 0))
                 return total / (1024**2)
-
             if not hasattr(self, "_warned_backend"):
                 warnings.warn(
                     f"Backend '{backend}' not supported for GPU memory.",
@@ -120,7 +118,6 @@ class MemoryUsageCallback(Callback):
                 )
                 self._warned_backend = True
             return None
-
         except ImportError as e:
             warnings.warn(
                 f"Could not import backend lib ({e}); GPU disabled.",
@@ -139,7 +136,7 @@ class MemoryUsageCallback(Callback):
             msg += f"; GPU Memory: {gpu:.2f} MB"
         print(msg)
         if self.tb_writer:
-            import tensorflow as tf  
+            import tensorflow as tf
 
             with self.tb_writer.as_default(step=int(step)):
                 tf.summary.scalar("Memory/CPU_MB", cpu)
