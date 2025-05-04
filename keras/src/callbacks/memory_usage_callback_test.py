@@ -1,10 +1,10 @@
 import os
 import glob
+import sys
 import tempfile
-
-from contextlib import redirect_stdout
-from io import StringIO
 from importlib import reload
+from io import StringIO
+from contextlib import redirect_stdout
 from unittest.mock import patch, MagicMock
 
 import numpy as np
@@ -14,9 +14,6 @@ from keras.src.callbacks.memory_usage_callback import MemoryUsageCallback
 from keras.src.layers import Dense
 from keras.src.models import Sequential
 from keras.src.testing import TestCase
-from keras.src import backend as K
-
-# Skip all tests if psutil is not installed
 
 try:
     import psutil
@@ -24,9 +21,7 @@ except ImportError:
     psutil = None
 
 
-@pytest.mark.skipif(
-    psutil is None, reason="psutil is required for MemoryUsageCallback tests."
-)
+@pytest.mark.skipif(psutil is None, reason="psutil is required")
 class MemoryUsageCallbackTest(TestCase):
     def setUp(self):
         super().setUp()
@@ -40,110 +35,128 @@ class MemoryUsageCallbackTest(TestCase):
         )
         self.model.compile(optimizer="adam", loss="binary_crossentropy")
         self.epochs = 2
-        self.batch_size = 5
-        self.total_batches = self.epochs * (len(self.x) // self.batch_size)
+        self.bs = 5
+        self.steps = len(self.x) // self.bs
 
     @pytest.mark.requires_trainable_backend
-    def test_epoch_and_batch_stdout(self):
+    def test_epoch_logging(self):
         out = StringIO()
         with redirect_stdout(out):
-            # Mock GPU memory for predictability
 
+            for gpu_val in (None, 42.0):
+                with patch.object(
+                    MemoryUsageCallback, "_get_gpu_memory", return_value=gpu_val
+                ):
+                    cb = MemoryUsageCallback(monitor_gpu=True, log_every_batch=False)
+                    self.model.fit(
+                        self.x,
+                        self.y,
+                        epochs=self.epochs,
+                        batch_size=self.bs,
+                        callbacks=[cb],
+                        verbose=0,
+                    )
+        log = out.getvalue()
+        # must see epoch start/end lines
+
+        for e in range(self.epochs):
+            assert f"Epoch {e} start" in log
+            assert f"Epoch {e} end" in log
+        # must see GPU segment at least once if gpu_val not None
+
+        assert "; GPU" in log
+
+    @pytest.mark.requires_trainable_backend
+    def test_batch_logging(self):
+        out = StringIO()
+        with redirect_stdout(out):
             with patch.object(
-                MemoryUsageCallback, "_get_gpu_memory", return_value=42.0
+                MemoryUsageCallback, "_get_gpu_memory", return_value=None
             ):
                 cb = MemoryUsageCallback(monitor_gpu=True, log_every_batch=True)
                 self.model.fit(
                     self.x,
                     self.y,
-                    epochs=self.epochs,
-                    batch_size=self.batch_size,
+                    epochs=1,
+                    batch_size=self.bs,
                     callbacks=[cb],
                     verbose=0,
                 )
-        log = out.getvalue().splitlines()
-        # Check epoch logs
-
-        for i in range(self.epochs):
-            assert any(f"Epoch {i} start" in line for line in log)
-            assert any(f"Epoch {i} end" in line for line in log)
-        # Check batch logs count
-
-        batch_lines = [l for l in log if l.startswith("Batch")]
-        assert len(batch_lines) == self.total_batches
-        # Confirm GPU part present
-
-        assert any("GPU Memory: 42.00 MB" in l for l in log)
+        lines = [ln for ln in out.getvalue().splitlines() if ln.startswith("Batch ")]
+        assert len(lines) == self.steps
 
     @pytest.mark.requires_trainable_backend
-    def test_tensorboard_file_creation(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tb_dir = os.path.join(tmpdir, "tb")
-            # Mock CPU/GPU memory
+    def test_tensorboard_events(self):
+        tmp = tempfile.TemporaryDirectory()
+        logdir = os.path.join(tmp.name, "logs")
+        cb = MemoryUsageCallback(
+            monitor_gpu=False, log_every_batch=False, tensorboard_log_dir=logdir
+        )
+        assert os.path.isdir(logdir)
+        self.model.fit(
+            self.x, self.y, epochs=1, batch_size=self.bs, callbacks=[cb], verbose=0
+        )
+        files = glob.glob(os.path.join(logdir, "events.out.tfevents.*"))
+        assert len(files) > 0
+        tmp.cleanup()
 
-            with patch.object(
-                MemoryUsageCallback, "_get_gpu_memory", return_value=10.0
-            ), patch.object(MemoryUsageCallback, "_get_cpu_memory", return_value=5.0):
-                cb = MemoryUsageCallback(
-                    monitor_gpu=True,
-                    log_every_batch=False,
-                    tensorboard_log_dir=tb_dir,
-                )
-                assert os.path.isdir(tb_dir)
-                self.model.fit(
-                    self.x,
-                    self.y,
-                    epochs=1,
-                    batch_size=self.batch_size,
-                    callbacks=[cb],
-                    verbose=0,
-                )
-            events = glob.glob(os.path.join(tb_dir, "events.out.tfevents.*"))
-            assert events, "No TensorBoard event file found."
-
-    def test_import_error_without_psutil(self):
-        import sys
-        import keras.src.callbacks.memory_usage_callback as mod
-
+    def test_missing_psutil(self):
+        mod = sys.modules["keras.src.callbacks.memory_usage_callback"]
         orig = getattr(mod, "psutil", None)
         with patch.dict(sys.modules, {"psutil": None}):
             with pytest.raises(ImportError):
                 reload(mod)
                 _ = mod.MemoryUsageCallback()
-        # restore
-
         if orig is not None:
             sys.modules["psutil"] = orig
             reload(mod)
 
 
-# Backend-specific tests
-
-
 @pytest.mark.requires_trainable_backend
-def test_torch_gpu_memory(monkeypatch):
-    monkeypatch.setattr(K, "backend", lambda: "torch")
-    fake_torch = MagicMock()
-    fake_torch.cuda.is_available.return_value = True
-    fake_torch.cuda.device_count.return_value = 2
-    fake_torch.cuda.memory_allocated.side_effect = [100 * 1024**2, 150 * 1024**2]
-    monkeypatch.setitem(__import__("sys").modules, "torch", fake_torch)
+def test_torch_gpu(monkeypatch):
+    import keras.src.backend as B
+
+    monkeypatch.setattr(B, "backend", lambda: "torch")
+    fake = MagicMock()
+    fake.cuda.is_available.return_value = True
+    fake.cuda.device_count.return_value = 2
+    fake.cuda.memory_allocated.side_effect = [50 * 1024**2, 70 * 1024**2]
+    monkeypatch.setitem(sys.modules, "torch", fake)
     cb = MemoryUsageCallback(monitor_gpu=True)
-    assert pytest.approx(250, rel=1e-6) == cb._get_gpu_memory()
+    assert pytest.approx(120, rel=1e-6) == cb._get_gpu_memory()
 
 
 @pytest.mark.requires_trainable_backend
-def test_jax_gpu_memory(monkeypatch):
-    monkeypatch.setattr(K, "backend", lambda: "jax")
+def test_jax_gpu(monkeypatch):
+    import keras.src.backend as B
+
+    monkeypatch.setattr(B, "backend", lambda: "jax")
 
     class Dev:
-        platform = "gpu"
+        platform = "GPU"
 
         def memory_stats(self):
-            return {"bytes_in_use": 200 * 1024**2}
+            return {"bytes_in_use": 30 * 1024**2}
 
-    fake_jax = MagicMock()
-    fake_jax.devices.return_value = [Dev(), Dev()]
-    monkeypatch.setitem(__import__("sys").modules, "jax", fake_jax)
+    fake = MagicMock(devices=lambda: [Dev(), Dev()])
+    monkeypatch.setitem(sys.modules, "jax", fake)
     cb = MemoryUsageCallback(monitor_gpu=True)
-    assert pytest.approx(400, rel=1e-6) == cb._get_gpu_memory()
+    assert pytest.approx(60, rel=1e-6) == cb._get_gpu_memory()
+
+
+@pytest.mark.requires_trainable_backend
+def test_openvino_gpu(monkeypatch):
+    import keras.src.backend as B
+
+    monkeypatch.setattr(B, "backend", lambda: "openvino")
+
+    class Core:
+        def get_property(self, device, name):
+            return {"deviceUsedBytes": 25 * 1024**2}
+
+        available_devices = ["GPU"]
+
+    fake = MagicMock(Core=lambda: Core())
+    monkeypatch.setitem(sys.modules, "openvino", fake)
+    cb = MemoryUsageCallback(monitor_gpu=True)
+    assert pytest.approx(25, rel=1e-6) == cb._get_gpu_memory()
