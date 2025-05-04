@@ -390,6 +390,11 @@ def right_shift(x, y):
     return bitwise_right_shift(x, y)
 
 
+def blackman(x):
+    x = convert_to_tensor(x)
+    return np.blackman(x).astype(config.floatx())
+
+
 def broadcast_to(x, shape):
     return np.broadcast_to(x, shape)
 

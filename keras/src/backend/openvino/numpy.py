@@ -509,6 +509,12 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         return OpenVINOKerasTensor(final_output)
 
 
+def blackman(x):
+    raise NotImplementedError(
+        "`blackman` is not supported with openvino backend"
+    )
+
+
 def broadcast_to(x, shape):
     assert isinstance(shape, (tuple, list)), (
         "`broadcast_to` is supported only for tuple and list `shape`"

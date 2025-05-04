@@ -515,6 +515,11 @@ def right_shift(x, y):
     return bitwise_right_shift(x, y)
 
 
+def blackman(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.blackman(x)
+
+
 def broadcast_to(x, shape):
     x = convert_to_tensor(x)
     return torch.broadcast_to(x, shape)

@@ -1617,6 +1617,36 @@ def right_shift(x, y):
     return backend.numpy.right_shift(x, y)
 
 
+class Blackman(Operation):
+    def call(self, x):
+        return backend.numpy.blackman(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.blackman", "keras.ops.numpy.blackman"])
+def blackman(x):
+    """Blackman window function.
+    The Blackman window is a taper formed by using a weighted cosine.
+
+    Args:
+        x: Scalar or 1D Tensor. Window length.
+
+    Returns:
+        A 1D tensor containing the Blackman window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.blackman(x)
+    array([-1.3877788e-17,  3.4000000e-01,  1.0000000e+00,  3.4000000e-01,
+           -1.3877788e-17], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Blackman().symbolic_call(x)
+    return backend.numpy.blackman(x)
+
+
 class BroadcastTo(Operation):
     def __init__(self, shape):
         super().__init__()

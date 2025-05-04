@@ -144,6 +144,7 @@ from keras.src.ops.numpy import bitwise_not as bitwise_not
 from keras.src.ops.numpy import bitwise_or as bitwise_or
 from keras.src.ops.numpy import bitwise_right_shift as bitwise_right_shift
 from keras.src.ops.numpy import bitwise_xor as bitwise_xor
+from keras.src.ops.numpy import blackman as blackman
 from keras.src.ops.numpy import broadcast_to as broadcast_to
 from keras.src.ops.numpy import ceil as ceil
 from keras.src.ops.numpy import clip as clip
