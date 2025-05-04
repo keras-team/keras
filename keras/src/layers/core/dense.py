@@ -107,15 +107,15 @@ class Dense(Layer):
         self.supports_masking = True
 
     def build(self, input_shape):
-        input_dim = input_shape[-1]
+        kernel_shape = (input_shape[-1], self.units)
         if self.quantization_mode:
-            self.quantized_build(input_shape, mode=self.quantization_mode)
+            self.quantized_build(kernel_shape, mode=self.quantization_mode)
         if self.quantization_mode != "int8":
             # If the layer is quantized to int8, `self._kernel` will be added
             # in `self._int8_build`. Therefore, we skip it here.
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=(input_dim, self.units),
+                shape=kernel_shape,
                 initializer=self.kernel_initializer,
                 regularizer=self.kernel_regularizer,
                 constraint=self.kernel_constraint,
@@ -130,7 +130,7 @@ class Dense(Layer):
             )
         else:
             self.bias = None
-        self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
+        self.input_spec = InputSpec(min_ndim=2, axes={-1: input_shape[-1]})
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
@@ -312,37 +312,30 @@ class Dense(Layer):
 
     # Quantization-related (int8 and float8) methods
 
-    def quantized_build(self, input_shape, mode):
+    def quantized_build(self, kernel_shape, mode):
         if mode == "int8":
-            input_dim = input_shape[-1]
-            kernel_shape = (input_dim, self.units)
             self._int8_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
         else:
             raise self._quantization_mode_error(mode)
+        self._is_quantized = True
 
-    def _int8_build(
-        self,
-        kernel_shape,
-        kernel_initializer="zeros",
-        kernel_scale_initializer="ones",
-    ):
+    def _int8_build(self, kernel_shape):
         self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
-            initializer=kernel_initializer,
+            initializer="zeros",
             dtype="int8",
             trainable=False,
         )
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=(self.units,),
-            initializer=kernel_scale_initializer,
+            initializer="ones",
             trainable=False,
         )
-        self._is_quantized = True
 
     def _float8_build(self):
         from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
@@ -362,6 +355,7 @@ class Dense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         amax_history_kwargs = {
             "shape": (amax_history_length,),
@@ -369,6 +363,7 @@ class Dense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         self.inputs_scale = self.add_weight(name="inputs_scale", **scale_kwargs)
         self.inputs_amax_history = self.add_weight(
@@ -384,16 +379,6 @@ class Dense(Layer):
         self.outputs_grad_amax_history = self.add_weight(
             name="outputs_grad_amax_history", **amax_history_kwargs
         )
-        # We need to set `overwrite_with_gradient=True` to instruct the
-        # optimizer to directly overwrite these variables with their computed
-        # gradients during training
-        self.inputs_scale.overwrite_with_gradient = True
-        self.inputs_amax_history.overwrite_with_gradient = True
-        self.kernel_scale.overwrite_with_gradient = True
-        self.kernel_amax_history.overwrite_with_gradient = True
-        self.outputs_grad_scale.overwrite_with_gradient = True
-        self.outputs_grad_amax_history.overwrite_with_gradient = True
-        self._is_quantized = True
 
     def _int8_call(self, inputs, training=None):
         @ops.custom_gradient
@@ -526,21 +511,17 @@ class Dense(Layer):
         if type_check and (type(self) is not Dense):
             raise self._not_implemented_error(self.quantize)
 
+        kernel_shape = self._kernel.shape
         if mode == "int8":
-            # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=0, to_numpy=True
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
-            kernel_shape = tuple(self._kernel.shape)
             del self._kernel
-            # Utilize a lambda expression as an initializer to prevent adding a
-            # large constant to the computation graph.
-            self._int8_build(kernel_shape, kernel_value, kernel_scale)
-        elif mode == "float8":
-            self._float8_build()
-        else:
-            raise self._quantization_mode_error(mode)
+        self.quantized_build(kernel_shape, mode)
+        if mode == "int8":
+            self._kernel.assign(kernel_value)
+            self.kernel_scale.assign(kernel_scale)
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:
