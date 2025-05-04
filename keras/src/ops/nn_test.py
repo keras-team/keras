@@ -2497,17 +2497,19 @@ class NNOpsDtypeTest(testing.TestCase):
 
         self.jax_enable_x64 = enable_x64()
         self.jax_enable_x64.__enter__()
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context = backend.core.enable_float64()
+            self.mlx_cpu_context.__enter__()
         return super().setUp()
 
     def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
+        if backend.backend() == "mlx":
+            self.mlx_cpu_context.__exit__(None, None, None)
         return super().tearDown()
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_elu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2526,9 +2528,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_gelu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2560,9 +2559,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_celu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2581,9 +2577,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_tanh_shrink(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import torch
         import torch.nn.functional as tnn
 
@@ -2602,9 +2595,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_hard_tanh(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2623,9 +2613,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_hard_shrink(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import torch
         import torch.nn.functional as tnn
 
@@ -2644,9 +2631,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_threshold(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import torch
         import torch.nn.functional as tnn
 
@@ -2665,9 +2649,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_soft_shrink(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import torch
         import torch.nn.functional as tnn
 
@@ -2686,9 +2667,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_sparse_plus(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2707,9 +2685,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_glu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2731,9 +2706,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_squareplus(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2755,9 +2727,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_hard_sigmoid(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2776,9 +2745,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_hard_silu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2797,9 +2763,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_leaky_relu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2818,9 +2781,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_log_sigmoid(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2839,9 +2799,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_log_softmax(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2860,9 +2817,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_relu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2881,9 +2835,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_relu6(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2902,9 +2853,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_selu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2923,9 +2871,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_sigmoid(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2944,9 +2889,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_silu(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2965,9 +2907,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_softplus(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -2986,9 +2925,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_softmax(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -3007,9 +2943,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_softsign(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         import jax.nn as jnn
         import jax.numpy as jnp
 
@@ -3046,9 +2979,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_ctc_loss(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         labels = knp.array([[1, 2, 1]], dtype="int32")
         outputs = knp.array(
             [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
@@ -3076,9 +3006,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_ctc_decode(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         inputs = knp.array(
             [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
         )
@@ -3114,9 +3041,6 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_dot_product_attention(self, dtype):
-        if backend.backend() == "mlx" and dtype == "float64":
-            pytest.skip("Backend does not support float64")
-
         # TODO: Get expected output from jax if `jax.nn.dot_product_attention`
         # is available.
         query = knp.ones((2, 3, 3, 8), dtype=dtype)

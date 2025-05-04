@@ -10,6 +10,10 @@ from keras.src import random
 from keras.src import testing
 
 
+@pytest.mark.skipif(
+    backend.backend() == "mlx",
+    reason=("quantization for mlx backend not yet implemented"),
+)
 class QuantizersTest(testing.TestCase):
     def test_get_method(self):
         quantizer = quantizers.get("abs_max_quantizer", axis=-1)
