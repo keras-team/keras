@@ -142,6 +142,10 @@ def all(x, axis=None, keepdims=False):
     )
 
 
+def angle(x):
+    raise NotImplementedError("`angle` is not supported with openvino backend")
+
+
 def any(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     if axis is None:
@@ -462,6 +466,12 @@ def average(x, axis=None, weights=None):
     axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
     mean_ops = ov_opset.reduce_mean(x, axis_const, False)
     return OpenVINOKerasTensor(mean_ops.output(0))
+
+
+def bartlett(x):
+    raise NotImplementedError(
+        "`bartlett` is not supported with openvino backend"
+    )
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
