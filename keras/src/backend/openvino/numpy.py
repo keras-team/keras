@@ -963,6 +963,9 @@ def linspace(
 
     start = get_ov_output(start, dtype)
     stop = get_ov_output(stop, dtype)
+    start = ov_opset.convert(start, dtype).output(0)
+    stop = ov_opset.convert(stop, dtype).output(0)
+
     num = get_ov_output(num, Type.i32)
 
     zero_i = ov_opset.constant(0, Type.i32).output(0)
