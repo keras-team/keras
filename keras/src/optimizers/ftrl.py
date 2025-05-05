@@ -162,10 +162,11 @@ class Ftrl(optimizer.Optimizer):
         accumulator_initializer = initializers.Constant(
             self.initial_accumulator_value,
         )
-        self._accumulators = self.add_optimizer_variables(
-            var_list, "accumulator", initializer=accumulator_initializer
+        self._accumulators, self._linears = self.add_optimizer_variables(
+            var_list,
+            ["accumulator", "linear"],
+            initializer=[accumulator_initializer, "zeros"],
         )
-        self._linears = self.add_optimizer_variables(var_list, "linear")
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
