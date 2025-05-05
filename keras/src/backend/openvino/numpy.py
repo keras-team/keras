@@ -963,16 +963,7 @@ def linspace(
 
     start = get_ov_output(start, dtype)
     stop = get_ov_output(stop, dtype)
-    start = ov_opset.convert(start, dtype).output(0)
-    stop = ov_opset.convert(stop, dtype).output(0)
-
-    if isinstance(num, OpenVINOKerasTensor):
-        num = get_ov_output(num, Type.i32)
-    elif isinstance(num, int):
-        num = ov_opset.constant(num, Type.i32).output(0)
-    else:
-        raise TypeError("`num` must be an int or OpenVINOKerasTensor.")
-    num = ov_opset.convert(num, Type.i32).output(0)
+    num = get_ov_output(num, Type.i32)
 
     zero_i = ov_opset.constant(0, Type.i32).output(0)
     one_i = ov_opset.constant(1, Type.i32).output(0)
@@ -1055,10 +1046,10 @@ def linspace(
         y = ov_opset.transpose(y, perm).output(0)
 
     y = ov_opset.convert(y, out_dtype).output(0)
+
+    return_step = ov_opset.convert(step, out_dtype).output(0)
     if retstep:
-        return OpenVINOKerasTensor(y), ov_opset.convert(step, out_dtype).output(
-            0
-        )
+        return (OpenVINOKerasTensor(y), OpenVINOKerasTensor(return_step))
     return OpenVINOKerasTensor(y)
 
 
