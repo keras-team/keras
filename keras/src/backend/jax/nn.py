@@ -1128,7 +1128,6 @@ def wrap_flash_attention(
     attn_logits_soft_cap=None,
     head_shards=1,
     q_seq_shards=1,
-
 ):
     if decoder_segment_ids is not None:
         assert query.shape[2] == decoder_segment_ids.q.shape[1], (
@@ -1149,8 +1148,8 @@ def wrap_flash_attention(
     )
     splash_kernel = splash_attention_kernel.make_splash_mha(
         mask=multi_head_mask,
-        head_shards=1,
-        q_seq_shards=1,
+        head_shards=head_shards,  
+        q_seq_shards=q_seq_shards, 
         attn_logits_soft_cap=attn_logits_soft_cap,
     )
 
@@ -1169,6 +1168,8 @@ def dot_product_attention(
     is_causal=False,
     flash_attention=None,
     attn_logits_soft_cap=None,
+    head_shards=1,
+    q_seq_shards=1,
 ):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
@@ -1260,6 +1261,8 @@ def dot_product_attention(
                 decoder_segment_ids=decoder_segment_ids,
                 custom_mask=custom_mask,
                 attn_logits_soft_cap=attn_logits_soft_cap,
+                head_shards=head_shards,  # Pass the parameter value instead of hardcoding to 1
+                q_seq_shards=q_seq_shards,  # Pass the parameter value instead of hardcoding to 1
             )
             # Transpose output back to Keras layout
             return jnp.transpose(output, axes=(0, 2, 1, 3))
