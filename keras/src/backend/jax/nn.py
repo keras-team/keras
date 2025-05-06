@@ -1,11 +1,9 @@
 import builtins
-import inspect
 import math
 
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
-from absl import logging
 from jax import lax
 from jax import nn as jnn
 from jax.experimental.pallas.ops.tpu.splash_attention import (
@@ -16,9 +14,6 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 )
 
 from keras.src import backend
-from keras.src.backend.common.backend_utils import (
-    compute_adaptive_pooling_window_sizes,
-)
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
@@ -160,9 +155,9 @@ def log_softmax(x, axis=-1):
     return jnn.log_softmax(x, axis=axis)
 
 
-def sparsemax(x, axis=-1):
+def sparsemax(logits, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(x)
+    logits = convert_to_tensor(logits)
     logits_sorted = -1.0 * jnp.sort(logits * -1.0, axis=axis)
     logits_cumsum = jnp.cumsum(logits_sorted, axis=axis)  # find cumulative sum
     r = jnp.arange(1, logits.shape[axis] + 1)  # Determine the sparsity
@@ -255,8 +250,8 @@ def max_pool(
 def average_pool(
     inputs,
     pool_size,
-    strides=None,
-    padding="valid",
+    strides,
+    padding,
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
@@ -290,403 +285,6 @@ def average_pool(
             padding,
         )
         return pooled / window_counts
-
-
-def _compute_adaptive_pooling_gather_indices(
-    input_dim, output_size, big_window
-):
-    """Compute gather indices for Two-Pool Gather method."""
-    window_starts = jnp.floor(
-        (jnp.arange(output_size) * input_dim) / output_size
-    ).astype(jnp.int32)
-
-    window_ends = jnp.ceil(
-        (jnp.arange(1, output_size + 1) * input_dim) / output_size
-    ).astype(jnp.int32)
-
-    window_sizes = window_ends - window_starts
-    is_big = window_sizes == big_window
-
-    small_window = big_window - 1
-    small_len = input_dim - small_window + 1
-
-    small_indices = window_starts
-    big_indices = window_starts + small_len
-
-    gather = jnp.where(is_big, big_indices, small_indices)
-    return gather.astype(jnp.int32)
-
-
-def _adaptive_average_pool1d(inputs, output_size, data_format="channels_first"):
-    if isinstance(output_size, int):
-        output_size = (output_size,)
-
-    if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 1))  # NCL → NLC
-
-    n, l, c = inputs.shape
-    out_l = output_size[0]
-
-    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
-    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
-
-    small_pool = (
-        lax.reduce_window(
-            inputs, 0.0, lax.add, (1, small, 1), (1, 1, 1), "valid"
-        )
-        / small
-    )
-
-    big_pool = (
-        lax.reduce_window(inputs, 0.0, lax.add, (1, big, 1), (1, 1, 1), "valid")
-        / big
-    )
-
-    combined = jnp.concatenate([small_pool, big_pool], axis=1)
-    out = jnp.take(combined, gather, axis=1)
-
-    if data_format == "channels_first":
-        out = jnp.transpose(out, (0, 2, 1))
-
-    return out
-
-
-def _adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
-    if isinstance(output_size, int):
-        output_size = (output_size,)
-
-    if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 1))
-
-    n, l, c = inputs.shape
-    out_l = output_size[0]
-
-    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
-    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
-
-    small_pool = lax.reduce_window(
-        inputs, -jnp.inf, lax.max, (1, small, 1), (1, 1, 1), "valid"
-    )
-
-    big_pool = lax.reduce_window(
-        inputs, -jnp.inf, lax.max, (1, big, 1), (1, 1, 1), "valid"
-    )
-
-    combined = jnp.concatenate([small_pool, big_pool], axis=1)
-    out = jnp.take(combined, gather, axis=1)
-
-    if data_format == "channels_first":
-        out = jnp.transpose(out, (0, 2, 1))
-
-    return out
-
-
-def _adaptive_average_pool2d(inputs, output_size, data_format="channels_first"):
-    if isinstance(output_size, int):
-        output_size = (output_size, output_size)
-
-    if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 1))
-
-    n, h, w, c = inputs.shape
-    out_h, out_w = output_size
-
-    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
-    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
-
-    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
-    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
-
-    small_h_pool = (
-        lax.reduce_window(
-            inputs, 0.0, lax.add, (1, small_h, 1, 1), (1, 1, 1, 1), "valid"
-        )
-        / small_h
-    )
-
-    big_h_pool = (
-        lax.reduce_window(
-            inputs, 0.0, lax.add, (1, big_h, 1, 1), (1, 1, 1, 1), "valid"
-        )
-        / big_h
-    )
-
-    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=1)
-    pooled_h = jnp.take(combined_h, gather_h, axis=1)
-
-    small_w_pool = (
-        lax.reduce_window(
-            pooled_h, 0.0, lax.add, (1, 1, small_w, 1), (1, 1, 1, 1), "valid"
-        )
-        / small_w
-    )
-
-    big_w_pool = (
-        lax.reduce_window(
-            pooled_h, 0.0, lax.add, (1, 1, big_w, 1), (1, 1, 1, 1), "valid"
-        )
-        / big_w
-    )
-
-    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=2)
-    out = jnp.take(combined_w, gather_w, axis=2)
-
-    if data_format == "channels_first":
-        out = jnp.transpose(out, (0, 3, 1, 2))
-
-    return out
-
-
-def _adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
-    if isinstance(output_size, int):
-        output_size = (output_size, output_size)
-
-    if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 1))
-
-    n, h, w, c = inputs.shape
-    out_h, out_w = output_size
-
-    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
-    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
-
-    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
-    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
-
-    small_h_pool = lax.reduce_window(
-        inputs, -jnp.inf, lax.max, (1, small_h, 1, 1), (1, 1, 1, 1), "valid"
-    )
-
-    big_h_pool = lax.reduce_window(
-        inputs, -jnp.inf, lax.max, (1, big_h, 1, 1), (1, 1, 1, 1), "valid"
-    )
-
-    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=1)
-    pooled_h = jnp.take(combined_h, gather_h, axis=1)
-
-    small_w_pool = lax.reduce_window(
-        pooled_h, -jnp.inf, lax.max, (1, 1, small_w, 1), (1, 1, 1, 1), "valid"
-    )
-
-    big_w_pool = lax.reduce_window(
-        pooled_h, -jnp.inf, lax.max, (1, 1, big_w, 1), (1, 1, 1, 1), "valid"
-    )
-
-    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=2)
-    out = jnp.take(combined_w, gather_w, axis=2)
-
-    if data_format == "channels_first":
-        out = jnp.transpose(out, (0, 3, 1, 2))
-
-    return out
-
-
-def _adaptive_average_pool3d(inputs, output_size, data_format="channels_first"):
-    if isinstance(output_size, int):
-        output_size = (output_size, output_size, output_size)
-
-    if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))
-
-    n, d, h, w, c = inputs.shape
-    out_d, out_h, out_w = output_size
-
-    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
-    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
-
-    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
-    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
-
-    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
-    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
-
-    small_d_pool = (
-        lax.reduce_window(
-            inputs,
-            0.0,
-            lax.add,
-            (1, small_d, 1, 1, 1),
-            (1, 1, 1, 1, 1),
-            "valid",
-        )
-        / small_d
-    )
-
-    big_d_pool = (
-        lax.reduce_window(
-            inputs, 0.0, lax.add, (1, big_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
-        )
-        / big_d
-    )
-
-    combined_d = jnp.concatenate([small_d_pool, big_d_pool], axis=1)
-    pooled_d = jnp.take(combined_d, gather_d, axis=1)
-
-    small_h_pool = (
-        lax.reduce_window(
-            pooled_d,
-            0.0,
-            lax.add,
-            (1, 1, small_h, 1, 1),
-            (1, 1, 1, 1, 1),
-            "valid",
-        )
-        / small_h
-    )
-
-    big_h_pool = (
-        lax.reduce_window(
-            pooled_d,
-            0.0,
-            lax.add,
-            (1, 1, big_h, 1, 1),
-            (1, 1, 1, 1, 1),
-            "valid",
-        )
-        / big_h
-    )
-
-    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=2)
-    pooled_h = jnp.take(combined_h, gather_h, axis=2)
-
-    small_w_pool = (
-        lax.reduce_window(
-            pooled_h,
-            0.0,
-            lax.add,
-            (1, 1, 1, small_w, 1),
-            (1, 1, 1, 1, 1),
-            "valid",
-        )
-        / small_w
-    )
-
-    big_w_pool = (
-        lax.reduce_window(
-            pooled_h,
-            0.0,
-            lax.add,
-            (1, 1, 1, big_w, 1),
-            (1, 1, 1, 1, 1),
-            "valid",
-        )
-        / big_w
-    )
-
-    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=3)
-    out = jnp.take(combined_w, gather_w, axis=3)
-
-    if data_format == "channels_first":
-        out = jnp.transpose(out, (0, 4, 1, 2, 3))
-
-    return out
-
-
-def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
-    if isinstance(output_size, int):
-        output_size = (output_size, output_size, output_size)
-
-    if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))
-
-    n, d, h, w, c = inputs.shape
-    out_d, out_h, out_w = output_size
-
-    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
-    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
-
-    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
-    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
-
-    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
-    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
-
-    small_d_pool = lax.reduce_window(
-        inputs,
-        -jnp.inf,
-        lax.max,
-        (1, small_d, 1, 1, 1),
-        (1, 1, 1, 1, 1),
-        "valid",
-    )
-
-    big_d_pool = lax.reduce_window(
-        inputs, -jnp.inf, lax.max, (1, big_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
-    )
-
-    combined_d = jnp.concatenate([small_d_pool, big_d_pool], axis=1)
-    pooled_d = jnp.take(combined_d, gather_d, axis=1)
-
-    small_h_pool = lax.reduce_window(
-        pooled_d,
-        -jnp.inf,
-        lax.max,
-        (1, 1, small_h, 1, 1),
-        (1, 1, 1, 1, 1),
-        "valid",
-    )
-
-    big_h_pool = lax.reduce_window(
-        pooled_d,
-        -jnp.inf,
-        lax.max,
-        (1, 1, big_h, 1, 1),
-        (1, 1, 1, 1, 1),
-        "valid",
-    )
-
-    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=2)
-    pooled_h = jnp.take(combined_h, gather_h, axis=2)
-
-    small_w_pool = lax.reduce_window(
-        pooled_h,
-        -jnp.inf,
-        lax.max,
-        (1, 1, 1, small_w, 1),
-        (1, 1, 1, 1, 1),
-        "valid",
-    )
-
-    big_w_pool = lax.reduce_window(
-        pooled_h,
-        -jnp.inf,
-        lax.max,
-        (1, 1, 1, big_w, 1),
-        (1, 1, 1, 1, 1),
-        "valid",
-    )
-
-    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=3)
-    out = jnp.take(combined_w, gather_w, axis=3)
-
-    if data_format == "channels_first":
-        out = jnp.transpose(out, (0, 4, 1, 2, 3))
-
-    return out
-
-
-def adaptive_average_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
-    dims = inputs.ndim - 2
-    if dims == 1:
-        return _adaptive_average_pool1d(inputs, output_size, data_format)
-    if dims == 2:
-        return _adaptive_average_pool2d(inputs, output_size, data_format)
-    if dims == 3:
-        return _adaptive_average_pool3d(inputs, output_size, data_format)
-    raise ValueError("adaptive_average_pool supports only 1D/2D/3D inputs")
-
-
-def adaptive_max_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
-    dims = inputs.ndim - 2
-    if dims == 1:
-        return _adaptive_max_pool1d(inputs, output_size, data_format)
-    if dims == 2:
-        return _adaptive_max_pool2d(inputs, output_size, data_format)
-    if dims == 3:
-        return _adaptive_max_pool3d(inputs, output_size, data_format)
-    raise ValueError("adaptive_max_pool supports only 1D/2D/3D inputs")
 
 
 def _convert_to_lax_conv_dimension_numbers(
@@ -755,7 +353,7 @@ def conv(
     feature_group_count = channels // kernel_in_channels
     kernel = convert_to_tensor(kernel)
     inputs = convert_to_tensor(inputs, dtype=kernel.dtype)
-    result = jax.lax.conv_general_dilated(
+    return jax.lax.conv_general_dilated(
         inputs,
         kernel,
         strides,
@@ -764,14 +362,6 @@ def conv(
         dimension_numbers=dimension_numbers,
         feature_group_count=feature_group_count,
     )
-    if result.size == 0:
-        raise ValueError(
-            "The convolution operation resulted in an empty output. "
-            "This can happen if the input is too small for the given "
-            "kernel size, strides, dilation rate, and padding mode. "
-            "Please check the input shape and convolution parameters."
-        )
-    return result
 
 
 def depthwise_conv(
@@ -804,8 +394,6 @@ def depthwise_conv(
     feature_group_count = (
         inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
     )
-    kernel = convert_to_tensor(kernel)
-    inputs = convert_to_tensor(inputs)
     kernel = jnp.reshape(
         kernel,
         kernel.shape[:-2] + (1, feature_group_count * kernel.shape[-1]),
@@ -897,7 +485,7 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x)
     if sparse:
         if axis < 0:
@@ -909,7 +497,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         values = jnp.greater_equal(jnp.ravel(x), 0).astype(dtype)
         values_count = values.shape[0]
         indices = [jnp.arange(dim) for dim in x.shape]
-        indices = list(jnp.meshgrid(*indices, indexing="ij"))
+        indices = jnp.meshgrid(*indices, indexing="ij")
         indices.insert(axis, jnp.maximum(x, 0))  # Deal with negative indices
         indices = [a.reshape(values_count, 1).astype("int32") for a in indices]
         indices = jnp.concatenate(indices, axis=1)
@@ -925,7 +513,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     return jnn.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
-def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     if sparse:
@@ -1118,9 +706,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     logprobs_phi = logprobs[:, :, mask_index : mask_index + 1]  # [B, T, 1]
     logprobs_phi = jnp.transpose(logprobs_phi, (1, 0, 2))  # [T, B, 1]
 
-    _one_hot = jax.nn.one_hot(
-        target, num_classes=num_classes, dtype=logprobs.dtype
-    )  # [B, N, K]
+    _one_hot = jax.nn.one_hot(target, num_classes=num_classes)  # [B, N, K]
     logprobs_emit = jnp.einsum("btk,bnk->btn", logprobs, _one_hot)
     logprobs_emit = jnp.transpose(logprobs_emit, (1, 0, 2))  # [T, B, N]
 
@@ -1177,11 +763,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
     # extract per_seq_loss
     # [B, N+1]
-    _one_hot = jax.nn.one_hot(
-        label_lengths,
-        num_classes=max_label_length + 1,
-        dtype=logalpha_phi_last.dtype,
-    )
+    _one_hot = jax.nn.one_hot(label_lengths, num_classes=max_label_length + 1)
     per_seq_loss = -jnp.einsum("bn,bn->b", logalpha_phi_last, _one_hot)
     return per_seq_loss
 
@@ -1471,42 +1053,24 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
         # Only support at least Ampere
         if not check_compute_capability("8.0"):
             raise RuntimeError("Require at least Ampere arch to run")
-
-        # Inspect inputs of `check_layout`
-        check_layout_params = list(
-            inspect.signature(check_layout).parameters.keys()
-        )
-        for known_param in ("query", "key", "value", "bias", "layout"):
-            check_layout_params.remove(known_param)
-        # Defaults to `None` when not specified.
-        check_layout_kwargs = {key: None for key in check_layout_params}
+        # Check inputs layout
         check_layout(
             query,
             key,
             value,
             bias,
+            q_seqlen=None,
+            kv_seqlen=None,
             layout=_normalize_layout("BTNH"),
-            **check_layout_kwargs,
         )
-
-        # Inspect inputs of `check_is_flash_attention`
-        check_is_flash_attention_params = inspect.signature(
-            check_is_flash_attention
-        ).parameters
-        check_is_flash_attention_kwargs = {
-            "query": query,
-            "key": key,
-            "value": value,
-            "layout": _normalize_layout("BTNH"),
-            "cudnn_version": cudnn_version,
-            "has_bias": bias is not None,
-            "is_training": False,
-        }
-        # Remove unsupported arguments
-        for param in list(check_is_flash_attention_kwargs.keys()):
-            if param not in check_is_flash_attention_params:
-                check_is_flash_attention_kwargs.pop(param)
-        check_is_flash_attention(**check_is_flash_attention_kwargs)
+        check_is_flash_attention(
+            query,
+            key,
+            _normalize_layout("BTNH"),
+            cudnn_version,
+            bias is not None,
+            is_training=False,
+        )
         return True
     except:
         if raise_error:
@@ -1564,39 +1128,12 @@ def wrap_flash_attention(
     attn_logits_soft_cap=None,
     head_shards=1,
     q_seq_shards=1,
+
 ):
-    """Applies a wrapped flash attention mechanism using the Splash kernel.
-    This function prepares the appropriate attention mask (causal or custom),
-    constructs a multi-head mask, and applies the Splash multi-head attention
-    kernel to the provided query, key, and value tensors. It supports optional
-    sharding and soft capping of attention logits.
-    Args:
-        query: jax.Array. The query tensor of shape
-            (batch, num_heads, seq_len, head_dim).
-        key: jax.Array. The key tensor of shape
-            (batch, num_heads, seq_len, head_dim).
-        value: jax.Array. The value tensor of shape
-            (batch, num_heads, seq_len, head_dim).
-        decoder_segment_ids: Optional. Segment IDs for the decoder, used for
-            sharding or masking.
-        custom_mask: Optional[jax.Array]. A custom attention mask to apply. If
-            None, a causal mask is used.
-        attn_logits_soft_cap: Optional[float]. If provided, applies a soft cap
-            to the attention logits.
-        head_shards: int, default=1. Number of shards for the attention heads.
-        q_seq_shards: int, default=1. Number of shards for the query sequence
-            dimension.
-    Returns:
-        jax.Array: The result of applying the Splash multi-head attention
-            kernel to the inputs.
-    Raises:
-        AssertionError: If sharding along the sequence dimension is attempted
-            with decoder_segment_ids.
-    """
     if decoder_segment_ids is not None:
         assert query.shape[2] == decoder_segment_ids.q.shape[1], (
-            "Sharding along sequence dimension not allowed"
-            " in TPU kernel attention"
+            "Sharding along sequence dimension not allowed in tpu kernel "
+            "attention"
         )
 
     if custom_mask is not None:
@@ -1612,8 +1149,8 @@ def wrap_flash_attention(
     )
     splash_kernel = splash_attention_kernel.make_splash_mha(
         mask=multi_head_mask,
-        head_shards=head_shards,
-        q_seq_shards=q_seq_shards,
+        head_shards=1,
+        q_seq_shards=1,
         attn_logits_soft_cap=attn_logits_soft_cap,
     )
 
@@ -1633,38 +1170,6 @@ def dot_product_attention(
     flash_attention=None,
     attn_logits_soft_cap=None,
 ):
-    """Computes dot-product attention given query, key, and value.
-
-    This is the core computation of attention that is used in transformers.
-    For TPU platforms, flash attention optimizations are automatically applied
-    when possible, and sharding parameters are inferred from the layout map
-    in the current distribution context.
-
-    Args:
-        query: Queries with shape `[batch, time, heads,
-            depth_k]`.
-        key: Keys with shape `[batch, time, heads,
-            depth_k]`.
-        value: Values with shape `[batch, time, heads,
-            depth_v]`.
-        bias: Optional bias with shape broadcastable to
-            `[batch, heads, dest_time, source_time]`.
-        mask: Optional mask with shape broadcastable to
-            `[batch, heads, dest_time, source_time]`.
-        scale: Float. Optional scale that is applied to the attention
-            computation.
-        is_causal: Boolean. Specifying whether causal masking is applied.
-        flash_attention: Boolean. Whether to use flash attention optimization
-            for increased performance. Default to None, which means it will
-            be auto-determined based on the platform, input shapes and
-            compatibility.
-        attn_logits_soft_cap: Float. Optional float to softly cap attention
-            logits to avoid numerical stability issues. Applied as:
-            `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
-
-    Returns:
-        JAX Array of shape `[batch, time, heads, depth_v]`.
-    """
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
@@ -1674,51 +1179,43 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
-    query = cast(query, compute_dtype)
-    key = cast(key, compute_dtype)
-    value = cast(value, compute_dtype)
-    if bias is not None:
-        bias = convert_to_tensor(bias, dtype=compute_dtype)
-
+    
     # Check platform
     platform = jax.devices()[0].platform
     is_tpu = platform == "tpu"
-
+    
+    # Check if inputs use partial sharding (not fully replicated)
+    # Flash attention works well with fully replicated tensors on all platforms
+    # but may have issues with certain partial sharding patterns on non-TPU platforms
+    partially_sharded_inputs = any(
+        hasattr(t, "sharding") and not t.sharding.is_fully_replicated
+        for t in (query, key, value)
+    )
+    
     # Determine flash attention compatibility
     if flash_attention is None:
-        flash_attention = _can_use_flash_attention(query, key, value, bias)
-    elif flash_attention is True:
-        # Use `raise_error=True` to provide more details if the inputs failed to
-        # use flash attention
-        _can_use_flash_attention(query, key, value, bias, raise_error=True)
-
+        # Auto-detect flash attention availability
+        if is_tpu:
+            # TPUs have specialized hardware for attention that works with any sharding pattern
+            flash_attention = True
+        else:
+            # For GPU/CPU with partially sharded inputs, we need multiple devices
+            # to efficiently handle the sharding
+            if partially_sharded_inputs and len(jax.devices()) <= 1:
+                flash_attention = False
+            else:
+                flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True and not is_tpu:
+        # If flash attention is explicitly requested, validate compatibility
+        # Skip validation for TPU as it has specialized hardware support
+        try:
+            _can_use_flash_attention(query, key, value, bias, raise_error=True)
+        except Exception:
+            # Only disable flash attention on non-TPU platforms if validation fails
+            flash_attention = False
+    
     # TPU-specific flash attention path
     if is_tpu and flash_attention:
-        # Get sharding parameters from distribution context
-        head_shards = 1
-        # Typically keep q_seq_shards=1 for best performance
-        q_seq_shards = 1
-        try:
-            from keras.src.distribution.distribution_lib import ModelParallel
-            from keras.src.distribution.distribution_lib import (
-                distribution as get_dist,
-            )
-
-            # Get current distribution if available
-            dist = get_dist()
-            if dist and isinstance(dist, ModelParallel):
-                mesh = dist.device_mesh
-                if "model" in mesh.axis_names:
-                    model_dim_index = mesh.axis_names.index("model")
-                    # Set head_shards based on the model dimension of the mesh
-                    head_shards = mesh.shape[model_dim_index]
-        except (ImportError, ValueError, AttributeError):
-            # Use default values if detection fails
-            logging.exception(
-                "Failed to determine distribution context for sharding. "
-                "Using default head_shards=1 and q_seq_shards=1."
-            )
         # Transpose to ('batch', 'heads', 'length', 'head_dim')
         query_tpu_layout = jnp.transpose(query, axes=(0, 2, 1, 3))
         key_tpu_layout = jnp.transpose(key, axes=(0, 2, 1, 3))
@@ -1728,7 +1225,7 @@ def dot_product_attention(
 
         # Apply scale to query if provided
         if scale is not None:
-            # TPU kernel applies 1/sqrt(head_dim) internally, to achieve
+            # TPU kernel applies 1/sqrt(head_dim) internally, to achieve 
             # overall QK^T * scale, scale query by (scale * sqrt(head_dim))
             query_tpu_layout = query_tpu_layout * (scale * math.sqrt(head_dim))
 
@@ -1742,53 +1239,49 @@ def dot_product_attention(
         custom_mask = None
         if mask is not None:
             mask_bool = mask.astype("bool") if mask.dtype != jnp.bool_ else mask
-
+            
             if mask_bool.ndim == 3 and mask_bool.shape[0] == bs:
                 custom_mask = mask_bool[0]
             elif mask_bool.ndim == 4 and mask_bool.shape[0] == bs:
                 custom_mask = mask_bool[0, 0]
 
             if is_causal and custom_mask is not None:
-                causal_mask = jnp.tril(
-                    jnp.ones((q_len, q_len), dtype=jnp.bool_)
-                )
+                causal_mask = jnp.tril(jnp.ones((q_len, q_len), dtype=jnp.bool_))
                 custom_mask = jnp.logical_and(custom_mask, causal_mask)
-
+        
         if custom_mask is None and is_causal:
             custom_mask = jnp.tril(jnp.ones((q_len, q_len), dtype=jnp.bool_))
 
-        # Splash attention kernel requires concrete mask values for hashing.
-        # If the mask is a tracer (e.g. inside a scan/loop), we must fall back.
-        if isinstance(mask, jax.core.Tracer) or isinstance(
-            custom_mask, jax.core.Tracer
-        ):
+        try:
+            output = wrap_flash_attention(
+                query_tpu_layout,
+                key_tpu_layout,
+                value_tpu_layout,
+                decoder_segment_ids=decoder_segment_ids,
+                custom_mask=custom_mask,
+                attn_logits_soft_cap=attn_logits_soft_cap,
+            )
+            # Transpose output back to Keras layout
+            return jnp.transpose(output, axes=(0, 2, 1, 3))
+        except Exception:
             flash_attention = False
-        else:
-            try:
-                output = wrap_flash_attention(
-                    query_tpu_layout,
-                    key_tpu_layout,
-                    value_tpu_layout,
-                    decoder_segment_ids=decoder_segment_ids,
-                    custom_mask=custom_mask,
-                    attn_logits_soft_cap=attn_logits_soft_cap,
-                    head_shards=head_shards,
-                    q_seq_shards=q_seq_shards,
-                )
-                # Transpose output back to Keras layout
-                return jnp.transpose(output, axes=(0, 2, 1, 3))
-            except Exception:
-                logging.exception(
-                    "Failed to apply Splash kernel for flash attention. "
-                    "Falling back to JAX native dot_product_attention."
-                )
-                flash_attention = False
 
     # JAX native dot_product_attention for GPU or fallback for TPU
     if hasattr(jax.nn, "dot_product_attention"):
-        impls = ["cudnn", "xla"] if flash_attention else ["xla"]
-        for impl in impls:
-            try:
+        try:
+            return jax.nn.dot_product_attention(
+                query,
+                key,
+                value,
+                bias=bias,
+                mask=mask,
+                scale=scale,
+                is_causal=is_causal,
+                implementation="cudnn" if flash_attention else "xla",
+            )
+        except Exception:
+            # If flash attention fails, fall back to XLA implementation
+            if flash_attention:
                 return jax.nn.dot_product_attention(
                     query,
                     key,
@@ -1797,13 +1290,9 @@ def dot_product_attention(
                     mask=mask,
                     scale=scale,
                     is_causal=is_causal,
-                    implementation=impl,
+                    implementation="xla",
                 )
-            except Exception:
-                logging.exception(
-                    f"Failed to apply {impl} implementation of "
-                    "jax.nn.dot_product_attention."
-                )
+            raise
 
     if flash_attention:
         raise RuntimeError(
@@ -1814,7 +1303,7 @@ def dot_product_attention(
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.33/jax/_src/nn/functions.py#L886
     # Not support `query_seq_lengths` and `key_value_seq_lengths` args
-
+    
     # Fallback to custom XLA implementation
     # This is the reference implementation from jax.nn.dot_product_attention
     output_shape = query.shape
@@ -1828,11 +1317,6 @@ def dot_product_attention(
 
     def _reshape_to_grouped(t):
         if t is not None:
-            while t.ndim < 4:
-                if t.ndim == 3 and t.shape[1] == N:
-                    t = jnp.expand_dims(t, axis=2)
-                else:
-                    t = jnp.expand_dims(t, axis=1)
             tB, tN, tT, tS = t.shape
             if tN == 1:
                 t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
@@ -1850,46 +1334,3 @@ def dot_product_attention(
     )
     encoded = vmapped_fn(query, key, value, bias, mask, is_causal, scale)
     return jnp.reshape(encoded, output_shape)
-
-
-def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
-    """JAX implementation of Unfold.
-    Extract sliding local blocks from a **NCHW** batched image tensor.
-
-    Args:
-        input: 4-D tensor, shape (N, C, H, W)  **required**.
-        kernel_size: int or (kH, kW)
-        dilation: int or (dH, dW), default 1
-        padding: int or (pH, pW), default 0
-        stride: int or (sH, sW), default 1
-
-    Returns:
-        3-D tensor, shape (N, C*kH*kW, L)
-    """
-
-    def _pair(x):
-        return (x, x) if isinstance(x, int) else x
-
-    k = _pair(kernel_size)
-    d = _pair(dilation)
-    p = _pair(padding)
-    s = _pair(stride)
-
-    N, C, H, W = input.shape
-
-    # ---- padding ----
-    if any(_ > 0 for _ in p):
-        input = jnp.pad(input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])))
-
-    patches = lax.conv_general_dilated_patches(
-        input,
-        filter_shape=k,
-        window_strides=s,
-        padding="VALID",  # has padde
-        rhs_dilation=d,
-        dimension_numbers=("NCHW", "OIHW", "NCHW"),  # only support 'NCHW'
-    )  # shape: (N, C*kH*kW, oH, oW)
-
-    # ---- reshape -> (N, C*kH*kW, L) ----
-    _, CKK, oH, oW = patches.shape
-    return patches.reshape(N, CKK, oH * oW)
