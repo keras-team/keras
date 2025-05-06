@@ -210,9 +210,9 @@ def _pool(
         initial_value: the initial value for the reduction.
         reduce_fn: a reduce function of the form `(T, T) -> T`.
         pool_size: a sequence of `N` integers, representing the window size to
-            reduce over.
+          reduce over.
         strides: a sequence of `N` integers, representing the inter-window
-            strides (default: `(1, ..., 1)`).
+        strides (default: `(1, ..., 1)`).
         padding: either the string `same` or `valid`.
 
     Returns:
@@ -1690,24 +1690,28 @@ def dot_product_attention(
     if flash_attention is None:
         # Auto-detect flash attention availability
         if is_tpu:
-            # TPUs have specialized hardware for attention that works with any sharding pattern
+            # TPUs have specialized hardware for attention that works with any
+            # sharding pattern
             flash_attention = True
         else:
-            # For GPU/CPU with partially sharded inputs, we need multiple devices
-            # to efficiently handle the sharding
+            # For GPU/CPU with partially sharded inputs, we need
+            # multiple devices to efficiently handle the sharding
             if partially_sharded_inputs and len(jax.devices()) <= 1:
                 flash_attention = False
             else:
-                flash_attention = _can_use_flash_attention(query, key, value, bias)
+                flash_attention = _can_use_flash_attention(
+                    query, key, value, bias
+                )
     elif flash_attention is True and not is_tpu:
         # If flash attention is explicitly requested, validate compatibility
         # Skip validation for TPU as it has specialized hardware support
         try:
             _can_use_flash_attention(query, key, value, bias, raise_error=True)
         except Exception:
-            # Only disable flash attention on non-TPU platforms if validation fails
+            # Only disable flash attention on non-TPU platforms
+            # if validation fails
             flash_attention = False
-    
+
     # TPU-specific flash attention path
     if is_tpu and flash_attention:
         # Transpose to ('batch', 'heads', 'length', 'head_dim')
