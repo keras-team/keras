@@ -1168,9 +1168,34 @@ def dot_product_attention(
     is_causal=False,
     flash_attention=None,
     attn_logits_soft_cap=None,
-    head_shards=1,
-    q_seq_shards=1,
 ):
+    """Computes dot-product attention given query, key, and value.
+    
+    This is the core computation of attention that is used in transformers.
+    For TPU platforms, flash attention optimizations are automatically applied
+    when possible, and sharding parameters are inferred from the layout map
+    in the current distribution context.
+    
+    Args:
+        query: JAX Array or KerasTensor. Queries with shape `[batch, time, heads, depth_k]`.
+        key: JAX Array or KerasTensor. Keys with shape `[batch, time, heads, depth_k]`.
+        value: JAX Array or KerasTensor. Values with shape `[batch, time, heads, depth_v]`.
+        bias: JAX Array or KerasTensor. Optional bias with shape broadcastable to
+            `[batch, heads, dest_time, source_time]`.
+        mask: JAX Array or KerasTensor. Optional mask with shape broadcastable to
+            `[batch, heads, dest_time, source_time]`.
+        scale: Float. Optional scale that is applied to the attention computation.
+        is_causal: Boolean. Specifying whether causal masking is applied.
+        flash_attention: Boolean. Whether to use flash attention optimization for
+            increased performance. Default to None, which means it will be
+            auto-determined based on the platform, input shapes and compatibility.
+        attn_logits_soft_cap: Float. Optional float to softly cap attention logits to
+            avoid numerical stability issues. Applied as:
+            `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
+
+    Returns:
+        JAX Array of shape `[batch, time, heads, depth_v]`.
+    """
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
@@ -1184,6 +1209,30 @@ def dot_product_attention(
     # Check platform
     platform = jax.devices()[0].platform
     is_tpu = platform == "tpu"
+    
+    # Get sharding parameters from distribution context
+    head_shards = 1
+    q_seq_shards = 1
+    
+    if is_tpu:
+        try:
+            from keras.src.distribution.distribution_lib import distribution as get_dist
+            from keras.src.distribution.distribution_lib import ModelParallel
+            
+            # Get current distribution if available
+            dist = get_dist()
+            if dist and isinstance(dist, ModelParallel):
+                mesh = dist.device_mesh
+                if "model" in mesh.axis_names:
+                    model_dim_index = mesh.axis_names.index("model")
+                    # Set head_shards based on the model dimension of the mesh
+                    head_shards = mesh.shape[model_dim_index]
+                    # Typically keep q_seq_shards=1 for best performance
+                    q_seq_shards = 1
+        except (ImportError, ValueError, AttributeError):
+            # Use default values if detection fails
+            head_shards = 1
+            q_seq_shards = 1
     
     # Check if inputs use partial sharding (not fully replicated)
     # Flash attention works well with fully replicated tensors on all platforms
@@ -1261,8 +1310,8 @@ def dot_product_attention(
                 decoder_segment_ids=decoder_segment_ids,
                 custom_mask=custom_mask,
                 attn_logits_soft_cap=attn_logits_soft_cap,
-                head_shards=head_shards,  # Pass the parameter value instead of hardcoding to 1
-                q_seq_shards=q_seq_shards,  # Pass the parameter value instead of hardcoding to 1
+                head_shards=head_shards,
+                q_seq_shards=q_seq_shards,
             )
             # Transpose output back to Keras layout
             return jnp.transpose(output, axes=(0, 2, 1, 3))
