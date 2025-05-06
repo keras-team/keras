@@ -1134,9 +1134,139 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    raise NotImplementedError(
-        "`logspace` is not supported with openvino backend"
+    """
+    Return numbers spaced evenly on a log scale.
+
+    In linear space, the sequence starts at ``base ** start``
+    (`base` to the power of `start`) and ends with ``base ** stop``
+    (see `endpoint` below).
+
+    Parameters
+    ----------
+    start : array_like
+        ``base ** start`` is the starting value of the sequence.
+    stop : array_like
+        ``base ** stop`` is the final value of the sequence, unless `endpoint`
+        is False.  In that case, ``num + 1`` values are spaced over the
+        interval in log-space, of which all but the last (a sequence of
+        length `num`) are returned.
+    num : integer, optional
+        Number of samples to generate.  Default is 50.
+    endpoint : boolean, optional
+        If true, `stop` is the last sample. Otherwise, it is not included.
+        Default is True.
+    base : array_like, optional
+        The base of the log space. The step size between the elements in
+        ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
+        Default is 10.0.
+    dtype : dtype
+        The type of the output array.  If `dtype` is not given, the data type
+        is inferred from `start` and `stop`. The inferred type will never be
+        an integer; `float` is chosen even if the arguments would produce an
+        array of integers.
+    axis : int, optional
+        The axis in the result to store the samples.  Relevant only if start,
+        stop, or base are array-like.  By default (0), the samples will be
+        along a new axis inserted at the beginning. Use -1 to get an axis at
+        the end.
+
+    Returns
+    -------
+    samples : ndarray
+        `num` samples, equally spaced on a log scale.
+    """
+    if not (isinstance(num, int) or hasattr(num, "get_element_type")):
+        raise ValueError(
+            f"Expected 'num' to be a non-negative integer or OpenVINO scalar, got {type(num)}"
+        )
+    if isinstance(num, int) and num < 0:
+        raise ValueError(f"Number of samples must be non-negative, got {num}")
+    if not isinstance(axis, int):
+        raise TypeError(f"'axis' must be an integer, got {type(axis)}")
+
+    if (
+        not hasattr(start, "get_element_type")
+        and not hasattr(stop, "get_element_type")
+        and not hasattr(base, "get_element_type")
+    ):
+        y = np.logspace(
+            start, stop, num=num, endpoint=endpoint, base=base, dtype=dtype
+        )
+        return OpenVINOKerasTensor(get_ov_output(y))
+
+    if num == 0:
+        return OpenVINOKerasTensor(
+            ov_opset.constant(
+                [], dtype=OPENVINO_DTYPES[config.floatx()]
+            ).output(0)
+        )
+
+    start, stop, base = (
+        get_ov_output(start),
+        get_ov_output(stop),
+        get_ov_output(base),
     )
+    start, stop, base = (
+        ov_opset.convert(start, dtype).output(0),
+        ov_opset.convert(stop, dtype).output(0),
+        ov_opset.convert(base, dtype).output(0),
+    )
+
+    out_dtype = dtypes.result_type(
+        ov_to_keras_type(start.get_element_type()),
+        ov_to_keras_type(stop.get_element_type()),
+        ov_to_keras_type(base.get_element_type()),
+        config.floatx(),
+    )
+    out_dtype = (
+        OPENVINO_DTYPES[out_dtype]
+        if dtype is None
+        else OPENVINO_DTYPES[standardize_dtype(dtype)]
+    )
+
+    start = ov_opset.reshape(
+        start,
+        ov_opset.concat(
+            [ov_opset.constant([1], np.int64), ov_opset.shape_of(start)], axis=0
+        ),
+    )
+    stop = ov_opset.reshape(
+        stop,
+        ov_opset.concat(
+            [ov_opset.constant([1], np.int64), ov_opset.shape_of(stop)], axis=0
+        ),
+    )
+
+    target_shape = ov_opset.shape_of(start)
+    target_shape = ov_opset.concat(
+        [ov_opset.constant([num], np.int64), target_shape[1:]], axis=0
+    )
+
+    start = ov_opset.broadcast(start, target_shape)
+    stop = ov_opset.broadcast(stop, target_shape)
+
+    lin_output = linspace(
+        start, stop, num=num, endpoint=endpoint, dtype=out_dtype, axis=axis
+    )
+
+    y = ov_opset.power(base, lin_output).output(0)
+
+    def is_integer_dtype(ov_dtype):
+        return ov_dtype in (
+            Type.i8,
+            Type.i16,
+            Type.i32,
+            Type.i64,
+            Type.u8,
+            Type.u16,
+            Type.u32,
+            Type.u64,
+        )
+
+    if is_integer_dtype(out_dtype):
+        y = ov_opset.floor(y).output(0)
+
+    return OpenVINOKerasTensor(y)
 
 
 def maximum(x1, x2):
