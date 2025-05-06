@@ -1633,6 +1633,8 @@ def dot_product_attention(
     is_causal=False,
     flash_attention=None,
     attn_logits_soft_cap=None,
+    head_shards=1,
+    q_seq_shards=1,
 ):
     """Computes dot-product attention given query, key, and value.
 
