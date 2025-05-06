@@ -205,9 +205,9 @@ def _pool(
         initial_value: the initial value for the reduction.
         reduce_fn: a reduce function of the form `(T, T) -> T`.
         pool_size: a sequence of `N` integers, representing the window size to
-            reduce over.
+          reduce over.
         strides: a sequence of `N` integers, representing the inter-window
-            strides (default: `(1, ..., 1)`).
+        strides (default: `(1, ..., 1)`).
         padding: either the string `same` or `valid`.
 
     Returns:
@@ -1131,8 +1131,8 @@ def wrap_flash_attention(
 ):
     if decoder_segment_ids is not None:
         assert query.shape[2] == decoder_segment_ids.q.shape[1], (
-            "Sharding along sequence dimension not allowed in tpu kernel "
-            "attention"
+            "Sharding along sequence dimension not allowed"
+            " in tpu kernel attention"
         )
 
     if custom_mask is not None:
@@ -1148,8 +1148,8 @@ def wrap_flash_attention(
     )
     splash_kernel = splash_attention_kernel.make_splash_mha(
         mask=multi_head_mask,
-        head_shards=head_shards,  
-        q_seq_shards=q_seq_shards, 
+        head_shards=head_shards,
+        q_seq_shards=q_seq_shards,
         attn_logits_soft_cap=attn_logits_soft_cap,
     )
 
@@ -1170,28 +1170,32 @@ def dot_product_attention(
     attn_logits_soft_cap=None,
 ):
     """Computes dot-product attention given query, key, and value.
-    
+
     This is the core computation of attention that is used in transformers.
     For TPU platforms, flash attention optimizations are automatically applied
     when possible, and sharding parameters are inferred from the layout map
     in the current distribution context.
-    
+
     Args:
-        query: JAX Array or KerasTensor. Queries with shape `[batch, time, heads, depth_k]`.
-        key: JAX Array or KerasTensor. Keys with shape `[batch, time, heads, depth_k]`.
-        value: JAX Array or KerasTensor. Values with shape `[batch, time, heads, depth_v]`.
-        bias: JAX Array or KerasTensor. Optional bias with shape broadcastable to
-            `[batch, heads, dest_time, source_time]`.
-        mask: JAX Array or KerasTensor. Optional mask with shape broadcastable to
-            `[batch, heads, dest_time, source_time]`.
-        scale: Float. Optional scale that is applied to the attention computation.
+        query: Queries with shape `[batch, time, heads,
+          depth_k]`.
+        key: Keys with shape `[batch, time, heads,
+          depth_k]`.
+        value: Values with shape `[batch, time, heads,
+          depth_v]`.
+        bias: Optional bias with shape broadcastable to
+          `[batch, heads, dest_time, source_time]`.
+        mask: Optional mask with shape broadcastable to
+          `[batch, heads, dest_time, source_time]`.
+        scale: Float. Optional scale that is applied to the attention
+          computation.
         is_causal: Boolean. Specifying whether causal masking is applied.
-        flash_attention: Boolean. Whether to use flash attention optimization for
-            increased performance. Default to None, which means it will be
-            auto-determined based on the platform, input shapes and compatibility.
-        attn_logits_soft_cap: Float. Optional float to softly cap attention logits to
-            avoid numerical stability issues. Applied as:
-            `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
+        flash_attention: Boolean. Whether to use flash attention optimization
+        for increased performance. Default to None, which means it will be
+          auto-determined based on the platform, input shapes and compatibility.
+        attn_logits_soft_cap: Float. Optional float to softly cap attention
+        logits to avoid numerical stability issues. Applied as:
+          `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
 
     Returns:
         JAX Array of shape `[batch, time, heads, depth_v]`.
@@ -1205,20 +1209,22 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    
+
     # Check platform
     platform = jax.devices()[0].platform
     is_tpu = platform == "tpu"
-    
+
     # Get sharding parameters from distribution context
     head_shards = 1
     q_seq_shards = 1
-    
+
     if is_tpu:
         try:
-            from keras.src.distribution.distribution_lib import distribution as get_dist
             from keras.src.distribution.distribution_lib import ModelParallel
-            
+            from keras.src.distribution.distribution_lib import (
+                distribution as get_dist,
+            )
+
             # Get current distribution if available
             dist = get_dist()
             if dist and isinstance(dist, ModelParallel):
@@ -1233,37 +1239,42 @@ def dot_product_attention(
             # Use default values if detection fails
             head_shards = 1
             q_seq_shards = 1
-    
+
     # Check if inputs use partial sharding (not fully replicated)
     # Flash attention works well with fully replicated tensors on all platforms
-    # but may have issues with certain partial sharding patterns on non-TPU platforms
+    # but may have issues with certain partial sharding patterns on non-TPU
+    # platforms
     partially_sharded_inputs = any(
         hasattr(t, "sharding") and not t.sharding.is_fully_replicated
         for t in (query, key, value)
     )
-    
+
     # Determine flash attention compatibility
     if flash_attention is None:
         # Auto-detect flash attention availability
         if is_tpu:
-            # TPUs have specialized hardware for attention that works with any sharding pattern
+            # TPUs have specialized hardware for attention that works with any
+            # sharding pattern
             flash_attention = True
         else:
-            # For GPU/CPU with partially sharded inputs, we need multiple devices
-            # to efficiently handle the sharding
+            # For GPU/CPU with partially sharded inputs, we need
+            # multiple devices to efficiently handle the sharding
             if partially_sharded_inputs and len(jax.devices()) <= 1:
                 flash_attention = False
             else:
-                flash_attention = _can_use_flash_attention(query, key, value, bias)
+                flash_attention = _can_use_flash_attention(
+                    query, key, value, bias
+                )
     elif flash_attention is True and not is_tpu:
         # If flash attention is explicitly requested, validate compatibility
         # Skip validation for TPU as it has specialized hardware support
         try:
             _can_use_flash_attention(query, key, value, bias, raise_error=True)
         except Exception:
-            # Only disable flash attention on non-TPU platforms if validation fails
+            # Only disable flash attention on non-TPU platforms
+            # if validation fails
             flash_attention = False
-    
+
     # TPU-specific flash attention path
     if is_tpu and flash_attention:
         # Transpose to ('batch', 'heads', 'length', 'head_dim')
@@ -1275,7 +1286,7 @@ def dot_product_attention(
 
         # Apply scale to query if provided
         if scale is not None:
-            # TPU kernel applies 1/sqrt(head_dim) internally, to achieve 
+            # TPU kernel applies 1/sqrt(head_dim) internally, to achieve
             # overall QK^T * scale, scale query by (scale * sqrt(head_dim))
             query_tpu_layout = query_tpu_layout * (scale * math.sqrt(head_dim))
 
@@ -1289,16 +1300,18 @@ def dot_product_attention(
         custom_mask = None
         if mask is not None:
             mask_bool = mask.astype("bool") if mask.dtype != jnp.bool_ else mask
-            
+
             if mask_bool.ndim == 3 and mask_bool.shape[0] == bs:
                 custom_mask = mask_bool[0]
             elif mask_bool.ndim == 4 and mask_bool.shape[0] == bs:
                 custom_mask = mask_bool[0, 0]
 
             if is_causal and custom_mask is not None:
-                causal_mask = jnp.tril(jnp.ones((q_len, q_len), dtype=jnp.bool_))
+                causal_mask = jnp.tril(
+                    jnp.ones((q_len, q_len), dtype=jnp.bool_)
+                )
                 custom_mask = jnp.logical_and(custom_mask, causal_mask)
-        
+
         if custom_mask is None and is_causal:
             custom_mask = jnp.tril(jnp.ones((q_len, q_len), dtype=jnp.bool_))
 
@@ -1355,7 +1368,7 @@ def dot_product_attention(
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.33/jax/_src/nn/functions.py#L886
     # Not support `query_seq_lengths` and `key_value_seq_lengths` args
-    
+
     # Fallback to custom XLA implementation
     # This is the reference implementation from jax.nn.dot_product_attention
     output_shape = query.shape
