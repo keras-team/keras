@@ -210,9 +210,9 @@ def _pool(
         initial_value: the initial value for the reduction.
         reduce_fn: a reduce function of the form `(T, T) -> T`.
         pool_size: a sequence of `N` integers, representing the window size to
-          reduce over.
+            reduce over.
         strides: a sequence of `N` integers, representing the inter-window
-        strides (default: `(1, ..., 1)`).
+            strides (default: `(1, ..., 1)`).
         padding: either the string `same` or `valid`.
 
     Returns:
