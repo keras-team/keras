@@ -53,7 +53,13 @@ class Variable(KerasVariable):
         value = initializer(shape, dtype=dtype)
 
         # Store in nnx.Param (raw_value will be used as backing store)
-        self._param = nnx.Param(value)
+        value = initializer(shape, dtype)
+        if trainable:
+            self._param = nnx.Param(value)
+        else:
+            self._param = nnx.Variable(value)
+        self.trainable = trainable
+        self._name = name
         super().__init__(
             initializer,
             shape=shape,
@@ -70,7 +76,7 @@ class Variable(KerasVariable):
         """The current value of the variable (numpy array or backend tensor)."""
         if in_stateless_scope():
             scope = get_stateless_scope()
-            value = scope.get_current_value(self._param.raw_value)
+            value = scope.get_current_value(self._param.value)
             if value is not None:
                 return self._maybe_autocast(value)
         if self._value is None:
@@ -84,7 +90,7 @@ class Variable(KerasVariable):
         return self._maybe_autocast(self._param.raw_value)
 
     def assign(self, value):
-        self._param.raw_value = jnp.array(value, dtype=self.dtype)
+        self._param.value = jnp.array(value, dtype=self.dtype)
         value = self._convert_to_tensor(value, dtype=self.dtype)
         if not shape_equal(value.shape, self.shape):
             raise ValueError(
@@ -101,6 +107,13 @@ class Variable(KerasVariable):
         else:
             self._direct_assign(value)
         return value
+    
+    def numpy(self):
+        return jax.device_get(self._param.value)
+    
+    def __array__(self):
+        return self._param.value
+
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
