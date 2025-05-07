@@ -850,6 +850,8 @@ def hstack(xs):
     if not isinstance(xs, (list, tuple)):
         xs = (xs,)
     elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
     is_1d = elems and len(elems[0].get_partial_shape().to_shape()) == 1
     axis = 0 if is_1d else 1
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
