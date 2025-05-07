@@ -35,7 +35,8 @@ def det(a):
 
 
 def eig(a):
-    raise NotImplementedError("eig not yet implemented in mlx.")
+    # Using numpy for now, as mlx does not support eig yet.
+    return np.linalg.eig(a)
 
 
 def eigh(a):
@@ -44,7 +45,9 @@ def eigh(a):
 
 
 def lu_factor(a):
-    raise NotImplementedError("lu_factor not yet implemented in mlx.")
+    with mx.stream(mx.cpu):
+        # This op is not yet supported on the GPU.
+        return mx.linalg.lu_factor(a)
 
 
 def solve(a, b):
@@ -55,7 +58,15 @@ def solve(a, b):
 
 
 def solve_triangular(a, b, lower=False):
-    raise NotImplementedError("solve_triangular not yet implemented in mlx.")
+    upper = not lower
+    with mx.stream(mx.cpu):
+        # This op is not yet supported on the GPU.
+        if b.ndim == a.ndim - 1:
+            b = mx.expand_dims(b, axis=-1)
+            return mx.squeeze(
+                mx.linalg.solve_triangular(a, b, upper=upper), axis=-1
+            )
+        return mx.linalg.solve_triangular(a, b, upper=upper)
 
 
 def qr(x, mode="reduced"):
@@ -103,4 +114,43 @@ def inv(a):
 
 
 def lstsq(a, b, rcond=None):
-    raise NotImplementedError("lstsq not yet implemented in mlx.")
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    if a.shape[0] != b.shape[0]:
+        raise ValueError(
+            "Incompatible shapes: a and b must have the same number of rows."
+        )
+    b_orig_ndim = b.ndim
+    if b.ndim == 1:
+        b = mx.expand_dims(b, axis=-1)
+    elif b.ndim > 2:
+        raise ValueError("b must be 1D or 2D.")
+
+    if b.ndim != 2:
+        raise ValueError("b must be 1D or 2D.")
+
+    m, n = a.shape
+    dtype = a.dtype
+
+    eps = np.finfo(np.array(a).dtype).eps
+    if a.shape == ():
+        s = mx.zeros((0,), dtype=dtype)
+        x = mx.zeros((n, *b.shape[1:]), dtype=dtype)
+    else:
+        if rcond is None:
+            rcond = eps * max(m, n)
+        else:
+            rcond = mx.where(rcond < 0, eps, rcond)
+    u, s, vt = svd(a, full_matrices=False)
+
+    mask = s >= mx.array(rcond, dtype=s.dtype) * s[0]
+    safe_s = mx.array(mx.where(mask, s, 1), dtype=dtype)
+    s_inv = mx.where(mask, 1 / safe_s, 0)
+    s_inv = mx.expand_dims(s_inv, axis=1)
+    u_t_b = mx.matmul(mx.transpose(mx.conj(u)), b)
+    x = mx.matmul(mx.transpose(mx.conj(vt)), s_inv * u_t_b)
+
+    if b_orig_ndim == 1:
+        x = mx.squeeze(x, axis=-1)
+
+    return x
