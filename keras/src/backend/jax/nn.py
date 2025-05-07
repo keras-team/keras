@@ -205,9 +205,9 @@ def _pool(
         initial_value: the initial value for the reduction.
         reduce_fn: a reduce function of the form `(T, T) -> T`.
         pool_size: a sequence of `N` integers, representing the window size to
-          reduce over.
+            reduce over.
         strides: a sequence of `N` integers, representing the inter-window
-        strides (default: `(1, ..., 1)`).
+            strides (default: `(1, ..., 1)`).
         padding: either the string `same` or `valid`.
 
     Returns:
@@ -1132,7 +1132,7 @@ def wrap_flash_attention(
     if decoder_segment_ids is not None:
         assert query.shape[2] == decoder_segment_ids.q.shape[1], (
             "Sharding along sequence dimension not allowed"
-            " in tpu kernel attention"
+            " in TPU kernel attention"
         )
 
     if custom_mask is not None:
@@ -1178,24 +1178,24 @@ def dot_product_attention(
 
     Args:
         query: Queries with shape `[batch, time, heads,
-          depth_k]`.
+            depth_k]`.
         key: Keys with shape `[batch, time, heads,
-          depth_k]`.
+            depth_k]`.
         value: Values with shape `[batch, time, heads,
-          depth_v]`.
+            depth_v]`.
         bias: Optional bias with shape broadcastable to
-          `[batch, heads, dest_time, source_time]`.
+            `[batch, heads, dest_time, source_time]`.
         mask: Optional mask with shape broadcastable to
-          `[batch, heads, dest_time, source_time]`.
+            `[batch, heads, dest_time, source_time]`.
         scale: Float. Optional scale that is applied to the attention
-          computation.
+            computation.
         is_causal: Boolean. Specifying whether causal masking is applied.
         flash_attention: Boolean. Whether to use flash attention optimization
         for increased performance. Default to None, which means it will be
-          auto-determined based on the platform, input shapes and compatibility.
+            auto-determined based on the platform, input shapes and compatibility.
         attn_logits_soft_cap: Float. Optional float to softly cap attention
-        logits to avoid numerical stability issues. Applied as:
-          `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
+            logits to avoid numerical stability issues. Applied as:
+            `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
 
     Returns:
         JAX Array of shape `[batch, time, heads, depth_v]`.
