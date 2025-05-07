@@ -8411,14 +8411,16 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_take_along_axis(self, dtype):
+    @parameterized.named_parameters(
+        named_product(dtype=ALL_DTYPES, indices_dtype=INT_DTYPES)
+    )
+    def test_take_along_axis(self, dtype, indices_dtype):
         import jax.numpy as jnp
 
         x = knp.ones((1,), dtype=dtype)
-        indices = knp.zeros((1,), dtype="int32")
+        indices = knp.zeros((1,), dtype=indices_dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
-        indices_jax = jnp.zeros((1,), dtype="int32")
+        indices_jax = jnp.zeros((1,), dtype=indices_dtype)
         expected_dtype = standardize_dtype(
             jnp.take_along_axis(x_jax, indices_jax, 0).dtype
         )

@@ -2330,7 +2330,11 @@ def take_along_axis(x, indices, axis=None):
     indices = tf.broadcast_to(indices, indices_shape)
 
     # Correct the indices using "fill" mode which is the same as in jax
-    indices = tf.where(indices < 0, indices + x_shape[static_axis], indices)
+    indices = tf.where(
+        indices < 0,
+        indices + tf.cast(x_shape[static_axis], dtype=indices.dtype),
+        indices,
+    )
 
     x = swapaxes(x, static_axis, -1)
     indices = swapaxes(indices, static_axis, -1)
