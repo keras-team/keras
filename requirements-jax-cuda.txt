@@ -4,7 +4,7 @@ tf2onnx
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0
+torch==2.7.0
 
 # Jax with cuda support.
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
