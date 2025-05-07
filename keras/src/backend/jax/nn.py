@@ -1191,8 +1191,9 @@ def dot_product_attention(
             computation.
         is_causal: Boolean. Specifying whether causal masking is applied.
         flash_attention: Boolean. Whether to use flash attention optimization
-        for increased performance. Default to None, which means it will be
-            auto-determined based on the platform, input shapes and compatibility.
+            for increased performance. Default to None, which means it will
+            be auto-determined based on the platform, input shapes and
+            compatibility.
         attn_logits_soft_cap: Float. Optional float to softly cap attention
             logits to avoid numerical stability issues. Applied as:
             `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
