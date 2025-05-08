@@ -60,6 +60,8 @@ from keras.src.ops.math import segment_max as segment_max
 from keras.src.ops.math import segment_sum as segment_sum
 from keras.src.ops.math import stft as stft
 from keras.src.ops.math import top_k as top_k
+from keras.src.ops.math import view_as_complex as view_as_complex
+from keras.src.ops.math import view_as_real as view_as_real
 from keras.src.ops.nn import average_pool as average_pool
 from keras.src.ops.nn import batch_normalization as batch_normalization
 from keras.src.ops.nn import binary_crossentropy as binary_crossentropy
@@ -144,6 +146,7 @@ from keras.src.ops.numpy import bitwise_not as bitwise_not
 from keras.src.ops.numpy import bitwise_or as bitwise_or
 from keras.src.ops.numpy import bitwise_right_shift as bitwise_right_shift
 from keras.src.ops.numpy import bitwise_xor as bitwise_xor
+from keras.src.ops.numpy import blackman as blackman
 from keras.src.ops.numpy import broadcast_to as broadcast_to
 from keras.src.ops.numpy import ceil as ceil
 from keras.src.ops.numpy import clip as clip

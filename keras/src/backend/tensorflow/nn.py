@@ -353,7 +353,7 @@ def depthwise_conv(
     if num_spatial_dims > 2:
         raise ValueError(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
-            "{inputs.ndim}."
+            f"{inputs.ndim}."
         )
     # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.

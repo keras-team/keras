@@ -87,8 +87,9 @@ class Nadam(optimizer.Optimizer):
         else:
             dtype = backend.floatx()
         super().build(var_list)
-        self._momentums = self.add_optimizer_variables(var_list, "momentum")
-        self._velocities = self.add_optimizer_variables(var_list, "velocity")
+        self._momentums, self._velocities = self.add_optimizer_variables(
+            var_list, ["momentum", "velocity"]
+        )
         self._u_product = backend.Variable(1.0, dtype=dtype)
 
     def _backend_update_step(self, grads, trainable_variables, learning_rate):
