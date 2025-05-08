@@ -42,6 +42,7 @@ class Variable(KerasVariable):
     def __init__(
         self,
         initializer,
+        layout=None,
         shape=None,
         dtype=None,
         trainable=True,
@@ -132,6 +133,8 @@ class Variable(KerasVariable):
     def _direct_assign(self, value):
         if self._layout is not None:
             value = distribution_lib.distribute_variable(value, self._layout)
+            self._param.value = jnp.array(value, dtype=self.dtype)
+            value = self._convert_to_tensor(value, dtype=self.dtype)
         self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
