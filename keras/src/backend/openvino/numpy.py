@@ -1047,7 +1047,6 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         indices = ov_opset.reshape(
             indices,
             ov_opset.constant(indices_shape, dtype=Type.i32),
-            special_zero=False
         ).output(0)
 
     linear_space = ov_opset.add(start, ov_opset.multiply(indices, step)).output(0)
