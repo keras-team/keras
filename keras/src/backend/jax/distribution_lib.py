@@ -3,7 +3,10 @@
 import jax
 import numpy as np
 
+from keras.src.backend.common import global_state
+from keras.src.random import seed_generator
 from keras.src.utils import jax_utils
+from keras.src.utils import rng_utils
 
 
 def list_devices(device_type=None):
@@ -185,6 +188,52 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
     return global_batch_array
 
 
+def initialize_rng():
+    """Initializes the global random number generator across processes.
+
+    This is required for consistent initialization in multi-host settings.
+    """
+    global_seed = rng_utils.get_random_seed()
+    # Only set a random seed if not already set
+    # via keras.config.set_random_seed()
+    if global_seed is None:
+        # Generate a random seed on each CPU host and psum them to get a single
+        # consistent seed across all processes.
+        cpu_devices = jax.devices("cpu")
+        num_local_cpu_devices = jax.local_device_count("cpu")
+        # Seed must be in range [0, 2^32 - 1], so to ensure proper range and
+        # avoid signed integer overflow, we use uint32.
+        local_seed = jax.numpy.asarray(
+            [seed_generator.make_default_seed()] * num_local_cpu_devices,
+            dtype=jax.numpy.uint32,
+        )
+        # Sum across processes and pull out the first item.
+        global_seed = jax.pmap(
+            lambda x: jax.lax.psum(x, "all"),
+            axis_name="all",
+            devices=cpu_devices,
+        )(local_seed).item(0)
+        # Set the global seed.
+        rng_utils.set_random_seed(global_seed)
+
+    # Check if the global seed generator is set and ensure it has an initialized
+    # seed.  Otherwise, reset the seed to the global seed.
+    global_seed_generator = global_state.get_global_attribute(
+        "global_seed_generator"
+    )
+    if global_seed_generator is not None:
+        seed = global_seed_generator.get_config()["seed"]
+        if seed is None:
+            global_state.set_global_attribute(
+                "global_seed_generator",
+                seed_generator.SeedGenerator(
+                    seed=global_seed,
+                    name=global_seed_generator.name,
+                    backend=global_seed_generator.backend,
+                ),
+            )
+
+
 def initialize(job_addresses, num_processes, process_id):
     if job_addresses and "," in job_addresses:
         # When user provide all the job addresses, we will split and get the
@@ -207,6 +256,9 @@ def initialize(job_addresses, num_processes, process_id):
         num_processes=num_processes,
         process_id=process_id,
     )
+
+    # Ensure the random number generator is initialized across processes.
+    initialize_rng()
 
 
 def num_processes():
