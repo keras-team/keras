@@ -119,11 +119,12 @@ class Embedding(Layer):
     def build(self, input_shape=None):
         if self.built:
             return
+        embeddings_shape = (self.input_dim, self.output_dim)
         if self.quantization_mode is not None:
-            self.quantized_build(input_shape, mode=self.quantization_mode)
+            self.quantized_build(embeddings_shape, mode=self.quantization_mode)
         if self.quantization_mode != "int8":
             self._embeddings = self.add_weight(
-                shape=(self.input_dim, self.output_dim),
+                shape=embeddings_shape,
                 initializer=self.embeddings_initializer,
                 name="embeddings",
                 regularizer=self.embeddings_regularizer,
@@ -312,21 +313,18 @@ class Embedding(Layer):
             f"Received: quantization_mode={mode}"
         )
 
-    def quantized_build(self, input_shape, mode):
+    def quantized_build(self, embeddings_shape, mode):
         if mode == "int8":
-            self._int8_build()
+            self._int8_build(embeddings_shape)
         else:
             raise self._quantization_mode_error(mode)
+        self._is_quantized = True
 
-    def _int8_build(
-        self,
-        embeddings_initializer="zeros",
-        embeddings_scale_initializer="ones",
-    ):
+    def _int8_build(self, embeddings_shape):
         self._embeddings = self.add_weight(
             name="embeddings",
-            shape=(self.input_dim, self.output_dim),
-            initializer=embeddings_initializer,
+            shape=embeddings_shape,
+            initializer="zeros",
             dtype="int8",
             trainable=False,
         )
@@ -336,10 +334,9 @@ class Embedding(Layer):
         self.embeddings_scale = self.add_weight(
             name="embeddings_scale",
             shape=(self.input_dim,),
-            initializer=embeddings_scale_initializer,
+            initializer="ones",
             trainable=False,
         )
-        self._is_quantized = True
 
     def quantized_call(self, *args, **kwargs):
         if self.quantization_mode != "int8":
@@ -371,6 +368,7 @@ class Embedding(Layer):
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
 
+        embeddings_shape = (self.input_dim, self.output_dim)
         if mode == "int8":
             # Quantize `self._embeddings` to int8 and compute corresponding
             # scale
@@ -379,11 +377,10 @@ class Embedding(Layer):
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             del self._embeddings
-            # Utilize a lambda expression as an initializer to prevent adding a
-            # large constant to the computation graph.
-            self._int8_build(embeddings_value, embeddings_scale)
-        else:
-            raise self._quantization_mode_error(mode)
+        self.quantized_build(embeddings_shape, mode)
+        if mode == "int8":
+            self._embeddings.assign(embeddings_value)
+            self.embeddings_scale.assign(embeddings_scale)
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:
