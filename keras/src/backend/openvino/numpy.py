@@ -1225,6 +1225,12 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         else OPENVINO_DTYPES[standardize_dtype(dtype)]
     )
 
+    start, stop, base = (
+        ov_opset.convert(start, out_dtype).output(0),
+        ov_opset.convert(stop, out_dtype).output(0),
+        ov_opset.convert(base, out_dtype).output(0),
+    )
+
     start = ov_opset.reshape(
         start,
         ov_opset.concat(
