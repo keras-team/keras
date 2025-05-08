@@ -967,6 +967,7 @@ def linspace(
     stop = ov_opset.convert(stop, dtype).output(0)
 
     num = get_ov_output(num, Type.i32)
+    num = ov_opset.convert(num, Type.i32).output(0)
 
     zero_i = ov_opset.constant(0, Type.i32).output(0)
     one_i = ov_opset.constant(1, Type.i32).output(0)
