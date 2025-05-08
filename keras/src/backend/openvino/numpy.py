@@ -854,6 +854,10 @@ def hstack(xs):
     elems = [get_ov_output(elem, element_type) for elem in elems]
     is_1d = elems and len(elems[0].get_partial_shape().to_shape()) == 1
     axis = 0 if is_1d else 1
+    for i in range(1, len(elems)):
+        elems[0], elems[i] = _align_operand_types(
+            elems[0], elems[i], "hstack()"
+        )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
