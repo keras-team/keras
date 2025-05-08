@@ -30,6 +30,7 @@ def test_custom_fit():
             return loss, (y_pred, non_trainable_variables)
 
         def train_step(self, state, data):
+            print("inside train step with data", data)
             (
                 trainable_variables,
                 non_trainable_variables,
@@ -91,6 +92,7 @@ def test_custom_fit():
     model.compile(optimizer="adam")
     x = np.random.random((64, 32))
     y = np.random.random((64, 1))
+
     history = model.fit(x, y, epochs=1)
 
     assert "loss" in history.history

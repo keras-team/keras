@@ -12,7 +12,7 @@ import jax
 import jax.numpy as jnp
 import tensorflow as tf  # just for tf.data
 import keras  # Keras multi-backend
-
+from flax import nnx
 import numpy as np
 from tqdm import tqdm
 
@@ -264,7 +264,7 @@ compute_gradients = jax.value_and_grad(compute_loss, has_aux=True)
 
 
 # Training step: Keras provides a pure functional optimizer.stateless_apply
-@jax.jit
+@nnx.jit
 def train_step(train_state, x, y):
     (loss_value, non_trainable_variables), grads = compute_gradients(
         train_state.trainable_variables,
@@ -302,7 +302,7 @@ data, labels = next(iter(eval_data))
 sharded_data = jax.device_put(data.numpy(), data_sharding)
 
 
-@jax.jit
+@nnx.jit
 def predict(data):
     predictions, updated_non_trainable_variables = model.stateless_call(
         device_train_state.trainable_variables,

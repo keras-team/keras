@@ -48,7 +48,7 @@ import jax
 import numpy as np
 import tensorflow as tf
 import keras
-
+from flax import nnx
 from jax.experimental import mesh_utils
 from jax.sharding import Mesh
 from jax.sharding import NamedSharding
@@ -186,7 +186,7 @@ compute_gradients = jax.value_and_grad(compute_loss, has_aux=True)
 
 
 # Training step, Keras provides a pure functional optimizer.stateless_apply
-@jax.jit
+@nnx.jit
 def train_step(train_state, x, y):
     (
         trainable_variables,

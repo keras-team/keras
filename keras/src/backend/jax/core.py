@@ -50,16 +50,6 @@ class Variable(KerasVariable):
         synchronization="auto",
         name=None,
     ):
-        value = initializer(shape, dtype=dtype)
-
-        # Store in nnx.Param (raw_value will be used as backing store)
-        value = initializer(shape, dtype)
-        if trainable:
-            self._param = nnx.Param(value)
-        else:
-            self._param = nnx.Variable(value)
-        self.trainable = trainable
-        self._name = name
         super().__init__(
             initializer,
             shape=shape,
@@ -70,6 +60,14 @@ class Variable(KerasVariable):
             synchronization=synchronization,
             name=name,
         )
+        value = initializer(shape, dtype=dtype)
+
+        # Store in nnx.Param (raw_value will be used as backing store)
+        value = initializer(shape, dtype)
+        if trainable:
+            self._param = nnx.Param(value)
+        else:
+            self._param = nnx.Variable(value)
 
     @property
     def value(self):
@@ -107,13 +105,12 @@ class Variable(KerasVariable):
         else:
             self._direct_assign(value)
         return value
-    
+
     def numpy(self):
         return jax.device_get(self._param.value)
-    
+
     def __array__(self):
         return self._param.value
-
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib

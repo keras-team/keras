@@ -1,13 +1,24 @@
-from flax import nnx
+class JaxLayer:
+    pass
 
+
+"""from flax import nnx
+import jax.numpy as jnp
 
 class JaxLayer(nnx.Module):
-    def __new__(cls, *args, **kwargs):
-        """Overrides __new__ to save constructor arguments for potential
-        serialization/config.
-        """
-        instance = super(JaxLayer, cls).__new__(cls)
-        vars(instance)['_object__state'] = nnx.object.ObjectState()
-        instance.__init_args = args
-        instance.__init_kwargs = kwargs
-        return instance
+    def __init__(self):
+        super().__init__()
+
+    def add_weight(self, name, shape, dtype=None, initializer=None, trainable=True):
+        value = initializer(shape, dtype)
+        var = nnx.Param(value) if trainable else nnx.Variable(value)
+        setattr(self, name, var)
+        return var
+
+    def get_weights(self):
+        return [v.value for v in nnx.variables(self, nnx.Param)]
+
+    def set_weights(self, weights):
+        params = list(nnx.variables(self, nnx.Param).values())
+        for var, val in zip(params, weights):
+            var.value = val """

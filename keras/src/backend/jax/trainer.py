@@ -4,6 +4,7 @@ from functools import partial
 
 import jax
 import numpy as np
+from flax import nnx
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
@@ -231,7 +232,7 @@ class JAXTrainer(base_trainer.Trainer):
                     return output
 
                 if not self.run_eagerly and self.jit_compile:
-                    concatenate = jax.jit(concatenate)
+                    concatenate = nnx.jit(concatenate)
 
                 def iterator_step(state, iterator):
                     data = next(iterator)
@@ -275,7 +276,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            train_step = jax.jit(self.train_step, donate_argnums=0)
+            train_step = nnx.jit(self.train_step, donate_argnums=0)
         else:
             train_step = self.train_step
 
@@ -291,7 +292,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            test_step = jax.jit(self.test_step, donate_argnums=0)
+            test_step = nnx.jit(self.test_step, donate_argnums=0)
         else:
             test_step = self.test_step
 
@@ -308,7 +309,7 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
-            predict_step = jax.jit(predict_step, donate_argnums=0)
+            predict_step = nnx.jit(predict_step, donate_argnums=0)
 
         _step_function = self._make_function(
             predict_step, concatenate_outputs=True
@@ -897,7 +898,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         Since the output of the train/eval step will be used as inputs to next
         step, we need to ensure that they have the same sharding spec, so that
-        jax.jit won't have to recompile the train/eval function.
+        nnx.jit won't have to recompile the train/eval function.
 
         Note that this function will also rely on the recorded sharding spec
         for each of states.
