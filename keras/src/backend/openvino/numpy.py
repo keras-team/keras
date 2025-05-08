@@ -846,7 +846,17 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    raise NotImplementedError("`hstack` is not supported with openvino backend")
+    element_type = None
+    for x in xs:
+        if isinstance(x, OpenVINOKerasTensor):
+            element_type = x.output.get_element_type()
+            break
+    xs = [get_ov_output(x, element_type) for x in xs]
+    for i in range(1, len(xs)):
+        xs[0], xs[i] = _align_operand_types(xs[0], xs[i], "hstack()")
+    rank = len(xs[0].get_partial_shape())
+    axis = 1 if rank > 1 else 0
+    return OpenVINOKerasTensor(ov_opset.concat(xs, axis=axis).output(0))
 
 
 def identity(n, dtype=None):
