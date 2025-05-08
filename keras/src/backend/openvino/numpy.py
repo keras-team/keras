@@ -1015,57 +1015,44 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     stop = get_ov_output(stop)
     num = get_ov_output(num)
     base = get_ov_output(base)
-    
+
     if dtype is not None:
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
     else:
         ov_type = OPENVINO_DTYPES[config.floatx()]
-    
+
     start = ov_opset.convert(start, ov_type).output(0)
     stop = ov_opset.convert(stop, ov_type).output(0)
     num_float = ov_opset.convert(num, ov_type).output(0)
-    
-    start_shape = start.get_partial_shape().to_shape()
-    is_scalar_or_vector = len(start_shape) <= 1
-    
+    base = ov_opset.convert(base, ov_type).output(0)
+
     if endpoint:
         one = ov_opset.constant(1, ov_type).output(0)
-        step = ov_opset.divide(
-            ov_opset.subtract(stop, start),
-            ov_opset.subtract(num_float, one)
-        ).output(0)
+        divisor = ov_opset.subtract(num_float, one)
     else:
-        step = ov_opset.divide(
-            ov_opset.subtract(stop, start),
-            num_float
-        ).output(0)
-    
+        divisor = num_float
+
+    step = ov_opset.divide(ov_opset.subtract(stop, start), divisor).output(0)
+
     indices = ov_opset.range(
-        ov_opset.constant(0, ov_type),  
-        num_float,                     
-        ov_opset.constant(1, ov_type), 
+        ov_opset.constant(0, ov_type),
+        num_float,
+        ov_opset.constant(1, ov_type),
         ov_type
     ).output(0)
-    
-    if not is_scalar_or_vector:
-        indices_shape = [int(num)]
-        for _ in range(len(start_shape)):
-            indices_shape.append(1)  
-        
+
+    start_shape = start.get_partial_shape()
+    if start_shape.rank.is_static() and start_shape.rank.get_length() > 0:
+        indices_shape = [int(num)] + [1] * start_shape.rank.get_length()
         indices = ov_opset.reshape(
-            indices, 
-            ov_opset.constant(indices_shape, Type.i32), 
+            indices,
+            ov_opset.constant(indices_shape, dtype=Type.i32),
             special_zero=False
         ).output(0)
-    
-    linear_space = ov_opset.add(
-        start,
-        ov_opset.multiply(indices, step)
-    ).output(0)
-    
-    base = ov_opset.convert(base, ov_type).output(0)
+
+    linear_space = ov_opset.add(start, ov_opset.multiply(indices, step)).output(0)
     result = ov_opset.power(base, linear_space).output(0)
-    
+
     return OpenVINOKerasTensor(result)
 
 
