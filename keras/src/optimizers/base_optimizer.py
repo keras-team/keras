@@ -244,6 +244,7 @@ class BaseOptimizer(KerasSaveable):
         initializer="zeros",
         dtype=None,
         aggregation="none",
+        layout=None,
         name=None,
     ):
         """Add a variable to the optimizer.
@@ -261,6 +262,7 @@ class BaseOptimizer(KerasSaveable):
                 the type of multi-replica aggregation to be used for this
                 variable when writing custom data parallel training loops.
                 Defaults to `"none"`.
+            layout: Optional tensor layout.  Defaults to `None`.
             name: String name of the variable. Useful for debugging purposes.
 
         Returns:
@@ -275,6 +277,7 @@ class BaseOptimizer(KerasSaveable):
                 dtype=dtype,
                 trainable=False,
                 aggregation=aggregation,
+                layout=layout,
                 name=name,
             )
         self._track_variable(variable)
@@ -319,6 +322,7 @@ class BaseOptimizer(KerasSaveable):
             initializer=initializer,
             dtype=reference_variable.dtype,
             name=name,
+            layout=getattr(reference_variable, "_layout", None),
         )
 
     def add_optimizer_variables(
