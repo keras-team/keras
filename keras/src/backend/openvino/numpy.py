@@ -1178,7 +1178,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     """
     if not (isinstance(num, int) or hasattr(num, "get_element_type")):
         raise ValueError(
-            f"Expected 'num' to be a non-negative integer or OpenVINO scalar, got {type(num)}"
+            f"Expected 'num' to be a non-negative integer or OpenVINO scalar, "
+            f"got {type(num)}"
         )
     if isinstance(num, int) and num < 0:
         raise ValueError(f"Number of samples must be non-negative, got {num}")
