@@ -1023,9 +1023,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     
     start = ov_opset.convert(start, ov_type).output(0)
     stop = ov_opset.convert(stop, ov_type).output(0)
-
     num_float = ov_opset.convert(num, ov_type).output(0)
-
+    
+    start_shape = start.get_partial_shape().to_shape()
+    is_scalar_or_vector = len(start_shape) <= 1
+    
     if endpoint:
         one = ov_opset.constant(1, ov_type).output(0)
         step = ov_opset.divide(
@@ -1039,19 +1041,29 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         ).output(0)
     
     indices = ov_opset.range(
-        ov_opset.constant(0, Type.i32),
-        num,
-        ov_opset.constant(1, Type.i32),
+        ov_opset.constant(0, ov_type),  
+        num_float,                     
+        ov_opset.constant(1, ov_type), 
         ov_type
     ).output(0)
+    
+    if not is_scalar_or_vector:
+        indices_shape = [int(num)]
+        for _ in range(len(start_shape)):
+            indices_shape.append(1)  
+        
+        indices = ov_opset.reshape(
+            indices, 
+            ov_opset.constant(indices_shape, Type.i32), 
+            special_zero=False
+        ).output(0)
     
     linear_space = ov_opset.add(
         start,
         ov_opset.multiply(indices, step)
     ).output(0)
-
-    base = ov_opset.convert(base, ov_type).output(0)
     
+    base = ov_opset.convert(base, ov_type).output(0)
     result = ov_opset.power(base, linear_space).output(0)
     
     return OpenVINOKerasTensor(result)
