@@ -1023,16 +1023,19 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     
     start = ov_opset.convert(start, ov_type).output(0)
     stop = ov_opset.convert(stop, ov_type).output(0)
-    
+
+    num_float = ov_opset.convert(num, ov_type).output(0)
+
     if endpoint:
+        one = ov_opset.constant(1, ov_type).output(0)
         step = ov_opset.divide(
             ov_opset.subtract(stop, start),
-            ov_opset.subtract(num, ov_opset.constant(1, Type.i32))
+            ov_opset.subtract(num_float, one)
         ).output(0)
     else:
         step = ov_opset.divide(
             ov_opset.subtract(stop, start),
-            num
+            num_float
         ).output(0)
     
     indices = ov_opset.range(
