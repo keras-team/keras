@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from absl.testing import parameterized
+from flax import nnx
 
 import keras
 from keras.src import backend
