@@ -521,6 +521,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         regularizer=None,
         constraint=None,
         aggregation="none",
+        overwrite_with_gradient=False,
         name=None,
     ):
         """Add a weight variable to the layer.
@@ -552,6 +553,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 the type of multi-replica aggregation to be used for this
                 variable when writing custom data parallel training loops.
                 Defaults to `"none"`.
+            overwrite_with_gradient: Boolean, whether to overwrite the variable
+                with the computed gradient. This is useful for float8 training.
+                Defaults to `False`.
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
@@ -580,6 +584,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # Will be added to layer.losses
         variable.regularizer = regularizers.get(regularizer)
         variable.constraint = constraints.get(constraint)
+        variable.overwrite_with_gradient = overwrite_with_gradient
         self._track_variable(variable)
         return variable
 
