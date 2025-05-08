@@ -1218,7 +1218,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         ov_to_keras_type(start.get_element_type()),
         ov_to_keras_type(stop.get_element_type()),
         ov_to_keras_type(base.get_element_type()),
-        config.floatx(),
+        # config.floatx(),
     )
     out_dtype = (
         OPENVINO_DTYPES[out_dtype]
