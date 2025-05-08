@@ -5,8 +5,6 @@ from openvino import Type
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.openvino.core import DTYPES_MAX
-from keras.src.backend.openvino.core import DTYPES_MIN
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
@@ -140,10 +138,6 @@ def all(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     )
-
-
-def angle(x):
-    raise NotImplementedError("`angle` is not supported with openvino backend")
 
 
 def any(x, axis=None, keepdims=False):
@@ -468,12 +462,6 @@ def average(x, axis=None, weights=None):
     return OpenVINOKerasTensor(mean_ops.output(0))
 
 
-def bartlett(x):
-    raise NotImplementedError(
-        "`bartlett` is not supported with openvino backend"
-    )
-
-
 def bincount(x, weights=None, minlength=0, sparse=False):
     if x is None:
         raise ValueError("input x is None")
@@ -517,12 +505,6 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         ).output(0)
         final_output = ov_opset.convert(final_output, Type.i32).output(0)
         return OpenVINOKerasTensor(final_output)
-
-
-def blackman(x):
-    raise NotImplementedError(
-        "`blackman` is not supported with openvino backend"
-    )
 
 
 def broadcast_to(x, shape):
@@ -1159,36 +1141,9 @@ def moveaxis(x, source, destination):
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
-    x = get_ov_output(x)
-    dtype = x.get_element_type()
-    if dtype.is_integral():
-        return OpenVINOKerasTensor(x)
-    isfloat64 = True if dtype == Type.f64 else False
-    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
-        x = ov_opset.convert(x, Type.f32).output(0)
-        dtype = Type.f32
-    nan_val = ov_opset.constant(nan, dtype).output(0)
-    posinf_val = ov_opset.constant(
-        posinf if posinf is not None else DTYPES_MAX[dtype], dtype
-    ).output(0)
-    neginf_val = ov_opset.constant(
-        neginf if neginf is not None else DTYPES_MIN[dtype], dtype
-    ).output(0)
-    posinf_mask = ov_opset.is_inf(
-        x,
-        {"detect_positive": True, "detect_negative": False},
-    ).output(0)
-    neginf_mask = ov_opset.is_inf(
-        x,
-        {"detect_positive": False, "detect_negative": True},
-    ).output(0)
-    nan_mask = ov_opset.is_nan(x).output(0)
-    x = ov_opset.select(nan_mask, nan_val, x).output(0)
-    x = ov_opset.select(posinf_mask, posinf_val, x).output(0)
-    x = ov_opset.select(neginf_mask, neginf_val, x).output(0)
-    if isfloat64:
-        x = ov_opset.convert(x, Type.f64).output(0)
-    return OpenVINOKerasTensor(x)
+    raise NotImplementedError(
+        "`nan_to_num` is not supported with openvino backend"
+    )
 
 
 def ndim(x):
@@ -1284,11 +1239,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def ravel(x):
-    x = get_ov_output(x)
-    target_shape = ov_opset.constant([-1], dtype=Type.i32).output(0)
-    return OpenVINOKerasTensor(
-        ov_opset.reshape(x, target_shape, special_zero=False).output(0)
-    )
+    raise NotImplementedError("`ravel` is not supported with openvino backend")
 
 
 def real(x):
