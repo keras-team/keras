@@ -1235,23 +1235,33 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     start = ov_opset.reshape(
         start,
         ov_opset.concat(
-            [ov_opset.constant([1], np.int64), ov_opset.shape_of(start)], axis=0
-        ),
-    )
+            [
+                ov_opset.constant([1], Type.i64),
+                ov_opset.shape_of(start).output(0),
+            ],
+            axis=0,
+        ).output(0),
+        False,
+    ).output(0)
     stop = ov_opset.reshape(
         stop,
         ov_opset.concat(
-            [ov_opset.constant([1], np.int64), ov_opset.shape_of(stop)], axis=0
-        ),
-    )
+            [
+                ov_opset.constant([1], Type.i64),
+                ov_opset.shape_of(stop).output(0),
+            ],
+            axis=0,
+        ).output(0),
+        False,
+    ).output(0)
 
-    target_shape = ov_opset.shape_of(start)
+    target_shape = ov_opset.shape_of(start).output(0)
     target_shape = ov_opset.concat(
-        [ov_opset.constant([num], np.int64), target_shape[1:]], axis=0
-    )
+        [ov_opset.constant([num], Type.i64), target_shape[1:]], axis=0
+    ).output(0)
 
-    start = ov_opset.broadcast(start, target_shape)
-    stop = ov_opset.broadcast(stop, target_shape)
+    start = ov_opset.broadcast(start, target_shape).output(0)
+    stop = ov_opset.broadcast(stop, target_shape).output(0)
 
     lin_output = linspace(
         start, stop, num=num, endpoint=endpoint, dtype=out_dtype, axis=axis
