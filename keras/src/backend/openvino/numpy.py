@@ -1011,48 +1011,54 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    start = get_ov_output(start)
-    stop = get_ov_output(stop)
-    num = get_ov_output(num)
-    base = get_ov_output(base)
+    num_value = int(num)
 
-    if dtype is not None:
-        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
-    else:
-        ov_type = OPENVINO_DTYPES[config.floatx()]
-
-    start = ov_opset.convert(start, ov_type).output(0)
-    stop = ov_opset.convert(stop, ov_type).output(0)
-    num_float = ov_opset.convert(num, ov_type).output(0)
-    base = ov_opset.convert(base, ov_type).output(0)
+    start_t = ov_opset.convert(get_ov_output(start), 
+                               OPENVINO_DTYPES[standardize_dtype(dtype)] 
+                               if dtype is not None 
+                               else OPENVINO_DTYPES[config.floatx()]).output(0)
+    stop_t  = ov_opset.convert(get_ov_output(stop),
+                               OPENVINO_DTYPES[standardize_dtype(dtype)] 
+                               if dtype is not None 
+                               else OPENVINO_DTYPES[config.floatx()]).output(0)
+    num_t   = ov_opset.convert(get_ov_output(num), 
+                               OPENVINO_DTYPES[config.floatx()]).output(0)
+    base_t  = ov_opset.convert(get_ov_output(base), 
+                               OPENVINO_DTYPES[config.floatx()]).output(0)
 
     if endpoint:
-        one = ov_opset.constant(1, ov_type).output(0)
-        divisor = ov_opset.subtract(num_float, one)
+        one     = ov_opset.constant(1, OPENVINO_DTYPES[config.floatx()]).output(0)
+        divisor = ov_opset.subtract(num_t, one)
     else:
-        divisor = num_float
+        divisor = num_t
+    step_t = ov_opset.divide(ov_opset.subtract(stop_t, start_t), divisor).output(0)
 
-    step = ov_opset.divide(ov_opset.subtract(stop, start), divisor).output(0)
-
-    indices = ov_opset.range(
-        ov_opset.constant(0, ov_type),
-        num_float,
-        ov_opset.constant(1, ov_type),
-        ov_type
+    indices_t = ov_opset.range(
+        ov_opset.constant(0, OPENVINO_DTYPES[config.floatx()]),
+        num_t,
+        ov_opset.constant(1, OPENVINO_DTYPES[config.floatx()]),
+        OPENVINO_DTYPES[config.floatx()]
     ).output(0)
 
-    start_shape = start.get_partial_shape()
-    if start_shape.rank.is_static() and start_shape.rank.get_length() > 0:
-        indices_shape = [int(num)] + [1] * start_shape.rank.get_length()
-        indices = ov_opset.reshape(
-            indices,
-            ov_opset.constant(indices_shape, dtype=Type.i32),
+    static_shape = start_t.get_partial_shape().to_shape()  # tuple di int
+    if len(static_shape) > 0:
+        reshape_shape = [num_value] + [1] * len(static_shape)
+        indices_t = ov_opset.reshape(
+            indices_t,
+            ov_opset.constant(reshape_shape, dtype=Type.i32),
+            special_zero=False
         ).output(0)
 
-    linear_space = ov_opset.add(start, ov_opset.multiply(indices, step)).output(0)
-    result = ov_opset.power(base, linear_space).output(0)
+        step_t = ov_opset.reshape(
+            step_t,
+            ov_opset.constant([1] + list(static_shape), dtype=Type.i32),
+            special_zero=False
+        ).output(0)
 
-    return OpenVINOKerasTensor(result)
+    linear_t = ov_opset.add(start_t, ov_opset.multiply(indices_t, step_t)).output(0)
+    result_t = ov_opset.power(base_t, linear_t).output(0)
+
+    return OpenVINOKerasTensor(result_t)
 
 
 def maximum(x1, x2):
