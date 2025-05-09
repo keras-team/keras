@@ -1199,21 +1199,6 @@ def outer(x1, x2):
     x1_flatten = ov_opset.reshape(x1, ov_opset.constant([-1], Type.i32), False).output(0)
     x2_flatten = ov_opset.reshape(x2, ov_opset.constant([-1], Type.i32), False).output(0)
     
-    x1_shape = ov_opset.shape_of(x1_flatten, Type.i32).output(0)
-    x2_shape = ov_opset.shape_of(x2_flatten, Type.i32).output(0)
-    
-    x1_size = ov_opset.gather(
-        x1_shape, 
-        ov_opset.constant(0, Type.i32).output(0),
-        ov_opset.constant(0, Type.i32).output(0)
-    ).output(0)
-    
-    x2_size = ov_opset.gather(
-        x2_shape, 
-        ov_opset.constant(0, Type.i32).output(0),
-        ov_opset.constant(0, Type.i32).output(0)
-    ).output(0)
-    
     new_shape_x1 = ov_opset.constant([-1, 1], Type.i32).output(0)
     new_shape_x2 = ov_opset.constant([1, -1], Type.i32).output(0)
     
