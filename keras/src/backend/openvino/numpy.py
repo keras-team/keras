@@ -959,7 +959,7 @@ def linspace(
 
     dtype = standardize_dtype(dtype) or config.floatx()
     out_dtype = OPENVINO_DTYPES[dtype]
-    # dtype = OPENVINO_DTYPES[config.floatx()]
+    dtype = OPENVINO_DTYPES[config.floatx()]
 
     start = get_ov_output(start, dtype)
     stop = get_ov_output(stop, dtype)
@@ -1267,7 +1267,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
     y = ov_opset.power(base, lin_output).output(0)
-    # y = ov_opset.convert(y, out_dtype).output(0)
+    y = ov_opset.convert(y, out_dtype).output(0)
 
     # def is_integer_dtype(ov_dtype):
     #     return ov_dtype in (
