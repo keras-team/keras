@@ -1186,6 +1186,23 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if not isinstance(axis, int):
         raise TypeError(f"'axis' must be an integer, got {type(axis)}")
 
+    if dtype is None:
+        start_type = (
+            ov_to_keras_type(start.get_element_type())
+            if hasattr(start, "get_element_type")
+            else np.asarray(start).dtype
+        )
+        stop_type = (
+            ov_to_keras_type(stop.get_element_type())
+            if hasattr(stop, "get_element_type")
+            else np.asarray(stop).dtype
+        )
+
+        dtype = dtypes.result_type(start_type, stop_type, config.floatx())
+
+    dtype = standardize_dtype(dtype)
+    out_dtype = OPENVINO_DTYPES[dtype]
+
     if (
         not hasattr(start, "get_element_type")
         and not hasattr(stop, "get_element_type")
@@ -1208,24 +1225,6 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         get_ov_output(stop),
         get_ov_output(base),
     )
-    start, stop = (  # , base
-        ov_opset.convert(start, dtype).output(0),
-        ov_opset.convert(stop, dtype).output(0),
-        # ov_opset.convert(base, dtype).output(0),
-    )
-
-    out_dtype = dtypes.result_type(
-        ov_to_keras_type(start.get_element_type()),
-        ov_to_keras_type(stop.get_element_type()),
-        # ov_to_keras_type(base.get_element_type()),
-        # config.floatx(),
-    )
-    out_dtype = (
-        OPENVINO_DTYPES[out_dtype]
-        if dtype is None
-        else OPENVINO_DTYPES[standardize_dtype(dtype)]
-    )
-
     start, stop, base = (
         ov_opset.convert(start, out_dtype).output(0),
         ov_opset.convert(stop, out_dtype).output(0),
@@ -1268,7 +1267,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
     y = ov_opset.power(base, lin_output).output(0)
-    y = ov_opset.convert(y, out_dtype).output(0)
+    # y = ov_opset.convert(y, out_dtype).output(0)
 
     # def is_integer_dtype(ov_dtype):
     #     return ov_dtype in (
