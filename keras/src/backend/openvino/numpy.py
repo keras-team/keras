@@ -1211,7 +1211,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         y = np.logspace(
             start, stop, num=num, endpoint=endpoint, base=base, dtype=dtype
         )
-        return OpenVINOKerasTensor(get_ov_output(y))
+        y = ov_opset.convert(get_ov_output(y), out_dtype).output(0)
+        return OpenVINOKerasTensor(y)
 
     if num == 0:
         return OpenVINOKerasTensor(
