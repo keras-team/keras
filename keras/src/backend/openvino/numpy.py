@@ -1281,8 +1281,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             Type.u64,
         )
 
-    if is_integer_dtype(out_dtype):
-        y = ov_opset.floor(y).output(0)
+    # if is_integer_dtype(out_dtype):
+    #     y = ov_opset.floor(y).output(0)
 
     return OpenVINOKerasTensor(y)
 
