@@ -1121,6 +1121,7 @@ def moveaxis(x, source, destination):
     axes_const = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = get_ov_output(x)
     dtype = x.get_element_type()
