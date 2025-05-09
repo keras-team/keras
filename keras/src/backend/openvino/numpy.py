@@ -1195,18 +1195,22 @@ def outer(x1, x2):
     x2 = get_ov_output(x2)
 
     x1, x2 = _align_operand_types(x1, x2, "outer()")
-    
-    x1_flatten = ov_opset.reshape(x1, ov_opset.constant([-1], Type.i32), False).output(0)
-    x2_flatten = ov_opset.reshape(x2, ov_opset.constant([-1], Type.i32), False).output(0)
-    
+
+    x1_flatten = ov_opset.reshape(
+        x1, ov_opset.constant([-1], Type.i32), False
+    ).output(0)
+    x2_flatten = ov_opset.reshape(
+        x2, ov_opset.constant([-1], Type.i32), False
+    ).output(0)
+
     new_shape_x1 = ov_opset.constant([-1, 1], Type.i32).output(0)
     new_shape_x2 = ov_opset.constant([1, -1], Type.i32).output(0)
-    
+
     x1_reshaped = ov_opset.reshape(x1_flatten, new_shape_x1, False).output(0)
     x2_reshaped = ov_opset.reshape(x2_flatten, new_shape_x2, False).output(0)
-    
+
     result = ov_opset.multiply(x1_reshaped, x2_reshaped).output(0)
-    
+
     return OpenVINOKerasTensor(result)
 
 
