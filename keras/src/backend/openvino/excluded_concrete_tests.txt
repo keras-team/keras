@@ -39,7 +39,6 @@ NumpyDtypeTest::test_meshgrid
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_moveaxis
 NumpyDtypeTest::test_multiply
-NumpyDtypeTest::test_outer_
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_prod
 NumpyDtypeTest::test_quantile
@@ -144,7 +143,6 @@ NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_linspace
 NumpyTwoInputOpsCorrectnessTest::test_logspace
-NumpyTwoInputOpsCorrectnessTest::test_outer
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_take_along_axis
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
