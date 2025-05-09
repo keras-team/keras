@@ -1208,16 +1208,16 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         get_ov_output(stop),
         get_ov_output(base),
     )
-    start, stop, base = (
+    start, stop = (  # , base
         ov_opset.convert(start, dtype).output(0),
         ov_opset.convert(stop, dtype).output(0),
-        ov_opset.convert(base, dtype).output(0),
+        # ov_opset.convert(base, dtype).output(0),
     )
 
     out_dtype = dtypes.result_type(
         ov_to_keras_type(start.get_element_type()),
         ov_to_keras_type(stop.get_element_type()),
-        ov_to_keras_type(base.get_element_type()),
+        # ov_to_keras_type(base.get_element_type()),
         # config.floatx(),
     )
     out_dtype = (
@@ -1269,17 +1269,17 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
     y = ov_opset.power(base, lin_output).output(0)
 
-    def is_integer_dtype(ov_dtype):
-        return ov_dtype in (
-            Type.i8,
-            Type.i16,
-            Type.i32,
-            Type.i64,
-            Type.u8,
-            Type.u16,
-            Type.u32,
-            Type.u64,
-        )
+    # def is_integer_dtype(ov_dtype):
+    #     return ov_dtype in (
+    #         Type.i8,
+    #         Type.i16,
+    #         Type.i32,
+    #         Type.i64,
+    #         Type.u8,
+    #         Type.u16,
+    #         Type.u32,
+    #         Type.u64,
+    #     )
 
     # if is_integer_dtype(out_dtype):
     #     y = ov_opset.floor(y).output(0)
