@@ -959,7 +959,7 @@ def linspace(
 
     dtype = standardize_dtype(dtype) or config.floatx()
     out_dtype = OPENVINO_DTYPES[dtype]
-    dtype = OPENVINO_DTYPES[config.floatx()]
+    # dtype = OPENVINO_DTYPES[config.floatx()]
 
     start = get_ov_output(start, dtype)
     stop = get_ov_output(stop, dtype)
