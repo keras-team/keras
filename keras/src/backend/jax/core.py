@@ -20,20 +20,30 @@ IS_THREAD_SAFE = True
 
 
 class Variable(KerasVariable):
+    def __init__(self, *args, layout=None, **kwargs):
+        # Intercept layout parameter so that it is available
+        # during initialization.
+        self._layout = layout
+        super().__init__(*args, **kwargs)
+
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
         self._shape = self._validate_shape(value.shape)
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
-        if distribution is not None:
-            self._layout = distribution.get_variable_layout(self).backend_layout
-        else:
-            self._layout = None
+        if self._layout is None and distribution is not None:
+            tensor_layout = distribution.get_variable_layout(self)
+            from keras.src.distribution import TensorLayout
+
+            if isinstance(tensor_layout, TensorLayout):
+                self._layout = tensor_layout.backend_layout
+            else:
+                self._layout = tensor_layout
         self._direct_assign(value)
 
     def _direct_assign(self, value):
-        if getattr(self, "_layout", None) is not None:
+        if self._layout is not None:
             value = distribution_lib.distribute_variable(value, self._layout)
         self._value = value
 
