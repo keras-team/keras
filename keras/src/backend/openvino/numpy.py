@@ -1268,6 +1268,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
     y = ov_opset.power(base, lin_output).output(0)
+    y = ov_opset.convert(y, out_dtype).output(0)
 
     # def is_integer_dtype(ov_dtype):
     #     return ov_dtype in (
