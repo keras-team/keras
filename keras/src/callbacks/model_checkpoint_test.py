@@ -167,17 +167,17 @@ class ModelCheckpointTest(testing.TestCase):
                 filepath, monitor="unknown", save_best_only=True
             )
         ]
-        model.fit(
-            x_train,
-            y_train,
-            batch_size=BATCH_SIZE,
-            validation_data=(x_test, y_test),
-            callbacks=cbks,
-            epochs=1,
-            verbose=0,
-        )
-        # File won't be written.
-        self.assertFalse(os.path.exists(filepath))
+        with pytest.warns(UserWarning):
+            model.fit(
+                x_train,
+                y_train,
+                batch_size=BATCH_SIZE,
+                validation_data=(x_test, y_test),
+                callbacks=cbks,
+                epochs=1,
+                verbose=0,
+            )
+        self.assertTrue(os.path.exists(filepath))
 
         # Case 6
         with warnings.catch_warnings(record=True) as warning_logs:

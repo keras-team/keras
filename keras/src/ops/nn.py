@@ -110,6 +110,42 @@ def sigmoid(x):
     return backend.nn.sigmoid(x)
 
 
+class SparseSigmoid(Operation):
+    def call(self, x):
+        return backend.nn.sparse_sigmoid(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.sparse_sigmoid", "keras.ops.nn.sparse_sigmoid"])
+def sparse_sigmoid(x):
+    """Sparse sigmoid activation function.
+
+    It is defined as
+
+    `f(x) = 0` for `x <= -1`,
+    `f(x) = 0.5 * (x + 1)` for `-1 < x < 1`,
+    `f(x) = 1` for `x >= 1`.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same shape as `x`.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([-6.0, 1.0, 0.0, 1.0, 6.0])
+    >>> keras.ops.sparse_sigmoid(x)
+    array([0. , 1. , 0.5, 1. , 1. ], dtype=float32)
+
+    """
+    if any_symbolic_tensors((x,)):
+        return SparseSigmoid().symbolic_call(x)
+    return backend.nn.sparse_sigmoid(x)
+
+
 class Softplus(Operation):
     def call(self, x):
         return backend.nn.softplus(x)

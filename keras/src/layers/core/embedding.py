@@ -8,6 +8,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 
 
@@ -65,6 +66,11 @@ class Embedding(Layer):
             computation cost of fine-tuning large embedding layers.
             You can also enable LoRA on an existing
             `Embedding` layer by calling `layer.enable_lora(rank)`.
+        lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
 
     Input shape:
         2D tensor with shape: `(batch_size, input_length)`.
@@ -83,6 +89,7 @@ class Embedding(Layer):
         mask_zero=False,
         weights=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         input_length = kwargs.pop("input_length", None)
@@ -100,6 +107,7 @@ class Embedding(Layer):
         self.supports_masking = mask_zero
         self.autocast = False
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
 
         if weights is not None:
@@ -111,11 +119,12 @@ class Embedding(Layer):
     def build(self, input_shape=None):
         if self.built:
             return
+        embeddings_shape = (self.input_dim, self.output_dim)
         if self.quantization_mode is not None:
-            self.quantized_build(input_shape, mode=self.quantization_mode)
+            self.quantized_build(embeddings_shape, mode=self.quantization_mode)
         if self.quantization_mode != "int8":
             self._embeddings = self.add_weight(
-                shape=(self.input_dim, self.output_dim),
+                shape=embeddings_shape,
                 initializer=self.embeddings_initializer,
                 name="embeddings",
                 regularizer=self.embeddings_regularizer,
@@ -129,9 +138,10 @@ class Embedding(Layer):
     @property
     def embeddings(self):
         if self.lora_enabled:
-            return self._embeddings + ops.matmul(
-                self.lora_embeddings_a, self.lora_embeddings_b
-            )
+            return self._embeddings + (
+                self.lora_alpha / self.lora_rank
+            ) * ops.matmul(self.lora_embeddings_a, self.lora_embeddings_b)
+
         return self._embeddings
 
     def call(self, inputs):
@@ -148,8 +158,19 @@ class Embedding(Layer):
     def compute_output_shape(self, input_shape):
         return (*input_shape, self.output_dim)
 
+    def compute_output_spec(self, inputs):
+        output_shape = self.compute_output_shape(inputs.shape)
+        ragged = getattr(inputs, "ragged", False)
+        return KerasTensor(
+            output_shape, dtype=self.compute_dtype, ragged=ragged
+        )
+
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.embeddings_constraint:
             raise ValueError(
@@ -182,6 +203,7 @@ class Embedding(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -246,6 +268,7 @@ class Embedding(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -290,21 +313,18 @@ class Embedding(Layer):
             f"Received: quantization_mode={mode}"
         )
 
-    def quantized_build(self, input_shape, mode):
+    def quantized_build(self, embeddings_shape, mode):
         if mode == "int8":
-            self._int8_build()
+            self._int8_build(embeddings_shape)
         else:
             raise self._quantization_mode_error(mode)
+        self._is_quantized = True
 
-    def _int8_build(
-        self,
-        embeddings_initializer="zeros",
-        embeddings_scale_initializer="ones",
-    ):
+    def _int8_build(self, embeddings_shape):
         self._embeddings = self.add_weight(
             name="embeddings",
-            shape=(self.input_dim, self.output_dim),
-            initializer=embeddings_initializer,
+            shape=embeddings_shape,
+            initializer="zeros",
             dtype="int8",
             trainable=False,
         )
@@ -314,10 +334,9 @@ class Embedding(Layer):
         self.embeddings_scale = self.add_weight(
             name="embeddings_scale",
             shape=(self.input_dim,),
-            initializer=embeddings_scale_initializer,
+            initializer="ones",
             trainable=False,
         )
-        self._is_quantized = True
 
     def quantized_call(self, *args, **kwargs):
         if self.quantization_mode != "int8":
@@ -339,7 +358,9 @@ class Embedding(Layer):
         if self.lora_enabled:
             lora_outputs = ops.take(self.lora_embeddings_a, inputs, axis=0)
             lora_outputs = ops.matmul(lora_outputs, self.lora_embeddings_b)
-            outputs = ops.add(outputs, lora_outputs)
+            outputs = ops.add(
+                outputs, (self.lora_alpha / self.lora_rank) * lora_outputs
+            )
         return outputs
 
     def quantize(self, mode, type_check=True):
@@ -347,6 +368,7 @@ class Embedding(Layer):
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
 
+        embeddings_shape = (self.input_dim, self.output_dim)
         if mode == "int8":
             # Quantize `self._embeddings` to int8 and compute corresponding
             # scale
@@ -355,11 +377,10 @@ class Embedding(Layer):
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             del self._embeddings
-            # Utilize a lambda expression as an initializer to prevent adding a
-            # large constant to the computation graph.
-            self._int8_build(embeddings_value, embeddings_scale)
-        else:
-            raise self._quantization_mode_error(mode)
+        self.quantized_build(embeddings_shape, mode)
+        if mode == "int8":
+            self._embeddings.assign(embeddings_value)
+            self.embeddings_scale.assign(embeddings_scale)
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:

@@ -945,6 +945,7 @@ class Trainer:
         """
         if self.compiled and hasattr(self, "_compile_config"):
             return self._compile_config.serialize()
+        return {}
 
     def compile_from_config(self, config):
         """Compiles the model with the information given in config.

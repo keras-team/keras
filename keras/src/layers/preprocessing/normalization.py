@@ -112,8 +112,6 @@ class Normalization(TFDataLayer):
         self.supports_masking = True
         self._build_input_shape = None
         self.mean = None
-        # if self.backend.name == "mlx":
-        #     self.supports_jit = False
 
         # Set `mean` and `variance` if passed.
         if (mean is not None) != (variance is not None):
@@ -121,8 +119,6 @@ class Normalization(TFDataLayer):
                 "When setting values directly, both `mean` and `variance` "
                 f"must be set. Received: mean={mean} and variance={variance}"
             )
-
-        self._mlx_inputs_captured = False
 
     def build(self, input_shape):
         if input_shape is None:

@@ -1,13 +1,13 @@
 # Tensorflow.
-tensorflow-cpu~=2.18.0;sys_platform != 'darwin'
-tensorflow~=2.18.0;sys_platform == 'darwin'
+tensorflow-cpu~=2.18.1;sys_platform != 'darwin'
+tensorflow~=2.18.1;sys_platform == 'darwin'
 tf_keras
 tf2onnx
 
 # Torch.
 # TODO: Pin to < 2.3.0 (GitHub issue #19602)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0+cpu;sys_platform != 'darwin'
+torch==2.6.0;sys_platform != 'darwin'
 torch==2.6.0;sys_platform == 'darwin'
 torch-xla==2.6.0;sys_platform != 'darwin'
 

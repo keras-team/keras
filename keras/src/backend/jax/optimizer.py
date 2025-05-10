@@ -108,5 +108,3 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
                         average_var * should_overwrite_model_vars_int
                         + var.value * should_not_overwrite_model_vars_int
                     )
-
-        self._iterations.assign_add(1)

@@ -51,6 +51,7 @@ class Variable:
         value: The current value of the variable (NumPy array or tensor).
         name: The name of the variable (string).
         path: The path of the variable within the Keras model or layer (string).
+        kwargs: Additional backend-specific keyword arguments.
 
     Examples:
 
@@ -98,7 +99,9 @@ class Variable:
         aggregation="none",
         synchronization="auto",
         name=None,
+        **kwargs,
     ):
+        del kwargs
         name = name or auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
             raise ValueError(
@@ -564,14 +567,14 @@ def standardize_dtype(dtype):
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
+    elif hasattr(dtype, "__name__"):
+        dtype = dtype.__name__
     elif hasattr(dtype, "__str__") and (
         "torch" in str(dtype)
         or "jax.numpy" in str(dtype)
         or "mlx" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
-    elif hasattr(dtype, "__name__"):
-        dtype = dtype.__name__
 
     if dtype not in dtypes.ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")

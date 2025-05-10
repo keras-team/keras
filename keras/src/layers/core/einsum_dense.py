@@ -58,6 +58,11 @@ class EinsumDense(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing
             `EinsumDense` layer by calling `layer.enable_lora(rank)`.
+         lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
 
     Examples:
@@ -125,6 +130,7 @@ class EinsumDense(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -142,6 +148,7 @@ class EinsumDense(Layer):
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
 
     def build(self, input_shape):
@@ -153,11 +160,9 @@ class EinsumDense(Layer):
         )
         kernel_shape, bias_shape, full_output_shape = shape_data
         self.full_output_shape = tuple(full_output_shape)
-        # `self._int8_build` needs `self.input_spec`
         self.input_spec = InputSpec(ndim=len(input_shape))
-        # We use `self._dtype_policy` to check to avoid issues in torch dynamo
         if self.quantization_mode is not None:
-            self.quantized_build(input_shape, mode=self.quantization_mode)
+            self.quantized_build(kernel_shape, mode=self.quantization_mode)
         if self.quantization_mode != "int8":
             # If the layer is quantized to int8, `self._kernel` will be added
             # in `self._int8_build`. Therefore, we skip it here.
@@ -184,7 +189,7 @@ class EinsumDense(Layer):
             self.bias = None
         self.built = True
         if self.lora_rank:
-            self.enable_lora(self.lora_rank)
+            self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
     @property
     def kernel(self):
@@ -193,9 +198,9 @@ class EinsumDense(Layer):
                 "You must build the layer before accessing `kernel`."
             )
         if self.lora_enabled:
-            return self._kernel + ops.matmul(
-                self.lora_kernel_a, self.lora_kernel_b
-            )
+            return self._kernel + (
+                self.lora_alpha / self.lora_rank
+            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
         return self._kernel
 
     def compute_output_shape(self, _):
@@ -210,7 +215,11 @@ class EinsumDense(Layer):
         return x
 
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.kernel_constraint:
             raise ValueError(
@@ -243,6 +252,7 @@ class EinsumDense(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -321,6 +331,7 @@ class EinsumDense(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -359,27 +370,16 @@ class EinsumDense(Layer):
 
     # Quantization-related (int8 and float8) methods
 
-    def quantized_build(self, input_shape, mode):
+    def quantized_build(self, kernel_shape, mode):
         if mode == "int8":
-            shape_data = _analyze_einsum_string(
-                self.equation,
-                self.bias_axes,
-                input_shape,
-                self.partial_output_shape,
-            )
-            kernel_shape, _, _ = shape_data
             self._int8_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
         else:
             raise self._quantization_mode_error(mode)
+        self._is_quantized = True
 
-    def _int8_build(
-        self,
-        kernel_shape,
-        kernel_initializer="zeros",
-        kernel_scale_initializer="ones",
-    ):
+    def _int8_build(self, kernel_shape):
         (
             self._input_reduced_axes,
             self._kernel_reduced_axes,
@@ -398,7 +398,7 @@ class EinsumDense(Layer):
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
-            initializer=kernel_initializer,
+            initializer="zeros",
             dtype="int8",
             trainable=False,
         )
@@ -413,10 +413,9 @@ class EinsumDense(Layer):
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=kernel_scale_shape,
-            initializer=kernel_scale_initializer,
+            initializer="ones",
             trainable=False,
         )
-        self._is_quantized = True
 
     def _float8_build(self):
         from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
@@ -436,6 +435,7 @@ class EinsumDense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         amax_history_kwargs = {
             "shape": (amax_history_length,),
@@ -443,6 +443,7 @@ class EinsumDense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         self.inputs_scale = self.add_weight(name="inputs_scale", **scale_kwargs)
         self.inputs_amax_history = self.add_weight(
@@ -458,16 +459,6 @@ class EinsumDense(Layer):
         self.outputs_grad_amax_history = self.add_weight(
             name="outputs_grad_amax_history", **amax_history_kwargs
         )
-        # We need to set `overwrite_with_gradient=True` to instruct the
-        # optimizer to directly overwrite these variables with their computed
-        # gradients during training
-        self.inputs_scale.overwrite_with_gradient = True
-        self.inputs_amax_history.overwrite_with_gradient = True
-        self.kernel_scale.overwrite_with_gradient = True
-        self.kernel_amax_history.overwrite_with_gradient = True
-        self.outputs_grad_scale.overwrite_with_gradient = True
-        self.outputs_grad_amax_history.overwrite_with_gradient = True
-        self._is_quantized = True
 
     def _int8_call(self, inputs, training=None):
         @ops.custom_gradient
@@ -525,7 +516,7 @@ class EinsumDense(Layer):
         if self.lora_enabled:
             lora_x = ops.einsum(self.equation, inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
-            x = ops.add(x, lora_x)
+            x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
         if self.bias is not None:
             x += self.bias
         if self.activation is not None:
@@ -629,6 +620,7 @@ class EinsumDense(Layer):
         if type_check and (type(self) is not EinsumDense):
             raise self._not_implemented_error(self.quantize)
 
+        kernel_shape = self._kernel.shape
         if mode == "int8":
             (
                 self._input_reduced_axes,
@@ -657,15 +649,11 @@ class EinsumDense(Layer):
                 kernel_scale = ops.squeeze(
                     kernel_scale, axis=self._kernel_squeeze_axes
                 )
-            kernel_shape = tuple(self._kernel.shape)
             del self._kernel
-            # Utilize a lambda expression as an initializer to prevent adding a
-            # large constant to the computation graph.
-            self._int8_build(kernel_shape, kernel_value, kernel_scale)
-        elif mode == "float8":
-            self._float8_build()
-        else:
-            raise self._quantization_mode_error(mode)
+        self.quantized_build(kernel_shape, mode)
+        if mode == "int8":
+            self._kernel.assign(kernel_value)
+            self.kernel_scale.assign(kernel_scale)
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:
@@ -700,7 +688,8 @@ class EinsumDense(Layer):
                 kernel_value = ops.divide(kernel_value, kernel_scale)
                 kernel_value = ops.add(
                     kernel_value,
-                    ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    (self.lora_alpha / self.lora_rank)
+                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 )
                 kernel_value, kernel_scale = quantizers.abs_max_quantize(
                     kernel_value, axis=self._kernel_reduced_axes, to_numpy=True

@@ -170,7 +170,7 @@ class Lambda(Layer):
     def _raise_for_lambda_deserialization(arg_name, safe_mode):
         if safe_mode:
             raise ValueError(
-                "The `{arg_name}` of this `Lambda` layer is a Python lambda. "
+                f"The `{arg_name}` of this `Lambda` layer is a Python lambda. "
                 "Deserializing it is unsafe. If you trust the source of the "
                 "config artifact, you can override this error "
                 "by passing `safe_mode=False` "
