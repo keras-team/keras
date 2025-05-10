@@ -1200,6 +1200,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
         dtype = dtypes.result_type(start_type, stop_type)  # , config.floatx()
 
+    if np.issubdtype(start_type, np.floating) or np.issubdtype(
+        stop_type, np.floating
+    ):
+        dtype = "float64"
+
     dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
 
