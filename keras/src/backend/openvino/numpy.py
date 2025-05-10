@@ -1203,21 +1203,21 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
 
-    if (
-        not hasattr(start, "get_element_type")
-        and not hasattr(stop, "get_element_type")
-        and not hasattr(base, "get_element_type")
-    ):
-        y = np.logspace(
-            start, stop, num=num, endpoint=endpoint, base=base, dtype=dtype
-        )
+    # if (
+    #     not hasattr(start, "get_element_type")
+    #     and not hasattr(stop, "get_element_type")
+    #     and not hasattr(base, "get_element_type")
+    # ):
+    #     y = np.logspace(
+    #         start, stop, num=num, endpoint=endpoint, base=base, dtype=dtype
+    #     )
 
-        # np_dtype = y.dtype
-        # np_dtype = standardize_dtype(np_dtype)
-        # np_dtype = OPENVINO_DTYPES[np_dtype]
-        # y = ov_opset.convert(get_ov_output(y), np_dtype).output(0)
-        # return OpenVINOKerasTensor(y)
-        return OpenVINOKerasTensor(ov_opset.constant(y, out_dtype).output(0))
+    #     # np_dtype = y.dtype
+    #     # np_dtype = standardize_dtype(np_dtype)
+    #     # np_dtype = OPENVINO_DTYPES[np_dtype]
+    #     # y = ov_opset.convert(get_ov_output(y), np_dtype).output(0)
+    #     # return OpenVINOKerasTensor(y)
+    #     return OpenVINOKerasTensor(ov_opset.constant(y, out_dtype).output(0))
 
     if num == 0:
         return OpenVINOKerasTensor(
