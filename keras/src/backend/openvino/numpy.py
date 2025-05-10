@@ -1103,9 +1103,21 @@ def mod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    raise NotImplementedError(
-        "`moveaxis` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    if not isinstance(source, (list, tuple)):
+        source = [source]
+    if not isinstance(destination, (list, tuple)):
+        destination = [destination]
+    rank = len(x.get_partial_shape())
+    source = [s + rank if s < 0 else s for s in source]
+    destination = [d + rank if d < 0 else d for d in destination]
+    axes = list(range(rank))
+    for s in sorted(source, reverse=True):
+        axes.pop(s)
+    for d, s in sorted(zip(destination, source)):
+        axes.insert(d, s)
+    perm_const = ov_opset.constant(axes, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.transpose(x, perm_const).output(0))
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
@@ -1246,9 +1258,10 @@ def real(x):
 
 
 def reciprocal(x):
-    raise NotImplementedError(
-        "`reciprocal` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    one_constant = ov_opset.constant(1, dtype=x.get_element_type()).output(0)
+    x = ov_opset.divide(one_constant, x).output(0)
+    return OpenVINOKerasTensor(x)
 
 
 def repeat(x, repeats, axis=None):
@@ -1309,6 +1322,8 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
+    if isinstance(x, tuple):
+        x = list(x)
     assert isinstance(x, list), "`stack` is supported only for `x` list"
     elems = []
     const_axis = ov_opset.constant(axis, Type.i32).output(0)
@@ -1426,7 +1441,44 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
 
 
 def where(condition, x1, x2):
-    raise NotImplementedError("`where` is not supported with openvino backend")
+    condition = get_ov_output(condition)
+    if x1 is None and x2 is None:
+        nonzero_indices = ov_opset.non_zero(condition)
+        return OpenVINOKerasTensor(nonzero_indices.output(0))
+    if x1 is None:
+        return OpenVINOKerasTensor(condition)
+    if x2 is None:
+        raise ValueError("x2 must be provided if x1 is specified.")
+
+    x1_type = get_ov_output(x1).get_element_type()
+    x2_type = get_ov_output(x2).get_element_type()
+
+    if x1_type == Type.boolean or x2_type == Type.boolean:
+        x1 = get_ov_output(x1)
+        x2 = get_ov_output(x2)
+    elif isinstance(x1, float):
+        x2 = get_ov_output(x2)
+        if x2_type.is_integral():
+            x1 = get_ov_output(x1)
+        else:
+            x1 = get_ov_output(x1, x2_type)
+    elif isinstance(x2, float):
+        x1 = get_ov_output(x1)
+        if x1_type.is_integral():
+            x2 = get_ov_output(x2)
+        else:
+            x2 = get_ov_output(x2, x1_type)
+    elif isinstance(x2, int):
+        x1 = get_ov_output(x1)
+        x2 = get_ov_output(x2, x1_type)
+    elif isinstance(x1, int):
+        x2 = get_ov_output(x2)
+        x1 = get_ov_output(x1, x2_type)
+    else:
+        x1 = get_ov_output(x1)
+        x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "select()")
+    return OpenVINOKerasTensor(ov_opset.select(condition, x1, x2).output(0))
 
 
 def divide(x1, x2):
