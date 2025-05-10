@@ -1,5 +1,5 @@
 import numpy as np
-from openvino import opset14 as ov_opset
+import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
