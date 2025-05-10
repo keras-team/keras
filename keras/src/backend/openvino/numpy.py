@@ -1212,12 +1212,12 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             start, stop, num=num, endpoint=endpoint, base=base, dtype=dtype
         )
 
-        np_dtype = y.dtype
-        np_dtype = standardize_dtype(np_dtype)
-        np_dtype = OPENVINO_DTYPES[np_dtype]
+        # np_dtype = y.dtype
+        # np_dtype = standardize_dtype(np_dtype)
+        # np_dtype = OPENVINO_DTYPES[np_dtype]
         # y = ov_opset.convert(get_ov_output(y), np_dtype).output(0)
         # return OpenVINOKerasTensor(y)
-        return OpenVINOKerasTensor(ov_opset.constant(y, np_dtype).output(0))
+        return OpenVINOKerasTensor(ov_opset.constant(y, out_dtype).output(0))
 
     if num == 0:
         return OpenVINOKerasTensor(
