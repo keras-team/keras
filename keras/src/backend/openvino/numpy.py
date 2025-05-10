@@ -1198,12 +1198,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             else np.asarray(stop).dtype
         )
 
-        dtype = dtypes.result_type(start_type, stop_type)  # , config.floatx()
-
-    if np.issubdtype(start_type, np.floating) or np.issubdtype(
-        stop_type, np.floating
-    ):
-        dtype = "float64"
+        dtype = dtypes.result_type(start_type, stop_type, config.floatx())
 
     dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
@@ -1279,6 +1274,21 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
     y = ov_opset.power(base, lin_output).output(0)
     y = ov_opset.convert(y, out_dtype).output(0)
+
+    # def is_integer_dtype(ov_dtype):
+    #     return ov_dtype in (
+    #         Type.i8,
+    #         Type.i16,
+    #         Type.i32,
+    #         Type.i64,
+    #         Type.u8,
+    #         Type.u16,
+    #         Type.u32,
+    #         Type.u64,
+    #     )
+
+    # if is_integer_dtype(out_dtype):
+    #     y = ov_opset.floor(y).output(0)
 
     return OpenVINOKerasTensor(y)
 
