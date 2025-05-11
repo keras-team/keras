@@ -147,7 +147,7 @@ def bartlett(x):
 
 
 def hamming(x):
-    x = convert_to_tensor(x)
+    x = convert_to_tensor(x, dtype=tf.int32)
     return tf.signal.hamming_window(x, periodic=False)
 
 
