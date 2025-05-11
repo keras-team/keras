@@ -148,7 +148,7 @@ def bartlett(x):
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return tf.signal.hamming_window(x)
+    return tf.signal.hamming_window(x, periodic=False)
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
