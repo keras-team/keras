@@ -82,8 +82,9 @@ class Lamb(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self._momentums = self.add_optimizer_variables(var_list, "momentum")
-        self._velocities = self.add_optimizer_variables(var_list, "velocity")
+        self._momentums, self._velocities = self.add_optimizer_variables(
+            var_list, ["momentum", "velocity"]
+        )
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""

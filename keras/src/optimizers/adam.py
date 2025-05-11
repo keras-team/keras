@@ -90,8 +90,9 @@ class Adam(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self._momentums = self.add_optimizer_variables(var_list, "momentum")
-        self._velocities = self.add_optimizer_variables(var_list, "velocity")
+        self._momentums, self._velocities = self.add_optimizer_variables(
+            var_list, ["momentum", "velocity"]
+        )
 
         if self.amsgrad:
             self._velocity_hats = self.add_optimizer_variables(

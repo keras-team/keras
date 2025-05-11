@@ -12,6 +12,7 @@ from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
     align_operand_types as _align_operand_types,
 )
+from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
@@ -140,6 +141,10 @@ def all(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     )
+
+
+def angle(x):
+    raise NotImplementedError("`angle` is not supported with openvino backend")
 
 
 def any(x, axis=None, keepdims=False):
@@ -464,6 +469,12 @@ def average(x, axis=None, weights=None):
     return OpenVINOKerasTensor(mean_ops.output(0))
 
 
+def bartlett(x):
+    raise NotImplementedError(
+        "`bartlett` is not supported with openvino backend"
+    )
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if x is None:
         raise ValueError("input x is None")
@@ -507,6 +518,12 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         ).output(0)
         final_output = ov_opset.convert(final_output, Type.i32).output(0)
         return OpenVINOKerasTensor(final_output)
+
+
+def blackman(x):
+    raise NotImplementedError(
+        "`blackman` is not supported with openvino backend"
+    )
 
 
 def broadcast_to(x, shape):
@@ -830,7 +847,18 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    raise NotImplementedError("`hstack` is not supported with openvino backend")
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+    elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
+    is_1d = elems and len(elems[0].get_partial_shape().to_shape()) == 1
+    axis = 0 if is_1d else 1
+    for i in range(1, len(elems)):
+        elems[0], elems[i] = _align_operand_types(
+            elems[0], elems[i], "hstack()"
+        )
+    return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
 def identity(n, dtype=None):
@@ -1206,7 +1234,11 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def ravel(x):
-    raise NotImplementedError("`ravel` is not supported with openvino backend")
+    x = get_ov_output(x)
+    target_shape = ov_opset.constant([-1], dtype=Type.i32).output(0)
+    return OpenVINOKerasTensor(
+        ov_opset.reshape(x, target_shape, special_zero=False).output(0)
+    )
 
 
 def real(x):
