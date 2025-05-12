@@ -2,8 +2,12 @@
 
 import jax
 import numpy as np
+from jax.experimental import layout as jax_layout
 
+from keras.src.backend.common import global_state
+from keras.src.random import seed_generator
 from keras.src.utils import jax_utils
+from keras.src.utils import rng_utils
 
 
 def list_devices(device_type=None):
@@ -36,32 +40,13 @@ def distribute_variable(value, layout):
     Args:
         value: the initial value of the variable.
         layout: `TensorLayout` for the created variable, or a
-            `jax.sharding.Sharding` instance.
+            JAX-supported layout instance
+            (e.g. `jax.experimental.layout.Layout`, `jax.sharding.Sharding`).
 
     Returns:
         jax.Array which is the distributed variable.
     """
-    if not isinstance(layout, jax.sharding.Sharding):
-        layout = layout.backend_layout
-    if isinstance(
-        value, (jax.Array, jax.numpy.ndarray)
-    ) and value.sharding.is_equivalent_to(layout, ndim=len(value.shape)):
-        # Skip the relayout if the value is already having the proper sharding
-        return value
-
-    if layout.is_fully_addressable:
-        return jax.device_put(value, layout)
-    else:
-        # Need to only distribute the value to local addressable devices, and
-        # repack them back into global format.
-        mapping = layout.addressable_devices_indices_map(value.shape)
-        local_values = jax.device_put(
-            [value[i] for i in mapping.values()], list(mapping.keys())
-        )
-        global_value = jax.make_array_from_single_device_arrays(
-            value.shape, layout, local_values
-        )
-        return global_value
+    return distribute_tensor(value, layout)
 
 
 def distribute_tensor(tensor, layout):
@@ -72,39 +57,43 @@ def distribute_tensor(tensor, layout):
 
     Args:
         tensor: `jax.Array` that need to be distributed.
-        layout: `TensorLayout` for the distribution information, or a
-            `jax.sharding.Sharding` instance.
+        layout: `TensorLayout` for the created variable, or a
+            JAX-supported layout instance
+            (e.g. `jax.experimental.layout.Layout`, `jax.sharding.Sharding`).
 
     Returns:
         Distributed value.
     """
-    if not isinstance(layout, jax.sharding.Sharding):
+    # Avoid circular imports.
+    from keras.src.distribution import TensorLayout
+
+    if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
+
     # TODO(scottzhu): This might not be a cheap check, we should consider
     # have some proper JAX API for doing this check.
     if jax_utils.is_in_jax_tracing_scope():
         return jax.lax.with_sharding_constraint(tensor, layout)
 
-    if layout.is_fully_addressable:
-        return jax.device_put(tensor, layout)
-    else:
-        # Need to only distribute the value to local addressable devices, and
-        # repack them back into global format.
-        mapping = layout.addressable_devices_indices_map(tensor.shape)
-        local_values = jax.device_put(
-            [tensor[i] for i in mapping.values()], list(mapping.keys())
-        )
-        global_value = jax.make_array_from_single_device_arrays(
-            tensor.shape, layout, local_values
-        )
-        return global_value
+    # Skip relayout if unnecessary.
+    if isinstance(tensor, jax.Array):
+        if isinstance(
+            layout, jax.sharding.Sharding
+        ) and tensor.sharding.is_equivalent_to(layout, ndim=len(tensor.shape)):
+            return tensor
+        elif isinstance(layout, jax_layout.Layout):
+            current_layout = getattr(tensor, "layout", None)
+            if current_layout == layout:
+                return tensor
+
+    return jax.device_put(tensor, layout)
 
 
 def distribute_data_input(per_process_batch, layout, batch_dim_name):
     """Distribute the input data with the corresponding layout.
 
     Note that the inputs here is a local worker batch. Within the local worker,
-    the data need to be further partitioned to map to the each of the devices.
+    the data need to be further partitioned to map to each of the devices.
 
     Args:
         inputs: `jax.Array` that is already sharded to a local process size.
@@ -114,75 +103,59 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
     Returns:
         A global batch distributed according to `layout`.
     """
-    if not isinstance(layout, jax.sharding.Sharding):
+    # Avoid circular imports.
+    from keras.src.distribution import TensorLayout
+
+    if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
 
-    num_model_replicas_total = layout.mesh.shape[batch_dim_name]
+    return jax.make_array_from_process_local_data(layout, per_process_batch)
 
-    mesh_model_dim_size = 1
-    for name, dim_size in layout.mesh.shape.items():
-        if not name == batch_dim_name:
-            mesh_model_dim_size *= dim_size
 
-    num_model_replicas_per_process = num_model_replicas_total / num_processes()
-    per_process_batch_size = per_process_batch.shape[0]
+def initialize_rng():
+    """Initializes the global random number generator across processes.
 
-    if num_model_replicas_per_process >= 1:
-        # If there is more than one model replica per process, we need to
-        # further shard the data to each of the model replicas.
-        if num_model_replicas_total % num_processes() != 0:
-            raise ValueError(
-                "If there is more than one replica per process, the batch "
-                "dimension of the mesh should be divisible "
-                "by the number of processes. Here, "
-                f"batch dimension = {num_model_replicas_total}, while "
-                f"number of processes = {num_processes()}"
-            )
-
-        per_replica_batch_size = int(
-            per_process_batch_size // num_model_replicas_per_process
+    This is required for consistent initialization in multi-host settings.
+    """
+    global_seed = rng_utils.get_random_seed()
+    # Only set a random seed if not already set
+    # via keras.config.set_random_seed()
+    if global_seed is None:
+        # Generate a random seed on each CPU host and psum them to get a single
+        # consistent seed across all processes.
+        cpu_devices = jax.devices("cpu")
+        num_local_cpu_devices = jax.local_device_count("cpu")
+        # Seed must be in range [0, 2^32 - 1], so to ensure proper range and
+        # avoid signed integer overflow, we use uint32.
+        local_seed = jax.numpy.asarray(
+            [seed_generator.make_default_seed()] * num_local_cpu_devices,
+            dtype=jax.numpy.uint32,
         )
-        if per_process_batch_size % per_replica_batch_size != 0:
-            raise ValueError(
-                "`per_process_batch_size` should be divisible by `"
-                "per_replica_batch_size`. "
-                f"per_process_batch_size={per_process_batch_size} and "
-                f"per_replica_batch_size = {per_replica_batch_size}"
-            )
-        per_replica_batches = np.split(
-            per_process_batch, num_model_replicas_per_process
-        )
-        # Replicate data along the model_dim.
-        per_device_batches = [
-            per_replica_batch
-            for per_replica_batch in per_replica_batches
-            for _ in range(mesh_model_dim_size)
-        ]
-        batches_on_devices = [
-            jax.device_put(batch, device)
-            for batch, device in zip(
-                per_device_batches, layout.addressable_devices
-            )
-        ]
-    else:
-        # If there are less than one model replicas per process, we need to
-        # replicate the data to each of the model replicas. No further data
-        # sharding is needed.
-        per_replica_batch_size = per_process_batch_size
-        batches_on_devices = [
-            jax.device_put(per_process_batch, device)
-            for device in layout.addressable_devices
-        ]
+        # Sum across processes and pull out the first item.
+        global_seed = jax.pmap(
+            lambda x: jax.lax.psum(x, "all"),
+            axis_name="all",
+            devices=cpu_devices,
+        )(local_seed).item(0)
+        # Set the global seed.
+        rng_utils.set_random_seed(global_seed)
 
-    global_batch_size = per_replica_batch_size * num_model_replicas_total
-    global_batch_shape = (global_batch_size,) + per_process_batch.shape[1:]
-    global_batch_array = jax.make_array_from_single_device_arrays(
-        shape=global_batch_shape,
-        sharding=layout,
-        arrays=batches_on_devices,
+    # Check if the global seed generator is set and ensure it has an initialized
+    # seed.  Otherwise, reset the seed to the global seed.
+    global_seed_generator = global_state.get_global_attribute(
+        "global_seed_generator"
     )
-
-    return global_batch_array
+    if global_seed_generator is not None:
+        seed = global_seed_generator.get_config()["seed"]
+        if seed is None:
+            global_state.set_global_attribute(
+                "global_seed_generator",
+                seed_generator.SeedGenerator(
+                    seed=global_seed,
+                    name=global_seed_generator.name,
+                    backend=global_seed_generator.backend,
+                ),
+            )
 
 
 def initialize(job_addresses, num_processes, process_id):
@@ -207,6 +180,9 @@ def initialize(job_addresses, num_processes, process_id):
         num_processes=num_processes,
         process_id=process_id,
     )
+
+    # Ensure the random number generator is initialized across processes.
+    initialize_rng()
 
 
 def num_processes():

@@ -244,6 +244,7 @@ class BaseOptimizer(KerasSaveable):
         initializer="zeros",
         dtype=None,
         aggregation="none",
+        layout=None,
         name=None,
     ):
         """Add a variable to the optimizer.
@@ -261,6 +262,7 @@ class BaseOptimizer(KerasSaveable):
                 the type of multi-replica aggregation to be used for this
                 variable when writing custom data parallel training loops.
                 Defaults to `"none"`.
+            layout: Optional tensor layout.  Defaults to `None`.
             name: String name of the variable. Useful for debugging purposes.
 
         Returns:
@@ -275,6 +277,7 @@ class BaseOptimizer(KerasSaveable):
                 dtype=dtype,
                 trainable=False,
                 aggregation=aggregation,
+                layout=layout,
                 name=name,
             )
         self._track_variable(variable)
@@ -319,6 +322,7 @@ class BaseOptimizer(KerasSaveable):
             initializer=initializer,
             dtype=reference_variable.dtype,
             name=name,
+            layout=getattr(reference_variable, "_layout", None),
         )
 
     def add_optimizer_variables(
@@ -513,20 +517,21 @@ class BaseOptimizer(KerasSaveable):
                 )
             )
 
-            if len(list(grads)) == 0:
-                return
+            if len(list(grads)) > 0:
+                # Unscale gradients.
+                scale = self.loss_scale_factor
+                if scale is not None:
+                    grads = [g if g is None else g / scale for g in grads]
 
-            # Unscale gradients.
-            scale = self.loss_scale_factor
-            if scale is not None:
-                grads = [g if g is None else g / scale for g in grads]
+                # Apply gradient updates.
+                self._backend_apply_gradients(grads, trainable_variables)
+                # Apply variable constraints after applying gradients.
+                for variable in trainable_variables:
+                    if variable.constraint is not None:
+                        variable.assign(variable.constraint(variable))
 
-            # Apply gradient updates.
-            self._backend_apply_gradients(grads, trainable_variables)
-            # Apply variable constraints after applying gradients.
-            for variable in trainable_variables:
-                if variable.constraint is not None:
-                    variable.assign(variable.constraint(variable))
+        # Update iteration counter.
+        self._iterations.assign_add(1)
 
     def _backend_apply_gradients(self, grads, trainable_variables):
         """Apply method that can be overridden by different backends.
@@ -606,8 +611,6 @@ class BaseOptimizer(KerasSaveable):
                     ),
                     lambda: None,
                 )
-        # Update iteration counter.
-        self._iterations.assign_add(1)
 
     def _backend_update_step(self, grads, trainable_variables, learning_rate):
         """Collective update_step that can be overridden by the backend.
