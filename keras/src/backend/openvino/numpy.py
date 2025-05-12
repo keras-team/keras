@@ -1187,7 +1187,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         raise TypeError(f"'axis' must be an integer, got {type(axis)}")
 
     if dtype is None:
-        dtype = np.float64
+        dtype = "float64"
         # start_type = (
         #     ov_to_keras_type(start.get_element_type())
         #     if hasattr(start, "get_element_type")
