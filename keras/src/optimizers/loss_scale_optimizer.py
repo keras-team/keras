@@ -88,6 +88,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         return self._variables + self.inner_optimizer.variables
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
+        print('(lso) stateless apply')
         if not self.built:
             raise ValueError(
                 f"To call `stateless_apply`, {self.__class__.__name__} "
@@ -147,7 +148,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
         # Unscale gradients
         unscaled_grads = [
-            g if g is None else ops.divide(g, dynamic_scale) for g in grads
+            g
+            if g is None or self._overwrite_variable_with_gradient(v)
+            else ops.divide(g, dynamic_scale)
+            for g, v in zip(grads, trainable_variables)
         ]
 
         with backend.StatelessScope(state_mapping=mapping):

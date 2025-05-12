@@ -1623,3 +1623,71 @@ def signbit(x):
         return mx.zeros_like(x).astype(mx.bool_)
     else:
         raise ValueError(f"Unsupported dtype in `signbit`: {x.dtype}")
+
+
+def bartlett(M):
+    """Return a Bartlett window of size M.
+    
+    Args:
+        M: The window size.
+        
+    Returns:
+        An array of size M containing the Bartlett window.
+    """
+    dtype = to_mlx_dtype(config.floatx())
+    if M <= 1:
+        return mx.ones(M, dtype=dtype)
+        
+    n = mx.arange(M, dtype=dtype)
+    return 1 - mx.abs(2 * n + 1 - M) / (M - 1)
+
+
+def blackman(M):
+    """Return a Blackman window of size M.
+    
+    Args:
+        M: The window size.
+        
+    Returns:
+        An array of size M containing the Blackman window.
+    """
+    dtype = to_mlx_dtype(config.floatx())
+    if M <= 1:
+        return mx.ones(M, dtype=dtype)
+        
+    n = mx.arange(M, dtype=dtype)
+    # pi = mx.array(math.pi, dtype=dtype)
+    return 0.42 - 0.5 * mx.cos(2 * mx.pi * n / (M - 1)) + 0.08 * mx.cos(4 * mx.pi * n / (M - 1))
+
+
+def angle(z, deg=False):
+    """Return the angle of a complex valued number or array.
+    
+    Args:
+        z: A complex number or an array of complex numbers.
+        deg: Boolean. If ``True``, returns the result in degrees else returns
+          in radians. Default is ``False``.
+          
+    Returns:
+        An array of counterclockwise angle of each element of ``z``, with the same
+        shape as ``z`` of dtype float.
+    """
+    z = convert_to_tensor(z)
+    re = real(z)
+    im = imag(z)
+    
+    # Handle dtype conversion
+    dtype = standardize_dtype(re.dtype)
+    if "int" in dtype or dtype == "bool":
+        dtype = config.floatx()
+        re = cast(re, dtype)
+        im = cast(im, dtype)
+    
+    result = mx.arctan2(im, re)
+    
+    if deg:
+        # Convert radians to degrees (multiply by 180/pi)
+        # pi = mx.array(math.pi, dtype=result.dtype)
+        result = result * (180.0 / mx.pi)
+    
+    return result

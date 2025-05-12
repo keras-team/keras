@@ -96,13 +96,16 @@ class LossScaleOptimizerTest(testing.TestCase):
         vars[0].overwrite_with_gradient = True
 
         if stateless:
+            print('(stateless) grads', grads, 'vars', vars, vars[0].overwrite_with_gradient)
             optimizer.build(vars)
             vars, _ = optimizer.stateless_apply(
                 optimizer.variables, grads, vars
             )
         else:
+            print('(stateful) grads', grads, 'vars', vars, vars[0].overwrite_with_gradient)
             optimizer.apply(grads, vars)
         self.assertAllClose(vars, grads)
+        raise Exception('eeee')
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
     def test_downscaling(self, stateless):
