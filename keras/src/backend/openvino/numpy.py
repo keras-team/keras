@@ -1199,8 +1199,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         #     else np.asarray(stop).dtype
         # )
         # dtype = dtypes.result_type(start_type, stop_type, config.floatx())
-
-    dtype = standardize_dtype(dtype)
+    else:
+        dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
 
     if (
