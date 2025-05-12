@@ -1214,10 +1214,10 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             num=num,
             endpoint=endpoint,
             base=base,
-            dtype=np.float32 if dtype is None else dtype,
+            dtype=np.float64 if dtype is None else dtype,
         )
 
-        np_dtype = y.dtype
+        np_dtype = Type.f64 if dtype is None else y.dtype
         # print("\t::Numpy DTYPE is:", np_dtype)
         # if dtype is None:
         #     # and np.issubdtype(np_dtype, np.floating):
