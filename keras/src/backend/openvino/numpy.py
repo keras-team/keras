@@ -1208,11 +1208,13 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         and not hasattr(stop, "get_element_type")
         and not hasattr(base, "get_element_type")
     ):
-        if dtype is None:
-            dtype = np.float64
-
         y = np.logspace(
-            start, stop, num=num, endpoint=endpoint, base=base, dtype=dtype
+            start,
+            stop,
+            num=num,
+            endpoint=endpoint,
+            base=base,
+            dtype=np.float32 if dtype is None else dtype,
         )
 
         np_dtype = y.dtype
