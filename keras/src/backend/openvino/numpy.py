@@ -1187,20 +1187,20 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         raise TypeError(f"'axis' must be an integer, got {type(axis)}")
 
     if dtype is None:
-        dtype = "float64"
-        # start_type = (
-        #     ov_to_keras_type(start.get_element_type())
-        #     if hasattr(start, "get_element_type")
-        #     else np.asarray(start).dtype
-        # )
-        # stop_type = (
-        #     ov_to_keras_type(stop.get_element_type())
-        #     if hasattr(stop, "get_element_type")
-        #     else np.asarray(stop).dtype
-        # )
-        # dtype = dtypes.result_type(start_type, stop_type, config.floatx())
-    else:
-        dtype = standardize_dtype(dtype)
+        start_type = (
+            ov_to_keras_type(start.get_element_type())
+            if hasattr(start, "get_element_type")
+            else np.asarray(start).dtype
+        )
+        stop_type = (
+            ov_to_keras_type(stop.get_element_type())
+            if hasattr(stop, "get_element_type")
+            else np.asarray(stop).dtype
+        )
+
+        dtype = dtypes.result_type(start_type, stop_type, config.floatx())
+
+    dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
 
     if (
@@ -1213,7 +1213,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         )
 
         np_dtype = y.dtype
-        np_dtype = standardize_dtype(np_dtype)
+        np_dtype = np.float64 if dtype is None else standardize_dtype(np_dtype)
         np_dtype = OPENVINO_DTYPES[np_dtype]
         # y = ov_opset.convert(get_ov_output(y), np_dtype).output(0)
         # return OpenVINOKerasTensor(y)
