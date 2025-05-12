@@ -1212,7 +1212,10 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             start, stop, num=num, endpoint=endpoint, base=base, dtype=dtype
         )
 
-        np_dtype = np.float64 if dtype is None else y.dtype
+        if dtype is None and np.issubdtype(y.dtype, np.floating):
+            y = y.astype(np.float64)
+
+        np_dtype = y.dtype  # np.float64 if dtype is None else
         np_dtype = standardize_dtype(np_dtype)
         np_dtype = OPENVINO_DTYPES[np_dtype]
         y = ov_opset.convert(get_ov_output(y), np_dtype).output(0)
