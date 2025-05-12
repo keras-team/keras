@@ -59,16 +59,14 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
     def get_random_transformation(self, images, training=True, seed=None):
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
+        # Base case: Unbatched data
+        batch_size = 1
         if len(images.shape) == 4:
-            random_values = self.backend.random.uniform(
-                shape=(self.backend.core.shape(images)[0],),
-                minval=0,
-                maxval=1,
-                seed=seed,
-            )
-        else:
-            random_values = self.backend.random.uniform(
-                shape=(1,),
+            # This is a batch of images (4D input) 
+            batch_size = self.backend.core.shape(images)[0]
+
+        random_values = self.backend.random.uniform(
+                shape=(batch_size,),
                 minval=0,
                 maxval=1,
                 seed=seed,
