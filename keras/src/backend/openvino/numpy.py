@@ -1213,14 +1213,14 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         )
 
         np_dtype = y.dtype
-        if dtype is None and np_dtype == np.dtype("float32"):
+        print("\t::Numpy DTYPE is:", np_dtype)
+        if dtype is None and np.issubdtype(np_dtype, np.floating):
+            # np_dtype == np.dtype("float32"):
             y = y.astype(np.float64)
             np_dtype = y.dtype
 
         np_dtype = standardize_dtype(np_dtype)
         np_dtype = OPENVINO_DTYPES[np_dtype]
-        # y = ov_opset.convert(get_ov_output(y), np_dtype).output(0)
-        # return OpenVINOKerasTensor(y)
         return OpenVINOKerasTensor(ov_opset.constant(y, np_dtype).output(0))
 
     if num == 0:
