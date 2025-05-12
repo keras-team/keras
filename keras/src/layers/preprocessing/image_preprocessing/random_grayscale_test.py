@@ -80,15 +80,28 @@ class RandomGrayscaleTest(testing.TestCase):
         test_cases = [
             (np.full((1, 4, 4, 3), 128, dtype=np.float32), "channels_last"),
             (np.full((1, 3, 4, 4), 128, dtype=np.float32), "channels_first"),
+            # unbatched inputs
+            (np.full((4, 4, 3), 128, dtype=np.float32), "channels_last"),
+            (np.full((3, 4, 4), 128, dtype=np.float32), "channels_first"),
         ]
 
         for xs, data_format in test_cases:
             layer = layers.RandomGrayscale(factor=1.0, data_format=data_format)
             transformed = ops.convert_to_numpy(layer(xs))
-
-            if data_format == "channels_last":
-                unique_vals = np.unique(transformed[0, :, :, 0])
-                self.assertEqual(len(unique_vals), 1)
+            
+            if len(xs.shape)==4:
+                # batched inputs
+                if data_format == "channels_last":
+                    unique_vals = np.unique(transformed[0, :, :, 0])
+                    self.assertEqual(len(unique_vals), 1)
+                else:
+                    unique_vals = np.unique(transformed[0, 0, :, :])
+                    self.assertEqual(len(unique_vals), 1)
             else:
-                unique_vals = np.unique(transformed[0, 0, :, :])
-                self.assertEqual(len(unique_vals), 1)
+                # unbatched inputs
+                if data_format == "channels_last":
+                    unique_vals = np.unique(transformed[ :, :, 0])
+                    self.assertEqual(len(unique_vals), 1)
+                else:
+                    unique_vals = np.unique(transformed[ 0, :, :])
+                    self.assertEqual(len(unique_vals), 1)
