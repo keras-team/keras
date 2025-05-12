@@ -1625,69 +1625,41 @@ def signbit(x):
         raise ValueError(f"Unsupported dtype in `signbit`: {x.dtype}")
 
 
-def bartlett(M):
-    """Return a Bartlett window of size M.
-    
-    Args:
-        M: The window size.
-        
-    Returns:
-        An array of size M containing the Bartlett window.
-    """
+def bartlett(x):
+    # ref: jax.numpy.bartlett
     dtype = to_mlx_dtype(config.floatx())
-    if M <= 1:
-        return mx.ones(M, dtype=dtype)
-        
-    n = mx.arange(M, dtype=dtype)
-    return 1 - mx.abs(2 * n + 1 - M) / (M - 1)
+    if x <= 1:
+        return mx.ones(x, dtype=dtype)
+
+    # note: mx.arange cannot take mx.array as input
+    n = mx.arange(x, dtype=dtype)
+    return 1 - mx.abs(2 * n + 1 - x) / (x - 1)
 
 
-def blackman(M):
-    """Return a Blackman window of size M.
-    
-    Args:
-        M: The window size.
-        
-    Returns:
-        An array of size M containing the Blackman window.
-    """
+def blackman(x):
+    # ref: jax.numpy.blackman
     dtype = to_mlx_dtype(config.floatx())
-    if M <= 1:
-        return mx.ones(M, dtype=dtype)
-        
-    n = mx.arange(M, dtype=dtype)
-    # pi = mx.array(math.pi, dtype=dtype)
-    return 0.42 - 0.5 * mx.cos(2 * mx.pi * n / (M - 1)) + 0.08 * mx.cos(4 * mx.pi * n / (M - 1))
+    if x <= 1:
+        return mx.ones(x, dtype=dtype)
+
+    # note: mx.arange cannot take mx.array as input
+    n = mx.arange(x, dtype=dtype)
+    return (
+        0.42
+        - 0.5 * mx.cos(2 * mx.pi * n / (x - 1))
+        + 0.08 * mx.cos(4 * mx.pi * n / (x - 1))
+    )
 
 
-def angle(z, deg=False):
-    """Return the angle of a complex valued number or array.
-    
-    Args:
-        z: A complex number or an array of complex numbers.
-        deg: Boolean. If ``True``, returns the result in degrees else returns
-          in radians. Default is ``False``.
-          
-    Returns:
-        An array of counterclockwise angle of each element of ``z``, with the same
-        shape as ``z`` of dtype float.
-    """
-    z = convert_to_tensor(z)
-    re = real(z)
-    im = imag(z)
-    
-    # Handle dtype conversion
-    dtype = standardize_dtype(re.dtype)
-    if "int" in dtype or dtype == "bool":
+def angle(x):
+    x = convert_to_tensor(x)
+    re = real(x)
+    im = imag(x)
+
+    if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
-        re = cast(re, dtype)
-        im = cast(im, dtype)
-    
-    result = mx.arctan2(im, re)
-    
-    if deg:
-        # Convert radians to degrees (multiply by 180/pi)
-        # pi = mx.array(math.pi, dtype=result.dtype)
-        result = result * (180.0 / mx.pi)
-    
-    return result
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    re = cast(re, dtype)
+    im = cast(im, dtype)
+    return mx.arctan2(im, re)

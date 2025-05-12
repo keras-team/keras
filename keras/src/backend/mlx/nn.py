@@ -42,13 +42,7 @@ def sigmoid(x):
 
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
-    return mx.where(
-        x <= -1,
-        0,
-        mx.where(
-            x >= 1, 1, 0.5 * (x + 1)
-        )
-    )
+    return mx.where(x <= -1, 0, mx.where(x >= 1, 1, 0.5 * (x + 1)))
 
 
 def tanh(x):

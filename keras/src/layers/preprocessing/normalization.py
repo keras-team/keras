@@ -119,7 +119,7 @@ class Normalization(TFDataLayer):
                 "When setting values directly, both `mean` and `variance` "
                 f"must be set. Received: mean={mean} and variance={variance}"
             )
-        
+
         self._mlx_inputs_captured = False
 
     def build(self, input_shape):

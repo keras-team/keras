@@ -504,17 +504,6 @@ class BaseOptimizer(KerasSaveable):
             self._check_variables_are_known(trainable_variables)
 
         with backend.name_scope(self.name, caller=self):
-            print('here here')
-            # Overwrite targeted variables directly with their gradients if
-            # their `overwrite_with_gradient` is set.
-            print('(a) grads', grads, 'trainable_variables', trainable_variables)
-            grads, trainable_variables = (
-                self._overwrite_variables_directly_with_gradients(
-                    grads, trainable_variables
-                )
-            )
-
-            print('(b) grads', grads, 'trainable_variables', trainable_variables)
             # Filter empty gradients.
             grads, trainable_variables = self._filter_empty_gradients(
                 grads, trainable_variables
@@ -522,7 +511,6 @@ class BaseOptimizer(KerasSaveable):
 
             # Overwrite targeted variables directly with their gradients if
             # their `overwrite_with_gradient` is set.
-            print('(c) grads', grads, 'trainable_variables', trainable_variables)
             grads, trainable_variables = (
                 self._overwrite_variables_directly_with_gradients(
                     grads, trainable_variables
@@ -805,10 +793,8 @@ class BaseOptimizer(KerasSaveable):
         # Shortcut for `tf.Variable` because it doesn't have a
         # `overwrite_with_gradient` attr.
         if not any(self._overwrite_variable_with_gradient(v) for v in vars):
-            print('...not any')
             return grads, vars
 
-        print('shallow copy')
         # Shallow copies
         filtered_grads = list(grads)
         filtered_vars = list(vars)
@@ -816,9 +802,7 @@ class BaseOptimizer(KerasSaveable):
         # Iterate from right to left for safe popping
         for i in range(len(filtered_grads) - 1, -1, -1):
             g, v = filtered_grads[i], filtered_vars[i]
-            print('g, v', self._overwrite_variable_with_gradient(v))
             if self._overwrite_variable_with_gradient(v):
-                print('self.gradient_accumulation_steps', self.gradient_accumulation_steps)
                 if self.gradient_accumulation_steps:
                     # Utilize a stateless manner for JAX compatibility
                     steps = self.gradient_accumulation_steps
@@ -844,9 +828,7 @@ class BaseOptimizer(KerasSaveable):
                     v.assign(new_v)
                     acc_g.assign(new_g_acc)
                 else:
-                    print('before', 'v', v, 'g', g)
                     v.assign(g)
-                    print('after', v)
                 filtered_grads.pop(i)
                 filtered_vars.pop(i)
         return filtered_grads, filtered_vars

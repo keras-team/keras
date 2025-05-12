@@ -88,7 +88,6 @@ class LossScaleOptimizer(optimizer.Optimizer):
         return self._variables + self.inner_optimizer.variables
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
-        print('(lso) stateless apply')
         if not self.built:
             raise ValueError(
                 f"To call `stateless_apply`, {self.__class__.__name__} "
