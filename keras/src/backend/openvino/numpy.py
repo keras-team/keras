@@ -1198,7 +1198,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             else np.asarray(stop).dtype
         )
 
-        dtype = dtypes.result_type(start_type, stop_type, config.floatx())
+        #######################################################
+        input_dtype = dtypes.result_type(start_type, stop_type)
+
+        if np.issubdtype(input_dtype, np.floating):
+            dtype = dtypes.result_type(input_dtype, np.float64)
+        else:
+            dtype = dtypes.result_type(input_dtype, config.floatx())
+        #######################################################
+        # dtype = dtypes.result_type(start_type, stop_type, config.floatx())
 
     dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
