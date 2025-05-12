@@ -233,6 +233,7 @@ from keras.src.layers.preprocessing.text_vectorization import TextVectorization
 from keras.src.layers.regularization.activity_regularization import (
     ActivityRegularization,
 )
+from keras.src.layers.regularization.alpha_dropout import AlphaDropout
 from keras.src.layers.regularization.dropout import Dropout
 from keras.src.layers.regularization.gaussian_dropout import GaussianDropout
 from keras.src.layers.regularization.gaussian_noise import GaussianNoise

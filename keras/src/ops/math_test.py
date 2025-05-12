@@ -9,6 +9,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import math as kmath
 
@@ -1494,3 +1495,70 @@ class TestMathErrors(testing.TestCase):
                 fft_length,
                 window=incorrect_window,
             )
+
+
+@pytest.mark.skipif(
+    backend.backend() == "openvino",
+    reason="Complex dtype is not supported on OpenVINO backend.",
+)
+class ViewAsComplexRealTest(testing.TestCase):
+    def test_view_as_complex_basic(self):
+        real_imag = np.array([[1.0, 2.0], [3.0, 4.0]])
+        expected = np.array([1.0 + 2.0j, 3.0 + 4.0j], dtype=np.complex64)
+
+        result = kmath.view_as_complex(real_imag)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
+        self.assertAllClose(result, expected)
+
+    def test_view_as_real_basic(self):
+        complex_tensor = np.array([1 + 2j, 3 + 4j], dtype=np.complex64)
+        expected = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
+
+        result = kmath.view_as_real(complex_tensor)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
+        self.assertAllClose(result, expected)
+
+    def test_view_as_complex_invalid_shape(self):
+        bad_input = np.array([1.0, 2.0, 3.0])  # Last dimension not size 2
+        with self.assertRaisesRegex(
+            ValueError, "Last dimension of input must be size 2"
+        ):
+            kmath.view_as_complex(bad_input)
+
+    def test_view_as_complex_symbolic_input(self):
+        x = KerasTensor(shape=(None, 2), dtype="float32")
+        result = kmath.view_as_complex(x)
+
+        self.assertEqual(result.shape, (None,))
+        self.assertEqual(standardize_dtype(result.dtype), "complex64")
+
+    def test_view_as_real_symbolic_input(self):
+        x = KerasTensor(shape=(None,), dtype="complex64")
+        result = kmath.view_as_real(x)
+
+        self.assertEqual(result.shape, (None, 2))
+        self.assertEqual(standardize_dtype(result.dtype), "float32")
+
+    def test_view_as_complex_multi_dimensional(self):
+        x = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32)
+        expected = np.array([[1 + 2j, 3 + 4j]], dtype=np.complex64)
+
+        result = kmath.view_as_complex(x)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
+        self.assertAllClose(result, expected)
+
+    def test_view_as_real_multi_dimensional(self):
+        x = np.array([[1 + 2j, 3 + 4j]], dtype=np.complex64)
+        expected = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32)
+
+        result = kmath.view_as_real(x)
+
+        self.assertEqual(result.shape, expected.shape)
+        self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
+        self.assertAllClose(result, expected)

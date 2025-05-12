@@ -10,6 +10,7 @@ from keras.src.ops.numpy import add
 from keras.src.ops.numpy import all
 from keras.src.ops.numpy import amax
 from keras.src.ops.numpy import amin
+from keras.src.ops.numpy import angle
 from keras.src.ops.numpy import any
 from keras.src.ops.numpy import append
 from keras.src.ops.numpy import arange
@@ -26,6 +27,7 @@ from keras.src.ops.numpy import argpartition
 from keras.src.ops.numpy import argsort
 from keras.src.ops.numpy import array
 from keras.src.ops.numpy import average
+from keras.src.ops.numpy import bartlett
 from keras.src.ops.numpy import bincount
 from keras.src.ops.numpy import bitwise_and
 from keras.src.ops.numpy import bitwise_invert
@@ -34,6 +36,7 @@ from keras.src.ops.numpy import bitwise_not
 from keras.src.ops.numpy import bitwise_or
 from keras.src.ops.numpy import bitwise_right_shift
 from keras.src.ops.numpy import bitwise_xor
+from keras.src.ops.numpy import blackman
 from keras.src.ops.numpy import broadcast_to
 from keras.src.ops.numpy import ceil
 from keras.src.ops.numpy import clip

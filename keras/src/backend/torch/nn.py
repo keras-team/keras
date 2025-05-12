@@ -29,6 +29,19 @@ def sigmoid(x):
     return tnn.sigmoid(x)
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return torch.where(
+        x <= -1,
+        torch.tensor(0.0, device=x.device, dtype=x.dtype),
+        torch.where(
+            x >= 1,
+            torch.tensor(1.0, device=x.device, dtype=x.dtype),
+            0.5 * (x + 1),
+        ),
+    )
+
+
 def tanh(x):
     x = convert_to_tensor(x)
     return tnn.tanh(x)
@@ -720,7 +733,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "Received: "
             f"output.shape={output.shape}"
         )
-    if target.shape != output.shape[:-1]:
+    output_shape_without_class_dim = list(output.shape)
+    del output_shape_without_class_dim[axis]
+
+    if list(target.shape) != output_shape_without_class_dim:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape "
             "up until the last dimension: "

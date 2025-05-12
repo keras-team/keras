@@ -35,7 +35,7 @@ elif backend.backend() == "mlx":
     )
 else:
     raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement a layer mixin class."
+        f"Backend '{backend.backend()}' must implement ExportArchive."
     )
 
 

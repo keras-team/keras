@@ -11,16 +11,22 @@ from keras.src.losses.losses import categorical_focal_crossentropy
 from keras.src.losses.losses import categorical_hinge
 from keras.src.losses.losses import hinge
 from keras.src.losses.losses import huber
+from keras.src.losses.losses import kl_divergence
 from keras.src.losses.losses import kl_divergence as KLD
 from keras.src.losses.losses import kl_divergence as kld
 from keras.src.losses.losses import kl_divergence as kullback_leibler_divergence
+from keras.src.losses.losses import log_cosh
 from keras.src.losses.losses import log_cosh as logcosh
+from keras.src.losses.losses import mean_absolute_error
 from keras.src.losses.losses import mean_absolute_error as MAE
 from keras.src.losses.losses import mean_absolute_error as mae
+from keras.src.losses.losses import mean_absolute_percentage_error
 from keras.src.losses.losses import mean_absolute_percentage_error as MAPE
 from keras.src.losses.losses import mean_absolute_percentage_error as mape
+from keras.src.losses.losses import mean_squared_error
 from keras.src.losses.losses import mean_squared_error as MSE
 from keras.src.losses.losses import mean_squared_error as mse
+from keras.src.losses.losses import mean_squared_logarithmic_error
 from keras.src.losses.losses import mean_squared_logarithmic_error as MSLE
 from keras.src.losses.losses import mean_squared_logarithmic_error as msle
 from keras.src.losses.losses import poisson

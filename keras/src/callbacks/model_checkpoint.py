@@ -224,6 +224,69 @@ class ModelCheckpoint(Callback):
             return True
         return False
 
+    def _should_save_model(self, epoch, batch, logs, filepath):
+        """Determines whether the model should be saved.
+
+        The model should be saved in the following cases:
+
+        - self.save_best_only is False
+        - self.save_best_only is True and `monitor` is a numpy array or
+          backend tensor (falls back to `save_best_only=False`)
+        - self.save_best_only is True and `self.monitor_op(current, self.best)`
+          evaluates to True.
+
+        Args:
+            epoch: the epoch this iteration is in.
+            batch: the batch this iteration is in. `None` if the `save_freq`
+                is set to `"epoch"`.
+            logs: the `logs` dict passed in to `on_batch_end` or
+                `on_epoch_end`.
+            filepath: the path where the model would be saved
+        """
+        logs = logs or {}
+        if self.save_best_only:
+            current = logs.get(self.monitor)
+            if current is None:
+                warnings.warn(
+                    f"Can save best model only with {self.monitor} available.",
+                    stacklevel=2,
+                )
+                return True
+            elif (
+                isinstance(current, np.ndarray) or backend.is_tensor(current)
+            ) and len(current.shape) > 0:
+                warnings.warn(
+                    "Can save best model only when `monitor` is "
+                    f"a scalar value. Received: {current}. "
+                    "Falling back to `save_best_only=False`."
+                )
+                return True
+            else:
+                if self.monitor_op(current, self.best):
+                    if self.verbose > 0:
+                        io_utils.print_msg(
+                            f"\nEpoch {epoch + 1}: {self.monitor} "
+                            "improved "
+                            f"from {self.best:.5f} to {current:.5f}, "
+                            f"saving model to {filepath}"
+                        )
+                    self.best = current
+                    return True
+                else:
+                    if self.verbose > 0:
+                        io_utils.print_msg(
+                            f"\nEpoch {epoch + 1}: "
+                            f"{self.monitor} did not improve "
+                            f"from {self.best:.5f}"
+                        )
+                    return False
+        else:
+            if self.verbose > 0:
+                io_utils.print_msg(
+                    f"\nEpoch {epoch + 1}: saving model to {filepath}"
+                )
+            return True
+
     def _save_model(self, epoch, batch, logs):
         """Saves the model.
 
@@ -233,59 +296,15 @@ class ModelCheckpoint(Callback):
                 is set to `"epoch"`.
             logs: the `logs` dict passed in to `on_batch_end` or `on_epoch_end`.
         """
-        logs = logs or {}
-
         filepath = self._get_file_path(epoch, batch, logs)
-        # Create host directory if it doesn't exist.
-        dirname = os.path.dirname(filepath)
-        if dirname and not file_utils.exists(dirname):
-            file_utils.makedirs(dirname)
 
         try:
-            if self.save_best_only:
-                current = logs.get(self.monitor)
-                if current is None:
-                    warnings.warn(
-                        f"Can save best model only with {self.monitor} "
-                        "available, skipping.",
-                        stacklevel=2,
-                    )
-                elif (
-                    isinstance(current, np.ndarray)
-                    or backend.is_tensor(current)
-                ) and len(current.shape) > 0:
-                    warnings.warn(
-                        "Can save best model only when `monitor` is "
-                        f"a scalar value. Received: {current}. "
-                        "Falling back to `save_best_only=False`."
-                    )
-                    self.model.save(filepath, overwrite=True)
-                else:
-                    if self.monitor_op(current, self.best):
-                        if self.verbose > 0:
-                            io_utils.print_msg(
-                                f"\nEpoch {epoch + 1}: {self.monitor} "
-                                "improved "
-                                f"from {self.best:.5f} to {current:.5f}, "
-                                f"saving model to {filepath}"
-                            )
-                        self.best = current
-                        if self.save_weights_only:
-                            self.model.save_weights(filepath, overwrite=True)
-                        else:
-                            self.model.save(filepath, overwrite=True)
-                    else:
-                        if self.verbose > 0:
-                            io_utils.print_msg(
-                                f"\nEpoch {epoch + 1}: "
-                                f"{self.monitor} did not improve "
-                                f"from {self.best:.5f}"
-                            )
-            else:
-                if self.verbose > 0:
-                    io_utils.print_msg(
-                        f"\nEpoch {epoch + 1}: saving model to {filepath}"
-                    )
+            if self._should_save_model(epoch, batch, logs, filepath):
+                # Create host directory if it doesn't exist.
+                dirname = os.path.dirname(filepath)
+                if dirname and not file_utils.exists(dirname):
+                    file_utils.makedirs(dirname)
+
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:

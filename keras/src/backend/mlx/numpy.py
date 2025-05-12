@@ -1623,3 +1623,43 @@ def signbit(x):
         return mx.zeros_like(x).astype(mx.bool_)
     else:
         raise ValueError(f"Unsupported dtype in `signbit`: {x.dtype}")
+
+
+def bartlett(x):
+    # ref: jax.numpy.bartlett
+    dtype = to_mlx_dtype(config.floatx())
+    if x <= 1:
+        return mx.ones(x, dtype=dtype)
+
+    # note: mx.arange cannot take mx.array as input
+    n = mx.arange(x, dtype=dtype)
+    return 1 - mx.abs(2 * n + 1 - x) / (x - 1)
+
+
+def blackman(x):
+    # ref: jax.numpy.blackman
+    dtype = to_mlx_dtype(config.floatx())
+    if x <= 1:
+        return mx.ones(x, dtype=dtype)
+
+    # note: mx.arange cannot take mx.array as input
+    n = mx.arange(x, dtype=dtype)
+    return (
+        0.42
+        - 0.5 * mx.cos(2 * mx.pi * n / (x - 1))
+        + 0.08 * mx.cos(4 * mx.pi * n / (x - 1))
+    )
+
+
+def angle(x):
+    x = convert_to_tensor(x)
+    re = real(x)
+    im = imag(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    re = cast(re, dtype)
+    im = cast(im, dtype)
+    return mx.arctan2(im, re)

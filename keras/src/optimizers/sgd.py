@@ -90,12 +90,7 @@ class SGD(optimizer.Optimizer):
         super().build(variables)
         self.momentums = []
         if self.momentum != 0:
-            for variable in variables:
-                self.momentums.append(
-                    self.add_variable_from_reference(
-                        reference_variable=variable, name="momentum"
-                    )
-                )
+            self.momentums = self.add_optimizer_variables(variables, "momentum")
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""

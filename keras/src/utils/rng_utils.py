@@ -4,7 +4,10 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import global_state
 from keras.src.utils.module_utils import tensorflow as tf
+
+GLOBAL_RANDOM_SEED = "global_random_seed"
 
 
 @keras_export("keras.utils.set_random_seed")
@@ -46,6 +49,9 @@ def set_random_seed(seed):
             "Expected `seed` argument to be an integer. "
             f"Received: seed={seed} (of type {type(seed)})"
         )
+
+    # Store seed in global state so we can query it if set.
+    global_state.set_global_attribute(GLOBAL_RANDOM_SEED, seed)
     random.seed(seed)
     np.random.seed(seed)
     if tf.available:
@@ -54,3 +60,12 @@ def set_random_seed(seed):
         import torch
 
         torch.manual_seed(seed)
+
+
+def get_random_seed():
+    """Returns the explicit integer random seed if set.
+
+    If the seed has been explicitly set via `set_random_seed`, then
+    returns the seed.  Otherwise, returns `None`.
+    """
+    return global_state.get_global_attribute(GLOBAL_RANDOM_SEED)

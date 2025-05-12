@@ -45,7 +45,6 @@ tensorflow_io = LazyModule("tensorflow_io")
 scipy = LazyModule("scipy")
 jax = LazyModule("jax")
 mlx = LazyModule("mlx")
-torchvision = LazyModule("torchvision")
 torch_xla = LazyModule(
     "torch_xla",
     import_error_msg=(

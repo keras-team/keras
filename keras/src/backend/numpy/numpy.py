@@ -138,6 +138,16 @@ def all(x, axis=None, keepdims=False):
     return np.all(x, axis=axis, keepdims=keepdims)
 
 
+def angle(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
+    return np.angle(x)
+
+
 def any(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     return np.any(x, axis=axis, keepdims=keepdims)
@@ -295,6 +305,11 @@ def average(x, axis=None, weights=None):
     return np.average(x, weights=weights, axis=axis)
 
 
+def bartlett(x):
+    x = convert_to_tensor(x)
+    return np.bartlett(x).astype(config.floatx())
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")
@@ -373,6 +388,11 @@ def bitwise_right_shift(x, y):
 
 def right_shift(x, y):
     return bitwise_right_shift(x, y)
+
+
+def blackman(x):
+    x = convert_to_tensor(x)
+    return np.blackman(x).astype(config.floatx())
 
 
 def broadcast_to(x, shape):

@@ -578,8 +578,9 @@ def scatter_update(inputs, indices, updates):
     updates = convert_to_tensor(updates)
     indices = torch.transpose(indices, 0, 1)
 
-    inputs[tuple(indices)] = updates
-    return inputs
+    outputs = torch.clone(inputs)
+    outputs[tuple(indices)] = updates
+    return outputs
 
 
 def slice(inputs, start_indices, shape):

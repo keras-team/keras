@@ -16,6 +16,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.global_state import clear_session
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.losses.loss import Loss
 from keras.src.models import Model
 from keras.src.utils import traceback_utils
 
@@ -100,6 +101,22 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 f"Backend {backend.backend()} does not support sparse tensors",
             )
 
+    def assertRagged(self, x, ragged=True):
+        if isinstance(x, KerasTensor):
+            self.assertEqual(x.ragged, ragged)
+        elif backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            if ragged:
+                self.assertIsInstance(x, tf.RaggedTensor)
+            else:
+                self.assertNotIsInstance(x, tf.RaggedTensor)
+        else:
+            self.assertFalse(
+                ragged,
+                f"Backend {backend.backend()} does not support ragged tensors",
+            )
+
     def assertDType(self, x, dtype, msg=None):
         if hasattr(x, "dtype"):
             x_dtype = backend.standardize_dtype(x.dtype)
@@ -159,11 +176,13 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         input_shape=None,
         input_dtype=None,
         input_sparse=False,
+        input_ragged=False,
         input_data=None,
         call_kwargs=None,
         expected_output_shape=None,
         expected_output_dtype=None,
         expected_output_sparse=False,
+        expected_output_ragged=False,
         expected_output=None,
         expected_num_trainable_weights=None,
         expected_num_non_trainable_weights=None,
@@ -188,6 +207,8 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             input_dtype: Corresponding input dtype.
             input_sparse: Whether the input is a sparse tensor (this requires
                 the backend to support sparse tensors).
+            input_ragged: Whether the input is a ragged tensor (this requires
+                the backend to support ragged tensors).
             input_data: Tensor (or list/dict of tensors)
                 to call the layer on.
             call_kwargs: Dict of arguments to use when calling the
@@ -198,6 +219,8 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             expected_output_dtype: dtype expected as output.
             expected_output_sparse: Whether the output is expected to be sparse
                 (this requires the backend to support sparse tensors).
+            expected_output_ragged: Whether the output is expected to be ragged
+                (this requires the backend to support ragged tensors).
             expected_output: Expected output tensor -- only
                 to be specified if input_data is provided.
             expected_num_trainable_weights: Expected number
@@ -280,7 +303,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         if input_data is not None or input_shape is not None:
             if input_data is None:
                 input_data = create_eager_tensors(
-                    input_shape, input_dtype, input_sparse
+                    input_shape, input_dtype, input_sparse, input_ragged
                 )
             layer = layer_cls(**init_kwargs)
             if isinstance(input_data, dict):
@@ -355,114 +378,43 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
 
         def run_output_asserts(layer, output, eager=False):
             if expected_output_shape is not None:
-                if isinstance(expected_output_shape, tuple) and is_shape_tuple(
-                    expected_output_shape[0]
-                ):
-                    self.assertIsInstance(output, tuple)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_shape),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_shape = tuple(v.shape for v in output)
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, tuple):
-                    self.assertEqual(
-                        expected_output_shape,
-                        output.shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, dict):
-                    self.assertIsInstance(output, dict)
-                    self.assertEqual(
-                        set(output.keys()),
-                        set(expected_output_shape.keys()),
-                        msg="Unexpected output dict keys",
-                    )
-                    output_shape = {k: v.shape for k, v in output.items()}
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-                elif isinstance(expected_output_shape, list):
-                    self.assertIsInstance(output, list)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_shape),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_shape = [v.shape for v in output]
-                    self.assertEqual(
-                        expected_output_shape,
-                        output_shape,
-                        msg="Unexpected output shape",
-                    )
-                else:
-                    raise ValueError(
-                        "The type of expected_output_shape is not supported"
-                    )
+
+                def verify_shape(expected_shape, x):
+                    shape = x.shape
+                    if len(shape) != len(expected_shape):
+                        return False
+                    for expected_dim, dim in zip(expected_shape, shape):
+                        if expected_dim is not None and expected_dim != dim:
+                            return False
+                    return True
+
+                shapes_match = tree.map_structure_up_to(
+                    output, verify_shape, expected_output_shape, output
+                )
+                self.assertTrue(
+                    all(tree.flatten(shapes_match)),
+                    msg=f"Expected output shapes {expected_output_shape} but "
+                    f"received {tree.map_structure(lambda x: x.shape, output)}",
+                )
             if expected_output_dtype is not None:
-                if isinstance(expected_output_dtype, tuple):
-                    self.assertIsInstance(output, tuple)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_dtype),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_dtype = tuple(
-                        backend.standardize_dtype(v.dtype) for v in output
-                    )
-                    self.assertEqual(
-                        expected_output_dtype,
-                        output_dtype,
-                        msg="Unexpected output dtype",
-                    )
-                elif isinstance(expected_output_dtype, dict):
-                    self.assertIsInstance(output, dict)
-                    self.assertEqual(
-                        set(output.keys()),
-                        set(expected_output_dtype.keys()),
-                        msg="Unexpected output dict keys",
-                    )
-                    output_dtype = {
-                        k: backend.standardize_dtype(v.dtype)
-                        for k, v in output.items()
-                    }
-                    self.assertEqual(
-                        expected_output_dtype,
-                        output_dtype,
-                        msg="Unexpected output dtype",
-                    )
-                elif isinstance(expected_output_dtype, list):
-                    self.assertIsInstance(output, list)
-                    self.assertEqual(
-                        len(output),
-                        len(expected_output_dtype),
-                        msg="Unexpected number of outputs",
-                    )
-                    output_dtype = [
-                        backend.standardize_dtype(v.dtype) for v in output
-                    ]
-                    self.assertEqual(
-                        expected_output_dtype,
-                        output_dtype,
-                        msg="Unexpected output dtype",
-                    )
-                else:
-                    output_dtype = tree.flatten(output)[0].dtype
-                    self.assertEqual(
-                        expected_output_dtype,
-                        backend.standardize_dtype(output_dtype),
-                        msg="Unexpected output dtype",
-                    )
+
+                def verify_dtype(expected_dtype, x):
+                    return expected_dtype == backend.standardize_dtype(x.dtype)
+
+                dtypes_match = tree.map_structure(
+                    verify_dtype, expected_output_dtype, output
+                )
+                self.assertTrue(
+                    all(tree.flatten(dtypes_match)),
+                    msg=f"Expected output dtypes {expected_output_dtype} but "
+                    f"received {tree.map_structure(lambda x: x.dtype, output)}",
+                )
             if expected_output_sparse:
                 for x in tree.flatten(output):
                     self.assertSparse(x)
+            if expected_output_ragged:
+                for x in tree.flatten(output):
+                    self.assertRagged(x)
             if eager:
                 if expected_output is not None:
                     self.assertEqual(type(expected_output), type(output))
@@ -494,6 +446,11 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 while True:
                     yield data
 
+            # Single op loss to avoid compilation issues with ragged / sparse.
+            class TestLoss(Loss):
+                def __call__(self, y_true, y_pred, sample_weight=None):
+                    return ops.sum(y_pred)
+
             # test the "default" path for each backend by setting
             # jit_compile="auto".
             # for tensorflow and jax backends auto is jitted
@@ -510,7 +467,9 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             jit_compile = "auto"
             if backend.backend() == "tensorflow" and input_sparse:
                 jit_compile = False
-            model.compile(optimizer="sgd", loss="mse", jit_compile=jit_compile)
+            model.compile(
+                optimizer="sgd", loss=TestLoss(), jit_compile=jit_compile
+            )
             model.fit(data_generator(), steps_per_epoch=1, verbose=0)
 
         # Build test.
@@ -532,13 +491,13 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             if input_shape is None:
                 keras_tensor_inputs = tree.map_structure(
                     lambda x: create_keras_tensors(
-                        ops.shape(x), x.dtype, input_sparse
+                        ops.shape(x), x.dtype, input_sparse, input_ragged
                     ),
                     input_data,
                 )
             else:
                 keras_tensor_inputs = create_keras_tensors(
-                    input_shape, input_dtype, input_sparse
+                    input_shape, input_dtype, input_sparse, input_ragged
                 )
             layer = layer_cls(**init_kwargs)
             if isinstance(keras_tensor_inputs, dict):
@@ -669,22 +628,24 @@ def uses_cpu():
     return False
 
 
-def create_keras_tensors(input_shape, dtype, sparse):
+def create_keras_tensors(input_shape, dtype, sparse, ragged):
     if isinstance(input_shape, dict):
         return {
             utils.removesuffix(k, "_shape"): KerasTensor(
-                v, dtype=dtype[k], sparse=sparse
+                v, dtype=dtype[k], sparse=sparse, ragged=ragged
             )
             for k, v in input_shape.items()
         }
     return map_shape_dtype_structure(
-        lambda shape, dt: KerasTensor(shape, dtype=dt, sparse=sparse),
+        lambda shape, dt: KerasTensor(
+            shape, dtype=dt, sparse=sparse, ragged=ragged
+        ),
         input_shape,
         dtype,
     )
 
 
-def create_eager_tensors(input_shape, dtype, sparse):
+def create_eager_tensors(input_shape, dtype, sparse, ragged):
     from keras.src.backend import random
 
     if set(tree.flatten(dtype)).difference(
@@ -729,6 +690,21 @@ def create_eager_tensors(input_shape, dtype, sparse):
         else:
             raise ValueError(
                 f"Sparse is unsupported with backend {backend.backend()}"
+            )
+
+    elif ragged:
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            def create_fn(shape, dt):
+                rng = np.random.default_rng(0)
+                x = (4 * rng.standard_normal(shape)).astype(dt)
+                x = np.multiply(x, rng.random(shape) < 0.7)
+                return tf.RaggedTensor.from_tensor(x, padding=0)
+
+        else:
+            raise ValueError(
+                f"Ragged is unsupported with backend {backend.backend()}"
             )
 
     else:
