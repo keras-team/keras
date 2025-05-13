@@ -20,4 +20,3 @@ examples/**/*.jpg
 .coverage
 *coverage.xml
 .ruff_cachekeras_venv/
-keras_venv/
