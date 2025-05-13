@@ -62,15 +62,15 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         # Base case: Unbatched data
         batch_size = 1
         if len(images.shape) == 4:
-            # This is a batch of images (4D input) 
+            # This is a batch of images (4D input)
             batch_size = self.backend.core.shape(images)[0]
 
         random_values = self.backend.random.uniform(
-                shape=(batch_size,),
-                minval=0,
-                maxval=1,
-                seed=seed,
-            )
+            shape=(batch_size,),
+            minval=0,
+            maxval=1,
+            seed=seed,
+        )
         should_apply = self.backend.numpy.expand_dims(
             random_values < self.factor, axis=[1, 2, 3]
         )

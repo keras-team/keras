@@ -88,8 +88,8 @@ class RandomGrayscaleTest(testing.TestCase):
         for xs, data_format in test_cases:
             layer = layers.RandomGrayscale(factor=1.0, data_format=data_format)
             transformed = ops.convert_to_numpy(layer(xs))
-            
-            if len(xs.shape)==4:
+
+            if len(xs.shape) == 4:
                 # batched inputs
                 if data_format == "channels_last":
                     unique_vals = np.unique(transformed[0, :, :, 0])
@@ -100,8 +100,8 @@ class RandomGrayscaleTest(testing.TestCase):
             else:
                 # unbatched inputs
                 if data_format == "channels_last":
-                    unique_vals = np.unique(transformed[ :, :, 0])
+                    unique_vals = np.unique(transformed[:, :, 0])
                     self.assertEqual(len(unique_vals), 1)
                 else:
-                    unique_vals = np.unique(transformed[ 0, :, :])
+                    unique_vals = np.unique(transformed[0, :, :])
                     self.assertEqual(len(unique_vals), 1)
