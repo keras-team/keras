@@ -1230,7 +1230,31 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    raise NotImplementedError("`prod` is not supported with openvino backend")
+    x = get_ov_output(x)
+    original_type = x.get_element_type()
+
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        x = ov_opset.convert(x, ov_type).output(0)
+
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return OpenVINOKerasTensor(x)
+
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+
+    if isinstance(axis, tuple):
+        axis = list(axis)
+
+    axis_const = ov_opset.constant(axis, Type.i32).output(0)
+    result = ov_opset.reduce_prod(x, axis_const, keepdims).output(0)
+
+    if dtype is None and original_type != result.get_element_type():
+        result = ov_opset.convert(result, original_type).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
