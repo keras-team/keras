@@ -39,15 +39,51 @@ def shape_equal(a_shape, b_shape):
 
 
 class Variable(nnx.Variable, KerasVariable):
+    def __new__(cls, initializer, shape=None, dtype=None, **kwargs):
+        if dtype is None:
+            dtype = jnp.float32
+        value = initializer(shape, dtype=dtype)
+
+        # Proper construction of nnx.Variable
+        instance = nnx.Variable.__new__(cls)
+        nnx.Variable.__init__(instance, raw_value=value)
+        return instance
+
+    def __init__(
+        self,
+        initializer,
+        shape=None,
+        dtype=None,
+        trainable=True,
+        autocast=True,
+        aggregation="none",
+        synchronization="auto",
+        name=None,
+    ):
+        # Regular KerasVariable init
+        KerasVariable.__init__(
+            self,
+            initializer,
+            shape=shape,
+            dtype=dtype,
+            trainable=trainable,
+            autocast=autocast,
+            aggregation=aggregation,
+            synchronization=synchronization,
+            name=name,
+        )
+
+        self.trainable = trainable
+        self._name = name
 
     @property
     def value(self):
         """The current value of the variable (numpy array or backend tensor)."""
         if in_stateless_scope():
             scope = get_stateless_scope()
-            value = scope.get_current_value(self.raw_value)
+            value = scope.get_current_value(self)
             if value is not None:
-                return self._maybe_autocast(self.raw_value)
+                return self._maybe_autocast(self)
         if self._value is None:
             # Uninitialized variable. Return a placeholder.
             # This is fine because it's only ever used
@@ -77,6 +113,11 @@ class Variable(nnx.Variable, KerasVariable):
             self._direct_assign(value)
         return value
 
+    def __jax_array__(self):
+        return self.value
+
+    def __array__(self, dtype=None):
+        return np.asarray(self.value, dtype=dtype)
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
@@ -104,9 +145,13 @@ class Variable(nnx.Variable, KerasVariable):
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype, sparse=False)
 
-    # Overload native accessor.
-    def __jax_array__(self):
-        return self.value
+    @property
+    def dtype(self):
+        return self.raw_value.dtype
+
+    @property
+    def shape(self):
+        return self.raw_value.shape
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):

@@ -2,6 +2,9 @@ from flax import nnx
 
 
 class JaxLayer(nnx.Module):
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+
     def __new__(cls, *args, **kwargs):
         """Overrides __new__ to save constructor arguments for potential
         serialization/config.
