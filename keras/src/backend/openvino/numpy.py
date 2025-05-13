@@ -1252,9 +1252,10 @@ def real(x):
 
 
 def reciprocal(x):
-    raise NotImplementedError(
-        "`reciprocal` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    one_constant = ov_opset.constant(1, dtype=x.get_element_type()).output(0)
+    x = ov_opset.divide(one_constant, x).output(0)
+    return OpenVINOKerasTensor(x)
 
 
 def repeat(x, repeats, axis=None):
