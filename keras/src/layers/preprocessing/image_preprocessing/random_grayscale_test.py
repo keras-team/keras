@@ -78,6 +78,7 @@ class RandomGrayscaleTest(testing.TestCase):
 
     def test_grayscale_with_single_color_image(self):
         test_cases = [
+            # batched inputs
             (np.full((1, 4, 4, 3), 128, dtype=np.float32), "channels_last"),
             (np.full((1, 3, 4, 4), 128, dtype=np.float32), "channels_first"),
             # unbatched inputs
@@ -89,19 +90,25 @@ class RandomGrayscaleTest(testing.TestCase):
             layer = layers.RandomGrayscale(factor=1.0, data_format=data_format)
             transformed = ops.convert_to_numpy(layer(xs))
 
-            if len(xs.shape) == 4:
-                # batched inputs
-                if data_format == "channels_last":
-                    unique_vals = np.unique(transformed[0, :, :, 0])
-                    self.assertEqual(len(unique_vals), 1)
-                else:
-                    unique_vals = np.unique(transformed[0, 0, :, :])
-                    self.assertEqual(len(unique_vals), 1)
+            # Determine if the input was batched
+            is_batched = len(xs.shape) == 4
+
+            # If batched, select the first image from the batch for inspection.
+            # Otherwise, use the transformed image directly.
+            # `image_to_inspect` will always be a 3D tensor.
+            if is_batched:
+                image_to_inspect = transformed[0]
             else:
-                # unbatched inputs
-                if data_format == "channels_last":
-                    unique_vals = np.unique(transformed[:, :, 0])
-                    self.assertEqual(len(unique_vals), 1)
-                else:
-                    unique_vals = np.unique(transformed[0, :, :])
-                    self.assertEqual(len(unique_vals), 1)
+                image_to_inspect = transformed
+
+            if data_format == "channels_last":
+                # image_to_inspect has shape (H, W, C),
+                # get the first channel [:, :, 0]
+                channel_data = image_to_inspect[:, :, 0]
+            else:  # data_format == "channels_first"
+                # image_to_inspect has shape (C, H, W),
+                # get the first channel [0, :, :]
+                channel_data = image_to_inspect[0, :, :]
+
+            unique_vals = np.unique(channel_data)
+            self.assertEqual(len(unique_vals), 1)
