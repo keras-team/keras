@@ -1203,35 +1203,6 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
 
-    if (
-        not hasattr(start, "get_element_type")
-        and not hasattr(stop, "get_element_type")
-        and not hasattr(base, "get_element_type")
-    ):
-        y = np.logspace(
-            start,
-            stop,
-            num=num,
-            endpoint=endpoint,
-            base=base,
-            dtype=np.float64 if dtype is None else dtype,
-        )
-
-        np_dtype = y.dtype
-        # print("\t::Numpy DTYPE is:", np_dtype)
-        # if dtype is None:
-        #     # and np.issubdtype(np_dtype, np.floating):
-        #     # np_dtype == np.dtype("float32"):
-        #     y = y.astype(np.float64)
-        #     np_dtype = y.dtype
-
-        np_dtype = standardize_dtype(np_dtype)
-        np_dtype = OPENVINO_DTYPES[np_dtype]
-        return OpenVINOKerasTensor(
-            ov_opset.convert(get_ov_output(y), np_dtype).output(0)
-        )
-        # return OpenVINOKerasTensor(ov_opset.constant(y, np_dtype).output(0))
-
     if num == 0:
         return OpenVINOKerasTensor(
             ov_opset.constant(
@@ -1287,21 +1258,6 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
     y = ov_opset.power(base, lin_output).output(0)
     y = ov_opset.convert(y, out_dtype).output(0)
-
-    # def is_integer_dtype(ov_dtype):
-    #     return ov_dtype in (
-    #         Type.i8,
-    #         Type.i16,
-    #         Type.i32,
-    #         Type.i64,
-    #         Type.u8,
-    #         Type.u16,
-    #         Type.u32,
-    #         Type.u64,
-    #     )
-
-    # if is_integer_dtype(out_dtype):
-    #     y = ov_opset.floor(y).output(0)
 
     return OpenVINOKerasTensor(y)
 
