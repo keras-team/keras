@@ -1251,7 +1251,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     end = ov_opset.constant([0], Type.i64)
     strides = ov_opset.constant([1], Type.i64)
     tail = ov_opset.strided_slice(
-        start_shape.output(0), begin, end, strides, 0, 1, 0, 0, 0
+        start_shape.output(0),
+        begin,
+        end,
+        strides,
+        begin_mask=[0],
+        end_mask=[1],
+        new_axis_mask=[],
+        shrink_axis_mask=[],
+        ellipsis_mask=[],
     ).output(0)
 
     target_shape = ov_opset.concat(
