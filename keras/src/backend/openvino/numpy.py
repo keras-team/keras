@@ -1222,67 +1222,67 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         ov_opset.convert(base, out_dtype).output(0),
     )
 
-    start_shape = ov_opset.shape_of(start)
+    # start_shape = ov_opset.shape_of(start)
 
-    start = ov_opset.reshape(
-        start,
-        ov_opset.concat(
-            [
-                ov_opset.constant([1], Type.i64),
-                start_shape.output(0),
-            ],
-            axis=0,
-        ).output(0),
-        False,
-    ).output(0)
-    stop = ov_opset.reshape(
-        stop,
-        ov_opset.concat(
-            [
-                ov_opset.constant([1], Type.i64),
-                ov_opset.shape_of(stop).output(0),
-            ],
-            axis=0,
-        ).output(0),
-        False,
-    ).output(0)
-
-    begin = ov_opset.constant([1], Type.i64)
-    end = ov_opset.constant([0], Type.i64)
-    strides = ov_opset.constant([1], Type.i64)
-    tail = ov_opset.strided_slice(
-        start_shape.output(0),
-        begin,
-        end,
-        strides,
-        begin_mask=[0],
-        end_mask=[1],
-        new_axis_mask=[],
-        shrink_axis_mask=[],
-        ellipsis_mask=[],
-    ).output(0)
-
-    if isinstance(num, int):
-        num_tensor = ov_opset.constant([num], Type.i64)
-    else:
-        num_tensor = ov_opset.reshape(
-            get_ov_output(num), ov_opset.constant([1], Type.i64)
-        ).output(0)
-
-    target_shape = ov_opset.concat([num_tensor, tail], axis=0).output(0)
-
-    # target_shape = ov_opset.concat(
-    #     [ov_opset.constant([num], Type.i64), tail], axis=0
+    # start = ov_opset.reshape(
+    #     start,
+    #     ov_opset.concat(
+    #         [
+    #             ov_opset.constant([1], Type.i64),
+    #             start_shape.output(0),
+    #         ],
+    #         axis=0,
+    #     ).output(0),
+    #     False,
+    # ).output(0)
+    # stop = ov_opset.reshape(
+    #     stop,
+    #     ov_opset.concat(
+    #         [
+    #             ov_opset.constant([1], Type.i64),
+    #             ov_opset.shape_of(stop).output(0),
+    #         ],
+    #         axis=0,
+    #     ).output(0),
+    #     False,
     # ).output(0)
 
-    if num == 0:
-        zero_scalar = ov_opset.constant(0.0, Type.f32)
-        return OpenVINOKerasTensor(
-            ov_opset.broadcast(zero_scalar, target_shape).output(0)
-        )
+    # begin = ov_opset.constant([1], Type.i64)
+    # end = ov_opset.constant([0], Type.i64)
+    # strides = ov_opset.constant([1], Type.i64)
+    # tail = ov_opset.strided_slice(
+    #     start_shape.output(0),
+    #     begin,
+    #     end,
+    #     strides,
+    #     begin_mask=[0],
+    #     end_mask=[1],
+    #     new_axis_mask=[],
+    #     shrink_axis_mask=[],
+    #     ellipsis_mask=[],
+    # ).output(0)
 
-    start = ov_opset.broadcast(start, target_shape).output(0)
-    stop = ov_opset.broadcast(stop, target_shape).output(0)
+    # if isinstance(num, int):
+    #     num_tensor = ov_opset.constant([num], Type.i64)
+    # else:
+    #     num_tensor = ov_opset.reshape(
+    #         get_ov_output(num), ov_opset.constant([1], Type.i64)
+    #     ).output(0)
+
+    # target_shape = ov_opset.concat([num_tensor, tail], axis=0).output(0)
+
+    # # target_shape = ov_opset.concat(
+    # #     [ov_opset.constant([num], Type.i64), tail], axis=0
+    # # ).output(0)
+
+    # if num == 0:
+    #     zero_scalar = ov_opset.constant(0.0, Type.f32)
+    #     return OpenVINOKerasTensor(
+    #         ov_opset.broadcast(zero_scalar, target_shape).output(0)
+    #     )
+
+    # start = ov_opset.broadcast(start, target_shape).output(0)
+    # stop = ov_opset.broadcast(stop, target_shape).output(0)
 
     lin_output = linspace(
         start, stop, num=num, endpoint=endpoint, dtype=out_dtype, axis=axis
