@@ -1203,13 +1203,13 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     dtype = standardize_dtype(dtype)
     out_dtype = OPENVINO_DTYPES[dtype]
 
-    if num == 0:
-        return OpenVINOKerasTensor(
-            ov_opset.constant(
-                [],
-                dtype=out_dtype,  # OPENVINO_DTYPES[config.floatx()]
-            ).output(0)
-        )
+    # if num == 0:
+    #     return OpenVINOKerasTensor(
+    #         ov_opset.constant(
+    #             [],
+    #             dtype=out_dtype,  # OPENVINO_DTYPES[config.floatx()]
+    #         ).output(0)
+    #     )
 
     start, stop, base = (
         get_ov_output(start),
@@ -1247,14 +1247,30 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         False,
     ).output(0)
 
-    start_rank = ov_opset.rank(start).output(0)
-    tail = ov_opset.slice(
-        start_shape, starts=[1], ends=[start_rank], axes=[0]
+    begin = ov_opset.constant([1], Type.i64)
+    end = ov_opset.constant([0], Type.i64)
+    strides = ov_opset.constant([1], Type.i64)
+    tail = ov_opset.strided_slice(
+        start_shape.output(0),
+        begin,
+        end,
+        strides,
+        begin_mask=0,
+        end_mask=1,
+        new_axis_mask=0,
+        shrink_axis_mask=0,
+        ellipsis_mask=0,
     ).output(0)
 
     target_shape = ov_opset.concat(
         [ov_opset.constant([num], Type.i64), tail], axis=0
     ).output(0)
+
+    if num == 0:
+        zero_scalar = ov_opset.constant(0.0, Type.f32)
+        return OpenVINOKerasTensor(
+            ov_opset.broadcast(zero_scalar, target_shape).output(0)
+        )
 
     start = ov_opset.broadcast(start, target_shape).output(0)
     stop = ov_opset.broadcast(stop, target_shape).output(0)
