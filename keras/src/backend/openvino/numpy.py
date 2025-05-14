@@ -1211,6 +1211,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     #         ).output(0)
     #     )
 
+    out_dtype = dtype
     start, stop, base = (
         get_ov_output(start),
         get_ov_output(stop),
