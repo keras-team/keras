@@ -1284,9 +1284,12 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     # start = ov_opset.broadcast(start, target_shape).output(0)
     # stop = ov_opset.broadcast(stop, target_shape).output(0)
 
+    base_dtype = standardize_dtype(dtype) or config.floatx()
+    base_dtype = OPENVINO_DTYPES[base_dtype]
     out_dtype = dtype
+
     base = get_ov_output(base)
-    base = ov_opset.convert(base, out_dtype).output(0)
+    base = ov_opset.convert(base, base_dtype).output(0)
 
     lin_output = linspace(
         start, stop, num=num, endpoint=endpoint, dtype=out_dtype, axis=axis
