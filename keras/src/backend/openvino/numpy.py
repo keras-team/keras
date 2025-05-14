@@ -1186,22 +1186,22 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if not isinstance(axis, int):
         raise TypeError(f"'axis' must be an integer, got {type(axis)}")
 
-    if dtype is None:
-        start_type = (
-            ov_to_keras_type(start.get_element_type())
-            if hasattr(start, "get_element_type")
-            else np.asarray(start).dtype
-        )
-        stop_type = (
-            ov_to_keras_type(stop.get_element_type())
-            if hasattr(stop, "get_element_type")
-            else np.asarray(stop).dtype
-        )
+    # if dtype is None:
+    #     start_type = (
+    #         ov_to_keras_type(start.get_element_type())
+    #         if hasattr(start, "get_element_type")
+    #         else np.asarray(start).dtype
+    #     )
+    #     stop_type = (
+    #         ov_to_keras_type(stop.get_element_type())
+    #         if hasattr(stop, "get_element_type")
+    #         else np.asarray(stop).dtype
+    #     )
 
-        dtype = dtypes.result_type(start_type, stop_type, config.floatx())
+    #     dtype = dtypes.result_type(start_type, stop_type, config.floatx())
 
-    dtype = standardize_dtype(dtype)
-    out_dtype = OPENVINO_DTYPES[dtype]
+    # dtype = standardize_dtype(dtype)
+    # out_dtype = OPENVINO_DTYPES[dtype]
 
     # if num == 0:
     #     return OpenVINOKerasTensor(
