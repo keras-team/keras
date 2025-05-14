@@ -1190,12 +1190,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
     )
 
-    dtype = standardize_dtype(dtype) or config.floatx()
-    dtype = OPENVINO_DTYPES[dtype]
-    base = get_ov_output(base)
-    base = ov_opset.convert(base, dtype).output(0)
+    base_dtype = standardize_dtype(dtype) or config.floatx()
+    base_dtype = OPENVINO_DTYPES[base_dtype]
 
+    base = get_ov_output(base)
+    base = ov_opset.convert(base, base_dtype).output(0)
     y = ov_opset.power(base, lin_output).output(0)
+
+    dtype = standardize_dtype(dtype)
+    dtype = OPENVINO_DTYPES[dtype]
     y = ov_opset.convert(y, dtype).output(0)
 
     return OpenVINOKerasTensor(y)
