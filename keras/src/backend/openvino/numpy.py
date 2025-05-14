@@ -1211,17 +1211,16 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     #         ).output(0)
     #     )
 
-    out_dtype = dtype
-    start, stop, base = (
-        get_ov_output(start),
-        get_ov_output(stop),
-        get_ov_output(base),
-    )
-    start, stop, base = (
-        ov_opset.convert(start, out_dtype).output(0),
-        ov_opset.convert(stop, out_dtype).output(0),
-        ov_opset.convert(base, out_dtype).output(0),
-    )
+    # start, stop, base = (
+    #     get_ov_output(start),
+    #     get_ov_output(stop),
+    #     get_ov_output(base),
+    # )
+    # start, stop, base = (
+    #     ov_opset.convert(start, out_dtype).output(0),
+    #     ov_opset.convert(stop, out_dtype).output(0),
+    #     ov_opset.convert(base, out_dtype).output(0),
+    # )
 
     # start_shape = ov_opset.shape_of(start)
 
@@ -1284,6 +1283,10 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
     # start = ov_opset.broadcast(start, target_shape).output(0)
     # stop = ov_opset.broadcast(stop, target_shape).output(0)
+
+    out_dtype = dtype
+    base = get_ov_output(base)
+    base = ov_opset.convert(base, out_dtype).output(0)
 
     lin_output = linspace(
         start, stop, num=num, endpoint=endpoint, dtype=out_dtype, axis=axis
