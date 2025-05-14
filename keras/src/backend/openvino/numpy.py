@@ -1262,9 +1262,18 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         ellipsis_mask=[],
     ).output(0)
 
-    target_shape = ov_opset.concat(
-        [ov_opset.constant([num], Type.i64), tail], axis=0
-    ).output(0)
+    if isinstance(num, int):
+        num_tensor = ov_opset.constant([num], Type.i64)
+    else:
+        num_tensor = ov_opset.reshape(
+            get_ov_output(num), ov_opset.constant([1], Type.i64)
+        ).output(0)
+
+    target_shape = ov_opset.concat([num_tensor, tail], axis=0).output(0)
+
+    # target_shape = ov_opset.concat(
+    #     [ov_opset.constant([num], Type.i64), tail], axis=0
+    # ).output(0)
 
     if num == 0:
         zero_scalar = ov_opset.constant(0.0, Type.f32)
