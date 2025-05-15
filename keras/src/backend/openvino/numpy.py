@@ -642,10 +642,48 @@ def diag(x, k=0):
     raise NotImplementedError("`diag` is not supported with openvino backend")
 
 
-def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError(
-        "`diagonal` is not supported with openvino backend"
-    )
+def diagonal(x, offset=0, axis1=-2, axis2=-1):
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+
+    if rank < 2:
+        raise ValueError("diagonal requires at least a 2D input.")
+
+    axis1 = axis1 % rank
+    axis2 = axis2 % rank
+
+    if axis1 == axis2:
+        raise ValueError("axis1 and axis2 must be different.")
+
+    dim1 = x_shape[axis1]
+    dim2 = x_shape[axis2]
+
+    if not dim1.is_static or not dim2.is_static:
+        raise ValueError("diagonal requires static input shapes.")
+
+    D1 = dim1.get_length()
+    D2 = dim2.get_length()
+
+    if offset >= 0:
+        L = np.minimum(D1, D2 - offset) if (D2 - offset) > 0 else 0
+        indices = [[i, i + offset] for i in range(L)]
+    else:
+        L = np.minimum(D1 + offset, D2) if (D1 + offset) > 0 else 0
+        indices = [[i - offset, i] for i in range(L)]
+
+    if L <= 0:
+        keras_dtype = ov_to_keras_type(x.get_element_type())
+        np_dtype = np.dtype(keras_dtype)
+        empty_np = np.empty((0,), dtype=np_dtype)
+        empty_const = ov_opset.constant(empty_np, x.get_element_type()).output(0)
+        return OpenVINOKerasTensor(empty_const)
+
+    indices = np.array(indices, dtype=np.int32)
+    indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
+    diag_vec = ov_opset.gather_nd(x, indices_const)
+
+    return OpenVINOKerasTensor(diag_vec.output(0))
 
 
 def diff(a, n=1, axis=-1):
@@ -721,10 +759,30 @@ def diff(a, n=1, axis=-1):
     return OpenVINOKerasTensor(result)
 
 
-def digitize(x, bins):
-    raise NotImplementedError(
-        "`digitize` is not supported with openvino backend"
-    )
+def digitize(x, bins, right=False):
+    x = get_ov_output(x)
+    bins = get_ov_output(bins)
+    bins_shape = bins.get_partial_shape()
+
+    if bins_shape.rank != 1:
+        raise ValueError("digitize requires bins to be a 1D tensor.")
+    
+    if not bins_shape[0].is_static:
+        raise ValueError("digitize requires a static shape for bins.")
+    
+    B = bins_shape[0].get_length()
+    x_shape = x.get_partial_shape()
+    x_expanded = ov_opset.unsqueeze(x, axes=[-1])
+    bins_broadcast = ov_opset.broadcast(bins, ov_opset.shape_of(x_expanded))
+
+    if not right:
+        cmp_tensor = ov_opset.less_equal(bins_broadcast, x_expanded)
+    else:
+        cmp_tensor = ov_opset.less(bins_broadcast, x_expanded)
+
+    cmp_int = ov_opset.convert(cmp_tensor, destination_type=Type.i32)
+    indices = ov_opset.reduce_sum(cmp_int, axes=[-1], keep_dims=False)
+    return OpenVINOKerasTensor(indices.output(0))
 
 
 def dot(x, y):
