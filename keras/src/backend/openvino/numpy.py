@@ -1305,7 +1305,40 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
-    raise NotImplementedError("`split` is not supported with openvino backend")
+    x = get_ov_output(x)
+    dim_at_axis = x.shape[axis]
+    axis_tensor = ov_opset.constant(axis, dtype=Type.i32).output(0)
+    if isinstance(indices_or_sections, int):
+        num_splits = indices_or_sections
+        if dim_at_axis % num_splits != 0:
+            raise ValueError(
+                f"""Cannot split axis of
+                size {dim_at_axis} into {num_splits} equal parts."""
+            )
+        splits = ov_opset.split(x, axis_tensor, num_splits=num_splits)
+        outputs = []
+        for i in range(num_splits):
+            output_tensor = splits.output(i)
+            outputs.append(OpenVINOKerasTensor(output_tensor))
+        return outputs
+    if isinstance(indices_or_sections, (list, tuple, np.ndarray)):
+        indices = list(indices_or_sections)
+        split_lengths = []
+        split_lengths.append(indices[0])
+        for i in range(1, len(indices)):
+            diff = indices[i] - indices[i - 1]
+            split_lengths.append(diff)
+        split_lengths.append(dim_at_axis - indices[-1])
+        length_tensor = ov_opset.constant(split_lengths, dtype=Type.i32)
+        splits = ov_opset.variadic_split(x, axis_tensor, length_tensor)
+        outputs = []
+        for i in range(len(split_lengths)):
+            output_tensor = splits.output(i)
+            outputs.append(OpenVINOKerasTensor(output_tensor))
+        return outputs
+    raise TypeError(
+        f"unsupported type of indices_or_sections: {type(indices_or_sections)}"
+    )
 
 
 def stack(x, axis=0):
