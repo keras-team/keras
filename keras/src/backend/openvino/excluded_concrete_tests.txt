@@ -10,6 +10,7 @@ NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_bartlett
 NumpyDtypeTest::test_blackman
+NumpyDtypeTest::test_hamming
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
@@ -37,7 +38,6 @@ NumpyDtypeTest::test_mean
 NumpyDtypeTest::test_median
 NumpyDtypeTest::test_meshgrid
 NumpyDtypeTest::test_minimum_python_types
-NumpyDtypeTest::test_moveaxis
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_prod
@@ -76,6 +76,7 @@ NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_bartlett
 NumpyOneInputOpsCorrectnessTest::test_blackman
+NumpyOneInputOpsCorrectnessTest::test_hamming
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_correlate
@@ -93,7 +94,6 @@ NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
 NumpyOneInputOpsCorrectnessTest::test_median
 NumpyOneInputOpsCorrectnessTest::test_meshgrid
-NumpyOneInputOpsCorrectnessTest::test_moveaxis
 NumpyOneInputOpsCorrectnessTest::test_pad_float16_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float32_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float64_constant_2
@@ -103,7 +103,6 @@ NumpyOneInputOpsCorrectnessTest::test_pad_uint8_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_int32_constant_2
 NumpyOneInputOpsCorrectnessTest::test_prod
 NumpyOneInputOpsCorrectnessTest::test_real
-NumpyOneInputOpsCorrectnessTest::test_reciprocal
 NumpyOneInputOpsCorrectnessTest::test_repeat
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_roll
@@ -151,4 +150,5 @@ NumpyTwoInputOpsCorrectnessTest::test_where
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_bartlett
 NumpyOneInputOpsDynamicShapeTest::test_blackman
+NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsStaticShapeTest::test_angle

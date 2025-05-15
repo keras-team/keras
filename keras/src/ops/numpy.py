@@ -1239,6 +1239,37 @@ def bartlett(x):
     return backend.numpy.bartlett(x)
 
 
+class Hamming(Operation):
+    def call(self, x):
+        return backend.numpy.hamming(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.hamming", "keras.ops.numpy.hamming"])
+def hamming(x):
+    """Hamming window function.
+
+    The Hamming window is defined as:
+    `w[n] = 0.54 - 0.46 * cos(2 * pi * n / (N - 1))` for `0 <= n <= N - 1`.
+
+    Args:
+        x: Scalar or 1D Tensor. The window length.
+
+    Returns:
+        A 1D tensor containing the Hamming window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.hamming(x)
+    array([0.08, 0.54, 1.  , 0.54, 0.08], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Hamming().symbolic_call(x)
+    return backend.numpy.hamming(x)
+
+
 class Bincount(Operation):
     def __init__(self, weights=None, minlength=0, sparse=False):
         super().__init__()
