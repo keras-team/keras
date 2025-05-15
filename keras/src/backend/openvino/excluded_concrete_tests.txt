@@ -66,7 +66,6 @@ NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_vdot
 NumpyDtypeTest::test_vstack
-NumpyDtypeTest::test_where
 NumpyDtypeTest::test_clip_bool
 NumpyDtypeTest::test_square_bool
 HistogramTest
@@ -149,7 +148,6 @@ NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_take_along_axis
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
 NumpyTwoInputOpsCorrectnessTest::test_vdot
-NumpyTwoInputOpsCorrectnessTest::test_where
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_bartlett
 NumpyOneInputOpsDynamicShapeTest::test_blackman

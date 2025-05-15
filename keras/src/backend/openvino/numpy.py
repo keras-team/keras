@@ -1309,6 +1309,8 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
+    if isinstance(x, tuple):
+        x = list(x)
     assert isinstance(x, list), "`stack` is supported only for `x` list"
     elems = []
     const_axis = ov_opset.constant(axis, Type.i32).output(0)
@@ -1426,7 +1428,37 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
 
 
 def where(condition, x1, x2):
-    raise NotImplementedError("`where` is not supported with openvino backend")
+    condition = get_ov_output(condition)
+    if x1 is None and x2 is None:
+        nonzero_indices = ov_opset.non_zero(condition)
+        return OpenVINOKerasTensor(nonzero_indices.output(0))
+    if x1 is None:
+        return OpenVINOKerasTensor(condition)
+    if x2 is None:
+        raise ValueError("x2 must be provided if x1 is specified.")
+
+    x1_type = get_ov_output(x1).get_element_type()
+    x2_type = get_ov_output(x2).get_element_type()
+
+    is_x1_number = isinstance(x1, (int, float))
+    is_x2_number = isinstance(x2, (int, float))
+    x1_integral = x1_type.is_integral()
+    x2_integral = x2_type.is_integral()
+
+    if x1_type == Type.boolean or x2_type == Type.boolean:
+        x1 = get_ov_output(x1)
+        x2 = get_ov_output(x2)
+    elif is_x1_number and not (isinstance(x1, float) and x2_integral):
+        x2 = get_ov_output(x2)
+        x1 = get_ov_output(x1, x2_type)
+    elif is_x2_number and not (isinstance(x2, float) and x1_integral):
+        x1 = get_ov_output(x1)
+        x2 = get_ov_output(x2, x1_type)
+    else:
+        x1 = get_ov_output(x1)
+        x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "select()")
+    return OpenVINOKerasTensor(ov_opset.select(condition, x1, x2).output(0))
 
 
 def divide(x1, x2):
