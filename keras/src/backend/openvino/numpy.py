@@ -1200,16 +1200,44 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
         dtype = dtypes.result_type(start_type, stop_type, config.floatx())
 
-    out_dtype = standardize_dtype(dtype)
-    out_dtype = OPENVINO_DTYPES[out_dtype]
+    dtype = standardize_dtype(dtype)
+    out_dtype = OPENVINO_DTYPES[dtype]
 
-    # if num == 0:
-    #     return OpenVINOKerasTensor(
-    #         ov_opset.constant(
-    #             [],
-    #             dtype=out_dtype,  # OPENVINO_DTYPES[config.floatx()]
-    #         ).output(0)
-    #     )
+    if (
+        not hasattr(start, "get_element_type")
+        and not hasattr(stop, "get_element_type")
+        and not hasattr(base, "get_element_type")
+    ):
+        y = np.logspace(
+            start,
+            stop,
+            num=num,
+            endpoint=endpoint,
+            base=base,
+            dtype=np.float64 if dtype is None else dtype,
+        )
+
+        np_dtype = y.dtype
+        # print("\t::Numpy DTYPE is:", np_dtype)
+        # if dtype is None:
+        #     # and np.issubdtype(np_dtype, np.floating):
+        #     # np_dtype == np.dtype("float32"):
+        #     y = y.astype(np.float64)
+        #     np_dtype = y.dtype
+
+        np_dtype = standardize_dtype(np_dtype)
+        np_dtype = OPENVINO_DTYPES[np_dtype]
+        return OpenVINOKerasTensor(
+            ov_opset.convert(get_ov_output(y), np_dtype).output(0)
+        )
+        # return OpenVINOKerasTensor(ov_opset.constant(y, np_dtype).output(0))
+
+    if num == 0:
+        return OpenVINOKerasTensor(
+            ov_opset.constant(
+                [], dtype=OPENVINO_DTYPES[config.floatx()]
+            ).output(0)
+        )
 
     start, stop, base = (
         get_ov_output(start),
@@ -1222,14 +1250,12 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         ov_opset.convert(base, out_dtype).output(0),
     )
 
-    start_shape = ov_opset.shape_of(start)
-
     start = ov_opset.reshape(
         start,
         ov_opset.concat(
             [
                 ov_opset.constant([1], Type.i64),
-                start_shape.output(0),
+                ov_opset.shape_of(start).output(0),
             ],
             axis=0,
         ).output(0),
@@ -1247,35 +1273,10 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         False,
     ).output(0)
 
-    begin = ov_opset.constant([1], Type.i64)
-    end = ov_opset.constant([0], Type.i64)
-    strides = ov_opset.constant([1], Type.i64)
-    tail = ov_opset.strided_slice(
-        start_shape.output(0),
-        begin,
-        end,
-        strides,
-        begin_mask=[0],
-        end_mask=[1],
-        new_axis_mask=[],
-        shrink_axis_mask=[],
-        ellipsis_mask=[],
+    target_shape = ov_opset.shape_of(start).output(0)
+    target_shape = ov_opset.concat(
+        [ov_opset.constant([num], Type.i64), target_shape[1:]], axis=0
     ).output(0)
-
-    if isinstance(num, int):
-        num_tensor = ov_opset.constant([num], Type.i64)
-    else:
-        num_tensor = ov_opset.reshape(
-            get_ov_output(num), ov_opset.constant([1], Type.i64)
-        ).output(0)
-
-    target_shape = ov_opset.concat([num_tensor, tail], axis=0).output(0)
-
-    if num == 0:
-        zero_scalar = ov_opset.constant(0.0, Type.f32)
-        return OpenVINOKerasTensor(
-            ov_opset.broadcast(zero_scalar, target_shape).output(0)
-        )
 
     start = ov_opset.broadcast(start, target_shape).output(0)
     stop = ov_opset.broadcast(stop, target_shape).output(0)
@@ -1285,8 +1286,22 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     )
 
     y = ov_opset.power(base, lin_output).output(0)
-
     y = ov_opset.convert(y, out_dtype).output(0)
+
+    # def is_integer_dtype(ov_dtype):
+    #     return ov_dtype in (
+    #         Type.i8,
+    #         Type.i16,
+    #         Type.i32,
+    #         Type.i64,
+    #         Type.u8,
+    #         Type.u16,
+    #         Type.u32,
+    #         Type.u64,
+    #     )
+
+    # if is_integer_dtype(out_dtype):
+    #     y = ov_opset.floor(y).output(0)
 
     return OpenVINOKerasTensor(y)
 
