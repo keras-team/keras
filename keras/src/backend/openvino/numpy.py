@@ -1216,14 +1216,6 @@ def outer(x1, x2):
 
     x1, x2 = _align_operand_types(x1, x2, "outer()")
 
-    # Remove these redundant reshape operations
-    # x1_flatten = ov_opset.reshape(
-    #     x1, ov_opset.constant([-1], Type.i32), False
-    # ).output(0)
-    # x2_flatten = ov_opset.reshape(
-    #     x2, ov_opset.constant([-1], Type.i32), False
-    # ).output(0)
-
     new_shape_x1 = ov_opset.constant([-1, 1], Type.i32).output(0)
     new_shape_x2 = ov_opset.constant([1, -1], Type.i32).output(0)
 
