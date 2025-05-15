@@ -3,6 +3,7 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
+from flax import nnx
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
@@ -19,12 +20,104 @@ SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
-class Variable(KerasVariable):
-    def __init__(self, *args, layout=None, **kwargs):
-        # Intercept layout parameter so that it is available
-        # during initialization.
-        self._layout = layout
-        super().__init__(*args, **kwargs)
+def in_stateless_scope():
+    return global_state.get_global_attribute("stateless_scope") is not None
+
+
+def get_stateless_scope():
+    return global_state.get_global_attribute("stateless_scope")
+
+
+def shape_equal(a_shape, b_shape):
+    """Return whether a_shape == b_shape (allows None entries)."""
+    if len(a_shape) != len(b_shape):
+        return False
+    for e1, e2 in zip(a_shape, b_shape):
+        if e1 is not None and e2 is not None and e1 != e2:
+            return False
+    return True
+
+
+class Variable(nnx.Variable, KerasVariable):
+    def __new__(cls, initializer, shape=None, dtype=None, **kwargs):
+        if dtype is None:
+            dtype = jnp.float32
+        value = initializer(shape, dtype=dtype)
+
+        # Proper construction of nnx.Variable
+        instance = nnx.Variable.__new__(cls)
+        nnx.Variable.__init__(instance, raw_value=value)
+        return instance
+
+    def __init__(
+        self,
+        initializer,
+        shape=None,
+        dtype=None,
+        trainable=True,
+        autocast=True,
+        aggregation="none",
+        synchronization="auto",
+        name=None,
+    ):
+        # Regular KerasVariable init
+        KerasVariable.__init__(
+            self,
+            initializer,
+            shape=shape,
+            dtype=dtype,
+            trainable=trainable,
+            autocast=autocast,
+            aggregation=aggregation,
+            synchronization=synchronization,
+            name=name,
+        )
+
+        self.trainable = trainable
+        self._name = name
+
+    @property
+    def value(self):
+        """The current value of the variable (numpy array or backend tensor)."""
+        if in_stateless_scope():
+            scope = get_stateless_scope()
+            value = scope.get_current_value(self)
+            if value is not None:
+                return self._maybe_autocast(self)
+        if self._value is None:
+            # Uninitialized variable. Return a placeholder.
+            # This is fine because it's only ever used
+            # in during shape inference / graph tracing
+            # (anything else would be a bug, to be fixed.)
+            return self._maybe_autocast(
+                self._initializer(self._shape, dtype=self._dtype)
+            )
+        return self._maybe_autocast(self.raw_value)
+
+    def assign(self, value):
+        self.raw_value = jnp.array(value, dtype=self.dtype)
+        value = self._convert_to_tensor(value, dtype=self.dtype)
+        if not shape_equal(value.shape, self.shape):
+            raise ValueError(
+                "The shape of the target variable and "
+                "the shape of the target value in "
+                "`variable.assign(value)` must match. "
+                f"variable.shape={self.value.shape}, "
+                f"Received: value.shape={value.shape}. "
+                f"Target variable: {self}"
+            )
+        if in_stateless_scope():
+            scope = get_stateless_scope()
+            scope.add_update((self, value))
+        else:
+            self._direct_assign(value)
+        return value
+
+    def __jax_array__(self):
+        return self.value
+
+    def __array__(self, dtype=None):
+        return np.asarray(self.value, dtype=dtype)
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
@@ -45,14 +138,20 @@ class Variable(KerasVariable):
     def _direct_assign(self, value):
         if self._layout is not None:
             value = distribution_lib.distribute_variable(value, self._layout)
+            self.raw_value = jnp.array(value, dtype=self.dtype)
+            value = self._convert_to_tensor(value, dtype=self.dtype)
         self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype, sparse=False)
 
-    # Overload native accessor.
-    def __jax_array__(self):
-        return self.value
+    @property
+    def dtype(self):
+        return self.raw_value.dtype
+
+    @property
+    def shape(self):
+        return self.raw_value.shape
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
