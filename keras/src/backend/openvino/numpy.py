@@ -15,6 +15,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import convert_to_numpy as convert_to_numpy
 
 
 def add(x1, x2):
@@ -1211,7 +1212,51 @@ def ones_like(x, dtype=None):
 
 
 def outer(x1, x2):
-    raise NotImplementedError("`outer` is not supported with openvino backend")
+    x1_np=convert_to_numpy(x1)
+    x2_np=convert_to_numpy(x2)
+
+    if x1_np.ndim==0 and x2_np.ndim==0:
+        #print("0d\n")
+        res=get_ov_output(np.array([[multiply(x1, x2)]]))
+        return OpenVINOKerasTensor(res)
+    elif x1_np.ndim==0:
+        #print("one is 0d\n")
+        new_x2=x2_np.flatten()
+        new_x1=np.broadcast_to(x1_np, new_x2.shape)
+    elif x2_np.ndim==0:
+        #print("other is 0d\n")
+        new_x1=x1_np.flatten()
+        new_x2=np.broadcast_to(x2_np, new_x1)
+    else:
+        #print("flattening both")
+        new_x1=x1_np.flatten()
+        new_x2=x2_np.flatten()
+
+    x=[]
+    for elem in new_x1:
+        #print("adding scaled tensor\n")
+        x.append(multiply(elem, new_x2))
+    res = get_ov_output(stack(x))
+    x1=get_ov_output(x1)
+    x2=get_ov_output(x2)
+    x1_type = ov_to_keras_type(x1.get_element_type())
+    x2_type = ov_to_keras_type(x2.get_element_type())
+
+    dtype=dtypes.result_type(x1_type, x2_type)
+    result_type = OPENVINO_DTYPES[dtype]
+
+    res=ov_opset.convert(res, result_type).output(0)
+    return OpenVINOKerasTensor(res)
+    # res=stack(x)
+    # return res
+    #print("concatenated\n")
+
+
+    """
+    Flatten tensors if not already of rank <=1
+    Broadcast x1 to match x2
+    Concatenate each scalar product
+    """
 
 
 def pad(x, pad_width, mode="constant", constant_values=None):
