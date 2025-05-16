@@ -37,7 +37,6 @@ NumpyDtypeTest::test_max
 NumpyDtypeTest::test_mean
 NumpyDtypeTest::test_median
 NumpyDtypeTest::test_minimum_python_types
-NumpyDtypeTest::test_moveaxis
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_outer_
 NumpyDtypeTest::test_power
@@ -104,7 +103,6 @@ NumpyOneInputOpsCorrectnessTest::test_pad_uint8_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_int32_constant_2
 NumpyOneInputOpsCorrectnessTest::test_prod
 NumpyOneInputOpsCorrectnessTest::test_real
-NumpyOneInputOpsCorrectnessTest::test_reciprocal
 NumpyOneInputOpsCorrectnessTest::test_repeat
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_roll
