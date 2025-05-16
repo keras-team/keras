@@ -1203,8 +1203,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             scope = backend.get_stateless_scope()
             if scope.collect_losses:
                 for x in losses:
-                    scope.add_loss(loss)
-                    self._loss_ids.add(id(loss))
+                    scope.add_loss(x)
+                    self._loss_ids.add(id(x))
         else:
             self._losses.extend(losses)
 
