@@ -1046,9 +1046,63 @@ def median(x, axis=None, keepdims=False):
 
 
 def meshgrid(*x, indexing="xy"):
-    raise NotImplementedError(
-        "`meshgrid` is not supported with openvino backend"
-    )
+    if not x:
+        return []
+
+    if indexing not in ["xy", "ij"]:
+        raise ValueError(
+            f"indexing parameter must be either 'xy' or 'ij', got {indexing}"
+        )
+
+    arrays = []
+    for array in x:
+        arrays.append(get_ov_output(array))
+
+    ndim = len(arrays)
+    s0 = arrays[0].get_element_type()
+
+    output = []
+
+    for i, xi in enumerate(arrays):
+        shape = [1] * ndim
+
+        if indexing == "xy" and ndim > 1:
+            if i == 0:
+                shape[1] = -1
+            elif i == 1:
+                shape[0] = -1
+            else:
+                shape[i] = -1
+        else:
+            shape[i] = -1
+
+        reshape_node = ov_opset.reshape(
+            xi, ov_opset.constant(shape, Type.i32), False
+        ).output(0)
+
+        output_shape = [1] * ndim
+        for j, xj in enumerate(arrays):
+            xj_shape = xj.get_partial_shape().to_shape()
+            if xj_shape and xj_shape[0] > 0:
+                output_shape[
+                    j
+                    if indexing == "ij"
+                    else (
+                        1
+                        if j == 0 and ndim > 1
+                        else 0
+                        if j == 1 and ndim > 1
+                        else j
+                    )
+                ] = xj_shape[0]
+
+        broadcast_node = ov_opset.broadcast(
+            reshape_node, ov_opset.constant(output_shape, Type.i32)
+        ).output(0)
+
+        output.append(OpenVINOKerasTensor(broadcast_node))
+
+    return output
 
 
 def min(x, axis=None, keepdims=False, initial=None):
