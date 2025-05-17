@@ -1218,7 +1218,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             dtype=np.float64 if orig_dtype is None else orig_dtype,
         )
 
-        np_dtype = y.dtype
+        np_dtype = np.float64 if orig_dtype is None else orig_dtype  # y.dtype
         np_dtype = standardize_dtype(np_dtype)
         np_dtype = OPENVINO_DTYPES[np_dtype]
         return OpenVINOKerasTensor(
