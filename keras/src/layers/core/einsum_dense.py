@@ -209,7 +209,7 @@ class EinsumDense(Layer):
     def call(self, inputs, training=None):
         x = ops.einsum(self.equation, inputs, self.kernel)
         if self.bias is not None:
-            x += self.bias
+            x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
@@ -518,7 +518,7 @@ class EinsumDense(Layer):
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
             x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
         if self.bias is not None:
-            x += self.bias
+            x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
