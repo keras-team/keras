@@ -1215,7 +1215,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             num=num,
             endpoint=endpoint,
             base=base,
-            dtype=np.float64 if orig_dtype is None else orig_dtype,
+            dtype=orig_dtype,  # np.float64 if orig_dtype is None else
         )
 
         # np_dtype = np.float64 if orig_dtype is None else orig_dtype  # y.dtype
