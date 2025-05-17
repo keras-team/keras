@@ -112,3 +112,64 @@ class RandAugmentTest(testing.TestCase):
             bounding_box_format="xyxy",
         )
         ds.map(layer)
+    
+    def test_rand_augment_tf_graph_mode(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((4, 8, 8, 3))
+        else:
+            input_data = np.random.random((4, 3, 8, 8))
+        layer = layers.RandAugment(data_format=data_format, seed=42, num_ops=1)
+
+        # using tf.data.Dataset.map applies the function in graph mode
+        # lambda gets shuffled transform index
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(
+            lambda x: layer.get_random_transformation(x)[0]
+        )
+        results = []
+        for output in ds:
+            results.append(output.numpy())
+        self.assertFalse(np.all(results[0] == results[1]))
+
+    def test_rand_augment_tf_graph_mode_2(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((8, 8, 8, 3))
+        else:
+            input_data = np.random.random((8, 3, 8, 8))
+        layer = layers.RandAugment(data_format=data_format, seed=42, num_ops=1)
+
+        # using tf.data.Dataset.map applies the function in graph mode
+        # lambda gets shuffled transform index
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(
+            lambda x: layer.get_random_transformation(x)[0]
+        )
+        results = set()
+        for output in ds:
+            for i in output.numpy():
+                results.add(layer.augmentations[i].name)
+        print(results)
+        self.assertTrue(len(results) > 1)
+
+    def test_rand_augment_model(self):
+        from keras.src.models import Sequential
+
+        data_format = backend.config.image_data_format()
+        N = 32
+        if data_format == "channels_last":
+            input_data = np.random.random((N, 8, 8, 3))
+        else:
+            input_data = np.random.random((N, 3, 8, 8))
+        y_true = np.random.random((N, 1))
+        
+        model = Sequential([
+            layers.Input(input_data.shape[1:], dtype="float32"),
+            layers.RandAugment(data_format=data_format, seed=42, num_ops=2),
+            layers.Flatten(),
+            layers.Dense(10, activation="relu"),
+            layers.Dense(1),
+        ])
+        model.compile(loss="mse")
+        model.summary()
+
+        model.fit(input_data, y_true, batch_size=2, epochs=40)
