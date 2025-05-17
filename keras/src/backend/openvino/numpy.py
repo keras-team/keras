@@ -1200,9 +1200,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
         dtype = dtypes.result_type(start_type, stop_type)
 
-    dtype = standardize_dtype(dtype) or config.floatx()
-    out_dtype = OPENVINO_DTYPES[dtype]
-    dtype = OPENVINO_DTYPES[config.floatx()]
+    out_dtype = standardize_dtype(dtype) or config.floatx()
+    out_dtype = OPENVINO_DTYPES[out_dtype]
 
     if (
         not hasattr(start, "get_element_type")
@@ -1231,6 +1230,9 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
                 [], dtype=OPENVINO_DTYPES[config.floatx()]
             ).output(0)
         )
+
+    #########################################################
+    dtype = OPENVINO_DTYPES[config.floatx()]
 
     start, stop, base = (
         get_ov_output(start),
