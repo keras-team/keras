@@ -453,6 +453,37 @@ class ModelCheckpointTest(testing.TestCase):
         )
         self.assertFalse(os.path.exists(filepath))
 
+        # Case 15: ModelCheckpoint doesn't save model if auc was max earlier in
+        # auto mode
+        mode = "auto"
+        monitor = "val_auc"
+        initial_value_threshold = 1
+        save_best_only = True
+        cbks = [
+            callbacks.ModelCheckpoint(
+                filepath,
+                monitor=monitor,
+                save_best_only=save_best_only,
+                initial_value_threshold=initial_value_threshold,
+                mode=mode,
+            )
+        ]
+        model.compile(
+            loss="categorical_crossentropy",
+            optimizer="sgd",
+            metrics=[metrics.AUC()],
+        )
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=cbks,
+            epochs=1,
+            verbose=0,
+        )
+        self.assertFalse(os.path.exists(filepath))
+
     @pytest.mark.skipif(
         h5py is None,
         reason="`h5py` is a required dependency for `ModelCheckpoint` tests.",
