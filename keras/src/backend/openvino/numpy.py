@@ -1198,10 +1198,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             else np.asarray(stop).dtype
         )
 
-        dtype = dtypes.result_type(start_type, stop_type, config.floatx())
+        dtype = dtypes.result_type(start_type, stop_type)
 
-    dtype = standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype) or config.floatx()
     out_dtype = OPENVINO_DTYPES[dtype]
+    dtype = OPENVINO_DTYPES[config.floatx()]
 
     if (
         not hasattr(start, "get_element_type")
@@ -1218,19 +1219,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         )
 
         np_dtype = y.dtype
-        # print("\t::Numpy DTYPE is:", np_dtype)
-        # if dtype is None:
-        #     # and np.issubdtype(np_dtype, np.floating):
-        #     # np_dtype == np.dtype("float32"):
-        #     y = y.astype(np.float64)
-        #     np_dtype = y.dtype
-
         np_dtype = standardize_dtype(np_dtype)
         np_dtype = OPENVINO_DTYPES[np_dtype]
         return OpenVINOKerasTensor(
             ov_opset.convert(get_ov_output(y), np_dtype).output(0)
         )
-        # return OpenVINOKerasTensor(ov_opset.constant(y, np_dtype).output(0))
 
     if num == 0:
         return OpenVINOKerasTensor(
@@ -1245,9 +1238,9 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         get_ov_output(base),
     )
     start, stop, base = (
-        ov_opset.convert(start, out_dtype).output(0),
-        ov_opset.convert(stop, out_dtype).output(0),
-        ov_opset.convert(base, out_dtype).output(0),
+        ov_opset.convert(start, dtype).output(0),
+        ov_opset.convert(stop, dtype).output(0),
+        ov_opset.convert(base, dtype).output(0),
     )
 
     start = ov_opset.reshape(
@@ -1282,26 +1275,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     stop = ov_opset.broadcast(stop, target_shape).output(0)
 
     lin_output = linspace(
-        start, stop, num=num, endpoint=endpoint, dtype=out_dtype, axis=axis
+        start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
     )
 
     y = ov_opset.power(base, lin_output).output(0)
     y = ov_opset.convert(y, out_dtype).output(0)
-
-    # def is_integer_dtype(ov_dtype):
-    #     return ov_dtype in (
-    #         Type.i8,
-    #         Type.i16,
-    #         Type.i32,
-    #         Type.i64,
-    #         Type.u8,
-    #         Type.u16,
-    #         Type.u32,
-    #         Type.u64,
-    #     )
-
-    # if is_integer_dtype(out_dtype):
-    #     y = ov_opset.floor(y).output(0)
 
     return OpenVINOKerasTensor(y)
 
