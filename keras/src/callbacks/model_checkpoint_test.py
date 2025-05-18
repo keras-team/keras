@@ -164,7 +164,7 @@ class ModelCheckpointTest(testing.TestCase):
         # Case 5: metric not available.
         cbks = [
             callbacks.ModelCheckpoint(
-                filepath, monitor="unknown", save_best_only=True
+                filepath, monitor="unknown", save_best_only=True, mode="min"
             )
         ]
         with pytest.warns(UserWarning):

@@ -5,16 +5,14 @@ import warnings
 import numpy as np
 
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.callbacks.callback import Callback
-from keras.src.trainers import compile_utils
+from keras.src.callbacks.monitored_callback import MonitoredCallback
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 
 
 @keras_export("keras.callbacks.ModelCheckpoint")
-class ModelCheckpoint(Callback):
+class ModelCheckpoint(MonitoredCallback):
     """Callback to save the Keras model or model weights at some frequency.
 
     `ModelCheckpoint` callback is used in conjunction with training using
@@ -137,8 +135,7 @@ class ModelCheckpoint(Callback):
         save_freq="epoch",
         initial_value_threshold=None,
     ):
-        super().__init__()
-        self.monitor = monitor
+        super().__init__(monitor, mode, initial_value_threshold)
         self.verbose = verbose
         self.filepath = file_utils.path_to_string(filepath)
         self.save_best_only = save_best_only
@@ -146,18 +143,6 @@ class ModelCheckpoint(Callback):
         self.save_freq = save_freq
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
-        self.best = initial_value_threshold
-
-        if mode not in ["auto", "min", "max"]:
-            warnings.warn(
-                f"ModelCheckpoint mode '{mode}' is unknown, "
-                "fallback to auto mode.",
-                stacklevel=2,
-            )
-            mode = "auto"
-
-        self.mode = mode
-        self.monitor_op = None
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -183,44 +168,6 @@ class ModelCheckpoint(Callback):
                     f"filepath={self.filepath}"
                 )
 
-    def _set_monitor_op(self):
-        if self.mode == "min":
-            self.monitor_op = ops.less
-            if self.best is None:
-                self.best = np.inf
-        elif self.mode == "max":
-            self.monitor_op = ops.greater
-            if self.best is None:
-                self.best = -np.inf
-        else:
-            metric_name = self.monitor.removeprefix("val_")
-            if metric_name == "loss":
-                self.monitor_op = ops.less
-                if self.best is None:
-                    self.best = np.inf
-            if hasattr(self.model, "metrics"):
-                all_metrics = []
-                for m in self.model.metrics:
-                    if isinstance(
-                        m,
-                        (
-                            compile_utils.CompileMetrics,
-                            compile_utils.MetricsList,
-                        ),
-                    ):
-                        all_metrics.extend(m.metrics)
-                for m in all_metrics:
-                    if m.name == metric_name:
-                        if hasattr(m, "_direction"):
-                            if m._direction == "up":
-                                self.monitor_op = ops.greater
-                                if self.best is None:
-                                    self.best = -np.inf
-                            else:
-                                self.monitor_op = ops.less
-                                if self.best is None:
-                                    self.best = np.inf
-
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
             self._save_model(epoch=self._current_epoch, batch=batch, logs=logs)
@@ -229,6 +176,10 @@ class ModelCheckpoint(Callback):
         self._current_epoch = epoch
 
     def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
+
         if self.save_freq == "epoch":
             self._save_model(epoch=epoch, batch=None, logs=logs)
 
@@ -286,7 +237,7 @@ class ModelCheckpoint(Callback):
                 )
                 return True
             else:
-                if self.monitor_op(current, self.best):
+                if self._is_improvement(current, self.best):
                     if self.verbose > 0:
                         io_utils.print_msg(
                             f"\nEpoch {epoch + 1}: {self.monitor} "
@@ -320,10 +271,6 @@ class ModelCheckpoint(Callback):
                 is set to `"epoch"`.
             logs: the `logs` dict passed in to `on_batch_end` or `on_epoch_end`.
         """
-        if self.monitor_op is None:
-            # Delay setup until the model's metrics are all built
-            self._set_monitor_op()
-
         filepath = self._get_file_path(epoch, batch, logs)
 
         try:
