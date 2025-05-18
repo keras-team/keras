@@ -5141,7 +5141,6 @@ class SparseTest(testing.TestCase):
         "imag",
         "log1p",
         "negative",
-        "ones_like",
         "real",
         "round",
         "sign",
@@ -5151,7 +5150,6 @@ class SparseTest(testing.TestCase):
         "square",
         "tan",
         "tanh",
-        "zeros_like",
     ]
     ELEMENTWISE_UNARY_OPS_TESTS = [
         {
@@ -5333,11 +5331,10 @@ class SparseTest(testing.TestCase):
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_sparse_tensor(x)
         x_np = backend.convert_to_numpy(x)
-        expected = np_op(x_np) * backend.convert_to_numpy(knp.ones_like(x))
 
-        self.assertAllClose(op_function(x), expected)
+        self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
-        self.assertAllClose(op_class()(x), expected)
+        self.assertAllClose(op_class()(x), np_op(x_np))
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(ELEMENTWISE_UNARY_OPS_TESTS)
@@ -5350,11 +5347,10 @@ class SparseTest(testing.TestCase):
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_indexed_slices(x)
         x_np = backend.convert_to_numpy(x)
-        expected = np_op(x_np) * backend.convert_to_numpy(knp.ones_like(x))
 
-        self.assertAllClose(op_function(x), expected)
+        self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
-        self.assertAllClose(op_class()(x), expected)
+        self.assertAllClose(op_class()(x), np_op(x_np))
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
