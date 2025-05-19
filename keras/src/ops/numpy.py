@@ -4516,8 +4516,7 @@ class OnesLike(Operation):
     def compute_output_spec(self, x, dtype=None):
         if dtype is None:
             dtype = x.dtype
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ones_like", "keras.ops.numpy.ones_like"])
@@ -4543,8 +4542,7 @@ class ZerosLike(Operation):
     def compute_output_spec(self, x, dtype=None):
         if dtype is None:
             dtype = x.dtype
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(

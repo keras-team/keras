@@ -920,12 +920,10 @@ def not_equal(x1, x2):
     return jnp.not_equal(x1, x2)
 
 
-@sparse.elementwise_unary(linear=False)
 def ones_like(x, dtype=None):
     return jnp.ones_like(x, dtype=dtype)
 
 
-@sparse.elementwise_unary(linear=True)
 def zeros_like(x, dtype=None):
     return jnp.zeros_like(x, dtype=dtype)
 
