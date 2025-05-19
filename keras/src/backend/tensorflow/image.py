@@ -707,7 +707,7 @@ def map_coordinates(
         gathered = tf.transpose(tf.gather_nd(input_arr, indices))
 
         if fill_mode == "constant":
-            all_valid = tf.reduce_all(validities)
+            all_valid = tf.reduce_all(validities, axis=0)
             gathered = tf.where(all_valid, gathered, fill_value)
 
         contribution = gathered
