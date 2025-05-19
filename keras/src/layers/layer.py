@@ -1417,8 +1417,11 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     def add_metric(self, *args, **kwargs):
         # Permanently disabled
         raise NotImplementedError(
-            "Layer `add_metric()` method is deprecated"
-            " add your metric in `Model.compile(metrics=[...]).`"
+            "Layer `add_metric()` method is deprecated. "
+            "Add your metric in `Model.compile(metrics=[...])`, "
+            "or create metric trackers in init() or build() "
+            "when subclassing the layer or model, then call "
+            "`metric.update_state()` whenever necessary."
         )
 
     def count_params(self):
