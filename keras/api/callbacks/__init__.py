@@ -20,7 +20,7 @@ from keras.src.callbacks.model_checkpoint import (
     ModelCheckpoint as ModelCheckpoint,
 )
 from keras.src.callbacks.monitor_callback import (
-    MonitorCallback as MonitorCallback,
+    MonitorCallback as MonitoredCallback,
 )
 from keras.src.callbacks.progbar_logger import ProgbarLogger as ProgbarLogger
 from keras.src.callbacks.reduce_lr_on_plateau import (

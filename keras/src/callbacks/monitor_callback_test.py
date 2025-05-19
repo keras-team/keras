@@ -76,6 +76,7 @@ class MonitorCallbackTest(testing.TestCase):
             )
             monitor_callback._set_monitor_op()
 
+    @pytest.mark.requires_trainable_backend
     def test_min_delta(self):
         monitor_callback = callbacks.MonitorCallback(mode="max", min_delta=0.5)
         monitor_callback._set_monitor_op()
