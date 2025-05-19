@@ -1344,13 +1344,16 @@ def split(x, indices_or_sections, axis=0):
 
 
 def stack(x, axis=0):
-    assert isinstance(x, list), "`stack` is supported only for `x` list"
-    elems = []
+    if isinstance(x, tuple):
+        x = list(x)
+    assert isinstance(x, list), "`stack` supports only `x` as list or tuple"
+    elems = [get_ov_output(e) for e in x]
+    ref = elems[0]
+    for i in range(1, len(elems)):
+        ref, elems[i] = _align_operand_types(ref, elems[i], "stack()")
+    elems[0] = ref
     const_axis = ov_opset.constant(axis, Type.i32).output(0)
-    for elem in x:
-        elem = get_ov_output(elem)
-        elem = ov_opset.unsqueeze(elem, const_axis).output(0)
-        elems.append(elem)
+    elems = [ov_opset.unsqueeze(e, const_axis).output(0) for e in elems]
     res = ov_opset.concat(elems, axis).output(0)
     return OpenVINOKerasTensor(res)
 

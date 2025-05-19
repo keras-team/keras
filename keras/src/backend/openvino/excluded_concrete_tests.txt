@@ -50,7 +50,6 @@ NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_sort
 NumpyDtypeTest::test_split
 NumpyDtypeTest::test_sqrt
-NumpyDtypeTest::test_stack_
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
 NumpyDtypeTest::test_sum
