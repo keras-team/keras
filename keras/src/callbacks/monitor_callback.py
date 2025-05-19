@@ -7,7 +7,7 @@ from keras.src.trainers import compile_utils
 
 
 @keras_export("keras.callbacks.MonitoredCallback")
-class MonitoredCallback(Callback):
+class MonitorCallback(Callback):
     """Base class for callbacks that monitor a quantity and evaluates
     improvements.
 

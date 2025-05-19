@@ -9,7 +9,7 @@ from keras.src import ops
 from keras.src import testing
 
 
-class MonitoredCallbackTest(testing.TestCase):
+class MonitorCallbackTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_monitor_op_logic(self):
         x_train = np.random.random((10, 5))

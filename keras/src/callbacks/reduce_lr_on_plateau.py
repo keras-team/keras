@@ -4,12 +4,12 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.callbacks.monitored_callback import MonitoredCallback
+from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.utils import io_utils
 
 
 @keras_export("keras.callbacks.ReduceLROnPlateau")
-class ReduceLROnPlateau(MonitoredCallback):
+class ReduceLROnPlateau(MonitorCallback):
     """Reduce learning rate when a metric has stopped improving.
 
     Models often benefit from reducing the learning rate by a factor

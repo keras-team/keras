@@ -6,13 +6,13 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.callbacks.monitored_callback import MonitoredCallback
+from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 
 
 @keras_export("keras.callbacks.ModelCheckpoint")
-class ModelCheckpoint(MonitoredCallback):
+class ModelCheckpoint(MonitorCallback):
     """Callback to save the Keras model or model weights at some frequency.
 
     `ModelCheckpoint` callback is used in conjunction with training using
