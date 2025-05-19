@@ -47,6 +47,11 @@ def hamming(x):
     return jnp.hamming(x)
 
 
+def kaiser(x, beta):
+    x = convert_to_tensor(x)
+    return jnp.kaiser(x, beta)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     # Note: bincount is never tracable / jittable because the output shape
     # depends on the values in x.

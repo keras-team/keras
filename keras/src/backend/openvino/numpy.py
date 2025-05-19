@@ -481,6 +481,10 @@ def hamming(x):
     )
 
 
+def kaiser(x, beta):
+    raise NotImplementedError("`kaiser` is not supported with openvino backend")
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if x is None:
         raise ValueError("input x is None")
