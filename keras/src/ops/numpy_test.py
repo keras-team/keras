@@ -1228,6 +1228,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.blackman(x).shape[0], x)
 
+    def test_hamming(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertEqual(knp.hamming(x).shape[0], x)
+
     def test_bitwise_invert(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.bitwise_invert(x).shape, (None, 3))
@@ -3610,6 +3614,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Blackman()(x), np.blackman(x))
 
+    def test_hamming(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertAllClose(knp.hamming(x), np.hamming(x))
+
+        self.assertAllClose(knp.Hamming()(x), np.hamming(x))
+
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
@@ -5602,6 +5612,22 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Blackman().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_hamming(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.hamming(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.hamming(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hamming().symbolic_call(x).dtype),
             expected_dtype,
         )
 

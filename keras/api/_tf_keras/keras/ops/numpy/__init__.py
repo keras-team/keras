@@ -75,6 +75,7 @@ from keras.src.ops.numpy import full_like as full_like
 from keras.src.ops.numpy import get_item as get_item
 from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
+from keras.src.ops.numpy import hamming as hamming
 from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import identity as identity

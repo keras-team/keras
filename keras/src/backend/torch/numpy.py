@@ -435,6 +435,11 @@ def bartlett(x):
     return torch.signal.windows.bartlett(x)
 
 
+def hamming(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.hamming(x)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
