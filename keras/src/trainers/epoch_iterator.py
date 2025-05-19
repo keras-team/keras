@@ -42,6 +42,7 @@ or until there is no data
 import contextlib
 import warnings
 
+from keras.src.backend import config
 from keras.src.trainers import data_adapters
 
 
@@ -57,6 +58,14 @@ class EpochIterator:
         class_weight=None,
         steps_per_execution=1,
     ):
+        # Possibly cap steps_per_epoch for debugging runs.
+        max_steps_per_epoch = config.max_steps_per_epoch()
+        if max_steps_per_epoch:
+            if not steps_per_epoch or max_steps_per_epoch < steps_per_epoch:
+                warnings.warn(
+                    "Limiting steps_per_epoch to %d" % max_steps_per_epoch
+                )
+                steps_per_epoch = max_steps_per_epoch
         self.steps_per_epoch = steps_per_epoch
         self.steps_per_execution = steps_per_execution
         self._current_iterator = None
