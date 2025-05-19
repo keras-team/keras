@@ -45,8 +45,8 @@ class MonitorCallbackTest(testing.TestCase):
             ("auto", "f1_score", "max"),
         ]
         for mode, monitor, expected_mode in cases:
-            monitored_callback = callbacks.MonitoredCallback(monitor, mode)
-            monitored_callback.set_model(model)
+            monitor_callback = callbacks.MonitorCallback(monitor, mode)
+            monitor_callback.set_model(model)
             model.fit(
                 x_train,
                 y_train,
@@ -55,17 +55,17 @@ class MonitorCallbackTest(testing.TestCase):
                 epochs=2,
                 verbose=0,
             )
-            monitored_callback._set_monitor_op()
+            monitor_callback._set_monitor_op()
             if expected_mode == "max":
                 monitor_op = ops.greater
             else:
                 monitor_op = ops.less
-            self.assertEqual(monitored_callback.monitor_op, monitor_op)
+            self.assertEqual(monitor_callback.monitor_op, monitor_op)
 
         with self.assertRaises(ValueError):
             monitor = "unknown"
-            monitored_callback = callbacks.MonitoredCallback(monitor)
-            monitored_callback.set_model(model)
+            monitor_callback = callbacks.MonitorCallback(monitor)
+            monitor_callback.set_model(model)
             model.fit(
                 x_train,
                 y_train,
@@ -74,14 +74,12 @@ class MonitorCallbackTest(testing.TestCase):
                 epochs=2,
                 verbose=0,
             )
-            monitored_callback._set_monitor_op()
+            monitor_callback._set_monitor_op()
 
     def test_min_delta(self):
-        monitored_callback = callbacks.MonitoredCallback(
-            mode="max", min_delta=0.5
-        )
-        monitored_callback._set_monitor_op()
-        self.assertTrue(monitored_callback._is_improvement(0.75, 0))
-        self.assertTrue(monitored_callback._is_improvement(0.5, None))
-        self.assertFalse(monitored_callback._is_improvement(0.5, 0))
-        self.assertFalse(monitored_callback._is_improvement(0.2, 0.5))
+        monitor_callback = callbacks.MonitorCallback(mode="max", min_delta=0.5)
+        monitor_callback._set_monitor_op()
+        self.assertTrue(monitor_callback._is_improvement(0.75, 0))
+        self.assertTrue(monitor_callback._is_improvement(0.5, None))
+        self.assertFalse(monitor_callback._is_improvement(0.5, 0))
+        self.assertFalse(monitor_callback._is_improvement(0.2, 0.5))
