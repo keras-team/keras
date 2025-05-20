@@ -1270,6 +1270,44 @@ def hamming(x):
     return backend.numpy.hamming(x)
 
 
+class Kaiser(Operation):
+    def __init__(self, beta):
+        super().__init__()
+        self.beta = beta
+
+    def call(self, x):
+        return backend.numpy.kaiser(x, self.beta)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.kaiser", "keras.ops.numpy.kaiser"])
+def kaiser(x, beta):
+    """Kaiser window function.
+
+    The Kaiser window is defined as:
+    `w[n] = I0(beta * sqrt(1 - (2n / (N - 1) - 1)^2)) / I0(beta)`
+    where I0 is the modified zeroth-order Bessel function of the first kind.
+
+    Args:
+        x: Scalar or 1D Tensor. The window length.
+        beta: Float. Shape parameter for the Kaiser window.
+
+    Returns:
+        A 1D tensor containing the Kaiser window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.kaiser(x, beta=14.0)
+    array([7.7268669e-06, 1.6493219e-01, 1.0000000e+00, 1.6493219e-01,
+       7.7268669e-06], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Kaiser(beta).symbolic_call(x)
+    return backend.numpy.kaiser(x, beta)
+
+
 class Bincount(Operation):
     def __init__(self, weights=None, minlength=0, sparse=False):
         super().__init__()

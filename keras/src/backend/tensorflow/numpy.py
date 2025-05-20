@@ -151,6 +151,11 @@ def hamming(x):
     return tf.signal.hamming_window(x, periodic=False)
 
 
+def kaiser(x, beta):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.kaiser_window(x, beta=beta)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
