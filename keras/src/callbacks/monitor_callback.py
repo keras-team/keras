@@ -1,12 +1,10 @@
 import warnings
 
 from keras.src import ops
-from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src.trainers import compile_utils
 
 
-@keras_export("keras.callbacks.MonitorCallback")
 class MonitorCallback(Callback):
     """Base class for callbacks that monitor a quantity and evaluates
     improvements.
