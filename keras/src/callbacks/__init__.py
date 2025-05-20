@@ -7,6 +7,7 @@ from keras.src.callbacks.history import History
 from keras.src.callbacks.lambda_callback import LambdaCallback
 from keras.src.callbacks.learning_rate_scheduler import LearningRateScheduler
 from keras.src.callbacks.model_checkpoint import ModelCheckpoint
+from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.callbacks.progbar_logger import ProgbarLogger
 from keras.src.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 from keras.src.callbacks.remote_monitor import RemoteMonitor
