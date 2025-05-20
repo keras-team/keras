@@ -1,3 +1,5 @@
+<img width="100%" src="https://d2ooyrflu7lhqd.cloudfront.net/Keras_161c0deeeb.png?format=auto">
+
 # Keras 3: Deep Learning for Humans
 
 Keras 3 is a multi-backend deep learning framework, with support for JAX, TensorFlow, PyTorch, and OpenVINO (for inference-only).
@@ -7,7 +9,12 @@ timeseries forecasting, recommender systems, etc.
 - **Accelerated model development**: Ship deep learning solutions faster thanks to the high-level UX of Keras
 and the availability of easy-to-debug runtimes like PyTorch or JAX eager execution.
 - **State-of-the-art performance**: By picking the backend that is the fastest for your model architecture (often JAX!),
-leverage speedups ranging from 20% to 350% compared to other frameworks. [Benchmark here](https://keras.io/getting_started/benchmarks/).
+leverage speedups ranging from 20% to 350% compared to other frameworks.
+
+<a href="https://keras.io/getting_started/benchmarks/" target="_blank">
+  <img src="https://img.shields.io/badge/Keras-Benchmarks-CD5C5C?style=for-the-badge&logo=keras&logoColor=white" alt="Keras Benchmarks Badge"></a>
+
+
 - **Datacenter-scale training**: Scale confidently from your laptop to large clusters of GPUs or TPUs.
 
 Join nearly three million developers, from burgeoning startups to global enterprises, in harnessing the power of Keras 3.
@@ -120,4 +127,9 @@ e.g. the scalability and performance of JAX or the production ecosystem options 
 - As a JAX user: get access to a fully-featured, battle-tested, well-documented modeling and training library.
 
 
-Read more in the [Keras 3 release announcement](https://keras.io/keras_3/).
+Read more in the Keras 3 release announcement.<br>
+
+<a href="https://keras.io/keras_3/" target="_blank">
+  <img src="https://img.shields.io/badge/Keras-3_release_announcement-CD5C5C?style=for-the-badge&logo=keras&logoColor=white" alt="Keras 3 Badge">
+</a>
+
