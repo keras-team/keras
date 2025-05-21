@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -96,7 +97,12 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         return input_shape
 
     def compute_output_spec(self, inputs, **kwargs):
-        return inputs
+        return tree.map_structure(
+            lambda x: backend.KerasTensor(
+                x.shape, dtype=x.dtype, sparse=x.sparse
+            ),
+            inputs,
+        )
 
     def transform_bounding_boxes(self, bounding_boxes, **kwargs):
         return bounding_boxes
