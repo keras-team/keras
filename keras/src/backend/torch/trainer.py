@@ -381,7 +381,7 @@ class TorchTrainer(base_trainer.Trainer):
             if not _logs:
                 return _step_logs
 
-            return keras.tree.map_structure(keras.ops.add, _logs, _step_logs)
+            return tree.map_structure(backend.numpy.add, _logs, _step_logs)
 
         def _reduce_fn(_logs, _total_steps):
             if _total_steps == 0:
@@ -390,7 +390,7 @@ class TorchTrainer(base_trainer.Trainer):
             def _div(val):
                 return val / _total_steps
 
-            return keras.tree.map_structure(_div, _logs)
+            return tree.map_structure(_div, _logs)
 
         for step, data in epoch_iterator:
             callbacks.on_test_batch_begin(step)

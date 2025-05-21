@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.eager import context as tf_context
 
+from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import metrics as metrics_module
 from keras.src import optimizers as optimizers_module
@@ -490,7 +491,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             if not _logs:
                 return _step_logs
 
-            return keras.tree.map_structure(keras.ops.add, _logs, _step_logs)
+            return tree.map_structure(backend.numpy.add, _logs, _step_logs)
 
         def _reduce_fn(_logs, _total_steps):
             if _total_steps == 0:
@@ -499,7 +500,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             def _div(val):
                 return val / _total_steps
 
-            return keras.tree.map_structure(_div, _logs)
+            return tree.map_structure(_div, _logs)
 
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator:

@@ -573,7 +573,7 @@ class JAXTrainer(base_trainer.Trainer):
             if not _logs:
                 return _step_logs
 
-            return keras.tree.map_structure(keras.ops.add, _logs, _step_logs)
+            return tree.map_structure(backend.numpy.add, _logs, _step_logs)
 
         def _reduce_fn(_logs, _total_steps):
             if _total_steps == 0:
@@ -582,7 +582,7 @@ class JAXTrainer(base_trainer.Trainer):
             def _div(val):
                 return val / _total_steps
 
-            return keras.tree.map_structure(_div, _logs)
+            return tree.map_structure(_div, _logs)
 
         self._jax_state_synced = True
         with epoch_iterator.catch_stop_iteration():
