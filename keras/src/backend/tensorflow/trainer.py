@@ -441,6 +441,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         steps=None,
         callbacks=None,
         return_dict=False,
+        aggregate=False,
         **kwargs,
     ):
         self._assert_compile_called("evaluate")
@@ -482,14 +483,43 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.stop_evaluating = False
         callbacks.on_test_begin()
         logs = {}
+        total_steps = 0
         self.reset_metrics()
+
+        def _aggregate_fn(_logs, _step_logs):
+            if not _logs:
+                return _step_logs
+
+            return keras.tree.map_structure(keras.ops.add, _logs, _step_logs)
+
+        def _reduce_fn(_logs, _total_steps):
+            if _total_steps == 0:
+                return _logs
+
+            def _div(val):
+                return val / _total_steps
+
+            return keras.tree.map_structure(_div, _logs)
+
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator:
                 callbacks.on_test_batch_begin(step)
-                logs = self.test_function(iterator)
-                callbacks.on_test_batch_end(step, logs)
+                total_steps += 1
+
+                step_logs = self.test_function(iterator)
+
+                if aggregate:
+                    logs = _aggregate_fn(logs, step_logs)
+                else:
+                    logs = step_logs
+
+                callbacks.on_test_batch_end(step, step_logs)
                 if self.stop_evaluating:
                     break
+
+        if aggregate:
+            logs = _reduce_fn(logs, total_steps)
+
         logs = self._get_metrics_result_or_logs(logs)
         callbacks.on_test_end(logs)
 

@@ -523,6 +523,7 @@ class JAXTrainer(base_trainer.Trainer):
         steps=None,
         callbacks=None,
         return_dict=False,
+        aggregate=False,
         **kwargs,
     ):
         self._assert_compile_called("evaluate")
@@ -565,12 +566,30 @@ class JAXTrainer(base_trainer.Trainer):
         self.stop_evaluating = False
         callbacks.on_test_begin()
         logs = {}
+        total_steps = 0
         self.reset_metrics()
+
+        def _aggregate_fn(_logs, _step_logs):
+            if not _logs:
+                return _step_logs
+
+            return keras.tree.map_structure(keras.ops.add, _logs, _step_logs)
+
+        def _reduce_fn(_logs, _total_steps):
+            if _total_steps == 0:
+                return _logs
+
+            def _div(val):
+                return val / _total_steps
+
+            return keras.tree.map_structure(_div, _logs)
 
         self._jax_state_synced = True
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator:
                 callbacks.on_test_batch_begin(step)
+
+                total_steps += 1
 
                 if self._jax_state_synced:
                     # The state may have been synced by a callback.
@@ -582,12 +601,17 @@ class JAXTrainer(base_trainer.Trainer):
                     )
                     self._jax_state_synced = False
 
-                logs, state = self.test_function(state, iterator)
+                step_logs, state = self.test_function(state, iterator)
                 (
                     trainable_variables,
                     non_trainable_variables,
                     metrics_variables,
                 ) = state
+
+                if aggregate:
+                    logs = _aggregate_fn(logs, step_logs)
+                else:
+                    logs = step_logs
 
                 # Setting _jax_state enables callbacks to force a state sync
                 # if they need to.
@@ -600,10 +624,13 @@ class JAXTrainer(base_trainer.Trainer):
                 }
 
                 # Dispatch callbacks. This takes care of async dispatch.
-                callbacks.on_test_batch_end(step, logs)
+                callbacks.on_test_batch_end(step, step_logs)
 
                 if self.stop_evaluating:
                     break
+
+        if aggregate:
+            logs = _reduce_fn(logs, total_steps)
 
         # Reattach state back to model (if not already done by a callback).
         self.jax_state_sync()
