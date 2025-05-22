@@ -440,6 +440,11 @@ def hamming(x):
     return torch.signal.windows.hamming(x)
 
 
+def hanning(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.hann(x)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return torch.signal.windows.kaiser(x, beta=beta)
