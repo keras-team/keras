@@ -1270,6 +1270,37 @@ def hamming(x):
     return backend.numpy.hamming(x)
 
 
+class Hanning(Operation):
+    def call(self, x):
+        return backend.numpy.hanning(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.hanning", "keras.ops.numpy.hanning"])
+def hanning(x):
+    """Hanning window function.
+
+    The Hanning window is defined as:
+    `w[n] = 0.5 - 0.5 * cos(2 * pi * n / (N - 1))` for `0 <= n <= N - 1`.
+
+    Args:
+        x: Scalar or 1D Tensor. The window length.
+
+    Returns:
+        A 1D tensor containing the Hanning window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.hanning(x)
+    array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Hanning().symbolic_call(x)
+    return backend.numpy.hanning(x)
+
+
 class Kaiser(Operation):
     def __init__(self, beta):
         super().__init__()
