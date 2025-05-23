@@ -47,6 +47,11 @@ def hamming(x):
     return jnp.hamming(x)
 
 
+def hanning(x):
+    x = convert_to_tensor(x)
+    return jnp.hanning(x)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return jnp.kaiser(x, beta)
