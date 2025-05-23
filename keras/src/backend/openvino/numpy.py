@@ -1510,7 +1510,18 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
 
 
 def where(condition, x1, x2):
-    raise NotImplementedError("`where` is not supported with openvino backend")
+    condition = get_ov_output(condition)
+    if x1 is None and x2 is None:
+        nonzero_indices = ov_opset.non_zero(condition)
+        return OpenVINOKerasTensor(nonzero_indices.output(0))
+    if x1 is None:
+        return OpenVINOKerasTensor(condition)
+    if x2 is None:
+        raise ValueError("x2 must be provided if x1 is specified.")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "select()")
+    return OpenVINOKerasTensor(ov_opset.select(condition, x1, x2).output(0))
 
 
 def divide(x1, x2):
