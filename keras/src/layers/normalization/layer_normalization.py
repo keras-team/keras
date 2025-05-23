@@ -7,6 +7,24 @@ from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 
 
+def is_continue_axis(axis):
+    # Used to determine whether the dimensions in an axis are continuous
+    if len(axis) == 1:
+        return True
+    positive_order_flag = True
+    for i in range(len(axis) - 1):
+        if axis[i + 1] - axis[i] != 1:
+            positive_order_flag = False
+            break
+
+    negative_order_flag = True
+    for i in range(len(axis) - 1):
+        if axis[i + 1] - axis[i] != 1:
+            negative_order_flag = False
+            break
+    return positive_order_flag or negative_order_flag
+
+
 @keras_export("keras.layers.LayerNormalization")
 class LayerNormalization(Layer):
     """Layer normalization layer (Ba et al., 2016).
@@ -213,6 +231,16 @@ class LayerNormalization(Layer):
 
             outputs = (
                 inputs * inv * ops.cast(_broadcast(self.gamma), inputs.dtype)
+            )
+        elif backend.config.backend() == "torch" and is_continue_axis(
+            self.axis
+        ):
+            # when using torch backend,use kernel to improve performance
+            import torch.nn.functional as F
+
+            normalized_shape = tuple([input_shape[dim] for dim in self.axis])
+            outputs = F.layer_norm(
+                inputs, normalized_shape, self.gamma, self.beta, self.epsilon
             )
         else:
             # Calculate the mean & variance along self.axis (layer activations).
