@@ -1,14 +1,16 @@
 import os
 import warnings
+
+from keras.src import backend as K
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
-from keras.src import backend as K
 
 # Attempt to import psutil for memory monitoring
 try:
     import psutil
 except ImportError:
-    psutil = None  
+    psutil = None
+
 
 @keras_export("keras.callbacks.MemoryUsageCallback")
 class MemoryUsageCallback(Callback):
@@ -63,14 +65,15 @@ class MemoryUsageCallback(Callback):
 
         if tensorboard_log_dir:
             try:
-                import tensorflow as tf  
+                import tensorflow as tf
 
                 logdir = os.path.expanduser(tensorboard_log_dir)
                 self._writer = tf.summary.create_file_writer(logdir)
                 print(f"MemoryUsageCallback: TensorBoard logs → {logdir}")
             except Exception as e:
                 warnings.warn(
-                    f"Could not initialize TensorBoard writer: {e}", RuntimeWarning
+                    f"Could not initialize TensorBoard writer: {e}",
+                    RuntimeWarning,
                 )
                 self._writer = None
 
@@ -85,7 +88,9 @@ class MemoryUsageCallback(Callback):
 
     def on_batch_end(self, batch, logs=None):
         if self.log_every_batch:
-            self._log_step(f"Batch {self._step_counter} end", self._step_counter)
+            self._log_step(
+                f"Batch {self._step_counter} end", self._step_counter
+            )
         self._step_counter += 1
 
     def on_train_end(self, logs=None):
@@ -122,7 +127,7 @@ class MemoryUsageCallback(Callback):
         backend_name = K.backend()
         try:
             if backend_name == "tensorflow":
-                import tensorflow as tf  
+                import tensorflow as tf
 
                 gpus = tf.config.list_physical_devices("GPU")
                 if not gpus:
@@ -173,6 +178,8 @@ class MemoryUsageCallback(Callback):
             return None
         except Exception as exc:
             if not hasattr(self, "_warn_exc"):
-                warnings.warn(f"Error retrieving GPU memory: {exc}", RuntimeWarning)
+                warnings.warn(
+                    f"Error retrieving GPU memory: {exc}", RuntimeWarning
+                )
                 self._warn_exc = True
             return None

@@ -1,20 +1,21 @@
-import os
 import glob
+import os
 import re
 import sys
 import tempfile
-import pytest
-import numpy as np
-
 from contextlib import redirect_stdout
-from io import StringIO
 from importlib import reload
-from unittest.mock import patch, MagicMock
+from io import StringIO
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
-from keras.src.models import Sequential
-from keras.src.layers import Dense
-from keras.src.testing import TestCase
+import numpy as np
+import pytest
+
 from keras.src.callbacks.memory_usage_callback import MemoryUsageCallback
+from keras.src.layers import Dense
+from keras.src.models import Sequential
+from keras.src.testing import TestCase
 
 try:
     import psutil
@@ -69,13 +70,19 @@ class MemoryUsageCallbackTest(TestCase):
         with redirect_stdout(buf):
             cb = MemoryUsageCallback(monitor_gpu=False, log_every_batch=True)
             self.model.fit(
-                self.x, self.y, epochs=1, batch_size=self.bs, callbacks=[cb], verbose=0
+                self.x,
+                self.y,
+                epochs=1,
+                batch_size=self.bs,
+                callbacks=[cb],
+                verbose=0,
             )
         lines = buf.getvalue().splitlines()
         batch_lines = [l for l in lines if l.startswith("Batch ")]
         assert len(batch_lines) == self.steps
         assert all(
-            re.match(r"Batch \d+ end - CPU Memory: [\d\.]+ MB", l) for l in batch_lines
+            re.match(r"Batch \d+ end - CPU Memory: [\d\.]+ MB", l)
+            for l in batch_lines
         )
 
     @pytest.mark.requires_trainable_backend
@@ -85,9 +92,16 @@ class MemoryUsageCallbackTest(TestCase):
         logdir = os.path.join(tmp.name, "tb")
         buf = StringIO()
         with redirect_stdout(buf):
-            cb = MemoryUsageCallback(monitor_gpu=False, tensorboard_log_dir=logdir)
+            cb = MemoryUsageCallback(
+                monitor_gpu=False, tensorboard_log_dir=logdir
+            )
             self.model.fit(
-                self.x, self.y, epochs=1, batch_size=self.bs, callbacks=[cb], verbose=0
+                self.x,
+                self.y,
+                epochs=1,
+                batch_size=self.bs,
+                callbacks=[cb],
+                verbose=0,
             )
         files = glob.glob(os.path.join(logdir, "events.out.tfevents.*"))
         assert files, "No TensorBoard event files generated"
@@ -118,7 +132,10 @@ def test_torch_backend_gpu_memory(monkeypatch):
     fake_torch = MagicMock()
     fake_torch.cuda.is_available.return_value = True
     fake_torch.cuda.device_count.return_value = 2
-    fake_torch.cuda.memory_allocated.side_effect = [100 * 1024**2, 150 * 1024**2]
+    fake_torch.cuda.memory_allocated.side_effect = [
+        100 * 1024**2,
+        150 * 1024**2,
+    ]
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
 
     cb = MemoryUsageCallback(monitor_gpu=True)
