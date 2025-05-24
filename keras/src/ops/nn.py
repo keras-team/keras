@@ -2726,10 +2726,6 @@ class RMSNorm(Operation):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
-        if backend.backend() == "torch" and is_continuous_axis(self.axis):
-            import torch.nn.functional as F
-
-            return F.rms_norm(x, self.axis, self.scale, self.epsilon)
         return _rms_normalization(
             x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
         )
@@ -2777,6 +2773,14 @@ def rms_normalization(x, scale=1, axis=-1, epsilon=None):
 
 
 def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
+    if backend.backend() == "torch" and is_continuous_axis(axis):
+        import torch.nn.functional as F
+
+        if isinstance(axis, (tuple, list)):
+            normalized_shape = tuple([x.shape[dim] for dim in axis])
+        else:
+            normalized_shape = x.shape[axis]
+        return F.rms_norm(x, normalized_shape, scale, epsilon)
     x = backend.convert_to_tensor(x)
     if len(x.shape) == 0:
         x = backend.numpy.expand_dims(x, axis=0)
