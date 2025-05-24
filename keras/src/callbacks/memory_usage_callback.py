@@ -5,7 +5,7 @@ from keras.src import backend as K
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 
-# Attempt to import psutil for memory monitoring
+# Attempt to import psutil for CPU memory monitoring
 try:
     import psutil
 except ImportError:
@@ -14,17 +14,19 @@ except ImportError:
 
 @keras_export("keras.callbacks.MemoryUsageCallback")
 class MemoryUsageCallback(Callback):
-    """Monitors and logs memory usage (CPU + optional GPU/TPU) during training.
+    """Monitors and logs memory usage
+    (CPU + optional GPU/TPU/OpenVINO) during training.
 
     This callback measures:
 
       - **CPU**: via psutil.Process().memory_info().rss
-      - **GPU/TPU**: via backend-specific APIs
-        (TensorFlow, PyTorch, JAX, OpenVINO)
+      - **GPU/TPU**: via backend‐specific APIs
+        (TensorFlow, PyTorch, JAX)
 
     Logs are printed to stdout at the start/end of each epoch and,
-    if `log_every_batch=True`, after every batch. If `tensorboard_log_dir`
-    is provided, scalars are also written via `tf.summary` (TensorBoard).
+    if `log_every_batch=True`, after every batch.
+    If `tensorboard_log_dir` is provided, scalars are also written
+    via `tf.summary` (TensorBoard).
 
     Args:
         monitor_gpu (bool): If True, attempt to measure accelerator memory.
@@ -34,22 +36,13 @@ class MemoryUsageCallback(Callback):
 
     Raises:
         ImportError: If `psutil` is not installed (required for CPU logging).
-
-    Example:
-    ```python
-    from keras.callbacks import MemoryUsageCallback
-    # ...
-    cb = MemoryUsageCallback(
-        monitor_gpu=True,
-        log_every_batch=False,
-        tensorboard_log_dir="./logs/memory"
-    )
-    model.fit(X, y, callbacks=[cb])
-    ```
     """
 
     def __init__(
-        self, monitor_gpu=True, log_every_batch=False, tensorboard_log_dir=None
+        self,
+        monitor_gpu=True,
+        log_every_batch=False,
+        tensorboard_log_dir=None,
     ):
         super().__init__()
         if psutil is None:
@@ -109,8 +102,7 @@ class MemoryUsageCallback(Callback):
         msg = f"{label} - CPU Memory: {cpu_mb:.2f} MB"
         if gpu_mb is not None:
             msg += f"; GPU Memory: {gpu_mb:.2f} MB"
-        # newline + flush ensures clean, immediate output
-        print("\n" + msg, flush=True)
+        print(msg)
 
         if self._writer:
             import tensorflow as tf  # noqa: E501
@@ -119,7 +111,7 @@ class MemoryUsageCallback(Callback):
                 tf.summary.scalar("Memory/CPU_MB", cpu_mb)
                 if gpu_mb is not None:
                     tf.summary.scalar("Memory/GPU_MB", gpu_mb)
-            self._writer.flush()
+            # flush happens inside writer
 
     def _get_cpu_memory(self):
         return self._proc.memory_info().rss / (1024**2)
@@ -162,12 +154,21 @@ class MemoryUsageCallback(Callback):
                     total += stats.get("bytes_in_use", 0)
                 return total / (1024**2)
 
+            elif backend_name == "openvino":
+                # OpenVINO provides no memory-stats API:
+                if not hasattr(self, "_warn_openvino"):
+                    warnings.warn(
+                        " OpenVINO does not expose memory stats; "
+                        "GPU monitoring disabled.",
+                        RuntimeWarning,
+                    )
+                    self._warn_openvino = True
+                return None
+
             else:
-                # OpenVINO and other unknown backends: warn once
                 if not hasattr(self, "_warn_backend"):
                     warnings.warn(
-                        "MemoryUsageCallback: unsupported backend "
-                        f"'{backend_name}'",
+                        f"MemoryUsageCallback: no backend '{backend_name}'",
                         RuntimeWarning,
                     )
                     self._warn_backend = True
