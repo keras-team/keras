@@ -6,13 +6,13 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.callbacks.callback import Callback
+from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 
 
 @keras_export("keras.callbacks.ModelCheckpoint")
-class ModelCheckpoint(Callback):
+class ModelCheckpoint(MonitorCallback):
     """Callback to save the Keras model or model weights at some frequency.
 
     `ModelCheckpoint` callback is used in conjunction with training using
@@ -105,9 +105,8 @@ class ModelCheckpoint(Callback):
             decision to overwrite the current save file is made based on either
             the maximization or the minimization of the monitored quantity.
             For `val_acc`, this should be `"max"`, for `val_loss` this should be
-            `"min"`, etc. In `"auto"` mode, the mode is set to `"max"` if the
-            quantities monitored are `"acc"` or start with `"fmeasure"` and are
-            set to `"min"` for the rest of the quantities.
+            `"min"`, etc. In `"auto"` mode, the direction is automatically
+            inferred from the name of the monitored quantity.
         save_weights_only: if `True`, then only the model's weights will be
             saved (`model.save_weights(filepath)`), else the full model is
             saved (`model.save(filepath)`).
@@ -136,8 +135,7 @@ class ModelCheckpoint(Callback):
         save_freq="epoch",
         initial_value_threshold=None,
     ):
-        super().__init__()
-        self.monitor = monitor
+        super().__init__(monitor, mode, initial_value_threshold)
         self.verbose = verbose
         self.filepath = file_utils.path_to_string(filepath)
         self.save_best_only = save_best_only
@@ -145,33 +143,6 @@ class ModelCheckpoint(Callback):
         self.save_freq = save_freq
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
-        self.best = initial_value_threshold
-
-        if mode not in ["auto", "min", "max"]:
-            warnings.warn(
-                f"ModelCheckpoint mode '{mode}' is unknown, "
-                "fallback to auto mode.",
-                stacklevel=2,
-            )
-            mode = "auto"
-
-        if mode == "min":
-            self.monitor_op = np.less
-            if self.best is None:
-                self.best = np.inf
-        elif mode == "max":
-            self.monitor_op = np.greater
-            if self.best is None:
-                self.best = -np.inf
-        else:
-            if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
-                self.monitor_op = np.greater
-                if self.best is None:
-                    self.best = -np.inf
-            else:
-                self.monitor_op = np.less
-                if self.best is None:
-                    self.best = np.inf
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -205,6 +176,10 @@ class ModelCheckpoint(Callback):
         self._current_epoch = epoch
 
     def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
+
         if self.save_freq == "epoch":
             self._save_model(epoch=epoch, batch=None, logs=logs)
 
@@ -262,7 +237,7 @@ class ModelCheckpoint(Callback):
                 )
                 return True
             else:
-                if self.monitor_op(current, self.best):
+                if self._is_improvement(current, self.best):
                     if self.verbose > 0:
                         io_utils.print_msg(
                             f"\nEpoch {epoch + 1}: {self.monitor} "

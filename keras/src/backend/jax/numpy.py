@@ -42,6 +42,21 @@ def bartlett(x):
     return jnp.bartlett(x)
 
 
+def hamming(x):
+    x = convert_to_tensor(x)
+    return jnp.hamming(x)
+
+
+def hanning(x):
+    x = convert_to_tensor(x)
+    return jnp.hanning(x)
+
+
+def kaiser(x, beta):
+    x = convert_to_tensor(x)
+    return jnp.kaiser(x, beta)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     # Note: bincount is never tracable / jittable because the output shape
     # depends on the values in x.
@@ -472,6 +487,11 @@ def bitwise_right_shift(x, y):
 
 def right_shift(x, y):
     return bitwise_right_shift(x, y)
+
+
+def blackman(x):
+    x = convert_to_tensor(x)
+    return jnp.blackman(x)
 
 
 def broadcast_to(x, shape):
@@ -910,12 +930,10 @@ def not_equal(x1, x2):
     return jnp.not_equal(x1, x2)
 
 
-@sparse.elementwise_unary(linear=False)
 def ones_like(x, dtype=None):
     return jnp.ones_like(x, dtype=dtype)
 
 
-@sparse.elementwise_unary(linear=True)
 def zeros_like(x, dtype=None):
     return jnp.zeros_like(x, dtype=dtype)
 

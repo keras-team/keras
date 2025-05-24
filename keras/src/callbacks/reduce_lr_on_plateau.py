@@ -4,12 +4,12 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.callbacks.callback import Callback
+from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.utils import io_utils
 
 
 @keras_export("keras.callbacks.ReduceLROnPlateau")
-class ReduceLROnPlateau(Callback):
+class ReduceLROnPlateau(MonitorCallback):
     """Reduce learning rate when a metric has stopped improving.
 
     Models often benefit from reducing the learning rate by a factor
@@ -57,9 +57,7 @@ class ReduceLROnPlateau(Callback):
         min_lr=0.0,
         **kwargs,
     ):
-        super().__init__()
-
-        self.monitor = monitor
+        super().__init__(monitor, mode, min_delta=min_delta)
         if factor >= 1.0:
             raise ValueError(
                 "ReduceLROnPlateau does not support a factor >= 1.0. "
@@ -68,34 +66,14 @@ class ReduceLROnPlateau(Callback):
 
         self.factor = factor
         self.min_lr = min_lr
-        self.min_delta = min_delta
         self.patience = patience
         self.verbose = verbose
         self.cooldown = cooldown
         self.cooldown_counter = 0  # Cooldown counter.
         self.wait = 0
-        self.best = 0
-        self.mode = mode
-        self.monitor_op = None
-        self._reset()
 
     def _reset(self):
         """Resets wait counter and cooldown counter."""
-        if self.mode not in {"auto", "min", "max"}:
-            warnings.warn(
-                f"Learning rate reduction mode {self.mode} is unknown, "
-                "fallback to auto mode.",
-                stacklevel=2,
-            )
-            self.mode = "auto"
-        if self.mode == "min" or (
-            self.mode == "auto" and "acc" not in self.monitor
-        ):
-            self.monitor_op = lambda a, b: np.less(a, b - self.min_delta)
-            self.best = np.inf
-        else:
-            self.monitor_op = lambda a, b: np.greater(a, b + self.min_delta)
-            self.best = -np.inf
         self.cooldown_counter = 0
         self.wait = 0
 
@@ -103,6 +81,9 @@ class ReduceLROnPlateau(Callback):
         self._reset()
 
     def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
         logs = logs or {}
         logs["learning_rate"] = float(
             backend.convert_to_numpy(self.model.optimizer.learning_rate)
@@ -121,7 +102,7 @@ class ReduceLROnPlateau(Callback):
                 self.cooldown_counter -= 1
                 self.wait = 0
 
-            if self.monitor_op(current, self.best):
+            if self._is_improvement(current, self.best):
                 self.best = current
                 self.wait = 0
             elif not self.in_cooldown():

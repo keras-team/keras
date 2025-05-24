@@ -521,6 +521,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         regularizer=None,
         constraint=None,
         aggregation="none",
+        overwrite_with_gradient=False,
         name=None,
     ):
         """Add a weight variable to the layer.
@@ -552,6 +553,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
                 the type of multi-replica aggregation to be used for this
                 variable when writing custom data parallel training loops.
                 Defaults to `"none"`.
+            overwrite_with_gradient: Boolean, whether to overwrite the variable
+                with the computed gradient. This is useful for float8 training.
+                Defaults to `False`.
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
@@ -580,6 +584,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # Will be added to layer.losses
         variable.regularizer = regularizers.get(regularizer)
         variable.constraint = constraints.get(constraint)
+        variable.overwrite_with_gradient = overwrite_with_gradient
         self._track_variable(variable)
         return variable
 
@@ -1198,8 +1203,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             scope = backend.get_stateless_scope()
             if scope.collect_losses:
                 for x in losses:
-                    scope.add_loss(loss)
-                    self._loss_ids.add(id(loss))
+                    scope.add_loss(x)
+                    self._loss_ids.add(id(x))
         else:
             self._losses.extend(losses)
 
@@ -1412,8 +1417,11 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     def add_metric(self, *args, **kwargs):
         # Permanently disabled
         raise NotImplementedError(
-            "Layer `add_metric()` method is deprecated"
-            " add your metric in `Model.compile(metrics=[...]).`"
+            "Layer `add_metric()` method is deprecated. "
+            "Add your metric in `Model.compile(metrics=[...])`, "
+            "or create metric trackers in init() or build() "
+            "when subclassing the layer or model, then call "
+            "`metric.update_state()` whenever necessary."
         )
 
     def count_params(self):

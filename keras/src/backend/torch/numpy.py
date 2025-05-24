@@ -435,6 +435,21 @@ def bartlett(x):
     return torch.signal.windows.bartlett(x)
 
 
+def hamming(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.hamming(x)
+
+
+def hanning(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.hann(x)
+
+
+def kaiser(x, beta):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.kaiser(x, beta=beta)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
@@ -513,6 +528,11 @@ def bitwise_right_shift(x, y):
 
 def right_shift(x, y):
     return bitwise_right_shift(x, y)
+
+
+def blackman(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.blackman(x)
 
 
 def broadcast_to(x, shape):

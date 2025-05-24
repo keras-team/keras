@@ -75,11 +75,10 @@ class Adadelta(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self._accumulated_grads = self.add_optimizer_variables(
-            var_list, "accumulated_grad"
-        )
-        self._accumulated_delta_vars = self.add_optimizer_variables(
-            var_list, "accumulated_delta_var"
+        self._accumulated_grads, self._accumulated_delta_vars = (
+            self.add_optimizer_variables(
+                var_list, ["accumulated_grad", "accumulated_delta_var"]
+            )
         )
 
     def update_step(self, grad, variable, learning_rate):

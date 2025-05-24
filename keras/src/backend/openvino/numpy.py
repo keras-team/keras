@@ -12,6 +12,7 @@ from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
     align_operand_types as _align_operand_types,
 )
+from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
@@ -140,6 +141,10 @@ def all(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     )
+
+
+def angle(x):
+    raise NotImplementedError("`angle` is not supported with openvino backend")
 
 
 def any(x, axis=None, keepdims=False):
@@ -464,6 +469,22 @@ def average(x, axis=None, weights=None):
     return OpenVINOKerasTensor(mean_ops.output(0))
 
 
+def bartlett(x):
+    raise NotImplementedError(
+        "`bartlett` is not supported with openvino backend"
+    )
+
+
+def hamming(x):
+    raise NotImplementedError(
+        "`hamming` is not supported with openvino backend"
+    )
+
+
+def kaiser(x, beta):
+    raise NotImplementedError("`kaiser` is not supported with openvino backend")
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if x is None:
         raise ValueError("input x is None")
@@ -507,6 +528,12 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         ).output(0)
         final_output = ov_opset.convert(final_output, Type.i32).output(0)
         return OpenVINOKerasTensor(final_output)
+
+
+def blackman(x):
+    raise NotImplementedError(
+        "`blackman` is not supported with openvino backend"
+    )
 
 
 def broadcast_to(x, shape):
@@ -830,7 +857,18 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    raise NotImplementedError("`hstack` is not supported with openvino backend")
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+    elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
+    is_1d = elems and len(elems[0].get_partial_shape().to_shape()) == 1
+    axis = 0 if is_1d else 1
+    for i in range(1, len(elems)):
+        elems[0], elems[i] = _align_operand_types(
+            elems[0], elems[i], "hstack()"
+        )
+    return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
 def identity(n, dtype=None):
@@ -1075,9 +1113,23 @@ def mod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    raise NotImplementedError(
-        "`moveaxis` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    if isinstance(source, int):
+        source = [source]
+    if isinstance(destination, int):
+        destination = [destination]
+
+    ndim = x.get_partial_shape().rank.get_length()
+    source = [axis if axis >= 0 else axis + ndim for axis in source]
+    destination = [axis if axis >= 0 else axis + ndim for axis in destination]
+
+    axes = list(range(ndim))
+    for src, dst in zip(source, destination):
+        axes.remove(src)
+        axes.insert(dst, src)
+
+    axes_const = ov_opset.constant(axes, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
@@ -1163,7 +1215,21 @@ def ones_like(x, dtype=None):
 
 
 def outer(x1, x2):
-    raise NotImplementedError("`outer` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+
+    x1, x2 = _align_operand_types(x1, x2, "outer()")
+
+    new_shape_x1 = ov_opset.constant([-1, 1], Type.i32).output(0)
+    new_shape_x2 = ov_opset.constant([1, -1], Type.i32).output(0)
+
+    # Reshape directly from original tensors
+    x1_reshaped = ov_opset.reshape(x1, new_shape_x1, False).output(0)
+    x2_reshaped = ov_opset.reshape(x2, new_shape_x2, False).output(0)
+
+    result = ov_opset.multiply(x1_reshaped, x2_reshaped).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def pad(x, pad_width, mode="constant", constant_values=None):
@@ -1218,9 +1284,10 @@ def real(x):
 
 
 def reciprocal(x):
-    raise NotImplementedError(
-        "`reciprocal` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    one_constant = ov_opset.constant(1, dtype=x.get_element_type()).output(0)
+    x = ov_opset.divide(one_constant, x).output(0)
+    return OpenVINOKerasTensor(x)
 
 
 def repeat(x, repeats, axis=None):
@@ -1277,17 +1344,62 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
-    raise NotImplementedError("`split` is not supported with openvino backend")
+    x = get_ov_output(x)
+    axis_tensor = ov_opset.constant(axis, dtype=Type.i32).output(0)
+
+    shape_tensor = ov_opset.shape_of(x)
+    axis_i32 = ov_opset.constant([axis], dtype=Type.i32)
+    dim_at_axis_tensor = ov_opset.gather(
+        shape_tensor, axis_i32, ov_opset.constant(0, dtype=Type.i32)
+    )
+
+    if isinstance(indices_or_sections, int):
+        num_splits = indices_or_sections
+        splits = ov_opset.split(x, axis_tensor, num_splits=num_splits)
+        result = []
+        for i in range(num_splits):
+            result.append(OpenVINOKerasTensor(splits.output(i)))
+        return result
+
+    if isinstance(indices_or_sections, (list, tuple, np.ndarray)):
+        indices = list(indices_or_sections)
+        split_lengths = []
+        split_lengths.append(indices[0])
+        for i in range(1, len(indices)):
+            split_lengths.append(indices[i] - indices[i - 1])
+
+        last_index_tensor = ov_opset.constant(indices[-1], dtype=Type.i64)
+        remaining_length_tensor = ov_opset.subtract(
+            dim_at_axis_tensor, last_index_tensor
+        )
+
+        length_parts = []
+        length_parts.append(ov_opset.constant(split_lengths, dtype=Type.i64))
+        length_parts.append(remaining_length_tensor)
+        length_tensor = ov_opset.concat(length_parts, axis=0)
+
+        splits = ov_opset.variadic_split(x, axis_tensor, length_tensor)
+        result = []
+        for i in range(len(split_lengths) + 1):
+            result.append(OpenVINOKerasTensor(splits.output(i)))
+        return result
+
+    raise TypeError(
+        f"unsupported type of indices_or_sections: {type(indices_or_sections)}"
+    )
 
 
 def stack(x, axis=0):
-    assert isinstance(x, list), "`stack` is supported only for `x` list"
-    elems = []
+    if isinstance(x, tuple):
+        x = list(x)
+    assert isinstance(x, list), "`stack` supports only `x` as list or tuple"
+    elems = [get_ov_output(e) for e in x]
+    ref = elems[0]
+    for i in range(1, len(elems)):
+        ref, elems[i] = _align_operand_types(ref, elems[i], "stack()")
+    elems[0] = ref
     const_axis = ov_opset.constant(axis, Type.i32).output(0)
-    for elem in x:
-        elem = get_ov_output(elem)
-        elem = ov_opset.unsqueeze(elem, const_axis).output(0)
-        elems.append(elem)
+    elems = [ov_opset.unsqueeze(e, const_axis).output(0) for e in elems]
     res = ov_opset.concat(elems, axis).output(0)
     return OpenVINOKerasTensor(res)
 

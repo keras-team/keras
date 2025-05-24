@@ -1865,6 +1865,30 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(np.var(ref_out), np.var(out), atol=1e-2, rtol=1e-2)
 
+    def test_map_coordinates_constant_padding(self):
+        input_img = tf.ones((2, 2), dtype=tf.uint8)
+        # one pixel outside of the input space around the edges
+        grid = tf.stack(
+            tf.meshgrid(
+                tf.range(-1, 3, dtype=tf.float32),
+                tf.range(-1, 3, dtype=tf.float32),
+                indexing="ij",
+            ),
+            axis=0,
+        )
+        out = backend.convert_to_numpy(
+            kimage.map_coordinates(
+                input_img, grid, order=0, fill_mode="constant", fill_value=0
+            )
+        )
+
+        # check for ones in the middle and zeros around the edges
+        self.assertTrue(np.all(out[:1] == 0))
+        self.assertTrue(np.all(out[-1:] == 0))
+        self.assertTrue(np.all(out[:, :1] == 0))
+        self.assertTrue(np.all(out[:, -1:] == 0))
+        self.assertTrue(np.all(out[1:3, 1:3] == 1))
+
 
 class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):

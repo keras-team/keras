@@ -450,8 +450,13 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
 def convert_to_numpy(x):
     if isinstance(x, np.ndarray):
         return x
-    elif isinstance(x, (int, float, list, tuple)):
+    elif isinstance(x, (int, float)):
         return np.array(x)
+    elif isinstance(x, (list, tuple)):
+        x_new = []
+        for elem in x:
+            x_new.append(convert_to_numpy(elem))
+        return np.array(x_new)
     elif np.isscalar(x):
         return x
     elif isinstance(x, ov.Tensor):
