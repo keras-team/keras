@@ -14,6 +14,7 @@ from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
+from keras.src.utils.python_utils import is_continuous_axis
 
 
 class Relu(Operation):
@@ -2725,6 +2726,10 @@ class RMSNorm(Operation):
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
+        if backend.backend() == "torch" and is_continuous_axis(self.axis):
+            import torch.nn.functional as F
+
+            return F.rms_norm(x, self.axis, self.scale, self.epsilon)
         return _rms_normalization(
             x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
         )
