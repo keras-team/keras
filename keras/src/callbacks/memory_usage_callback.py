@@ -45,7 +45,7 @@ class MemoryUsageCallback(Callback):
         tensorboard_log_dir="./logs/memory"
     )
     model.fit(X, y, callbacks=[cb])
-    ```  
+    ```
     """
 
     def __init__(
@@ -66,6 +66,7 @@ class MemoryUsageCallback(Callback):
         if tensorboard_log_dir:
             try:
                 import tensorflow as tf
+
                 logdir = os.path.expanduser(tensorboard_log_dir)
                 self._writer = tf.summary.create_file_writer(logdir)
                 print(f"MemoryUsageCallback: TensorBoard logs → {logdir}")
@@ -87,7 +88,9 @@ class MemoryUsageCallback(Callback):
 
     def on_batch_end(self, batch, logs=None):
         if self.log_every_batch:
-            self._log_step(f"Batch {self._step_counter} end", self._step_counter)
+            self._log_step(
+                f"Batch {self._step_counter} end", self._step_counter
+            )
         self._step_counter += 1
 
     def on_train_end(self, logs=None):
@@ -111,6 +114,7 @@ class MemoryUsageCallback(Callback):
 
         if self._writer:
             import tensorflow as tf  # noqa: E501
+
             with self._writer.as_default(step=int(step)):
                 tf.summary.scalar("Memory/CPU_MB", cpu_mb)
                 if gpu_mb is not None:
@@ -118,13 +122,14 @@ class MemoryUsageCallback(Callback):
             self._writer.flush()
 
     def _get_cpu_memory(self):
-        return self._proc.memory_info().rss / (1024 ** 2)
+        return self._proc.memory_info().rss / (1024**2)
 
     def _get_gpu_memory(self):
         backend_name = K.backend()
         try:
             if backend_name == "tensorflow":
                 import tensorflow as tf
+
                 gpus = tf.config.list_physical_devices("GPU")
                 if not gpus:
                     return None
@@ -132,20 +137,22 @@ class MemoryUsageCallback(Callback):
                     tf.config.experimental.get_memory_info(g.name)["current"]
                     for g in gpus
                 )
-                return total / (1024 ** 2)
+                return total / (1024**2)
 
             elif backend_name == "torch":
                 import torch
+
                 if not torch.cuda.is_available():
                     return None
                 total = sum(
                     torch.cuda.memory_allocated(i)
                     for i in range(torch.cuda.device_count())
                 )
-                return total / (1024 ** 2)
+                return total / (1024**2)
 
             elif backend_name == "jax":
                 import jax
+
                 devs = [d for d in jax.devices() if d.platform.upper() == "GPU"]
                 if not devs:
                     return None
@@ -153,7 +160,7 @@ class MemoryUsageCallback(Callback):
                 for d in devs:
                     stats = getattr(d, "memory_stats", lambda: {})()
                     total += stats.get("bytes_in_use", 0)
-                return total / (1024 ** 2)
+                return total / (1024**2)
 
             else:
                 # OpenVINO and other unknown backends: warn once
