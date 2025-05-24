@@ -1224,6 +1224,23 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.bartlett(x).shape[0], x)
 
+    def test_blackman(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertEqual(knp.blackman(x).shape[0], x)
+
+    def test_hamming(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertEqual(knp.hamming(x).shape[0], x)
+
+    def test_hanning(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertEqual(knp.hanning(x).shape[0], x)
+
+    def test_kaiser(self):
+        x = np.random.randint(1, 100 + 1)
+        beta = float(np.random.randint(10, 20 + 1))
+        self.assertEqual(knp.kaiser(x, beta).shape[0], x)
+
     def test_bitwise_invert(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.bitwise_invert(x).shape, (None, 3))
@@ -3600,6 +3617,31 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Bartlett()(x), np.bartlett(x))
 
+    def test_blackman(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertAllClose(knp.blackman(x), np.blackman(x))
+
+        self.assertAllClose(knp.Blackman()(x), np.blackman(x))
+
+    def test_hamming(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertAllClose(knp.hamming(x), np.hamming(x))
+
+        self.assertAllClose(knp.Hamming()(x), np.hamming(x))
+
+    def test_hanning(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertAllClose(knp.hanning(x), np.hanning(x))
+
+        self.assertAllClose(knp.Hanning()(x), np.hanning(x))
+
+    def test_kaiser(self):
+        x = np.random.randint(1, 100 + 1)
+        beta = float(np.random.randint(10, 20 + 1))
+        self.assertAllClose(knp.kaiser(x, beta), np.kaiser(x, beta))
+
+        self.assertAllClose(knp.Kaiser(beta)(x), np.kaiser(x, beta))
+
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
@@ -5121,7 +5163,6 @@ class SparseTest(testing.TestCase):
         "imag",
         "log1p",
         "negative",
-        "ones_like",
         "real",
         "round",
         "sign",
@@ -5131,7 +5172,6 @@ class SparseTest(testing.TestCase):
         "square",
         "tan",
         "tanh",
-        "zeros_like",
     ]
     ELEMENTWISE_UNARY_OPS_TESTS = [
         {
@@ -5313,11 +5353,10 @@ class SparseTest(testing.TestCase):
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_sparse_tensor(x)
         x_np = backend.convert_to_numpy(x)
-        expected = np_op(x_np) * backend.convert_to_numpy(knp.ones_like(x))
 
-        self.assertAllClose(op_function(x), expected)
+        self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
-        self.assertAllClose(op_class()(x), expected)
+        self.assertAllClose(op_class()(x), np_op(x_np))
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(ELEMENTWISE_UNARY_OPS_TESTS)
@@ -5330,11 +5369,10 @@ class SparseTest(testing.TestCase):
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_indexed_slices(x)
         x_np = backend.convert_to_numpy(x)
-        expected = np_op(x_np) * backend.convert_to_numpy(knp.ones_like(x))
 
-        self.assertAllClose(op_function(x), expected)
+        self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
-        self.assertAllClose(op_class()(x), expected)
+        self.assertAllClose(op_class()(x), np_op(x_np))
         self.assertSameSparseness(op_class()(x), x)
 
     @parameterized.named_parameters(OTHER_UNARY_OPS_TESTS)
@@ -5576,6 +5614,72 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Bartlett().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_blackman(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.blackman(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.blackman(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Blackman().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_hamming(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.hamming(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.hamming(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hamming().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_hanning(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.hanning(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.hanning(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hanning().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_kaiser(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        beta = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        beta_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.kaiser(x_jax, beta_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.kaiser(x, beta).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Kaiser(beta).symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -8385,14 +8489,16 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_take_along_axis(self, dtype):
+    @parameterized.named_parameters(
+        named_product(dtype=ALL_DTYPES, indices_dtype=INT_DTYPES)
+    )
+    def test_take_along_axis(self, dtype, indices_dtype):
         import jax.numpy as jnp
 
         x = knp.ones((1,), dtype=dtype)
-        indices = knp.zeros((1,), dtype="int32")
+        indices = knp.zeros((1,), dtype=indices_dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
-        indices_jax = jnp.zeros((1,), dtype="int32")
+        indices_jax = jnp.zeros((1,), dtype=indices_dtype)
         expected_dtype = standardize_dtype(
             jnp.take_along_axis(x_jax, indices_jax, 0).dtype
         )

@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -59,8 +60,14 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
     def get_random_transformation(self, images, training=True, seed=None):
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
+        # Base case: Unbatched data
+        batch_size = 1
+        if len(images.shape) == 4:
+            # This is a batch of images (4D input)
+            batch_size = self.backend.core.shape(images)[0]
+
         random_values = self.backend.random.uniform(
-            shape=(self.backend.core.shape(images)[0],),
+            shape=(batch_size,),
             minval=0,
             maxval=1,
             seed=seed,
@@ -90,7 +97,12 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         return input_shape
 
     def compute_output_spec(self, inputs, **kwargs):
-        return inputs
+        return tree.map_structure(
+            lambda x: backend.KerasTensor(
+                x.shape, dtype=x.dtype, sparse=x.sparse
+            ),
+            inputs,
+        )
 
     def transform_bounding_boxes(self, bounding_boxes, **kwargs):
         return bounding_boxes

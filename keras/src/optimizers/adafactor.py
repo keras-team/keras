@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
@@ -96,11 +97,16 @@ class Adafactor(optimizer.Optimizer):
         self._c = []
         self._v = []
         for var in var_list:
-            if (
-                self._overwrite_variable_with_gradient(var)
-                or len(var.shape) < 2
-            ):
-                # Don't factor if variable is of dimension < 2.
+            if len(var.shape) < 2:
+                # Don't factor if variable is of dimension < 2, but we still
+                # need to create dummy variables as placeholder.
+                self._r.append(
+                    backend.Variable(0, name=var.name, trainable=False)
+                )
+                self._c.append(
+                    backend.Variable(0, name=var.name, trainable=False)
+                )
+            elif self._overwrite_variable_with_gradient(var):
                 self._r.append(None)
                 self._c.append(None)
             else:

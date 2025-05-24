@@ -146,6 +146,21 @@ def bartlett(x):
     return window
 
 
+def hamming(x):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.hamming_window(x, periodic=False)
+
+
+def hanning(x):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.hann_window(x, periodic=False)
+
+
+def kaiser(x, beta):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.kaiser_window(x, beta=beta)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
@@ -1058,6 +1073,18 @@ def right_shift(x, y):
     return bitwise_right_shift(x, y)
 
 
+def blackman(x):
+    dtype = config.floatx()
+    x = tf.cast(x, dtype)
+    n = tf.range(x, dtype=dtype)
+    n_minus_1 = tf.cast(x - 1, dtype)
+    term1 = 0.42
+    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1)
+    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1)
+    window = term1 + term2 + term3
+    return window
+
+
 def broadcast_to(x, shape):
     return tf.broadcast_to(x, shape)
 
@@ -1823,12 +1850,10 @@ def not_equal(x1, x2):
     return tf.not_equal(x1, x2)
 
 
-@sparse.elementwise_unary
 def ones_like(x, dtype=None):
     return tf.ones_like(x, dtype=dtype)
 
 
-@sparse.elementwise_unary
 def zeros_like(x, dtype=None):
     return tf.zeros_like(x, dtype=dtype)
 
@@ -2260,9 +2285,7 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
-    from keras.src.ops.operation_utils import (
-        compute_take_along_axis_output_shape,
-    )
+    from keras.src.ops import operation_utils
 
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices, "int64")
@@ -2276,33 +2299,55 @@ def take_along_axis(x, indices, axis=None):
 
     # Compute the static output shape as later on, all shapes manipulations
     # use dynamic shapes.
-    static_output_shape = compute_take_along_axis_output_shape(
+    static_output_shape = operation_utils.compute_take_along_axis_output_shape(
         x.shape, indices.shape, axis
     )
     rank = x.ndim
     static_axis = axis
     axis = axis + rank if axis < 0 else axis
 
-    # Broadcast shapes to match, ensure that the axis of interest is not
-    # broadcast.
-    x_shape_original = tf.shape(x, out_type=indices.dtype)
-    indices_shape_original = tf.shape(indices, out_type=indices.dtype)
-    x_shape = tf.tensor_scatter_nd_update(x_shape_original, [[axis]], [1])
-    indices_shape = tf.tensor_scatter_nd_update(
-        indices_shape_original, [[axis]], [1]
+    if axis >= rank:
+        raise ValueError(f"Invalid axis: {static_axis} for input rank: {rank}")
+
+    x_original_shape = shape_op(x)
+    indices_original_shape = shape_op(indices)
+
+    # Broadcast the static shapes first, but not for the `axis` dimension.
+    x_static_shape = list(x.shape)
+    indices_static_shape = list(indices.shape)
+    x_static_shape[axis] = 1
+    indices_static_shape[axis] = 1
+    broadcast_shape = operation_utils.broadcast_shapes(
+        x_static_shape, indices_static_shape
     )
-    broadcasted_shape = tf.broadcast_dynamic_shape(x_shape, indices_shape)
-    x_shape = tf.tensor_scatter_nd_update(
-        broadcasted_shape, [[axis]], [x_shape_original[axis]]
-    )
-    indices_shape = tf.tensor_scatter_nd_update(
-        broadcasted_shape, [[axis]], [indices_shape_original[axis]]
-    )
+
+    if None in broadcast_shape:
+        # Dynamic broadcast case. Note that `tf.broadcast_dynamic_shape` is
+        # not always XLA compilable with dynamic dimensions.
+        # We replace `None`s with the dynamic dimensions.
+        # `maximum` is the correct formula only when shapes are broadcastable,
+        # we rely on the broacast itself to fail in the incorrect case rather
+        # than make some expensive dynamic checks here.
+        broadcast_shape = [
+            tf.maximum(x_original_shape[i], indices_original_shape[i])
+            if dim is None
+            else dim
+            for i, dim in enumerate(broadcast_shape)
+        ]
+
+    x_shape = list(broadcast_shape)
+    x_shape[axis] = x_original_shape[axis]
+    indices_shape = list(broadcast_shape)
+    indices_shape[axis] = indices_original_shape[axis]
     x = tf.broadcast_to(x, x_shape)
     indices = tf.broadcast_to(indices, indices_shape)
 
     # Correct the indices using "fill" mode which is the same as in jax
-    indices = tf.where(indices < 0, indices + x_shape[static_axis], indices)
+    indices = tf.where(
+        indices < 0,
+        indices + tf.cast(x_shape[static_axis], dtype=indices.dtype),
+        indices,
+    )
 
     x = swapaxes(x, static_axis, -1)
     indices = swapaxes(indices, static_axis, -1)
