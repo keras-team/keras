@@ -19,7 +19,8 @@ class MemoryUsageCallback(Callback):
     This callback measures:
 
       - **CPU**: via psutil.Process().memory_info().rss
-      - **GPU/TPU**: via backend‐specific APIs (TensorFlow, PyTorch, JAX, OpenVINO)
+      - **GPU/TPU**: via backend‐specific APIs
+      (TensorFlow, PyTorch, JAX, OpenVINO)
 
     Logs are printed to stdout at the start/end of each epoch and,
     if `log_every_batch=True`, after every batch.  If `tensorboard_log_dir`
