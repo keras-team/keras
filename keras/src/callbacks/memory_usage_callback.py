@@ -4,6 +4,7 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src import backend as K
 
+# Attempt to import psutil for memory monitoring
 try:
     import psutil
 except ImportError:
