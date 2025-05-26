@@ -1186,7 +1186,6 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if not isinstance(axis, int):
         raise TypeError(f"'axis' must be an integer, got {type(axis)}")
 
-    # orig_dtype = dtype
     if dtype is None:
         start_type = (
             ov_to_keras_type(start.get_element_type())
@@ -1201,8 +1200,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
         dtype = dtypes.result_type(start_type, stop_type)
 
-    out_dtype = standardize_dtype(dtype)  # or config.floatx()
+    out_dtype = standardize_dtype(dtype) or np.float64  # config.floatx()
     out_dtype = OPENVINO_DTYPES[out_dtype]
+
+    if num == 0:
+        return OpenVINOKerasTensor(
+            ov_opset.constant(
+                [], dtype=OPENVINO_DTYPES[config.floatx()]
+            ).output(0)
+        )
 
     if (
         not hasattr(start, "get_element_type")
@@ -1215,25 +1221,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             num=num,
             endpoint=endpoint,
             base=base,
-            dtype=dtype,  # np.float64 if orig_dtype is None else
+            dtype=dtype,
         )
 
-        # np_dtype = np.float64 if orig_dtype is None else orig_dtype  # y.dtype
-        # np_dtype = standardize_dtype(np.float64)
-        # np_dtype = OPENVINO_DTYPES[np_dtype]
         return OpenVINOKerasTensor(
             ov_opset.convert(get_ov_output(y, out_dtype), out_dtype).output(0)
         )
 
-    if num == 0:
-        return OpenVINOKerasTensor(
-            ov_opset.constant(
-                [], dtype=OPENVINO_DTYPES[config.floatx()]
-            ).output(0)
-        )
-
     #########################################################
-    dtype = OPENVINO_DTYPES[config.floatx()]
+    # dtype = OPENVINO_DTYPES[config.floatx()]
 
     start, stop, base = (
         get_ov_output(start),
