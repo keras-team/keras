@@ -14,6 +14,7 @@ from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
+from keras.src.utils.python_utils import is_continuous_axis
 
 
 class Relu(Operation):
@@ -2772,6 +2773,14 @@ def rms_normalization(x, scale=1, axis=-1, epsilon=None):
 
 
 def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
+    if backend.backend() == "torch" and is_continuous_axis(axis):
+        import torch.nn.functional as F
+
+        if isinstance(axis, (tuple, list)):
+            normalized_shape = tuple([x.shape[dim] for dim in axis])
+        else:
+            normalized_shape = x.shape[axis]
+        return F.rms_norm(x, normalized_shape, scale, epsilon)
     x = backend.convert_to_tensor(x)
     if len(x.shape) == 0:
         x = backend.numpy.expand_dims(x, axis=0)
