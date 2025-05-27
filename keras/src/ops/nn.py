@@ -2799,6 +2799,142 @@ def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
     return (x * rrms) * scale
 
 
+class LayerNorm(Operation):
+    def __init__(
+        self, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
+    ):
+        super().__init__()
+        self.axis = axis
+        self.gamma = gamma
+        self.beta = beta
+        self.epsilon = epsilon
+        self.rms_scaling = rms_scaling
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape)
+
+    def call(self, x):
+        return _rms_normalization(
+            x,
+            gamma=self.gamma,
+            beta=self.beta,
+            axis=self.axis,
+            epsilon=self.epsilon,
+            rms_scaling=self.rms_scaling,
+        )
+
+
+@keras_export(
+    [
+        "keras.ops.layer_normalization",
+        "keras.ops.nn.layer_normalization",
+    ]
+)
+def layer_normalization(
+    x, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
+):
+    """Layer normalization layer (Ba et al., 2016).
+
+    Normalize the activations of the previous layer for each given example in a
+    batch independently, rather than across a batch like Batch Normalization.
+    i.e. applies a transformation that maintains the mean activation within each
+    example close to 0 and the activation standard deviation close to 1.
+    Args:
+        x: Input tensor.
+        axis: The axis or axes along which to perform normalization.
+            Default to -1.
+        gamma: Optional scaling factor for the normalization.
+        beta: Optional add offset for the normalized tensor.
+        rms_scaling:This is an approximate and faster
+            approach that avoids ever computing the mean of the input. Note that
+            this *isn't* equivalent to the computation that rms_normalization
+        epsilon: A lower bound value for the norm.
+            Defaults to `backend.epsilon()`.
+
+    Returns:
+        The normalized array.
+    >>> x = ops.arange(5,dtype = "float32")
+    >>> x_norm = ops.layer_normalization(x)
+    >>> print(x_norm)
+    array([-1.4142135 , -0.70710677,  0.,  0.7071067 ,  1.4142135 ])
+    """
+    if any_symbolic_tensors((x,)):
+        return LayerNorm(
+            gamma=gamma,
+            beta=beta,
+            axis=axis,
+            epsilon=epsilon,
+            rms_scaling=rms_scaling,
+        ).symbolic_call(x)
+    return _layer_normalization(
+        x,
+        gamma=gamma,
+        beta=beta,
+        axis=axis,
+        epsilon=epsilon,
+        rms_scaling=rms_scaling,
+    )
+
+
+def _layer_normalization(
+    inputs, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
+):
+    compute_dtype = backend.result_type(inputs.dtype, "float32")
+    # LN is prone to overflow with float16/bfloat16 inputs, so we upcast to
+    # float32 for the subsequent computations.
+    x = backend.cast(inputs, compute_dtype)
+    # Compute the axes along which to reduce the mean / variance
+    input_shape = x.shape
+    ndims = len(input_shape)
+
+    # Broadcasting only necessary for norm when the axis is not just
+    # the last dimension
+    broadcast_shape = [1] * ndims
+    if isinstance(axis, int):
+        axis = [axis]
+    for dim in axis:
+        broadcast_shape[dim] = input_shape[dim]
+
+    def _broadcast(v):
+        if v is not None and len(v.shape) != ndims and axis != [ndims - 1]:
+            return backend.numpy.reshape(v, broadcast_shape)
+        return v
+
+    if epsilon is None:
+        epsilon = backend.epsilon()
+
+    if rms_scaling:
+        # Calculate outputs with only variance and gamma if rms scaling
+        # is enabled
+        # Calculate the variance along self.axis (layer activations).
+        variance = backend.numpy.var(x, axis=axis, keepdims=True)
+        inv = backend.math.rsqrt(variance + epsilon)
+
+        outputs = x * inv * backend.cast(_broadcast(gamma), x.dtype)
+    elif backend.config.backend() == "torch" and is_continuous_axis(axis):
+        # when using torch backend,use kernel to improve performance
+        import torch.nn.functional as F
+
+        normalized_shape = tuple([input_shape[dim] for dim in axis])
+        outputs = F.layer_norm(x, normalized_shape, gamma, beta, epsilon)
+    else:
+        # Calculate the mean & variance along self.axis (layer activations).
+        mean, variance = moments(x, axes=axis, keepdims=True)
+        gamma, beta = _broadcast(gamma), _broadcast(beta)
+        inv = backend.math.rsqrt(variance + epsilon)
+        if gamma is not None:
+            gamma = backend.cast(gamma, x.dtype)
+            inv = inv * gamma
+
+        res = -mean * inv
+        if beta is not None:
+            beta = backend.cast(beta, x.dtype)
+            res = res + beta
+
+        outputs = x * inv + res
+    return backend.cast(outputs, inputs.dtype)
+
+
 class Polar(Operation):
     def __init__(self):
         super().__init__()

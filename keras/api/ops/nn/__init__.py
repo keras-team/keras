@@ -25,6 +25,7 @@ from keras.src.ops.nn import hard_sigmoid as hard_sigmoid
 from keras.src.ops.nn import hard_silu as hard_silu
 from keras.src.ops.nn import hard_silu as hard_swish
 from keras.src.ops.nn import hard_tanh as hard_tanh
+from keras.src.ops.nn import layer_normalization as layer_normalization
 from keras.src.ops.nn import leaky_relu as leaky_relu
 from keras.src.ops.nn import log_sigmoid as log_sigmoid
 from keras.src.ops.nn import log_softmax as log_softmax
