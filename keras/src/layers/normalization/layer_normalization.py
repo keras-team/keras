@@ -180,56 +180,18 @@ class LayerNormalization(Layer):
             self.beta = None
 
     def call(self, inputs):
-        # Compute the axes along which to reduce the mean / variance
-        input_shape = inputs.shape
-        ndims = len(input_shape)
-
-        # Broadcasting only necessary for norm when the axis is not just
-        # the last dimension
-        broadcast_shape = [1] * ndims
-        for dim in self.axis:
-            broadcast_shape[dim] = input_shape[dim]
-
-        def _broadcast(v):
-            if (
-                v is not None
-                and len(v.shape) != ndims
-                and self.axis != [ndims - 1]
-            ):
-                return ops.reshape(v, broadcast_shape)
-            return v
-
         compute_dtype = backend.result_type(inputs.dtype, "float32")
         # LN is prone to overflow with float16/bfloat16 inputs, so we upcast to
         # float32 for the subsequent computations.
         inputs = ops.cast(inputs, compute_dtype)
-
-        if self.rms_scaling:
-            # Calculate outputs with only variance and gamma if rms scaling
-            # is enabled
-            # Calculate the variance along self.axis (layer activations).
-            variance = ops.var(inputs, axis=self.axis, keepdims=True)
-            inv = ops.rsqrt(variance + self.epsilon)
-
-            outputs = (
-                inputs * inv * ops.cast(_broadcast(self.gamma), inputs.dtype)
-            )
-        else:
-            # Calculate the mean & variance along self.axis (layer activations).
-            mean, variance = ops.moments(inputs, axes=self.axis, keepdims=True)
-            gamma, beta = _broadcast(self.gamma), _broadcast(self.beta)
-
-            inv = ops.rsqrt(variance + self.epsilon)
-            if gamma is not None:
-                gamma = ops.cast(gamma, inputs.dtype)
-                inv = inv * gamma
-
-            res = -mean * inv
-            if beta is not None:
-                beta = ops.cast(beta, inputs.dtype)
-                res = res + beta
-
-            outputs = inputs * inv + res
+        outputs = ops.layer_normalization(
+            inputs,
+            self.gamma,
+            self.beta,
+            self.axis,
+            self.epsilon,
+            self.rms_scaling,
+        )
         return ops.cast(outputs, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
