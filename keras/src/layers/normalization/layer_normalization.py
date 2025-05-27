@@ -1,4 +1,3 @@
-from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -180,10 +179,6 @@ class LayerNormalization(Layer):
             self.beta = None
 
     def call(self, inputs):
-        compute_dtype = backend.result_type(inputs.dtype, "float32")
-        # LN is prone to overflow with float16/bfloat16 inputs, so we upcast to
-        # float32 for the subsequent computations.
-        inputs = ops.cast(inputs, compute_dtype)
         outputs = ops.layer_normalization(
             inputs,
             self.gamma,

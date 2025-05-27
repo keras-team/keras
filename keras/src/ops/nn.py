@@ -2853,10 +2853,10 @@ def layer_normalization(
 
     Returns:
         The normalized array.
-    >>> x = np.arange(5)
-    >>> x_norm = keras.ops.layer_normalization(x)
+    >>> x = ops.arange(5,dtype = "float32")
+    >>> x_norm = ops.layer_normalization(x)
     >>> print(x_norm)
-    array([[-0.41386, 0.29307, 1.0, 1.70693, 2.41386]])
+    array([-1.4142135 , -0.70710677,  0.,  0.7071067 ,  1.4142135 ])
     """
     if any_symbolic_tensors((x,)):
         return LayerNorm(
@@ -2877,8 +2877,12 @@ def layer_normalization(
 
 
 def _layer_normalization(
-    x, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
+    inputs, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
 ):
+    compute_dtype = backend.result_type(inputs.dtype, "float32")
+    # LN is prone to overflow with float16/bfloat16 inputs, so we upcast to
+    # float32 for the subsequent computations.
+    x = backend.cast(inputs, compute_dtype)
     # Compute the axes along which to reduce the mean / variance
     input_shape = x.shape
     ndims = len(input_shape)
@@ -2895,6 +2899,9 @@ def _layer_normalization(
         if v is not None and len(v.shape) != ndims and axis != [ndims - 1]:
             return backend.numpy.reshape(v, broadcast_shape)
         return v
+
+    if epsilon is None:
+        epsilon = backend.epsilon()
 
     if rms_scaling:
         # Calculate outputs with only variance and gamma if rms scaling
@@ -2925,7 +2932,7 @@ def _layer_normalization(
             res = res + beta
 
         outputs = x * inv + res
-    return outputs
+    return backend.cast(outputs, inputs.dtype)
 
 
 class Polar(Operation):
