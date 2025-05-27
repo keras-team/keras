@@ -2886,6 +2886,8 @@ def _layer_normalization(
     # Broadcasting only necessary for norm when the axis is not just
     # the last dimension
     broadcast_shape = [1] * ndims
+    if isinstance(axis, int):
+        axis = [axis]
     for dim in axis:
         broadcast_shape[dim] = input_shape[dim]
 
