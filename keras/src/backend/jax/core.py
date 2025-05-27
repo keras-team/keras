@@ -49,32 +49,13 @@ class Variable(nnx.Variable, KerasVariable):
         nnx.Variable.__init__(instance, raw_value=value)
         return instance
 
-    def __init__(
-        self,
-        initializer,
-        shape=None,
-        dtype=None,
-        trainable=True,
-        autocast=True,
-        aggregation="none",
-        synchronization="auto",
-        name=None,
-    ):
-        # Regular KerasVariable init
-        KerasVariable.__init__(
-            self,
-            initializer,
-            shape=shape,
-            dtype=dtype,
-            trainable=trainable,
-            autocast=autocast,
-            aggregation=aggregation,
-            synchronization=synchronization,
-            name=name,
-        )
+    def __init__(self, *args, layout=None, **kwargs):
+      # Intercept layout parameter so that it is available
+      # during initialization.
+      nnx.Variable.__init__(self, *args, **kwargs)
+      KerasVariable.__init__(self, *args, **kwargs)
 
-        self.trainable = trainable
-        self._name = name
+      self._layout = layout
 
     @property
     def value(self):
