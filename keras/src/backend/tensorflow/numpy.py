@@ -146,6 +146,21 @@ def bartlett(x):
     return window
 
 
+def hamming(x):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.hamming_window(x, periodic=False)
+
+
+def hanning(x):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.hann_window(x, periodic=False)
+
+
+def kaiser(x, beta):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.kaiser_window(x, beta=beta)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
@@ -1835,12 +1850,10 @@ def not_equal(x1, x2):
     return tf.not_equal(x1, x2)
 
 
-@sparse.elementwise_unary
 def ones_like(x, dtype=None):
     return tf.ones_like(x, dtype=dtype)
 
 
-@sparse.elementwise_unary
 def zeros_like(x, dtype=None):
     return tf.zeros_like(x, dtype=dtype)
 

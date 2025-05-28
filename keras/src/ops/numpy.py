@@ -1239,6 +1239,106 @@ def bartlett(x):
     return backend.numpy.bartlett(x)
 
 
+class Hamming(Operation):
+    def call(self, x):
+        return backend.numpy.hamming(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.hamming", "keras.ops.numpy.hamming"])
+def hamming(x):
+    """Hamming window function.
+
+    The Hamming window is defined as:
+    `w[n] = 0.54 - 0.46 * cos(2 * pi * n / (N - 1))` for `0 <= n <= N - 1`.
+
+    Args:
+        x: Scalar or 1D Tensor. The window length.
+
+    Returns:
+        A 1D tensor containing the Hamming window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.hamming(x)
+    array([0.08, 0.54, 1.  , 0.54, 0.08], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Hamming().symbolic_call(x)
+    return backend.numpy.hamming(x)
+
+
+class Hanning(Operation):
+    def call(self, x):
+        return backend.numpy.hanning(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.hanning", "keras.ops.numpy.hanning"])
+def hanning(x):
+    """Hanning window function.
+
+    The Hanning window is defined as:
+    `w[n] = 0.5 - 0.5 * cos(2 * pi * n / (N - 1))` for `0 <= n <= N - 1`.
+
+    Args:
+        x: Scalar or 1D Tensor. The window length.
+
+    Returns:
+        A 1D tensor containing the Hanning window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.hanning(x)
+    array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Hanning().symbolic_call(x)
+    return backend.numpy.hanning(x)
+
+
+class Kaiser(Operation):
+    def __init__(self, beta):
+        super().__init__()
+        self.beta = beta
+
+    def call(self, x):
+        return backend.numpy.kaiser(x, self.beta)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=backend.floatx())
+
+
+@keras_export(["keras.ops.kaiser", "keras.ops.numpy.kaiser"])
+def kaiser(x, beta):
+    """Kaiser window function.
+
+    The Kaiser window is defined as:
+    `w[n] = I0(beta * sqrt(1 - (2n / (N - 1) - 1)^2)) / I0(beta)`
+    where I0 is the modified zeroth-order Bessel function of the first kind.
+
+    Args:
+        x: Scalar or 1D Tensor. The window length.
+        beta: Float. Shape parameter for the Kaiser window.
+
+    Returns:
+        A 1D tensor containing the Kaiser window values.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor(5)
+    >>> keras.ops.kaiser(x, beta=14.0)
+    array([7.7268669e-06, 1.6493219e-01, 1.0000000e+00, 1.6493219e-01,
+       7.7268669e-06], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Kaiser(beta).symbolic_call(x)
+    return backend.numpy.kaiser(x, beta)
+
+
 class Bincount(Operation):
     def __init__(self, weights=None, minlength=0, sparse=False):
         super().__init__()
@@ -4485,8 +4585,7 @@ class OnesLike(Operation):
     def compute_output_spec(self, x, dtype=None):
         if dtype is None:
             dtype = x.dtype
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ones_like", "keras.ops.numpy.ones_like"])
@@ -4512,8 +4611,7 @@ class ZerosLike(Operation):
     def compute_output_spec(self, x, dtype=None):
         if dtype is None:
             dtype = x.dtype
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(

@@ -152,7 +152,16 @@ def build():
     try:
         os.chdir(build_dir)
         open(build_api_init_fname, "w").close()
-        namex.generate_api_files("keras", code_directory="src")
+        namex.generate_api_files(
+            "keras",
+            code_directory="src",
+            exclude_directories=[
+                os.path.join("src", "backend", "jax"),
+                os.path.join("src", "backend", "openvino"),
+                os.path.join("src", "backend", "tensorflow"),
+                os.path.join("src", "backend", "torch"),
+            ],
+        )
         # Add __version__ to `api/`.
         export_version_string(build_api_init_fname)
         # Creates `_tf_keras` with full keras API
