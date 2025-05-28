@@ -78,7 +78,7 @@ class CSVLogger(Callback):
                 if key.startswith("val_"):
                     val_keys_found = True
                     break
-            if not val_keys_found:
+            if not val_keys_found and self.keys:
                 self.keys.extend(["val_" + k for k in self.keys])
 
         if not self.writer:
