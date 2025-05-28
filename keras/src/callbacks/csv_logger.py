@@ -74,11 +74,10 @@ class CSVLogger(Callback):
             self.keys = sorted(logs.keys())
 
             # Check if the model is expected to produce validation metrics.
-            if hasattr(self.model, "metrics_names"):
-                expected_metrics = self.model.metrics_names
-                for m_name in expected_metrics:
-                    if m_name.startswith("val_") and m_name not in self.keys:
-                        self.keys.append(m_name)
+            expected_metrics = self.model.metrics_names
+            for m_name in expected_metrics:
+                if m_name.startswith("val_") and m_name not in self.keys:
+                    self.keys.append(m_name)
 
         if not self.writer:
 
