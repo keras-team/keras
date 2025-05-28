@@ -20,32 +20,19 @@ SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
-def in_stateless_scope():
-    return global_state.get_global_attribute("stateless_scope") is not None
-
-
-def get_stateless_scope():
-    return global_state.get_global_attribute("stateless_scope")
-
-
-def shape_equal(a_shape, b_shape):
-    """Return whether a_shape == b_shape (allows None entries)."""
-    if len(a_shape) != len(b_shape):
-        return False
-    for e1, e2 in zip(a_shape, b_shape):
-        if e1 is not None and e2 is not None and e1 != e2:
-            return False
-    return True
-
-
 # existing implementation
 class JaxVariable(KerasVariable):
     def __init__(self, *args, layout=None, **kwargs):
+        # Intercept layout parameter so that it is available
+        # during initialization.
         self._layout = layout
         super().__init__(*args, **kwargs)
 
     def _initialize(self, value):
+        # Note that variable.shape is needed by distribution_lib
         self._shape = self._validate_shape(value.shape)
+        # We can't import the keras/distribution/distribution_lib
+        # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
         if self._layout is None and distribution is not None:
             tensor_layout = distribution.get_variable_layout(self)
@@ -65,6 +52,7 @@ class JaxVariable(KerasVariable):
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype, sparse=False)
 
+    # Overload native accessor.
     def __jax_array__(self):
         return self.value
 
