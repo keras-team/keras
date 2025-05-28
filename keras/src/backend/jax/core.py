@@ -122,15 +122,14 @@ class Variable(JaxVariable, nnx.Variable):
             return  # Already done
 
         if self._value is None:
-            # This can happen if _deferred_initialize was called but _value somehow didn't get set
-            # Or if this is called too early. Keras's _initializer should not be None here.
             raise ValueError(
                 "Cannot initialize NNX part: Keras self._value is None, "
                 "but Keras initializer is also None (should not be deferred)."
             )
 
         # Determine nnx_mutable for nnx.Variable.__init__
-        # If user didn't specify nnx_mutable, default to Keras's trainable status.
+        # If user didn't specify nnx_mutable, default to Keras's trainable
+        # status.
         current_nnx_mutable = self._nnx_mutable_arg
         if current_nnx_mutable is None:
             current_nnx_mutable = self.trainable  # A sensible default link
@@ -145,7 +144,8 @@ class Variable(JaxVariable, nnx.Variable):
         self._nnx_init_pending = False
 
     def _deferred_initialize(self):
-        # This is called by Keras when it's time to actually create the variable's value
+        # This is called by Keras when it's time to actually create the
+        # variable's value
         super()._deferred_initialize()
         self._complete_nnx_init()
 
@@ -193,7 +193,8 @@ class Variable(JaxVariable, nnx.Variable):
         if not isinstance(other, Variable):
             pass
 
-        # Let nnx.Variable handle its part (updates self.raw_value and self._var_metadata)
+        # Let nnx.Variable handle its part (updates self.raw_value and
+        # self._var_metadata)
         # Need to call nnx.Variable.copy_from specifically.
         nnx.Variable.copy_from(self, other)
 
@@ -214,7 +215,8 @@ class Variable(JaxVariable, nnx.Variable):
                 self._layout = other._layout
 
     def update_from_state(self, variable_state: nnx.graph.VariableState):
-        # Let nnx.Variable handle its part (updates self.raw_value and self._var_metadata)
+        # Let nnx.Variable handle its part (updates self.raw_value and
+        # self._var_metadata)
         nnx.Variable.update_from_state(self, variable_state)
 
         # Sync Keras's self._value
