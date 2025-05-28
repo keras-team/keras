@@ -79,6 +79,8 @@ class Progbar:
 
         values = values or []
         for k, v in values:
+            if finalize and k not in self.stateful_metrics:
+                self._values[k] = [v, 1]
             if k not in self._values_order:
                 self._values_order.append(k)
             if k not in self.stateful_metrics:
