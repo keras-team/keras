@@ -73,11 +73,13 @@ class CSVLogger(Callback):
         if self.keys is None:
             self.keys = sorted(logs.keys())
 
-            # Check if the model is expected to produce validation metrics.
-            expected_metrics = self.model.metrics_names
-            for m_name in expected_metrics:
-                if m_name.startswith("val_") and m_name not in self.keys:
-                    self.keys.append(m_name)
+            val_keys_found = False
+            for key in self.keys:
+                if key.startswith("val_"):
+                    val_keys_found = True
+                    break
+            if not val_keys_found:
+                self.keys.extend(["val_" + k for k in self.keys])
 
         if not self.writer:
 
