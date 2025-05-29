@@ -3,7 +3,7 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
-from flax import nnx
+from flax.experimental import nnx
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
@@ -12,6 +12,8 @@ from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.stateless_scope import get_stateless_scope
+from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
@@ -20,13 +22,125 @@ SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
-# existing implementation
-class JaxVariable(KerasVariable):
-    def __init__(self, *args, layout=None, **kwargs):
-        # Intercept layout parameter so that it is available
-        # during initialization.
-        self._layout = layout
-        super().__init__(*args, **kwargs)
+class Variable(KerasVariable, nnx.Variable):
+    def __init__(
+        self,
+        initializer,
+        shape=None,
+        dtype=None,
+        trainable=True,
+        autocast=True,
+        aggregation="none",
+        synchronization="auto",
+        name=None,
+        layout=None,
+        mutable=None,
+        **nnx_metadata,
+    ):
+        # Determine NNX mutability. This needs to be known for nnx.Variable.__init__.
+        if mutable is None:
+            actual_nnx_mutable = (
+                trainable  # Keras 'trainable' maps to NNX 'mutable'
+            )
+        else:
+            actual_nnx_mutable = mutable
+
+        # Ensure 'mutable' is in nnx_metadata, but explicit 'mutable' param takes precedence.
+        if "mutable" in nnx_metadata and mutable is not None:
+            nnx_metadata["mutable"] = actual_nnx_mutable
+        elif "mutable" not in nnx_metadata:
+            nnx_metadata["mutable"] = actual_nnx_mutable
+
+        # Initialize nnx.Variable first.
+        if shape is not None and dtype is not None:
+            # If initializer is a Keras callable, it's not ready yet.
+            # If initializer is already a value, KerasVariable will handle it.
+            # We need a concrete array for the placeholder.
+            _placeholder_value = jnp.zeros(
+                shape, dtype=standardize_dtype(dtype)
+            )
+        elif shape is not None:
+            _placeholder_value = jnp.zeros(shape, dtype=jnp.float32)
+        else:
+            _placeholder_value = jnp.array(0.0, dtype=jnp.float32)
+
+        # Call nnx.Variable.__init__ directly.
+        nnx.Variable.__init__(self, value=_placeholder_value, **nnx_metadata)
+
+        # Store JAX-specific layout using object.__setattr__ BEFORE KerasVariable init.
+        # This is because KerasVariable.__init__ will call self._initialize, which uses self._layout.
+        object.__setattr__(self, "_layout", layout)
+
+        # Initialize KerasVariable.
+        super(Variable, self).__init__(
+            initializer=initializer,
+            shape=shape,
+            dtype=dtype,
+            trainable=trainable,  # Pass Keras trainable
+            autocast=autocast,
+            aggregation=aggregation,
+            synchronization=synchronization,
+            name=name,
+        )
+
+        # self._value now holds the true JAX array from KerasVariable init.
+        # Update nnx.Variable's internal value (raw_value) to match.
+        object.__setattr__(self, "raw_value", self._value)
+
+    def __getstate__(self):
+        # Get the state from KerasVariable (attributes in __dict__)
+        # KerasVariable does not have a custom __getstate__, so we mimic default behavior.
+        keras_state = self.__dict__.copy()
+
+        # Get the state from nnx.Variable
+        nnx_specific_state = super(KerasVariable, self).__getstate__()
+
+        # Merge them. Keras state is primary. NNX specific state adds to it.
+        if "raw_value" in nnx_specific_state:
+            keras_state["_value"] = nnx_specific_state["raw_value"]
+
+        # Add NNX attributes that are not in Keras's __dict__
+        if "_trace_state" in nnx_specific_state:
+            keras_state["_trace_state"] = nnx_specific_state["_trace_state"]
+        if "_var_metadata" in nnx_specific_state:
+            keras_state["_var_metadata"] = nnx_specific_state["_var_metadata"]
+
+        # Remove elements that might be problematic or redundant if nnx.Variable's __getstate__
+        keras_state.pop("raw_value", None)
+
+        return keras_state
+
+    def __setstate__(self, state):
+        # Separate nnx specific keys that we added if they are not part of Keras __dict__
+        # Our __getstate__ puts them into the main state dictionary.
+        nnx_raw_value = state["_value"]  # This was raw_value
+        nnx_trace_state = state.pop("_trace_state", None)
+        nnx_var_metadata = state.pop("_var_metadata", None)
+
+        # Populate the instance's __dict__ with the Keras attributes.
+        self.__dict__.update(state)
+
+        # restore the nnx.Variable specific slotted attributes.
+        object.__setattr__(self, "raw_value", nnx_raw_value)
+
+        if nnx_trace_state is not None:
+            object.__setattr__(self, "_trace_state", nnx_trace_state)
+        else:
+            pass
+
+        if nnx_var_metadata is not None:
+            object.__setattr__(self, "_var_metadata", nnx_var_metadata)
+        else:
+            pass
+
+        # Ensure Keras's self._value is also consistent with the restored raw_value
+        object.__setattr__(self, "_value", nnx_raw_value)
+
+        if hasattr(self, "_shape") and self._shape is not None:
+            self._ndim = len(self._shape)
+        else:
+            # Fallback if shape isn't immediately available.
+            self._ndim = len(self.raw_value.shape)
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
@@ -45,9 +159,35 @@ class JaxVariable(KerasVariable):
         self._direct_assign(value)
 
     def _direct_assign(self, value):
+        # Apply JAX-specific distribution if layout is present
         if self._layout is not None:
-            value = distribution_lib.distribute_variable(value, self._layout)
-        self._value = value
+            processed_value = distribution_lib.distribute_variable(
+                value, self._layout
+            )
+        else:
+            processed_value = value
+
+        # Update Keras's internal _value
+        self._value = processed_value
+
+        # Ensure that nnx.Variable part is initialized
+        if not hasattr(self, "_var_metadata"):
+            # todo: should add a warning
+            pass
+
+        # Apply on_set_value hook if it exists
+        if (
+            hasattr(self, "_var_metadata")
+            and "on_set_value" in self._var_metadata
+        ):
+            final_value = self._var_metadata["on_set_value"](
+                self, processed_value
+            )
+        else:
+            final_value = processed_value
+
+        # Directly set raw_value. nnx.Variable handles mutable array updates
+        object.__setattr__(self, "raw_value", final_value)
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype, sparse=False)
@@ -56,238 +196,38 @@ class JaxVariable(KerasVariable):
     def __jax_array__(self):
         return self.value
 
-
-class Variable(JaxVariable, nnx.Variable):
-    def __init__(
-        self,
-        initializer,
-        shape=None,
-        dtype=None,
-        trainable=True,
-        # Keras specific args from KerasVariable
-        autocast=True,
-        aggregation="none",
-        synchronization="auto",
-        name=None,
-        # Keras JAX backend specific
-        layout=None,
-        # NNX specific args
-        nnx_mutable=None,  # NNX's own mutable flag
-        *args,
-        **nnx_metadata,  # For nnx.Variable's **metadata
-    ):
-        # We need to call KerasJaxVariableImpl.__init__ first
-        # KerasJaxVariableImpl's __init__ takes `layout` specifically
-        # and forwards other Keras common args to CommonKerasVariable.__init__
-        super(
-            JaxVariable, self
-        ).__init__(  # Explicitly call KerasJaxVariableImpl's __init__
-            initializer=initializer,
-            shape=shape,
-            dtype=dtype,
-            trainable=trainable,
-            autocast=autocast,
-            aggregation=aggregation,
-            synchronization=synchronization,
-            name=name,
-            layout=layout,
-            *args,
-        )
-
-        # Store NNX args for potential deferred initialization
-        self._nnx_mutable_arg = nnx_mutable
-        self._nnx_metadata_arg = nnx_metadata.copy()
-        self._nnx_init_pending = True
-
-        # If Keras initialization was not deferred, self._value is now set.
-        # So we can proceed to initialize the nnx.Variable part.
-        if self._initializer is None:
-            self._complete_nnx_init()
-
-    def _complete_nnx_init(self):
-        """Initializes the nnx.Variable part of this instance."""
-        if not self._nnx_init_pending:
-            return  # Already done
-
-        if self._value is None:
-            raise ValueError(
-                "Cannot initialize NNX part: Keras self._value is None, "
-                "but Keras initializer is also None (should not be deferred)."
-            )
-
-        # Determine nnx_mutable for nnx.Variable.__init__
-        # If user didn't specify nnx_mutable, default to Keras's trainable
-        # status.
-        current_nnx_mutable = self._nnx_mutable_arg
-        if current_nnx_mutable is None:
-            current_nnx_mutable = self.trainable  # A sensible default link
-
-        # initialize the nnx.Variable
-        nnx.Variable.__init__(
-            self,
-            value=self._value,
-            mutable=current_nnx_mutable,
-            **self._nnx_metadata_arg,
-        )
-        self._nnx_init_pending = False
-
-    def _deferred_initialize(self):
-        # This is called by Keras when it's time to actually create the
-        # variable's value
-        super()._deferred_initialize()
-        self._complete_nnx_init()
-
-    def _direct_assign(self, value):
-        super()._direct_assign(value)  # This sets self._value
-
-        # After self._value is updated by Keras, sync nnx.Variable.raw_value
-        # Only if NNX part is already initialized.
-        if not self._nnx_init_pending:
-            nnx_stores_mutable = False
-            if (
-                self._nnx_mutable_arg is None
-            ):  # Check how nnx_mutable was resolved
-                nnx_stores_mutable = self.trainable
-            else:
-                nnx_stores_mutable = self._nnx_mutable_arg
-
-            if nnx_stores_mutable and nnx.utils.is_mutable_array(
-                self.raw_value
-            ):
-                # If raw_value is a mutable_array, update its content
-                self.raw_value[...] = self._value
-            else:
-                object.__setattr__(self, "raw_value", self._value)
-
     @property
     def value(self):
-        # This will be KerasVariable.value:
-        return super().value
-
-    @value.setter
-    def value(self, new_value):
-        self.assign(
-            new_value
-        )  # assign will call _direct_assign, which syncs raw_value
-
-    # Overriding NNX methods that modify `raw_value` or `_var_metadata` directly
-    # to ensure Keras's `_value` and other Keras states are in sync.
-
-    def copy_from(self, other: nnx.Variable):  # type: ignore
-        if not isinstance(other, nnx.Variable):  # Basic check from nnx
-            raise TypeError(
-                f"Expected nnx.Variable, got {type(other).__name__}"
-            )
-        if not isinstance(other, Variable):
-            pass
-
-        # Let nnx.Variable handle its part (updates self.raw_value and
-        # self._var_metadata)
-        # Need to call nnx.Variable.copy_from specifically.
-        nnx.Variable.copy_from(self, other)
-
-        # Now, self.raw_value is updated. Sync Keras's self._value.
-        # Extract the JAX array if raw_value is a nnx.mutable_array
-        keras_value_to_assign = self.raw_value
-        if nnx.utils.is_mutable_array(keras_value_to_assign):
-            keras_value_to_assign = keras_value_to_assign.__array__()
-
-        self.assign(keras_value_to_assign)
-
-        # Sync Keras-specific attributes if `other` is also a JaxNnxVariable
-        if isinstance(other, Variable):
-            self.trainable = other.trainable
-            self._autocast = other._autocast
-            self._aggregation = other._aggregation
-            if hasattr(other, "_layout"):
-                self._layout = other._layout
-
-    def update_from_state(self, variable_state: nnx.graph.VariableState):
-        # Let nnx.Variable handle its part (updates self.raw_value and
-        # self._var_metadata)
-        nnx.Variable.update_from_state(self, variable_state)
-
-        # Sync Keras's self._value
-        keras_value_to_assign = self.raw_value
-        if nnx.utils.is_mutable_array(keras_value_to_assign):
-            keras_value_to_assign = keras_value_to_assign.__array__()
-
-        self.assign(keras_value_to_assign)
-
-        # Sync Keras attributes if they were part of variable_state.metadata
-        if "trainable" in variable_state._var_metadata:  # type: ignore
-            self.trainable = variable_state._var_metadata["trainable"]
-            self._autocast = variable_state._var_metadata["autocast"]
-
-    def __getstate__(self):
-        keras_state = {
-            # Keras common attributes (from CommonKerasVariable)
-            "_name": self._name,
-            "_path": self._path,
-            "_trainable": self._trainable,
-            "_dtype": self._dtype,
-            "_shape": self._shape,
-            "_autocast": self._autocast,
-            "_aggregation": self._aggregation,
-            "_synchronization": self._synchronization,
-            "_regularizer": self._regularizer,
-            "_constraint": self._constraint,
-            # Keras JAX backend specific
-            "_layout": self._layout,
-            # Value itself (will be part of nnx_state's raw_value too)
-            "_value": self._value,  # Keras's value (JAX array)
-            "_initializer": self._initializer,  # In case it's not initialized
-            # NNX specific args that were stored at init
-            "_nnx_mutable_arg": self._nnx_mutable_arg,
-            "_nnx_metadata_arg": self._nnx_metadata_arg,
-            "_nnx_init_pending": self._nnx_init_pending,
-        }
-        nnx_state = nnx.Variable.__getstate__(self)
-        return {"keras_state": keras_state, "nnx_state": nnx_state}
-
-    def __setstate__(self, state):
-        keras_state = state["keras_state"]
-        nnx_state = state["nnx_state"]
-
-        # Restore Keras attributes
-        for k, v in keras_state.items():
-            object.__setattr__(self, k, v)
-
-        # Restore NNX attributes using its __setstate__
-        nnx.Variable.__setstate__(self, nnx_state)
-
-        if (
-            self._initializer is not None and self._value is None
-        ):  # Was deferred pre-pickle
-            if (
-                not self._nnx_init_pending
-                and hasattr(self, "raw_value")
-                and self.raw_value is not None
-            ):
-                pass  # self._value is already set from keras_state.
-
-        # If self._value exists (from Keras state), ensure nnx.raw_value matches
-        if self._value is not None:
-            if self._nnx_init_pending:
-                self._complete_nnx_init()
-            else:
-                # This is similar to _direct_assign's sync logic.
-                current_nnx_mutable = self._nnx_mutable_arg
-                if current_nnx_mutable is None:
-                    current_nnx_mutable = self.trainable
-
-                if current_nnx_mutable and nnx.utils.is_mutable_array(
-                    self.raw_value
-                ):
-                    self.raw_value[...] = self._value
+        if not hasattr(self, "raw_value"):
+            if not hasattr(self, "_value") or self._value is None:
+                if self._initializer is not None:
+                    initial_value = self._initializer(
+                        self._shape, dtype=self._dtype
+                    )
+                    return self._maybe_autocast(initial_value)
                 else:
-                    object.__setattr__(self, "raw_value", self._value)
-        elif (
-            not self._nnx_init_pending
-            and hasattr(self, "raw_value")
-            and self.raw_value is not None
-        ):
-            object.__setattr__(self, "_value", self.raw_value)
+                    raise AttributeError(
+                        "Variable is not properly initialized and has no initializer."
+                    )
+            current_value = self._value
+        else:
+            current_value = self.raw_value
+            # NNX specific: if raw_value is a mutable_array wrapper, get the actual array.
+            if (
+                hasattr(self, "_var_metadata")
+                and "on_get_value" in self._var_metadata
+            ):
+                current_value = self._var_metadata["on_get_value"](
+                    self, current_value
+                )
+
+        if in_stateless_scope():
+            scope = get_stateless_scope()
+            stateless_value = scope.get_current_value(self)
+            if stateless_value is not None:
+                return self._maybe_autocast(stateless_value)
+
+        return self._maybe_autocast(current_value)
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
