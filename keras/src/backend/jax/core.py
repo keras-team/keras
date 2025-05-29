@@ -3,7 +3,7 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
-from flax.experimental import nnx
+from flax import nnx
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
