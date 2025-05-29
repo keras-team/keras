@@ -1508,9 +1508,9 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
                 check_is_flash_attention_kwargs.pop(param)
         check_is_flash_attention(**check_is_flash_attention_kwargs)
         return True
-    except Exception as e:
+    except:
         if raise_error:
-            raise e
+            raise
         return False
 
 
