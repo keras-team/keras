@@ -1062,6 +1062,8 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
             q_seqlen=None,
             kv_seqlen=None,
             layout=_normalize_layout("BTNH"),
+            q_offsets=None,
+            kv_offsets=None,
         )
         check_is_flash_attention(
             query,
@@ -1072,9 +1074,9 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
             is_training=False,
         )
         return True
-    except:
+    except Exception as e:
         if raise_error:
-            raise
+            raise e
         return False
 
 
