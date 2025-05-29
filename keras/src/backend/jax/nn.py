@@ -1072,9 +1072,9 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
             is_training=False,
         )
         return True
-    except:
+    except Exception as e:
         if raise_error:
-            raise
+            raise e
         return False
 
 
