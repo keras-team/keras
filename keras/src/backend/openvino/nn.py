@@ -78,11 +78,9 @@ def elu(x, alpha=1.0):
     return OpenVINOKerasTensor(ov_opset.elu(x, alpha).output(0))
 
 
-def selu(
-    x,
-    alpha=1.6732632423543772848170429916717,
-    scale=1.0507009873554804934193349852946,
-):
+def selu(x):
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
     x = get_ov_output(x)
     alpha = get_ov_output(alpha, x.get_element_type())
     scale = get_ov_output(scale, x.get_element_type())
@@ -97,7 +95,7 @@ def gelu(x, approximate=True):
     return OpenVINOKerasTensor(ov_opset.gelu(x, approximate_mode).output(0))
 
 
-def softmax(x, axis=None):
+def softmax(x, axis=-1):
     x = get_ov_output(x)
     if axis is None:
         x_shape = ov_opset.shape_of(x)
@@ -110,7 +108,7 @@ def softmax(x, axis=None):
     return OpenVINOKerasTensor(ov_opset.softmax(x, axis).output(0))
 
 
-def log_softmax(x, axis=None):
+def log_softmax(x, axis=-1):
     x = get_ov_output(x)
     if axis is None:
         x_shape = ov_opset.shape_of(x)
@@ -138,8 +136,8 @@ def max_pool(
 def average_pool(
     inputs,
     pool_size,
-    strides,
-    padding,
+    strides=None,
+    padding="valid",
     data_format=None,
 ):
     raise NotImplementedError(
@@ -375,13 +373,13 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     raise NotImplementedError(
         "`one_hot` is not supported with openvino backend"
     )
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     raise NotImplementedError(
         "`multi_hot` is not supported with openvino backend"
     )

@@ -125,11 +125,9 @@ def elu(x, alpha=1.0):
     )
 
 
-def selu(
-    x,
-    alpha=1.6732632423543772848170429916717,
-    scale=1.0507009873554804934193349852946,
-):
+def selu(x):
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
     return np.array(scale, x.dtype) * elu(x, alpha)
 
@@ -196,20 +194,20 @@ def threshold(x, threshold, default_value):
     return np.where(x > threshold, x, np.array(default_value, dtype=x.dtype))
 
 
-def softmax(x, axis=None):
+def softmax(x, axis=-1):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 
-def log_softmax(x, axis=None):
+def log_softmax(x, axis=-1):
     max_x = np.max(x, axis=axis, keepdims=True)
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
     logits_cumsum = np.cumsum(logits_sorted, axis=axis)
     r = np.arange(1, logits.shape[axis] + 1)
@@ -304,8 +302,8 @@ def max_pool(
 def average_pool(
     inputs,
     pool_size,
-    strides,
-    padding,
+    strides=None,
+    padding="valid",
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
@@ -543,9 +541,11 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")
+    if dtype is None:
+        dtype = "float32"
     x = convert_to_tensor(x)
     input_shape = x.shape
 
@@ -569,7 +569,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     return categorical
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")
     x = convert_to_tensor(x)
