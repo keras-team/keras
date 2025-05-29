@@ -1217,11 +1217,17 @@ def dot_product_attention(
     platform = jax.devices()[0].platform
     is_tpu = platform == "tpu"
 
-    # Get sharding parameters from distribution context
-    head_shards = 1
-    q_seq_shards = 1
+    # Determine flash attention compatibility
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(query, key, value, bias, raise_error=True)
 
-    if is_tpu:
+    # TPU-specific flash attention path
+    if is_tpu and flash_attention:
+        # Get sharding parameters from distribution context
         try:
             from keras.src.distribution.distribution_lib import ModelParallel
             from keras.src.distribution.distribution_lib import (
@@ -1242,44 +1248,6 @@ def dot_product_attention(
             # Use default values if detection fails
             head_shards = 1
             q_seq_shards = 1
-
-    # Check if inputs use partial sharding (not fully replicated)
-    # Flash attention works well with fully replicated tensors on all platforms
-    # but may have issues with certain partial sharding patterns on non-TPU
-    # platforms
-    partially_sharded_inputs = any(
-        hasattr(t, "sharding") and not t.sharding.is_fully_replicated
-        for t in (query, key, value)
-    )
-
-    # Determine flash attention compatibility
-    if flash_attention is None:
-        # Auto-detect flash attention availability
-        if is_tpu:
-            # TPUs have specialized hardware for attention that works with any
-            # sharding pattern
-            flash_attention = True
-        else:
-            # For GPU/CPU with partially sharded inputs, we need
-            # multiple devices to efficiently handle the sharding
-            if partially_sharded_inputs and len(jax.devices()) <= 1:
-                flash_attention = False
-            else:
-                flash_attention = _can_use_flash_attention(
-                    query, key, value, bias
-                )
-    elif flash_attention is True and not is_tpu:
-        # If flash attention is explicitly requested, validate compatibility
-        # Skip validation for TPU as it has specialized hardware support
-        try:
-            _can_use_flash_attention(query, key, value, bias, raise_error=True)
-        except Exception:
-            # Only disable flash attention on non-TPU platforms
-            # if validation fails
-            flash_attention = False
-
-    # TPU-specific flash attention path
-    if is_tpu and flash_attention:
         # Transpose to ('batch', 'heads', 'length', 'head_dim')
         query_tpu_layout = jnp.transpose(query, axes=(0, 2, 1, 3))
         key_tpu_layout = jnp.transpose(key, axes=(0, 2, 1, 3))
