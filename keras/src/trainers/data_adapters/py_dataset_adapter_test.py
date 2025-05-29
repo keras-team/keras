@@ -422,3 +422,32 @@ class PyDatasetAdapterTest(testing.TestCase):
             expected_exception_class, "Expected exception"
         ):
             next(it)
+
+    def test_iterate_finite(self):
+        py_dataset = ExamplePyDataset(
+            np.ones((6, 11), dtype="int32"),
+            np.zeros((6, 11), dtype="int32"),
+            batch_size=2,
+        )
+        batches = [batch for batch in py_dataset]
+        self.assertLen(batches, 3)
+
+    def test_iterate_infinite_with_none_num_batches(self):
+        py_dataset = ExamplePyDataset(
+            np.ones((6, 11), dtype="int32"),
+            np.zeros((6, 11), dtype="int32"),
+            batch_size=2,
+            infinite=True,
+        )
+        for index, _ in enumerate(py_dataset):
+            if index >= 10:
+                break
+
+    def test_iterate_infinite_with_no_len(self):
+        class NoLenDataset(py_dataset_adapter.PyDataset):
+            def __getitem__(self, idx):
+                yield np.ones((2, 11), dtype="int32")
+
+        for index, _ in enumerate(NoLenDataset()):
+            if index >= 10:
+                break

@@ -1232,6 +1232,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.hamming(x).shape[0], x)
 
+    def test_hanning(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertEqual(knp.hanning(x).shape[0], x)
+
     def test_kaiser(self):
         x = np.random.randint(1, 100 + 1)
         beta = float(np.random.randint(10, 20 + 1))
@@ -3625,6 +3629,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Hamming()(x), np.hamming(x))
 
+    def test_hanning(self):
+        x = np.random.randint(1, 100 + 1)
+        self.assertAllClose(knp.hanning(x), np.hanning(x))
+
+        self.assertAllClose(knp.Hanning()(x), np.hanning(x))
+
     def test_kaiser(self):
         x = np.random.randint(1, 100 + 1)
         beta = float(np.random.randint(10, 20 + 1))
@@ -5636,6 +5646,22 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Hamming().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_hanning(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.hanning(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.hanning(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hanning().symbolic_call(x).dtype),
             expected_dtype,
         )
 

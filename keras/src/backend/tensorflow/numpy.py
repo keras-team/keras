@@ -151,6 +151,11 @@ def hamming(x):
     return tf.signal.hamming_window(x, periodic=False)
 
 
+def hanning(x):
+    x = convert_to_tensor(x, dtype=tf.int32)
+    return tf.signal.hann_window(x, periodic=False)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x, dtype=tf.int32)
     return tf.signal.kaiser_window(x, beta=beta)
