@@ -87,12 +87,15 @@ class Progbar:
                 # called, which will cause 'current' and 'self._seen_so_far' to
                 # have the same value. Force the minimal value to 1 here,
                 # otherwise stateful_metric will be 0s.
-                value_base = max(current - self._seen_so_far, 1)
-                if k not in self._values:
-                    self._values[k] = [v * value_base, value_base]
+                if finalize:
+                    self._values[k] = [v, 1]
                 else:
-                    self._values[k][0] += v * value_base
-                    self._values[k][1] += value_base
+                    value_base = max(current - self._seen_so_far, 1)
+                    if k not in self._values:
+                        self._values[k] = [v * value_base, value_base]
+                    else:
+                        self._values[k][0] += v * value_base
+                        self._values[k][1] += value_base
             else:
                 # Stateful metrics output a numeric value. This representation
                 # means "take an average from a single value" but keeps the
