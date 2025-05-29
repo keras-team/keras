@@ -24,3 +24,4 @@ coverage!=7.6.5  # 7.6.5 breaks CI
 # for onnx_test.py
 onnxruntime
 openvino
+flax>=0.10.1

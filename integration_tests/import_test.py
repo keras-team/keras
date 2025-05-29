@@ -11,7 +11,7 @@ BACKEND_REQ = {
         "torch",
         "--extra-index-url https://download.pytorch.org/whl/cpu ",
     ),
-    "jax": ("jax[cpu]", ""),
+    "jax": ("jax[cpu]==0.5.0", ""),
     "openvino": ("openvino", ""),
 }
 
