@@ -37,7 +37,8 @@ class Variable(KerasVariable, nnx.Variable):
         mutable=None,
         **nnx_metadata,
     ):
-        # Determine NNX mutability. This needs to be known for nnx.Variable.__init__.
+        # Determine NNX mutability. This needs to be known for
+        # nnx.Variable.__init__.
         if mutable is None:
             actual_nnx_mutable = (
                 trainable  # Keras 'trainable' maps to NNX 'mutable'
@@ -45,7 +46,8 @@ class Variable(KerasVariable, nnx.Variable):
         else:
             actual_nnx_mutable = mutable
 
-        # Ensure 'mutable' is in nnx_metadata, but explicit 'mutable' param takes precedence.
+        # Ensure 'mutable' is in nnx_metadata, but explicit 'mutable' param
+        # takes precedence.
         if "mutable" in nnx_metadata and mutable is not None:
             nnx_metadata["mutable"] = actual_nnx_mutable
         elif "mutable" not in nnx_metadata:
@@ -67,8 +69,10 @@ class Variable(KerasVariable, nnx.Variable):
         # Call nnx.Variable.__init__ directly.
         nnx.Variable.__init__(self, value=_placeholder_value, **nnx_metadata)
 
-        # Store JAX-specific layout using object.__setattr__ BEFORE KerasVariable init.
-        # This is because KerasVariable.__init__ will call self._initialize, which uses self._layout.
+        # Store JAX-specific layout using object.__setattr__ BEFORE
+        # KerasVariable init.
+        # This is because KerasVariable.__init__ will call self._initialize,
+        # which uses self._layout.
         object.__setattr__(self, "_layout", layout)
 
         # Initialize KerasVariable.
@@ -89,7 +93,8 @@ class Variable(KerasVariable, nnx.Variable):
 
     def __getstate__(self):
         # Get the state from KerasVariable (attributes in __dict__)
-        # KerasVariable does not have a custom __getstate__, so we mimic default behavior.
+        # KerasVariable does not have a custom __getstate__, so we mimic
+        # default behavior.
         keras_state = self.__dict__.copy()
 
         # Get the state from nnx.Variable
@@ -105,13 +110,15 @@ class Variable(KerasVariable, nnx.Variable):
         if "_var_metadata" in nnx_specific_state:
             keras_state["_var_metadata"] = nnx_specific_state["_var_metadata"]
 
-        # Remove elements that might be problematic or redundant if nnx.Variable's __getstate__
+        # Remove elements that might be problematic or redundant if
+        # nnx.Variable's __getstate__
         keras_state.pop("raw_value", None)
 
         return keras_state
 
     def __setstate__(self, state):
-        # Separate nnx specific keys that we added if they are not part of Keras __dict__
+        # Separate nnx specific keys that we added if they are not part of
+        # Keras __dict__
         # Our __getstate__ puts them into the main state dictionary.
         nnx_raw_value = state["_value"]  # This was raw_value
         nnx_trace_state = state.pop("_trace_state", None)
@@ -133,7 +140,8 @@ class Variable(KerasVariable, nnx.Variable):
         else:
             pass
 
-        # Ensure Keras's self._value is also consistent with the restored raw_value
+        # Ensure Keras's self._value is also consistent with the restored
+        # raw_value
         object.__setattr__(self, "_value", nnx_raw_value)
 
         if hasattr(self, "_shape") and self._shape is not None:
@@ -207,12 +215,14 @@ class Variable(KerasVariable, nnx.Variable):
                     return self._maybe_autocast(initial_value)
                 else:
                     raise AttributeError(
-                        "Variable is not properly initialized and has no initializer."
+                        "Variable is not properly initialized and has no "
+                        "initializer."
                     )
             current_value = self._value
         else:
             current_value = self.raw_value
-            # NNX specific: if raw_value is a mutable_array wrapper, get the actual array.
+            # NNX specific: if raw_value is a mutable_array wrapper, get the
+            # actual array.
             if (
                 hasattr(self, "_var_metadata")
                 and "on_get_value" in self._var_metadata
