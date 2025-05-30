@@ -52,7 +52,7 @@ class SpectralNormalization(Wrapper):
 
     def build(self, input_shape):
         super().build(input_shape)
-        self.input_spec = InputSpec(shape=[None] + list(input_shape[1:]))
+        self.input_spec = InputSpec(min_ndim=1, axes={-1: input_shape[-1]})
 
         if hasattr(self.layer, "kernel"):
             self.kernel = self.layer.kernel
