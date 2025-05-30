@@ -774,6 +774,8 @@ class BaseOptimizer(KerasSaveable):
             self._learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
             return self._learning_rate(self._iterations)
+        elif isinstance(self._learning_rate, backend.Variable):
+            return self._learning_rate
         elif callable(self._learning_rate):
             return self._learning_rate()
         return self._learning_rate

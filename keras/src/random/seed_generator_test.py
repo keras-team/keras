@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from flax import nnx
 
 from keras.src import backend
 from keras.src import ops
@@ -78,9 +79,7 @@ class SeedGeneratorTest(testing.TestCase):
         backend.backend() != "jax", reason="This test requires the JAX backend"
     )
     def test_jax_tracing_with_global_seed_generator(self):
-        import jax
-
-        @jax.jit
+        @nnx.jit
         def traced_function():
             return seed_generator.global_seed_generator().next()
 
