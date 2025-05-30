@@ -343,14 +343,14 @@ def scatter_update(inputs, indices, updates):
     return inputs
 
 
-def slice(inputs, start_indices, lengths):
+def slice(inputs, start_indices, shape):
     # Validate inputs
-    assert len(start_indices) == len(lengths)
+    assert len(start_indices) == len(shape)
 
     # Generate list of indices arrays for each dimension
     indices = [
         np.arange(start, start + length)
-        for start, length in zip(start_indices, lengths)
+        for start, length in zip(start_indices, shape)
     ]
 
     # Use np.ix_ to create a multidimensional index array
@@ -407,8 +407,8 @@ def fori_loop(lower, upper, body_fun, init_val):
     return val
 
 
-def stop_gradient(x):
-    return x
+def stop_gradient(variable):
+    return variable
 
 
 def unstack(x, num=None, axis=0):

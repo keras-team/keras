@@ -857,13 +857,13 @@ def hard_shrink(x, threshold=0.5):
 
 
 class Threshold(Operation):
-    def __init__(self, threshold_value, value):
+    def __init__(self, threshold, default_value):
         super().__init__()
-        self.threshold_value = threshold_value
-        self.value = value
+        self.threshold = threshold
+        self.default_value = default_value
 
     def call(self, x):
-        return backend.nn.threshold(x, self.threshold_value, self.value)
+        return backend.nn.threshold(x, self.threshold, self.default_value)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -1569,7 +1569,7 @@ def separable_conv(
 class ConvTranspose(Operation):
     def __init__(
         self,
-        strides,
+        strides=1,
         padding="valid",
         output_padding=None,
         data_format=None,
@@ -1622,7 +1622,7 @@ class ConvTranspose(Operation):
 def conv_transpose(
     inputs,
     kernel,
-    strides,
+    strides=1,
     padding="valid",
     output_padding=None,
     data_format=None,
@@ -2161,10 +2161,21 @@ def moments(x, axes, keepdims=False, synchronized=False):
 
 
 class BatchNorm(Operation):
-    def __init__(self, axis, epsilon):
+    def __init__(self, axis, epsilon=1e-3):
         super().__init__()
         self.axis = axis
         self.epsilon = epsilon
+
+    def call(self, x, mean, variance, offset=None, scale=None):
+        return backend.nn.batch_normalization(
+            x,
+            mean,
+            variance,
+            axis=self.axis,
+            offset=offset,
+            scale=scale,
+            epsilon=self.epsilon,
+        )
 
     def _check_shape(self, name, shape, expected_shape):
         if shape != expected_shape:
@@ -2716,7 +2727,7 @@ def dot_product_attention(
 
 
 class RMSNorm(Operation):
-    def __init__(self, scale, axis=-1, epsilon=None):
+    def __init__(self, scale=1, axis=-1, epsilon=None):
         super().__init__()
         self.axis = axis
         self.scale = scale
@@ -2942,8 +2953,8 @@ class Polar(Operation):
     def compute_output_spec(self, abs_, angle):
         return KerasTensor(shape=abs_.shape)
 
-    def call(self, x):
-        return _polar(x)
+    def call(self, abs_, angle):
+        return _polar(abs_, angle)
 
 
 @keras_export(["keras.ops.polar", "keras.ops.nn.polar"])

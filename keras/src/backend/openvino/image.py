@@ -1,4 +1,4 @@
-def rgb_to_grayscale(image, data_format="channels_last"):
+def rgb_to_grayscale(images, data_format=None):
     raise NotImplementedError(
         "`rgb_to_grayscale` is not supported with openvino backend"
     )
@@ -19,12 +19,12 @@ def resize(
 
 
 def affine_transform(
-    image,
+    images,
     transform,
     interpolation="bilinear",
     fill_mode="constant",
     fill_value=0,
-    data_format="channels_last",
+    data_format=None,
 ):
     raise NotImplementedError(
         "`affine_transform` is not supported with openvino backend"
@@ -32,7 +32,7 @@ def affine_transform(
 
 
 def map_coordinates(
-    input, coordinates, order, fill_mode="constant", fill_value=0.0
+    inputs, coordinates, order, fill_mode="constant", fill_value=0
 ):
     raise NotImplementedError(
         "`map_coordinates` is not supported with openvino backend"

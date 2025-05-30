@@ -173,7 +173,7 @@ def append(x1, x2, axis=None):
     return np.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=None, dtype=None):
+def arange(start, stop=None, step=1, dtype=None):
     if dtype is None:
         dtypes_to_resolve = [
             getattr(start, "dtype", type(start)),
@@ -537,13 +537,13 @@ def digitize(x, bins):
     return np.digitize(x, bins).astype(np.int32)
 
 
-def dot(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = x.astype(dtype)
-    y = y.astype(dtype)
-    return np.dot(x, y)
+def dot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
+    return np.dot(x1, x2)
 
 
 def empty(shape, dtype=None):
@@ -898,10 +898,10 @@ def ravel(x):
     return np.ravel(x)
 
 
-def unravel_index(x, shape):
-    dtype = dtypes.result_type(x.dtype)
+def unravel_index(indices, shape):
+    dtype = dtypes.result_type(indices.dtype)
     return tuple(
-        indices.astype(dtype) for indices in np.unravel_index(x, shape)
+        indices.astype(dtype) for indices in np.unravel_index(indices, shape)
     )
 
 
@@ -1114,7 +1114,7 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
     return np.vectorize(pyfunc, excluded=excluded, signature=signature)
 
 
-def where(condition, x1, x2):
+def where(condition, x1=None, x2=None):
     if x1 is not None and x2 is not None:
         if not isinstance(x1, (int, float)):
             x1 = convert_to_tensor(x1)
@@ -1283,5 +1283,5 @@ def argpartition(x, kth, axis=-1):
     return np.argpartition(x, kth, axis).astype("int32")
 
 
-def histogram(x, bins, range):
+def histogram(x, bins=10, range=None):
     return np.histogram(x, bins=bins, range=range)

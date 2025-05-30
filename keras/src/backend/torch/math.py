@@ -52,13 +52,13 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
     return result.type(data.dtype)
 
 
-def segment_sum(data, segment_ids, num_segments=None, **kwargs):
+def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     data = convert_to_tensor(data)
     segment_ids = convert_to_tensor(segment_ids)
     return _segment_reduction_fn(data, segment_ids, "sum", num_segments)
 
 
-def segment_max(data, segment_ids, num_segments=None, **kwargs):
+def segment_max(data, segment_ids, num_segments=None, sorted=False):
     data = convert_to_tensor(data)
     segment_ids = convert_to_tensor(segment_ids)
     return _segment_reduction_fn(data, segment_ids, "amax", num_segments)

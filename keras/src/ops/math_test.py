@@ -1160,13 +1160,9 @@ class FFTTest(testing.TestCase):
         real = KerasTensor(shape=(None,), dtype="float32")
         imag = KerasTensor(shape=(None,), dtype="float32")
         with self.assertRaisesRegex(
-            ValueError, "Input should have its -1th axis fully-defined"
+            ValueError, "Input should have its last dimension fully-defined"
         ):
             fft_op.compute_output_spec((real, imag))
-
-    def test_fft_init_default_axis(self):
-        fft_op = kmath.FFT()
-        self.assertEqual(fft_op.axis, -1, "Default axis should be -1")
 
 
 class FFT2Test(testing.TestCase):

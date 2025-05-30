@@ -565,21 +565,21 @@ def scatter_update(inputs, indices, updates):
     )
 
 
-def slice(inputs, start_indices, lengths):
+def slice(inputs, start_indices, shape):
     inputs = get_ov_output(inputs)
     assert isinstance(start_indices, tuple), (
         "`slice` is not supported by openvino backend"
-        " for `start_indices` of type {}".format(type(lengths))
+        " for `start_indices` of type {}".format(type(shape))
     )
-    assert isinstance(lengths, tuple), (
+    assert isinstance(shape, tuple), (
         "`slice` is not supported by openvino backend"
-        " for `lengths` of type {}".format(type(lengths))
+        " for `lengths` of type {}".format(type(shape))
     )
 
     axes = []
     start = []
     stop = []
-    for idx, length in enumerate(lengths):
+    for idx, length in enumerate(shape):
         if length is not None and length >= 0:
             axes.append(idx)
             start.append(start_indices[idx])
@@ -621,8 +621,8 @@ def fori_loop(lower, upper, body_fun, init_val):
     )
 
 
-def stop_gradient(x):
-    return x
+def stop_gradient(variable):
+    return variable
 
 
 def unstack(x, num=None, axis=0):

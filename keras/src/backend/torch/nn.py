@@ -191,9 +191,9 @@ def log_softmax(x, axis=-1):
     return cast(output, dtype)
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted, _ = torch.sort(logits, dim=axis, descending=True)
     logits_cumsum = torch.cumsum(logits_sorted, dim=axis)
     r = torch.arange(
@@ -656,7 +656,7 @@ def conv_transpose(
     return outputs
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
     # Axis is the output axis. By default, PyTorch, outputs to last axis.
@@ -682,7 +682,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     return output
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
     x = convert_to_tensor(x)
@@ -848,13 +848,7 @@ def batch_normalization(
     )
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
-    mask_index=0,
-):
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length)

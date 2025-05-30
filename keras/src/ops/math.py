@@ -134,7 +134,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
 
 class TopK(Operation):
-    def __init__(self, k, sorted=False):
+    def __init__(self, k, sorted=True):
         super().__init__()
         self.k = k
         self.sorted = sorted
@@ -328,10 +328,6 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 class FFT(Operation):
-    def __init__(self, axis=-1):
-        super().__init__()
-        self.axis = axis
-
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
@@ -360,7 +356,7 @@ class FFT(Operation):
         m = real.shape[-1]
         if m is None:
             raise ValueError(
-                f"Input should have its {self.axis}th axis fully-defined. "
+                f"Input should have its last dimension fully-defined. "
                 f"Received: input.shape = {real.shape}"
             )
 

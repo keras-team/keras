@@ -155,9 +155,9 @@ def log_softmax(x, axis=-1):
     return jnn.log_softmax(x, axis=axis)
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted = -1.0 * jnp.sort(logits * -1.0, axis=axis)
     logits_cumsum = jnp.cumsum(logits_sorted, axis=axis)  # find cumulative sum
     r = jnp.arange(1, logits.shape[axis] + 1)  # Determine the sparsity
@@ -250,8 +250,8 @@ def max_pool(
 def average_pool(
     inputs,
     pool_size,
-    strides,
-    padding,
+    strides=None,
+    padding="valid",
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
@@ -485,7 +485,7 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     x = convert_to_tensor(x)
     if sparse:
         if axis < 0:
@@ -513,7 +513,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     return jnn.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     if sparse:
