@@ -16,6 +16,7 @@ from keras.src.utils.naming import auto_name
 class Operation:
     def __init_subclass__(cls):
         super().__init_subclass__()
+
     def __init__(self, dtype=None, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
@@ -121,9 +122,10 @@ class Operation:
         to manually implement `get_config()`.
         """
         instance = super(Operation, cls).__new__(cls)
-        if backend.backend()=="jax":
-          from flax import nnx
-          vars(instance)['_object__state'] = nnx.object.ObjectState()
+        if backend.backend() == "jax":
+            from flax import nnx
+
+            vars(instance)["_object__state"] = nnx.object.ObjectState()
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
