@@ -1,14 +1,15 @@
+import glob
 import os
 import sys
-import glob
 import tempfile
+from contextlib import redirect_stdout
+from importlib import reload
+from io import StringIO
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import numpy as np
 import pytest
-
-from io import StringIO
-from contextlib import redirect_stdout
-from unittest.mock import patch, MagicMock
-from importlib import reload
 
 import keras.src.callbacks.memory_usage_callback as muc_module
 from keras.src.callbacks.memory_usage_callback import MemoryUsageCallback
@@ -18,23 +19,27 @@ try:
 except ImportError:
     real_psutil = None
 
-import tensorflow as tf
-from keras.src.models import Sequential
 from keras.src.layers import Dense
+from keras.src.models import Sequential
 from keras.src.testing import TestCase
 
 
-@pytest.mark.skipif(real_psutil is None, reason="psutil is required for MemoryUsageCallback tests.")
+@pytest.mark.skipif(
+    real_psutil is None,
+    reason="psutil is required for MemoryUsageCallback tests.",
+)
 class MemoryUsageCallbackTest(TestCase):
     def setUp(self):
         super().setUp()
         self.x_train = np.random.random((16, 8)).astype(np.float32)
         self.y_train = np.random.randint(0, 2, (16, 1)).astype(np.float32)
 
-        self.model = Sequential([
-            Dense(4, activation="relu", input_shape=(8,)),
-            Dense(1, activation="sigmoid"),
-        ])
+        self.model = Sequential(
+            [
+                Dense(4, activation="relu", input_shape=(8,)),
+                Dense(1, activation="sigmoid"),
+            ]
+        )
         self.model.compile(optimizer="adam", loss="binary_crossentropy")
 
         self.epochs = 2
@@ -42,53 +47,74 @@ class MemoryUsageCallbackTest(TestCase):
         self.steps_per_epoch = len(self.x_train) // self.batch_size
 
     def test_cpu_only_epoch_logging(self):
-        with patch.object(muc_module.K, "backend", return_value="unsupported_backend"):
+        with patch.object(
+            muc_module.K, "backend", return_value="unsupported_backend"
+        ):
             out = StringIO()
             with redirect_stdout(out):
                 cb = MemoryUsageCallback(log_every_batch=False)
                 self.model.fit(
-                    self.x_train, self.y_train,
+                    self.x_train,
+                    self.y_train,
                     epochs=self.epochs,
                     batch_size=self.batch_size,
                     callbacks=[cb],
                     verbose=0,
                 )
-            lines = [l.strip() for l in out.getvalue().splitlines() if l.strip()]
+            lines = [
+                l.strip() for l in out.getvalue().splitlines() if l.strip()
+            ]
             epoch_lines = [l for l in lines if l.startswith("Epoch")]
             assert len(epoch_lines) == 4
             for i in range(self.epochs):
-                assert epoch_lines[2*i].startswith(f"Epoch {i} start - CPU Memory:")
-                assert epoch_lines[2*i+1].startswith(f"Epoch {i} end - CPU Memory:")
+                assert epoch_lines[2 * i].startswith(
+                    f"Epoch {i} start - CPU Memory:"
+                )
+                assert epoch_lines[2 * i + 1].startswith(
+                    f"Epoch {i} end - CPU Memory:"
+                )
 
     def test_log_every_batch(self):
-        with patch.object(muc_module.K, "backend", return_value="unsupported_backend"):
+        with patch.object(
+            muc_module.K, "backend", return_value="unsupported_backend"
+        ):
             out = StringIO()
             with redirect_stdout(out):
                 cb = MemoryUsageCallback(log_every_batch=True)
                 self.model.fit(
-                    self.x_train, self.y_train,
+                    self.x_train,
+                    self.y_train,
                     epochs=self.epochs,
                     batch_size=self.batch_size,
                     callbacks=[cb],
                     verbose=0,
                 )
-            lines = [l.strip() for l in out.getvalue().splitlines() if l.strip()]
+            lines = [
+                l.strip() for l in out.getvalue().splitlines() if l.strip()
+            ]
             batch_lines = [l for l in lines if l.startswith("Batch")]
             assert len(batch_lines) == self.epochs * self.steps_per_epoch
 
     def test_tensorboard_log_dir(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            with patch.object(muc_module.K, "backend", return_value="unsupported_backend"):
-                cb = MemoryUsageCallback(log_every_batch=False, tensorboard_log_dir=tmp_dir)
+            with patch.object(
+                muc_module.K, "backend", return_value="unsupported_backend"
+            ):
+                cb = MemoryUsageCallback(
+                    log_every_batch=False, tensorboard_log_dir=tmp_dir
+                )
                 self.model.fit(
-                    self.x_train, self.y_train,
+                    self.x_train,
+                    self.y_train,
                     epochs=1,
                     batch_size=self.batch_size,
                     callbacks=[cb],
                     verbose=0,
                 )
             files = glob.glob(os.path.join(tmp_dir, "events.out.tfevents.*"))
-            assert len(files) > 0, f"No TensorBoard event file found in {tmp_dir}"
+            assert len(files) > 0, (
+                f"No TensorBoard event file found in {tmp_dir}"
+            )
 
     def test_psutil_missing(self):
         """
@@ -100,7 +126,7 @@ class MemoryUsageCallbackTest(TestCase):
             muc_module.psutil = None
             with pytest.raises(
                 ImportError,
-                match="MemoryUsageCallback requires the 'psutil' library"
+                match="MemoryUsageCallback requires the 'psutil' library",
             ):
                 _ = muc_module.MemoryUsageCallback()
         finally:
@@ -114,7 +140,7 @@ def test_gpu_memory_tensorflow(monkeypatch):
     whose memory_info()['current'] is 150 MiB. After reload, _get_gpu_memory()
     must return 150.0 (MB).
     """
-    
+
     if real_psutil:
         sys.modules["psutil"] = real_psutil
 
@@ -124,10 +150,15 @@ def test_gpu_memory_tensorflow(monkeypatch):
 
     fake_tf = MagicMock()
     fake_tf.config.list_physical_devices.return_value = [FakeDevice("GPU:0")]
-    fake_tf.config.experimental.get_memory_info.return_value = {"current": 150 * 1024**2}
+    fake_tf.config.experimental.get_memory_info.return_value = {
+        "current": 150 * 1024**2
+    }
 
     monkeypatch.setitem(sys.modules, "tensorflow", fake_tf)
-    monkeypatch.setattr("keras.src.callbacks.memory_usage_callback.K.backend", lambda: "tensorflow")
+    monkeypatch.setattr(
+        "keras.src.callbacks.memory_usage_callback.K.backend",
+        lambda: "tensorflow",
+    )
 
     reload(muc_module)
 
@@ -153,7 +184,9 @@ def test_gpu_memory_torch(monkeypatch):
     ]
 
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
-    monkeypatch.setattr("keras.src.callbacks.memory_usage_callback.K.backend", lambda: "torch")
+    monkeypatch.setattr(
+        "keras.src.callbacks.memory_usage_callback.K.backend", lambda: "torch"
+    )
 
     reload(muc_module)
 
@@ -172,6 +205,7 @@ def test_gpu_memory_jax(monkeypatch):
 
     class FakeDevice:
         platform = "GPU"
+
         def memory_stats(self):
             return {"bytes_in_use": 220 * 1024**2}
 
@@ -179,7 +213,9 @@ def test_gpu_memory_jax(monkeypatch):
     fake_jax.devices.return_value = [FakeDevice(), FakeDevice()]
 
     monkeypatch.setitem(sys.modules, "jax", fake_jax)
-    monkeypatch.setattr("keras.src.callbacks.memory_usage_callback.K.backend", lambda: "jax")
+    monkeypatch.setattr(
+        "keras.src.callbacks.memory_usage_callback.K.backend", lambda: "jax"
+    )
 
     reload(muc_module)
 

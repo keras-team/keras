@@ -1,3 +1,4 @@
+
 import os
 import warnings
 import time
@@ -6,7 +7,6 @@ from keras.src import backend as K
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 
-
 try:
     import psutil
 except ImportError:
@@ -14,11 +14,10 @@ except ImportError:
 
 
 def running_on_gpu():
-    """Detect if any GPU is available on the current backend."""
+    """Detect if any GPU is available on the current Keras backend."""
     backend_name = K.backend()
     if backend_name == "tensorflow":
         import tensorflow as tf
-
         return bool(tf.config.list_logical_devices("GPU"))
     elif backend_name == "torch":
         try:
@@ -29,7 +28,6 @@ def running_on_gpu():
     elif backend_name == "jax":
         try:
             import jax
-
             return any(d.platform.upper() == "GPU" for d in jax.devices())
         except ImportError:
             return False
@@ -37,16 +35,14 @@ def running_on_gpu():
 
 
 def running_on_tpu():
-    """Detect if any TPU is available on the current backend."""
+    """Detect if any TPU is available on the current Keras backend."""
     backend_name = K.backend()
     if backend_name == "tensorflow":
         import tensorflow as tf
-
         return bool(tf.config.list_logical_devices("TPU"))
     elif backend_name == "jax":
         try:
             import jax
-
             return any(d.platform.upper() == "TPU" for d in jax.devices())
         except ImportError:
             return False
@@ -65,9 +61,10 @@ class MemoryUsageCallback(Callback):
       - **TPU**: if a TPU is detected, via backend-specific APIs
         (TensorFlow, JAX)
 
-    Logs are printed to stdout at the start and end of each epoch (with a leading
-    newline to avoid clobbering the progress bar), and, if `log_every_batch=True`,
-    after every batch. If `tensorboard_log_dir` is provided, scalars are also written
+    Logs are printed to stdout at the start and end of each epoch
+    (with a leading newline to avoid clobbering the progress bar),
+    and, if `log_every_batch=True`, after every batch.
+    If `tensorboard_log_dir` is provided, scalars are also written
     via tf.summary (TensorBoard).
 
     Args:
@@ -116,11 +113,11 @@ class MemoryUsageCallback(Callback):
         self._step_counter = 0
 
     def on_epoch_begin(self, epoch, logs=None):
-        print()  
+        print()
         self._log_epoch("start", epoch)
 
     def on_epoch_end(self, epoch, logs=None):
-        print()  
+        print()
         self._log_epoch("end", epoch, offset=1)
 
     def on_batch_end(self, batch, logs=None):
@@ -144,10 +141,9 @@ class MemoryUsageCallback(Callback):
         Inserts a short delay (time.sleep(0)) to let stdout flush cleanly.
         """
         cpu_mb = self._get_cpu_memory()
-        gpu_mb = self._get_gpu_memory()  
-        tpu_mb = self._get_tpu_memory()  
+        gpu_mb = self._get_gpu_memory()
+        tpu_mb = self._get_tpu_memory()
 
-        # Build message
         msg = f"{label} - CPU Memory: {cpu_mb:.2f} MB"
         if gpu_mb is not None:
             msg += f"; GPU Memory: {gpu_mb:.2f} MB"
@@ -155,11 +151,10 @@ class MemoryUsageCallback(Callback):
             msg += f"; TPU Memory: {tpu_mb:.2f} MB"
 
         print(msg)
-        time.sleep(0)  
+        time.sleep(0)
 
-        
         if self._writer:
-            import tensorflow as tf  
+            import tensorflow as tf
 
             with self._writer.as_default(step=int(step)):
                 tf.summary.scalar("Memory/CPU_MB", cpu_mb)
@@ -187,7 +182,7 @@ class MemoryUsageCallback(Callback):
                 try:
                     mem_info = tf.config.experimental.get_memory_info("GPU:0")
                     return mem_info["current"] / (1024**2)
-                except Exception as e:
+                except Exception:
                     gpus = tf.config.list_physical_devices("GPU")
                     if not gpus:
                         return None
@@ -205,9 +200,12 @@ class MemoryUsageCallback(Callback):
 
                 if not torch.cuda.is_available():
                     return None
-                torch.cuda.synchronize()
-                total = torch.cuda.max_memory_allocated()
-                return total / (1024**2)
+
+                device_count = torch.cuda.device_count()
+                total_bytes = 0
+                for i in range(device_count):
+                    total_bytes += torch.cuda.memory_allocated(i)
+                return total_bytes / (1024**2)
 
             elif backend_name == "jax":
                 import jax
@@ -244,7 +242,7 @@ class MemoryUsageCallback(Callback):
         """
         Return current TPU memory usage in MB for the detected backend,
         or None if no TPU is present or if measurement fails.
-        Note: TPU memory APIs vary; here we attempt best-effort.
+        Note: TPU memory APIs vary; here we attempt best‐effort.
         """
         if not running_on_tpu():
             return None
@@ -280,6 +278,7 @@ class MemoryUsageCallback(Callback):
                         )
                         self._warn_tpu_jax = True
                     return None
+
             return None
 
         except ImportError as imp_err:
