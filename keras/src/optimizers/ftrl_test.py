@@ -2,6 +2,7 @@
 
 
 import numpy as np
+from unittest import mock
 
 from keras.src import backend
 from keras.src import testing
@@ -71,3 +72,43 @@ class FtrlTest(testing.TestCase):
         grad = [np.array([100.0, 100.0])]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    def test_invalid_initial_accumulator_value(self):
+        invalid_value = -0.1
+        with self.assertRaisesRegex(
+            ValueError,
+            f"^`initial_accumulator_value` needs to be positive or zero. Received: initial_accumulator_value={invalid_value}.$",
+        ):
+            Ftrl(initial_accumulator_value=invalid_value)
+
+    def test_invalid_learning_rate_power(self):
+        invalid_value = 0.1
+        with self.assertRaisesRegex(
+            ValueError,
+            f"^`learning_rate_power` needs to be negative or zero. Received: learning_rate_power={invalid_value}.$",
+        ):
+            Ftrl(learning_rate_power=invalid_value)
+
+    def test_invalid_l1_regularization_strength(self):
+        invalid_value = -0.1
+        with self.assertRaisesRegex(
+            ValueError,
+            f"^`l1_regularization_strength` needs to be positive or zero. Received: l1_regularization_strength={invalid_value}.$",
+        ):
+            Ftrl(l1_regularization_strength=invalid_value)
+
+    def test_invalid_l2_regularization_strength(self):
+        invalid_value = -0.1
+        with self.assertRaisesRegex(
+            ValueError,
+            f"^`l2_regularization_strength` needs to be positive or zero. Received: l2_regularization_strength={invalid_value}.$",
+        ):
+            Ftrl(l2_regularization_strength=invalid_value)
+
+    def test_invalid_l2_shrinkage_regularization_strength(self):
+        invalid_value = -0.1
+        with self.assertRaisesRegex(
+            ValueError,
+            f"^`l2_shrinkage_regularization_strength` needs to be positive or zero. Received: l2_shrinkage_regularization_strength={invalid_value}.$",
+        ):
+            Ftrl(l2_shrinkage_regularization_strength=invalid_value)
