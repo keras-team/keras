@@ -13,19 +13,19 @@ class LionTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             "Argument `beta_1` must be in the \\[0, 1\\] range. Otherwise, the "
-            "optimizer degenerates to SignSGD. Received: beta_1=-0.1."
+            "optimizer degenerates to SignSGD. Received: beta_1=-0.1.",
         ):
             Lion(beta_1=-0.1)
         with self.assertRaisesRegex(
             ValueError,
             "Argument `beta_1` must be in the \\[0, 1\\] range. Otherwise, the "
-            "optimizer degenerates to SignSGD. Received: beta_1=0.0."
+            "optimizer degenerates to SignSGD. Received: beta_1=0.0.",
         ):
             Lion(beta_1=0.0)
         with self.assertRaisesRegex(
             ValueError,
             "Argument `beta_1` must be in the \\[0, 1\\] range. Otherwise, the "
-            "optimizer degenerates to SignSGD. Received: beta_1=1.1."
+            "optimizer degenerates to SignSGD. Received: beta_1=1.1.",
         ):
             Lion(beta_1=1.1)
 

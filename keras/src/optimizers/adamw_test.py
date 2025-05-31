@@ -56,7 +56,7 @@ class AdamWTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             "Argument `weight_decay` must be a float. "
-            "Received: weight_decay=None"
+            "Received: weight_decay=None",
         ):
             AdamW(learning_rate=1.0, weight_decay=None)
 
