@@ -20,5 +20,3 @@ examples/**/*.jpg
 .coverage
 *coverage.xml
 .ruff_cache
-venv/
-.venv/
