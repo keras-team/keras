@@ -1,7 +1,6 @@
-
 import os
-import warnings
 import time
+import warnings
 
 from keras.src import backend as K
 from keras.src.api_export import keras_export
@@ -18,16 +17,19 @@ def running_on_gpu():
     backend_name = K.backend()
     if backend_name == "tensorflow":
         import tensorflow as tf
+
         return bool(tf.config.list_logical_devices("GPU"))
     elif backend_name == "torch":
         try:
             import torch
+
             return torch.cuda.is_available()
         except ImportError:
             return False
     elif backend_name == "jax":
         try:
             import jax
+
             return any(d.platform.upper() == "GPU" for d in jax.devices())
         except ImportError:
             return False
@@ -39,10 +41,12 @@ def running_on_tpu():
     backend_name = K.backend()
     if backend_name == "tensorflow":
         import tensorflow as tf
+
         return bool(tf.config.list_logical_devices("TPU"))
     elif backend_name == "jax":
         try:
             import jax
+
             return any(d.platform.upper() == "TPU" for d in jax.devices())
         except ImportError:
             return False
@@ -123,7 +127,9 @@ class MemoryUsageCallback(Callback):
     def on_batch_end(self, batch, logs=None):
         if self.log_every_batch:
             print()
-            self._log_step(f"Batch {self._step_counter} end", self._step_counter)
+            self._log_step(
+                f"Batch {self._step_counter} end", self._step_counter
+            )
         self._step_counter += 1
 
     def on_train_end(self, logs=None):
@@ -179,6 +185,7 @@ class MemoryUsageCallback(Callback):
         try:
             if backend_name == "tensorflow":
                 import tensorflow as tf
+
                 try:
                     mem_info = tf.config.experimental.get_memory_info("GPU:0")
                     return mem_info["current"] / (1024**2)
@@ -189,7 +196,9 @@ class MemoryUsageCallback(Callback):
                     total = 0
                     for i, _ in enumerate(gpus):
                         try:
-                            info = tf.config.experimental.get_memory_info(f"GPU:{i}")
+                            info = tf.config.experimental.get_memory_info(
+                                f"GPU:{i}"
+                            )
                             total += info.get("current", 0)
                         except Exception:
                             continue
@@ -268,7 +277,9 @@ class MemoryUsageCallback(Callback):
                     return None
                 try:
                     stats = devs[0].memory_stats()
-                    tpu_bytes = stats.get("bytes_in_use", stats.get("allocated_bytes", 0))
+                    tpu_bytes = stats.get(
+                        "bytes_in_use", stats.get("allocated_bytes", 0)
+                    )
                     return tpu_bytes / (1024**2)
                 except Exception:
                     if not hasattr(self, "_warn_tpu_jax"):
