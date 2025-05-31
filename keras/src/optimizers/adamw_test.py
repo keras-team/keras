@@ -52,6 +52,14 @@ class AdamWTest(testing.TestCase):
         self.assertAlmostEqual(var2.numpy(), 2.0, decimal=6)
         self.assertAlmostEqual(var3.numpy(), 2.0, decimal=6)
 
+    def test_weight_decay_is_none(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `weight_decay` must be a float. "
+            "Received: weight_decay=None"
+        ):
+            AdamW(learning_rate=1.0, weight_decay=None)
+
     def test_correctness_with_golden(self):
         optimizer = AdamW(learning_rate=1.0, weight_decay=0.5, epsilon=2)
 
