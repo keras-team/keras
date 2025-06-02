@@ -389,20 +389,6 @@ def print_summary(
             print_fn(console.end_capture())
 
 
-def print(*args, **kwargs):
-    import jax
-    import tensorflow as tf
-
-    from keras.api import backend
-
-    backend = backend.backend()
-    print_fn = {"jax": jax.debug.print, "tensorflow": tf.print}[backend]
-    # "pytorch"
-    #   pytorch.org/docs/stable/generated/torch.set_printoptions.html ?
-    # "openvino"
-    return print_fn(*args, **kwargs)
-
-
 def get_layer_index_bound_by_layer_name(layers, layer_range=None):
     """Get the layer indexes from the model based on layer names.
 
