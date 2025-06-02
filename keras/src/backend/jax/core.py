@@ -238,6 +238,9 @@ class Variable(KerasVariable, nnx.Variable):
                 return self._maybe_autocast(stateless_value)
 
         return self._maybe_autocast(current_value)
+    
+    def __hash__(self):
+        return id(self)
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
