@@ -53,31 +53,6 @@ class Variable(KerasVariable, nnx.Variable):
         elif "mutable" not in nnx_metadata:
             nnx_metadata["mutable"] = actual_nnx_mutable
 
-        # hook for NNX value updates
-        def _sync_keras_value_on_nnx_update(variable, new_nnx_value):
-            """Updates Keras's _value when NNX's value changes."""
-            if hasattr(variable, "_value"):
-                variable._value = new_nnx_value
-            return new_nnx_value
-
-        # Add the hook to nnx_metadata
-        if "on_set_value" in nnx_metadata:
-            existing_on_set_value = nnx_metadata["on_set_value"]
-
-            def _chained_sync_hook(variable, new_nnx_value):
-                # Call existing hook
-                processed_value_by_existing_hook = existing_on_set_value(
-                    variable, new_nnx_value
-                )
-                # Sync Keras's _value
-                if hasattr(variable, "_value"):
-                    variable._value = processed_value_by_existing_hook
-                return processed_value_by_existing_hook
-
-            nnx_metadata["on_set_value"] = _chained_sync_hook
-        else:
-            nnx_metadata["on_set_value"] = _sync_keras_value_on_nnx_update
-
         # Initialize nnx.Variable first.
         if shape is not None and dtype is not None:
             # If initializer is a Keras callable, it's not ready yet.
@@ -112,9 +87,15 @@ class Variable(KerasVariable, nnx.Variable):
             name=name,
         )
 
-        # self._value now holds the true JAX array from KerasVariable init.
-        # Update nnx.Variable's internal value (raw_value) to match.
-        object.__setattr__(self, "raw_value", self._value)
+    @property
+    def _value(self):
+        if hasattr(self, "raw_value"):
+            return self.raw_value
+        return None
+
+    @_value.setter
+    def _value(self, new_keras_value):
+        self._direct_assign(new_keras_value)
 
     def __getstate__(self):
         # Get the state from KerasVariable (attributes in __dict__)
@@ -200,9 +181,6 @@ class Variable(KerasVariable, nnx.Variable):
         else:
             processed_value = value
 
-        # Update Keras's internal _value
-        self._value = processed_value
-
         # Ensure that nnx.Variable part is initialized
         if not hasattr(self, "_var_metadata"):
             # todo: should add a warning
@@ -246,8 +224,6 @@ class Variable(KerasVariable, nnx.Variable):
             current_value = self._value
         else:
             current_value = self.raw_value
-            # NNX specific: if raw_value is a mutable_array wrapper, get the
-            # actual array.
             if (
                 hasattr(self, "_var_metadata")
                 and "on_get_value" in self._var_metadata
