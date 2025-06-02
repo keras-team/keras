@@ -24,7 +24,7 @@ if backend.backend() == "jax":
     # Don't override user-specified device count, or other XLA flags.
     if "xla_force_host_platform_device_count" not in xla_flags:
         os.environ["XLA_FLAGS"] = (
-            xla_flags + " --xla_force_host_platform_device_count=8"
+            f"{xla_flags} --xla_force_host_platform_device_count=8"
         )
 
 

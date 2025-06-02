@@ -194,7 +194,7 @@ def make_or_restore_model():
     # Either restore the latest model, or create a fresh one
     # if there is no checkpoint available.
     checkpoints = [
-        checkpoint_dir + "/" + name for name in os.listdir(checkpoint_dir)
+        os.path.join(checkpoint_dir, name) for name in os.listdir(checkpoint_dir)
     ]
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
@@ -216,7 +216,7 @@ def run_training(epochs=1):
             # This callback saves a SavedModel every epoch
             # We include the current epoch in the folder name.
             keras.callbacks.ModelCheckpoint(
-                filepath=checkpoint_dir + "/ckpt-{epoch}.keras",
+                filepath=os.path.join(checkpoint_dir, "ckpt-{epoch}.keras"),
                 save_freq="epoch",
             )
         ]

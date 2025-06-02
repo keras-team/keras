@@ -84,9 +84,12 @@ def create_legacy_directory(package_dir):
         for fname in fnames:
             if fname.endswith(".py"):
                 legacy_fpath = os.path.join(root, fname)
-                tf_keras_root = root.replace("/_legacy", "/_tf_keras/keras")
+                tf_keras_root = root.replace(
+                    os.path.join(os.path.sep, "_legacy"),
+                    os.path.join(os.path.sep, "_tf_keras", "keras")
+                )
                 core_api_fpath = os.path.join(
-                    root.replace("/_legacy", ""), fname
+                    root.replace(os.path.join(os.path.sep, "_legacy"), ""), fname
                 )
                 if not os.path.exists(tf_keras_root):
                     os.makedirs(tf_keras_root)
@@ -125,7 +128,7 @@ def create_legacy_directory(package_dir):
                             r"\n",
                             core_api_contents,
                         )
-                    legacy_contents = core_api_contents + "\n" + legacy_contents
+                    legacy_contents = f"{core_api_contents}\n{legacy_contents}"
                 with open(tf_keras_fpath, "w") as f:
                     f.write(legacy_contents)
 

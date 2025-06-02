@@ -214,38 +214,38 @@ def Xception(
         residual = x
         prefix = "block" + str(i + 5)
 
-        x = layers.Activation("relu", name=prefix + "_sepconv1_act")(x)
+        x = layers.Activation("relu", name=f"{prefix}_sepconv1_act")(x)
         x = layers.SeparableConv2D(
             728,
             (3, 3),
             padding="same",
             use_bias=False,
-            name=prefix + "_sepconv1",
+            name=f"{prefix}_sepconv1",
         )(x)
         x = layers.BatchNormalization(
-            axis=channel_axis, name=prefix + "_sepconv1_bn"
+            axis=channel_axis, name=f"{prefix}_sepconv1_bn"
         )(x)
-        x = layers.Activation("relu", name=prefix + "_sepconv2_act")(x)
+        x = layers.Activation("relu", name=f"{prefix}_sepconv2_act")(x)
         x = layers.SeparableConv2D(
             728,
             (3, 3),
             padding="same",
             use_bias=False,
-            name=prefix + "_sepconv2",
+            name=f"{prefix}_sepconv2",
         )(x)
         x = layers.BatchNormalization(
-            axis=channel_axis, name=prefix + "_sepconv2_bn"
+            axis=channel_axis, name=f"{prefix}_sepconv2_bn"
         )(x)
-        x = layers.Activation("relu", name=prefix + "_sepconv3_act")(x)
+        x = layers.Activation("relu", name=f"{prefix}_sepconv3_act")(x)
         x = layers.SeparableConv2D(
             728,
             (3, 3),
             padding="same",
             use_bias=False,
-            name=prefix + "_sepconv3",
+            name=f"{prefix}_sepconv3",
         )(x)
         x = layers.BatchNormalization(
-            axis=channel_axis, name=prefix + "_sepconv3_bn"
+            axis=channel_axis, name=f"{prefix}_sepconv3_bn"
         )(x)
 
         x = layers.add([x, residual])

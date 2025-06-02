@@ -52,18 +52,15 @@ def manage_venv_installs(whl_path):
     backend_pkg, backend_extra_url = BACKEND_REQ[backend.backend()]
     install_setup = [
         # Installs the backend's package and common requirements
-        "pip install " + backend_extra_url + backend_pkg,
+        f"pip install {backend_extra_url}{backend_pkg}",
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
-        "pip uninstall -y "
-        + BACKEND_REQ[other_backends[0]][0]
-        + " "
-        + BACKEND_REQ[other_backends[1]][0]
-        + " "
-        + BACKEND_REQ[other_backends[2]][0],
+        "pip uninstall -y {0} {1} {2}".format(BACKEND_REQ[other_backends[0]][0],
+                                              BACKEND_REQ[other_backends[1]][0],
+                                              BACKEND_REQ[other_backends[2]][0]),
         # Install `.whl` package
-        "pip install " + whl_path,
+        f"pip install {whl_path}",
     ]
     run_commands_venv(install_setup)
 

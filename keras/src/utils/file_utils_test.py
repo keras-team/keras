@@ -1,12 +1,14 @@
 import hashlib
 import os
-import pathlib
 import shutil
 import tarfile
 import tempfile
 import urllib
+import urllib.parse
+import urllib.request
 import zipfile
 from unittest.mock import patch
+
 
 from keras.src.testing import test_case
 from keras.src.utils import file_utils
@@ -14,23 +16,23 @@ from keras.src.utils import file_utils
 
 class PathToStringTest(test_case.TestCase):
     def test_path_to_string_with_string_path(self):
-        path = "/path/to/file.txt"
+        path = os.path.join(os.path.sep, "path", "to", "file.txt")
         string_path = file_utils.path_to_string(path)
         self.assertEqual(string_path, path)
 
     def test_path_to_string_with_PathLike_object(self):
-        path = pathlib.Path("/path/to/file.txt")
+        path = os.path.join(os.path.sep, "path", "to", "file.txt")
         string_path = file_utils.path_to_string(path)
         self.assertEqual(string_path, str(path))
 
     def test_path_to_string_with_non_string_typed_path_object(self):
         class NonStringTypedPathObject:
             def __fspath__(self):
-                return "/path/to/file.txt"
+                return os.path.join(os.path.sep, "path", "to", "file.txt")
 
         path = NonStringTypedPathObject()
         string_path = file_utils.path_to_string(path)
-        self.assertEqual(string_path, "/path/to/file.txt")
+        self.assertEqual(string_path, os.path.join(os.path.sep, "path", "to", "file.txt"))
 
     def test_path_to_string_with_none_path(self):
         string_path = file_utils.path_to_string(None)
@@ -39,27 +41,27 @@ class PathToStringTest(test_case.TestCase):
 
 class ResolvePathTest(test_case.TestCase):
     def test_resolve_path_with_absolute_path(self):
-        path = "/path/to/file.txt"
+        path = os.path.join(os.path.sep, "path", "to", "file.txt")
         resolved_path = file_utils.resolve_path(path)
         self.assertEqual(resolved_path, os.path.realpath(os.path.abspath(path)))
 
     def test_resolve_path_with_relative_path(self):
-        path = "./file.txt"
+        path = os.path.join(".", "file.txt")
         resolved_path = file_utils.resolve_path(path)
         self.assertEqual(resolved_path, os.path.realpath(os.path.abspath(path)))
 
 
 class IsPathInDirTest(test_case.TestCase):
     def test_is_path_in_dir_with_absolute_paths(self):
-        base_dir = "/path/to/base_dir"
-        path = "/path/to/base_dir/file.txt"
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join(base_dir, "file.txt")
         self.assertTrue(file_utils.is_path_in_dir(path, base_dir))
 
 
 class IsLinkInDirTest(test_case.TestCase):
     def setUp(self):
         self._cleanup(os.path.join("test_path", "to", "base_dir"))
-        self._cleanup("./base_dir")
+        self._cleanup(os.path.join(".", "base_dir"))
 
     def _cleanup(self, base_dir):
         if os.path.exists(base_dir):
@@ -93,7 +95,7 @@ class IsLinkInDirTest(test_case.TestCase):
         self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
 
     def test_is_link_in_dir_with_relative_paths(self):
-        base_dir = "./base_dir"
+        base_dir = os.path.join(".", "base_dir")
         link_path = os.path.join(base_dir, "symlink")
         target_path = os.path.join(base_dir, "file.txt")
 
@@ -121,7 +123,7 @@ class IsLinkInDirTest(test_case.TestCase):
 
     def tearDown(self):
         self._cleanup(os.path.join("test_path", "to", "base_dir"))
-        self._cleanup("./base_dir")
+        self._cleanup(os.path.join(".", "base_dir"))
 
 
 class FilterSafePathsTest(test_case.TestCase):
@@ -486,10 +488,7 @@ class GetFileTest(test_case.TestCase):
 
         hashval_md5 = file_utils.hash_file(file_path, algorithm="md5")
 
-        if archive_type:
-            extract = True
-        else:
-            extract = False
+        extract = bool(archive_type)
 
         path = file_utils.get_file(
             "test",
@@ -499,7 +498,7 @@ class GetFileTest(test_case.TestCase):
             cache_subdir=dest_dir,
         )
         if extract:
-            fpath = path + "_archive"
+            fpath = f"{path}_archive"
         else:
             fpath = path
 

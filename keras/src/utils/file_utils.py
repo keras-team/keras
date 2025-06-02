@@ -3,9 +3,13 @@ import os
 import re
 import shutil
 import tarfile
+import tempfile
 import urllib
+import urllib.error
+import urllib.parse
 import warnings
 import zipfile
+from tempfile import tempdir
 from urllib.request import urlretrieve
 
 from keras.src.api_export import keras_export
@@ -159,7 +163,7 @@ def get_file(
     ```python
     path_to_downloaded_file = get_file(
         origin="https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
-        extract=True,
+        extract=True
     )
     ```
 
@@ -221,7 +225,9 @@ def get_file(
         hash_algorithm = "md5"
     datadir_base = os.path.expanduser(cache_dir)
     if not os.access(datadir_base, os.W_OK):
-        datadir_base = os.path.join("/tmp", ".keras")
+        datadir_base = os.path.join(
+            "/tmp" if os.path.isdir("/tmp") else tempfile.gettempdir(), ".keras"
+        )
     datadir = os.path.join(datadir_base, cache_subdir)
     os.makedirs(datadir, exist_ok=True)
 
@@ -249,13 +255,13 @@ def get_file(
             if "." in fname:
                 download_target = os.path.join(datadir, fname)
                 fname = fname[: fname.find(".")]
-                extraction_dir = os.path.join(datadir, fname + "_extracted")
+                extraction_dir = os.path.join(datadir, f"{fname}_extracted")
             else:
                 extraction_dir = os.path.join(datadir, fname)
-                download_target = os.path.join(datadir, fname + "_archive")
+                download_target = os.path.join(datadir, f"{fname}_archive")
         else:
             extraction_dir = os.path.join(datadir, fname)
-            download_target = os.path.join(datadir, fname + "_archive")
+            download_target = os.path.join(datadir, f"{fname}_archive")
     else:
         download_target = os.path.join(datadir, fname)
 
@@ -520,3 +526,4 @@ def makedirs(path):
         else:
             _raise_if_no_gfile(path)
     return os.makedirs(path)
+"/fo"

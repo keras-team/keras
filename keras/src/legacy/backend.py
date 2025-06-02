@@ -68,11 +68,7 @@ def batch_dot(x, y, axes=None):
         raise ValueError(
             "Cannot do batch_dot on inputs "
             "with rank < 2. "
-            "Received inputs with tf.shapes "
-            + str(x_shape)
-            + " and "
-            + str(y_shape)
-            + "."
+            f"Received inputs with tf.shapes {x_shape} and {y_shape}."
         )
 
     x_batch_size = x_shape[0]
@@ -84,10 +80,7 @@ def batch_dot(x, y, axes=None):
                 "Cannot do batch_dot on inputs "
                 "with different batch sizes. "
                 "Received inputs with tf.shapes "
-                + str(x_shape)
-                + " and "
-                + str(y_shape)
-                + "."
+                f"{x_shape} and {y_shape}."
             )
     if isinstance(axes, int):
         axes = [axes, axes]
@@ -101,9 +94,8 @@ def batch_dot(x, y, axes=None):
     if py_any(isinstance(a, (list, tuple)) for a in axes):
         raise ValueError(
             "Multiple target dimensions are not supported. "
-            + "Expected: None, int, (int, int), "
-            + "Provided: "
-            + str(axes)
+            "Expected: None, int, (int, int), "
+            f"Provided: {axes}"
         )
 
     # if tuple, convert to list.
@@ -130,12 +122,8 @@ def batch_dot(x, y, axes=None):
     if d1 is not None and d2 is not None and d1 != d2:
         raise ValueError(
             "Cannot do batch_dot on inputs with tf.shapes "
-            + str(x_shape)
-            + " and "
-            + str(y_shape)
-            + " with axes="
-            + str(axes)
-            + ". x.shape[%d] != y.shape[%d] (%d != %d)."
+            f"{x_shape} and {y_shape} with axes={axes}. "
+            "x.shape[%d] != y.shape[%d] (%d != %d)."
             % (axes[0], axes[1], d1, d2)
         )
 
@@ -2150,9 +2138,7 @@ def switch(condition, then_expression, else_expression):
                 "Rank of `condition` should be less than or"
                 " equal to rank of `then_expression` and "
                 "`else_expression`. ndim(condition)="
-                + str(cond_ndim)
-                + ", ndim(then_expression)="
-                + str(expr_ndim)
+                f"{cond_ndim}, ndim(then_expression)={expr_ndim}"
             )
         if cond_ndim > 1:
             ndim_diff = expr_ndim - cond_ndim

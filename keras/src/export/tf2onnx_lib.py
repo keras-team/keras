@@ -156,11 +156,7 @@ def patch_tf2onnx():
             > external_tensor_storage.external_tensor_size_threshold
         ):
             a = copy.deepcopy(a)
-            tensor_name = (
-                self.name.strip()
-                + "_"
-                + str(external_tensor_storage.name_counter)
-            )
+            tensor_name = f"{self.name.strip()}_{external_tensor_storage.name_counter}"
             for c in '~"#%&*:<>?/\\{|}':
                 tensor_name = tensor_name.replace(c, "_")
             external_tensor_storage.name_counter += 1

@@ -1,5 +1,6 @@
 import collections
 import json
+import os.path
 import pprint
 import zipfile
 
@@ -76,7 +77,7 @@ class KerasFileEditor:
         if filepath.endswith(".keras"):
             zf = zipfile.ZipFile(filepath, "r")
             weights_store = H5IOStore(
-                saving_lib._VARS_FNAME + ".h5",
+                f"{saving_lib._VARS_FNAME}.h5",
                 archive=zf,
                 mode="r",
             )
@@ -143,7 +144,7 @@ class KerasFileEditor:
         ):
             base_inner_path = inner_path
             for ref_key, ref_val in ref_spec.items():
-                inner_path = base_inner_path + "/" + ref_key
+                inner_path = f"{base_inner_path}/{ref_key}"
                 if inner_path in checked_paths:
                     continue
 
@@ -435,7 +436,7 @@ class KerasFileEditor:
                         _save(
                             weights_dict[name],
                             weights_store,
-                            inner_path=inner_path + "/" + name,
+                            inner_path=os.path.join(inner_path, name),
                         )
                 else:
                     # e.g. name="0", value=HDF5Dataset
@@ -462,7 +463,7 @@ class KerasFileEditor:
 
         result = collections.OrderedDict()
         for key in data.keys():
-            inner_path = inner_path + "/" + key
+            inner_path = f"{inner_path}/{key}"
             value = data[key]
             if isinstance(value, h5py.Group):
                 if len(value) == 0:
@@ -506,7 +507,7 @@ class KerasFileEditor:
         self, weights_dict, indent=0, is_first=True, prefix="", inner_path=""
     ):
         for idx, (key, value) in enumerate(weights_dict.items()):
-            inner_path = inner_path + "/" + key
+            inner_path = os.path.join(inner_path, key)
             is_last = idx == len(weights_dict) - 1
             if is_first:
                 is_first = False
@@ -558,27 +559,26 @@ class KerasFileEditor:
                 if isinstance(value, dict) and value:
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
-                        + '<summary style="'
-                        + f"font-size: {font_size}em; "
-                        + "font-weight: bold;"
-                        + f'">{key}</summary>'
-                        + _generate_html_weights(
+                        '<summary style="'
+                        f"font-size: {font_size}em; "
+                        "font-weight: bold;"
+                        f'">{key}</summary>'
+                        f"{_generate_html_weights(
                             value, margin_left + 20, font_size - 1
-                        )
-                        + "</details>"
+                        )}</details>"
                     )
                 else:
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
-                        + f'<summary style="font-size: {font_size}em;">'
-                        + f"{key} : shape={value.shape}"
-                        + f", dtype={value.dtype}</summary>"
-                        + f"<div style="
+                        f'<summary style="font-size: {font_size}em;">'
+                        f"{key} : shape={value.shape}"
+                        f", dtype={value.dtype}</summary>"
+                        f"<div style="
                         f'"margin-left: {margin_left}px;'
                         f'"margin-top: {margin_left}px;">'
-                        + f"{display_weight(value)}"
-                        + "</div>"
-                        + "</details>"
+                        f"{display_weight(value)}"
+                        "</div>"
+                        "</details>"
                     )
             return html
 

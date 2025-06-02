@@ -763,7 +763,7 @@ def _retrieve_class_or_fn(
         # module name might not match the package structure
         # (e.g. experimental symbols).
         if module == "keras" or module.startswith("keras."):
-            api_name = module + "." + name
+            api_name = f"{module}.{name}"
 
             obj = api_export.get_symbol_from_name(api_name)
             if obj is not None:
@@ -776,7 +776,7 @@ def _retrieve_class_or_fn(
         if obj_type == "function" and module == "builtins":
             for mod in BUILTIN_MODULES:
                 obj = api_export.get_symbol_from_name(
-                    "keras." + mod + "." + name
+                    f"keras.{mod}.{name}"
                 )
                 if obj is not None:
                     return obj

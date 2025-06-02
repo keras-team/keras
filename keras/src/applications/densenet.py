@@ -10,25 +10,22 @@ BASE_WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/densenet/"
 )
 DENSENET121_WEIGHT_PATH = (
-    BASE_WEIGHTS_PATH + "densenet121_weights_tf_dim_ordering_tf_kernels.h5"
+    f"{BASE_WEIGHTS_PATH}densenet121_weights_tf_dim_ordering_tf_kernels.h5"
 )
 DENSENET121_WEIGHT_PATH_NO_TOP = (
-    BASE_WEIGHTS_PATH
-    + "densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5"
+    f"{BASE_WEIGHTS_PATH}densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5"
 )
 DENSENET169_WEIGHT_PATH = (
-    BASE_WEIGHTS_PATH + "densenet169_weights_tf_dim_ordering_tf_kernels.h5"
+    f"{BASE_WEIGHTS_PATH}densenet169_weights_tf_dim_ordering_tf_kernels.h5"
 )
 DENSENET169_WEIGHT_PATH_NO_TOP = (
-    BASE_WEIGHTS_PATH
-    + "densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5"
+    f"{BASE_WEIGHTS_PATH}densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5"
 )
 DENSENET201_WEIGHT_PATH = (
-    BASE_WEIGHTS_PATH + "densenet201_weights_tf_dim_ordering_tf_kernels.h5"
+    f"{BASE_WEIGHTS_PATH}densenet201_weights_tf_dim_ordering_tf_kernels.h5"
 )
 DENSENET201_WEIGHT_PATH_NO_TOP = (
-    BASE_WEIGHTS_PATH
-    + "densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5"
+    f"{BASE_WEIGHTS_PATH}densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5"
 )
 
 
@@ -44,7 +41,7 @@ def dense_block(x, blocks, name):
         Output tensor for the block.
     """
     for i in range(blocks):
-        x = conv_block(x, 32, name=name + "_block" + str(i + 1))
+        x = conv_block(x, 32, name=f"{name}_block" + str(i + 1))
     return x
 
 
@@ -61,16 +58,16 @@ def transition_block(x, reduction, name):
     """
     bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_bn"
     )(x)
-    x = layers.Activation("relu", name=name + "_relu")(x)
+    x = layers.Activation("relu", name=f"{name}_relu")(x)
     x = layers.Conv2D(
         int(x.shape[bn_axis] * reduction),
         1,
         use_bias=False,
-        name=name + "_conv",
+        name=f"{name}_conv",
     )(x)
-    x = layers.AveragePooling2D(2, strides=2, name=name + "_pool")(x)
+    x = layers.AveragePooling2D(2, strides=2, name=f"{name}_pool")(x)
     return x
 
 
@@ -87,20 +84,20 @@ def conv_block(x, growth_rate, name):
     """
     bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
     x1 = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_0_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_0_bn"
     )(x)
-    x1 = layers.Activation("relu", name=name + "_0_relu")(x1)
+    x1 = layers.Activation("relu", name=f"{name}_0_relu")(x1)
     x1 = layers.Conv2D(
-        4 * growth_rate, 1, use_bias=False, name=name + "_1_conv"
+        4 * growth_rate, 1, use_bias=False, name=f"{name}_1_conv"
     )(x1)
     x1 = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_1_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_1_bn"
     )(x1)
-    x1 = layers.Activation("relu", name=name + "_1_relu")(x1)
+    x1 = layers.Activation("relu", name=f"{name}_1_relu")(x1)
     x1 = layers.Conv2D(
-        growth_rate, 3, padding="same", use_bias=False, name=name + "_2_conv"
+        growth_rate, 3, padding="same", use_bias=False, name=f"{name}_2_conv"
     )(x1)
-    x = layers.Concatenate(axis=bn_axis, name=name + "_concat")([x, x1])
+    x = layers.Concatenate(axis=bn_axis, name=f"{name}_concat")([x, x1])
     return x
 
 

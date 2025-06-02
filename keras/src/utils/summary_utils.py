@@ -87,7 +87,7 @@ def format_layer_shape(layer):
 
     def format_shape(shape):
         highlighted = [highlight_number(x) for x in shape]
-        return "(" + ", ".join(highlighted) + ")"
+        return f"({', '.join(highlighted)})"
 
     # There are 2 approaches to get output shapes:
     # 1. Using `layer._inbound_nodes`, which is possible if the model is a
@@ -276,7 +276,7 @@ def print_summary(
         if not hasattr(layer, "built"):
             params = highlight_number(0)
         elif not layer.built:
-            params = highlight_number(0) + " (unbuilt)"
+            params = f"{highlight_number(0)} (unbuilt)"
         else:
             params = highlight_number(f"{layer.count_params():,}")
 
@@ -296,7 +296,7 @@ def print_summary(
 
     def print_layer(layer, nested_level=0):
         if nested_level:
-            prefix = "   " * nested_level + "└" + " "
+            prefix = "   " * nested_level + "└ "
         else:
             prefix = ""
 
@@ -388,6 +388,17 @@ def print_summary(
         else:
             print_fn(console.end_capture())
 
+def print(*args, **kwargs):
+    from keras.api import backend
+    import jax
+    import tensorflow as tf
+
+    backend = backend.backend()
+    print_fn = {"jax": jax.debug.print,
+                "tensorflow": tf.print}[backend]
+    # "pytorch" https://pytorch.org/docs/stable/generated/torch.set_printoptions.html ?
+    # "openvino"
+    return print_fn(*args, **kwargs)
 
 def get_layer_index_bound_by_layer_name(layers, layer_range=None):
     """Get the layer indexes from the model based on layer names.

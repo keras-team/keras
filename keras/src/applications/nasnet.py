@@ -11,10 +11,10 @@ from keras.src.utils import file_utils
 BASE_WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/"
 )
-NASNET_MOBILE_WEIGHT_PATH = BASE_WEIGHTS_PATH + "NASNet-mobile.h5"
-NASNET_MOBILE_WEIGHT_PATH_NO_TOP = BASE_WEIGHTS_PATH + "NASNet-mobile-no-top.h5"
-NASNET_LARGE_WEIGHT_PATH = BASE_WEIGHTS_PATH + "NASNet-large.h5"
-NASNET_LARGE_WEIGHT_PATH_NO_TOP = BASE_WEIGHTS_PATH + "NASNet-large-no-top.h5"
+NASNET_MOBILE_WEIGHT_PATH = f"{BASE_WEIGHTS_PATH}NASNet-mobile.h5"
+NASNET_MOBILE_WEIGHT_PATH_NO_TOP = f"{BASE_WEIGHTS_PATH}NASNet-mobile-no-top.h5"
+NASNET_LARGE_WEIGHT_PATH = f"{BASE_WEIGHTS_PATH}NASNet-large.h5"
+NASNET_LARGE_WEIGHT_PATH_NO_TOP = f"{BASE_WEIGHTS_PATH}NASNet-large-no-top.h5"
 
 
 def NASNet(
@@ -137,10 +137,8 @@ def NASNet(
         and weights == "imagenet"
     ):
         raise ValueError(
-            "When specifying the input shape of a NASNet"
-            " and loading `ImageNet` weights, "
-            "the input_shape argument must be static "
-            "(no None entries). Got: `input_shape=" + str(input_shape) + "`."
+            "When specifying the input shape of a NASNet and loading `ImageNet` weights, "
+            f"the input_shape argument must be static (no None entries). Got: `input_shape={input_shape}`."
         )
 
     if default_size is None:

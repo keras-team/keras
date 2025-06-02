@@ -1,4 +1,5 @@
 import inspect
+import os.path
 import textwrap
 
 from keras.src import backend
@@ -17,10 +18,10 @@ class Operation:
     def __init__(self, dtype=None, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
-        if not isinstance(name, str) or "/" in name:
+        if not isinstance(name, str) or os.path.sep in name:
             raise ValueError(
                 "Argument `name` must be a string and "
-                "cannot contain character `/`. "
+                f"cannot contain character `{os.path.sep}`. "
                 f"Received: name={name} (of type {type(name)})"
             )
         self._dtype_policy = dtype_policies.get(dtype)
