@@ -1,14 +1,12 @@
-import keras.backend
 from keras.src.api_export import keras_export
+from keras.src.backend import backend as keras_backend
 
-# Unique source of truth for the version number.
-__version__ = "3.10.0"
 _print = print
 
 
 @keras_export("keras.print")
 def print(*args, **kwargs):
-    backend = keras.backend.backend()
+    backend = keras_backend()
     if backend == "jax":
         import jax  # noqa: E402
 
