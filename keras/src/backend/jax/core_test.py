@@ -1,5 +1,6 @@
 import os
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -48,3 +49,10 @@ class JaxCoreVariableTest(testing.TestCase):
         restored_model = keras.models.load_model(path)
         restored_outputs = restored_model(self.single_dummy_input)
         self.assertAllEqual(original_outputs, restored_outputs)
+
+    def test_keras_variable_nnx_split_merge_sync(self):
+        variable1 = keras.Variable(jnp.array(1.0))
+        graphdef, state = nnx.split(variable1)
+        state = jax.tree.map(lambda x: x + 1, state)
+        variable2 = nnx.merge(graphdef, state)
+        self.assertEqual(variable2._value, variable2.value)
