@@ -696,3 +696,14 @@ class name_scope(base_name_scope):
 
 def device_scope(device_name):
     return tf.device(device_name)
+
+
+def print(*args, **kwargs):
+    """Print the specified inputs.
+
+    A TensorFlow operator that prints the specified inputs to a desired
+    output stream or logging level. The inputs may be dense or sparse Tensors,
+    primitive python objects, data structures that contain tensors, and
+    printable Python objects. Printed tensors will recursively show the first
+    and last elements of each dimension to summarize."""
+    return tf.print(*args, **kwargs)

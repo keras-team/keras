@@ -17,5 +17,4 @@ from keras.src.layers import Layer
 from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
-from keras.src.print import print
 from keras.src.version import __version__

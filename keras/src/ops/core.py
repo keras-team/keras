@@ -1183,3 +1183,13 @@ def custom_gradient(f):
     ```
     """
     return backend.core.custom_gradient(f)
+
+
+_print = print
+
+
+@keras_export("keras.ops.print")
+def print(*args, **kwargs):
+    return (backend.core.print if hasattr(backend.core, "print") else _print)(
+        *args, **kwargs
+    )

@@ -428,3 +428,13 @@ def device_scope(device_name):
     else:
         jax_device = device_name
     return jax.default_device(jax_device)
+
+
+def print(*args, **kwargs):
+    """Prints values and works in staged out JAX functions.
+
+    This function does *not* work with f-strings because formatting is delayed.
+    So instead of ``jax.debug.print(f"hello {bar}")``, write
+    ``jax.debug.print("hello {bar}", bar=bar)``.
+    """
+    return jax.debug.print(*args, **kwargs)
