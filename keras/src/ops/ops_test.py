@@ -170,7 +170,7 @@ class OperationTest(testing.TestCase):
         for op_function, _ in op_functions_and_classes(ops_module):
             name = op_function.__name__
 
-            if hasattr(ops_module, "_" + name):
+            if hasattr(ops_module, f"_{name}"):
                 # For an op function `foo`, if there is a function named `_foo`,
                 # that means we have a backend independent implementation.
                 continue
