@@ -452,11 +452,11 @@ class Functional(Function, Model):
             new_node_index = node_reindexing_map[node_key]
             return [operation.name, new_node_index, tensor_index]
 
-        def create_io_structure(tensors):
+        def map_tensors(tensors):
             return tree.map_structure(get_tensor_config, tensors)
 
-        config["input_layers"] = create_io_structure(self._inputs_struct)
-        config["output_layers"] = create_io_structure(self._outputs_struct)
+        config["input_layers"] = map_tensors(self._inputs_struct)
+        config["output_layers"] = map_tensors(self._outputs_struct)
         return copy.deepcopy(config)
 
 
