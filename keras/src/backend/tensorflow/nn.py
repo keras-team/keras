@@ -164,9 +164,9 @@ def log_softmax(x, axis=-1):
     return tf.nn.log_softmax(x, axis=axis)
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted = tf.sort(logits, direction="DESCENDING", axis=axis)
     logits_cumsum = tf.cumsum(logits_sorted, axis=axis)
     r = tf.range(1, tf.shape(logits)[axis] + 1, dtype=logits.dtype)
@@ -505,7 +505,7 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     x = convert_to_tensor(x, dtype="int64")
     if dtype is None:
         dtype = "float32"
@@ -541,7 +541,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     )
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     reduction_axis = 1 if len(x.shape) > 1 else 0
     if backend.standardize_dtype(dtype) == "bool":
         if sparse:
@@ -886,13 +886,7 @@ def batch_normalization(
     )
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
-    mask_index=0,
-):
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     target = tf.cast(target, dtype="int32")
