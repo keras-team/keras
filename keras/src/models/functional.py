@@ -452,13 +452,11 @@ class Functional(Function, Model):
             new_node_index = node_reindexing_map[node_key]
             return [operation.name, new_node_index, tensor_index]
 
-        def map_tensors(tensors):
-            if isinstance(tensors, backend.KerasTensor):
-                return [get_tensor_config(tensors)]
+        def create_io_structure(tensors):
             return tree.map_structure(get_tensor_config, tensors)
 
-        config["input_layers"] = map_tensors(self._inputs_struct)
-        config["output_layers"] = map_tensors(self._outputs_struct)
+        config["input_layers"] = create_io_structure(self._inputs_struct)
+        config["output_layers"] = create_io_structure(self._outputs_struct)
         return copy.deepcopy(config)
 
 
@@ -621,10 +619,6 @@ def functional_from_config(cls, config, custom_objects=None):
 
     input_tensors = map_tensors(functional_config["input_layers"])
     output_tensors = map_tensors(functional_config["output_layers"])
-    if isinstance(input_tensors, list) and len(input_tensors) == 1:
-        input_tensors = input_tensors[0]
-    if isinstance(output_tensors, list) and len(output_tensors) == 1:
-        output_tensors = output_tensors[0]
 
     return cls(
         inputs=input_tensors,
