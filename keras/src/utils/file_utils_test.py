@@ -32,7 +32,9 @@ class PathToStringTest(test_case.TestCase):
 
         path = NonStringTypedPathObject()
         string_path = file_utils.path_to_string(path)
-        self.assertEqual(string_path, os.path.join(os.path.sep, "path", "to", "file.txt"))
+        self.assertEqual(
+            string_path, os.path.join(os.path.sep, "path", "to", "file.txt")
+        )
 
     def test_path_to_string_with_none_path(self):
         string_path = file_utils.path_to_string(None)

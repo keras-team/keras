@@ -194,7 +194,8 @@ def make_or_restore_model():
     # Either restore the latest model, or create a fresh one
     # if there is no checkpoint available.
     checkpoints = [
-        os.path.join(checkpoint_dir, name) for name in os.listdir(checkpoint_dir)
+        os.path.join(checkpoint_dir, name)
+        for name in os.listdir(checkpoint_dir)
     ]
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)

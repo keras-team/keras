@@ -12,21 +12,15 @@ BASE_WEIGHTS_PATH = (
 DENSENET121_WEIGHT_PATH = (
     f"{BASE_WEIGHTS_PATH}densenet121_weights_tf_dim_ordering_tf_kernels.h5"
 )
-DENSENET121_WEIGHT_PATH_NO_TOP = (
-    f"{BASE_WEIGHTS_PATH}densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5"
-)
+DENSENET121_WEIGHT_PATH_NO_TOP = f"{BASE_WEIGHTS_PATH}densenet121_weights_tf_dim_ordering_tf_kernels_notop.h5"
 DENSENET169_WEIGHT_PATH = (
     f"{BASE_WEIGHTS_PATH}densenet169_weights_tf_dim_ordering_tf_kernels.h5"
 )
-DENSENET169_WEIGHT_PATH_NO_TOP = (
-    f"{BASE_WEIGHTS_PATH}densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5"
-)
+DENSENET169_WEIGHT_PATH_NO_TOP = f"{BASE_WEIGHTS_PATH}densenet169_weights_tf_dim_ordering_tf_kernels_notop.h5"
 DENSENET201_WEIGHT_PATH = (
     f"{BASE_WEIGHTS_PATH}densenet201_weights_tf_dim_ordering_tf_kernels.h5"
 )
-DENSENET201_WEIGHT_PATH_NO_TOP = (
-    f"{BASE_WEIGHTS_PATH}densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5"
-)
+DENSENET201_WEIGHT_PATH_NO_TOP = f"{BASE_WEIGHTS_PATH}densenet201_weights_tf_dim_ordering_tf_kernels_notop.h5"
 
 
 def dense_block(x, blocks, name):

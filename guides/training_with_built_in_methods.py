@@ -1133,7 +1133,8 @@ def make_or_restore_model():
     # Either restore the latest model, or create a fresh one
     # if there is no checkpoint available.
     checkpoints = [
-        os.path.join(checkpoint_dir, name) for name in os.listdir(checkpoint_dir)
+        os.path.join(checkpoint_dir, name)
+        for name in os.listdir(checkpoint_dir)
     ]
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
@@ -1148,7 +1149,8 @@ callbacks = [
     # This callback saves the model every 100 batches.
     # We include the training loss in the saved model name.
     keras.callbacks.ModelCheckpoint(
-        filepath=os.path.join(checkpoint_dir, "model-loss={loss:.2f}.keras"), save_freq=100
+        filepath=os.path.join(checkpoint_dir, "model-loss={loss:.2f}.keras"),
+        save_freq=100,
     )
 ]
 model.fit(x_train, y_train, epochs=1, callbacks=callbacks)

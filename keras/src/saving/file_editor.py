@@ -563,9 +563,8 @@ class KerasFileEditor:
                         f"font-size: {font_size}em; "
                         "font-weight: bold;"
                         f'">{key}</summary>'
-                        f"{_generate_html_weights(
-                            value, margin_left + 20, font_size - 1
-                        )}</details>"
+                        f"{_generate_html_weights(value, margin_left + 20, font_size - 1)}"
+                        "</details>"
                     )
                 else:
                     html += (

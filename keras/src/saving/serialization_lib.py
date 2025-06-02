@@ -775,9 +775,7 @@ def _retrieve_class_or_fn(
         # the corresponding function from the identifying string.
         if obj_type == "function" and module == "builtins":
             for mod in BUILTIN_MODULES:
-                obj = api_export.get_symbol_from_name(
-                    f"keras.{mod}.{name}"
-                )
+                obj = api_export.get_symbol_from_name(f"keras.{mod}.{name}")
                 if obj is not None:
                     return obj
 

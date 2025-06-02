@@ -268,7 +268,7 @@ def print_summary(
 
     def get_layer_fields(layer, prefix=""):
         output_shape = format_layer_shape(layer)
-        name = prefix + layer.name
+        name = f"{prefix}{layer.name}"
         cls_name = layer.__class__.__name__
         name = rich.markup.escape(name)
         name += f" ({highlight_symbol(rich.markup.escape(cls_name))})"
@@ -388,17 +388,18 @@ def print_summary(
         else:
             print_fn(console.end_capture())
 
+
 def print(*args, **kwargs):
     from keras.api import backend
     import jax
     import tensorflow as tf
 
     backend = backend.backend()
-    print_fn = {"jax": jax.debug.print,
-                "tensorflow": tf.print}[backend]
+    print_fn = {"jax": jax.debug.print, "tensorflow": tf.print}[backend]
     # "pytorch" https://pytorch.org/docs/stable/generated/torch.set_printoptions.html ?
     # "openvino"
     return print_fn(*args, **kwargs)
+
 
 def get_layer_index_bound_by_layer_name(layers, layer_range=None):
     """Get the layer indexes from the model based on layer names.

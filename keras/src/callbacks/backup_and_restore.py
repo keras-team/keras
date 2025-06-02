@@ -100,7 +100,9 @@ class BackupAndRestore(Callback):
             backup_dir, "training_metadata.json"
         )
         self._prev_weights_path = f"{self._weights_path}.bkp"
-        self._prev_training_metadata_path = f"{self._training_metadata_path}.bkp"
+        self._prev_training_metadata_path = (
+            f"{self._training_metadata_path}.bkp"
+        )
         if save_freq != "epoch" and not isinstance(save_freq, int):
             raise ValueError(
                 "Invalid value for argument `save_freq`. "

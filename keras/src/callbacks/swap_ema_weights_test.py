@@ -108,7 +108,9 @@ class SwapEMAWeightsTest(testing.TestCase):
                 epochs=2,
                 callbacks=[
                     callbacks.SwapEMAWeights(swap_on_epoch=True),
-                    callbacks.ModelCheckpoint(os.path.join(temp_dir, "{epoch:1d}.keras")),
+                    callbacks.ModelCheckpoint(
+                        os.path.join(temp_dir, "{epoch:1d}.keras")
+                    ),
                 ],
                 validation_data=(self.x_train, self.y_train),
             )
@@ -167,12 +169,16 @@ class SwapEMAWeightsTest(testing.TestCase):
                     callbacks=[
                         callbacks.SwapEMAWeights(swap_on_epoch=True),
                         callbacks.ModelCheckpoint(
-                            os.path.join(temp_dir, "distributed_{epoch:1d}.keras")
+                            os.path.join(
+                                temp_dir, "distributed_{epoch:1d}.keras"
+                            )
                         ),
                     ],
                     validation_data=(self.x_train, self.y_train),
                 )
-                model2 = saving.load_model(os.path.join(temp_dir, "distributed_2.keras"))
+                model2 = saving.load_model(
+                    os.path.join(temp_dir, "distributed_2.keras")
+                )
         logs = model.evaluate(self.x_train, self.y_train, return_dict=True)
         logs2 = model2.evaluate(self.x_train, self.y_train, return_dict=True)
         # saved checkpoint will be applied by EMA weights

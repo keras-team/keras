@@ -56,9 +56,11 @@ def manage_venv_installs(whl_path):
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
-        "pip uninstall -y {0} {1} {2}".format(BACKEND_REQ[other_backends[0]][0],
-                                              BACKEND_REQ[other_backends[1]][0],
-                                              BACKEND_REQ[other_backends[2]][0]),
+        "pip uninstall -y {0} {1} {2}".format(
+            BACKEND_REQ[other_backends[0]][0],
+            BACKEND_REQ[other_backends[1]][0],
+            BACKEND_REQ[other_backends[2]][0],
+        ),
         # Install `.whl` package
         f"pip install {whl_path}",
     ]

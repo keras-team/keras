@@ -368,17 +368,13 @@ def MobileNetV2(
     # Load weights.
     if weights == "imagenet":
         if include_top:
-            model_name = (
-                f"mobilenet_v2_weights_tf_dim_ordering_tf_kernels_{float(alpha)}_{rows}.h5"
-            )
+            model_name = f"mobilenet_v2_weights_tf_dim_ordering_tf_kernels_{float(alpha)}_{rows}.h5"
             weight_path = BASE_WEIGHT_PATH + model_name
             weights_path = file_utils.get_file(
                 model_name, weight_path, cache_subdir="models"
             )
         else:
-            model_name = (
-                f"mobilenet_v2_weights_tf_dim_ordering_tf_kernels_{float(alpha)}_{rows}_no_top.h5"
-            )
+            model_name = f"mobilenet_v2_weights_tf_dim_ordering_tf_kernels_{float(alpha)}_{rows}_no_top.h5"
             weight_path = BASE_WEIGHT_PATH + model_name
             weights_path = file_utils.get_file(
                 model_name, weight_path, cache_subdir="models"

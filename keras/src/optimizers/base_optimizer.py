@@ -312,9 +312,9 @@ class BaseOptimizer(KerasSaveable):
         if hasattr(reference_variable, "path"):
             name = f"{reference_variable.path.replace('/', '_')}_{name}"
         else:
-            sanitised_ref_name = (str(reference_variable.name)
-                                  .replace('/', '_')
-                                  .replace(':', '_'))
+            sanitised_ref_name = (
+                str(reference_variable.name).replace("/", "_").replace(":", "_")
+            )
             name = f"{sanitised_ref_name}_{name}"
         return self.add_variable(
             shape=reference_variable.shape,
