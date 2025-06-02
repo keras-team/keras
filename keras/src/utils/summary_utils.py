@@ -390,13 +390,15 @@ def print_summary(
 
 
 def print(*args, **kwargs):
-    from keras.api import backend
     import jax
     import tensorflow as tf
 
+    from keras.api import backend
+
     backend = backend.backend()
     print_fn = {"jax": jax.debug.print, "tensorflow": tf.print}[backend]
-    # "pytorch" https://pytorch.org/docs/stable/generated/torch.set_printoptions.html ?
+    # "pytorch"
+    #   pytorch.org/docs/stable/generated/torch.set_printoptions.html ?
     # "openvino"
     return print_fn(*args, **kwargs)
 

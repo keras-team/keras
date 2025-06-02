@@ -9,7 +9,6 @@ import urllib.error
 import urllib.parse
 import warnings
 import zipfile
-from tempfile import tempdir
 from urllib.request import urlretrieve
 
 from keras.src.api_export import keras_export

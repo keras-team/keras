@@ -9,7 +9,6 @@ import urllib.request
 import zipfile
 from unittest.mock import patch
 
-
 from keras.src.testing import test_case
 from keras.src.utils import file_utils
 

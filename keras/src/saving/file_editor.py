@@ -557,13 +557,16 @@ class KerasFileEditor:
             html = ""
             for key, value in dictionary.items():
                 if isinstance(value, dict) and value:
+                    weights_html = _generate_html_weights(
+                        value, margin_left + 20, font_size - 1
+                    )
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
                         '<summary style="'
                         f"font-size: {font_size}em; "
                         "font-weight: bold;"
                         f'">{key}</summary>'
-                        f"{_generate_html_weights(value, margin_left + 20, font_size - 1)}"
+                        f"{weights_html}"
                         "</details>"
                     )
                 else:

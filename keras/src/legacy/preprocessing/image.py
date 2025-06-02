@@ -617,9 +617,10 @@ class NumpyArrayIterator(Iterator):
         channels_axis = 3 if data_format == "channels_last" else 1
         if self.x.shape[channels_axis] not in {1, 3, 4}:
             warnings.warn(
-                f'NumpyArrayIterator is set to use the data format convention "{data_format}'
-                f'" (channels on axis {channels_axis})'
-                f", i.e. expected either 1, 3, or 4 channels on axis {channels_axis}. "
+                f"NumpyArrayIterator is set to use the data format convention"
+                f' "{data_format}" (channels on axis {channels_axis})'
+                ", i.e. expected either 1, 3, or 4 channels "
+                f"on axis {channels_axis}. "
                 f"However, it was passed an array with shape {self.x.shape}"
                 f" ({self.x.shape[channels_axis]} channels)."
             )
@@ -1491,8 +1492,8 @@ class ImageDataGenerator:
                 f'following the data format convention "{self.data_format}'
                 f'" (channels on axis {self.channel_axis})'
                 ", i.e. expected either 1, 3 or 4 channels on axis "
-                f"{self.channel_axis}. However, it was passed an array with shape "
-                f"{x.shape} ({x.shape[self.channel_axis]} channels)."
+                f"{self.channel_axis}. However, it was passed an array with"
+                f" shape {x.shape} ({x.shape[self.channel_axis]} channels)."
             )
 
         if seed is not None:

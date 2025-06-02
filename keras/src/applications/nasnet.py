@@ -137,8 +137,9 @@ def NASNet(
         and weights == "imagenet"
     ):
         raise ValueError(
-            "When specifying the input shape of a NASNet and loading `ImageNet` weights, "
-            f"the input_shape argument must be static (no None entries). Got: `input_shape={input_shape}`."
+            "When specifying the input shape of a NASNet and loading "
+            "`ImageNet` weights, the input_shape argument must be static"
+            f" (no None entries). Got: `input_shape={input_shape}`."
         )
 
     if default_size is None:
