@@ -54,7 +54,7 @@ from keras.src.utils import tracking
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
 elif backend.backend() == "jax":
-    if is_nnx_backend_enabled:
+    if is_nnx_backend_enabled():
         from keras.src.backend.jax.layer import NnxLayer as BackendLayer
     else:
         from keras.src.backend.jax.layer import JaxLayer as BackendLayer
