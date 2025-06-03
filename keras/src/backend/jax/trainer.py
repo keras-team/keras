@@ -13,6 +13,7 @@ from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import distribution_lib as jax_distribution_lib
+from keras.src.config import is_nnx_backend_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
@@ -234,7 +235,10 @@ class JAXTrainer(base_trainer.Trainer):
                     return output
 
                 if not self.run_eagerly and self.jit_compile:
-                    concatenate = nnx.jit(concatenate)
+                    if is_nnx_backend_enabled:
+                        concatenate = nnx.jit(concatenate)
+                    else:
+                        concatenate = jax.jit(concatenate)
 
                 def iterator_step(state, iterator):
                     data = next(iterator)
@@ -278,7 +282,10 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            train_step = nnx.jit(self.train_step, donate_argnums=0)
+            if is_nnx_backend_enabled:
+                train_step = nnx.jit(self.train_step, donate_argnums=0)
+            else:
+                train_step = jax.jit(self.train_step, donate_argnums=0)
         else:
             train_step = self.train_step
 
@@ -294,7 +301,10 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            test_step = nnx.jit(self.test_step, donate_argnums=0)
+            if is_nnx_backend_enabled:
+                test_step = nnx.jit(self.test_step, donate_argnums=0)
+            else:
+                test_step = jax.jit(self.test_step, donate_argnums=0)
         else:
             test_step = self.test_step
 
@@ -311,7 +321,10 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
-            predict_step = nnx.jit(predict_step, donate_argnums=0)
+            if is_nnx_backend_enabled:
+                predict_step = nnx.jit(predict_step, donate_argnums=0)
+            else:
+                predict_step = jax.jit(predict_step, donate_argnums=0)
 
         _step_function = self._make_function(
             predict_step, concatenate_outputs=True
@@ -905,7 +918,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         Since the output of the train/eval step will be used as inputs to next
         step, we need to ensure that they have the same sharding spec, so that
-        nnx.jit won't have to recompile the train/eval function.
+        nnx.jit/jax.jit won't have to recompile the train/eval function.
 
         Note that this function will also rely on the recorded sharding spec
         for each of states.

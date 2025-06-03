@@ -53,6 +53,7 @@ from jax.experimental import mesh_utils
 from jax.sharding import Mesh
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
+from keras.src.backend.config import is_nnx_backend_enabled
 
 
 def get_model():
@@ -185,8 +186,24 @@ def compute_loss(trainable_variables, non_trainable_variables, x, y):
 compute_gradients = jax.value_and_grad(compute_loss, has_aux=True)
 
 
+def conditional_jit(condition, *args, **kwargs):
+    """
+    Applies @jax.jit or @nnx.jit based on a condition.
+    """
+
+    def decorator(func):
+        if condition:
+            print("Using @nnx.jit")
+            return nnx.jit(func, *args, **kwargs)
+        else:
+            print("Using @jax.jit")
+            return jax.jit(func, *args, **kwargs)
+
+    return decorator
+
+
 # Training step, Keras provides a pure functional optimizer.stateless_apply
-@nnx.jit
+@conditional_jit(is_nnx_backend_enabled)
 def train_step(train_state, x, y):
     (
         trainable_variables,

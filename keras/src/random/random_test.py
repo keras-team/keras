@@ -1,7 +1,7 @@
+import jax
 import numpy as np
 import pytest
 from absl.testing import parameterized
-from flax import nnx
 
 import keras
 from keras.src import backend
@@ -385,7 +385,7 @@ class RandomBehaviorTest(testing.TestCase):
 
         x = ops.ones(3)
 
-        @nnx.jit
+        @jax.jit
         def train_step(x):
             with keras.src.backend.StatelessScope():
                 x = keras.layers.Dropout(rate=0.1)(x, training=True)
@@ -414,7 +414,7 @@ class RandomBehaviorTest(testing.TestCase):
         reason="This test requires `jax` as the backend.",
     )
     def test_jax_unseed_disallowed_during_tracing(self):
-        @nnx.jit
+        @jax.jit
         def jit_fn():
             return random.randint((2, 2), 0, 10, seed=None)
 

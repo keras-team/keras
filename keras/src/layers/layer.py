@@ -38,6 +38,7 @@ from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
+from keras.src.config import is_nnx_backend_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
@@ -53,7 +54,10 @@ from keras.src.utils import tracking
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
 elif backend.backend() == "jax":
-    from keras.src.backend.jax.layer import JaxLayer as BackendLayer
+    if is_nnx_backend_enabled:
+        from keras.src.backend.jax.layer import NnxLayer as BackendLayer
+    else:
+        from keras.src.backend.jax.layer import JaxLayer as BackendLayer
 elif backend.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
 elif backend.backend() == "numpy":

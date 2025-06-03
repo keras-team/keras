@@ -2,6 +2,7 @@ import json
 import os
 
 from keras.src.api_export import keras_export
+from keras.src.backend.common import global_state as keras_global_state
 
 # The type of float to use throughout a session.
 _FLOATX = "float32"
@@ -14,6 +15,9 @@ _IMAGE_DATA_FORMAT = "channels_last"
 
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
+
+# Default for NNX backend features.
+_NNX_ENABLED_KEY = "nnx_enabled"
 
 # Cap run duration for debugging.
 _MAX_EPOCHS = None
@@ -187,9 +191,7 @@ def enable_flash_attention():
     used. Typically, the inputs must be in `float16` or `bfloat16` dtype, and
     input layout requirements may vary depending on the backend.
     """
-    from keras.src.backend.common import global_state
-
-    global_state.set_global_attribute("flash_attention", None)
+    keras_global_state.set_global_attribute("flash_attention", None)
 
 
 @keras_export("keras.config.disable_flash_attention")
@@ -203,9 +205,7 @@ def disable_flash_attention():
     Once disabled, supported layers like `MultiHeadAttention` will not
     use flash attention for faster computations.
     """
-    from keras.src.backend.common import global_state
-
-    global_state.set_global_attribute("flash_attention", False)
+    keras_global_state.set_global_attribute("flash_attention", False)
 
 
 @keras_export("keras.config.is_flash_attention_enabled")
@@ -225,9 +225,45 @@ def is_flash_attention_enabled():
     Returns:
         `False` if disabled; otherwise, it indicates that it is enabled.
     """
-    from keras.src.backend.common import global_state
+    return keras_global_state.get_global_attribute(
+        "flash_attention", default=None
+    )
 
-    return global_state.get_global_attribute("flash_attention", default=None)
+
+@keras_export("keras.config.enable_nnx_backend")
+def enable_nnx_backend():
+    """Enable NNX specific features for the JAX backend.
+
+    When enabled, Keras may utilize NNX-specific optimizations or features
+    if the JAX backend is active. This is disabled by default.
+    """
+    keras_global_state.set_global_attribute(_NNX_ENABLED_KEY, True)
+
+
+@keras_export("keras.config.disable_nnx_backend")
+def disable_nnx_backend():
+    """Disable NNX specific features for the JAX backend.
+
+    This function explicitly disables any NNX-specific backend features.
+    """
+    keras_global_state.set_global_attribute(_NNX_ENABLED_KEY, False)
+
+
+@keras_export("keras.config.is_nnx_backend_enabled")
+def is_nnx_backend_enabled():
+    """Checks whether NNX specific features are enabled for the JAX backend.
+
+    Returns:
+        bool: `True` if NNX backend features are enabled, `False` otherwise.
+        Defaults to `False`.
+    """
+    return keras_global_state.get_global_attribute(
+        _NNX_ENABLED_KEY, default=False
+    )
+
+
+def set_nnx_backend_enabled(value: bool):
+    keras_global_state.set_global_attribute(_NNX_ENABLED_KEY, bool(value))
 
 
 def standardize_data_format(data_format):
@@ -274,10 +310,14 @@ if os.path.exists(_config_path):
     _backend = _config.get("backend", _BACKEND)
     _image_data_format = _config.get("image_data_format", image_data_format())
     assert _image_data_format in {"channels_last", "channels_first"}
+    _nnx_enabled_json = _config.get(_NNX_ENABLED_KEY, is_nnx_backend_enabled())
+    if not isinstance(_nnx_enabled_json, bool):
+        _nnx_enabled_json = str(_nnx_enabled_json).lower() == "true"
 
     set_floatx(_floatx)
     set_epsilon(_epsilon)
     set_image_data_format(_image_data_format)
+    set_nnx_backend_enabled(_nnx_enabled_json)
     _BACKEND = _backend
 
 # Save config file, if possible.
@@ -295,6 +335,7 @@ if not os.path.exists(_config_path):
         "epsilon": epsilon(),
         "backend": _BACKEND,
         "image_data_format": image_data_format(),
+        _NNX_ENABLED_KEY: is_nnx_backend_enabled(),
     }
     try:
         with open(_config_path, "w") as f:
@@ -312,6 +353,12 @@ if "KERAS_MAX_EPOCHS" in os.environ:
     _MAX_EPOCHS = int(os.environ["KERAS_MAX_EPOCHS"])
 if "KERAS_MAX_STEPS_PER_EPOCH" in os.environ:
     _MAX_STEPS_PER_EPOCH = int(os.environ["KERAS_MAX_STEPS_PER_EPOCH"])
+if "KERAS_NNX_ENABLED" in os.environ:
+    _nnx_enabled_env = os.environ["KERAS_NNX_ENABLED"].lower()
+    if _nnx_enabled_env in ("true", "1"):
+        set_nnx_backend_enabled(True)
+    elif _nnx_enabled_env in ("false", "0"):
+        set_nnx_backend_enabled(False)
 
 if _BACKEND != "tensorflow":
     # If we are not running on the tensorflow backend, we should stop tensorflow

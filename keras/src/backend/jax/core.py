@@ -22,7 +22,43 @@ SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
-class Variable(KerasVariable, nnx.Variable):
+class JaxVariable(KerasVariable):
+    def __init__(self, *args, layout=None, **kwargs):
+        # Intercept layout parameter so that it is available
+        # during initialization.
+        self._layout = layout
+        super().__init__(*args, **kwargs)
+
+    def _initialize(self, value):
+        # Note that variable.shape is needed by distribution_lib
+        self._shape = self._validate_shape(value.shape)
+        # We can't import the keras/distribution/distribution_lib
+        # due to circular dependency.
+        distribution = global_state.get_global_attribute("distribution")
+        if self._layout is None and distribution is not None:
+            tensor_layout = distribution.get_variable_layout(self)
+            from keras.src.distribution import TensorLayout
+
+            if isinstance(tensor_layout, TensorLayout):
+                self._layout = tensor_layout.backend_layout
+            else:
+                self._layout = tensor_layout
+        self._direct_assign(value)
+
+    def _direct_assign(self, value):
+        if self._layout is not None:
+            value = distribution_lib.distribute_variable(value, self._layout)
+        self._value = value
+
+    def _convert_to_tensor(self, value, dtype=None):
+        return convert_to_tensor(value, dtype=dtype, sparse=False)
+
+    # Overload native accessor.
+    def __jax_array__(self):
+        return self.value
+
+
+class NnxVariable(KerasVariable, nnx.Variable):
     def __init__(
         self,
         initializer,
@@ -76,7 +112,7 @@ class Variable(KerasVariable, nnx.Variable):
         object.__setattr__(self, "_layout", layout)
 
         # Initialize KerasVariable.
-        super(Variable, self).__init__(
+        super(NnxVariable, self).__init__(
             initializer=initializer,
             shape=shape,
             dtype=dtype,
@@ -257,7 +293,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         # an existing distributed jax array will raise error.
         return x
 
-    if isinstance(x, Variable):
+    if isinstance(x, (JaxVariable, NnxVariable)):
         if dtype is not None and x.dtype != dtype:
             return x.value.astype(dtype)
         return x.value
@@ -541,7 +577,7 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
-    if isinstance(variable, Variable):
+    if isinstance(variable, (JaxVariable, NnxVariable)):
         variable = variable.value
     return jax.lax.stop_gradient(variable)
 
