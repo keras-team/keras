@@ -1,4 +1,3 @@
-import jax
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -381,6 +380,7 @@ class RandomBehaviorTest(testing.TestCase):
         reason="This test requires `jax` as the backend.",
     )
     def test_dropout_jax_jit_stateless(self):
+        import jax
         import jax.numpy as jnp
 
         x = ops.ones(3)
@@ -414,6 +414,8 @@ class RandomBehaviorTest(testing.TestCase):
         reason="This test requires `jax` as the backend.",
     )
     def test_jax_unseed_disallowed_during_tracing(self):
+        import jax
+
         @jax.jit
         def jit_fn():
             return random.randint((2, 2), 0, 10, seed=None)

@@ -1,4 +1,3 @@
-import jax
 import numpy as np
 import pytest
 
@@ -79,6 +78,8 @@ class SeedGeneratorTest(testing.TestCase):
         backend.backend() != "jax", reason="This test requires the JAX backend"
     )
     def test_jax_tracing_with_global_seed_generator(self):
+        import jax
+
         @jax.jit
         def traced_function():
             return seed_generator.global_seed_generator().next()
