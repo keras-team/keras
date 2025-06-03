@@ -2,7 +2,6 @@ import json
 import os
 
 from keras.src.api_export import keras_export
-from keras.src.backend.common import global_state as keras_global_state
 
 # The type of float to use throughout a session.
 _FLOATX = "float32"
@@ -191,7 +190,9 @@ def enable_flash_attention():
     used. Typically, the inputs must be in `float16` or `bfloat16` dtype, and
     input layout requirements may vary depending on the backend.
     """
-    keras_global_state.set_global_attribute("flash_attention", None)
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute("flash_attention", None)
 
 
 @keras_export("keras.config.disable_flash_attention")
@@ -205,7 +206,9 @@ def disable_flash_attention():
     Once disabled, supported layers like `MultiHeadAttention` will not
     use flash attention for faster computations.
     """
-    keras_global_state.set_global_attribute("flash_attention", False)
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute("flash_attention", False)
 
 
 @keras_export("keras.config.is_flash_attention_enabled")
@@ -225,9 +228,9 @@ def is_flash_attention_enabled():
     Returns:
         `False` if disabled; otherwise, it indicates that it is enabled.
     """
-    return keras_global_state.get_global_attribute(
-        "flash_attention", default=None
-    )
+    from keras.src.backend.common import global_state
+
+    return global_state.get_global_attribute("flash_attention", default=None)
 
 
 @keras_export("keras.config.enable_nnx_backend")
@@ -237,7 +240,9 @@ def enable_nnx_backend():
     When enabled, Keras may utilize NNX-specific optimizations or features
     if the JAX backend is active. This is disabled by default.
     """
-    keras_global_state.set_global_attribute(_NNX_ENABLED_KEY, True)
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute(_NNX_ENABLED_KEY, True)
 
 
 @keras_export("keras.config.disable_nnx_backend")
@@ -246,7 +251,9 @@ def disable_nnx_backend():
 
     This function explicitly disables any NNX-specific backend features.
     """
-    keras_global_state.set_global_attribute(_NNX_ENABLED_KEY, False)
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute(_NNX_ENABLED_KEY, False)
 
 
 @keras_export("keras.config.is_nnx_backend_enabled")
@@ -257,13 +264,15 @@ def is_nnx_backend_enabled():
         bool: `True` if NNX backend features are enabled, `False` otherwise.
         Defaults to `False`.
     """
-    return keras_global_state.get_global_attribute(
-        _NNX_ENABLED_KEY, default=False
-    )
+    from keras.src.backend.common import global_state
+
+    return global_state.get_global_attribute(_NNX_ENABLED_KEY, default=False)
 
 
 def set_nnx_backend_enabled(value: bool):
-    keras_global_state.set_global_attribute(_NNX_ENABLED_KEY, bool(value))
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute(_NNX_ENABLED_KEY, bool(value))
 
 
 def standardize_data_format(data_format):
