@@ -362,12 +362,12 @@ if "KERAS_MAX_EPOCHS" in os.environ:
     _MAX_EPOCHS = int(os.environ["KERAS_MAX_EPOCHS"])
 if "KERAS_MAX_STEPS_PER_EPOCH" in os.environ:
     _MAX_STEPS_PER_EPOCH = int(os.environ["KERAS_MAX_STEPS_PER_EPOCH"])
-if "KERAS_NNX_ENABLED" in os.environ:
-    _nnx_enabled_env = os.environ["KERAS_NNX_ENABLED"].lower()
-    if _nnx_enabled_env in ("true", "1"):
-        set_nnx_backend_enabled(True)
-    elif _nnx_enabled_env in ("false", "0"):
-        set_nnx_backend_enabled(False)
+# if "KERAS_NNX_ENABLED" in os.environ:
+#     _nnx_enabled_env = os.environ["KERAS_NNX_ENABLED"].lower()
+#     if _nnx_enabled_env in ("true", "1"):
+#         set_nnx_backend_enabled(True)
+#     elif _nnx_enabled_env in ("false", "0"):
+#         set_nnx_backend_enabled(False)
 
 if _BACKEND != "tensorflow":
     # If we are not running on the tensorflow backend, we should stop tensorflow
