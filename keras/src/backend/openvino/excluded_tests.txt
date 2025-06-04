@@ -28,7 +28,6 @@ keras/src/legacy
 keras/src/losses
 keras/src/metrics
 keras/src/models
-keras/src/ops/core_test.py
 keras/src/ops/image_test.py
 keras/src/ops/linalg_test.py
 keras/src/ops/math_test.py
