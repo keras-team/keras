@@ -18,6 +18,8 @@ SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
+_print = print
+
 
 class Variable(KerasVariable):
     def _initialize(self, value):
@@ -452,3 +454,10 @@ def remat(f):
         "utilize this feature."
     )
     return f
+
+
+def print(*args, print_options=None, **kwargs):
+    np.set_printoptions(
+        **{"threshold": 1000} if print_options is None else print_options
+    )
+    return _print(*args, **kwargs)

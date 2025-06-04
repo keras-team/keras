@@ -23,6 +23,8 @@ SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
+_print = print
+
 # Some operators such as 'aten::_foreach_mul_.Scalar'
 # are not currently implemented for the MPS device.
 # check https://github.com/pytorch/pytorch/issues/77764.
@@ -733,3 +735,10 @@ class CustomGradientFunction(torch.autograd.Function):
         if not isinstance(grads, tuple):
             grads = (grads,)
         return (None,) + grads
+
+
+def print(*args, print_options=None, **kwargs):
+    torch.set_printoptions(
+        **{"threshold": 1000} if print_options is None else print_options
+    )
+    return _print(*args, **kwargs)

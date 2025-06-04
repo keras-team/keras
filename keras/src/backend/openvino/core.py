@@ -22,6 +22,8 @@ SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
+_print = print
+
 OPENVINO_DTYPES = {
     "float16": ov.Type.f16,
     "float32": ov.Type.f32,
@@ -664,3 +666,7 @@ def remat(f):
         "utilize this feature."
     )
     return f
+
+
+def print(*args, **kwargs):
+    return _print(*args, **kwargs)
