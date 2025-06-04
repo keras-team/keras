@@ -306,6 +306,7 @@ def keras_home():
 
 # Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_KERAS_DIR, "keras.json"))
+_initial_nnx_value_from_config = False  # Safe default before reading config
 if os.path.exists(_config_path):
     try:
         with open(_config_path) as f:
@@ -319,14 +320,15 @@ if os.path.exists(_config_path):
     _backend = _config.get("backend", _BACKEND)
     _image_data_format = _config.get("image_data_format", image_data_format())
     assert _image_data_format in {"channels_last", "channels_first"}
-    _nnx_enabled_json = _config.get(_NNX_ENABLED_KEY, is_nnx_backend_enabled())
-    if not isinstance(_nnx_enabled_json, bool):
-        _nnx_enabled_json = str(_nnx_enabled_json).lower() == "true"
+    _initial_nnx_value_from_config = _config.get(_NNX_ENABLED_KEY, False)
+    if not isinstance(_initial_nnx_value_from_config, bool):
+        _initial_nnx_value_from_config = (
+            str(_initial_nnx_value_from_config).lower() == "true"
+        )
 
     set_floatx(_floatx)
     set_epsilon(_epsilon)
     set_image_data_format(_image_data_format)
-    set_nnx_backend_enabled(_nnx_enabled_json)
     _BACKEND = _backend
 
 # Save config file, if possible.
@@ -339,12 +341,13 @@ if not os.path.exists(_KERAS_DIR):
         pass
 
 if not os.path.exists(_config_path):
+    _current_nnx_status_for_saving = is_nnx_backend_enabled()
     _config = {
         "floatx": floatx(),
         "epsilon": epsilon(),
         "backend": _BACKEND,
         "image_data_format": image_data_format(),
-        _NNX_ENABLED_KEY: is_nnx_backend_enabled(),
+        _NNX_ENABLED_KEY: _current_nnx_status_for_saving,
     }
     try:
         with open(_config_path, "w") as f:
@@ -352,6 +355,9 @@ if not os.path.exists(_config_path):
     except IOError:
         # Except permission denied.
         pass
+
+# Ensure global state is initialized from config
+set_nnx_backend_enabled(_initial_nnx_value_from_config)
 
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if "KERAS_BACKEND" in os.environ:
@@ -362,12 +368,12 @@ if "KERAS_MAX_EPOCHS" in os.environ:
     _MAX_EPOCHS = int(os.environ["KERAS_MAX_EPOCHS"])
 if "KERAS_MAX_STEPS_PER_EPOCH" in os.environ:
     _MAX_STEPS_PER_EPOCH = int(os.environ["KERAS_MAX_STEPS_PER_EPOCH"])
-# if "KERAS_NNX_ENABLED" in os.environ:
-#     _nnx_enabled_env = os.environ["KERAS_NNX_ENABLED"].lower()
-#     if _nnx_enabled_env in ("true", "1"):
-#         set_nnx_backend_enabled(True)
-#     elif _nnx_enabled_env in ("false", "0"):
-#         set_nnx_backend_enabled(False)
+if "KERAS_NNX_ENABLED" in os.environ:
+    _nnx_enabled_env = os.environ["KERAS_NNX_ENABLED"].lower()
+    if _nnx_enabled_env in ("true", "1"):
+        set_nnx_backend_enabled(True)
+    elif _nnx_enabled_env in ("false", "0"):
+        set_nnx_backend_enabled(False)
 
 if _BACKEND != "tensorflow":
     # If we are not running on the tensorflow backend, we should stop tensorflow
