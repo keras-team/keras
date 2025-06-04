@@ -203,7 +203,7 @@ def conditional_jit(condition, *args, **kwargs):
 
 
 # Training step, Keras provides a pure functional optimizer.stateless_apply
-@conditional_jit(is_nnx_backend_enabled)
+@conditional_jit(is_nnx_backend_enabled())
 def train_step(train_state, x, y):
     (
         trainable_variables,

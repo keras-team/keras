@@ -8,11 +8,9 @@ from keras.src.backend.config import backend as backend
 from keras.src.backend.config import (
     disable_flash_attention as disable_flash_attention,
 )
-from keras.src.backend.config import disable_nnx_backend as disable_nnx_backend
 from keras.src.backend.config import (
     enable_flash_attention as enable_flash_attention,
 )
-from keras.src.backend.config import enable_nnx_backend as enable_nnx_backend
 from keras.src.backend.config import epsilon as epsilon
 from keras.src.backend.config import floatx as floatx
 from keras.src.backend.config import image_data_format as image_data_format

@@ -233,29 +233,6 @@ def is_flash_attention_enabled():
     return global_state.get_global_attribute("flash_attention", default=None)
 
 
-@keras_export("keras.config.enable_nnx_backend")
-def enable_nnx_backend():
-    """Enable NNX specific features for the JAX backend.
-
-    When enabled, Keras may utilize NNX-specific optimizations or features
-    if the JAX backend is active. This is disabled by default.
-    """
-    from keras.src.backend.common import global_state
-
-    global_state.set_global_attribute(_NNX_ENABLED_KEY, True)
-
-
-@keras_export("keras.config.disable_nnx_backend")
-def disable_nnx_backend():
-    """Disable NNX specific features for the JAX backend.
-
-    This function explicitly disables any NNX-specific backend features.
-    """
-    from keras.src.backend.common import global_state
-
-    global_state.set_global_attribute(_NNX_ENABLED_KEY, False)
-
-
 @keras_export("keras.config.is_nnx_backend_enabled")
 def is_nnx_backend_enabled():
     """Checks whether NNX specific features are enabled for the JAX backend.
@@ -458,5 +435,12 @@ if not os.path.exists(_config_path):
     except IOError:
         # Except permission denied.
         pass
+
+if "KERAS_NNX_ENABLED" in os.environ:
+    env_val = os.environ["KERAS_NNX_ENABLED"].lower()
+    if env_val == "true":
+        _initial_nnx_value_from_config = True
+    elif env_val == "false":
+        _initial_nnx_value_from_config = False
 
 set_nnx_backend_enabled(_initial_nnx_value_from_config)
