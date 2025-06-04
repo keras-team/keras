@@ -249,6 +249,14 @@ class OpenVINOKerasTensor:
         )
         return OpenVINOKerasTensor(ov_opset.power(first, other).output(0))
 
+    def __rpow__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__rpow__"
+        )
+        return OpenVINOKerasTensor(ov_opset.power(other, first).output(0))
+
     def __getitem__(self, indices):
         # now it has limited functionaly
         # and supports only a case with one integer index in indices
