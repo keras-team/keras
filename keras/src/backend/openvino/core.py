@@ -257,6 +257,56 @@ class OpenVINOKerasTensor:
         )
         return OpenVINOKerasTensor(ov_opset.power(other, first).output(0))
 
+    def __lt__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__lt__"
+        )
+        return OpenVINOKerasTensor(ov_opset.less(first, other).output(0))
+
+    def __gt__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__gt__"
+        )
+        return OpenVINOKerasTensor(ov_opset.greater(first, other).output(0))
+
+    def __le__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__le__"
+        )
+        return OpenVINOKerasTensor(ov_opset.less_equal(first, other).output(0))
+
+    def __ge__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__ge__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.greater_equal(first, other).output(0)
+        )
+
+    def __eq__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__eq__"
+        )
+        return OpenVINOKerasTensor(ov_opset.equal(first, other).output(0))
+
+    def __ne__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__ne__"
+        )
+        return OpenVINOKerasTensor(ov_opset.not_equal(first, other).output(0))
+
     def __getitem__(self, indices):
         # now it has limited functionaly
         # and supports only a case with one integer index in indices
