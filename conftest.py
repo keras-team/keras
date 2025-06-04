@@ -10,7 +10,7 @@ try:
     # import to happen first for all tests.
     import torch  # noqa: F401
 except ImportError:
-    pass
+    torch = None
 
 import pytest  # noqa: E402
 
