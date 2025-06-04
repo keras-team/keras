@@ -1,7 +1,5 @@
 import warnings
 
-import numpy as np
-
 from keras.src import ops
 from keras.src.callbacks.callback import Callback
 from keras.src.trainers import compile_utils
@@ -99,12 +97,6 @@ class MonitorCallback(Callback):
                 )
         if self.monitor_op == ops.less:
             self.min_delta *= -1
-
-        if self.best is None:
-            if self.monitor_op == ops.less:
-                self.best = np.inf
-            else:
-                self.best = -np.inf
 
     def _is_improvement(self, monitor_value, reference_value):
         if reference_value is None:
