@@ -13,7 +13,7 @@ from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import distribution_lib as jax_distribution_lib
-from keras.src.config import is_nnx_backend_enabled
+from keras.src.backend.config import is_nnx_backend_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
@@ -235,7 +235,7 @@ class JAXTrainer(base_trainer.Trainer):
                     return output
 
                 if not self.run_eagerly and self.jit_compile:
-                    if is_nnx_backend_enabled:
+                    if is_nnx_backend_enabled():
                         concatenate = nnx.jit(concatenate)
                     else:
                         concatenate = jax.jit(concatenate)
@@ -282,7 +282,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            if is_nnx_backend_enabled:
+            if is_nnx_backend_enabled():
                 train_step = nnx.jit(self.train_step, donate_argnums=0)
             else:
                 train_step = jax.jit(self.train_step, donate_argnums=0)
@@ -301,7 +301,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            if is_nnx_backend_enabled:
+            if is_nnx_backend_enabled():
                 test_step = nnx.jit(self.test_step, donate_argnums=0)
             else:
                 test_step = jax.jit(self.test_step, donate_argnums=0)
@@ -321,7 +321,7 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
-            if is_nnx_backend_enabled:
+            if is_nnx_backend_enabled():
                 predict_step = nnx.jit(predict_step, donate_argnums=0)
             else:
                 predict_step = jax.jit(predict_step, donate_argnums=0)
