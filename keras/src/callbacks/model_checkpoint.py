@@ -168,9 +168,6 @@ class ModelCheckpoint(MonitorCallback):
                     f"filepath={self.filepath}"
                 )
 
-        if self.monitor_op is None:
-            self._set_monitor_op()
-
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
             self._save_model(epoch=self._current_epoch, batch=batch, logs=logs)
@@ -179,6 +176,10 @@ class ModelCheckpoint(MonitorCallback):
         self._current_epoch = epoch
 
     def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            # Delay setup until the model's metrics are all built
+            self._set_monitor_op()
+
         if self.save_freq == "epoch":
             self._save_model(epoch=epoch, batch=None, logs=logs)
 
