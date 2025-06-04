@@ -2918,9 +2918,12 @@ def _layer_normalization(
         # Calculate outputs with only variance and gamma if rms scaling
         # is enabled
         # Calculate the variance along self.axis (layer activations).
-        variance = backend.numpy.var(x, axis=axis, keepdims=True)
-        inv = backend.math.rsqrt(variance + epsilon)
-
+        inv = backend.math.rsqrt(
+            backend.numpy.mean(
+                backend.numpy.square(x), axis=axis, keepdims=True
+            )
+            + epsilon
+        )
         outputs = x * inv * backend.cast(_broadcast(gamma), x.dtype)
     elif backend.config.backend() == "torch" and is_continuous_axis(axis):
         # when using torch backend,use kernel to improve performance
