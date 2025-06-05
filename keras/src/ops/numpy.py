@@ -4579,13 +4579,19 @@ def not_equal(x1, x2):
 
 
 class OnesLike(Operation):
-    def call(self, x, dtype=None):
-        return backend.numpy.ones_like(x, dtype=dtype)
+    def __init__(self, dtype=None):
+        super().__init__()
+        self.dtype = (
+            backend.standardize_dtype(dtype) if dtype is not None else None
+        )
 
-    def compute_output_spec(self, x, dtype=None):
-        if dtype is None:
-            dtype = x.dtype
-        return KerasTensor(x.shape, dtype=dtype)
+    def call(self, x):
+        return backend.numpy.ones_like(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        dtype = x.dtype if self.dtype is None else self.dtype
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.ones_like", "keras.ops.numpy.ones_like"])
@@ -4600,18 +4606,24 @@ def ones_like(x, dtype=None):
         A tensor of ones with the same shape and type as `x`.
     """
     if any_symbolic_tensors((x,)):
-        return OnesLike().symbolic_call(x, dtype=dtype)
+        return OnesLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.ones_like(x, dtype=dtype)
 
 
 class ZerosLike(Operation):
-    def call(self, x, dtype=None):
-        return backend.numpy.zeros_like(x, dtype=dtype)
+    def __init__(self, dtype=None):
+        super().__init__()
+        self.dtype = (
+            backend.standardize_dtype(dtype) if dtype is not None else None
+        )
+
+    def call(self, x):
+        return backend.numpy.zeros_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
-        if dtype is None:
-            dtype = x.dtype
-        return KerasTensor(x.shape, dtype=dtype)
+        dtype = x.dtype if self.dtype is None else self.dtype
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(
@@ -4631,7 +4643,7 @@ def zeros_like(x, dtype=None):
         A tensor of zeros with the same shape and type as `x`.
     """
     if any_symbolic_tensors((x,)):
-        return ZerosLike().symbolic_call(x, dtype=dtype)
+        return ZerosLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.zeros_like(x, dtype=dtype)
 
 
