@@ -9,11 +9,12 @@ import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend import config
-from keras.src.backend.jax.core import NnxVariable
 
 if config.is_nnx_backend_enabled():
     try:
         from flax import nnx
+
+        from keras.src.backend.jax.core import NnxVariable
     except ImportError:
         raise ImportError(
             "To use the NNX backend, you must install `flax`."
