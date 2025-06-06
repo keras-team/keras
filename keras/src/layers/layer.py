@@ -222,9 +222,22 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     ```
     """
 
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls, *args, **kwargs)
+        instance = super(Layer, cls).__new__(cls)
+        if backend.backend() == "jax" and is_nnx_backend_enabled():
+            try:
+                from flax import nnx
 
+                vars(instance)["_object__state"] = nnx.object.ObjectState()
+            except ImportError:
+                raise ImportError(
+                    "To use the NNX backend, you must install `flax`. "
+                    "Please install it via `pip install flax`."
+                )
         # Wrap the user-provided `build` method in the `build_wrapper`
         # to add name scope support and serialization support.
         original_build_method = obj.build

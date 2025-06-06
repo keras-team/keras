@@ -244,11 +244,19 @@ def is_nnx_backend_enabled():
     return _NNX_ENABLED
 
 
-def set_nnx_backend_enabled(value: bool):
+def set_nnx_enabled(value: bool):
     global _NNX_ENABLED
     from keras.src.backend.common import global_state
 
     _NNX_ENABLED = bool(value)
+    if _NNX_ENABLED:
+        try:
+            from flax import nnx  # noqa F401
+        except ImportError:
+            raise ImportError(
+                "To use the NNX backend, you must install `flax`."
+                "Try: `pip install flax`"
+            )
     global_state.set_global_attribute("nnx_enabled", bool(value))
 
 
@@ -440,4 +448,4 @@ if "KERAS_NNX_ENABLED" in os.environ:
     elif env_val == "false":
         _NNX_ENABLED = False
 
-set_nnx_backend_enabled(_NNX_ENABLED)
+set_nnx_enabled(_NNX_ENABLED)
