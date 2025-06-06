@@ -1481,13 +1481,53 @@ class AUC(Metric):
             )
             x = fp_rate
             y = recall
-        else:  # curve == 'PR'.
+        elif self.curve == metrics_utils.AUCCurve.PR:  # curve == 'PR'.
             precision = ops.divide_no_nan(
                 self.true_positives,
                 ops.add(self.true_positives, self.false_positives),
             )
             x = recall
             y = precision
+        else:  # curve == 'PRGAIN'.
+            # Due to the hyperbolic transform, this formula is less robust than
+            # ROC and PR values. In particular
+            # 1) Both measures diverge when there are no negative values;
+            # 2) Both measures diverge when there are no true positives;
+            # 3) Recall gain becomes negative when the recall is lower than the
+            #    label average (i.e. when more negative exampless are
+            #    classified positive than real positives).
+            #
+            # We ignore case 1 as it is easily understood that metrics would be
+            # badly defined then. For case 2 we set recall_gain to 0 and
+            # precision_gain to 1. For case 3 we set recall_gain to 0. These
+            # fixes will result in an overstimation of the AUCfor estimators
+            # that are anti-correlated with the label (at some threshold).
+
+            # The scaling factor $\frac{P}{N}$ that is used to for mboth gain
+            # values.
+            scaling_factor = ops.divide_no_nan(
+                ops.add(self.true_positives, self.false_negatives),
+                ops.add(self.true_negatives, self.false_positives),
+            )
+
+            recall_gain = 1.0 - scaling_factor * ops.divide_no_nan(
+                self.false_negatives, self.true_positives
+            )
+            precision_gain = 1.0 - scaling_factor * ops.divide_no_nan(
+                self.false_positives, self.true_positives
+            )
+            # Handle case 2.
+            recall_gain = ops.where(
+                ops.equal(self.true_positives, 0.0), 0.0, recall_gain
+            )
+            precision_gain = ops.where(
+                ops.equal(self.true_positives, 0.0), 1.0, precision_gain
+            )
+            # Handle case 3.
+            recall_gain = ops.maximum(recall_gain, 0.0)
+
+            x = recall_gain
+            y = precision_gain
 
         # Find the rectangle heights based on `summation_method`.
         if (
