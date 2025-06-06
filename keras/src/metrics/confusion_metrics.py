@@ -1346,25 +1346,6 @@ class AUC(Metric):
         if not self._built:
             self._build(y_pred.shape)
 
-        if self.multi_label or (self.label_weights is not None):
-            # y_true should have shape (number of examples, number of labels).
-            shapes = [(y_true, ("N", "L"))]
-            if self.multi_label:
-                # TP, TN, FP, and FN should all have shape
-                # (number of thresholds, number of labels).
-                shapes.extend(
-                    [
-                        (self.true_positives, ("T", "L")),
-                        (self.true_negatives, ("T", "L")),
-                        (self.false_positives, ("T", "L")),
-                        (self.false_negatives, ("T", "L")),
-                    ]
-                )
-            if self.label_weights is not None:
-                # label_weights should be of length equal to the number of
-                # labels.
-                shapes.append((self.label_weights, ("L",)))
-
         # Only forward label_weights to update_confusion_matrix_variables when
         # multi_label is False. Otherwise the averaging of individual label AUCs
         # is handled in AUC.result
