@@ -1183,3 +1183,10 @@ def custom_gradient(f):
     ```
     """
     return backend.core.custom_gradient(f)
+
+
+@keras_export("keras.ops.print")
+def print(*args, **kwargs):
+    """Backend-specialised print function, oft handles tensors and
+    other backend-specific types."""
+    return backend.core.print(*args, **kwargs)
