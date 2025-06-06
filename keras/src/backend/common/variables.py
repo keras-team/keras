@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 
 from keras.src import backend
@@ -142,7 +144,7 @@ class Variable:
         self._name = name
         parent_path = current_path()
         if parent_path:
-            self._path = current_path() + "/" + name
+            self._path = os.path.join(current_path(), name)
         else:
             self._path = name
         self._shape = None

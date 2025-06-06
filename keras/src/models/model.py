@@ -842,9 +842,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         def _flatten(current_dict, prefix=""):
             for key, value in current_dict.items():
                 if isinstance(value, dict):
-                    _flatten(value, prefix + key + "/")
+                    _flatten(value, f"{prefix}{key}/")
                 else:
-                    flat_dict[prefix + key] = value
+                    flat_dict[f"{prefix}{key}"] = value
 
         _flatten(nested_dict)
         return flat_dict

@@ -254,25 +254,25 @@ def ConvNeXtBlock(
             kernel_size=7,
             padding="same",
             groups=projection_dim,
-            name=name + "_depthwise_conv",
+            name=f"{name}_depthwise_conv",
         )(x)
-        x = layers.LayerNormalization(epsilon=1e-6, name=name + "_layernorm")(x)
-        x = layers.Dense(4 * projection_dim, name=name + "_pointwise_conv_1")(x)
-        x = layers.Activation("gelu", name=name + "_gelu")(x)
-        x = layers.Dense(projection_dim, name=name + "_pointwise_conv_2")(x)
+        x = layers.LayerNormalization(epsilon=1e-6, name=f"{name}_layernorm")(x)
+        x = layers.Dense(4 * projection_dim, name=f"{name}_pointwise_conv_1")(x)
+        x = layers.Activation("gelu", name=f"{name}_gelu")(x)
+        x = layers.Dense(projection_dim, name=f"{name}_pointwise_conv_2")(x)
 
         if layer_scale_init_value is not None:
             x = LayerScale(
                 layer_scale_init_value,
                 projection_dim,
-                name=name + "_layer_scale",
+                name=f"{name}_layer_scale",
             )(x)
         if drop_path_rate:
             layer = StochasticDepth(
-                drop_path_rate, name=name + "_stochastic_depth"
+                drop_path_rate, name=f"{name}_stochastic_depth"
             )
         else:
-            layer = layers.Activation("linear", name=name + "_identity")
+            layer = layers.Activation("linear", name=f"{name}_identity")
 
         return inputs + layer(x)
 
@@ -292,7 +292,7 @@ def PreStem(name=None):
                 (0.224 * 255) ** 2,
                 (0.225 * 255) ** 2,
             ],
-            name=name + "_prestem_normalization",
+            name=f"{name}_prestem_normalization",
         )(x)
         return x
 
@@ -314,14 +314,14 @@ def Head(num_classes=1000, classifier_activation=None, name=None):
         name = str(backend.get_uid("head"))
 
     def apply(x):
-        x = layers.GlobalAveragePooling2D(name=name + "_head_gap")(x)
+        x = layers.GlobalAveragePooling2D(name=f"{name}_head_gap")(x)
         x = layers.LayerNormalization(
-            epsilon=1e-6, name=name + "_head_layernorm"
+            epsilon=1e-6, name=f"{name}_head_layernorm"
         )(x)
         x = layers.Dense(
             num_classes,
             activation=classifier_activation,
-            name=name + "_head_dense",
+            name=f"{name}_head_dense",
         )(x)
         return x
 
@@ -452,13 +452,13 @@ def ConvNeXt(
                 projection_dims[0],
                 kernel_size=4,
                 strides=4,
-                name=name + "_stem_conv",
+                name=f"{name}_stem_conv",
             ),
             layers.LayerNormalization(
-                epsilon=1e-6, name=name + "_stem_layernorm"
+                epsilon=1e-6, name=f"{name}_stem_layernorm"
             ),
         ],
-        name=name + "_stem",
+        name=f"{name}_stem",
     )
 
     # Downsampling blocks.
@@ -471,16 +471,16 @@ def ConvNeXt(
             [
                 layers.LayerNormalization(
                     epsilon=1e-6,
-                    name=name + "_downsampling_layernorm_" + str(i),
+                    name=f"{name}_downsampling_layernorm_{i}",
                 ),
                 layers.Conv2D(
                     projection_dims[i + 1],
                     kernel_size=2,
                     strides=2,
-                    name=name + "_downsampling_conv_" + str(i),
+                    name=f"{name}_downsampling_conv_{i}",
                 ),
             ],
-            name=name + "_downsampling_block_" + str(i),
+            name=f"{name}_downsampling_block_{i}",
         )
         downsample_layers.append(downsample_layer)
 

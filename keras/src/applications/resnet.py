@@ -196,16 +196,16 @@ def ResNet(
     # Load weights.
     if (weights == "imagenet") and (weights_name in WEIGHTS_HASHES):
         if include_top:
-            file_name = weights_name + "_weights_tf_dim_ordering_tf_kernels.h5"
+            file_name = f"{weights_name}_weights_tf_dim_ordering_tf_kernels.h5"
             file_hash = WEIGHTS_HASHES[weights_name][0]
         else:
             file_name = (
-                weights_name + "_weights_tf_dim_ordering_tf_kernels_notop.h5"
+                f"{weights_name}_weights_tf_dim_ordering_tf_kernels_notop.h5"
             )
             file_hash = WEIGHTS_HASHES[weights_name][1]
         weights_path = file_utils.get_file(
             file_name,
-            BASE_WEIGHTS_PATH + file_name,
+            f"{BASE_WEIGHTS_PATH}{file_name}",
             cache_subdir="models",
             file_hash=file_hash,
         )
@@ -241,35 +241,35 @@ def residual_block_v1(
 
     if conv_shortcut:
         shortcut = layers.Conv2D(
-            4 * filters, 1, strides=stride, name=name + "_0_conv"
+            4 * filters, 1, strides=stride, name=f"{name}_0_conv"
         )(x)
         shortcut = layers.BatchNormalization(
-            axis=bn_axis, epsilon=1.001e-5, name=name + "_0_bn"
+            axis=bn_axis, epsilon=1.001e-5, name=f"{name}_0_bn"
         )(shortcut)
     else:
         shortcut = x
 
-    x = layers.Conv2D(filters, 1, strides=stride, name=name + "_1_conv")(x)
+    x = layers.Conv2D(filters, 1, strides=stride, name=f"{name}_1_conv")(x)
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_1_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_1_bn"
     )(x)
-    x = layers.Activation("relu", name=name + "_1_relu")(x)
+    x = layers.Activation("relu", name=f"{name}_1_relu")(x)
 
     x = layers.Conv2D(
-        filters, kernel_size, padding="SAME", name=name + "_2_conv"
+        filters, kernel_size, padding="SAME", name=f"{name}_2_conv"
     )(x)
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_2_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_2_bn"
     )(x)
-    x = layers.Activation("relu", name=name + "_2_relu")(x)
+    x = layers.Activation("relu", name=f"{name}_2_relu")(x)
 
-    x = layers.Conv2D(4 * filters, 1, name=name + "_3_conv")(x)
+    x = layers.Conv2D(4 * filters, 1, name=f"{name}_3_conv")(x)
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_3_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_3_bn"
     )(x)
 
-    x = layers.Add(name=name + "_add")([shortcut, x])
-    x = layers.Activation("relu", name=name + "_out")(x)
+    x = layers.Add(name=f"{name}_add")([shortcut, x])
+    x = layers.Activation("relu", name=f"{name}_out")(x)
     return x
 
 
@@ -287,10 +287,10 @@ def stack_residual_blocks_v1(x, filters, blocks, stride1=2, name=None):
         Output tensor for the stacked blocks.
     """
 
-    x = residual_block_v1(x, filters, stride=stride1, name=name + "_block1")
+    x = residual_block_v1(x, filters, stride=stride1, name=f"{name}_block1")
     for i in range(2, blocks + 1):
         x = residual_block_v1(
-            x, filters, conv_shortcut=False, name=name + "_block" + str(i)
+            x, filters, conv_shortcut=False, name=f"{name}_block" + str(i)
         )
     return x
 
@@ -319,13 +319,13 @@ def residual_block_v2(
         bn_axis = 1
 
     preact = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_preact_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_preact_bn"
     )(x)
-    preact = layers.Activation("relu", name=name + "_preact_relu")(preact)
+    preact = layers.Activation("relu", name=f"{name}_preact_relu")(preact)
 
     if conv_shortcut:
         shortcut = layers.Conv2D(
-            4 * filters, 1, strides=stride, name=name + "_0_conv"
+            4 * filters, 1, strides=stride, name=f"{name}_0_conv"
         )(preact)
     else:
         shortcut = (
@@ -333,28 +333,28 @@ def residual_block_v2(
         )
 
     x = layers.Conv2D(
-        filters, 1, strides=1, use_bias=False, name=name + "_1_conv"
+        filters, 1, strides=1, use_bias=False, name=f"{name}_1_conv"
     )(preact)
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_1_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_1_bn"
     )(x)
-    x = layers.Activation("relu", name=name + "_1_relu")(x)
+    x = layers.Activation("relu", name=f"{name}_1_relu")(x)
 
-    x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name=name + "_2_pad")(x)
+    x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name=f"{name}_2_pad")(x)
     x = layers.Conv2D(
         filters,
         kernel_size,
         strides=stride,
         use_bias=False,
-        name=name + "_2_conv",
+        name=f"{name}_2_conv",
     )(x)
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_2_bn"
+        axis=bn_axis, epsilon=1.001e-5, name=f"{name}_2_bn"
     )(x)
-    x = layers.Activation("relu", name=name + "_2_relu")(x)
+    x = layers.Activation("relu", name=f"{name}_2_relu")(x)
 
-    x = layers.Conv2D(4 * filters, 1, name=name + "_3_conv")(x)
-    x = layers.Add(name=name + "_out")([shortcut, x])
+    x = layers.Conv2D(4 * filters, 1, name=f"{name}_3_conv")(x)
+    x = layers.Add(name=f"{name}_out")([shortcut, x])
     return x
 
 
@@ -372,11 +372,11 @@ def stack_residual_blocks_v2(x, filters, blocks, stride1=2, name=None):
         Output tensor for the stacked blocks.
     """
 
-    x = residual_block_v2(x, filters, conv_shortcut=True, name=name + "_block1")
+    x = residual_block_v2(x, filters, conv_shortcut=True, name=f"{name}_block1")
     for i in range(2, blocks):
-        x = residual_block_v2(x, filters, name=name + "_block" + str(i))
+        x = residual_block_v2(x, filters, name=f"{name}_block" + str(i))
     x = residual_block_v2(
-        x, filters, stride=stride1, name=name + "_block" + str(blocks)
+        x, filters, stride=stride1, name=f"{name}_block" + str(blocks)
     )
     return x
 

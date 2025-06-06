@@ -479,10 +479,10 @@ def block(
             padding="same",
             use_bias=False,
             kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name + "expand_conv",
+            name=f"{name}expand_conv",
         )(inputs)
-        x = layers.BatchNormalization(axis=bn_axis, name=name + "expand_bn")(x)
-        x = layers.Activation(activation, name=name + "expand_activation")(x)
+        x = layers.BatchNormalization(axis=bn_axis, name=f"{name}expand_bn")(x)
+        x = layers.Activation(activation, name=f"{name}expand_activation")(x)
     else:
         x = inputs
 
@@ -490,7 +490,7 @@ def block(
     if strides == 2:
         x = layers.ZeroPadding2D(
             padding=imagenet_utils.correct_pad(x, kernel_size),
-            name=name + "dwconv_pad",
+            name=f"{name}dwconv_pad",
         )(x)
         conv_pad = "valid"
     else:
@@ -501,27 +501,27 @@ def block(
         padding=conv_pad,
         use_bias=False,
         depthwise_initializer=CONV_KERNEL_INITIALIZER,
-        name=name + "dwconv",
+        name=f"{name}dwconv",
     )(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=name + "bn")(x)
-    x = layers.Activation(activation, name=name + "activation")(x)
+    x = layers.BatchNormalization(axis=bn_axis, name=f"{name}bn")(x)
+    x = layers.Activation(activation, name=f"{name}activation")(x)
 
     # Squeeze and Excitation phase
     if 0 < se_ratio <= 1:
         filters_se = max(1, int(filters_in * se_ratio))
-        se = layers.GlobalAveragePooling2D(name=name + "se_squeeze")(x)
+        se = layers.GlobalAveragePooling2D(name=f"{name}se_squeeze")(x)
         if bn_axis == 1:
             se_shape = (filters, 1, 1)
         else:
             se_shape = (1, 1, filters)
-        se = layers.Reshape(se_shape, name=name + "se_reshape")(se)
+        se = layers.Reshape(se_shape, name=f"{name}se_reshape")(se)
         se = layers.Conv2D(
             filters_se,
             1,
             padding="same",
             activation=activation,
             kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name + "se_reduce",
+            name=f"{name}se_reduce",
         )(se)
         se = layers.Conv2D(
             filters,
@@ -529,9 +529,9 @@ def block(
             padding="same",
             activation="sigmoid",
             kernel_initializer=CONV_KERNEL_INITIALIZER,
-            name=name + "se_expand",
+            name=f"{name}se_expand",
         )(se)
-        x = layers.multiply([x, se], name=name + "se_excite")
+        x = layers.multiply([x, se], name=f"{name}se_excite")
 
     # Output phase
     x = layers.Conv2D(
@@ -540,15 +540,15 @@ def block(
         padding="same",
         use_bias=False,
         kernel_initializer=CONV_KERNEL_INITIALIZER,
-        name=name + "project_conv",
+        name=f"{name}project_conv",
     )(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=name + "project_bn")(x)
+    x = layers.BatchNormalization(axis=bn_axis, name=f"{name}project_bn")(x)
     if id_skip and strides == 1 and filters_in == filters_out:
         if drop_rate > 0:
             x = layers.Dropout(
-                drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop"
+                drop_rate, noise_shape=(None, 1, 1, 1), name=f"{name}drop"
             )(x)
-        x = layers.add([x, inputs], name=name + "add")
+        x = layers.add([x, inputs], name=f"{name}add")
     return x
 
 

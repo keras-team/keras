@@ -400,8 +400,8 @@ def conv2d_bn(
         Output tensor after applying `Conv2D` and `BatchNormalization`.
     """
     if name is not None:
-        bn_name = name + "_bn"
-        conv_name = name + "_conv"
+        bn_name = f"{name}_bn"
+        conv_name = f"{name}_conv"
     else:
         bn_name = None
         conv_name = None

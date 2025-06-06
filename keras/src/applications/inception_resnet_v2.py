@@ -281,12 +281,12 @@ def conv2d_bn(
     )(x)
     if not use_bias:
         bn_axis = 1 if backend.image_data_format() == "channels_first" else 3
-        bn_name = None if name is None else name + "_bn"
+        bn_name = None if name is None else f"{name}_bn"
         x = layers.BatchNormalization(axis=bn_axis, scale=False, name=bn_name)(
             x
         )
     if activation is not None:
-        ac_name = None if name is None else name + "_ac"
+        ac_name = None if name is None else f"{name}_ac"
         x = layers.Activation(activation, name=ac_name)(x)
     return x
 
@@ -356,9 +356,9 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
             "but got: " + str(block_type)
         )
 
-    block_name = block_type + "_" + str(block_idx)
+    block_name = f"{block_type}_{block_idx}"
     channel_axis = 1 if backend.image_data_format() == "channels_first" else 3
-    mixed = layers.Concatenate(axis=channel_axis, name=block_name + "_mixed")(
+    mixed = layers.Concatenate(axis=channel_axis, name=f"{block_name}_mixed")(
         branches
     )
     up = conv2d_bn(
@@ -367,12 +367,12 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
         1,
         activation=None,
         use_bias=True,
-        name=block_name + "_conv",
+        name=f"{block_name}_conv",
     )
 
     x = CustomScaleLayer(scale)([x, up])
     if activation is not None:
-        x = layers.Activation(activation, name=block_name + "_ac")(x)
+        x = layers.Activation(activation, name=f"{block_name}_ac")(x)
     return x
 
 

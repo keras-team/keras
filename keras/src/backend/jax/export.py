@@ -159,7 +159,7 @@ class JaxExportArchive:
                     poly_shape.append("batch")
                 else:
                     poly_shape.append(next(dim_names))
-            return "(" + ", ".join(poly_shape) + ")"
+            return f"({', '.join(poly_shape)})"
 
         return tree.map_structure(convert_shape, struct)
 
