@@ -234,7 +234,7 @@ class JAXTrainer(base_trainer.Trainer):
                     return output
 
                 if not self.run_eagerly and self.jit_compile:
-                    concatenate = jit(concatenate)
+                    concatenate = jit()(concatenate)
 
                 def iterator_step(state, iterator):
                     data = next(iterator)
@@ -278,7 +278,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            train_step = jit(self.train_step, donate_argnums=0)
+            train_step = jit(donate_argnums=0)(self.train_step)
         else:
             train_step = self.train_step
 
@@ -294,7 +294,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            test_step = jit(self.test_step, donate_argnums=0)
+            test_step = jit(donate_argnums=0)(self.test_step)
 
         else:
             test_step = self.test_step
@@ -312,7 +312,7 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
-            predict_step = jit(predict_step, donate_argnums=0)
+            predict_step = jit(donate_argnums=0)(predict_step)
 
         _step_function = self._make_function(
             predict_step, concatenate_outputs=True
