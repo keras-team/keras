@@ -3,9 +3,9 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
-from flax import nnx
 
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
@@ -17,6 +17,14 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
+if config.is_nnx_backend_enabled():
+    try:
+        from flax import nnx
+    except ImportError:
+        raise ImportError(
+            "To use the NNX backend, you must install `flax`."
+            "Try: `pip install flax`"
+        )
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True

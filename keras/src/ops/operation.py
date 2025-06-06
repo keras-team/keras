@@ -6,6 +6,7 @@ from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
+from keras.src.backend.config import is_nnx_backend_enabled
 from keras.src.ops.node import Node
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
@@ -123,9 +124,17 @@ class Operation:
         """
         instance = super(Operation, cls).__new__(cls)
         if backend.backend() == "jax":
-            from flax import nnx
+            if is_nnx_backend_enabled():
+                try:
+                    from flax import nnx
 
-            vars(instance)["_object__state"] = nnx.object.ObjectState()
+                    vars(instance)["_object__state"] = nnx.object.ObjectState()
+                except ImportError:
+                    raise ImportError(
+                        "To use the NNX backend, you must install `flax`. "
+                        "Please install it via `pip install flax`."
+                    )
+
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))

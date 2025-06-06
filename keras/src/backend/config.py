@@ -15,9 +15,6 @@ _IMAGE_DATA_FORMAT = "channels_last"
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
 
-# Default for NNX backend features.
-_NNX_ENABLED_KEY = "nnx_enabled"
-
 # Cap run duration for debugging.
 _MAX_EPOCHS = None
 _MAX_STEPS_PER_EPOCH = None
@@ -243,13 +240,13 @@ def is_nnx_backend_enabled():
     """
     from keras.src.backend.common import global_state
 
-    return global_state.get_global_attribute(_NNX_ENABLED_KEY, default=False)
+    return global_state.get_global_attribute("nnx_enabled", default=False)
 
 
 def set_nnx_backend_enabled(value: bool):
     from keras.src.backend.common import global_state
 
-    global_state.set_global_attribute(_NNX_ENABLED_KEY, bool(value))
+    global_state.set_global_attribute("nnx_enabled", bool(value))
 
 
 def standardize_data_format(data_format):
@@ -298,7 +295,7 @@ if os.path.exists(_config_path):
     _backend = _config.get("backend", _BACKEND)
     _image_data_format = _config.get("image_data_format", image_data_format())
     assert _image_data_format in {"channels_last", "channels_first"}
-    _initial_nnx_value_from_config = _config.get(_NNX_ENABLED_KEY, False)
+    _initial_nnx_value_from_config = _config.get("nnx_enabled", False)
     if not isinstance(_initial_nnx_value_from_config, bool):
         _initial_nnx_value_from_config = (
             str(_initial_nnx_value_from_config).lower() == "true"
@@ -427,7 +424,7 @@ if not os.path.exists(_config_path):
         "epsilon": epsilon(),
         "backend": _BACKEND,  # Use the final _BACKEND value
         "image_data_format": image_data_format(),
-        _NNX_ENABLED_KEY: _current_nnx_status_for_saving,
+        "nnx_enabled": _current_nnx_status_for_saving,
     }
     try:
         with open(_config_path, "w") as f:

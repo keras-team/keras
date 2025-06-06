@@ -5,7 +5,6 @@ from functools import partial
 
 import jax
 import numpy as np
-from flax import nnx
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
@@ -20,6 +19,15 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+
+if config.is_nnx_backend_enabled():
+    try:
+        from flax import nnx
+    except ImportError:
+        raise ImportError(
+            "To use the NNX backend, you must install `flax`."
+            "Try: `pip install flax`"
+        )
 
 
 class JAXTrainer(base_trainer.Trainer):

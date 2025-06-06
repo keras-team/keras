@@ -48,12 +48,22 @@ import jax
 import numpy as np
 import tensorflow as tf
 import keras
-from flax import nnx
+
 from jax.experimental import mesh_utils
 from jax.sharding import Mesh
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
 from keras.src.backend.config import is_nnx_backend_enabled
+from keras.src.backend import config
+
+if config.is_nnx_backend_enabled():
+    try:
+        from flax import nnx
+    except ImportError:
+        raise ImportError(
+            "To use the NNX backend, you must install `flax`."
+            "Try: `pip install flax`"
+        )
 
 
 def get_model():
