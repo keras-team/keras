@@ -4,12 +4,15 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from flax import nnx
 
 import keras
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.config import is_nnx_backend_enabled
 from keras.src.backend.jax.core import NnxVariable
+
+if is_nnx_backend_enabled():
+    from flax import nnx
 
 
 @pytest.mark.skipif(
@@ -17,7 +20,7 @@ from keras.src.backend.jax.core import NnxVariable
     reason="JAX backend specific test for core Variable integration with NNX.",
 )
 @pytest.mark.skipif(
-    not keras.config.is_nnx_backend_enabled(),
+    not is_nnx_backend_enabled(),
     reason="Test requires NNX backend to be enabled by default for setup.",
 )
 class JaxCoreVariableTest(testing.TestCase):
