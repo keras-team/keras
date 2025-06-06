@@ -2,7 +2,11 @@ import inspect
 
 from absl.testing import parameterized
 
-from keras.api import ops as api_ops_root
+try:
+    from keras.api import ops as api_ops_root
+except ImportError:
+    from keras import ops as api_ops_root
+
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
