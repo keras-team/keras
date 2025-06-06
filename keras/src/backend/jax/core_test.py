@@ -4,12 +4,21 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from flax import nnx
 
 import keras
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.jax.core import NnxVariable
+
+if config.is_nnx_backend_enabled():
+    try:
+        from flax import nnx
+    except ImportError:
+        raise ImportError(
+            "To use the NNX backend, you must install `flax`."
+            "Try: `pip install flax`"
+        )
 
 
 @pytest.mark.skipif(

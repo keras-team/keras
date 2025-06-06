@@ -308,8 +308,7 @@ if os.path.exists(_config_path):
     set_epsilon(_epsilon)
     set_image_data_format(_image_data_format)
     _BACKEND = _backend
-else:
-    _config = {}
+
 if "KERAS_BACKEND" in os.environ:
     _backend = os.environ["KERAS_BACKEND"]
     if _backend:
