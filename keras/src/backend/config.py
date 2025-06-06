@@ -15,6 +15,9 @@ _IMAGE_DATA_FORMAT = "channels_last"
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
 
+# Whether NNX is enabled.
+_NNX_ENABLED = False
+
 # Cap run duration for debugging.
 _MAX_EPOCHS = None
 _MAX_STEPS_PER_EPOCH = None
@@ -238,14 +241,14 @@ def is_nnx_backend_enabled():
         bool: `True` if NNX backend features are enabled, `False` otherwise.
         Defaults to `False`.
     """
-    from keras.src.backend.common import global_state
-
-    return global_state.get_global_attribute("nnx_enabled", default=False)
+    return _NNX_ENABLED
 
 
 def set_nnx_backend_enabled(value: bool):
+    global _NNX_ENABLED
     from keras.src.backend.common import global_state
 
+    _NNX_ENABLED = bool(value)
     global_state.set_global_attribute("nnx_enabled", bool(value))
 
 
@@ -280,7 +283,6 @@ def keras_home():
 
 # Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_KERAS_DIR, "keras.json"))
-_initial_nnx_value_from_config = False  # Safe default before reading config
 
 if os.path.exists(_config_path):
     try:
@@ -295,11 +297,11 @@ if os.path.exists(_config_path):
     _backend = _config.get("backend", _BACKEND)
     _image_data_format = _config.get("image_data_format", image_data_format())
     assert _image_data_format in {"channels_last", "channels_first"}
-    _initial_nnx_value_from_config = _config.get("nnx_enabled", False)
-    if not isinstance(_initial_nnx_value_from_config, bool):
-        _initial_nnx_value_from_config = (
-            str(_initial_nnx_value_from_config).lower() == "true"
-        )
+    _nnx_enabled_config = _config.get("nnx_enabled", _NNX_ENABLED)
+    if not isinstance(_nnx_enabled_config, bool):
+        _NNX_ENABLED = str(_nnx_enabled_config).lower() == "true"
+    else:
+        _NNX_ENABLED = _nnx_enabled_config
 
     # Apply basic configs that don't cause circular import
     set_floatx(_floatx)
@@ -418,13 +420,12 @@ if not os.path.exists(_KERAS_DIR):
         pass
 
 if not os.path.exists(_config_path):
-    _current_nnx_status_for_saving = is_nnx_backend_enabled()
     _config_to_save = {
         "floatx": floatx(),
         "epsilon": epsilon(),
         "backend": _BACKEND,  # Use the final _BACKEND value
         "image_data_format": image_data_format(),
-        "nnx_enabled": _current_nnx_status_for_saving,
+        "nnx_enabled": _NNX_ENABLED,
     }
     try:
         with open(_config_path, "w") as f:
@@ -436,8 +437,8 @@ if not os.path.exists(_config_path):
 if "KERAS_NNX_ENABLED" in os.environ:
     env_val = os.environ["KERAS_NNX_ENABLED"].lower()
     if env_val == "true":
-        _initial_nnx_value_from_config = True
+        _NNX_ENABLED = True
     elif env_val == "false":
-        _initial_nnx_value_from_config = False
+        _NNX_ENABLED = False
 
-set_nnx_backend_enabled(_initial_nnx_value_from_config)
+set_nnx_backend_enabled(_NNX_ENABLED)
