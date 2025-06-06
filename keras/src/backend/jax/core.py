@@ -95,17 +95,26 @@ if config.is_nnx_backend_enabled():
                     nnx_metadata["mutable"] = actual_nnx_mutable
 
                 # Initialize nnx.Variable first.
-                if shape is not None and dtype is not None:
-                    # If initializer is a Keras callable, it's not ready yet.
-                    # If initializer is already a value, KerasVariable will
-                    # handle it. We need a concrete array for the placeholder.
-                    _placeholder_value = jnp.zeros(
-                        shape, dtype=standardize_dtype(dtype)
-                    )
-                elif shape is not None:
-                    _placeholder_value = jnp.zeros(shape, dtype=jnp.float32)
+                # Determine the dtype for the placeholder.
+                _placeholder_value = None
+                if shape is not None:
+                    if dtype is not None:
+                        _placeholder_value = jnp.zeros(
+                            shape, dtype=standardize_dtype(dtype)
+                        )
+                    else:
+                        _placeholder_value = jnp.zeros(
+                            shape, dtype=standardize_dtype(config.floatx())
+                        )
                 else:
-                    _placeholder_value = jnp.array(0.0, dtype=jnp.float32)
+                    if dtype is not None:
+                        _placeholder_value = jnp.array(
+                            0.0, dtype=standardize_dtype(dtype)
+                        )
+                    else:
+                        _placeholder_value = jnp.array(
+                            0.0, dtype=standardize_dtype(config.floatx())
+                        )
 
                 # Call nnx.Variable.__init__ directly.
                 nnx.Variable.__init__(
