@@ -5,12 +5,15 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.stateless_scope import get_stateless_scope
+from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
@@ -19,7 +22,7 @@ SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
 
 
-class Variable(KerasVariable):
+class JaxVariable(KerasVariable):
     def __init__(self, *args, layout=None, **kwargs):
         # Intercept layout parameter so that it is available
         # during initialization.
@@ -55,6 +58,257 @@ class Variable(KerasVariable):
         return self.value
 
 
+_JAX_VARIABLE_TYPE = JaxVariable
+if config.is_nnx_backend_enabled():
+    try:
+        from flax import nnx
+
+        class NnxVariable(KerasVariable, nnx.Variable):
+            def __init__(
+                self,
+                initializer,
+                shape=None,
+                dtype=None,
+                trainable=True,
+                autocast=True,
+                aggregation="none",
+                synchronization="auto",
+                name=None,
+                layout=None,
+                mutable=None,
+                **nnx_metadata,
+            ):
+                # Determine NNX mutability. This needs to be known for
+                # nnx.Variable.__init__.
+                if mutable is None:
+                    actual_nnx_mutable = (
+                        trainable  # Keras 'trainable' maps to NNX 'mutable'
+                    )
+                else:
+                    actual_nnx_mutable = mutable
+
+                # Ensure 'mutable' is in nnx_metadata, but explicit 'mutable'
+                # param takes precedence.
+                if "mutable" in nnx_metadata and mutable is not None:
+                    nnx_metadata["mutable"] = actual_nnx_mutable
+                elif "mutable" not in nnx_metadata:
+                    nnx_metadata["mutable"] = actual_nnx_mutable
+
+                # Initialize nnx.Variable first.
+                # Determine the dtype for the placeholder.
+                _placeholder_value = None
+                if shape is not None:
+                    if dtype is not None:
+                        _placeholder_value = jnp.zeros(
+                            shape, dtype=standardize_dtype(dtype)
+                        )
+                    else:
+                        _placeholder_value = jnp.zeros(
+                            shape, dtype=standardize_dtype(config.floatx())
+                        )
+                else:
+                    if dtype is not None:
+                        _placeholder_value = jnp.array(
+                            0.0, dtype=standardize_dtype(dtype)
+                        )
+                    else:
+                        _placeholder_value = jnp.array(
+                            0.0, dtype=standardize_dtype(config.floatx())
+                        )
+
+                # Call nnx.Variable.__init__ directly.
+                nnx.Variable.__init__(
+                    self, value=_placeholder_value, **nnx_metadata
+                )
+
+                # Store JAX-specific layout using object.__setattr__ BEFORE
+                # KerasVariable init.
+                # This is because KerasVariable.__init__ will call
+                # self._initialize, which uses self._layout.
+                object.__setattr__(self, "_layout", layout)
+
+                # Initialize KerasVariable.
+                super(NnxVariable, self).__init__(
+                    initializer=initializer,
+                    shape=shape,
+                    dtype=dtype,
+                    trainable=trainable,
+                    autocast=autocast,
+                    aggregation=aggregation,
+                    synchronization=synchronization,
+                    name=name,
+                )
+
+            @property
+            def _value(self):
+                if hasattr(self, "raw_value"):
+                    return self.raw_value
+                return None
+
+            @_value.setter
+            def _value(self, new_keras_value):
+                self._direct_assign(new_keras_value)
+
+            def __getstate__(self):
+                # Get the state from KerasVariable (attributes in __dict__)
+                # KerasVariable does not have a custom __getstate__, so we mimic
+                # default behavior.
+                keras_state = self.__dict__.copy()
+
+                # Get the state from nnx.Variable
+                nnx_specific_state = super(KerasVariable, self).__getstate__()
+
+                # Merge them. Keras state is primary. NNX specific state adds
+                # to it.
+                if "raw_value" in nnx_specific_state:
+                    keras_state["_value"] = nnx_specific_state["raw_value"]
+
+                # Add NNX attributes that are not in Keras's __dict__
+                if "_trace_state" in nnx_specific_state:
+                    keras_state["_trace_state"] = nnx_specific_state[
+                        "_trace_state"
+                    ]
+                if "_var_metadata" in nnx_specific_state:
+                    keras_state["_var_metadata"] = nnx_specific_state[
+                        "_var_metadata"
+                    ]
+
+                # Remove elements that might be problematic or redundant if
+                # nnx.Variable's __getstate__
+                keras_state.pop("raw_value", None)
+
+                return keras_state
+
+            def __setstate__(self, state):
+                # Separate nnx specific keys that we added if they are not part
+                # of Keras __dict__ this __getstate__ puts them into the main
+                # state dictionary.
+                nnx_raw_value = state["_value"]  # This was raw_value
+                nnx_trace_state = state.pop("_trace_state", None)
+                nnx_var_metadata = state.pop("_var_metadata", None)
+
+                # Populate the instance's __dict__ with the Keras attributes.
+                self.__dict__.update(state)
+
+                # restore the nnx.Variable specific slotted attributes.
+                object.__setattr__(self, "raw_value", nnx_raw_value)
+
+                if nnx_trace_state is not None:
+                    object.__setattr__(self, "_trace_state", nnx_trace_state)
+                else:
+                    pass
+
+                if nnx_var_metadata is not None:
+                    object.__setattr__(self, "_var_metadata", nnx_var_metadata)
+                else:
+                    pass
+
+                # Ensure Keras's self._value is also consistent with the
+                # restored raw_value
+                object.__setattr__(self, "_value", nnx_raw_value)
+
+                if hasattr(self, "_shape") and self._shape is not None:
+                    self._ndim = len(self._shape)
+                else:
+                    # Fallback if shape isn't immediately available.
+                    self._ndim = len(self.raw_value.shape)
+
+            def _initialize(self, value):
+                # Note that variable.shape is needed by distribution_lib
+                self._shape = self._validate_shape(value.shape)
+                # We can't import the keras/distribution/distribution_lib
+                # due to circular dependency.
+                distribution = global_state.get_global_attribute("distribution")
+                if self._layout is None and distribution is not None:
+                    tensor_layout = distribution.get_variable_layout(self)
+                    from keras.src.distribution import TensorLayout
+
+                    if isinstance(tensor_layout, TensorLayout):
+                        self._layout = tensor_layout.backend_layout
+                    else:
+                        self._layout = tensor_layout
+                self._direct_assign(value)
+
+            def _direct_assign(self, value):
+                # Apply JAX-specific distribution if layout is present
+                if self._layout is not None:
+                    processed_value = distribution_lib.distribute_variable(
+                        value, self._layout
+                    )
+                else:
+                    processed_value = value
+
+                # Ensure that nnx.Variable part is initialized
+                if not hasattr(self, "_var_metadata"):
+                    # todo: should add a warning
+                    pass
+
+                # Apply on_set_value hook if it exists
+                if (
+                    hasattr(self, "_var_metadata")
+                    and "on_set_value" in self._var_metadata
+                ):
+                    final_value = self._var_metadata["on_set_value"](
+                        self, processed_value
+                    )
+                else:
+                    final_value = processed_value
+
+                # Directly set raw_value. nnx.Variable handles mutable array
+                # updates
+                object.__setattr__(self, "raw_value", final_value)
+
+            def _convert_to_tensor(self, value, dtype=None):
+                return convert_to_tensor(value, dtype=dtype, sparse=False)
+
+            # Overload native accessor.
+            def __jax_array__(self):
+                return self.value
+
+            @property
+            def value(self):
+                if not hasattr(self, "raw_value"):
+                    if not hasattr(self, "_value") or self._value is None:
+                        if self._initializer is not None:
+                            initial_value = self._initializer(
+                                self._shape, dtype=self._dtype
+                            )
+                            return self._maybe_autocast(initial_value)
+                        else:
+                            raise AttributeError(
+                                "Variable is not properly initialized and has"
+                                " no initializer."
+                            )
+                    current_value = self._value
+                else:
+                    current_value = self.raw_value
+                    if (
+                        hasattr(self, "_var_metadata")
+                        and "on_get_value" in self._var_metadata
+                    ):
+                        current_value = self._var_metadata["on_get_value"](
+                            self, current_value
+                        )
+
+                if in_stateless_scope():
+                    scope = get_stateless_scope()
+                    stateless_value = scope.get_current_value(self)
+                    if stateless_value is not None:
+                        return self._maybe_autocast(stateless_value)
+
+                return self._maybe_autocast(current_value)
+
+            def __hash__(self):
+                return id(self)
+
+        _JAX_VARIABLE_TYPE = NnxVariable
+    except ImportError:
+        raise ImportError(
+            "To use the NNX backend, you must install `flax`."
+            "Try: `pip install flax`"
+        )
+
+
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if ragged:
         raise ValueError("`ragged=True` is not supported with jax backend")
@@ -68,7 +322,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         # an existing distributed jax array will raise error.
         return x
 
-    if isinstance(x, Variable):
+    if isinstance(x, _JAX_VARIABLE_TYPE):
         if dtype is not None and x.dtype != dtype:
             return x.value.astype(dtype)
         return x.value
@@ -352,7 +606,7 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
-    if isinstance(variable, Variable):
+    if isinstance(variable, _JAX_VARIABLE_TYPE):
         variable = variable.value
     return jax.lax.stop_gradient(variable)
 
