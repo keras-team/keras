@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.runtime.opset14 as ov_opset
+import openvino.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
@@ -1167,9 +1167,7 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 
 def ndim(x):
     x = get_ov_output(x)
-    x_shape = ov_opset.shape_of(x).output(0)
-    x_dim = ov_opset.shape_of(x_shape, "i64")
-    return x_dim
+    return len(x.get_partial_shape().to_shape())
 
 
 def nonzero(x):
