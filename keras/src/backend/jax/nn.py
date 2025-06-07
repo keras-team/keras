@@ -1555,7 +1555,7 @@ def _dot_product_attention_core(
     return jnp.einsum("BNTS,BSNH->BTNH", probs, value)
 
 
-def wrap_flash_attention( 
+def wrap_flash_attention(
     query,
     key,
     value,
