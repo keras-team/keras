@@ -1121,7 +1121,7 @@ def _dot_product_attention_core(
     return jnp.einsum("BNTS,BSNH->BTNH", probs, value)
 
 
-def wrap_flash_attention( 
+def wrap_flash_attention(
     query,
     key,
     value,
@@ -1131,7 +1131,7 @@ def wrap_flash_attention(
     head_shards=1,
     q_seq_shards=1,
 ):
-    """    Applies a wrapped flash attention mechanism using the Splash kernel.
+    """Applies a wrapped flash attention mechanism using the Splash kernel.
     This function prepares the appropriate attention mask (causal or custom),
     constructs a multi-head mask, and applies the Splash multi-head attention
     kernel to the provided query, key, and value tensors. It supports optional
