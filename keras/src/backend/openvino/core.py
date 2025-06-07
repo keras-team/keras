@@ -626,16 +626,12 @@ def scatter_update(inputs, indices, updates):
 def slice(inputs, start_indices, shape):
     inputs = get_ov_output(inputs)
     if isinstance(start_indices, (list, np.ndarray)):
-        if isinstance(start_indices, np.ndarray):
-            start_indices = start_indices.tolist()
         start_indices = tuple(start_indices)
     if isinstance(shape, (list, np.ndarray)):
-        if isinstance(shape, np.ndarray):
-            shape = shape.tolist()
         shape = tuple(shape)
     assert isinstance(start_indices, tuple), (
         "`slice` is not supported by openvino backend"
-        " for `start_indices` of type {}".format(type(shape))
+        " for `start_indices` of type {}".format(type(start_indices))
     )
     assert isinstance(shape, tuple), (
         "`slice` is not supported by openvino backend"
