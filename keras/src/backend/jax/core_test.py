@@ -9,10 +9,11 @@ import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.config import is_nnx_backend_enabled
-from keras.src.backend.jax.core import NnxVariable
 
 if is_nnx_backend_enabled():
     from flax import nnx
+
+    from keras.src.backend.jax.core import NnxVariable
 
 
 @pytest.mark.skipif(
