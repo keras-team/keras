@@ -1074,9 +1074,9 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
             is_training=False,
         )
         return True
-    except Exception as e:
+    except:
         if raise_error:
-            raise e
+            raise
         return False
 
 
@@ -1121,7 +1121,7 @@ def _dot_product_attention_core(
     return jnp.einsum("BNTS,BSNH->BTNH", probs, value)
 
 
-def wrap_flash_attention(
+def wrap_flash_attention( 
     query,
     key,
     value,
@@ -1131,6 +1131,34 @@ def wrap_flash_attention(
     head_shards=1,
     q_seq_shards=1,
 ):
+    """    Applies a wrapped flash attention mechanism using the Splash kernel.
+    This function prepares the appropriate attention mask (causal or custom),
+    constructs a multi-head mask, and applies the Splash multi-head attention
+    kernel to the provided query, key, and value tensors. It supports optional
+    sharding and soft capping of attention logits.
+    Args:
+        query: jax.Array. The query tensor of shape
+            (batch, num_heads, seq_len, head_dim).
+        key: jax.Array. The key tensor of shape
+            (batch, num_heads, seq_len, head_dim).
+        value: jax.Array. The value tensor of shape
+            (batch, num_heads, seq_len, head_dim).
+        decoder_segment_ids: Optional. Segment IDs for the decoder, used for
+            sharding or masking.
+        custom_mask: Optional[jax.Array]. A custom attention mask to apply. If
+            None, a causal mask is used.
+        attn_logits_soft_cap: Optional[float]. If provided, applies a soft cap
+            to the attention logits.
+        head_shards: int, default=1. Number of shards for the attention heads.
+        q_seq_shards: int, default=1. Number of shards for the query sequence
+            dimension.
+    Returns:
+        jax.Array: The result of applying the Splash multi-head attention
+            kernel to the inputs.
+    Raises:
+        AssertionError: If sharding along the sequence dimension is attempted
+            with decoder_segment_ids.
+    """
     if decoder_segment_ids is not None:
         assert query.shape[2] == decoder_segment_ids.q.shape[1], (
             "Sharding along sequence dimension not allowed"
