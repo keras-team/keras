@@ -42,6 +42,12 @@ def running_on_tpu():
     if backend_name == "tensorflow":
         import tensorflow as tf
 
+        try:
+            resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
+            tf.config.experimental_connect_to_cluster(resolver)
+            tf.tpu.experimental.initialize_tpu_system(resolver)
+        except Exception:
+            pass
         return bool(tf.config.list_logical_devices("TPU"))
     elif backend_name == "jax":
         try:
@@ -93,7 +99,6 @@ class MemoryUsageCallback(Callback):
                 "MemoryUsageCallback requires the 'psutil' library. "
                 "To install, please use: pip install psutil"
             )
-
         self.log_every_batch = log_every_batch
         self._proc = psutil.Process()
         self._step_counter = 0
@@ -127,9 +132,7 @@ class MemoryUsageCallback(Callback):
     def on_batch_end(self, batch, logs=None):
         if self.log_every_batch:
             print()
-            self._log_step(
-                f"Batch {self._step_counter} end", self._step_counter
-            )
+            self._log_step(f"Batch {self._step_counter} end", self._step_counter)
         self._step_counter += 1
 
     def on_train_end(self, logs=None):
@@ -155,7 +158,6 @@ class MemoryUsageCallback(Callback):
             msg += f"; GPU Memory: {gpu_mb:.2f} MB"
         if tpu_mb is not None:
             msg += f"; TPU Memory: {tpu_mb:.2f} MB"
-
         print(msg)
         time.sleep(0)
 
@@ -180,7 +182,6 @@ class MemoryUsageCallback(Callback):
         """
         if not running_on_gpu():
             return None
-
         backend_name = K.backend()
         try:
             if backend_name == "tensorflow":
@@ -196,26 +197,21 @@ class MemoryUsageCallback(Callback):
                     total = 0
                     for i, _ in enumerate(gpus):
                         try:
-                            info = tf.config.experimental.get_memory_info(
-                                f"GPU:{i}"
-                            )
+                            info = tf.config.experimental.get_memory_info(f"GPU:{i}")
                             total += info.get("current", 0)
                         except Exception:
                             continue
                     return total / (1024**2)
-
             elif backend_name == "torch":
                 import torch
 
                 if not torch.cuda.is_available():
                     return None
-
                 device_count = torch.cuda.device_count()
                 total_bytes = 0
                 for i in range(device_count):
                     total_bytes += torch.cuda.memory_allocated(i)
                 return total_bytes / (1024**2)
-
             elif backend_name == "jax":
                 import jax
 
@@ -227,9 +223,7 @@ class MemoryUsageCallback(Callback):
                     stats = getattr(d, "memory_stats", lambda: {})()
                     total += stats.get("bytes_in_use", 0)
                 return total / (1024**2)
-
             return None
-
         except ImportError as imp_err:
             if not hasattr(self, "_warn_import"):
                 warnings.warn(
@@ -238,12 +232,9 @@ class MemoryUsageCallback(Callback):
                 )
                 self._warn_import = True
             return None
-
         except Exception as exc:
             if not hasattr(self, "_warn_exc"):
-                warnings.warn(
-                    f"Error retrieving GPU memory: {exc}", RuntimeWarning
-                )
+                warnings.warn(f"Error retrieving GPU memory: {exc}", RuntimeWarning)
                 self._warn_exc = True
             return None
 
@@ -251,24 +242,14 @@ class MemoryUsageCallback(Callback):
         """
         Return current TPU memory usage in MB for the detected backend,
         or None if no TPU is present or if measurement fails.
-        Note: TPU memory APIs vary; here we attempt best‐effort.
+        Note: TPU memory APIs vary; here we attempt best-effort.
         """
         if not running_on_tpu():
             return None
-
         backend_name = K.backend()
         try:
             if backend_name == "tensorflow":
-                import tensorflow as tf
-
-                if not hasattr(self, "_warn_tpu_tf"):
-                    warnings.warn(
-                        "TensorFlow TPU memory info is not directly available; returning None.",
-                        RuntimeWarning,
-                    )
-                    self._warn_tpu_tf = True
                 return None
-
             elif backend_name == "jax":
                 import jax
 
@@ -289,9 +270,7 @@ class MemoryUsageCallback(Callback):
                         )
                         self._warn_tpu_jax = True
                     return None
-
             return None
-
         except ImportError as imp_err:
             if not hasattr(self, "_warn_tpu_imp"):
                 warnings.warn(
@@ -300,11 +279,8 @@ class MemoryUsageCallback(Callback):
                 )
                 self._warn_tpu_imp = True
             return None
-
         except Exception as exc:
             if not hasattr(self, "_warn_tpu_exc"):
-                warnings.warn(
-                    f"Error retrieving TPU memory: {exc}", RuntimeWarning
-                )
+                warnings.warn(f"Error retrieving TPU memory: {exc}", RuntimeWarning)
                 self._warn_tpu_exc = True
             return None
