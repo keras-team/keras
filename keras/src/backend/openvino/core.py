@@ -625,31 +625,59 @@ def scatter_update(inputs, indices, updates):
 
 def slice(inputs, start_indices, shape):
     inputs = get_ov_output(inputs)
+    if isinstance(start_indices, (list, np.ndarray)):
+        if isinstance(start_indices, np.ndarray):
+            start_indices = start_indices.tolist()
+        start_indices = tuple(start_indices)
+    if isinstance(shape, (list, np.ndarray)):
+        if isinstance(shape, np.ndarray):
+            shape = shape.tolist()
+        shape = tuple(shape)
     assert isinstance(start_indices, tuple), (
         "`slice` is not supported by openvino backend"
         " for `start_indices` of type {}".format(type(shape))
     )
     assert isinstance(shape, tuple), (
         "`slice` is not supported by openvino backend"
-        " for `lengths` of type {}".format(type(shape))
+        " for `shape` of type {}".format(type(shape))
     )
 
     axes = []
     start = []
     stop = []
+
+    def prepare_slice_index(val):
+        val_type = val.get_element_type()
+        if not val_type.is_integral():
+            raise ValueError(
+                "`slice` is not supported by OpenVINO backend "
+                "for `start_indices` or `shape` with non-integer types"
+            )
+        if val_type != Type.i32:
+            val = ov_opset.convert(val, Type.i32).output(0)
+        if len(val.get_partial_shape()) == 0:
+            val = ov_opset.unsqueeze(
+                val, ov_opset.constant(0, Type.i32)
+            ).output(0)
+        return val
+
     for idx, length in enumerate(shape):
         if length is not None and length >= 0:
             axes.append(idx)
-            start.append(start_indices[idx])
-            stop.append(start_indices[idx] + length)
+            start_val = prepare_slice_index(get_ov_output(start_indices[idx]))
+            stop_val = prepare_slice_index(
+                get_ov_output(start_indices[idx] + length)
+            )
+            start.append(start_val)
+            stop.append(stop_val)
 
     if len(axes) == 0:
         return inputs
 
     step = [1] * len(start)
     step = ov_opset.constant(step, Type.i32).output(0)
-    start = ov_opset.constant(start, Type.i32).output(0)
-    stop = ov_opset.constant(stop, Type.i32).output(0)
+    start = ov_opset.concat(start, axis=0).output(0)
+    stop = ov_opset.concat(stop, axis=0).output(0)
     axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(
         ov_opset.slice(inputs, start, stop, step, axes).output(0)
