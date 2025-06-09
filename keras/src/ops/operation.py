@@ -171,13 +171,16 @@ class Operation:
         # In this case the subclass doesn't implement get_config():
         # Let's see if we can autogenerate it.
         if getattr(self, "_auto_config", None) is not None:
-            xtra_args = set(config.keys())
             config.update(self._auto_config.config)
-            # Remove args non explicitly supported
-            argspec = inspect.getfullargspec(self.__init__)
-            if argspec.varkw != "kwargs":
-                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
-                    config.pop(key, None)
+            init_params = inspect.signature(self.__init__).parameters
+            init_has_name = "name" in init_params
+            init_has_kwargs = (
+                "kwargs" in init_params
+                and init_params["kwargs"].kind == inspect.Parameter.VAR_KEYWORD
+            )
+            if not init_has_name and not init_has_kwargs:
+                # We can't pass `name` back to `__init__`, remove it.
+                config.pop("name", None)
             return config
         else:
             raise NotImplementedError(
