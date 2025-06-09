@@ -14,7 +14,7 @@ from keras.src.utils.naming import auto_name
 
 @keras_export("keras.Operation")
 class Operation:
-    def __init__(self, dtype=None, name=None):
+    def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
@@ -23,7 +23,6 @@ class Operation:
                 "cannot contain character `/`. "
                 f"Received: name={name} (of type {type(name)})"
             )
-        self._dtype_policy = dtype_policies.get(dtype)
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
@@ -123,17 +122,6 @@ class Operation:
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
-
-        # Explicitly serialize `dtype` to support auto_config
-        dtype = kwargs.get("dtype", None)
-        if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
-            # For backward compatibility, we use a str (`name`) for
-            # `DTypePolicy`
-            if dtype.quantization_mode is None:
-                kwargs["dtype"] = dtype.name
-            # Otherwise, use `dtype_policies.serialize`
-            else:
-                kwargs["dtype"] = dtype_policies.serialize(dtype)
 
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
