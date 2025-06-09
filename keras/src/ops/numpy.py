@@ -6888,6 +6888,35 @@ def logical_xor(x1, x2):
     return backend.numpy.logical_xor(x1, x2)
 
 
+class Corrcoef(Operation):
+    def call(self, x):
+        return backend.numpy.corrcoef(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = "float64"
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.corrcoef", "keras.ops.numpy.corrcoef"])
+def corrcoef(x):
+    """Compute the Pearson correlation coefficient matrix.
+
+    Args:
+        x: A 2D tensor of shape (N, D), where N is the number of variables
+           and D is the number of observations.
+
+    Returns:
+        A tensor of shape (N, N) representing the correlation matrix.
+    """
+    if any_symbolic_tensors((x,)):
+        return Corrcoef().symbolic_call(x)
+    return backend.numpy.corrcoef(x)
+
+
 class Correlate(Operation):
     def __init__(self, mode="valid"):
         super().__init__()

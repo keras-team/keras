@@ -155,6 +155,7 @@ from keras.src.ops.numpy import concatenate as concatenate
 from keras.src.ops.numpy import conj as conj
 from keras.src.ops.numpy import conjugate as conjugate
 from keras.src.ops.numpy import copy as copy
+from keras.src.ops.numpy import corrcoef as corrcoef
 from keras.src.ops.numpy import correlate as correlate
 from keras.src.ops.numpy import cos as cos
 from keras.src.ops.numpy import cosh as cosh

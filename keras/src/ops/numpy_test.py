@@ -6594,6 +6594,26 @@ class NumpyDtypeTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
+    def test_corrcoef(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((3,), dtype=dtype1)
+        x1_jax = jnp.ones((3,), dtype=dtype1)
+        expected_dtype = standardize_dtype(jnp.corrcoef(x1_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.corrcoef(x1).dtype), expected_dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Corrcoef().symbolic_call(x1).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
     def test_correlate(self, dtypes):
         import jax.numpy as jnp
 
