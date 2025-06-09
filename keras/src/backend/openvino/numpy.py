@@ -1167,7 +1167,9 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 
 def ndim(x):
     x = get_ov_output(x)
-    return len(x.get_partial_shape().to_shape())
+    shape_tensor = ov_opset.shape_of(x, Type.i64).output(0)
+    rank_tensor = ov_opset.shape_of(shape_tensor, Type.i64).output(0)
+    return OpenVINOKerasTensor(rank_tensor)
 
 
 def nonzero(x):
