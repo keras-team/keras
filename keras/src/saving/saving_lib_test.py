@@ -1293,6 +1293,9 @@ class SavingH5IOStoreTest(testing.TestCase):
         # Delete.
         del vars_store["c"]
         self.assertLen(vars_store, 2)
+        del vars_store["a"]  # Delete from an older shard.
+        self.assertLen(vars_store, 1)
+        vars_store["a"] = a
 
         # Contain.
         self.assertIn("a", vars_store)
@@ -1325,6 +1328,15 @@ class SavingH5IOStoreTest(testing.TestCase):
             else:
                 raise ValueError(f"Unexpected key: {key}")
 
+        # Values.
+        for value in vars_store.values():
+            if backend.standardize_dtype(value.dtype) == "float32":
+                self.assertAllClose(value, a)
+            elif backend.standardize_dtype(value.dtype) == "int32":
+                self.assertAllClose(value, b)
+            else:
+                raise ValueError(f"Unexpected value: {value}")
+
     def test_sharded_h5_io_store_exception_raised(self):
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))
 
@@ -1353,5 +1365,17 @@ class SavingH5IOStoreTest(testing.TestCase):
             vars_store["weights"] = np.random.random((100, 100)).astype(
                 "float32"
             )
+
+        # Bad `get`.
+        with self.assertRaisesRegex(
+            KeyError, r"Key 'abc' not found in any of the shards:"
+        ):
+            vars_store["abc"]
+
+        # Bad `del`.
+        with self.assertRaisesRegex(
+            KeyError, r"Key 'abc' not found in any of the shards:"
+        ):
+            del vars_store["abc"]
 
         store.close()
