@@ -6982,12 +6982,6 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.empty([2, 3], dtype=dtype).dtype),
             expected_dtype,
         )
-        self.assertEqual(
-            standardize_dtype(
-                knp.Empty().symbolic_call([2, 3], dtype=dtype).dtype
-            ),
-            expected_dtype,
-        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
