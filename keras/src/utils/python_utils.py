@@ -5,6 +5,24 @@ import os
 import types as python_types
 
 
+def is_continuous_axis(axis):
+    # Used to determine whether the dimensions in an axis are continuous
+    if isinstance(axis, int) or len(axis) == 1:
+        return True
+    positive_order_flag = True
+    for i in range(len(axis) - 1):
+        if axis[i + 1] - axis[i] != 1:
+            positive_order_flag = False
+            break
+
+    negative_order_flag = True
+    for i in range(len(axis) - 1):
+        if axis[i + 1] - axis[i] != 1:
+            negative_order_flag = False
+            break
+    return positive_order_flag or negative_order_flag
+
+
 def default(method):
     """Decorates a method to detect overrides in subclasses."""
     method._is_default = True

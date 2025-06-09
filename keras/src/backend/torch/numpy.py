@@ -440,6 +440,11 @@ def hamming(x):
     return torch.signal.windows.hamming(x)
 
 
+def hanning(x):
+    x = convert_to_tensor(x)
+    return torch.signal.windows.hann(x)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return torch.signal.windows.kaiser(x, beta=beta)
@@ -609,7 +614,7 @@ def count_nonzero(x, axis=None):
     return cast(torch.count_nonzero(x, dim=axis).T, "int32")
 
 
-def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=-1):
+def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     if axisa != -1 or axisb != -1 or axisc != -1:
         raise ValueError(
             "Torch backend does not support `axisa`, `axisb`, or `axisc`. "
@@ -698,10 +703,10 @@ def digitize(x, bins):
     return cast(torch.bucketize(x, bins, right=True), "int32")
 
 
-def dot(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    result_dtype = dtypes.result_type(x.dtype, y.dtype)
+def dot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     # GPU only supports float types
     compute_dtype = dtypes.result_type(result_dtype, float)
 
@@ -709,11 +714,11 @@ def dot(x, y):
     if get_device() == "cpu" and compute_dtype == "float16":
         compute_dtype = "float32"
 
-    x = cast(x, compute_dtype)
-    y = cast(y, compute_dtype)
-    if x.ndim == 0 or y.ndim == 0:
-        return cast(torch.multiply(x, y), result_dtype)
-    return cast(torch.matmul(x, y), result_dtype)
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    if x1.ndim == 0 or x2.ndim == 0:
+        return cast(torch.multiply(x1, x2), result_dtype)
+    return cast(torch.matmul(x1, x2), result_dtype)
 
 
 def empty(shape, dtype=None):
@@ -1286,10 +1291,12 @@ def ravel(x):
     return torch.ravel(x)
 
 
-def unravel_index(x, shape):
-    x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype)
-    return tuple(cast(idx, dtype) for idx in torch.unravel_index(x, shape))
+def unravel_index(indices, shape):
+    indices = convert_to_tensor(indices)
+    dtype = dtypes.result_type(indices.dtype)
+    return tuple(
+        cast(idx, dtype) for idx in torch.unravel_index(indices, shape)
+    )
 
 
 def real(x):
@@ -1523,7 +1530,7 @@ def tile(x, repeats):
     return torch.tile(x, dims=repeats)
 
 
-def trace(x, offset=None, axis1=None, axis2=None):
+def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     if dtype != "int64":
@@ -1600,7 +1607,7 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
     )
 
 
-def where(condition, x1, x2):
+def where(condition, x1=None, x2=None):
     condition = convert_to_tensor(condition, dtype=bool)
     if x1 is not None and x2 is not None:
         x1 = convert_to_tensor(x1)
@@ -1699,7 +1706,7 @@ def sum(x, axis=None, keepdims=False):
     return cast(torch.sum(x), dtype)
 
 
-def eye(N, M=None, k=None, dtype=None):
+def eye(N, M=None, k=0, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
@@ -1813,6 +1820,6 @@ def argpartition(x, kth, axis=-1):
     return cast(torch.transpose(out, -1, axis), "int32")
 
 
-def histogram(x, bins, range):
+def histogram(x, bins=10, range=None):
     hist_result = torch.histogram(x, bins=bins, range=range)
     return hist_result.hist, hist_result.bin_edges

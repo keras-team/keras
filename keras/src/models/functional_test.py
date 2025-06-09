@@ -11,6 +11,7 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.dtype_policies import dtype_policy
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
@@ -286,6 +287,14 @@ class FunctionalTest(testing.TestCase):
 
         # Check that the serialized model is the same as the original
         self.assertEqual(json_config, restored_json_config)
+
+    def test_functional_input_shape_and_type(self):
+        input = layers.Input((1024, 4))
+        conv = layers.Conv1D(32, 3)(input)
+        model = Functional(input, conv)
+
+        self.assertIsInstance(model.input, KerasTensor)
+        self.assertEqual(model.input_shape, (None, 1024, 4))
 
     @pytest.mark.requires_trainable_backend
     def test_layer_getters(self):

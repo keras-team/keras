@@ -83,12 +83,12 @@ class Scan(Operation):
         self.reverse = reverse
         self.unroll = unroll
 
-    def call(self, f, init, xs, length):
+    def call(self, f, init, xs=None, length=None):
         return backend.core.scan(
             f, init, xs, length, reverse=self.reverse, unroll=self.unroll
         )
 
-    def compute_output_spec(self, f, init, xs, length):
+    def compute_output_spec(self, f, init, xs=None, length=None):
         if xs is None:
             n = int(length)
             x = None
@@ -185,18 +185,19 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
 
 
 class AssociativeScan(Operation):
-    def __init__(self, reverse=False):
+    def __init__(self, reverse=False, axis=0):
         super().__init__()
         self.reverse = reverse
+        self.axis = axis
 
-    def call(self, f, elems, axis=0):
+    def call(self, f, elems):
         return backend.core.associative_scan(
-            f, elems, reverse=self.reverse, axis=axis
+            f, elems, reverse=self.reverse, axis=self.axis
         )
 
-    def compute_output_spec(self, f, elems, axis):
+    def compute_output_spec(self, f, elems):
         elems_flat = tree.flatten(elems)
-        lens = [elem.shape[axis] for elem in elems_flat]
+        lens = [elem.shape[self.axis] for elem in elems_flat]
         if len(set(lens)) != 1:
             raise ValueError(
                 "Array inputs to associative_scan must have the same "
@@ -206,7 +207,8 @@ class AssociativeScan(Operation):
             )
 
         x = tree.pack_sequence_as(
-            elems, [slice_along_axis(x, 0, 1, axis=axis) for x in elems_flat]
+            elems,
+            [slice_along_axis(x, 0, 1, axis=self.axis) for x in elems_flat],
         )
         y_spec = backend.compute_output_spec(f, x, x)
 
@@ -274,7 +276,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
     [[1, 3], [1, 3], [1, 3]]
     """
     if any_symbolic_tensors((elems,)):
-        return AssociativeScan(reverse=reverse).symbolic_call(f, elems, axis)
+        return AssociativeScan(reverse=reverse, axis=axis).symbolic_call(
+            f, elems
+        )
     return backend.core.associative_scan(f, elems, reverse=reverse, axis=axis)
 
 
@@ -512,7 +516,7 @@ def switch(index, branches, *operands):
 
 
 class WhileLoop(Operation):
-    def __init__(self, cond, body, maximum_iterations):
+    def __init__(self, cond, body, maximum_iterations=None):
         super().__init__()
         self.cond = cond
         self.body = body
@@ -910,14 +914,15 @@ def _saturate_cast(x, dtype, backend_module=None):
 
 
 class ConvertToTensor(Operation):
-    def __init__(self, dtype, sparse):
+    def __init__(self, dtype=None, sparse=None, ragged=None):
         super().__init__()
         self.dtype = backend.standardize_dtype(dtype)
         self.sparse = sparse
+        self.ragged = ragged
 
     def call(self, x):
         return backend.core.convert_to_tensor(
-            x, dtype=self.dtype, sparse=self.sparse
+            x, dtype=self.dtype, sparse=self.sparse, ragged=self.ragged
         )
 
     def compute_output_spec(self, x):
@@ -925,7 +930,12 @@ class ConvertToTensor(Operation):
         sparse = (
             False if self.sparse is not None and not self.sparse else x.sparse
         )
-        return backend.KerasTensor(shape=x.shape, dtype=dtype, sparse=sparse)
+        ragged = (
+            False if self.ragged is not None and not self.ragged else x.ragged
+        )
+        return backend.KerasTensor(
+            shape=x.shape, dtype=dtype, sparse=sparse, ragged=ragged
+        )
 
 
 @keras_export("keras.ops.convert_to_tensor")
@@ -954,7 +964,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     >>> y = keras.ops.convert_to_tensor(x)
     """
     if any_symbolic_tensors((x,)):
-        return ConvertToTensor(dtype=dtype, sparse=sparse)(x)
+        return ConvertToTensor(dtype=dtype, sparse=sparse, ragged=ragged)(x)
     return backend.core.convert_to_tensor(
         x, dtype=dtype, sparse=sparse, ragged=ragged
     )

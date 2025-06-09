@@ -830,7 +830,7 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
     model.compile(
         optimizer='sgd',
         loss='binary_crossentropy',
-        metrics=[keras.metrics.SpecificityAtSensitivity()])
+        metrics=[keras.metrics.SpecificityAtSensitivity(sensitivity=0.3)])
     ```
     """
 

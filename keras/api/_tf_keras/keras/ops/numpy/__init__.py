@@ -76,6 +76,7 @@ from keras.src.ops.numpy import get_item as get_item
 from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
 from keras.src.ops.numpy import hamming as hamming
+from keras.src.ops.numpy import hanning as hanning
 from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import identity as identity
@@ -132,6 +133,7 @@ from keras.src.ops.numpy import right_shift as right_shift
 from keras.src.ops.numpy import roll as roll
 from keras.src.ops.numpy import rot90 as rot90
 from keras.src.ops.numpy import round as round
+from keras.src.ops.numpy import searchsorted as searchsorted
 from keras.src.ops.numpy import select as select
 from keras.src.ops.numpy import sign as sign
 from keras.src.ops.numpy import signbit as signbit

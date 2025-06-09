@@ -83,6 +83,7 @@ from keras.src.ops.nn import hard_sigmoid as hard_sigmoid
 from keras.src.ops.nn import hard_silu as hard_silu
 from keras.src.ops.nn import hard_silu as hard_swish
 from keras.src.ops.nn import hard_tanh as hard_tanh
+from keras.src.ops.nn import layer_normalization as layer_normalization
 from keras.src.ops.nn import leaky_relu as leaky_relu
 from keras.src.ops.nn import log_sigmoid as log_sigmoid
 from keras.src.ops.nn import log_softmax as log_softmax
@@ -186,6 +187,7 @@ from keras.src.ops.numpy import get_item as get_item
 from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
 from keras.src.ops.numpy import hamming as hamming
+from keras.src.ops.numpy import hanning as hanning
 from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import identity as identity

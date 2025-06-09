@@ -17,7 +17,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
-def top_k(x, k, sorted=False):
+def top_k(x, k, sorted=True):
     raise NotImplementedError("`top_k` is not supported with openvino backend")
 
 

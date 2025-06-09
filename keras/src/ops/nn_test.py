@@ -3178,3 +3178,9 @@ class NNOpsBehaviorTest(testing.TestCase):
         self.assertEqual(
             knn.rms_normalization(x, (None, 2, 3)).shape, (None, 2, 3)
         )
+
+    def test_layer_normalization(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(
+            knn.layer_normalization(x, (None, 2, 3)).shape, (None, 2, 3)
+        )
