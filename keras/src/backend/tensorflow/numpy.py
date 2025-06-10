@@ -2793,10 +2793,10 @@ def corrcoef(x):
     if tf.rank(x) == 0:
         return tf.constant(float("nan"), dtype=config.floatx())
 
-    mean = tf.reduce_mean(x, axis=1, keepdims=True)
+    mean = tf.reduce_mean(x, axis=-1, keepdims=True)
     x_centered = x - mean
 
-    num_samples = tf.cast(tf.shape(x)[1], x.dtype)
+    num_samples = tf.cast(tf.shape(x)[-1], x.dtype)
     cov_matrix = tf.matmul(x_centered, x_centered, adjoint_b=True) / (
         num_samples - 1
     )
