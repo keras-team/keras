@@ -9,6 +9,26 @@ from keras.src.optimizers.lion import Lion
 
 
 class LionTest(testing.TestCase):
+    def test_invalid_beta_1(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `beta_1` must be in the \\[0, 1\\] range. Otherwise, the "
+            "optimizer degenerates to SignSGD. Received: beta_1=-0.1.",
+        ):
+            Lion(beta_1=-0.1)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `beta_1` must be in the \\[0, 1\\] range. Otherwise, the "
+            "optimizer degenerates to SignSGD. Received: beta_1=0.0.",
+        ):
+            Lion(beta_1=0.0)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Argument `beta_1` must be in the \\[0, 1\\] range. Otherwise, the "
+            "optimizer degenerates to SignSGD. Received: beta_1=1.1.",
+        ):
+            Lion(beta_1=1.1)
+
     def test_config(self):
         optimizer = Lion(
             learning_rate=0.5,

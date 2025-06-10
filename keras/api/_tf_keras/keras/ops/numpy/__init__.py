@@ -133,6 +133,7 @@ from keras.src.ops.numpy import right_shift as right_shift
 from keras.src.ops.numpy import roll as roll
 from keras.src.ops.numpy import rot90 as rot90
 from keras.src.ops.numpy import round as round
+from keras.src.ops.numpy import searchsorted as searchsorted
 from keras.src.ops.numpy import select as select
 from keras.src.ops.numpy import sign as sign
 from keras.src.ops.numpy import signbit as signbit

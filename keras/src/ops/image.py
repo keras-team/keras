@@ -1007,12 +1007,12 @@ def _pad_images(
 class CropImages(Operation):
     def __init__(
         self,
-        top_cropping,
-        left_cropping,
-        bottom_cropping,
-        right_cropping,
-        target_height,
-        target_width,
+        top_cropping=None,
+        left_cropping=None,
+        bottom_cropping=None,
+        right_cropping=None,
+        target_height=None,
+        target_width=None,
         data_format=None,
     ):
         super().__init__()

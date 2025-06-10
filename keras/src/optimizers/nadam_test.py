@@ -19,6 +19,11 @@ class NadamTest(testing.TestCase):
         )
         self.run_class_serialization_test(optimizer)
 
+    def test_build_with_empty_var_list(self):
+        optimizer = Nadam()
+        optimizer.build([])
+        self.assertEqual(optimizer._u_product.dtype, backend.floatx())
+
     def test_single_step(self):
         optimizer = Nadam(learning_rate=0.5)
         grads = ops.array([1.0, 6.0, 7.0, 2.0])

@@ -30,6 +30,17 @@ class SGDTest(testing.TestCase):
         self.assertEqual(optimizer.variables[0], 1)
         self.assertEqual(optimizer.variables[1], 0.5)
 
+    def test_invalid_momentum(self):
+        with self.assertRaisesRegex(
+            ValueError, "`momentum` must be a float between \\[0, 1\\]."
+        ):
+            SGD(momentum=-1.0)
+
+        with self.assertRaisesRegex(
+            ValueError, "`momentum` must be a float between \\[0, 1\\]."
+        ):
+            SGD(momentum=2.0)
+
     def test_weight_decay(self):
         grads, var1, var2, var3 = (
             ops.zeros(()),

@@ -208,7 +208,7 @@ def append(x1, x2, axis=None):
     return OpenVINOKerasTensor(ov_opset.concat([x1, x2], axis).output(0))
 
 
-def arange(start, stop=None, step=None, dtype=None):
+def arange(start, stop=None, step=1, dtype=None):
     if stop is None:
         start, stop = get_ov_output(0), get_ov_output(start)
     else:
@@ -731,18 +731,18 @@ def digitize(x, bins):
     )
 
 
-def dot(x, y):
+def dot(x1, x2):
     element_type = None
-    if isinstance(x, OpenVINOKerasTensor):
-        element_type = x.output.get_element_type()
-    if isinstance(y, OpenVINOKerasTensor):
-        element_type = y.output.get_element_type()
-    x = get_ov_output(x, element_type)
-    y = get_ov_output(y, element_type)
-    x, y = _align_operand_types(x, y, "dot()")
-    if x.get_partial_shape().rank == 0 or y.get_partial_shape().rank == 0:
-        return OpenVINOKerasTensor(ov_opset.multiply(x, y).output(0))
-    return OpenVINOKerasTensor(ov_opset.matmul(x, y, False, False).output(0))
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "dot()")
+    if x1.get_partial_shape().rank == 0 or x2.get_partial_shape().rank == 0:
+        return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
+    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
 
 def empty(shape, dtype=None):
@@ -1509,8 +1509,33 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
     )
 
 
-def where(condition, x1, x2):
-    raise NotImplementedError("`where` is not supported with openvino backend")
+def where(condition, x1=None, x2=None):
+    condition = get_ov_output(condition)
+    if x1 is None and x2 is None:
+        nonzero_indices = ov_opset.non_zero(condition)
+        return OpenVINOKerasTensor(nonzero_indices.output(0))
+    if x1 is None:
+        return OpenVINOKerasTensor(condition)
+    if x2 is None:
+        raise ValueError("x2 must be provided if x1 is specified.")
+
+    def cast_literal_like_tensor(literal, x):
+        ov_type = get_ov_output(x).get_element_type()
+        is_bool = ov_type == Type.boolean
+        is_float_to_int = isinstance(literal, float) and ov_type.is_integral()
+        if is_bool or is_float_to_int:
+            return get_ov_output(literal), get_ov_output(x)
+        return get_ov_output(literal, ov_type), get_ov_output(x)
+
+    if isinstance(x1, (int, float)):
+        x1, x2 = cast_literal_like_tensor(x1, x2)
+    elif isinstance(x2, (int, float)):
+        x2, x1 = cast_literal_like_tensor(x2, x1)
+    else:
+        x1 = get_ov_output(x1)
+        x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "select()")
+    return OpenVINOKerasTensor(ov_opset.select(condition, x1, x2).output(0))
 
 
 def divide(x1, x2):
