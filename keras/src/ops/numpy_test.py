@@ -1313,6 +1313,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.copy(x).shape, (None, 3))
 
+    def test_corrcoef(self):
+        x = KerasTensor((3, None))
+        self.assertEqual(knp.corrcoef(x).shape, (3, None))
+
     def test_cos(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.cos(x).shape, (None, 3))
@@ -3837,6 +3841,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.copy(x), np.copy(x))
         self.assertAllClose(knp.Copy()(x), np.copy(x))
+
+    def test_corrcoef(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(knp.corrcoef(x), np.corrcoef(x))
+        self.assertAllClose(knp.Corrcoef()(x), np.corrcoef(x))
 
     def test_cos(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -6591,23 +6600,19 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
-    )
-    def test_corrcoef(self, dtypes):
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_corrcoef(self, dtype):
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((3,), dtype=dtype1)
-        x1_jax = jnp.ones((3,), dtype=dtype1)
-        expected_dtype = standardize_dtype(jnp.corrcoef(x1_jax).dtype)
+        x = knp.ones((2, 4), dtype=dtype)
+        x_jax = jnp.ones((2, 4), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.corrcoef(x_jax).dtype)
 
         self.assertEqual(
-            standardize_dtype(knp.corrcoef(x1).dtype), expected_dtype
+            standardize_dtype(knp.corrcoef(x).dtype), expected_dtype
         )
-
         self.assertEqual(
-            standardize_dtype(knp.Corrcoef().symbolic_call(x1).dtype),
+            standardize_dtype(knp.Corrcoef().symbolic_call(x).dtype),
             expected_dtype,
         )
 

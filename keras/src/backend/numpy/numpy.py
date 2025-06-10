@@ -1257,8 +1257,16 @@ def logical_xor(x1, x2):
 
 
 def corrcoef(x):
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
     x = convert_to_tensor(x)
-    return np.corrcoef(x)
+
+    return np.corrcoef(x).astype(dtype)
 
 
 def correlate(x1, x2, mode="valid"):

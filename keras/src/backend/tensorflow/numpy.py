@@ -2785,7 +2785,10 @@ def logical_xor(x1, x2):
 
 
 def corrcoef(x):
-    x = convert_to_tensor(x)
+    dtype = x.dtype
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    x = convert_to_tensor(x, dtype)
 
     if tf.rank(x) == 0:
         return tf.constant(float("nan"), dtype=config.floatx())
