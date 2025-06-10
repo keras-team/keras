@@ -101,3 +101,20 @@ class RescalingTest(testing.TestCase):
             expected_num_losses=0,
             supports_masking=True,
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_rescaling_broadcast_output_shape(self):
+        self.run_layer_test(
+            layers.Rescaling,
+            init_kwargs={
+                "scale": [1.0, 1.0],
+                "offset": [0.0, 0.0],
+            },
+            input_shape=(2, 1),
+            expected_output_shape=(2, 2),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+        )
