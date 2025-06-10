@@ -1641,6 +1641,12 @@ def logical_xor(x1, x2):
     return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
 
 
+def corrcoef(x):
+    raise NotImplementedError(
+        "`corrcoef` is not supported with openvino backend"
+    )
+
+
 def correlate(x1, x2, mode="valid"):
     raise NotImplementedError(
         "`correlate` is not supported with openvino backend"

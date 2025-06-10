@@ -16,6 +16,7 @@ NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
+NumpyDtypeTest::test_corrcoef
 NumpyDtypeTest::test_correlate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
@@ -81,6 +82,7 @@ NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
+NumpyOneInputOpsCorrectnessTest::test_corrcoef
 NumpyOneInputOpsCorrectnessTest::test_correlate
 NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diag
@@ -151,6 +153,7 @@ NumpyTwoInputOpsCorrectnessTest::test_where
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_bartlett
 NumpyOneInputOpsDynamicShapeTest::test_blackman
+NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
