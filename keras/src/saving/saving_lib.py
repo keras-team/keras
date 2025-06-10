@@ -1153,7 +1153,11 @@ class H5IOStore:
             and value.attrs["dtype"] == "bfloat16"
         ):
             value = np.array(value, dtype=ml_dtypes.bfloat16)
-        else:
+        elif (
+            hasattr(value, "shape")
+            and hasattr(value, "dtype")
+            and not isinstance(value, np.ndarray)
+        ):
             value = np.array(value)
         return value
 
