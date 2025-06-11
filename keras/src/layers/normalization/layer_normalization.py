@@ -1,3 +1,5 @@
+import warnings
+
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -117,6 +119,13 @@ class LayerNormalization(Layer):
         # `rms_scaling=True` doesn't work as intended because it scales the
         # input with the variance instead of root mean square.
         rms_scaling = kwargs.pop("rms_scaling", False)
+        if rms_scaling:
+            warnings.warn(
+                "You passed `rms_scaling=True`, which is deprecated. This "
+                "argument incorrectly scales the input by the variance, not "
+                "the root mean square. To correctly use RMS Normalization, "
+                "please use `keras.layers.RMSNormalization` instead."
+            )
 
         super().__init__(**kwargs)
         if isinstance(axis, (list, tuple)):
@@ -182,7 +191,7 @@ class LayerNormalization(Layer):
             self.beta,
             self.axis,
             self.epsilon,
-            self.rms_scaling,
+            rms_scaling=self.rms_scaling,
         )
         return ops.cast(outputs, self.compute_dtype)
 

@@ -2873,7 +2873,7 @@ def layer_normalization(
             "incorrectly scales the input by the variance, not the root mean "
             "square. To correctly use RMS Normalization, please use "
             "`keras.ops.rms_normalization` / `keras.ops.nn.rms_normalization` "
-            "/ `keras.layers.RMSNormalization` instead."
+            "instead."
         )
 
     if any_symbolic_tensors((x,)):
