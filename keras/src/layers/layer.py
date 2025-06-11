@@ -54,8 +54,16 @@ from keras.src.utils import tracking
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
 elif backend.backend() == "jax":
+
     if is_nnx_backend_enabled():
-        from keras.src.backend.jax.layer import NnxLayer as BackendLayer
+        try:
+            from flax import nnx  # noqa F401
+            from keras.src.backend.jax.layer import NnxLayer as BackendLayer
+        except ImportError:
+            raise ImportError(
+                "To use the NNX backend, you must install `flax`."
+                "Try: `pip install flax`"
+            )
     else:
         from keras.src.backend.jax.layer import JaxLayer as BackendLayer
 elif backend.backend() == "torch":
