@@ -30,18 +30,69 @@ class OpWithMultipleOutputs(operation.Operation):
 
 
 class OpWithCustomConstructor(operation.Operation):
-    def __init__(self, alpha, mode="foo"):
-        super().__init__()
+    def __init__(self, alpha, *, name=None):
+        super().__init__(name=name)
         self.alpha = alpha
-        self.mode = mode
 
     def call(self, x):
-        if self.mode == "foo":
-            return x
         return self.alpha * x
 
     def compute_output_spec(self, x):
         return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+
+class OpWithCustomConstructorNoName(operation.Operation):
+    def __init__(self, alpha):
+        super().__init__()
+        self.alpha = alpha
+
+    def call(self, x):
+        return self.alpha * x
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+
+class OpWithKwargsInConstructor(operation.Operation):
+    def __init__(self, alpha, **kwargs):
+        super().__init__(**kwargs)
+        self.alpha = alpha
+
+    def call(self, x):
+        return self.alpha * x
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+
+class OpWithCustomConstructorGetConfig(operation.Operation):
+    def __init__(self, alpha, *, name=None):
+        super().__init__(name=name)
+        self.alpha = alpha
+
+    def call(self, x):
+        return self.alpha * x
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+    def get_config(self):
+        return {**super().get_config(), "alpha": self.alpha}
+
+
+class OpWithKwargsInConstructorGetConfig(operation.Operation):
+    def __init__(self, alpha, **kwargs):
+        super().__init__(**kwargs)
+        self.alpha = alpha
+
+    def call(self, x):
+        return self.alpha * x
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+    def get_config(self):
+        return {**super().get_config(), "alpha": self.alpha}
 
 
 class OperationTest(testing.TestCase):
@@ -129,19 +180,100 @@ class OperationTest(testing.TestCase):
         self.assertAllClose(out[0], np.ones((2, 3)))
         self.assertAllClose(out[1], np.ones((2, 3)) + 1)
 
-    def test_serialization(self):
-        op = OpWithMultipleOutputs(name="test_op")
+    def test_serialization_with_default_init_and_get_config(self):
+        # Explicit name passed in constructor is serialized and deserialized.
+        op = OpWithMultipleInputs(name="test_op")
         config = op.get_config()
         self.assertEqual(config, {"name": "test_op"})
-        op = OpWithMultipleOutputs.from_config(config)
-        self.assertEqual(op.name, "test_op")
+        revived = OpWithMultipleInputs.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
 
-    def test_autoconfig(self):
-        op = OpWithCustomConstructor(alpha=0.2, mode="bar")
+        # Auto generated name is serialized and deserialized.
+        op = OpWithMultipleInputs()
         config = op.get_config()
-        self.assertEqual(config, {"alpha": 0.2, "mode": "bar"})
+        self.assertEqual(config, {"name": op.name})
+        revived = OpWithMultipleInputs.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+    def test_serialization_custom_constructor_with_name_auto_config(self):
+        # Explicit name passed in constructor is serialized and deserialized.
+        op = OpWithCustomConstructor(alpha=0.2, name="test_op")
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": "test_op"})
         revived = OpWithCustomConstructor.from_config(config)
         self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+        # Auto generated name is serialized and deserialized.
+        op = OpWithCustomConstructor(alpha=0.2)
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": op.name})
+        revived = OpWithCustomConstructor.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+    def test_serialization_custom_constructor_with_no_name_auto_config(self):
+        # Auto generated name is not serialized.
+        op = OpWithCustomConstructorNoName(alpha=0.2)
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2})
+        revived = OpWithCustomConstructorNoName.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+
+    def test_serialization_custom_constructor_with_kwargs_auto_config(self):
+        # Explicit name passed in constructor is serialized and deserialized.
+        op = OpWithKwargsInConstructor(alpha=0.2, name="test_op")
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": "test_op"})
+        revived = OpWithKwargsInConstructor.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+        # Auto generated name is serialized and deserialized.
+        op = OpWithKwargsInConstructor(alpha=0.2)
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": op.name})
+        revived = OpWithKwargsInConstructor.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+    def test_serialization_custom_constructor_custom_get_config(self):
+        # Explicit name passed in constructor is serialized and deserialized.
+        op = OpWithCustomConstructorGetConfig(alpha=0.2, name="test_op")
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": "test_op"})
+        revived = OpWithCustomConstructorGetConfig.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+        # Auto generated name is serialized and deserialized.
+        op = OpWithCustomConstructorGetConfig(alpha=0.2)
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": op.name})
+        revived = OpWithCustomConstructorGetConfig.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+    def test_serialization_custom_constructor_with_kwargs_custom_get_config(
+        self,
+    ):
+        # Explicit name passed in constructor is serialized and deserialized.
+        op = OpWithKwargsInConstructorGetConfig(alpha=0.2, name="test_op")
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": "test_op"})
+        revived = OpWithKwargsInConstructorGetConfig.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
+
+        # Auto generated name is serialized and deserialized.
+        op = OpWithKwargsInConstructorGetConfig(alpha=0.2)
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "name": op.name})
+        revived = OpWithKwargsInConstructorGetConfig.from_config(config)
+        self.assertEqual(revived.get_config(), config)
+        self.assertEqual(revived.name, op.name)
 
     @skip_if_backend(
         "openvino", "Can not constant fold eltwise node by CPU plugin"
