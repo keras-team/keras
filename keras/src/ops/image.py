@@ -8,8 +8,8 @@ from keras.src.ops.operation_utils import compute_conv_output_shape
 
 
 class RGBToGrayscale(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -77,8 +77,8 @@ def rgb_to_grayscale(images, data_format=None):
 
 
 class RGBToHSV(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -149,8 +149,8 @@ def rgb_to_hsv(images, data_format=None):
 
 
 class HSVToRGB(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -228,8 +228,10 @@ class Resize(Operation):
         fill_mode="constant",
         fill_value=0.0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.size = tuple(size)
         self.interpolation = interpolation
         self.antialias = antialias
@@ -413,8 +415,10 @@ class AffineTransform(Operation):
         fill_mode="constant",
         fill_value=0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_mode = fill_mode
         self.fill_value = fill_value
@@ -554,8 +558,10 @@ class ExtractPatches(Operation):
         dilation_rate=1,
         padding="valid",
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         if isinstance(size, int):
             size = (size, size)
         self.size = size
@@ -707,8 +713,8 @@ def _extract_patches(
 
 
 class MapCoordinates(Operation):
-    def __init__(self, order, fill_mode="constant", fill_value=0):
-        super().__init__()
+    def __init__(self, order, fill_mode="constant", fill_value=0, *, name=None):
+        super().__init__(name=name)
         self.order = order
         self.fill_mode = fill_mode
         self.fill_value = fill_value
@@ -803,8 +809,10 @@ class PadImages(Operation):
         target_height=None,
         target_width=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.top_padding = top_padding
         self.left_padding = left_padding
         self.bottom_padding = bottom_padding
@@ -1007,15 +1015,17 @@ def _pad_images(
 class CropImages(Operation):
     def __init__(
         self,
-        top_cropping,
-        left_cropping,
-        bottom_cropping,
-        right_cropping,
-        target_height,
-        target_width,
+        top_cropping=None,
+        left_cropping=None,
+        bottom_cropping=None,
+        right_cropping=None,
+        target_height=None,
+        target_width=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.top_cropping = top_cropping
         self.bottom_cropping = bottom_cropping
         self.left_cropping = left_cropping
@@ -1238,8 +1248,10 @@ class PerspectiveTransform(Operation):
         interpolation="bilinear",
         fill_value=0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_value = fill_value
         self.data_format = backend.standardize_data_format(data_format)
@@ -1381,8 +1393,10 @@ class GaussianBlur(Operation):
         kernel_size=(3, 3),
         sigma=(1.0, 1.0),
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.kernel_size = kernel_size
         self.sigma = sigma
         self.data_format = backend.standardize_data_format(data_format)
@@ -1470,8 +1484,10 @@ class ElasticTransform(Operation):
         fill_value=0.0,
         seed=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.alpha = alpha
         self.sigma = sigma
         self.interpolation = interpolation

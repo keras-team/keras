@@ -249,6 +249,64 @@ class OpenVINOKerasTensor:
         )
         return OpenVINOKerasTensor(ov_opset.power(first, other).output(0))
 
+    def __rpow__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__rpow__"
+        )
+        return OpenVINOKerasTensor(ov_opset.power(other, first).output(0))
+
+    def __lt__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__lt__"
+        )
+        return OpenVINOKerasTensor(ov_opset.less(first, other).output(0))
+
+    def __gt__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__gt__"
+        )
+        return OpenVINOKerasTensor(ov_opset.greater(first, other).output(0))
+
+    def __le__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__le__"
+        )
+        return OpenVINOKerasTensor(ov_opset.less_equal(first, other).output(0))
+
+    def __ge__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__ge__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.greater_equal(first, other).output(0)
+        )
+
+    def __eq__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__eq__"
+        )
+        return OpenVINOKerasTensor(ov_opset.equal(first, other).output(0))
+
+    def __ne__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__ne__"
+        )
+        return OpenVINOKerasTensor(ov_opset.not_equal(first, other).output(0))
+
     def __getitem__(self, indices):
         # now it has limited functionaly
         # and supports only a case with one integer index in indices
@@ -565,33 +623,57 @@ def scatter_update(inputs, indices, updates):
     )
 
 
-def slice(inputs, start_indices, lengths):
+def slice(inputs, start_indices, shape):
     inputs = get_ov_output(inputs)
+    if isinstance(start_indices, (list, np.ndarray)):
+        start_indices = tuple(start_indices)
+    if isinstance(shape, (list, np.ndarray)):
+        shape = tuple(shape)
     assert isinstance(start_indices, tuple), (
         "`slice` is not supported by openvino backend"
-        " for `start_indices` of type {}".format(type(lengths))
+        " for `start_indices` of type {}".format(type(start_indices))
     )
-    assert isinstance(lengths, tuple), (
+    assert isinstance(shape, tuple), (
         "`slice` is not supported by openvino backend"
-        " for `lengths` of type {}".format(type(lengths))
+        " for `shape` of type {}".format(type(shape))
     )
 
     axes = []
     start = []
     stop = []
-    for idx, length in enumerate(lengths):
+
+    def prepare_slice_index(val):
+        val_type = val.get_element_type()
+        if not val_type.is_integral():
+            raise ValueError(
+                "`slice` is not supported by OpenVINO backend "
+                "for `start_indices` or `shape` with non-integer types"
+            )
+        if val_type != Type.i32:
+            val = ov_opset.convert(val, Type.i32).output(0)
+        if len(val.get_partial_shape()) == 0:
+            val = ov_opset.unsqueeze(
+                val, ov_opset.constant(0, Type.i32)
+            ).output(0)
+        return val
+
+    for idx, length in enumerate(shape):
         if length is not None and length >= 0:
             axes.append(idx)
-            start.append(start_indices[idx])
-            stop.append(start_indices[idx] + length)
+            start_val = prepare_slice_index(get_ov_output(start_indices[idx]))
+            stop_val = prepare_slice_index(
+                get_ov_output(start_indices[idx] + length)
+            )
+            start.append(start_val)
+            stop.append(stop_val)
 
     if len(axes) == 0:
         return inputs
 
     step = [1] * len(start)
     step = ov_opset.constant(step, Type.i32).output(0)
-    start = ov_opset.constant(start, Type.i32).output(0)
-    stop = ov_opset.constant(stop, Type.i32).output(0)
+    start = ov_opset.concat(start, axis=0).output(0)
+    stop = ov_opset.concat(stop, axis=0).output(0)
     axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(
         ov_opset.slice(inputs, start, stop, step, axes).output(0)
@@ -621,8 +703,8 @@ def fori_loop(lower, upper, body_fun, init_val):
     )
 
 
-def stop_gradient(x):
-    return x
+def stop_gradient(variable):
+    return variable
 
 
 def unstack(x, num=None, axis=0):

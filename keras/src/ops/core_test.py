@@ -1010,7 +1010,7 @@ class CoreOpsCallsTests(testing.TestCase):
         init = np.array(0, dtype="float32")
         xs = np.array([1, 2, 3, 4, 10, 20], dtype="float32")
         scan_op = core.Scan()
-        carry, result = scan_op.call(cumsum, init, xs, None)
+        carry, result = scan_op.call(cumsum, init, xs)
         self.assertAllClose(carry, 40.0)
         self.assertAllClose(result, ops.cumsum(xs))
 
@@ -1025,8 +1025,8 @@ class CoreOpsCallsTests(testing.TestCase):
         indices = np.array([[1, 0], [0, 1]])
         values = np.array([10, 20])
         shape = (2, 2)
-        scatter = core.Scatter()
-        result = scatter.call(indices, values, shape)
+        scatter = core.Scatter(shape)
+        result = scatter.call(indices, values)
         expected_output = np.array([[0, 20], [10, 0]])
         self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
@@ -1043,8 +1043,8 @@ class CoreOpsCallsTests(testing.TestCase):
         inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
         start_indices = np.array([1, 1])
         shape = (2, 2)
-        slice_op = core.Slice()
-        result = slice_op.call(inputs, start_indices, shape)
+        slice_op = core.Slice(shape)
+        result = slice_op.call(inputs, start_indices)
         expected_output = np.array([[5, 6], [8, 9]])
         self.assertAllClose(core.convert_to_numpy(result), expected_output)
 
@@ -1052,8 +1052,8 @@ class CoreOpsCallsTests(testing.TestCase):
         inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
         start_indices = np.array([1, 1])
         shape = (2, 2)
-        slice_op = core.Slice()
-        output_spec = slice_op.compute_output_spec(inputs, start_indices, shape)
+        slice_op = core.Slice(shape)
+        output_spec = slice_op.compute_output_spec(inputs, start_indices)
         self.assertEqual(output_spec.shape, shape)
         self.assertEqual(output_spec.dtype, inputs.dtype)
 

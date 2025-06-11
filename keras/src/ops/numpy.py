@@ -17,8 +17,8 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Rot90(Operation):
-    def __init__(self, k=1, axes=(0, 1)):
-        super().__init__()
+    def __init__(self, k=1, axes=(0, 1), *, name=None):
+        super().__init__(name=name)
         self.k = k
         self.axes = axes
 
@@ -238,8 +238,8 @@ def add(x1, x2):
 
 
 class All(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             self.axis = [axis]
         else:
@@ -302,8 +302,8 @@ def all(x, axis=None, keepdims=False):
 
 
 class Any(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             self.axis = [axis]
         else:
@@ -401,8 +401,8 @@ def any(x, axis=None, keepdims=False):
 
 
 class Amax(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             axis = [axis]
         self.axis = axis
@@ -460,8 +460,8 @@ def amax(x, axis=None, keepdims=False):
 
 
 class Amin(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             axis = [axis]
         self.axis = axis
@@ -515,8 +515,8 @@ def amin(x, axis=None, keepdims=False):
 
 
 class Append(Operation):
-    def __init__(self, axis=None):
-        super().__init__()
+    def __init__(self, axis=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
     def call(self, x1, x2):
@@ -591,13 +591,18 @@ def append(
 
 
 class Arange(Operation):
-    def call(self, start, stop=None, step=1, dtype=None):
-        return backend.numpy.arange(start, stop, step=step, dtype=dtype)
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, start, stop=None, step=1, dtype=None):
+    def call(self, start, stop=None, step=1):
+        return backend.numpy.arange(start, stop, step=step, dtype=self.dtype)
+
+    def compute_output_spec(self, start, stop=None, step=1):
         if stop is None:
             start, stop = 0, start
         output_shape = [int(np.ceil((stop - start) / step))]
+        dtype = self.dtype
         if dtype is None:
             dtypes_to_resolve = [
                 getattr(start, "dtype", type(start)),
@@ -655,6 +660,8 @@ def arange(start, stop=None, step=1, dtype=None):
     >>> keras.ops.arange(3, 7, 2)
     array([3, 5], dtype=int32)
     """
+    if any_symbolic_tensors((start, stop, step)):
+        return Arange(dtype=dtype).symbolic_call(start, stop, step=step)
     return backend.numpy.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -923,8 +930,8 @@ def arctanh(x):
 
 
 class Argmax(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
         self.keepdims = keepdims
 
@@ -974,8 +981,8 @@ def argmax(x, axis=None, keepdims=False):
 
 
 class Argmin(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
         self.keepdims = keepdims
 
@@ -1025,8 +1032,8 @@ def argmin(x, axis=None, keepdims=False):
 
 
 class Argsort(Operation):
-    def __init__(self, axis=-1):
-        super().__init__()
+    def __init__(self, axis=-1, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
     def call(self, x):
@@ -1077,10 +1084,19 @@ def argsort(x, axis=-1):
 
 
 class Array(Operation):
-    def call(self, x, dtype=None):
-        return backend.numpy.array(x, dtype=dtype)
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return backend.numpy.array(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1103,13 +1119,13 @@ def array(x, dtype=None):
     array([1., 2., 3.], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Array().symbolic_call(x, dtype=dtype)
+        return Array(dtype=dtype).symbolic_call(x)
     return backend.numpy.array(x, dtype=dtype)
 
 
 class Average(Operation):
-    def __init__(self, axis=None):
-        super().__init__()
+    def __init__(self, axis=None, *, name=None):
+        super().__init__(name=name)
         # np.average() does not support axis as tuple as declared by the
         # docstring, it only supports int or None.
         self.axis = axis
@@ -1207,7 +1223,7 @@ def average(x, axis=None, weights=None):
     """
     if any_symbolic_tensors((x,)):
         return Average(axis=axis).symbolic_call(x, weights=weights)
-    return backend.numpy.average(x, weights=weights, axis=axis)
+    return backend.numpy.average(x, axis=axis, weights=weights)
 
 
 class Bartlett(Operation):
@@ -1302,8 +1318,8 @@ def hanning(x):
 
 
 class Kaiser(Operation):
-    def __init__(self, beta):
-        super().__init__()
+    def __init__(self, beta, *, name=None):
+        super().__init__(name=name)
         self.beta = beta
 
     def call(self, x):
@@ -1340,8 +1356,8 @@ def kaiser(x, beta):
 
 
 class Bincount(Operation):
-    def __init__(self, weights=None, minlength=0, sparse=False):
-        super().__init__()
+    def __init__(self, weights=None, minlength=0, sparse=False, *, name=None):
+        super().__init__(name=name)
         self.weights = weights
         self.minlength = minlength
         self.sparse = sparse
@@ -1418,9 +1434,6 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 
 class BitwiseAnd(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x, y):
         return backend.numpy.bitwise_and(x, y)
 
@@ -1450,9 +1463,6 @@ def bitwise_and(x, y):
 
 
 class BitwiseInvert(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return backend.numpy.bitwise_invert(x)
 
@@ -1480,9 +1490,6 @@ def bitwise_invert(x):
 
 
 class BitwiseNot(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return backend.numpy.bitwise_not(x)
 
@@ -1510,9 +1517,6 @@ def bitwise_not(x):
 
 
 class BitwiseOr(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x, y):
         return backend.numpy.bitwise_or(x, y)
 
@@ -1542,9 +1546,6 @@ def bitwise_or(x, y):
 
 
 class BitwiseXor(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x, y):
         return backend.numpy.bitwise_xor(x, y)
 
@@ -1574,9 +1575,6 @@ def bitwise_xor(x, y):
 
 
 class BitwiseLeftShift(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x, y):
         return backend.numpy.bitwise_left_shift(x, y)
 
@@ -1611,9 +1609,6 @@ def bitwise_left_shift(x, y):
 
 
 class LeftShift(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x, y):
         return backend.numpy.left_shift(x, y)
 
@@ -1646,9 +1641,6 @@ def left_shift(x, y):
 
 
 class BitwiseRightShift(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x, y):
         return backend.numpy.bitwise_right_shift(x, y)
 
@@ -1683,9 +1675,6 @@ def bitwise_right_shift(x, y):
 
 
 class RightShift(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x, y):
         return backend.numpy.right_shift(x, y)
 
@@ -1748,8 +1737,8 @@ def blackman(x):
 
 
 class BroadcastTo(Operation):
-    def __init__(self, shape):
-        super().__init__()
+    def __init__(self, shape, *, name=None):
+        super().__init__(name=name)
         self.shape = shape
 
     def call(self, x):
@@ -1822,8 +1811,8 @@ def ceil(x):
 
 
 class Clip(Operation):
-    def __init__(self, x_min, x_max):
-        super().__init__()
+    def __init__(self, x_min, x_max, *, name=None):
+        super().__init__(name=name)
         self.x_min = x_min
         self.x_max = x_max
 
@@ -1858,8 +1847,8 @@ def clip(x, x_min, x_max):
 
 
 class Concatenate(Operation):
-    def __init__(self, axis=0):
-        super().__init__()
+    def __init__(self, axis=0, *, name=None):
+        super().__init__(name=name)
         if axis is None:
             raise ValueError("`axis` cannot be None for `concatenate`.")
         self.axis = axis
@@ -2035,8 +2024,8 @@ def cosh(x):
 
 
 class CountNonzero(Operation):
-    def __init__(self, axis=None):
-        super().__init__()
+    def __init__(self, axis=None, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             self.axis = (axis,)
         else:
@@ -2086,8 +2075,8 @@ def count_nonzero(x, axis=None):
 
 
 class Cross(Operation):
-    def __init__(self, axisa=-1, axisb=-1, axisc=-1, axis=None):
-        super().__init__()
+    def __init__(self, axisa=-1, axisb=-1, axisc=-1, axis=None, *, name=None):
+        super().__init__(name=name)
         if axis is not None:
             self.axisa = axis
             self.axisb = axis
@@ -2184,10 +2173,10 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 class Cumprod(Operation):
-    def __init__(self, axis=None, dtype=None):
-        super().__init__()
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.cumprod(x, axis=self.axis, dtype=self.dtype)
@@ -2200,7 +2189,11 @@ class Cumprod(Operation):
                 output_shape = (int(np.prod(x.shape)),)
         else:
             output_shape = x.shape
-        output_dtype = backend.standardize_dtype(self.dtype or x.dtype)
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         if output_dtype == "bool":
             output_dtype = "int32"
         return KerasTensor(output_shape, output_dtype)
@@ -2223,10 +2216,10 @@ def cumprod(x, axis=None, dtype=None):
 
 
 class Cumsum(Operation):
-    def __init__(self, axis=None, dtype=None):
-        super().__init__()
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.cumsum(x, axis=self.axis, dtype=self.dtype)
@@ -2239,7 +2232,11 @@ class Cumsum(Operation):
                 output_shape = (int(np.prod(x.shape)),)
         else:
             output_shape = x.shape
-        output_dtype = backend.standardize_dtype(self.dtype or x.dtype)
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         if output_dtype == "bool":
             output_dtype = "int32"
         return KerasTensor(output_shape, output_dtype)
@@ -2262,8 +2259,8 @@ def cumsum(x, axis=None, dtype=None):
 
 
 class Diag(Operation):
-    def __init__(self, k=0):
-        super().__init__()
+    def __init__(self, k=0, *, name=None):
+        super().__init__(name=name)
         self.k = k
 
     def call(self, x):
@@ -2338,8 +2335,8 @@ def diag(x, k=0):
 
 
 class Diagflat(Operation):
-    def __init__(self, k=0):
-        super().__init__()
+    def __init__(self, k=0, *, name=None):
+        super().__init__(name=name)
         self.k = k
 
     def call(self, x):
@@ -2394,8 +2391,8 @@ def diagflat(x, k=0):
 
 
 class Diagonal(Operation):
-    def __init__(self, offset=0, axis1=0, axis2=1):
-        super().__init__()
+    def __init__(self, offset=0, axis1=0, axis2=1, *, name=None):
+        super().__init__(name=name)
         self.offset = offset
         self.axis1 = axis1
         self.axis2 = axis2
@@ -2498,8 +2495,8 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 class Diff(Operation):
-    def __init__(self, n=1, axis=-1):
-        super().__init__()
+    def __init__(self, n=1, axis=-1, *, name=None):
+        super().__init__(name=name)
         self.n = n
         self.axis = axis
 
@@ -2657,12 +2654,12 @@ def dot(x1, x2):
 
 
 class Einsum(Operation):
-    def __init__(self, subscripts):
-        super().__init__()
+    def __init__(self, subscripts, *, name=None):
+        super().__init__(name=name)
         self.subscripts = subscripts
 
-    def call(self, *operands):
-        return backend.numpy.einsum(self.subscripts, *operands)
+    def call(self, *operands, **kwargs):
+        return backend.numpy.einsum(self.subscripts, *operands, **kwargs)
 
     def compute_output_spec(self, *operands):
         """Compute the output shape of `einsum`.
@@ -2836,7 +2833,7 @@ class Einsum(Operation):
 
 
 @keras_export(["keras.ops.einsum", "keras.ops.numpy.einsum"])
-def einsum(subscripts, *operands):
+def einsum(subscripts, *operands, **kwargs):
     """Evaluates the Einstein summation convention on the operands.
 
     Args:
@@ -2920,17 +2917,8 @@ def einsum(subscripts, *operands):
     array([ 30,  80, 130, 180, 230])
     """
     if any_symbolic_tensors(operands):
-        return Einsum(subscripts).symbolic_call(*operands)
-    return backend.numpy.einsum(subscripts, *operands)
-
-
-class Empty(Operation):
-    def call(self, shape, dtype=None):
-        return backend.numpy.empty(shape, dtype=dtype)
-
-    def compute_output_spec(self, shape, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
+        return Einsum(subscripts).symbolic_call(*operands, **kwargs)
+    return backend.numpy.einsum(subscripts, *operands, **kwargs)
 
 
 @keras_export(["keras.ops.empty", "keras.ops.numpy.empty"])
@@ -3027,8 +3015,8 @@ def exp2(x):
 
 
 class ExpandDims(Operation):
-    def __init__(self, axis):
-        super().__init__()
+    def __init__(self, axis, *, name=None):
+        super().__init__(name=name)
         if not isinstance(axis, (int, tuple, list)):
             raise ValueError(
                 "The `axis` argument to `expand_dims` should be an integer, "
@@ -3099,8 +3087,8 @@ def expm1(x):
 
 
 class Flip(Operation):
-    def __init__(self, axis=None):
-        super().__init__()
+    def __init__(self, axis=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
     def call(self, x):
@@ -3161,12 +3149,17 @@ def floor(x):
 
 
 class Full(Operation):
-    def call(self, shape, fill_value, dtype=None):
-        return backend.numpy.full(shape, fill_value, dtype=dtype)
+    def __init__(self, shape, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.shape = shape
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, shape, fill_value, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
+    def call(self, fill_value):
+        return backend.numpy.full(self.shape, fill_value, dtype=self.dtype)
+
+    def compute_output_spec(self, fill_value):
+        dtype = backend.floatx() if self.dtype is None else self.dtype
+        return KerasTensor(self.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.full", "keras.ops.numpy.full"])
@@ -3181,15 +3174,25 @@ def full(shape, fill_value, dtype=None):
     Returns:
         Output tensor.
     """
+    if any_symbolic_tensors((fill_value,)):
+        return Full(shape=shape, dtype=dtype).symbolic_call(fill_value)
     return backend.numpy.full(shape, fill_value, dtype=dtype)
 
 
 class FullLike(Operation):
-    def call(self, x, fill_value, dtype=None):
-        return backend.numpy.full_like(x, fill_value, dtype=dtype)
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, x, fill_value, dtype=None):
-        dtype = dtype or x.dtype
+    def call(self, x, fill_value):
+        return backend.numpy.full_like(x, fill_value, dtype=self.dtype)
+
+    def compute_output_spec(self, x, fill_value):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -3205,8 +3208,8 @@ def full_like(x, fill_value, dtype=None):
     Returns:
         Tensor of `fill_value` with the same shape and type as `x`.
     """
-    if any_symbolic_tensors((x,)):
-        return FullLike().symbolic_call(x, fill_value, dtype=dtype)
+    if any_symbolic_tensors((x, fill_value)):
+        return FullLike(dtype=dtype).symbolic_call(x, fill_value)
     return backend.numpy.full_like(x, fill_value, dtype=dtype)
 
 
@@ -3395,15 +3398,6 @@ def hstack(xs):
     return backend.numpy.hstack(xs)
 
 
-class Identity(Operation):
-    def call(self, n, dtype=None):
-        return backend.numpy.identity(n, dtype=dtype)
-
-    def compute_output_spec(self, n, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor([n, n], dtype=dtype)
-
-
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
 def identity(n, dtype=None):
     """Return the identity tensor.
@@ -3446,12 +3440,14 @@ def imag(x):
 
 
 class Isclose(Operation):
-    def call(self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-        return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
+    def __init__(self, equal_nan=False, *, name=None):
+        super().__init__(name=name)
+        self.equal_nan = equal_nan
 
-    def compute_output_spec(
-        self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False
-    ):
+    def call(self, x1, x2, rtol=1e-5, atol=1e-8):
+        return backend.numpy.isclose(x1, x2, rtol, atol, self.equal_nan)
+
+    def compute_output_spec(self, x1, x2, rtol=1e-5, atol=1e-8):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
@@ -3473,7 +3469,7 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         Output boolean tensor.
     """
     if any_symbolic_tensors((x1, x2)):
-        return Isclose().symbolic_call(x1, x2, rtol, atol, equal_nan)
+        return Isclose(equal_nan=equal_nan).symbolic_call(x1, x2, rtol, atol)
     return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
@@ -3611,9 +3607,16 @@ def less_equal(x1, x2):
 
 class Linspace(Operation):
     def __init__(
-        self, num=50, endpoint=True, retstep=False, dtype=float, axis=0
+        self,
+        num=50,
+        endpoint=True,
+        retstep=False,
+        dtype=None,
+        axis=0,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.num = num
         self.endpoint = endpoint
         self.retstep = retstep
@@ -3653,7 +3656,7 @@ class Linspace(Operation):
         dtype = (
             self.dtype
             if self.dtype is not None
-            else getattr(start, "dtype", type(start))
+            else backend.standardize_dtype(getattr(start, "dtype", type(start)))
         )
         dtype = backend.result_type(dtype, float)
         if self.retstep:
@@ -3957,12 +3960,14 @@ def logical_or(x1, x2):
 
 
 class Logspace(Operation):
-    def __init__(self, num=50, endpoint=True, base=10, dtype=float, axis=0):
-        super().__init__()
+    def __init__(
+        self, num=50, endpoint=True, base=10, dtype=None, axis=0, *, name=None
+    ):
+        super().__init__(name=name)
         self.num = num
         self.endpoint = endpoint
         self.base = base
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
         self.axis = axis
 
     def call(self, start, stop):
@@ -3997,7 +4002,7 @@ class Logspace(Operation):
         dtype = (
             self.dtype
             if self.dtype is not None
-            else getattr(start, "dtype", type(start))
+            else backend.standardize_dtype(getattr(start, "dtype", type(start)))
         )
         dtype = backend.result_type(dtype, float)
         return KerasTensor(output_shape, dtype=dtype)
@@ -4091,8 +4096,8 @@ def matmul(x1, x2):
 
 
 class Max(Operation):
-    def __init__(self, axis=None, keepdims=False, initial=None):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, initial=None, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             self.axis = [axis]
         else:
@@ -4171,8 +4176,8 @@ def maximum(x1, x2):
 
 
 class Median(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             axis = [axis]
         self.axis = axis
@@ -4213,8 +4218,8 @@ def median(x, axis=None, keepdims=False):
 
 
 class Meshgrid(Operation):
-    def __init__(self, indexing="xy"):
-        super().__init__()
+    def __init__(self, indexing="xy", *, name=None):
+        super().__init__(name=name)
         if indexing not in ("xy", "ij"):
             raise ValueError(
                 "Valid values for `indexing` are 'xy' and 'ij', "
@@ -4284,8 +4289,8 @@ def meshgrid(*x, indexing="xy"):
 
 
 class Min(Operation):
-    def __init__(self, axis=None, keepdims=False, initial=None):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, initial=None, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             self.axis = [axis]
         else:
@@ -4397,8 +4402,8 @@ def mod(x1, x2):
 
 
 class Moveaxis(Operation):
-    def __init__(self, source, destination):
-        super().__init__()
+    def __init__(self, source, destination, *, name=None):
+        super().__init__(name=name)
         if isinstance(source, int):
             self.source = [source]
         else:
@@ -4461,8 +4466,8 @@ def moveaxis(x, source, destination):
 
 
 class NanToNum(Operation):
-    def __init__(self, nan=0.0, posinf=None, neginf=None):
-        super().__init__()
+    def __init__(self, nan=0.0, posinf=None, neginf=None, *, name=None):
+        super().__init__(name=name)
         self.nan = nan
         self.posinf = posinf
         self.neginf = neginf
@@ -4579,13 +4584,21 @@ def not_equal(x1, x2):
 
 
 class OnesLike(Operation):
-    def call(self, x, dtype=None):
-        return backend.numpy.ones_like(x, dtype=dtype)
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, x, dtype=None):
-        if dtype is None:
-            dtype = x.dtype
-        return KerasTensor(x.shape, dtype=dtype)
+    def call(self, x):
+        return backend.numpy.ones_like(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.ones_like", "keras.ops.numpy.ones_like"])
@@ -4600,18 +4613,26 @@ def ones_like(x, dtype=None):
         A tensor of ones with the same shape and type as `x`.
     """
     if any_symbolic_tensors((x,)):
-        return OnesLike().symbolic_call(x, dtype=dtype)
+        return OnesLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.ones_like(x, dtype=dtype)
 
 
 class ZerosLike(Operation):
-    def call(self, x, dtype=None):
-        return backend.numpy.zeros_like(x, dtype=dtype)
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return backend.numpy.zeros_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
-        if dtype is None:
-            dtype = x.dtype
-        return KerasTensor(x.shape, dtype=dtype)
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
 @keras_export(
@@ -4631,7 +4652,7 @@ def zeros_like(x, dtype=None):
         A tensor of zeros with the same shape and type as `x`.
     """
     if any_symbolic_tensors((x,)):
-        return ZerosLike().symbolic_call(x, dtype=dtype)
+        return ZerosLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.zeros_like(x, dtype=dtype)
 
 
@@ -4681,8 +4702,8 @@ def outer(x1, x2):
 
 
 class Pad(Operation):
-    def __init__(self, pad_width, mode="constant"):
-        super().__init__()
+    def __init__(self, pad_width, mode="constant", *, name=None):
+        super().__init__(name=name)
         self.pad_width = self._process_pad_width(pad_width)
         self.mode = mode
 
@@ -4778,14 +4799,14 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 class Prod(Operation):
-    def __init__(self, axis=None, keepdims=False, dtype=None):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, dtype=None, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             self.axis = [axis]
         else:
             self.axis = axis
         self.keepdims = keepdims
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.prod(
@@ -4799,7 +4820,7 @@ class Prod(Operation):
         if self.dtype is not None:
             dtype = self.dtype
         else:
-            dtype = backend.result_type(x.dtype)
+            dtype = backend.standardize_dtype(x.dtype)
             if dtype == "bool":
                 dtype = "int32"
             elif dtype in ("int8", "int16"):
@@ -4837,8 +4858,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 class Quantile(Operation):
-    def __init__(self, axis=None, method="linear", keepdims=False):
-        super().__init__()
+    def __init__(
+        self, axis=None, method="linear", keepdims=False, *, name=None
+    ):
+        super().__init__(name=name)
         if isinstance(axis, int):
             axis = [axis]
         self.axis = axis
@@ -4935,9 +4958,9 @@ def ravel(x):
 
 
 class UnravelIndex(Operation):
-    def __init__(self, shape):
+    def __init__(self, shape, *, name=None):
+        super().__init__(name=name)
         self.shape = shape
-        self._inbound_nodes = []
 
     def call(self, indices):
         return backend.numpy.unravel_index(indices, self.shape)
@@ -5040,8 +5063,8 @@ def reciprocal(x):
 
 
 class Repeat(Operation):
-    def __init__(self, repeats, axis=None):
-        super().__init__()
+    def __init__(self, repeats, axis=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
         self.repeats = repeats
 
@@ -5110,8 +5133,8 @@ def repeat(x, repeats, axis=None):
 
 
 class Reshape(Operation):
-    def __init__(self, newshape):
-        super().__init__()
+    def __init__(self, newshape, *, name=None):
+        super().__init__(name=name)
         self.newshape = newshape
 
     def call(self, x):
@@ -5144,8 +5167,8 @@ def reshape(x, newshape):
 
 
 class Roll(Operation):
-    def __init__(self, shift, axis=None):
-        super().__init__()
+    def __init__(self, shift, axis=None, *, name=None):
+        super().__init__(name=name)
         self.shift = shift
         self.axis = axis
 
@@ -5178,8 +5201,8 @@ def roll(x, shift, axis=None):
 
 
 class Round(Operation):
-    def __init__(self, decimals=0):
-        super().__init__()
+    def __init__(self, decimals=0, *, name=None):
+        super().__init__(name=name)
         self.decimals = decimals
 
     def call(self, x):
@@ -5207,12 +5230,18 @@ def round(x, decimals=0):
 
 
 class SearchSorted(Operation):
-    def call(self, sorted_sequence, values, side="left"):
+    def __init__(self, side="left", *, name=None):
+        super().__init__(name=name)
+        self.side = side
+
+    def call(self, sorted_sequence, values):
         sorted_sequence = backend.convert_to_tensor(sorted_sequence)
         values = backend.convert_to_tensor(values)
-        return backend.numpy.searchsorted(sorted_sequence, values, side=side)
+        return backend.numpy.searchsorted(
+            sorted_sequence, values, side=self.side
+        )
 
-    def compute_output_spec(self, sorted_sequence, values, side="left"):
+    def compute_output_spec(self, sorted_sequence, values):
         if len(sorted_sequence.shape) != 1:
             raise ValueError(
                 "searchsorted only supports 1-D sorted sequences. Use"
@@ -5226,7 +5255,7 @@ class SearchSorted(Operation):
         return KerasTensor(values.shape, dtype=out_type)
 
 
-@keras_export(["keras.ops.searchsorted"])
+@keras_export(["keras.ops.searchsorted", "keras.ops.numpy.searchsorted"])
 def searchsorted(sorted_sequence, values, side="left"):
     """Perform a binary search, returning indices for insertion of `values`
     into `sorted_sequence` that maintain the sorting order.
@@ -5242,7 +5271,7 @@ def searchsorted(sorted_sequence, values, side="left"):
         Tensor of insertion indices of same shape as `values`.
     """
     if any_symbolic_tensors((sorted_sequence, values)):
-        return SearchSorted().symbolic_call(sorted_sequence, values, side=side)
+        return SearchSorted(side=side).symbolic_call(sorted_sequence, values)
 
     sorted_sequence = backend.convert_to_tensor(sorted_sequence)
     values = backend.convert_to_tensor(values)
@@ -5382,8 +5411,8 @@ def size(x):
 
 
 class Sort(Operation):
-    def __init__(self, axis=-1):
-        super().__init__()
+    def __init__(self, axis=-1, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
     def call(self, x):
@@ -5411,8 +5440,8 @@ def sort(x, axis=-1):
 
 
 class Split(Operation):
-    def __init__(self, indices_or_sections, axis=0):
-        super().__init__()
+    def __init__(self, indices_or_sections, axis=0, *, name=None):
+        super().__init__(name=name)
         if not isinstance(indices_or_sections, int):
             indices_or_sections = tuple(indices_or_sections)
         self.indices_or_sections = indices_or_sections
@@ -5480,26 +5509,26 @@ def split(x, indices_or_sections, axis=0):
 
 
 class Stack(Operation):
-    def __init__(self, axis=0):
-        super().__init__()
+    def __init__(self, axis=0, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
-    def call(self, xs):
-        return backend.numpy.stack(xs, axis=self.axis)
+    def call(self, x):
+        return backend.numpy.stack(x, axis=self.axis)
 
-    def compute_output_spec(self, xs):
-        first_shape = xs[0].shape
+    def compute_output_spec(self, x):
+        first_shape = x[0].shape
         dtypes_to_resolve = []
-        for x in xs:
-            if not shape_equal(x.shape, first_shape, axis=[], allow_none=True):
+        for a in x:
+            if not shape_equal(a.shape, first_shape, axis=[], allow_none=True):
                 raise ValueError(
-                    "Every value in `xs` must have the same shape. But found "
-                    f"element of shape {x.shape},  which is different from the "
+                    "Every value in `x` must have the same shape. But found "
+                    f"element of shape {a.shape},  which is different from the "
                     f"first element's shape {first_shape}."
                 )
-            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+            dtypes_to_resolve.append(getattr(a, "dtype", type(a)))
 
-        size_on_axis = len(xs)
+        size_on_axis = len(x)
         output_shape = list(first_shape)
         if self.axis == -1:
             output_shape = output_shape + [size_on_axis]
@@ -5531,8 +5560,8 @@ def stack(x, axis=0):
 
 
 class Std(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             self.axis = [axis]
         else:
@@ -5573,8 +5602,8 @@ def std(x, axis=None, keepdims=False):
 
 
 class Swapaxes(Operation):
-    def __init__(self, axis1, axis2):
-        super().__init__()
+    def __init__(self, axis1, axis2, *, name=None):
+        super().__init__(name=name)
 
         self.axis1 = axis1
         self.axis2 = axis2
@@ -5608,8 +5637,8 @@ def swapaxes(x, axis1, axis2):
 
 
 class Take(Operation):
-    def __init__(self, axis=None):
-        super().__init__()
+    def __init__(self, axis=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
     def call(self, x, indices):
@@ -5651,8 +5680,8 @@ def take(x, indices, axis=None):
 
 
 class TakeAlongAxis(Operation):
-    def __init__(self, axis=None):
-        super().__init__()
+    def __init__(self, axis=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
     def call(self, x, indices):
@@ -5747,8 +5776,8 @@ def tanh(x):
 
 
 class Tensordot(Operation):
-    def __init__(self, axes=2):
-        super().__init__()
+    def __init__(self, axes=2, *, name=None):
+        super().__init__(name=name)
         self.axes = axes
 
     def call(self, x1, x2):
@@ -5814,8 +5843,8 @@ def tensordot(x1, x2, axes=2):
 
 
 class Tile(Operation):
-    def __init__(self, repeats):
-        super().__init__()
+    def __init__(self, repeats, *, name=None):
+        super().__init__(name=name)
         self.repeats = repeats
 
     def call(self, x):
@@ -5867,8 +5896,8 @@ def tile(x, repeats):
 
 
 class Trace(Operation):
-    def __init__(self, offset=0, axis1=0, axis2=1):
-        super().__init__()
+    def __init__(self, offset=0, axis1=0, axis2=1, *, name=None):
+        super().__init__(name=name)
         self.offset = offset
         self.axis1 = axis1
         self.axis2 = axis2
@@ -5922,21 +5951,6 @@ def trace(x, offset=0, axis1=0, axis2=1):
     return backend.numpy.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-class Tri(Operation):
-    def __init__(self, k=0, dtype=None):
-        super().__init__()
-        self.k = k
-        self.dtype = dtype or backend.floatx()
-
-    def call(self, N, M=None):
-        return backend.numpy.tri(N=N, M=M, k=self.k, dtype=self.dtype)
-
-    def compute_output_spec(self, N, M=None):
-        if M is None:
-            M = N
-        return KerasTensor((N, M), dtype=self.dtype)
-
-
 @keras_export(["keras.ops.tri", "keras.ops.numpy.tri"])
 def tri(N, M=None, k=0, dtype=None):
     """Return a tensor with ones at and below a diagonal and zeros elsewhere.
@@ -5957,8 +5971,8 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 class Tril(Operation):
-    def __init__(self, k=0):
-        super().__init__()
+    def __init__(self, k=0, *, name=None):
+        super().__init__(name=name)
         self.k = k
 
     def call(self, x):
@@ -5989,8 +6003,8 @@ def tril(x, k=0):
 
 
 class Triu(Operation):
-    def __init__(self, k=0):
-        super().__init__()
+    def __init__(self, k=0, *, name=None):
+        super().__init__(name=name)
         self.k = k
 
     def call(self, x):
@@ -6021,9 +6035,6 @@ def triu(x, k=0):
 
 
 class Trunc(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return backend.numpy.trunc(x)
 
@@ -6543,8 +6554,8 @@ def sqrt(x):
 
 
 class Squeeze(Operation):
-    def __init__(self, axis=None):
-        super().__init__()
+    def __init__(self, axis=None, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
 
     def call(self, x):
@@ -6588,8 +6599,8 @@ def squeeze(x, axis=None):
 
 
 class Transpose(Operation):
-    def __init__(self, axes=None):
-        super().__init__()
+    def __init__(self, axes=None, *, name=None):
+        super().__init__(name=name)
         self.axes = axes
 
     def call(self, x):
@@ -6621,8 +6632,8 @@ def transpose(x, axes=None):
 
 
 class Mean(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             axis = [axis]
         self.axis = axis
@@ -6666,8 +6677,8 @@ def mean(x, axis=None, keepdims=False):
 
 
 class Var(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             axis = [axis]
         self.axis = axis
@@ -6704,8 +6715,8 @@ def var(x, axis=None, keepdims=False):
 
 
 class Sum(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(axis, int):
             axis = [axis]
         self.axis = axis
@@ -6751,15 +6762,6 @@ def sum(x, axis=None, keepdims=False):
     return backend.numpy.sum(x, axis=axis, keepdims=keepdims)
 
 
-class Zeros(Operation):
-    def call(self, shape, dtype=None):
-        return backend.numpy.zeros(shape, dtype=dtype)
-
-    def compute_output_spec(self, shape, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
-
-
 @keras_export(["keras.ops.zeros", "keras.ops.numpy.zeros"])
 def zeros(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with zeros.
@@ -6774,15 +6776,6 @@ def zeros(shape, dtype=None):
     return backend.numpy.zeros(shape, dtype=dtype)
 
 
-class Ones(Operation):
-    def call(self, shape, dtype=None):
-        return backend.numpy.ones(shape, dtype=dtype)
-
-    def compute_output_spec(self, shape, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
-
-
 @keras_export(["keras.ops.ones", "keras.ops.numpy.ones"])
 def ones(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with ones.
@@ -6795,21 +6788,6 @@ def ones(shape, dtype=None):
         Tensor of ones with the given shape and dtype.
     """
     return backend.numpy.ones(shape, dtype=dtype)
-
-
-class Eye(Operation):
-    def __init__(self, k=0, dtype=None):
-        super().__init__()
-        self.k = k
-        self.dtype = dtype or backend.floatx()
-
-    def call(self, N, M=None):
-        return backend.numpy.eye(N, M=M, k=self.k, dtype=self.dtype)
-
-    def compute_output_spec(self, N, M=None):
-        if M is None:
-            M = N
-        return KerasTensor((N, M), dtype=self.dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])
@@ -6889,8 +6867,8 @@ def logical_xor(x1, x2):
 
 
 class Correlate(Operation):
-    def __init__(self, mode="valid"):
-        super().__init__()
+    def __init__(self, mode="valid", *, name=None):
+        super().__init__(name=name)
         self.mode = mode
 
     def call(self, x1, x2):
@@ -6956,9 +6934,6 @@ def correlate(x1, x2, mode="valid"):
 
 
 class Select(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, condlist, choicelist, default=0):
         return backend.numpy.select(condlist, choicelist, default)
 
@@ -7023,9 +6998,6 @@ def select(condlist, choicelist, default=0):
 
 
 class Slogdet(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return backend.numpy.slogdet(x)
 
@@ -7055,8 +7027,8 @@ def slogdet(x):
 
 
 class Argpartition(Operation):
-    def __init__(self, kth, axis=-1):
-        super().__init__()
+    def __init__(self, kth, axis=-1, *, name=None):
+        super().__init__(name=name)
         if not isinstance(kth, int):
             raise ValueError(f"kth must be an integer. Received:kth = {kth}")
         self.kth = kth
@@ -7097,8 +7069,8 @@ def argpartition(x, kth, axis=-1):
 
 
 class Histogram(Operation):
-    def __init__(self, bins=10, range=None):
-        super().__init__()
+    def __init__(self, bins=10, range=None, *, name=None):
+        super().__init__(name=name)
 
         if not isinstance(bins, int):
             raise TypeError("bins must be of type `int`")

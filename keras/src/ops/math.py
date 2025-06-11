@@ -32,8 +32,8 @@ def _segment_reduce_validation(data, segment_ids):
 
 
 class SegmentReduction(Operation):
-    def __init__(self, num_segments=None, sorted=False):
-        super().__init__()
+    def __init__(self, num_segments=None, sorted=False, *, name=None):
+        super().__init__(name=name)
         self.num_segments = num_segments
         self.sorted = sorted
 
@@ -134,8 +134,8 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
 
 class TopK(Operation):
-    def __init__(self, k, sorted=False):
-        super().__init__()
+    def __init__(self, k, sorted=True, *, name=None):
+        super().__init__(name=name)
         self.k = k
         self.sorted = sorted
 
@@ -183,8 +183,8 @@ def top_k(x, k, sorted=True):
 
 
 class InTopK(Operation):
-    def __init__(self, k):
-        super().__init__()
+    def __init__(self, k, *, name=None):
+        super().__init__(name=name)
         self.k = k
 
     def compute_output_spec(self, targets, predictions):
@@ -223,8 +223,8 @@ def in_top_k(targets, predictions, k):
 
 
 class Logsumexp(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
         self.keepdims = keepdims
 
@@ -264,8 +264,8 @@ def logsumexp(x, axis=None, keepdims=False):
 
 
 class ExtractSequences(Operation):
-    def __init__(self, sequence_length, sequence_stride):
-        super().__init__()
+    def __init__(self, sequence_length, sequence_stride, *, name=None):
+        super().__init__(name=name)
         self.sequence_length = sequence_length
         self.sequence_stride = sequence_stride
 
@@ -328,10 +328,6 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 class FFT(Operation):
-    def __init__(self, axis=-1):
-        super().__init__()
-        self.axis = axis
-
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
@@ -360,7 +356,7 @@ class FFT(Operation):
         m = real.shape[-1]
         if m is None:
             raise ValueError(
-                f"Input should have its {self.axis}th axis fully-defined. "
+                f"Input should have its last dimension fully-defined. "
                 f"Received: input.shape = {real.shape}"
             )
 
@@ -400,11 +396,8 @@ def fft(x):
 
 
 class FFT2(Operation):
-    def __init__(self):
-        super().__init__()
-        self.axes = (-2, -1)
-
     def compute_output_spec(self, x):
+        axes = (-2, -1)
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
                 "Input `x` should be a tuple of two tensors - real and "
@@ -428,11 +421,11 @@ class FFT2(Operation):
             )
 
         # The axes along which we are calculating FFT should be fully-defined.
-        m = real.shape[self.axes[0]]
-        n = real.shape[self.axes[1]]
+        m = real.shape[axes[0]]
+        n = real.shape[axes[1]]
         if m is None or n is None:
             raise ValueError(
-                f"Input should have its {self.axes} axes fully-defined. "
+                f"Input should have its {axes} axes fully-defined. "
                 f"Received: input.shape = {real.shape}"
             )
 
@@ -474,11 +467,8 @@ def fft2(x):
 
 
 class IFFT2(Operation):
-    def __init__(self):
-        super().__init__()
-        self.axes = (-2, -1)
-
     def compute_output_spec(self, x):
+        axes = (-2, -1)
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
                 "Input `x` should be a tuple of two tensors - real and "
@@ -502,11 +492,11 @@ class IFFT2(Operation):
             )
 
         # The axes along which we are calculating IFFT should be fully-defined.
-        m = real.shape[self.axes[0]]
-        n = real.shape[self.axes[1]]
+        m = real.shape[axes[0]]
+        n = real.shape[axes[1]]
         if m is None or n is None:
             raise ValueError(
-                f"Input should have its {self.axes} axes fully-defined. "
+                f"Input should have its {axes} axes fully-defined. "
                 f"Received: input.shape = {real.shape}"
             )
 
@@ -549,8 +539,8 @@ def ifft2(x):
 
 
 class RFFT(Operation):
-    def __init__(self, fft_length=None):
-        super().__init__()
+    def __init__(self, fft_length=None, *, name=None):
+        super().__init__(name=name)
         self.fft_length = fft_length
 
     def compute_output_spec(self, x):
@@ -620,8 +610,8 @@ def rfft(x, fft_length=None):
 
 
 class IRFFT(Operation):
-    def __init__(self, fft_length=None):
-        super().__init__()
+    def __init__(self, fft_length=None, *, name=None):
+        super().__init__(name=name)
         self.fft_length = fft_length
 
     def compute_output_spec(self, x):
@@ -712,8 +702,10 @@ class STFT(Operation):
         fft_length,
         window="hann",
         center=True,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.sequence_length = sequence_length
         self.sequence_stride = sequence_stride
         self.fft_length = fft_length
@@ -813,8 +805,10 @@ class ISTFT(Operation):
         length=None,
         window="hann",
         center=True,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.sequence_length = sequence_length
         self.sequence_stride = sequence_stride
         self.fft_length = fft_length
@@ -1021,9 +1015,6 @@ def erfinv(x):
 
 
 class Logdet(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return backend.math.logdet(x)
 

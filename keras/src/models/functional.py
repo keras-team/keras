@@ -453,8 +453,6 @@ class Functional(Function, Model):
             return [operation.name, new_node_index, tensor_index]
 
         def map_tensors(tensors):
-            if isinstance(tensors, backend.KerasTensor):
-                return [get_tensor_config(tensors)]
             return tree.map_structure(get_tensor_config, tensors)
 
         config["input_layers"] = map_tensors(self._inputs_struct)
@@ -621,8 +619,6 @@ def functional_from_config(cls, config, custom_objects=None):
 
     input_tensors = map_tensors(functional_config["input_layers"])
     output_tensors = map_tensors(functional_config["output_layers"])
-    if isinstance(output_tensors, list) and len(output_tensors) == 1:
-        output_tensors = output_tensors[0]
 
     return cls(
         inputs=input_tensors,

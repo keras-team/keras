@@ -12,9 +12,6 @@ from keras.src.utils import traceback_utils
 
 
 class Map(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, f, xs):
         return backend.core.map(f, xs)
 
@@ -78,24 +75,30 @@ def map(f, xs):
 
 
 class Scan(Operation):
-    def __init__(self, reverse=False, unroll=1):
-        super().__init__()
+    def __init__(self, length=None, reverse=False, unroll=1, *, name=None):
+        super().__init__(name=name)
+        self.length = length
         self.reverse = reverse
         self.unroll = unroll
 
-    def call(self, f, init, xs, length):
+    def call(self, f, init, xs=None):
         return backend.core.scan(
-            f, init, xs, length, reverse=self.reverse, unroll=self.unroll
+            f,
+            init,
+            xs,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
         )
 
-    def compute_output_spec(self, f, init, xs, length):
+    def compute_output_spec(self, f, init, xs=None):
         if xs is None:
-            n = int(length)
+            n = int(self.length)
             x = None
         else:
             n = (
-                int(length)
-                if length is not None
+                int(self.length)
+                if self.length is not None
                 else tree.flatten(xs)[0].shape[0]
             )
             x = xs[0]
@@ -176,27 +179,28 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     [1, 3, 6, 10, 15]
     """
     if any_symbolic_tensors((init, xs)):
-        return Scan(reverse=reverse, unroll=unroll).symbolic_call(
-            f, init, xs, length
-        )
+        return Scan(
+            length=length, reverse=reverse, unroll=unroll
+        ).symbolic_call(f, init, xs)
     return backend.core.scan(
         f, init, xs, length, reverse=reverse, unroll=unroll
     )
 
 
 class AssociativeScan(Operation):
-    def __init__(self, reverse=False):
-        super().__init__()
+    def __init__(self, reverse=False, axis=0, *, name=None):
+        super().__init__(name=name)
         self.reverse = reverse
+        self.axis = axis
 
-    def call(self, f, elems, axis=0):
+    def call(self, f, elems):
         return backend.core.associative_scan(
-            f, elems, reverse=self.reverse, axis=axis
+            f, elems, reverse=self.reverse, axis=self.axis
         )
 
-    def compute_output_spec(self, f, elems, axis):
+    def compute_output_spec(self, f, elems):
         elems_flat = tree.flatten(elems)
-        lens = [elem.shape[axis] for elem in elems_flat]
+        lens = [elem.shape[self.axis] for elem in elems_flat]
         if len(set(lens)) != 1:
             raise ValueError(
                 "Array inputs to associative_scan must have the same "
@@ -206,7 +210,8 @@ class AssociativeScan(Operation):
             )
 
         x = tree.pack_sequence_as(
-            elems, [slice_along_axis(x, 0, 1, axis=axis) for x in elems_flat]
+            elems,
+            [slice_along_axis(x, 0, 1, axis=self.axis) for x in elems_flat],
         )
         y_spec = backend.compute_output_spec(f, x, x)
 
@@ -274,16 +279,22 @@ def associative_scan(f, elems, reverse=False, axis=0):
     [[1, 3], [1, 3], [1, 3]]
     """
     if any_symbolic_tensors((elems,)):
-        return AssociativeScan(reverse=reverse).symbolic_call(f, elems, axis)
+        return AssociativeScan(reverse=reverse, axis=axis).symbolic_call(
+            f, elems
+        )
     return backend.core.associative_scan(f, elems, reverse=reverse, axis=axis)
 
 
 class Scatter(Operation):
-    def call(self, indices, values, shape):
-        return backend.core.scatter(indices, values, shape)
+    def __init__(self, shape, *, name=None):
+        super().__init__(name=name)
+        self.shape = shape
 
-    def compute_output_spec(self, indices, values, shape):
-        return KerasTensor(shape, dtype=values.dtype)
+    def call(self, indices, values):
+        return backend.core.scatter(indices, values, self.shape)
+
+    def compute_output_spec(self, indices, values):
+        return KerasTensor(self.shape, dtype=values.dtype)
 
 
 @keras_export("keras.ops.scatter")
@@ -312,8 +323,8 @@ def scatter(indices, values, shape):
     array([[0., 1.],
            [0., 1.]])
     """
-    if any_symbolic_tensors((indices, values, shape)):
-        return Scatter().symbolic_call(indices, values, shape)
+    if any_symbolic_tensors((indices, values)):
+        return Scatter(shape=shape).symbolic_call(indices, values)
     return backend.core.scatter(indices, values, shape)
 
 
@@ -378,11 +389,15 @@ def scatter_update(inputs, indices, updates):
 
 
 class Slice(Operation):
-    def call(self, inputs, start_indices, shape):
-        return backend.core.slice(inputs, start_indices, shape)
+    def __init__(self, shape, *, name=None):
+        super().__init__(name=name)
+        self.shape = shape
 
-    def compute_output_spec(self, inputs, start_indices, shape):
-        return KerasTensor(shape, dtype=inputs.dtype)
+    def call(self, inputs, start_indices):
+        return backend.core.slice(inputs, start_indices, self.shape)
+
+    def compute_output_spec(self, inputs, start_indices):
+        return KerasTensor(self.shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.slice")
@@ -411,8 +426,8 @@ def slice(inputs, start_indices, shape):
     Returns:
         A tensor, has the same shape and dtype as `inputs`.
     """
-    if any_symbolic_tensors((inputs, start_indices, shape)):
-        return Slice().symbolic_call(inputs, start_indices, shape)
+    if any_symbolic_tensors((inputs, start_indices)):
+        return Slice(shape=shape).symbolic_call(inputs, start_indices)
     return backend.core.slice(inputs, start_indices, shape)
 
 
@@ -512,8 +527,8 @@ def switch(index, branches, *operands):
 
 
 class WhileLoop(Operation):
-    def __init__(self, cond, body, maximum_iterations):
-        super().__init__()
+    def __init__(self, cond, body, maximum_iterations=None, *, name=None):
+        super().__init__(name=name)
         self.cond = cond
         self.body = body
         self.maximum_iterations = maximum_iterations
@@ -581,9 +596,6 @@ def while_loop(
 
 
 class StopGradient(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, variable):
         return backend.core.stop_gradient(variable)
 
@@ -616,8 +628,8 @@ def stop_gradient(variable):
 
 
 class ForiLoop(Operation):
-    def __init__(self, lower, upper, body_fun):
-        super().__init__()
+    def __init__(self, lower, upper, body_fun, *, name=None):
+        super().__init__(name=name)
         self.lower = lower
         self.upper = upper
         self.body_fun = body_fun
@@ -664,8 +676,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 class Unstack(Operation):
-    def __init__(self, num=None, axis=0):
-        super().__init__()
+    def __init__(self, num=None, axis=0, *, name=None):
+        super().__init__(name=name)
         self.num = num
         self.axis = axis
 
@@ -769,8 +781,8 @@ def dtype(x):
 
 
 class Cast(Operation):
-    def __init__(self, dtype):
-        super().__init__()
+    def __init__(self, dtype, *, name=None):
+        super().__init__(name=name)
         self.dtype = backend.standardize_dtype(dtype)
 
     def call(self, x):
@@ -804,8 +816,8 @@ def cast(x, dtype):
 
 
 class SaturateCast(Operation):
-    def __init__(self, dtype):
-        super().__init__()
+    def __init__(self, dtype, *, name=None):
+        super().__init__(name=name)
         self.dtype = backend.standardize_dtype(dtype)
 
     def call(self, x):
@@ -910,22 +922,32 @@ def _saturate_cast(x, dtype, backend_module=None):
 
 
 class ConvertToTensor(Operation):
-    def __init__(self, dtype, sparse):
-        super().__init__()
-        self.dtype = backend.standardize_dtype(dtype)
+    def __init__(self, dtype=None, sparse=None, ragged=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
         self.sparse = sparse
+        self.ragged = ragged
 
     def call(self, x):
         return backend.core.convert_to_tensor(
-            x, dtype=self.dtype, sparse=self.sparse
+            x, dtype=self.dtype, sparse=self.sparse, ragged=self.ragged
         )
 
     def compute_output_spec(self, x):
-        dtype = x.dtype if self.dtype is None else self.dtype
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         sparse = (
             False if self.sparse is not None and not self.sparse else x.sparse
         )
-        return backend.KerasTensor(shape=x.shape, dtype=dtype, sparse=sparse)
+        ragged = (
+            False if self.ragged is not None and not self.ragged else x.ragged
+        )
+        return backend.KerasTensor(
+            shape=x.shape, dtype=dtype, sparse=sparse, ragged=ragged
+        )
 
 
 @keras_export("keras.ops.convert_to_tensor")
@@ -954,7 +976,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     >>> y = keras.ops.convert_to_tensor(x)
     """
     if any_symbolic_tensors((x,)):
-        return ConvertToTensor(dtype=dtype, sparse=sparse)(x)
+        return ConvertToTensor(dtype=dtype, sparse=sparse, ragged=ragged)(x)
     return backend.core.convert_to_tensor(
         x, dtype=dtype, sparse=sparse, ragged=ragged
     )
