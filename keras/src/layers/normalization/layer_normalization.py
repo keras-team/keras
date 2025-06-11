@@ -116,8 +116,6 @@ class LayerNormalization(Layer):
         gamma_constraint=None,
         **kwargs,
     ):
-        # `rms_scaling=True` doesn't work as intended because it scales the
-        # input with the variance instead of root mean square.
         rms_scaling = kwargs.pop("rms_scaling", False)
         if rms_scaling:
             warnings.warn(
