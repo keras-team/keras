@@ -82,12 +82,6 @@ class LayerNormalization(Layer):
             When the next layer is linear (also e.g. `nn.relu`), this can be
             disabled since the scaling will be done by the next layer.
             Defaults to `True`.
-        rms_scaling: If True, `center` and `scale` are ignored, and the
-            inputs are scaled by `gamma` and the inverse square root
-            of the square of all inputs. This is an approximate and faster
-            approach that avoids ever computing the mean of the input. Note that
-            this *isn't* equivalent to the computation that the
-            `keras.layers.RMSNormalization` layer performs.
         beta_initializer: Initializer for the beta weight. Defaults to zeros.
         gamma_initializer: Initializer for the gamma weight. Defaults to ones.
         beta_regularizer: Optional regularizer for the beta weight.
@@ -112,7 +106,6 @@ class LayerNormalization(Layer):
         epsilon=1e-3,
         center=True,
         scale=True,
-        rms_scaling=False,
         beta_initializer="zeros",
         gamma_initializer="ones",
         beta_regularizer=None,
@@ -121,6 +114,10 @@ class LayerNormalization(Layer):
         gamma_constraint=None,
         **kwargs,
     ):
+        # `rms_scaling=True` doesn't work as intended because it scales the
+        # input with the variance instead of root mean square.
+        rms_scaling = kwargs.pop("rms_scaling", False)
+
         super().__init__(**kwargs)
         if isinstance(axis, (list, tuple)):
             self.axis = list(axis)

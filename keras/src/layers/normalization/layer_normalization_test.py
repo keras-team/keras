@@ -123,9 +123,7 @@ class LayerNormalizationTest(testing.TestCase):
         )
         inputs = np.arange(5).astype("float32")[None, :]
         out = layer(inputs)
-        self.assertAllClose(
-            out, [[0.0, 0.408214, 0.816429, 1.224643, 1.632857]]
-        )
+        self.assertAllClose(out, [[0.0, 0.70693, 1.41386, 2.12079, 2.82772]])
 
     def test_large_value_within_autocast_scope(self):
         layer = layers.LayerNormalization()

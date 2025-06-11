@@ -2842,7 +2842,7 @@ class LayerNorm(Operation):
     ]
 )
 def layer_normalization(
-    x, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
+    x, gamma=None, beta=None, axis=-1, epsilon=None, **kwargs
 ):
     """Layer normalization layer (Ba et al., 2016).
 
@@ -2856,9 +2856,6 @@ def layer_normalization(
             Default to -1.
         gamma: Optional scaling factor for the normalization.
         beta: Optional add offset for the normalized tensor.
-        rms_scaling:This is an approximate and faster
-            approach that avoids ever computing the mean of the input. Note that
-            this *isn't* equivalent to the computation that rms_normalization
         epsilon: A lower bound value for the norm.
             Defaults to `backend.epsilon()`.
 
@@ -2869,6 +2866,16 @@ def layer_normalization(
     >>> print(x_norm)
     array([-1.4142135 , -0.70710677,  0.,  0.7071067 ,  1.4142135 ])
     """
+    rms_scaling = kwargs.pop("rms_scaling", False)
+    if rms_scaling:
+        warnings.warn(
+            "You passed `rms_scaling=True`, which is deprecated. This argument "
+            "incorrectly scales the input by the variance, not the root mean "
+            "square. To correctly use RMS Normalization, please use "
+            "`keras.ops.rms_normalization` / `keras.ops.nn.rms_normalization` "
+            "/ `keras.layers.RMSNormalization` instead."
+        )
+
     if any_symbolic_tensors((x,)):
         return LayerNorm(
             gamma=gamma,
@@ -2918,12 +2925,8 @@ def _layer_normalization(
         # Calculate outputs with only variance and gamma if rms scaling
         # is enabled
         # Calculate the variance along self.axis (layer activations).
-        inv = backend.math.rsqrt(
-            backend.numpy.mean(
-                backend.numpy.square(x), axis=axis, keepdims=True
-            )
-            + epsilon
-        )
+        variance = backend.numpy.var(x, axis=axis, keepdims=True)
+        inv = backend.math.rsqrt(variance + epsilon)
         outputs = x * inv * backend.cast(_broadcast(gamma), x.dtype)
     elif backend.config.backend() == "torch" and is_continuous_axis(axis):
         # when using torch backend,use kernel to improve performance
