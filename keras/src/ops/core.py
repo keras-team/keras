@@ -12,9 +12,6 @@ from keras.src.utils import traceback_utils
 
 
 class Map(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, f, xs):
         return backend.core.map(f, xs)
 
@@ -78,8 +75,8 @@ def map(f, xs):
 
 
 class Scan(Operation):
-    def __init__(self, length=None, reverse=False, unroll=1):
-        super().__init__()
+    def __init__(self, length=None, reverse=False, unroll=1, *, name=None):
+        super().__init__(name=name)
         self.length = length
         self.reverse = reverse
         self.unroll = unroll
@@ -191,8 +188,8 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
 
 
 class AssociativeScan(Operation):
-    def __init__(self, reverse=False, axis=0):
-        super().__init__()
+    def __init__(self, reverse=False, axis=0, *, name=None):
+        super().__init__(name=name)
         self.reverse = reverse
         self.axis = axis
 
@@ -289,8 +286,8 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
 
 class Scatter(Operation):
-    def __init__(self, shape):
-        super().__init__()
+    def __init__(self, shape, *, name=None):
+        super().__init__(name=name)
         self.shape = shape
 
     def call(self, indices, values):
@@ -392,8 +389,8 @@ def scatter_update(inputs, indices, updates):
 
 
 class Slice(Operation):
-    def __init__(self, shape):
-        super().__init__()
+    def __init__(self, shape, *, name=None):
+        super().__init__(name=name)
         self.shape = shape
 
     def call(self, inputs, start_indices):
@@ -530,8 +527,8 @@ def switch(index, branches, *operands):
 
 
 class WhileLoop(Operation):
-    def __init__(self, cond, body, maximum_iterations=None):
-        super().__init__()
+    def __init__(self, cond, body, maximum_iterations=None, *, name=None):
+        super().__init__(name=name)
         self.cond = cond
         self.body = body
         self.maximum_iterations = maximum_iterations
@@ -599,9 +596,6 @@ def while_loop(
 
 
 class StopGradient(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, variable):
         return backend.core.stop_gradient(variable)
 
@@ -634,8 +628,8 @@ def stop_gradient(variable):
 
 
 class ForiLoop(Operation):
-    def __init__(self, lower, upper, body_fun):
-        super().__init__()
+    def __init__(self, lower, upper, body_fun, *, name=None):
+        super().__init__(name=name)
         self.lower = lower
         self.upper = upper
         self.body_fun = body_fun
@@ -682,8 +676,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 class Unstack(Operation):
-    def __init__(self, num=None, axis=0):
-        super().__init__()
+    def __init__(self, num=None, axis=0, *, name=None):
+        super().__init__(name=name)
         self.num = num
         self.axis = axis
 
@@ -787,8 +781,8 @@ def dtype(x):
 
 
 class Cast(Operation):
-    def __init__(self, dtype):
-        super().__init__()
+    def __init__(self, dtype, *, name=None):
+        super().__init__(name=name)
         self.dtype = backend.standardize_dtype(dtype)
 
     def call(self, x):
@@ -822,8 +816,8 @@ def cast(x, dtype):
 
 
 class SaturateCast(Operation):
-    def __init__(self, dtype):
-        super().__init__()
+    def __init__(self, dtype, *, name=None):
+        super().__init__(name=name)
         self.dtype = backend.standardize_dtype(dtype)
 
     def call(self, x):
@@ -928,8 +922,8 @@ def _saturate_cast(x, dtype, backend_module=None):
 
 
 class ConvertToTensor(Operation):
-    def __init__(self, dtype=None, sparse=None, ragged=None):
-        super().__init__()
+    def __init__(self, dtype=None, sparse=None, ragged=None, *, name=None):
+        super().__init__(name=name)
         self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
         self.sparse = sparse
         self.ragged = ragged

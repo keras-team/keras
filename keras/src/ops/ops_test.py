@@ -16,6 +16,13 @@ from keras.src.utils.naming import to_snake_case
 
 OPS_MODULES = ("core", "image", "linalg", "math", "nn", "numpy")
 
+SELF_PARAMETER = inspect.Parameter(
+    "self", inspect.Parameter.POSITIONAL_OR_KEYWORD
+)
+NAME_PARAMETER = inspect.Parameter(
+    "name", inspect.Parameter.KEYWORD_ONLY, default=None
+)
+
 # Parameters with these names are known to always be static (non-tensors).
 STATIC_PARAMETER_NAMES = frozenset(
     {"axis", "axes", "dtype", "shape", "newshape", "sparse", "ragged"}
@@ -84,6 +91,45 @@ class OperationTest(testing.TestCase):
                     f"Not exported as `keras.ops.{module_name}.{name}`",
                 )
 
+            # ==== Check handling of name in __init__ ====
+            # - op class `__init__` should have a `name` parameter at the end,
+            #   which should be keyword only and with a default value of `None`
+            # - op class `__init__` should call `super().__init__(name=name)`
+
+            if op_class.__init__ is Operation.__init__:
+                # `name` is not keyword only in `Operation`, use this instead.
+                class_init_signature = inspect.Signature(
+                    [SELF_PARAMETER, NAME_PARAMETER]
+                )
+            else:
+                class_init_signature = inspect.signature(op_class.__init__)
+
+                # Check call to super.
+                self.assertContainsSubsequence(
+                    inspect.getsource(op_class.__init__),
+                    "super().__init__(name=name)",
+                    f"`{op_class.__name__}.__init__` is not calling "
+                    "`super().__init__(name=name)`",
+                )
+
+            static_parameters = list(class_init_signature.parameters.values())
+            # Remove `self`.
+            static_parameters = static_parameters[1:]
+            name_index = -1
+            if static_parameters[-1].kind == inspect.Parameter.VAR_KEYWORD:
+                # When there is a `**kwargs`, `name` appears before.
+                name_index = -2
+            # Verify `name` parameter is as expected.
+            self.assertEqual(
+                static_parameters[name_index],
+                NAME_PARAMETER,
+                f"The last parameter of `{op_class.__name__}.__init__` "
+                "should be `name`, should be a keyword only, and should "
+                "have a default value of `None`",
+            )
+            # Remove `name`, it's not part of the op signature.
+            static_parameters.pop(name_index)
+
             # ==== Check static parameters ====
             # Static parameters are declared in the class' `__init__`.
             # Dynamic parameters are declared in the class' `call` method.
@@ -95,16 +141,6 @@ class OperationTest(testing.TestCase):
             dynamic_parameters = list(
                 inspect.signature(op_class.call).parameters.values()
             )[1:]  # Remove self
-
-            if op_class.__init__ is Operation.__init__:
-                # This op class has no static parameters. Do not use the `name`
-                # and `dtype` parameters from the `__init__` of `Operation`.
-                static_parameters = []
-            else:
-                class_init_signature = inspect.signature(op_class.__init__)
-                static_parameters = list(
-                    class_init_signature.parameters.values()
-                )[1:]  # Remove self
 
             op_signature = inspect.signature(op_function)
 
