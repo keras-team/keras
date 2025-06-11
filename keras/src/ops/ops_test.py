@@ -16,6 +16,11 @@ from keras.src.utils.naming import to_snake_case
 
 OPS_MODULES = ("core", "image", "linalg", "math", "nn", "numpy")
 
+# Parameters with these names are known to always be static (non-tensors).
+STATIC_PARAMETER_NAMES = frozenset(
+    {"axis", "axes", "dtype", "shape", "newshape", "sparse", "ragged"}
+)
+
 
 def op_functions_and_classes(ops_module):
     """Enumerate pairs of op function and op classes in a module.
@@ -104,7 +109,7 @@ class OperationTest(testing.TestCase):
             op_signature = inspect.signature(op_function)
 
             for p in dynamic_parameters + static_parameters:
-                # Check the same name appeas in the op signature
+                # Check the same name appears in the op signature
                 self.assertIn(
                     p.name,
                     op_signature.parameters,
@@ -119,10 +124,26 @@ class OperationTest(testing.TestCase):
                     f"function `{name}` and op class `{op_class.__name__}`",
                 )
 
-            # Check order of parameters.
             dynamic_parameter_names = [p.name for p in dynamic_parameters]
             static_parameter_names = [p.name for p in static_parameters]
 
+            # Check for obvious mistakes in parameters that were made dynamic
+            # but should be static.
+            for p in dynamic_parameters:
+                self.assertNotIn(
+                    p.name,
+                    STATIC_PARAMETER_NAMES,
+                    f"`{p.name}` should not be a dynamic parameter in op class "
+                    f"`{op_class.__name__}` based on its name.",
+                )
+                self.assertNotIsInstance(
+                    p.default,
+                    (bool, str),
+                    f"`{p.name}` should not be a dynamic parameter in op class "
+                    f"`{op_class.__name__}` based on default `{p.default}`.",
+                )
+
+            # Check order of parameters.
             if name in (
                 "fori_loop",
                 "while_loop",
@@ -130,6 +151,7 @@ class OperationTest(testing.TestCase):
                 "dot_product_attention",
                 "average",
                 "einsum",
+                "full",
                 "pad",
             ):
                 # Loose case:

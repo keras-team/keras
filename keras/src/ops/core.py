@@ -78,24 +78,30 @@ def map(f, xs):
 
 
 class Scan(Operation):
-    def __init__(self, reverse=False, unroll=1):
+    def __init__(self, length=None, reverse=False, unroll=1):
         super().__init__()
+        self.length = length
         self.reverse = reverse
         self.unroll = unroll
 
-    def call(self, f, init, xs=None, length=None):
+    def call(self, f, init, xs=None):
         return backend.core.scan(
-            f, init, xs, length, reverse=self.reverse, unroll=self.unroll
+            f,
+            init,
+            xs,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
         )
 
-    def compute_output_spec(self, f, init, xs=None, length=None):
+    def compute_output_spec(self, f, init, xs=None):
         if xs is None:
-            n = int(length)
+            n = int(self.length)
             x = None
         else:
             n = (
-                int(length)
-                if length is not None
+                int(self.length)
+                if self.length is not None
                 else tree.flatten(xs)[0].shape[0]
             )
             x = xs[0]
@@ -176,9 +182,9 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     [1, 3, 6, 10, 15]
     """
     if any_symbolic_tensors((init, xs)):
-        return Scan(reverse=reverse, unroll=unroll).symbolic_call(
-            f, init, xs, length
-        )
+        return Scan(
+            length=length, reverse=reverse, unroll=unroll
+        ).symbolic_call(f, init, xs)
     return backend.core.scan(
         f, init, xs, length, reverse=reverse, unroll=unroll
     )
@@ -283,11 +289,15 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
 
 class Scatter(Operation):
-    def call(self, indices, values, shape):
-        return backend.core.scatter(indices, values, shape)
+    def __init__(self, shape):
+        super().__init__()
+        self.shape = shape
 
-    def compute_output_spec(self, indices, values, shape):
-        return KerasTensor(shape, dtype=values.dtype)
+    def call(self, indices, values):
+        return backend.core.scatter(indices, values, self.shape)
+
+    def compute_output_spec(self, indices, values):
+        return KerasTensor(self.shape, dtype=values.dtype)
 
 
 @keras_export("keras.ops.scatter")
@@ -316,8 +326,8 @@ def scatter(indices, values, shape):
     array([[0., 1.],
            [0., 1.]])
     """
-    if any_symbolic_tensors((indices, values, shape)):
-        return Scatter().symbolic_call(indices, values, shape)
+    if any_symbolic_tensors((indices, values)):
+        return Scatter(shape=shape).symbolic_call(indices, values)
     return backend.core.scatter(indices, values, shape)
 
 
@@ -382,11 +392,15 @@ def scatter_update(inputs, indices, updates):
 
 
 class Slice(Operation):
-    def call(self, inputs, start_indices, shape):
-        return backend.core.slice(inputs, start_indices, shape)
+    def __init__(self, shape):
+        super().__init__()
+        self.shape = shape
 
-    def compute_output_spec(self, inputs, start_indices, shape):
-        return KerasTensor(shape, dtype=inputs.dtype)
+    def call(self, inputs, start_indices):
+        return backend.core.slice(inputs, start_indices, self.shape)
+
+    def compute_output_spec(self, inputs, start_indices):
+        return KerasTensor(self.shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.slice")
@@ -415,8 +429,8 @@ def slice(inputs, start_indices, shape):
     Returns:
         A tensor, has the same shape and dtype as `inputs`.
     """
-    if any_symbolic_tensors((inputs, start_indices, shape)):
-        return Slice().symbolic_call(inputs, start_indices, shape)
+    if any_symbolic_tensors((inputs, start_indices)):
+        return Slice(shape=shape).symbolic_call(inputs, start_indices)
     return backend.core.slice(inputs, start_indices, shape)
 
 
@@ -916,7 +930,7 @@ def _saturate_cast(x, dtype, backend_module=None):
 class ConvertToTensor(Operation):
     def __init__(self, dtype=None, sparse=None, ragged=None):
         super().__init__()
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
         self.sparse = sparse
         self.ragged = ragged
 
@@ -926,7 +940,11 @@ class ConvertToTensor(Operation):
         )
 
     def compute_output_spec(self, x):
-        dtype = x.dtype if self.dtype is None else self.dtype
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         sparse = (
             False if self.sparse is not None and not self.sparse else x.sparse
         )

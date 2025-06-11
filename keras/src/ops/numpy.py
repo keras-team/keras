@@ -591,13 +591,18 @@ def append(
 
 
 class Arange(Operation):
-    def call(self, start, stop=None, step=1, dtype=None):
-        return backend.numpy.arange(start, stop, step=step, dtype=dtype)
+    def __init__(self, dtype=None):
+        super().__init__()
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, start, stop=None, step=1, dtype=None):
+    def call(self, start, stop=None, step=1):
+        return backend.numpy.arange(start, stop, step=step, dtype=self.dtype)
+
+    def compute_output_spec(self, start, stop=None, step=1):
         if stop is None:
             start, stop = 0, start
         output_shape = [int(np.ceil((stop - start) / step))]
+        dtype = self.dtype
         if dtype is None:
             dtypes_to_resolve = [
                 getattr(start, "dtype", type(start)),
@@ -655,6 +660,8 @@ def arange(start, stop=None, step=1, dtype=None):
     >>> keras.ops.arange(3, 7, 2)
     array([3, 5], dtype=int32)
     """
+    if any_symbolic_tensors((start, stop, step)):
+        return Arange(dtype=dtype).symbolic_call(start, stop, step=step)
     return backend.numpy.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -1077,10 +1084,19 @@ def argsort(x, axis=-1):
 
 
 class Array(Operation):
-    def call(self, x, dtype=None):
-        return backend.numpy.array(x, dtype=dtype)
+    def __init__(self, dtype=None):
+        super().__init__()
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return backend.numpy.array(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1103,7 +1119,7 @@ def array(x, dtype=None):
     array([1., 2., 3.], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Array().symbolic_call(x, dtype=dtype)
+        return Array(dtype=dtype).symbolic_call(x)
     return backend.numpy.array(x, dtype=dtype)
 
 
@@ -2187,7 +2203,7 @@ class Cumprod(Operation):
     def __init__(self, axis=None, dtype=None):
         super().__init__()
         self.axis = axis
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.cumprod(x, axis=self.axis, dtype=self.dtype)
@@ -2200,7 +2216,11 @@ class Cumprod(Operation):
                 output_shape = (int(np.prod(x.shape)),)
         else:
             output_shape = x.shape
-        output_dtype = backend.standardize_dtype(self.dtype or x.dtype)
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         if output_dtype == "bool":
             output_dtype = "int32"
         return KerasTensor(output_shape, output_dtype)
@@ -2226,7 +2246,7 @@ class Cumsum(Operation):
     def __init__(self, axis=None, dtype=None):
         super().__init__()
         self.axis = axis
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.cumsum(x, axis=self.axis, dtype=self.dtype)
@@ -2239,7 +2259,11 @@ class Cumsum(Operation):
                 output_shape = (int(np.prod(x.shape)),)
         else:
             output_shape = x.shape
-        output_dtype = backend.standardize_dtype(self.dtype or x.dtype)
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         if output_dtype == "bool":
             output_dtype = "int32"
         return KerasTensor(output_shape, output_dtype)
@@ -2924,15 +2948,6 @@ def einsum(subscripts, *operands, **kwargs):
     return backend.numpy.einsum(subscripts, *operands, **kwargs)
 
 
-class Empty(Operation):
-    def call(self, shape, dtype=None):
-        return backend.numpy.empty(shape, dtype=dtype)
-
-    def compute_output_spec(self, shape, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
-
-
 @keras_export(["keras.ops.empty", "keras.ops.numpy.empty"])
 def empty(shape, dtype=None):
     """Return a tensor of given shape and type filled with uninitialized data.
@@ -3161,12 +3176,17 @@ def floor(x):
 
 
 class Full(Operation):
-    def call(self, shape, fill_value, dtype=None):
-        return backend.numpy.full(shape, fill_value, dtype=dtype)
+    def __init__(self, shape, dtype=None):
+        super().__init__()
+        self.shape = shape
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, shape, fill_value, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
+    def call(self, fill_value):
+        return backend.numpy.full(self.shape, fill_value, dtype=self.dtype)
+
+    def compute_output_spec(self, fill_value):
+        dtype = backend.floatx() if self.dtype is None else self.dtype
+        return KerasTensor(self.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.full", "keras.ops.numpy.full"])
@@ -3181,15 +3201,25 @@ def full(shape, fill_value, dtype=None):
     Returns:
         Output tensor.
     """
+    if any_symbolic_tensors((fill_value,)):
+        return Full(shape=shape, dtype=dtype).symbolic_call(fill_value)
     return backend.numpy.full(shape, fill_value, dtype=dtype)
 
 
 class FullLike(Operation):
-    def call(self, x, fill_value, dtype=None):
-        return backend.numpy.full_like(x, fill_value, dtype=dtype)
+    def __init__(self, dtype=None):
+        super().__init__()
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, x, fill_value, dtype=None):
-        dtype = dtype or x.dtype
+    def call(self, x, fill_value):
+        return backend.numpy.full_like(x, fill_value, dtype=self.dtype)
+
+    def compute_output_spec(self, x, fill_value):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -3205,8 +3235,8 @@ def full_like(x, fill_value, dtype=None):
     Returns:
         Tensor of `fill_value` with the same shape and type as `x`.
     """
-    if any_symbolic_tensors((x,)):
-        return FullLike().symbolic_call(x, fill_value, dtype=dtype)
+    if any_symbolic_tensors((x, fill_value)):
+        return FullLike(dtype=dtype).symbolic_call(x, fill_value)
     return backend.numpy.full_like(x, fill_value, dtype=dtype)
 
 
@@ -3395,15 +3425,6 @@ def hstack(xs):
     return backend.numpy.hstack(xs)
 
 
-class Identity(Operation):
-    def call(self, n, dtype=None):
-        return backend.numpy.identity(n, dtype=dtype)
-
-    def compute_output_spec(self, n, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor([n, n], dtype=dtype)
-
-
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
 def identity(n, dtype=None):
     """Return the identity tensor.
@@ -3446,12 +3467,14 @@ def imag(x):
 
 
 class Isclose(Operation):
-    def call(self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-        return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
+    def __init__(self, equal_nan=False):
+        super().__init__()
+        self.equal_nan = equal_nan
 
-    def compute_output_spec(
-        self, x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False
-    ):
+    def call(self, x1, x2, rtol=1e-5, atol=1e-8):
+        return backend.numpy.isclose(x1, x2, rtol, atol, self.equal_nan)
+
+    def compute_output_spec(self, x1, x2, rtol=1e-5, atol=1e-8):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
@@ -3473,7 +3496,7 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         Output boolean tensor.
     """
     if any_symbolic_tensors((x1, x2)):
-        return Isclose().symbolic_call(x1, x2, rtol, atol, equal_nan)
+        return Isclose(equal_nan=equal_nan).symbolic_call(x1, x2, rtol, atol)
     return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
@@ -3653,7 +3676,7 @@ class Linspace(Operation):
         dtype = (
             self.dtype
             if self.dtype is not None
-            else getattr(start, "dtype", type(start))
+            else backend.standardize_dtype(getattr(start, "dtype", type(start)))
         )
         dtype = backend.result_type(dtype, float)
         if self.retstep:
@@ -3962,7 +3985,7 @@ class Logspace(Operation):
         self.num = num
         self.endpoint = endpoint
         self.base = base
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
         self.axis = axis
 
     def call(self, start, stop):
@@ -3997,7 +4020,7 @@ class Logspace(Operation):
         dtype = (
             self.dtype
             if self.dtype is not None
-            else getattr(start, "dtype", type(start))
+            else backend.standardize_dtype(getattr(start, "dtype", type(start)))
         )
         dtype = backend.result_type(dtype, float)
         return KerasTensor(output_shape, dtype=dtype)
@@ -4581,15 +4604,17 @@ def not_equal(x1, x2):
 class OnesLike(Operation):
     def __init__(self, dtype=None):
         super().__init__()
-        self.dtype = (
-            backend.standardize_dtype(dtype) if dtype is not None else None
-        )
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.ones_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
-        dtype = x.dtype if self.dtype is None else self.dtype
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -4613,15 +4638,17 @@ def ones_like(x, dtype=None):
 class ZerosLike(Operation):
     def __init__(self, dtype=None):
         super().__init__()
-        self.dtype = (
-            backend.standardize_dtype(dtype) if dtype is not None else None
-        )
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.zeros_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
-        dtype = x.dtype if self.dtype is None else self.dtype
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -4797,7 +4824,7 @@ class Prod(Operation):
         else:
             self.axis = axis
         self.keepdims = keepdims
-        self.dtype = dtype
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
     def call(self, x):
         return backend.numpy.prod(
@@ -4811,7 +4838,7 @@ class Prod(Operation):
         if self.dtype is not None:
             dtype = self.dtype
         else:
-            dtype = backend.result_type(x.dtype)
+            dtype = backend.standardize_dtype(x.dtype)
             if dtype == "bool":
                 dtype = "int32"
             elif dtype in ("int8", "int16"):
@@ -5219,12 +5246,18 @@ def round(x, decimals=0):
 
 
 class SearchSorted(Operation):
-    def call(self, sorted_sequence, values, side="left"):
+    def __init__(self, side="left"):
+        super().__init__()
+        self.side = side
+
+    def call(self, sorted_sequence, values):
         sorted_sequence = backend.convert_to_tensor(sorted_sequence)
         values = backend.convert_to_tensor(values)
-        return backend.numpy.searchsorted(sorted_sequence, values, side=side)
+        return backend.numpy.searchsorted(
+            sorted_sequence, values, side=self.side
+        )
 
-    def compute_output_spec(self, sorted_sequence, values, side="left"):
+    def compute_output_spec(self, sorted_sequence, values):
         if len(sorted_sequence.shape) != 1:
             raise ValueError(
                 "searchsorted only supports 1-D sorted sequences. Use"
@@ -5254,7 +5287,7 @@ def searchsorted(sorted_sequence, values, side="left"):
         Tensor of insertion indices of same shape as `values`.
     """
     if any_symbolic_tensors((sorted_sequence, values)):
-        return SearchSorted().symbolic_call(sorted_sequence, values, side=side)
+        return SearchSorted(side=side).symbolic_call(sorted_sequence, values)
 
     sorted_sequence = backend.convert_to_tensor(sorted_sequence)
     values = backend.convert_to_tensor(values)
@@ -5932,21 +5965,6 @@ def trace(x, offset=0, axis1=0, axis2=1):
     if any_symbolic_tensors((x,)):
         return Trace(offset, axis1, axis2).symbolic_call(x)
     return backend.numpy.trace(x, offset=offset, axis1=axis1, axis2=axis2)
-
-
-class Tri(Operation):
-    def __init__(self, k=0, dtype=None):
-        super().__init__()
-        self.k = k
-        self.dtype = dtype or backend.floatx()
-
-    def call(self, N, M=None):
-        return backend.numpy.tri(N=N, M=M, k=self.k, dtype=self.dtype)
-
-    def compute_output_spec(self, N, M=None):
-        if M is None:
-            M = N
-        return KerasTensor((N, M), dtype=self.dtype)
 
 
 @keras_export(["keras.ops.tri", "keras.ops.numpy.tri"])
@@ -6763,15 +6781,6 @@ def sum(x, axis=None, keepdims=False):
     return backend.numpy.sum(x, axis=axis, keepdims=keepdims)
 
 
-class Zeros(Operation):
-    def call(self, shape, dtype=None):
-        return backend.numpy.zeros(shape, dtype=dtype)
-
-    def compute_output_spec(self, shape, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
-
-
 @keras_export(["keras.ops.zeros", "keras.ops.numpy.zeros"])
 def zeros(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with zeros.
@@ -6786,15 +6795,6 @@ def zeros(shape, dtype=None):
     return backend.numpy.zeros(shape, dtype=dtype)
 
 
-class Ones(Operation):
-    def call(self, shape, dtype=None):
-        return backend.numpy.ones(shape, dtype=dtype)
-
-    def compute_output_spec(self, shape, dtype=None):
-        dtype = dtype or backend.floatx()
-        return KerasTensor(shape, dtype=dtype)
-
-
 @keras_export(["keras.ops.ones", "keras.ops.numpy.ones"])
 def ones(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with ones.
@@ -6807,21 +6807,6 @@ def ones(shape, dtype=None):
         Tensor of ones with the given shape and dtype.
     """
     return backend.numpy.ones(shape, dtype=dtype)
-
-
-class Eye(Operation):
-    def __init__(self, k=0, dtype=None):
-        super().__init__()
-        self.k = k
-        self.dtype = dtype or backend.floatx()
-
-    def call(self, N, M=None):
-        return backend.numpy.eye(N, M=M, k=self.k, dtype=self.dtype)
-
-    def compute_output_spec(self, N, M=None):
-        if M is None:
-            M = N
-        return KerasTensor((N, M), dtype=self.dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])
