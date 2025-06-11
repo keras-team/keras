@@ -1693,7 +1693,7 @@ class OneHot(Operation):
         super().__init__()
         self.num_classes = num_classes
         self.axis = axis
-        self.dtype = dtype or backend.floatx()
+        self.dtype = backend.standardize_dtype(dtype)
         self.sparse = sparse
 
     def call(self, x):
@@ -2580,9 +2580,13 @@ def psnr(
 
 
 class DotProductAttention(Operation):
-    def __init__(self, is_causal=False):
+    def __init__(
+        self, is_causal=False, flash_attention=None, attn_logits_soft_cap=None
+    ):
         super().__init__()
         self.is_causal = is_causal
+        self.flash_attention = flash_attention
+        self.attn_logits_soft_cap = attn_logits_soft_cap
 
     def call(
         self,
@@ -2592,8 +2596,6 @@ class DotProductAttention(Operation):
         bias=None,
         mask=None,
         scale=None,
-        flash_attention=None,
-        attn_logits_soft_cap=None,
     ):
         return backend.nn.dot_product_attention(
             query,
@@ -2603,8 +2605,8 @@ class DotProductAttention(Operation):
             mask=mask,
             scale=scale,
             is_causal=self.is_causal,
-            flash_attention=flash_attention,
-            attn_logits_soft_cap=attn_logits_soft_cap,
+            flash_attention=self.flash_attention,
+            attn_logits_soft_cap=self.attn_logits_soft_cap,
         )
 
     def compute_output_spec(
@@ -2615,8 +2617,6 @@ class DotProductAttention(Operation):
         bias=None,
         mask=None,
         scale=None,
-        flash_attention=None,
-        attn_logits_soft_cap=None,
     ):
         return KerasTensor(query.shape, dtype=query.dtype)
 
@@ -2703,15 +2703,17 @@ def dot_product_attention(
             )
 
     if any_symbolic_tensors((query, key, value)):
-        return DotProductAttention(is_causal=is_causal).symbolic_call(
+        return DotProductAttention(
+            is_causal=is_causal,
+            flash_attention=flash_attention,
+            attn_logits_soft_cap=attn_logits_soft_cap,
+        ).symbolic_call(
             query,
             key,
             value,
             bias=bias,
             mask=mask,
             scale=scale,
-            flash_attention=flash_attention,
-            attn_logits_soft_cap=attn_logits_soft_cap,
         )
     return backend.nn.dot_product_attention(
         query,
