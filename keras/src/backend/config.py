@@ -244,7 +244,7 @@ def is_nnx_backend_enabled():
     return _NNX_ENABLED
 
 
-def set_nnx_enabled(value: bool):
+def set_nnx_enabled(value):
     global _NNX_ENABLED
     from keras.src.backend.common import global_state
 
