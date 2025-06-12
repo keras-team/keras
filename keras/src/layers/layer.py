@@ -54,7 +54,6 @@ from keras.src.utils import tracking
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
 elif backend.backend() == "jax":
-
     if is_nnx_backend_enabled():
         try:
             from flax import nnx  # noqa F401
@@ -1547,7 +1546,19 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             if not hasattr(self, "_tracker"):
                 self._initialize_tracker()
             value = self._tracker.track(value)
-        return super().__setattr__(name, value)
+
+        # NNX-specific bypass for `_called` and `built` attributes
+        if (
+            backend.backend() == "jax"
+            and is_nnx_backend_enabled()
+            and (name == "_called" or name == "built")
+        ):
+            object.__setattr__(self, name, value)
+            return
+
+        super().__setattr__(
+            name, value
+        )  # Default path, including for NnxLayer -> nnx.Module
 
     def __delattr__(self, name):
         obj = getattr(self, name)
