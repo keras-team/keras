@@ -11,7 +11,9 @@ BACKEND_REQ = {
         "torch",
         "--extra-index-url https://download.pytorch.org/whl/cpu ",
     ),
-    "jax": ("jax[cpu]==0.5.0", ""),
+    # please update the jax version here if jax version is updated in 
+    # requirements file
+    "jax": ("jax[cpu]==0.6.0", ""),
     "openvino": ("openvino", ""),
 }
 
