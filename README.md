@@ -1,3 +1,13 @@
+<!-- Keep these links. Translations will automatically update with the README. -->
+[Deutsch](https://www.readme-i18n.com/keras-team/keras?lang=de) | 
+[Español](https://www.readme-i18n.com/keras-team/keras?lang=es) | 
+[français](https://www.readme-i18n.com/keras-team/keras?lang=fr) | 
+[日本語](https://www.readme-i18n.com/keras-team/keras?lang=ja) | 
+[한국어](https://www.readme-i18n.com/keras-team/keras?lang=ko) | 
+[Português](https://www.readme-i18n.com/keras-team/keras?lang=pt) | 
+[Русский](https://www.readme-i18n.com/keras-team/keras?lang=ru) | 
+[中文](https://www.readme-i18n.com/keras-team/keras?lang=zh)
+
 # Keras 3: Deep Learning for Humans
 
 Keras 3 is a multi-backend deep learning framework, with support for JAX, TensorFlow, PyTorch, and OpenVINO (for inference-only).
