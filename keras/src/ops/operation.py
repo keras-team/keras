@@ -1,8 +1,6 @@
 import inspect
 import textwrap
 
-from flax import nnx
-
 from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import tree
@@ -125,6 +123,8 @@ class Operation:
         """
         instance = super(Operation, cls).__new__(cls)
         if backend.backend() == "jax" and is_nnx_backend_enabled():
+            from flax import nnx
+
             vars(instance)["_object__state"] = nnx.object.ObjectState()
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
