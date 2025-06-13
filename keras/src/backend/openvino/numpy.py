@@ -1079,7 +1079,10 @@ def median(x, axis=None, keepdims=False):
         # where axis is tuple or list of integers, move 'axis' dims to the
         # rightmost positions and flatten them
         flattened = False
-        ov_axis = get_ov_output(axis)
+        if isinstance(axis, (tuple, list)):
+            ov_axis = convert_to_tensor(axis)
+        else:
+            ov_axis = get_ov_output(axis)
         x_rank = ov_opset.gather(
             ov_opset.shape_of(x_shape_original, Type.i32).output(0),
             ov_opset.constant([0], Type.i32).output(0),
