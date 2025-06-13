@@ -1088,10 +1088,13 @@ def median(x, axis=None, keepdims=False):
             ov_opset.constant([0], Type.i32).output(0),
             ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
+        x_rank_scalar = ov_opset.squeeze(
+            x_rank, ov_opset.constant([0], Type.i32).output(0)
+        ).output(0)
         axis_as_range = ov_opset.range(
             ov_opset.constant(0, Type.i32).output(0),
-            x_rank,
-            ov_opset.constant([1], Type.i32).output(0),
+            x_rank_scalar,
+            ov_opset.constant(1, Type.i32).output(0),
             "i32",
         ).output(0)
         axis_compare = ov_opset.not_equal(
@@ -1137,15 +1140,19 @@ def median(x, axis=None, keepdims=False):
     # negative axis values are incompatible with ov_opset.gather axis arguement,
     # convert the values
     if axis < 0:
+        x_shape = ov_opset.shape_of(x, Type.i32).output(0)
         x_rank = ov_opset.gather(
-            ov_opset.shape_of(x, Type.i32).output(0),
+            ov_opset.shape_of(x_shape, Type.i32).output(0),
             ov_opset.constant([0], Type.i32).output(0),
             ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
+        x_rank_scalar = ov_opset.squeeze(
+            x_rank, ov_opset.constant([0], Type.i32).output(0)
+        ).output(0)
         axis_as_range = ov_opset.range(
             ov_opset.constant(0, Type.i32).output(0),
-            x_rank,
-            ov_opset.constant([1], Type.i32).output(0),
+            x_rank_scalar,
+            ov_opset.constant(1, Type.i32).output(0),
             "i32",
         ).output(0)
         ov_axis_positive = ov_opset.gather(
