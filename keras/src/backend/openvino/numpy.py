@@ -1089,7 +1089,7 @@ def median(x, axis=None, keepdims=False):
             ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
         axis_as_range = ov_opset.range(
-            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant(0, Type.i32).output(0),
             x_rank,
             ov_opset.constant([1], Type.i32).output(0),
             "i32",
@@ -1143,7 +1143,7 @@ def median(x, axis=None, keepdims=False):
             ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
         axis_as_range = ov_opset.range(
-            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant(0, Type.i32).output(0),
             x_rank,
             ov_opset.constant([1], Type.i32).output(0),
             "i32",
