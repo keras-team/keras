@@ -1086,6 +1086,7 @@ def median(x, axis=None, keepdims=False):
         x_rank = ov_opset.gather(
             ov_opset.shape_of(x_shape_original, Type.i32).output(0),
             ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
         axis_as_range = ov_opset.range(
             ov_opset.constant([0], Type.i32).output(0),
@@ -1137,6 +1138,7 @@ def median(x, axis=None, keepdims=False):
     if axis < 0:
         x_rank = ov_opset.gather(
             ov_opset.shape_of(x, Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
             ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
         axis_as_range = ov_opset.range(
