@@ -249,7 +249,7 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
             hidden = Dense(layer_size, activation="relu")(hidden)
 
         n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = [Dense(n_outputs, activation="softmax")(hidden)]
+        out = Dense(n_outputs, activation="softmax")(hidden)
         model = Model(inp, out)
         model.compile(loss=loss, optimizer="rmsprop")
 
@@ -361,7 +361,7 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
             hidden = Dense(layer_size, activation="relu")(hidden)
 
         n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = [Dense(n_outputs, activation="sigmoid")(hidden)]
+        out = Dense(n_outputs, activation="sigmoid")(hidden)
         model = Model(inp, out)
         model.compile(loss=loss, optimizer="rmsprop")
 
@@ -454,7 +454,7 @@ class SKLearnTransformer(TransformerMixin, SKLBase):
     X, y = my_data()
 
     trs = SKLearnTransformer(model=my_model)
-    trs.fit(X, y)
+    trs.fit(X, y)  # Fit the transformer before freezing to avoid NotFittedError
 
     pipe = make_pipeline(FrozenEstimator(trs), HistGradientBoostingClassifier())
     pipe.fit(X, y)
