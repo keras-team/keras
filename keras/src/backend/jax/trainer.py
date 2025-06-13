@@ -234,7 +234,7 @@ class JAXTrainer(base_trainer.Trainer):
                     return output
 
                 if not self.run_eagerly and self.jit_compile:
-                    concatenate = jit()(concatenate)
+                    concatenate = jit(concatenate)
 
                 def iterator_step(state, iterator):
                     data = next(iterator)

@@ -62,7 +62,7 @@ _JAX_VARIABLE_TYPE = JaxVariable
 if config.is_nnx_backend_enabled():
     from flax import nnx
 
-    class NnxVariable(KerasVariable, nnx.Variable):
+    class NnxVariable(JaxVariable, nnx.Variable):
         def __init__(
             self,
             initializer,
@@ -126,8 +126,9 @@ if config.is_nnx_backend_enabled():
             # self._initialize, which uses self._layout.
             object.__setattr__(self, "_layout", layout)
 
-            # Initialize KerasVariable.
-            super(NnxVariable, self).__init__(
+            # Initialize JaxVariable (which will call KerasVariable.__init__).
+            JaxVariable.__init__(
+                self,
                 initializer=initializer,
                 shape=shape,
                 dtype=dtype,
@@ -152,10 +153,13 @@ if config.is_nnx_backend_enabled():
             # Get the state from KerasVariable (attributes in __dict__)
             # KerasVariable does not have a custom __getstate__, so we mimic
             # default behavior.
-            keras_state = self.__dict__.copy()
+            try:
+                keras_state = KerasVariable.__getstate__(self)
+            except AttributeError:
+                keras_state = object.__getstate__(self)
 
             # Get the state from nnx.Variable
-            nnx_specific_state = super(KerasVariable, self).__getstate__()
+            nnx_specific_state = nnx.Variable.__getstate__(self)
 
             # Merge them. Keras state is primary. NNX specific state adds
             # to it.
@@ -202,7 +206,7 @@ if config.is_nnx_backend_enabled():
 
             # Ensure Keras's self._value is also consistent with the
             # restored raw_value
-            object.__setattr__(self, "_value", nnx_raw_value)
+            self._value = nnx_raw_value
 
             if hasattr(self, "_shape") and self._shape is not None:
                 self._ndim = len(self._shape)
@@ -210,30 +214,12 @@ if config.is_nnx_backend_enabled():
                 # Fallback if shape isn't immediately available.
                 self._ndim = len(self.raw_value.shape)
 
-        def _initialize(self, value):
-            # Note that variable.shape is needed by distribution_lib
-            self._shape = self._validate_shape(value.shape)
-            # We can't import the keras/distribution/distribution_lib
-            # due to circular dependency.
-            distribution = global_state.get_global_attribute("distribution")
-            if self._layout is None and distribution is not None:
-                tensor_layout = distribution.get_variable_layout(self)
-                from keras.src.distribution import TensorLayout
-
-                if isinstance(tensor_layout, TensorLayout):
-                    self._layout = tensor_layout.backend_layout
-                else:
-                    self._layout = tensor_layout
-            self._direct_assign(value)
-
         def _direct_assign(self, value):
             # Apply JAX-specific distribution if layout is present
             if self._layout is not None:
-                processed_value = distribution_lib.distribute_variable(
+                value = distribution_lib.distribute_variable(
                     value, self._layout
                 )
-            else:
-                processed_value = value
 
             # Ensure that nnx.Variable part is initialized
             if not hasattr(self, "_var_metadata"):
@@ -245,47 +231,34 @@ if config.is_nnx_backend_enabled():
                 hasattr(self, "_var_metadata")
                 and "on_set_value" in self._var_metadata
             ):
-                final_value = self._var_metadata["on_set_value"](
-                    self, processed_value
-                )
-            else:
-                final_value = processed_value
+                value = self._var_metadata["on_set_value"](self, value)
 
             # Directly set raw_value. nnx.Variable handles mutable array
             # updates
-            object.__setattr__(self, "raw_value", final_value)
-
-        def _convert_to_tensor(self, value, dtype=None):
-            return convert_to_tensor(value, dtype=dtype, sparse=False)
-
-        # Overload native accessor.
-        def __jax_array__(self):
-            return self.value
+            object.__setattr__(self, "raw_value", value)
 
         @property
         def value(self):
             if not hasattr(self, "raw_value"):
-                if not hasattr(self, "_value") or self._value is None:
-                    if self._initializer is not None:
-                        initial_value = self._initializer(
-                            self._shape, dtype=self._dtype
-                        )
-                        return self._maybe_autocast(initial_value)
-                    else:
-                        raise AttributeError(
-                            "Variable is not properly initialized and has"
-                            " no initializer."
-                        )
-                current_value = self._value
-            else:
-                current_value = self.raw_value
-                if (
-                    hasattr(self, "_var_metadata")
-                    and "on_get_value" in self._var_metadata
-                ):
-                    current_value = self._var_metadata["on_get_value"](
-                        self, current_value
+                if self._initializer is not None:
+                    self._initialize(
+                        self._initializer(self.shape, dtype=self.dtype)
                     )
+                else:
+                    raise AttributeError(
+                        "Variable is not properly initialized (raw_value "
+                        "missing) and has no initializer."
+                    )
+
+            current_value = self.raw_value
+
+            if (
+                hasattr(self, "_var_metadata")
+                and "on_get_value" in self._var_metadata
+            ):
+                current_value = self._var_metadata["on_get_value"](
+                    self, current_value
+                )
 
             if in_stateless_scope():
                 scope = get_stateless_scope()

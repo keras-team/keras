@@ -13,15 +13,12 @@ def is_in_jax_tracing_scope(x=None):
 
 
 def jit(*args, **kwargs):
-    def decorator(func):
-        if is_nnx_backend_enabled():
-            from flax import nnx
+    if is_nnx_backend_enabled():
+        from flax import nnx
 
-            return nnx.jit(func, *args, **kwargs)
-        else:
-            if backend.backend() == "jax":
-                import jax
+        return nnx.jit
+    else:
+        if backend.backend() == "jax":
+            import jax
 
-                return jax.jit(func, *args, **kwargs)
-
-    return decorator
+            return jax.jit

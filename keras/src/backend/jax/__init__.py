@@ -1,4 +1,4 @@
-from keras.src.backend.config import is_nnx_backend_enabled
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.backend.jax import core
 from keras.src.backend.jax import distribution_lib
 from keras.src.backend.jax import image
@@ -12,7 +12,7 @@ from keras.src.backend.jax.core import IS_THREAD_SAFE
 from keras.src.backend.jax.core import SUPPORTS_RAGGED_TENSORS
 from keras.src.backend.jax.core import SUPPORTS_SPARSE_TENSORS
 
-if is_nnx_backend_enabled():
+if is_nnx_enabled():
     from keras.src.backend.jax.core import NnxVariable as Variable
 else:
     from keras.src.backend.jax.core import JaxVariable as Variable

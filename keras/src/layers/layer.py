@@ -1664,8 +1664,20 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         return {**base_config, **config}
 
     def _open_name_scope(self):
+        from keras.src.utils import jax_utils  # avoid circular imports
+
         if self._parent_path is None:
-            self._parent_path = current_path()
+            # Avoid mutating _parent_path during a JAX trace if it's part of
+            # nnx.Object state and the object was created at a different trace
+            # level. We check if we are in NNX mode and if we are in a JAX
+            # trace.
+            if not (
+                is_nnx_backend_enabled() and jax_utils.is_in_jax_tracing_scope()
+            ):
+                try:
+                    self._parent_path = current_path()
+                except Exception:
+                    pass
         return backend.name_scope(self.name, caller=self)
 
     def rematerialized_call(self, layer_call, *args, **kwargs):

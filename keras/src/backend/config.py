@@ -233,8 +233,8 @@ def is_flash_attention_enabled():
     return global_state.get_global_attribute("flash_attention", default=None)
 
 
-@keras_export("keras.config.is_nnx_backend_enabled")
-def is_nnx_backend_enabled():
+@keras_export("keras.config.is_nnx_enabled")
+def is_nnx_enabled():
     """Checks whether NNX specific features are enabled for the JAX backend.
 
     Returns:

@@ -53,7 +53,7 @@ from jax.experimental import mesh_utils
 from jax.sharding import Mesh
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
-from keras.src.backend.config import is_nnx_backend_enabled
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.utils.jax_utils import jit
 from flax import nnx
 
@@ -189,7 +189,7 @@ compute_gradients = jax.value_and_grad(compute_loss, has_aux=True)
 
 
 # Training step, Keras provides a pure functional optimizer.stateless_apply
-@jit()
+@jit
 def train_step(train_state, x, y):
     (
         trainable_variables,
