@@ -59,7 +59,7 @@ class JaxVariable(KerasVariable):
 
 
 _JAX_VARIABLE_TYPE = JaxVariable
-if config.is_nnx_backend_enabled():
+if config.is_nnx_enabled():
     from flax import nnx
 
     class NnxVariable(JaxVariable, nnx.Variable):
@@ -268,6 +268,8 @@ if config.is_nnx_backend_enabled():
 
             return self._maybe_autocast(current_value)
 
+        # Todo: NNX has agreed to fix it on thier end. I will remove it once 
+        # that is done
         def __hash__(self):
             return id(self)
 

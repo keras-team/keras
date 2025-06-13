@@ -1,5 +1,5 @@
 from keras.src import backend
-from keras.src.backend.config import is_nnx_backend_enabled
+from keras.src.backend.config import is_nnx_enabled
 
 
 def is_in_jax_tracing_scope(x=None):
@@ -13,7 +13,7 @@ def is_in_jax_tracing_scope(x=None):
 
 
 def jit(*args, **kwargs):
-    if is_nnx_backend_enabled():
+    if is_nnx_enabled():
         from flax import nnx
 
         return nnx.jit

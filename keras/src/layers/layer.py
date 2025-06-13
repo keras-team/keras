@@ -38,7 +38,7 @@ from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
-from keras.src.backend.config import is_nnx_backend_enabled
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
@@ -54,7 +54,7 @@ from keras.src.utils import tracking
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
 elif backend.backend() == "jax":
-    if is_nnx_backend_enabled():
+    if is_nnx_enabled():
         from keras.src.backend.jax.layer import NnxLayer as BackendLayer
     else:
         from keras.src.backend.jax.layer import JaxLayer as BackendLayer
@@ -1543,7 +1543,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         # NNX-specific bypass for `_called` and `built` attributes
         if (
             backend.backend() == "jax"
-            and is_nnx_backend_enabled()
+            and is_nnx_enabled()
             and (name == "_called" or name == "built")
         ):
             object.__setattr__(self, name, value)
@@ -1671,9 +1671,7 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             # nnx.Object state and the object was created at a different trace
             # level. We check if we are in NNX mode and if we are in a JAX
             # trace.
-            if not (
-                is_nnx_backend_enabled() and jax_utils.is_in_jax_tracing_scope()
-            ):
+            if not (is_nnx_enabled() and jax_utils.is_in_jax_tracing_scope()):
                 try:
                     self._parent_path = current_path()
                 except Exception:
