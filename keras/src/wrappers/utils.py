@@ -1,8 +1,9 @@
+import numpy as np
+
 try:
     import sklearn
     from sklearn.base import BaseEstimator
     from sklearn.base import TransformerMixin
-    from sklearn.utils._array_api import get_namespace
     from sklearn.utils.validation import check_is_fitted
 except ImportError:
     sklearn = None
@@ -83,7 +84,6 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
                 will eb left untouched.
         """
         check_is_fitted(self)
-        xp, _ = get_namespace(y)
         if self.ndim_ == 1 and y.ndim == 2:
-            return xp.squeeze(y, axis=1)
+            return np.squeeze(y, axis=1)
         return y
