@@ -13,7 +13,6 @@ from keras.src.wrappers.utils import _check_model
 from keras.src.wrappers.utils import assert_sklearn_installed
 
 try:
-    import sklearn
     from sklearn.base import BaseEstimator
     from sklearn.base import ClassifierMixin
     from sklearn.base import RegressorMixin
@@ -23,7 +22,6 @@ try:
     from sklearn.utils.metadata_routing import MetadataRequest
     from sklearn.utils.validation import check_is_fitted
 except ImportError:
-    sklearn = None
 
     class BaseEstimator:
         pass
