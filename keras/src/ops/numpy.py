@@ -6906,11 +6906,11 @@ def corrcoef(x):
     """Compute the Pearson correlation coefficient matrix.
 
     Args:
-        x: A 2D tensor of shape (N, D), where N is the number of variables
+        x: A 2D tensor of shape `(N, D)`, where N is the number of variables
            and D is the number of observations.
 
     Returns:
-        A tensor of shape (N, N) representing the correlation matrix.
+        A tensor of shape `(N, N)` representing the correlation matrix.
     """
     if any_symbolic_tensors((x,)):
         return Corrcoef().symbolic_call(x)
