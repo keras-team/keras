@@ -1092,6 +1092,7 @@ def median(x, axis=None, keepdims=False):
             ov_opset.constant([0], Type.i32).output(0),
             x_rank,
             ov_opset.constant([1], Type.i32).output(0),
+            "i32",
         ).output(0)
         axis_compare = ov_opset.not_equal(
             ov_opset.unsqueeze(axis_as_range, 1).output(0),
@@ -1145,6 +1146,7 @@ def median(x, axis=None, keepdims=False):
             ov_opset.constant([0], Type.i32).output(0),
             x_rank,
             ov_opset.constant([1], Type.i32).output(0),
+            "i32",
         ).output(0)
         ov_axis_positive = ov_opset.gather(
             axis_as_range, ov_axis, ov_opset.constant([0], Type.i32)
