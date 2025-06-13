@@ -1147,7 +1147,9 @@ def median(x, axis=None, keepdims=False):
     else:
         ov_axis_positive = ov_axis
 
-    k_scalar = ov_opset.squeeze(k_value, ov_opset.constant([0], Type.i32).output(0)).output(0)
+    k_scalar = ov_opset.squeeze(
+        k_value, ov_opset.constant([0], Type.i32).output(0)
+    ).output(0)
     x_sorted = ov_opset.topk(
         x, k_scalar, axis, "min", "value", stable=True
     ).output(0)
@@ -1172,12 +1174,13 @@ def median(x, axis=None, keepdims=False):
     ).output(0)
 
     median_odd = med_0
+    median_type = med_0.get_element_type()
     median_even = ov_opset.divide(
         ov_opset.add(med_1, med_0).output(0),
-        ov_opset.constant([2], Type.f32),
-    )
+        ov_opset.constant([2], median_type),
+    ).output(0)
 
-    median_eval = ov_opset.select(is_even, median_even, median_odd)
+    median_eval = ov_opset.select(is_even, median_even, median_odd).output(0)
 
     if keepdims:
         if flattened:
