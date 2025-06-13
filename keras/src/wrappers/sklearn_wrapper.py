@@ -235,8 +235,8 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
     scikit-learn model.
 
     ``` python
-    from keras.src.layers import Dense, Input
-    from keras.src.models import Model
+    from keras.layers import Dense, Input
+    from keras.models import Model
 
     def dynamic_model(X, y, loss, layers=[10]):
         # Creates a basic MLP model dynamically choosing the input and
@@ -347,8 +347,8 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
     scikit-learn model.
 
     ``` python
-    from keras.src.layers import Dense, Input
-    from keras.src.models import Model
+    from keras.layers import Dense, Input
+    from keras.models import Model
 
     def dynamic_model(X, y, loss, layers=[10]):
         # Creates a basic MLP model dynamically choosing the input and
@@ -361,7 +361,7 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
             hidden = Dense(layer_size, activation="relu")(hidden)
 
         n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = [Dense(n_outputs, activation="softmax")(hidden)]
+        out = [Dense(n_outputs, activation="sigmoid")(hidden)]
         model = Model(inp, out)
         model.compile(loss=loss, optimizer="rmsprop")
 
