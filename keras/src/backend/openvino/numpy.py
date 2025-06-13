@@ -1192,6 +1192,8 @@ def median(x, axis=None, keepdims=False):
             ).output(0)
         else:
             median_eval = ov_opset.unsqueeze(median_eval, ov_axis).output(0)
+    else:
+        median_eval = ov_opset.squeeze(median_eval, ov_axis_positive).output(0)
 
     return OpenVINOKerasTensor(median_eval)
 
