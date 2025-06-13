@@ -1147,8 +1147,9 @@ def median(x, axis=None, keepdims=False):
     else:
         ov_axis_positive = ov_axis
 
+    k_scalar = ov_opset.squeeze(k_value).output(0)
     x_sorted = ov_opset.topk(
-        x, k_value, axis, "min", "value", stable=True
+        x, k_scalar, axis, "min", "value", stable=True
     ).output(0)
     half_index = ov_opset.floor(
         ov_opset.divide(k_value, ov_opset.constant([2], Type.i32)).output(0)
