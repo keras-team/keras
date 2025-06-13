@@ -1076,6 +1076,8 @@ def median(x, axis=None, keepdims=False):
             x_shape, ov_axis, ov_opset.constant([0], Type.i32).output(0)
         ).output(0)
     else:
+        # where axis is tuple or list of integers, move 'axis' dims to the
+        # rightmost positions and flatten them
         flattened = False
         ov_axis = get_ov_output(axis)
         x_rank = ov_opset.gather(
@@ -1127,6 +1129,8 @@ def median(x, axis=None, keepdims=False):
             ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
 
+    # negative axis values are incompatible with ov_opset.gather axis arguement,
+    # convert the values
     if axis < 0:
         x_rank = ov_opset.gather(
             ov_opset.shape_of(x, Type.i32).output(0),
