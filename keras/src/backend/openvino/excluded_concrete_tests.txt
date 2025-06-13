@@ -38,7 +38,6 @@ NumpyDtypeTest::test_logspace
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_max
 NumpyDtypeTest::test_mean
-NumpyDtypeTest::test_median
 NumpyDtypeTest::test_meshgrid
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
