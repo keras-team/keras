@@ -312,7 +312,7 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
-            predict_step = jit(donate_argnums=0)(predict_step)
+            predict_step = jit(predict_step, donate_argnums=0)
 
         _step_function = self._make_function(
             predict_step, concatenate_outputs=True
