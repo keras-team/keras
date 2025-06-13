@@ -77,43 +77,15 @@ if config.is_nnx_enabled():
             mutable=None,
             **nnx_metadata,
         ):
-            # Determine NNX mutability. This needs to be known for
-            # nnx.Variable.__init__.
-            if mutable is None:
-                actual_nnx_mutable = (
-                    trainable  # Keras 'trainable' maps to NNX 'mutable'
-                )
-            else:
-                actual_nnx_mutable = mutable
-
             # Ensure 'mutable' is in nnx_metadata, but explicit 'mutable'
             # param takes precedence.
-            if "mutable" in nnx_metadata and mutable is not None:
-                nnx_metadata["mutable"] = actual_nnx_mutable
-            elif "mutable" not in nnx_metadata:
-                nnx_metadata["mutable"] = actual_nnx_mutable
+            nnx_metadata["mutable"] = trainable if mutable is None else mutable
 
             # Initialize nnx.Variable first.
             # Determine the dtype for the placeholder.
-            _placeholder_value = None
-            if shape is not None:
-                if dtype is not None:
-                    _placeholder_value = jnp.zeros(
-                        shape, dtype=standardize_dtype(dtype)
-                    )
-                else:
-                    _placeholder_value = jnp.zeros(
-                        shape, dtype=standardize_dtype(config.floatx())
-                    )
-            else:
-                if dtype is not None:
-                    _placeholder_value = jnp.array(
-                        0.0, dtype=standardize_dtype(dtype)
-                    )
-                else:
-                    _placeholder_value = jnp.array(
-                        0.0, dtype=standardize_dtype(config.floatx())
-                    )
+            _placeholder_value = jnp.zeros(
+                shape or (), dtype=standardize_dtype(dtype)
+            )
 
             # Call nnx.Variable.__init__ directly.
             nnx.Variable.__init__(
@@ -239,6 +211,11 @@ if config.is_nnx_enabled():
 
         @property
         def value(self):
+            if in_stateless_scope():
+                scope = get_stateless_scope()
+                stateless_value = scope.get_current_value(self)
+                if stateless_value is not None:
+                    return self._maybe_autocast(stateless_value)
             if not hasattr(self, "raw_value"):
                 if self._initializer is not None:
                     self._initialize(
@@ -249,9 +226,7 @@ if config.is_nnx_enabled():
                         "Variable is not properly initialized (raw_value "
                         "missing) and has no initializer."
                     )
-
             current_value = self.raw_value
-
             if (
                 hasattr(self, "_var_metadata")
                 and "on_get_value" in self._var_metadata
@@ -259,16 +234,9 @@ if config.is_nnx_enabled():
                 current_value = self._var_metadata["on_get_value"](
                     self, current_value
                 )
-
-            if in_stateless_scope():
-                scope = get_stateless_scope()
-                stateless_value = scope.get_current_value(self)
-                if stateless_value is not None:
-                    return self._maybe_autocast(stateless_value)
-
             return self._maybe_autocast(current_value)
 
-        # Todo: NNX has agreed to fix it on thier end. I will remove it once 
+        # Todo: NNX has agreed to fix it on their end. I will remove it once
         # that is done
         def __hash__(self):
             return id(self)

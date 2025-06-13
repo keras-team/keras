@@ -222,9 +222,6 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     ```
     """
 
-    def __init_subclass__(cls):
-        super().__init_subclass__()
-
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls, *args, **kwargs)
         # Wrap the user-provided `build` method in the `build_wrapper`

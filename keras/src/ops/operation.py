@@ -15,9 +15,6 @@ from keras.src.utils.naming import auto_name
 
 @keras_export("keras.Operation")
 class Operation:
-    def __init_subclass__(cls):
-        super().__init_subclass__()
-
     def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)

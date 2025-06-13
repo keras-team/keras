@@ -278,7 +278,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            train_step = jit(donate_argnums=0)(self.train_step)
+            train_step = jit(self.train_step, donate_argnums=0)
         else:
             train_step = self.train_step
 
@@ -294,7 +294,7 @@ class JAXTrainer(base_trainer.Trainer):
             # so that jax will reuse the memory buffer for outputs.
             # This will reduce the memory usage of the training function by
             # half.
-            test_step = jit(donate_argnums=0)(self.test_step)
+            test_step = jit(self.test_step, donate_argnums=0)
 
         else:
             test_step = self.test_step
