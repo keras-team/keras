@@ -166,8 +166,6 @@ CoreOpsCallsTests::test_slice_update_basic_call
 CoreOpsCallsTests::test_slice_with_non_symbolic_tensors
 CoreOpsCallsTests::test_switch_basic_call
 CoreOpsCallsTests::test_unstack_basic_functionality
-CoreOpsCallsTests::test_while_loop_basic_functionality
-CoreOpsCallsTests::test_while_loop_with_max_iterations
 CoreOpsCorrectnessTest::test_associative_scan
 CoreOpsCorrectnessTest::test_cond
 CoreOpsCorrectnessTest::test_dynamic_slice
@@ -180,7 +178,6 @@ CoreOpsCorrectnessTest::test_slice_update
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
-CoreOpsCorrectnessTest::test_while_loop
 CoreOpsDtypeTest::test_convert_to_tensor0
 CoreOpsDtypeTest::test_convert_to_tensor1
 CoreOpsDtypeTest::test_convert_to_tensor2
