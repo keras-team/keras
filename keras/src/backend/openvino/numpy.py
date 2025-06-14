@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.runtime.opset14 as ov_opset
+import openvino.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
@@ -1262,7 +1262,50 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    raise NotImplementedError("`prod` is not supported with openvino backend")
+    if axis == () or axis == []:
+        return x  
+
+    x = get_ov_output(x)  
+ 
+    if axis is None:        
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0  
+    elif isinstance(axis, tuple):
+        axis = list(axis)  
+
+    axis = ov_opset.constant(axis, Type.i32).output(0) 
+
+    x_type = x.get_element_type()
+  
+    promotion_map = {
+        Type.bf16: Type.bf16,
+        Type.f16: Type.f16,
+        Type.f32: Type.f32,
+        Type.f64: Type.f64,
+        Type.i8: Type.i32,
+        Type.i16: Type.i32,
+        Type.i32: Type.i32,
+        Type.i64: Type.i64,
+        Type.u8: Type.u32,
+        Type.u16: Type.u32,
+        Type.u32: Type.u32,
+        Type.u64: Type.u64,
+    }
+
+    
+    if x_type == Type.boolean:
+        result_node = ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
+        final_result = ov_opset.convert(result_node, Type.i32).output(0)
+        return OpenVINOKerasTensor(final_result)
+
+    target_type = None
+    if dtype is None:
+        target_type = promotion_map.get(x_type, x_type)
+ 
+    temporary_result = ov_opset.reduce_prod(x, axis, keepdims).output(0)  
+    final_result = ov_opset.convert(temporary_result, target_type).output(0)
+    return OpenVINOKerasTensor(final_result)
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
