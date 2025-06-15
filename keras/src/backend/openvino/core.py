@@ -381,6 +381,10 @@ class OpenVINOKerasTensor:
                         "OpenVINO backend does not "
                         "support multi-dimensional indexing"
                     )
+                if len(index_shape) == 0:
+                    index = ov_opset.unsqueeze(
+                        index, ov_opset.constant(0, Type.i32)
+                    ).output(0)
                 if index_type != Type.i32:
                     index = ov_opset.convert(index, Type.i32).output(0)
                 shape_tensor = ov_opset.shape_of(data)
@@ -395,11 +399,6 @@ class OpenVINOKerasTensor:
                 index = ov_opset.select(
                     is_negative, adjusted_index, index
                 ).output(0)
-                index_shape = index.get_partial_shape()
-                if len(index_shape) == 0:
-                    index = ov_opset.unsqueeze(
-                        index, ov_opset.constant(0, Type.i32)
-                    ).output(0)
                 gather_indices_nodes.append(index)
             else:
                 raise ValueError(
