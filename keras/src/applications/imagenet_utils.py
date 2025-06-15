@@ -1,3 +1,6 @@
+"""Helper utilities for working with ImageNet model data.
+Includes functions for preprocessing input data and decoding model predictions.
+"""
 import json
 import warnings
 
