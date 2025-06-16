@@ -12,13 +12,15 @@ def is_in_jax_tracing_scope(x=None):
     return False
 
 
-def jit(*args, **kwargs):
+def jit(func=None, *args, **kwargs):
+    jit_compiler = None
     if is_nnx_enabled():
         from flax import nnx
 
-        return nnx.jit
+        jit_compiler = nnx.jit
     else:
         if backend.backend() == "jax":
             import jax
 
-            return jax.jit
+            jit_compiler = jax.jit
+    return jit_compiler(func, *args, **kwargs)
