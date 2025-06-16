@@ -453,10 +453,8 @@ class SKLearnTransformer(TransformerMixin, SKLBase):
 
     X, y = my_data()
 
-    trs = SKLearnTransformer(model=my_model)
-    trs.fit(X, y)  # Fit the transformer before freezing to avoid NotFittedError
-
-    pipe = make_pipeline(FrozenEstimator(trs), HistGradientBoostingClassifier())
+    trs = FrozenEstimator(SKLearnTransformer(model=my_model))
+    pipe = make_pipeline(trs, HistGradientBoostingClassifier())
     pipe.fit(X, y)
     ```
 
