@@ -34,3 +34,41 @@ then
                --cov=keras \
                --cov-config=pyproject.toml
 fi
+
+if [ "$KERAS_BACKEND" == "jax" ]
+then
+   echo "JAX backend detected."
+   pip install -r requirements-jax-cuda.txt --progress-bar off --timeout 1000
+   pip uninstall -y keras keras-nightly
+   python3 -c 'import jax;print(jax.__version__);print(jax.default_backend())'
+   # Raise error if GPU is not detected.
+   python3 -c 'import jax;assert jax.default_backend().lower() == "gpu"'
+
+   # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
+   # TODO: keras/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow0 Fatal Python error: Aborted
+   # keras/backend/jax/distribution_lib_test.py is configured for CPU test for now.
+   pytest keras --ignore keras/src/applications \
+               --ignore keras/src/layers/merging/merging_test.py \
+               --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
+               --ignore keras/src/backend/jax/distribution_lib_test.py \
+               --ignore keras/src/distribution/distribution_lib_test.py \
+               --cov=keras \
+               --cov-config=pyproject.toml
+
+   pytest keras/src/distribution/distribution_lib_test.py --cov=keras --cov-config=pyproject.toml
+fi
+
+if [ "$KERAS_BACKEND" == "torch" ]
+then
+   echo "PyTorch backend detected."
+   pip install -r requirements-torch-cuda.txt --progress-bar off --timeout 1000
+   pip uninstall -y keras keras-nightly
+   python3 -c 'import torch;print(torch.__version__);print(torch.cuda.is_available())'
+   # Raise error if GPU is not detected.
+   python3 -c 'import torch;assert torch.cuda.is_available()'
+
+   pytest keras --ignore keras/src/applications \
+               --cov=keras \
+               --cov-config=pyproject.toml
+
+fi
