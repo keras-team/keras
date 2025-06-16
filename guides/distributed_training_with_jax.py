@@ -53,9 +53,7 @@ from jax.experimental import mesh_utils
 from jax.sharding import Mesh
 from jax.sharding import NamedSharding
 from jax.sharding import PartitionSpec as P
-from keras.src.backend.config import is_nnx_enabled
 from keras.src.utils.jax_utils import jit
-from flax import nnx
 
 
 def get_model():
