@@ -13,7 +13,7 @@ BACKEND_REQ = {
     ),
     # please update the jax version here if jax version is updated in
     # requirements file
-    "jax": ("jax[cpu]==0.5.0flax>=0.10.0", ""),
+    "jax": ("jax[cpu]==0.5.0 flax>=0.10.0", ""),
     "openvino": ("openvino", ""),
 }
 
