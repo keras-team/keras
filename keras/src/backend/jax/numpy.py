@@ -1338,6 +1338,11 @@ def logical_xor(x1, x2):
     return jnp.logical_xor(x1, x2)
 
 
+def corrcoef(x):
+    x = convert_to_tensor(x)
+    return jnp.corrcoef(x)
+
+
 def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
