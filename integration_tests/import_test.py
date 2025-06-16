@@ -15,6 +15,7 @@ BACKEND_REQ = {
     # requirements file
     "jax": ("jax[cpu]==0.5.0", ""),
     "openvino": ("openvino", ""),
+    "nnx": ("flax>=0.10.1", ""),
 }
 
 
