@@ -12,13 +12,20 @@ from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import distribution_lib as jax_distribution_lib
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
-from keras.src.utils.jax_utils import jit
+
+if is_nnx_enabled():
+    from flax import nnx
+
+    jit = nnx.jit
+else:
+    jit = jax.jit
 
 
 class JAXTrainer(base_trainer.Trainer):
