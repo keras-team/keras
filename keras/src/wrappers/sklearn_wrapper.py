@@ -361,7 +361,7 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
             hidden = Dense(layer_size, activation="relu")(hidden)
 
         n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = Dense(n_outputs, activation="sigmoid")(hidden)
+        out = Dense(n_outputs)(hidden)
         model = Model(inp, out)
         model.compile(loss=loss, optimizer="rmsprop")
 
