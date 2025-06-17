@@ -219,7 +219,7 @@ class RNN(Layer):
                 "state_size must be specified as property on the RNN cell."
             )
         if not isinstance(state_size, (list, tuple, int)):
-            raise ValueError(
+            raise TypeError(
                 "state_size must be an integer, or a list/tuple of integers "
                 "(one for each state tensor)."
             )
