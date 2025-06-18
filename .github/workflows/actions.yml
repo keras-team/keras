@@ -11,6 +11,27 @@ permissions:
   contents: read
 
 jobs:
+  tpu_build:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10']
+        backend: [tensorflow]
+    name: Run TPU tests
+    runs-on: ubuntu-latest
+    env:
+      PYTHON: ${{ matrix.python-version }}
+      KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+      KERAS_BACKEND: tensorflow
+    steps:
+    - uses: actions/checkout@v4 # Checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
+
+    - name: Make script executable
+      run: chmod +x .github/workflows/tpu/build.sh # Assuming your script is named my-script.sh
+
+    - name: Run my shell script
+      run: .github/workflows/tpu/build.sh # Execute the script
+  
   build:
     strategy:
       fail-fast: false
