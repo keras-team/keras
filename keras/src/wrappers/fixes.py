@@ -1,6 +1,5 @@
 try:
     import sklearn
-    from sklearn.utils.multiclass import type_of_target as sk_type_of_target
 except ImportError:
     sklearn = None
 
@@ -34,6 +33,8 @@ def type_of_target(y, input_name="", *, raise_unknown=False):
             raise ValueError(f"Unknown label type for {input}: {y!r}")
         else:
             return target_type
+
+    from sklearn.utils.multiclass import type_of_target as sk_type_of_target
 
     target_type = sk_type_of_target(y, input_name=input_name)
     return _raise_or_return(target_type)

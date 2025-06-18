@@ -13,15 +13,13 @@ from keras.src.wrappers.utils import _check_model
 from keras.src.wrappers.utils import assert_sklearn_installed
 
 try:
+    import sklearn
     from sklearn.base import BaseEstimator
     from sklearn.base import ClassifierMixin
     from sklearn.base import RegressorMixin
     from sklearn.base import TransformerMixin
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import OneHotEncoder
-    from sklearn.utils.metadata_routing import MetadataRequest
-    from sklearn.utils.validation import check_is_fitted
 except ImportError:
+    sklearn = None
 
     class BaseEstimator:
         pass
@@ -136,7 +134,9 @@ class SKLBase(BaseEstimator):
                 "sklearn.set_config(enable_metadata_routing=True)."
             )
 
-        self._metadata_request = MetadataRequest(owner=self.__class__.__name__)
+        self._metadata_request = sklearn.utils.metadata_routing.MetadataRequest(
+            owner=self.__class__.__name__
+        )
         for param, alias in kwargs.items():
             self._metadata_request.score.add_request(param=param, alias=alias)
         return self
@@ -172,6 +172,8 @@ class SKLBase(BaseEstimator):
 
     def predict(self, X):
         """Predict using the model."""
+        from sklearn.utils.validation import check_is_fitted
+
         check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         raw_output = self.model_.predict(X)
@@ -284,9 +286,9 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
                 f" Target type: {target_type}"
             )
         if reset:
-            self._target_encoder = make_pipeline(
+            self._target_encoder = sklearn.pipeline.make_pipeline(
                 TargetReshaper(),
-                OneHotEncoder(sparse_output=False),
+                sklearn.preprocessing.OneHotEncoder(sparse_output=False),
             ).fit(y)
             self.classes_ = np.unique(y)
             if len(self.classes_) == 1:
@@ -472,6 +474,8 @@ class SKLearnTransformer(TransformerMixin, SKLBase):
             X_transformed: array-like, shape=(n_samples, n_features)
                 The transformed data.
         """
+        from sklearn.utils.validation import check_is_fitted
+
         check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         return self.model_.predict(X)

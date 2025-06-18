@@ -4,7 +4,6 @@ try:
     import sklearn
     from sklearn.base import BaseEstimator
     from sklearn.base import TransformerMixin
-    from sklearn.utils.validation import check_is_fitted
 except ImportError:
     sklearn = None
 
@@ -83,6 +82,8 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
                 is passed, it will be squeezed back to 1D. Otherwise, it
                 will eb left untouched.
         """
+        from sklearn.utils.validation import check_is_fitted
+
         check_is_fitted(self)
         if self.ndim_ == 1 and y.ndim == 2:
             return np.squeeze(y, axis=1)
