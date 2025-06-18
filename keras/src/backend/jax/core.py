@@ -83,7 +83,7 @@ if config.is_nnx_enabled():
 
             # Initialize nnx.Variable first.
             # Determine the dtype for the placeholder.
-            _placeholder_value = jnp.zeros(
+            _placeholder_value = jax.ShapeDtypeStruct(
                 shape or (), dtype=standardize_dtype(dtype)
             )
 
