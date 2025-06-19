@@ -43,7 +43,6 @@ NumpyDtypeTest::test_meshgrid
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_power
-NumpyDtypeTest::test_prod
 NumpyDtypeTest::test_quantile
 NumpyDtypeTest::test_repeat
 NumpyDtypeTest::test_roll
@@ -104,7 +103,6 @@ NumpyOneInputOpsCorrectnessTest::test_pad_int16_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_int8_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_uint8_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_int32_constant_2
-NumpyOneInputOpsCorrectnessTest::test_prod
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_repeat
 NumpyOneInputOpsCorrectnessTest::test_reshape
