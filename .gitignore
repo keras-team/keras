@@ -19,5 +19,4 @@ examples/**/*.jpg
 .python-version
 .coverage
 *coverage.xml
-.ruff_cache
-my_clean_keras_env_py310/
+
