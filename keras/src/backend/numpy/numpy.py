@@ -515,6 +515,10 @@ def cumsum(x, axis=None, dtype=None):
     return np.cumsum(x, axis=axis, dtype=dtype)
 
 
+def deg2rad(x):
+    return np.deg2rad(x)
+
+
 def diag(x, k=0):
     return np.diag(x, k=k)
 

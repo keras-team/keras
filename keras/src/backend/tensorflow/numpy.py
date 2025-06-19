@@ -1256,6 +1256,10 @@ def cumsum(x, axis=None, dtype=None):
     return tf.math.cumsum(x, axis=axis)
 
 
+def deg2rad(x):
+    return tf.experimental.numpy.deg2rad(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     if len(x.shape) == 1:

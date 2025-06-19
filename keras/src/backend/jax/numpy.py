@@ -598,6 +598,10 @@ def cumsum(x, axis=None, dtype=None):
     return jnp.cumsum(x, axis=axis, dtype=dtype)
 
 
+def deg2rad(x):
+    return jnp.deg2rad(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return jnp.diag(x, k=k)
