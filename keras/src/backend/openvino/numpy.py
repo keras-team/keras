@@ -1263,13 +1263,26 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = get_ov_output(x)
+    if axis is None:
+        # reduce dims and get rank of input tensor
+        shape = ov_opset.shape_of(x).output(0)
+        rank = ov_opset.shape_of(shape).output(0)
+        # create axis array [0, 1, 2, ..., rank - 1]
+        start = ov_opset.constant(0, Type.i32).output(0)
+        step = ov_opset.constant(1, Type.i32).output(0)
+        axis_tensor = ov_opset.range(start, rank, step).output(0)
+    else:
+        if isinstance(axis, int):
+            axis_tensor = ov_opset.constant([axis], Type.i32).output(0)
+        elif isinstance(axis, (list, tuple)):
+            axis_tensor = ov_opset.constant(list(axis), Type.i32).output(0)
+        else:
+            raise ValueError(f"Invalid axis type: {type(axis)}")
+    result = ov_opset.reduce_prod(x, axis_tensor, keepdims).output(0)
     if dtype is not None:
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
-        x = ov_opset.convert(x, ov_type).output(0)
-    axis = ov_opset.constant(axis, Type.i32).output(0)
-    return OpenVINOKerasTensor(
-        ov_opset.reduce_prod(x, axis, keepdims).output(0)
-    )
+        result = ov_opset.convert(result, ov_type).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
