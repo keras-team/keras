@@ -1113,7 +1113,10 @@ class CoreOpsCallsTests(testing.TestCase):
         # Initial loop variable (i = 0)
         loop_vars = (0,)
         result = while_loop.call(loop_vars)
-        self.assertEqual(result[0], 5)
+        if backend.backend() == "openvino":
+            self.assertEqual(ops.convert_to_numpy(result[0]), 5)
+        else:
+            self.assertEqual(result[0], 5)
 
     def test_while_loop_output_spec(self):
         # Define dummy cond and body functions
@@ -1139,7 +1142,10 @@ class CoreOpsCallsTests(testing.TestCase):
 
         while_loop = core.WhileLoop(cond, body, maximum_iterations=5)
         result = while_loop.call((0,))
-        self.assertEqual(result[0], 5)
+        if backend.backend() == "openvino":
+            self.assertEqual(ops.convert_to_numpy(result[0]), 5)
+        else:
+            self.assertEqual(result[0], 5)
 
     def test_whileloop_compute_output_spec(self):
         # Define loop variables with different shapes and data types
