@@ -1278,41 +1278,6 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
     x_type = x.get_element_type()
 
-   /*promotion_map = {
-        Type.bf16: Type.bf16,
-        Type.f16: Type.f16,
-        Type.f32: Type.f32,
-        Type.f64: Type.f64,
-        Type.i8: Type.i32,
-        Type.i16: Type.i32,
-        Type.i32: Type.i32,
-        Type.i64: Type.i64,
-        Type.u8: Type.u32,
-        Type.u16: Type.u32,
-        Type.u32: Type.u32,
-        Type.u64: Type.u64,
-    }*/
-
-    OPENVINO_DTYPES = {
-    "float16": ov.Type.f16,
-    "float32": ov.Type.f32,
-    "float64": ov.Type.f64,
-    "uint8": ov.Type.u8,
-    "uint16": ov.Type.u16,
-    "uint32": ov.Type.u32,
-    "uint64": ov.Type.u64,
-    "int8": ov.Type.i8,
-    "int16": ov.Type.i16,
-    "int32": ov.Type.i32,
-    "int64": ov.Type.i64,
-    "bfloat16": ov.Type.bf16,
-    "bool": ov.Type.boolean,
-    "float8_e4m3fn": ov.Type.f8e4m3,
-    "float8_e5m2": ov.Type.f8e5m2,
-    "string": ov.Type.string,
-    }
-
-
     if x_type == Type.boolean:
         result_node = ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
         final_result = ov_opset.convert(result_node, Type.i32).output(0)
@@ -1320,15 +1285,19 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
     target_type = None
     if dtype is None:
-        target_type = OPENVINO_DTYPES.get(x_type, x_type)
+        if x_type in [Type.i8, Type.i16]:
+            target_type = Type.i32
+        elif x_type in [Type.u8, Type.u16]:
+            target_type = Type.u32
+        else:
+            target_type = x_type
     else:
         dtype_string = standardize_dtype(dtype)
         target_type = OPENVINO_DTYPES[dtype_string]
 
-    temporary_result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
-    final_result = ov_opset.convert(temporary_result, target_type).output(0)
+    prod_result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
+    final_result = ov_opset.convert(prod_result, target_type).output(0)
     return OpenVINOKerasTensor(final_result)
-
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     raise NotImplementedError(
