@@ -78,9 +78,14 @@ def distribute_tensor(tensor, layout):
             layout, jax.sharding.Sharding
         ) and tensor.sharding.is_equivalent_to(layout, ndim=len(tensor.shape)):
             return tensor
-        # JAX explicit layout support.
+        # JAX explicit "layout" support.
         elif hasattr(layout, "layout"):
             current_layout = getattr(tensor, "layout", None)
+            if current_layout == layout:
+                return tensor
+        # JAX explicit "format" support.
+        elif hasattr(layout, "format"):
+            current_layout = getattr(tensor, "format", None)
             if current_layout == layout:
                 return tensor
 
