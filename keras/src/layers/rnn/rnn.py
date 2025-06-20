@@ -321,7 +321,7 @@ class RNN(Layer):
     def reset_state(self):
         if self.states is not None:
             for v in self.states:
-                v.assign(ops.zeros_like(v))
+                v.assign(ops.zeros_like(v.value))
 
     def inner_loop(self, sequences, initial_state, mask, training=False):
         cell_kwargs = {}
