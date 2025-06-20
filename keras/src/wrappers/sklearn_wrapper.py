@@ -172,7 +172,9 @@ class SKLBase(BaseEstimator):
 
     def predict(self, X):
         """Predict using the model."""
-        sklearn.base.check_is_fitted(self)
+        from sklearn.utils.validation import check_is_fitted
+
+        check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         raw_output = self.model_.predict(X)
         return self._reverse_process_target(raw_output)
@@ -235,7 +237,8 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
     scikit-learn model.
 
     ``` python
-    from keras.src.layers import Dense, Input, Model
+    from keras.layers import Dense, Input
+    from keras.models import Model
 
     def dynamic_model(X, y, loss, layers=[10]):
         # Creates a basic MLP model dynamically choosing the input and
@@ -248,7 +251,7 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
             hidden = Dense(layer_size, activation="relu")(hidden)
 
         n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = [Dense(n_outputs, activation="softmax")(hidden)]
+        out = Dense(n_outputs, activation="softmax")(hidden)
         model = Model(inp, out)
         model.compile(loss=loss, optimizer="rmsprop")
 
@@ -262,7 +265,7 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
     from sklearn.datasets import make_classification
     from keras.wrappers import SKLearnClassifier
 
-    X, y = make_classification(n_samples=1000, n_features=10, n_classes=3)
+    X, y = make_classification(n_samples=1000, n_features=10)
     est = SKLearnClassifier(
         model=dynamic_model,
         model_kwargs={
@@ -346,7 +349,8 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
     scikit-learn model.
 
     ``` python
-    from keras.src.layers import Dense, Input, Model
+    from keras.layers import Dense, Input
+    from keras.models import Model
 
     def dynamic_model(X, y, loss, layers=[10]):
         # Creates a basic MLP model dynamically choosing the input and
@@ -359,7 +363,7 @@ class SKLearnRegressor(RegressorMixin, SKLBase):
             hidden = Dense(layer_size, activation="relu")(hidden)
 
         n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-        out = [Dense(n_outputs, activation="softmax")(hidden)]
+        out = Dense(n_outputs)(hidden)
         model = Model(inp, out)
         model.compile(loss=loss, optimizer="rmsprop")
 
@@ -472,7 +476,9 @@ class SKLearnTransformer(TransformerMixin, SKLBase):
             X_transformed: array-like, shape=(n_samples, n_features)
                 The transformed data.
         """
-        sklearn.base.check_is_fitted(self)
+        from sklearn.utils.validation import check_is_fitted
+
+        check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         return self.model_.predict(X)
 

@@ -271,7 +271,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
     ):
         BackendLayer.__init__(self)
         self._lock = False
-        Operation.__init__(self, dtype=dtype, name=name)
+        Operation.__init__(self, name=name)
+        self._dtype_policy = dtype_policies.get(dtype)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         input_dim_arg = kwargs.pop("input_dim", None)
         if input_dim_arg is not None:

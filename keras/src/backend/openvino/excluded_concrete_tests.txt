@@ -16,6 +16,7 @@ NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
+NumpyDtypeTest::test_corrcoef
 NumpyDtypeTest::test_correlate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
@@ -80,6 +81,7 @@ NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
+NumpyOneInputOpsCorrectnessTest::test_corrcoef
 NumpyOneInputOpsCorrectnessTest::test_correlate
 NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diag
@@ -149,6 +151,7 @@ NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_bartlett
 NumpyOneInputOpsDynamicShapeTest::test_blackman
+NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
@@ -161,13 +164,9 @@ CoreOpsCallsTests::test_map_basic_call
 CoreOpsCallsTests::test_scan_basic_call
 CoreOpsCallsTests::test_scatter_basic_call
 CoreOpsCallsTests::test_scatter_update_basic_call
-CoreOpsCallsTests::test_slice_basic_call
 CoreOpsCallsTests::test_slice_update_basic_call
-CoreOpsCallsTests::test_slice_with_non_symbolic_tensors
 CoreOpsCallsTests::test_switch_basic_call
 CoreOpsCallsTests::test_unstack_basic_functionality
-CoreOpsCallsTests::test_while_loop_basic_functionality
-CoreOpsCallsTests::test_while_loop_with_max_iterations
 CoreOpsCorrectnessTest::test_associative_scan
 CoreOpsCorrectnessTest::test_cond
 CoreOpsCorrectnessTest::test_dynamic_slice
@@ -175,12 +174,10 @@ CoreOpsCorrectnessTest::test_fori_loop
 CoreOpsCorrectnessTest::test_map
 CoreOpsCorrectnessTest::test_scan
 CoreOpsCorrectnessTest::test_scatter
-CoreOpsCorrectnessTest::test_slice
 CoreOpsCorrectnessTest::test_slice_update
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
-CoreOpsCorrectnessTest::test_while_loop
 CoreOpsDtypeTest::test_convert_to_tensor0
 CoreOpsDtypeTest::test_convert_to_tensor1
 CoreOpsDtypeTest::test_convert_to_tensor2

@@ -7,9 +7,6 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Cholesky(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _cholesky(x)
 
@@ -47,9 +44,6 @@ def _cholesky(x):
 
 
 class Det(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _det(x)
 
@@ -83,9 +77,6 @@ def _det(x):
 
 
 class Eig(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eig(x)
 
@@ -122,9 +113,6 @@ def _eig(x):
 
 
 class Eigh(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eigh(x)
 
@@ -162,9 +150,6 @@ def _eigh(x):
 
 
 class Inv(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _inv(x)
 
@@ -198,9 +183,6 @@ def _inv(x):
 
 
 class LuFactor(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _lu_factor(x)
 
@@ -248,8 +230,8 @@ def _lu_factor(x):
 
 
 class Norm(Operation):
-    def __init__(self, ord=None, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, ord=None, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(ord, str):
             if ord not in ("fro", "nuc"):
                 raise ValueError(
@@ -367,8 +349,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
 
 
 class Qr(Operation):
-    def __init__(self, mode="reduced"):
-        super().__init__()
+    def __init__(self, mode="reduced", *, name=None):
+        super().__init__(name=name)
         if mode not in {"reduced", "complete"}:
             raise ValueError(
                 "`mode` argument value not supported. "
@@ -440,9 +422,6 @@ def qr(x, mode="reduced"):
 
 
 class Solve(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, a, b):
         return _solve(a, b)
 
@@ -484,8 +463,8 @@ def _solve(a, b):
 
 
 class SolveTriangular(Operation):
-    def __init__(self, lower=False):
-        super().__init__()
+    def __init__(self, lower=False, *, name=None):
+        super().__init__(name=name)
         self.lower = lower
 
     def call(self, a, b):
@@ -531,8 +510,8 @@ def _solve_triangular(a, b, lower=False):
 
 
 class SVD(Operation):
-    def __init__(self, full_matrices=True, compute_uv=True):
-        super().__init__()
+    def __init__(self, full_matrices=True, compute_uv=True, *, name=None):
+        super().__init__(name=name)
         self.full_matrices = full_matrices
         self.compute_uv = compute_uv
 
@@ -586,8 +565,8 @@ def _svd(x, full_matrices=True, compute_uv=True):
 
 
 class Lstsq(Operation):
-    def __init__(self, rcond=None):
-        super().__init__()
+    def __init__(self, rcond=None, *, name=None):
+        super().__init__(name=name)
         self.rcond = rcond
 
     def call(self, a, b):

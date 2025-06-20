@@ -40,18 +40,22 @@ class Flatten(Layer):
         self._channels_first = self.data_format == "channels_first"
 
     def call(self, inputs):
-        input_shape = inputs.shape
+        input_shape = ops.shape(inputs)
         rank = len(input_shape)
 
         if self._channels_first and rank > 1:
             # Switch to channels-last format.
             inputs = ops.transpose(inputs, axes=(0, *range(2, rank), 1))
 
-        output_shape = tuple(
-            dim if dim is not None else -1
-            for dim in self.compute_output_shape(input_shape)
-        )
-        return ops.reshape(inputs, output_shape)
+        non_batch_dims = input_shape[1:]
+        if len(non_batch_dims) == 0:
+            flattened_dim = 1
+        elif any(not isinstance(d, int) for d in non_batch_dims):
+            flattened_dim = -1
+        else:
+            flattened_dim = math.prod(non_batch_dims)
+
+        return ops.reshape(inputs, (input_shape[0], flattened_dim))
 
     def compute_output_shape(self, input_shape):
         non_batch_dims = input_shape[1:]

@@ -1742,6 +1742,17 @@ def logical_xor(x1, x2):
     return torch.logical_xor(x1, x2)
 
 
+def corrcoef(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, config.floatx())
+    elif standardize_dtype(x.dtype) == "int64":
+        x = cast(x, "float64")
+
+    return torch.corrcoef(x)
+
+
 def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

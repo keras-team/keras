@@ -33,6 +33,15 @@ if backend.backend() == "jax":
     reason="Backend specific test",
 )
 class JaxDistributionLibTest(testing.TestCase):
+    def _create_jax_layout(self, sharding):
+        # Use jax_layout.Format or jax_layout.Layout if available.
+        if hasattr(jax_layout, "Format"):
+            return jax_layout.Format(sharding=sharding)
+        elif hasattr(jax_layout, "Layout"):
+            return jax_layout.Layout(sharding=sharding)
+
+        return sharding
+
     def test_list_devices(self):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
@@ -132,7 +141,7 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
         inputs = jax.numpy.array(np.random.normal(size=(16, 8)))
-        target_layout = jax_layout.Layout(
+        target_layout = self._create_jax_layout(
             sharding=jax.sharding.NamedSharding(
                 jax_mesh, jax.sharding.PartitionSpec("batch", None)
             )
@@ -163,7 +172,7 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
         variable = jax.numpy.array(np.random.normal(size=(16, 8)))
-        target_layout = jax_layout.Layout(
+        target_layout = self._create_jax_layout(
             sharding=jax.sharding.NamedSharding(
                 jax_mesh, jax.sharding.PartitionSpec("model", None)
             )
@@ -184,7 +193,7 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
         input_data = jax.numpy.array(np.random.normal(size=(16, 8)))
-        target_layout = jax_layout.Layout(
+        target_layout = self._create_jax_layout(
             sharding=jax.sharding.NamedSharding(
                 jax_mesh, jax.sharding.PartitionSpec("batch", None)
             )

@@ -789,10 +789,10 @@ class SavingTest(testing.TestCase):
             model, temp_filepath, max_shard_size=max_shard_size
         )
         self.assertIn("mymodel.weights.json", os.listdir(temp_filepath.parent))
-        if max_shard_size == 512:
+        if max_shard_size == 1:
             # 1 sharded file + 1 config file = 2.
             self.assertLen(os.listdir(temp_filepath.parent), 2)
-        elif max_shard_size == 10:
+        elif max_shard_size == 0.01:
             # 3 sharded file + 1 config file = 4.
             self.assertLen(os.listdir(temp_filepath.parent), 4)
 
@@ -1272,24 +1272,33 @@ class SavingH5IOStoreTest(testing.TestCase):
         name = "sharded_store"
         temp_filepath = Path(os.path.join(self.get_temp_dir(), f"{name}.json"))
 
-        # Pre-defined data.
-        a = np.random.random((2, 4)).astype("float32")
-        b = np.random.random((4, 8)).astype("int32")
+        # Pre-defined data. Each has about 0.0037GB.
+        a = np.random.random((1000, 1000)).astype("float32")
+        b = np.random.random((1000, 1000)).astype("int32")
 
         # Set.
-        store = saving_lib.ShardedH5IOStore(temp_filepath, mode="w")
+        store = saving_lib.ShardedH5IOStore(
+            temp_filepath, max_shard_size=0.005, mode="w"
+        )
         vars_store = store.make("vars")
         vars_store["a"] = a
         vars_store["b"] = b
         vars_store["c"] = 42
+        self.assertLen(store.sharding_config["weight_map"]["/vars/vars"], 2)
+        self.assertLen(vars_store, 3)
         self.assertAllClose(vars_store["a"], a)
         self.assertAllClose(vars_store["b"], b)
         self.assertEqual(int(vars_store["c"][()]), 42)
 
         # Delete.
         del vars_store["c"]
+        self.assertLen(vars_store, 2)
+        del vars_store["a"]  # Delete from an older shard.
+        self.assertLen(vars_store, 1)
+        vars_store["a"] = a
 
         # Contain.
+        self.assertIn("a", vars_store)
         self.assertNotIn("c", vars_store)
 
         store.close()
@@ -1301,9 +1310,32 @@ class SavingH5IOStoreTest(testing.TestCase):
         # Get.
         store = saving_lib.ShardedH5IOStore(temp_filepath, mode="r")
         vars_store = store.get("vars")
+        self.assertLen(vars_store, 2)
         self.assertAllClose(vars_store["a"], a)
         self.assertAllClose(vars_store["b"], b)
         self.assertNotIn("c", vars_store)
+
+        # Keys.
+        for key in ["a", "b"]:
+            self.assertIn(key, vars_store.keys())
+
+        # Items.
+        for key, value in vars_store.items():
+            if key == "a":
+                self.assertAllClose(value, a)
+            elif key == "b":
+                self.assertAllClose(value, b)
+            else:
+                raise ValueError(f"Unexpected key: {key}")
+
+        # Values.
+        for value in vars_store.values():
+            if backend.standardize_dtype(value.dtype) == "float32":
+                self.assertAllClose(value, a)
+            elif backend.standardize_dtype(value.dtype) == "int32":
+                self.assertAllClose(value, b)
+            else:
+                raise ValueError(f"Unexpected value: {value}")
 
     def test_sharded_h5_io_store_exception_raised(self):
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))
@@ -1333,5 +1365,17 @@ class SavingH5IOStoreTest(testing.TestCase):
             vars_store["weights"] = np.random.random((100, 100)).astype(
                 "float32"
             )
+
+        # Bad `get`.
+        with self.assertRaisesRegex(
+            KeyError, r"Key 'abc' not found in any of the shards:"
+        ):
+            vars_store["abc"]
+
+        # Bad `del`.
+        with self.assertRaisesRegex(
+            KeyError, r"Key 'abc' not found in any of the shards:"
+        ):
+            del vars_store["abc"]
 
         store.close()
