@@ -8,6 +8,7 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
 
@@ -215,7 +216,13 @@ class Variable:
             # initialized by a concrete call. In this case,
             # _deferred_initialize becomes a no-op for this variable.
             if config.is_nnx_enabled():
-                self._initializer = None  # Clear initializer as it's now "used"
+                # When in symbolic scope (e.g., during compute_output_spec),
+                # we should not clear the initializer as this constitutes a
+                # mutation that can conflict with Flax's tracing mechanisms.
+                # The initializer is needed to create placeholder values,
+                # but clearing it here is not essential for spec computation.
+                if not in_symbolic_scope():
+                    self._initializer = None  # Clear initializer as it's now "used"
                 return
             raise ValueError(f"Variable {self.path} is already initialized.")
 
