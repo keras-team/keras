@@ -1263,14 +1263,20 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = get_ov_output(x)
+    original_dtype = x.get_element_type()
+    if original_dtype == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
     if axis is None:
-        # reduce dims and get rank of input tensor
         shape = ov_opset.shape_of(x).output(0)
-        rank = ov_opset.shape_of(shape).output(0)
-        # create axis array [0, 1, 2, ..., rank - 1]
+        rank_tensor = ov_opset.shape_of(shape).output(0)
+        rank_scalar = ov_opset.squeeze(
+            rank_tensor, ov_opset.constant([0], Type.i32).output(0)
+        ).output(0)
         start = ov_opset.constant(0, Type.i32).output(0)
         step = ov_opset.constant(1, Type.i32).output(0)
-        axis_tensor = ov_opset.range(start, rank, step).output(0)
+        axis_tensor = ov_opset.range(start, rank_scalar, step, Type.i32).output(
+            0
+        )
     else:
         if isinstance(axis, int):
             axis_tensor = ov_opset.constant([axis], Type.i32).output(0)
@@ -1282,6 +1288,20 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     if dtype is not None:
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
         result = ov_opset.convert(result, ov_type).output(0)
+    else:
+        if original_dtype in [
+            Type.i8,
+            Type.u8,
+            Type.i16,
+            Type.u16,
+            Type.i32,
+            Type.u32,
+            Type.i64,
+            Type.u64,
+        ]:
+            result = ov_opset.convert(result, original_dtype).output(0)
+        elif original_dtype == Type.boolean:
+            pass
     return OpenVINOKerasTensor(result)
 
 
