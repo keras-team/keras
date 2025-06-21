@@ -1488,7 +1488,90 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
-    raise NotImplementedError("`tril` is not supported with openvino backend")
+    def get_shape_dims(x):
+        shape = ov_opset.shape_of(x, Type.i32)
+        rank_tensor = ov_opset.shape_of(shape, Type.i32)
+        rank_scalar = ov_opset.squeeze(
+            rank_tensor, ov_opset.constant([0], Type.i32)
+        )
+        indices = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            rank_scalar,
+            ov_opset.constant(1, Type.i32),
+            output_type=Type.i32,
+        )
+        return ov_opset.gather(shape, indices, axis=0)
+
+    x = get_ov_output(x)
+    ov_type = x.get_element_type()
+    input_shape = ov_opset.shape_of(x, Type.i32)
+    shape = get_shape_dims(x)
+
+    zero_const = ov_opset.constant(0, Type.i32)
+    minus2 = ov_opset.constant([-2], Type.i32)
+    minus1 = ov_opset.constant([-1], Type.i32)
+
+    M = ov_opset.squeeze(
+        ov_opset.gather(shape, minus2, zero_const),
+        ov_opset.constant([0], Type.i32),
+    )
+    N = ov_opset.squeeze(
+        ov_opset.gather(shape, minus1, zero_const),
+        ov_opset.constant([0], Type.i32),
+    )
+
+    row_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32),
+        M,
+        ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+    col_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32),
+        N,
+        ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+
+    row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
+    col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
+
+    M_1d = ov_opset.unsqueeze(M, ov_opset.constant([0], Type.i32))
+    N_1d = ov_opset.unsqueeze(N, ov_opset.constant([0], Type.i32))
+    target_shape = ov_opset.concat([M_1d, N_1d], axis=0)
+
+    row_idx = ov_opset.broadcast(row_idx, target_shape)
+    col_idx = ov_opset.broadcast(col_idx, target_shape)
+
+    k_const = ov_opset.constant(k, Type.i32)
+    mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k_const))
+    mask = ov_opset.convert(mask, ov_type)
+
+    shape_rank_tensor = ov_opset.shape_of(input_shape, Type.i32)
+    shape_rank = ov_opset.squeeze(
+        shape_rank_tensor, ov_opset.constant([0], Type.i32)
+    )
+    batch_dims_count = ov_opset.subtract(
+        shape_rank, ov_opset.constant(2, Type.i32)
+    )
+    batch_dims_count = ov_opset.squeeze(
+        batch_dims_count, ov_opset.constant([0], Type.i32)
+    )
+
+    batch_indices = ov_opset.range(
+        start=ov_opset.constant(0, Type.i32),
+        stop=batch_dims_count,
+        step=ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+
+    batch_shape = ov_opset.gather(input_shape, batch_indices, axis=0)
+    full_mask_shape = ov_opset.concat([batch_shape, M_1d, N_1d], axis=0)
+    mask = ov_opset.broadcast(mask, full_mask_shape)
+    if ov_type == Type.boolean:
+        mask = ov_opset.convert(mask, Type.f32)
+        x = ov_opset.convert(x, Type.f32)
+    return OpenVINOKerasTensor(ov_opset.multiply(x, mask).output(0))
 
 
 def triu(x, k=0):
