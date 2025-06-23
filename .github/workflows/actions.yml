@@ -18,7 +18,7 @@ jobs:
         python-version: ['3.10']
         backend: [tensorflow]
     name: Run TPU tests
-    runs-on: [self-hosted, linux-x86-ct5lp-112-4tpu, linux-x86-ct6e-44-1tpu]
+    runs-on: linux-x86-ct5lp-112-4tpu
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
