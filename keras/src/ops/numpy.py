@@ -2295,6 +2295,29 @@ class Diag(Operation):
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
+@keras_export(["keras.ops.deg2rad", "keras.ops.numpy.deg2rad"])
+def deg2rad(x):
+    """Convert angles from degrees to radians.
+
+    The conversion is defined as:
+    `rad = deg * (π / 180)`
+
+    Args:
+        x: Input tensor of angles in degrees.
+
+    Returns:
+        A tensor containing angles converted to radians.
+
+    Examples:
+    >>> from keras.src import ops
+    >>> ops.deg2rad(180.0)
+    3.141592653589793
+    >>> ops.deg2rad([0.0, 90.0, 180.0])
+    array([0.        , 1.57079633, 3.14159265])
+    """
+    return backend.numpy.deg2rad(x)
+
+
 @keras_export(["keras.ops.diag", "keras.ops.numpy.diag"])
 def diag(x, k=0):
     """Extract a diagonal or construct a diagonal array.
