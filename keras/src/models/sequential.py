@@ -215,6 +215,14 @@ class Sequential(Model):
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
 
+        if backend.config.is_nnx_enabled():
+            if self._functional:
+                for layer_in_functional in self._functional.layers:
+                    # This ensures that NNX's module scanning can find the
+                    # layers (and their variables) through direct attributes
+                    # on the Sequential instance, providing consistent paths.
+                    setattr(self, layer_in_functional.name, layer_in_functional)
+
     def call(self, inputs, training=None, mask=None, **kwargs):
         if self._functional:
             return self._functional.call(
