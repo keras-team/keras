@@ -24,14 +24,17 @@ jobs:
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
       KERAS_BACKEND: tensorflow
     steps:
-    - uses: actions/checkout@v4 # Checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
+      - uses: actions/checkout@v4
 
-    - name: Make script executable
-      run: chmod +x .github/workflows/tpu/build.sh # Assuming your script is named my-script.sh
+      - name: Build and run Docker image for TPU tests
+        run: |
+          docker build -f .github/workflows/tpu/Dockerfile -t keras-tpu-test .
+          docker run --rm \
+            -e PYTHON=${{ matrix.python-version }} \
+            -e KERAS_HOME=.github/workflows/config/${{ matrix.backend }} \
+            -e KERAS_BACKEND=tensorflow \
+            keras-tpu-test
 
-    - name: Run my shell script
-      run: .github/workflows/tpu/build.sh # Execute the script
-  
   build:
     strategy:
       fail-fast: false
