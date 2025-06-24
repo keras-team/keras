@@ -817,6 +817,8 @@ def slice_update(inputs, start_indices, updates):
         "`slice_update` is not supported by openvino backend"
         " for `start_indices` of type {}".format(type(start_indices))
     )
+
+    # Convert each start index to int32 scalar tensor and collect them
     processed_start_indices = []
     for idx in start_indices:
         val = get_ov_output(idx)
@@ -828,6 +830,8 @@ def slice_update(inputs, start_indices, updates):
             )
         if val_type != Type.i32:
             val = ov_opset.convert(val, Type.i32).output(0)
+
+        # Unsqueeze scalar values to 1D for concat later
         if len(val.get_partial_shape()) == 0:
             val = ov_opset.unsqueeze(
                 val, ov_opset.constant(0, Type.i32)
@@ -836,6 +840,8 @@ def slice_update(inputs, start_indices, updates):
     start_indices_tensor = ov_opset.concat(processed_start_indices, axis=0)
 
     rank = len(updates.shape)
+
+    # Generate coordinate ranges for each dimension in the updates
     ranges = []
     for dim in updates.shape:
         r = ov_opset.range(
@@ -846,19 +852,26 @@ def slice_update(inputs, start_indices, updates):
         )
         ranges.append(r)
 
+    # Broadcast ranges to match shape of updates
     broadcasted_ranges = []
     for i, r in enumerate(ranges):
         shape = [1] * rank
+
+        # Expand range in the i-th dimension
         shape[i] = updates.shape[i]
         r_reshaped = ov_opset.reshape(
             r, ov_opset.constant(shape, Type.i32), special_zero=False
         ).output(0)
+
+        # Broadcast range to the full shape of updates
         target_shape = ov_opset.constant(list(updates.shape), Type.i32)
         r_broadcasted = ov_opset.broadcast(r_reshaped, target_shape).output(0)
         broadcasted_ranges.append(r_broadcasted)
 
+    # Stack all broadcasted coordinate grids into shape (rank, ...)
     indices_stack = ov_opset.concat(broadcasted_ranges, axis=0).output(0)
 
+    # Flatten to shape (rank, num_updates)
     num_updates = 1
     for dim in updates.shape:
         num_updates *= dim
@@ -866,23 +879,31 @@ def slice_update(inputs, start_indices, updates):
     indices_reshaped = ov_opset.reshape(
         indices_stack, new_shape, special_zero=False
     ).output(0)
+
+    # Transpose to shape (num_updates, rank)
     absolute_indices = ov_opset.transpose(
         indices_reshaped, ov_opset.constant([1, 0], Type.i32)
     ).output(0)
 
+    # Broadcast start_indices to (num_updates, rank)
     start_indices_expanded = ov_opset.broadcast(
         start_indices_tensor, ov_opset.constant([num_updates, rank], Type.i32)
     ).output(0)
+
+    # Compute absolute indices = offset + relative indices
     absolute_indices = ov_opset.add(
         absolute_indices, start_indices_expanded
     ).output(0)
 
+    # Flatten the updates tensor to (num_updates,)
     updates_tensor = get_ov_output(updates)
     updates_flat = ov_opset.reshape(
         updates_tensor,
         ov_opset.constant([num_updates], Type.i32),
         special_zero=False,
     ).output(0)
+
+    # Apply the update via scatter_nd_update
     updated = ov_opset.scatter_nd_update(
         inputs, absolute_indices, updates_flat
     ).output(0)
