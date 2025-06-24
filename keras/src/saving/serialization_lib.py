@@ -18,14 +18,27 @@ from keras.src.utils.module_utils import tensorflow as tf
 PLAIN_TYPES = (str, int, float, bool)
 
 # List of Keras modules with built-in string representations for Keras defaults
-BUILTIN_MODULES = (
-    "activations",
-    "constraints",
-    "initializers",
-    "losses",
-    "metrics",
-    "optimizers",
-    "regularizers",
+BUILTIN_MODULES = frozenset(
+    {
+        "activations",
+        "constraints",
+        "initializers",
+        "losses",
+        "metrics",
+        "optimizers",
+        "regularizers",
+    }
+)
+
+LOADING_APIS = frozenset(
+    {
+        "keras.models.load_model",
+        "keras.preprocessing.image.load_img",
+        "keras.saving.load_model",
+        "keras.saving.load_weights",
+        "keras.utils.get_file",
+        "keras.utils.load_img",
+    }
 )
 
 
@@ -764,6 +777,12 @@ def _retrieve_class_or_fn(
         # (e.g. experimental symbols).
         if module == "keras" or module.startswith("keras."):
             api_name = module + "." + name
+
+            if api_name in LOADING_APIS:
+                raise ValueError(
+                    f"Cannot deserialize `{api_name}`, loading functions are "
+                    "not allowed during deserialization"
+                )
 
             obj = api_export.get_symbol_from_name(api_name)
             if obj is not None:
