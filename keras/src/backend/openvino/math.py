@@ -1,4 +1,4 @@
-import openvino.opset14 as ov_opset
+import openvino.runtime.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend.openvino.core import OpenVINOKerasTensor

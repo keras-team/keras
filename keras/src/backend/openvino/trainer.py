@@ -1,6 +1,6 @@
 import numpy as np
 import openvino as ov
-import openvino.opset14 as ov_opset
+import openvino.runtime.opset14 as ov_opset
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
