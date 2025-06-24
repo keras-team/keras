@@ -1484,6 +1484,8 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
+    # Create a lower-triangular matrix with ones below and on the k-th diagonal,
+    # zeros elsewhere.
     if M is None:
         M = N
     if dtype is None:
@@ -1495,6 +1497,7 @@ def tri(N, M=None, k=0, dtype=None):
     M = ov_opset.constant(M, Type.i32)
     k = ov_opset.constant(k, Type.i32)
 
+    # Create row and column indices: [0, 1, ..., N-1] and [0, 1, ..., M-1]
     row_range = ov_opset.range(
         ov_opset.constant(0, Type.i32),
         N,
@@ -1508,9 +1511,12 @@ def tri(N, M=None, k=0, dtype=None):
         output_type=Type.i32,
     )
 
+    # Reshape row/col indices to 2D for broadcasting:
+    # row_idx: shape (N, 1), col_idx: shape (1, M)
     row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
     col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
 
+    # Broadcast row_idx and col_idx to (N, M) so we can compare every pair
     target_shape = ov_opset.concat(
         [ov_opset.unsqueeze(N, [0]), ov_opset.unsqueeze(M, [0])], axis=0
     )
@@ -1518,6 +1524,7 @@ def tri(N, M=None, k=0, dtype=None):
     row_idx = ov_opset.broadcast(row_idx, target_shape)
     col_idx = ov_opset.broadcast(col_idx, target_shape)
 
+    # Create mask: 1 where col_idx <= row_idx + k (i.e., lower triangle), else 0
     mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k))
 
     if ov_dtype == Type.boolean:
@@ -1529,7 +1536,10 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
+    # Applies a lower-triangular mask to the last two dims of x,
+    # keeping elements below/on k-th diagonal.
     def get_shape_dims(x):
+        # get shape as 1D tensor
         shape = ov_opset.shape_of(x, Type.i32)
         rank_tensor = ov_opset.shape_of(shape, Type.i32)
         rank_scalar = ov_opset.squeeze(
@@ -1548,6 +1558,7 @@ def tril(x, k=0):
     input_shape = ov_opset.shape_of(x, Type.i32)
     shape = get_shape_dims(x)
 
+    # Get matrix dimensions (last two dims)
     zero_const = ov_opset.constant(0, Type.i32)
     minus2 = ov_opset.constant([-2], Type.i32)
     minus1 = ov_opset.constant([-1], Type.i32)
@@ -1561,6 +1572,7 @@ def tril(x, k=0):
         ov_opset.constant([0], Type.i32),
     )
 
+    # Create row and column indices for the matrix part
     row_range = ov_opset.range(
         ov_opset.constant(0, Type.i32),
         M,
@@ -1574,6 +1586,7 @@ def tril(x, k=0):
         output_type=Type.i32,
     )
 
+    # Reshape for broadcasting to (M, N)
     row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
     col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
 
@@ -1584,10 +1597,13 @@ def tril(x, k=0):
     row_idx = ov_opset.broadcast(row_idx, target_shape)
     col_idx = ov_opset.broadcast(col_idx, target_shape)
 
+    # Mask for lower triangle (col <= row + k)
     k_const = ov_opset.constant(k, Type.i32)
     mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k_const))
     mask = ov_opset.convert(mask, ov_type)
 
+    # --- Batch broadcasting logic ---
+    # Compute the number of batch dimensions (all dims except last two)
     shape_rank_tensor = ov_opset.shape_of(input_shape, Type.i32)
     shape_rank = ov_opset.squeeze(
         shape_rank_tensor, ov_opset.constant([0], Type.i32)
@@ -1599,6 +1615,7 @@ def tril(x, k=0):
         batch_dims_count, ov_opset.constant([0], Type.i32)
     )
 
+    # Create a range for batch dimension indices
     batch_indices = ov_opset.range(
         start=ov_opset.constant(0, Type.i32),
         stop=batch_dims_count,
@@ -1606,8 +1623,10 @@ def tril(x, k=0):
         output_type=Type.i32,
     )
 
+    # Gather the batch shape from input_shape using batch_indices
     batch_shape = ov_opset.gather(input_shape, batch_indices, axis=0)
     full_mask_shape = ov_opset.concat([batch_shape, M_1d, N_1d], axis=0)
+    # Broadcast the mask to the full input shape (including batch)
     mask = ov_opset.broadcast(mask, full_mask_shape)
 
     if ov_type == Type.boolean:
@@ -1618,6 +1637,8 @@ def tril(x, k=0):
 
 
 def triu(x, k=0):
+    # Applies an upper-triangular mask to the last two dims of x,
+    # keeping elements above/on k-th diagonal.
     def get_shape_dims(x):
         shape = ov_opset.shape_of(x, Type.i32)
         rank_tensor = ov_opset.shape_of(shape, Type.i32)
@@ -1637,6 +1658,7 @@ def triu(x, k=0):
     input_shape = ov_opset.shape_of(x, Type.i32)
     shape = get_shape_dims(x)
 
+    # Get matrix dimensions (last two dims)
     zero_const = ov_opset.constant(0, Type.i32)
     minus2 = ov_opset.constant([-2], Type.i32)
     minus1 = ov_opset.constant([-1], Type.i32)
@@ -1650,6 +1672,7 @@ def triu(x, k=0):
         ov_opset.constant([0], Type.i32),
     )
 
+    # Create row and column indices for the matrix part
     row_range = ov_opset.range(
         ov_opset.constant(0, Type.i32),
         M,
@@ -1663,6 +1686,7 @@ def triu(x, k=0):
         output_type=Type.i32,
     )
 
+    # Reshape for broadcasting to (M, N)
     row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
     col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
 
@@ -1673,10 +1697,13 @@ def triu(x, k=0):
     row_idx = ov_opset.broadcast(row_idx, target_shape)
     col_idx = ov_opset.broadcast(col_idx, target_shape)
 
+    # Mask for upper triangle (col >= row + k)
     k_const = ov_opset.constant(k, Type.i32)
     mask = ov_opset.greater_equal(col_idx, ov_opset.add(row_idx, k_const))
     mask = ov_opset.convert(mask, ov_type)
 
+    # --- Batch broadcasting logic ---
+    # Compute the number of batch dimensions (all dims except last two)
     shape_rank_tensor = ov_opset.shape_of(input_shape, Type.i32)
     shape_rank = ov_opset.squeeze(
         shape_rank_tensor, ov_opset.constant([0], Type.i32)
@@ -1688,6 +1715,7 @@ def triu(x, k=0):
         batch_dims_count, ov_opset.constant([0], Type.i32)
     )
 
+    # Create a range for batch dimension indices
     batch_indices = ov_opset.range(
         start=ov_opset.constant(0, Type.i32),
         stop=batch_dims_count,
@@ -1697,6 +1725,7 @@ def triu(x, k=0):
 
     batch_shape = ov_opset.gather(input_shape, batch_indices, axis=0)
     full_mask_shape = ov_opset.concat([batch_shape, M_1d, N_1d], axis=0)
+    # Broadcast the mask to the full input shape (including batch)
     mask = ov_opset.broadcast(mask, full_mask_shape)
 
     if ov_type == Type.boolean:
