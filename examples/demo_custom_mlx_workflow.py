@@ -44,7 +44,7 @@ class MyModel(Model):
         x = nn.relu(self.dense1(x))
         x = nn.relu(self.dense2(x))
         return self.dense3(x)
-    
+
 
 def Dataset():
     for _ in range(20):
@@ -81,7 +81,6 @@ def compute_loss_and_updates(
 
 
 grad_fn = mx.value_and_grad(compute_loss_and_updates)
-
 
 
 @mx.compile
