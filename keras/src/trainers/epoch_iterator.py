@@ -116,7 +116,11 @@ class EpochIterator:
                         self._interrupted_warning()
                     break
                 self._steps_seen += self.steps_per_execution
-                yield step, self._current_iterator
+                yield (
+                    step,
+                    step + self.steps_per_execution - 1,
+                    self._current_iterator,
+                )
             if self._num_batches and self._steps_seen >= self._num_batches:
                 self._current_iterator = iter(self._get_iterator())
                 self._steps_seen = 0
@@ -126,7 +130,7 @@ class EpochIterator:
             while True:
                 step += self.steps_per_execution
                 self._steps_seen = step + self.steps_per_execution
-                yield step, iterator
+                yield step, step + self.steps_per_execution - 1, iterator
         self.data_adapter.on_epoch_end()
 
     def __iter__(self):
@@ -135,19 +139,19 @@ class EpochIterator:
 
     def __next__(self):
         buffer = []
-        step, iterator = next(self._epoch_iterator)
+        begin_step, end_step, iterator = next(self._epoch_iterator)
         with self.catch_stop_iteration():
             for _ in range(self.steps_per_execution):
                 data = next(iterator)
                 buffer.append(data)
-            return step, buffer
+            return begin_step, end_step, buffer
         if buffer:
-            return step, buffer
+            return begin_step, end_step, buffer
         raise StopIteration
 
     def enumerate_epoch(self):
-        for step, data in self:
-            yield step, data
+        for begin_step, end_step, data in self:
+            yield begin_step, end_step, data
 
     @contextlib.contextmanager
     def catch_stop_iteration(self):
