@@ -124,9 +124,6 @@ def _istft(
 
     x = _overlap_sequences(x, sequence_stride)
 
-    if backend.backend() in {"numpy", "jax"}:
-        x = np.nan_to_num(x)
-
     start = 0 if center is False else fft_length // 2
     if length is not None:
         end = start + length
@@ -862,6 +859,9 @@ class MathOpsCorrectnessTest(testing.TestCase):
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
+        # Nans are handled differently in different backends, so zero them out.
+        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
         # Test N-D case.
@@ -891,6 +891,9 @@ class MathOpsCorrectnessTest(testing.TestCase):
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
+        # Nans are handled differently in different backends, so zero them out.
+        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
     def test_rsqrt(self):
