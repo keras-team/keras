@@ -6,7 +6,6 @@ import numpy as np
 from absl import logging
 
 from keras.src import backend
-from keras.src import optimizers
 from keras.src.backend.common import global_state
 from keras.src.legacy.saving import json_utils
 from keras.src.legacy.saving import saving_options
@@ -161,6 +160,8 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
             # Set optimizer weights.
             if "optimizer_weights" in f:
                 try:
+                    from keras.src import optimizers
+
                     if isinstance(model.optimizer, optimizers.Optimizer):
                         model.optimizer.build(model._trainable_variables)
                     else:
@@ -249,6 +250,8 @@ def save_optimizer_weights_to_hdf5_group(hdf5_group, optimizer):
         hdf5_group: HDF5 group.
         optimizer: optimizer instance.
     """
+    from keras.src import optimizers
+
     if isinstance(optimizer, optimizers.Optimizer):
         symbolic_weights = optimizer.variables
     else:

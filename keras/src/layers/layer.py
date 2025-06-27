@@ -44,7 +44,6 @@ from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.node import Node
 from keras.src.ops.operation import Operation
-from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
@@ -67,7 +66,7 @@ else:
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
-class Layer(BackendLayer, Operation, KerasSaveable):
+class Layer(BackendLayer, Operation):
     """This is the class from which all layers inherit.
 
     A layer is a callable object that takes as input one or more tensors and
