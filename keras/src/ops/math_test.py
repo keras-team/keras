@@ -179,8 +179,10 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
     def test_logsumexp(self):
         x = KerasTensor((None, 2, 3), dtype="float32")
-        result = kmath.logsumexp(x)
-        self.assertEqual(result.shape, ())
+        self.assertEqual(kmath.logsumexp(x).shape, ())
+        self.assertEqual(kmath.logsumexp(x, axis=1).shape, (None, 3))
+        self.assertEqual(kmath.logsumexp(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(kmath.logsumexp(x, keepdims=True).shape, (1, 1, 1))
 
     def test_extract_sequences(self):
         # Defined dimension
