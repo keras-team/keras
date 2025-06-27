@@ -6678,6 +6678,22 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_deg2rad(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_diag(self, dtype):
         import jax.numpy as jnp
 

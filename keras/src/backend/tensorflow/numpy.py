@@ -1257,6 +1257,7 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def deg2rad(x):
+    x = convert_to_tensor(x)
     return tf.experimental.numpy.deg2rad(x)
 
 
