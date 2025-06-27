@@ -375,6 +375,8 @@ def reduce_shape(shape, axis=None, keepdims=False):
             return tuple([1 for _ in shape])
         else:
             return tuple([])
+    elif isinstance(axis, int):
+        axis = (axis,)
 
     if keepdims:
         for ax in axis:
