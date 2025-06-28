@@ -671,6 +671,8 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def deg2rad(x):
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.deg2rad(x), "float64")
     x = convert_to_tensor(x)
     return torch.deg2rad(x)
 

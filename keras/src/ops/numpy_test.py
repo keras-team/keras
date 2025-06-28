@@ -6688,6 +6688,7 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(
             standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
         )
+
         self.assertEqual(
             standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
             expected_dtype,
