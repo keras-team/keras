@@ -1312,6 +1312,8 @@ class Layer(BackendLayer, Operation, KerasSaveable):
             return self._int8_call(*args, **kwargs)
         elif self.quantization_mode == "float8":
             return self._float8_call(*args, **kwargs)
+        elif self.quantization_mode == "int4":
+            return self._int4_call(*args, **kwargs)
         else:
             raise self._quantization_mode_error(self.quantization_mode)
 

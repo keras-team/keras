@@ -2,7 +2,6 @@ import ml_dtypes
 
 from keras.src import activations
 from keras.src import constraints
-from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
@@ -110,9 +109,10 @@ class Dense(Layer):
         kernel_shape = (input_shape[-1], self.units)
         if self.quantization_mode:
             self.quantized_build(kernel_shape, mode=self.quantization_mode)
-        if self.quantization_mode != "int8":
-            # If the layer is quantized to int8, `self._kernel` will be added
-            # in `self._int8_build`. Therefore, we skip it here.
+        if self.quantization_mode not in ("int8", "int4"):
+            # If the layer is quantized to int8 or int4, `self._kernel` will be
+            # added in `self._int8_build` or `_int4_build`. Therefore, we skip
+            # it here.
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=kernel_shape,
@@ -182,9 +182,22 @@ class Dense(Layer):
                 "lora is already enabled. This can only be done once per layer."
             )
         self._tracker.unlock()
+        # Determine the correct input dimension for the LoRA A matrix. When
+        # the layer has been int4-quantized, `self._kernel` stores a *packed*
+        # representation whose first dimension is `ceil(input_dim/2)`. We
+        # saved the true, *unpacked* input dimension in `self._orig_input_dim`
+        # during quantization. Use it if available; otherwise fall back to the
+        # first dimension of `self.kernel`.
+        if self.quantization_mode == "int4" and hasattr(
+            self, "_orig_input_dim"
+        ):
+            input_dim_for_lora = self._orig_input_dim
+        else:
+            input_dim_for_lora = self.kernel.shape[0]
+
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
-            shape=(self.kernel.shape[0], rank),
+            shape=(input_dim_for_lora, rank),
             initializer=initializers.get(a_initializer),
             regularizer=self.kernel_regularizer,
         )
@@ -211,7 +224,7 @@ class Dense(Layer):
         if self.use_bias:
             target_variables.append(self.bias)
         if self.quantization_mode is not None:
-            if self.quantization_mode == "int8":
+            if self.quantization_mode in ("int8", "int4"):
                 target_variables.append(kernel_scale)
             elif self.quantization_mode == "float8":
                 target_variables.append(self.inputs_scale)
@@ -237,7 +250,7 @@ class Dense(Layer):
         if self.use_bias:
             target_variables.append(self.bias)
         if self.quantization_mode is not None:
-            if self.quantization_mode == "int8":
+            if self.quantization_mode in ("int8", "int4"):
                 target_variables.append(self.kernel_scale)
             elif self.quantization_mode == "float8":
                 target_variables.append(self.inputs_scale)
@@ -315,6 +328,8 @@ class Dense(Layer):
     def quantized_build(self, kernel_shape, mode):
         if mode == "int8":
             self._int8_build(kernel_shape)
+        elif mode == "int4":
+            self._int4_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
         else:
@@ -336,6 +351,38 @@ class Dense(Layer):
             initializer="ones",
             trainable=False,
         )
+
+    def _int4_build(self, kernel_shape):
+        """Build variables for int4 quantization.
+        `kernel_shape` is the *original* float32 kernel shape
+        `(input_dim, units)`. We allocate the stored kernel with rows
+        `ceil(input_dim/2)` because two int4 values are packed into a single
+        int8 byte.
+        """
+        # Per-channel quantizer for the last axis (features).
+        self.inputs_quantizer = quantizers.AbsMaxQuantizer(
+            axis=-1, value_range=(-8, 7)
+        )
+        input_dim, output_dim = kernel_shape
+        packed_rows = (input_dim + 1) // 2  # ceil for odd dims
+
+        # Kernel is stored **packed**: each int8 byte contains two int4 values.
+        self._kernel = self.add_weight(
+            name="kernel",
+            shape=(packed_rows, output_dim),
+            initializer="zeros",
+            dtype="int8",
+            trainable=False,
+        )
+        # One scale per output unit (per-channel).
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=(self.units,),
+            initializer="ones",
+            trainable=False,
+        )
+        # Record original input_dim for unpacking at runtime.
+        self._orig_input_dim = input_dim
 
     def _float8_build(self):
         from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
@@ -409,6 +456,49 @@ class Dense(Layer):
             lora_x = ops.matmul(inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
             x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
+    def _int4_call(self, inputs, training=None):
+        """Forward pass for int4 quantized Dense layer."""
+
+        @ops.custom_gradient
+        def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
+            unpacked_kernel = self._unpack_int4_ops(
+                kernel, self._orig_input_dim
+            )
+
+            def grad_fn(*args, upstream=None):
+                if upstream is None:
+                    (upstream,) = args
+                float_kernel = ops.divide(
+                    ops.cast(unpacked_kernel, dtype=self.compute_dtype),
+                    kernel_scale,
+                )
+                inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
+                return (inputs_grad, None, None)
+
+            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            x = ops.matmul(inputs, unpacked_kernel)
+            x = ops.cast(x, self.compute_dtype)
+            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+            return x, grad_fn
+
+        x = matmul_with_inputs_gradient(
+            inputs,
+            ops.convert_to_tensor(self._kernel),
+            ops.convert_to_tensor(self.kernel_scale),
+        )
+
+        if self.lora_enabled:
+            lora_x = ops.matmul(inputs, self.lora_kernel_a)
+            lora_x = ops.matmul(lora_x, self.lora_kernel_b)
+            x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
+
+        # Add bias and activation
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -518,13 +608,42 @@ class Dense(Layer):
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             del self._kernel
-        self.quantized_build(kernel_shape, mode)
-        if mode == "int8":
+            # Build variables for int8 mode
+            self.quantized_build(kernel_shape, mode)
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
+        elif mode == "int4":
+            # 1. Quantize to int4 values (still int8 dtype, range [-8,7])
+            kernel_value_int4, kernel_scale = quantizers.abs_max_quantize(
+                self._kernel,
+                axis=0,
+                value_range=(-8, 7),
+                dtype="int8",
+                to_numpy=True,
+            )
+            kernel_scale = ops.squeeze(kernel_scale, axis=0)
+            # 2. Pack two int4 values into a single int8 byte.
+            packed_kernel_value, packed_shape, orig_rows = self._pack_int4_ops(
+                kernel_value_int4
+            )
+            del self._kernel
+            # Save original input dim for unpacking.
+            self._orig_input_dim = orig_rows
+            # Build variables using the original kernel shape; _int4_build will
+            # compute the packed shape internally.
+            self.quantized_build(kernel_shape, mode)
+            # Assign packed values.
+            self._kernel.assign(packed_kernel_value)
+            self.kernel_scale.assign(kernel_scale)
+        elif mode == "float8":
+            self.quantized_build(kernel_shape, mode)
+        else:
+            raise self._quantization_mode_error(mode)
 
-        # Set new dtype policy
+        # Set new dtype policy only for modes that already have a policy.
         if self.dtype_policy.quantization_mode is None:
+            from keras.src import dtype_policies  # local import to avoid cycle
+
             policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
             self.dtype_policy = policy
 
@@ -533,17 +652,104 @@ class Dense(Layer):
             kernel_value = self._kernel
             kernel_scale = self.kernel_scale
             if self.lora_enabled:
-                # Dequantize & quantize to merge lora weights into int8 kernel
-                # Note that this is a lossy compression
-                kernel_value = ops.divide(kernel_value, kernel_scale)
-                kernel_value = ops.add(
-                    kernel_value,
-                    (self.lora_alpha / self.lora_rank)
-                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
-                )
-                kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                    kernel_value, axis=0, to_numpy=True
-                )
-                kernel_scale = ops.squeeze(kernel_scale, axis=0)
+                # For int4, `_kernel` is stored in a packed representation
+                # (two int4 values per int8 byte). We need to unpack it to the
+                # original float representation before merging with the LoRA
+                # update, and then pack it again after requantization.
+                if self.quantization_mode == "int4":
+                    # 1) Unpack packed int4 tensor to int8 range [-8, 7].
+                    unpacked_kernel = self._unpack_int4_ops(
+                        kernel_value, self._orig_input_dim
+                    )
+                    # 2) De-scale to recover float32 kernel.
+                    kernel_value_fp = ops.divide(unpacked_kernel, kernel_scale)
+                    # 3) Merge LoRA delta in float32 domain.
+                    kernel_value_fp = ops.add(
+                        kernel_value_fp,
+                        (self.lora_alpha / self.lora_rank)
+                        * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    )
+                    # 4) Re-quantize to int4 (values still held in int8 dtype).
+                    kernel_int4, kernel_scale = quantizers.abs_max_quantize(
+                        kernel_value_fp,
+                        axis=0,
+                        value_range=(-8, 7),
+                        dtype="int8",
+                        to_numpy=True,
+                    )
+                    kernel_scale = ops.squeeze(kernel_scale, axis=0)
+                    # 5) Pack the int4 values back into the compact int8 layout.
+                    kernel_value, _, _ = self._pack_int4_ops(kernel_int4)
+                else:
+                    # int8 path (regular): unpacking not required.
+                    kernel_value = ops.divide(kernel_value, kernel_scale)
+                    kernel_value = ops.add(
+                        kernel_value,
+                        (self.lora_alpha / self.lora_rank)
+                        * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    )
+                    kernel_value, kernel_scale = quantizers.abs_max_quantize(
+                        kernel_value, axis=0, to_numpy=True
+                    )
+                    kernel_scale = ops.squeeze(kernel_scale, axis=0)
             return kernel_value, kernel_scale
         return self.kernel, None
+
+    def _pack_int4_ops(self, arr):
+        """Pack an int4 tensor into an int8 tensor with packed nibbles.
+
+        Accepts a Keras-compatible tensor. The input values must already be int8
+        in the signed range ``[-8, 7]`` and represent the desired int4 values.
+        Packing is performed along axis 0:
+
+        * For every two consecutive rows, the **low nibble** of the output byte
+          stores the value from the first row, and the **high nibble** stores
+          the value from the second row.
+
+        Returns a tuple ``(packed, packed_shape, orig_rows)`` where ``packed``
+        is the packed ``int8`` tensor, ``packed_shape`` is its shape, and
+        ``orig_rows`` is the original (unpacked) row count prior to any padding
+        that may have been inserted when an odd number of rows is supplied.
+        """
+        if arr.dtype != "int8":
+            raise TypeError("Expected int8 tensor for packing")
+
+        shape = ops.shape(arr)
+        rows, cols = shape[0], shape[1]
+
+        orig_rows = rows
+        if rows % 2 == 1:
+            padding_row = ops.zeros((1, cols), dtype="int8")
+            arr = ops.concatenate([arr, padding_row], axis=0)
+            rows += 1
+
+        # Map signed [-8,7] to unsigned 4-bit two's complement (0..15)
+        arr_u = ops.where(arr < 0, arr + 16, arr)
+        arr_u = ops.cast(arr_u, "uint8")
+        arr_u = ops.reshape(arr_u, (rows // 2, 2, cols))
+        low = arr_u[:, 0, :]
+        high = arr_u[:, 1, :]
+        packed = ops.bitwise_or(ops.left_shift(high, 4), low)
+        packed = ops.cast(packed, "int8")
+        return packed, ops.shape(packed), orig_rows
+
+    @staticmethod
+    def _unpack_int4_ops(packed, orig_rows):
+        """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
+        # Bitwise operations work element-wise.
+        low = ops.bitwise_and(packed, 0x0F)
+        high = ops.right_shift(packed, 4)
+        high = ops.bitwise_and(high, 0x0F)
+
+        def _to_signed(x):
+            return ops.where(x < 8, x, ops.subtract(x, 16))
+
+        low = _to_signed(low)
+        high = _to_signed(high)
+
+        # Interleave rows back: stacked shape (2, packed_rows, cols)
+        stacked = ops.stack([low, high], axis=1)  # (pairs, 2, cols)
+        unpacked_full = ops.reshape(stacked, (-1, stacked.shape[-1]))
+        # Remove potential padded row.
+        unpacked = unpacked_full[:orig_rows, :]
+        return unpacked
