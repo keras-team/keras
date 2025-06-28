@@ -188,6 +188,10 @@ class OpenVINOKerasTensor:
         first, other = align_operand_types(
             first, other, "OpenVINOKerasTensor::__mul__"
         )
+        if first.get_element_type() == Type.boolean:
+            return OpenVINOKerasTensor(
+                ov_opset.logical_and(first, other).output(0)
+            )
         return OpenVINOKerasTensor(ov_opset.multiply(first, other).output(0))
 
     def __rmul__(self, other):
@@ -196,6 +200,10 @@ class OpenVINOKerasTensor:
         first, other = align_operand_types(
             first, other, "OpenVINOKerasTensor::__rmul__"
         )
+        if first.get_element_type() == Type.boolean:
+            return OpenVINOKerasTensor(
+                ov_opset.logical_and(first, other).output(0)
+            )
         return OpenVINOKerasTensor(ov_opset.multiply(first, other).output(0))
 
     def __truediv__(self, other):
