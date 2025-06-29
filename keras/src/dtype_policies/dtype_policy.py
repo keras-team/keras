@@ -3,7 +3,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
-QUANTIZATION_MODES = ("int8", "float8")
+QUANTIZATION_MODES = ("int8", "float8", "int4")
 
 
 @keras_export(
@@ -350,7 +350,7 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
-    if policy.startswith("int8"):
+    if policy.startswith("int8") or policy.startswith("int4"):
         return QuantizedDTypePolicy(mode, source_name)
     elif policy.startswith("float8"):
         return QuantizedFloat8DTypePolicy(mode, source_name)

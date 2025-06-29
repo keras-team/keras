@@ -374,3 +374,94 @@ def quantize_and_dequantize(inputs, scale, quantized_dtype, compute_dtype):
     # Dequantize
     x = ops.multiply(ops.cast(x, compute_dtype), ops.cast(scale, compute_dtype))
     return x
+
+
+@keras_export("keras.quantizers.pack_int4")
+def pack_int4(arr, axis=0):
+    """Pack an int4 tensor into an int8 tensor with packed nibbles.
+
+    Accepts a Keras-compatible tensor. The input values must already be int8
+    in the signed range ``[-8, 7]`` and represent the desired int4 values.
+    Packing is performed along axis 0:
+
+    * For every two consecutive rows, the **low nibble** of the output byte
+      stores the value from the first row, and the **high nibble** stores
+      the value from the second row.
+
+    Returns a tuple ``(packed, packed_shape, orig_rows)`` where ``packed``
+    is the packed ``int8`` tensor, ``packed_shape`` is its shape, and
+    ``orig_rows`` is the original (unpacked) row count prior to any padding
+    that may have been inserted when an odd number of rows is supplied.
+    """
+    if arr.dtype != "int8":
+        raise TypeError("Expected int8 tensor for packing")
+
+    rank = arr.shape.rank
+    # 1. Bring `axis` to the front.
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(arr, perm)
+
+    # 2. Pad to even length.
+    rows = ops.shape(transposed)[0]
+    needs_pad = ops.equal(ops.mod(rows, 2), 1)
+
+    def _pad(x):
+        pad_shape = ops.concatenate(
+            [ops.array([1]), ops.array(ops.shape(x)[1:])], axis=0
+        )
+        pad_row = ops.zeros(pad_shape, dtype="int8")
+        return ops.concatenate([x, pad_row], axis=0)
+
+    transposed = ops.cond(
+        needs_pad, lambda: _pad(transposed), lambda: transposed
+    )
+    rows_padded = ops.shape(transposed)[0]
+
+    # 3-4. Group in pairs and pack.
+    flat_tail = ops.reshape(transposed, (rows_padded // 2, 2, -1))
+    low = flat_tail[:, 0, :]
+    high = flat_tail[:, 1, :]
+    low_u = ops.where(low < 0, low + 16, low)
+    high_u = ops.where(high < 0, high + 16, high)
+    packed_flat = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
+    packed_flat = ops.cast(packed_flat, "int8")
+
+    # 5-6. Restore shape.
+    packed = ops.reshape(
+        packed_flat,
+        ops.concatenate(
+            [
+                ops.expand_dims(rows_padded // 2, 0),
+                ops.array(ops.shape(transposed)[1:]),
+            ],
+            axis=0,
+        ),
+    )
+    packed = ops.transpose(packed, inv_perm)  # back to original order
+    orig_len = rows  # number of slices before padding
+    return packed, ops.shape(packed), orig_len
+
+
+@keras_export("keras.quantizers.unpack_int4")
+def unpack_int4(packed, orig_len, axis=0):
+    """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
+    rank = packed.shape.rank
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(packed, perm)
+
+    # 1. Split nibbles.
+    low = ops.bitwise_and(transposed, 0x0F)
+    high = ops.bitwise_and(ops.right_shift(transposed, 4), 0x0F)
+    to_signed = lambda x: ops.where(x < 8, x, x - 16)
+    low = to_signed(low)
+    high = to_signed(high)
+
+    # 2. Interleave.
+    stacked = ops.stack([low, high], axis=1)  # (pairs, 2, …)
+    unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(transposed)[1:]))
+
+    # 3. Remove possible padding and restore layout.
+    unpacked = unpacked[:orig_len, ...]
+    return ops.transpose(unpacked, inv_perm)
