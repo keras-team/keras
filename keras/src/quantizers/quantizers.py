@@ -377,7 +377,7 @@ def quantize_and_dequantize(inputs, scale, quantized_dtype, compute_dtype):
 
 
 @keras_export("keras.quantizers.pack_int4")
-def pack_int4(arr):
+def pack_int4(arr, axis=0):
     """Pack an int4 tensor into an int8 tensor with packed nibbles.
 
     Accepts a Keras-compatible tensor. The input values must already be int8
@@ -396,43 +396,72 @@ def pack_int4(arr):
     if arr.dtype != "int8":
         raise TypeError("Expected int8 tensor for packing")
 
-    shape = ops.shape(arr)
-    rows, cols = shape[0], shape[1]
+    rank = arr.shape.rank
+    # 1. Bring `axis` to the front.
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(arr, perm)
 
-    orig_rows = rows
-    if rows % 2 == 1:
-        padding_row = ops.zeros((1, cols), dtype="int8")
-        arr = ops.concatenate([arr, padding_row], axis=0)
-        rows += 1
+    # 2. Pad to even length.
+    rows = ops.shape(transposed)[0]
+    needs_pad = ops.equal(ops.mod(rows, 2), 1)
 
-    # Map signed [-8,7] to unsigned 4-bit two's complement (0..15)
-    arr_u = ops.where(arr < 0, arr + 16, arr)
-    arr_u = ops.cast(arr_u, "uint8")
-    arr_u = ops.reshape(arr_u, (rows // 2, 2, cols))
-    low = arr_u[:, 0, :]
-    high = arr_u[:, 1, :]
-    packed = ops.bitwise_or(ops.left_shift(high, 4), low)
-    packed = ops.cast(packed, "int8")
-    return packed, ops.shape(packed), orig_rows
+    def _pad(x):
+        pad_shape = ops.concatenate(
+            [ops.array([1]), ops.array(ops.shape(x)[1:])], axis=0
+        )
+        pad_row = ops.zeros(pad_shape, dtype="int8")
+        return ops.concatenate([x, pad_row], axis=0)
+
+    transposed = ops.cond(
+        needs_pad, lambda: _pad(transposed), lambda: transposed
+    )
+    rows_padded = ops.shape(transposed)[0]
+
+    # 3-4. Group in pairs and pack.
+    flat_tail = ops.reshape(transposed, (rows_padded // 2, 2, -1))
+    low = flat_tail[:, 0, :]
+    high = flat_tail[:, 1, :]
+    low_u = ops.where(low < 0, low + 16, low)
+    high_u = ops.where(high < 0, high + 16, high)
+    packed_flat = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
+    packed_flat = ops.cast(packed_flat, "int8")
+
+    # 5-6. Restore shape.
+    packed = ops.reshape(
+        packed_flat,
+        ops.concatenate(
+            [
+                ops.expand_dims(rows_padded // 2, 0),
+                ops.array(ops.shape(transposed)[1:]),
+            ],
+            axis=0,
+        ),
+    )
+    packed = ops.transpose(packed, inv_perm)  # back to original order
+    orig_len = rows  # number of slices before padding
+    return packed, ops.shape(packed), orig_len
 
 
 @keras_export("keras.quantizers.unpack_int4")
-def unpack_int4(packed, orig_rows):
+def unpack_int4(packed, orig_len, axis=0):
     """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
-    # Bitwise operations work element-wise.
-    low = ops.bitwise_and(packed, 0x0F)
-    high = ops.right_shift(packed, 4)
-    high = ops.bitwise_and(high, 0x0F)
+    rank = packed.shape.rank
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(packed, perm)
 
-    def _to_signed(x):
-        return ops.where(x < 8, x, ops.subtract(x, 16))
+    # 1. Split nibbles.
+    low = ops.bitwise_and(transposed, 0x0F)
+    high = ops.bitwise_and(ops.right_shift(transposed, 4), 0x0F)
+    to_signed = lambda x: ops.where(x < 8, x, x - 16)
+    low = to_signed(low)
+    high = to_signed(high)
 
-    low = _to_signed(low)
-    high = _to_signed(high)
+    # 2. Interleave.
+    stacked = ops.stack([low, high], axis=1)  # (pairs, 2, …)
+    unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(transposed)[1:]))
 
-    # Interleave rows back: stacked shape (2, packed_rows, cols)
-    stacked = ops.stack([low, high], axis=1)  # (pairs, 2, cols)
-    unpacked_full = ops.reshape(stacked, (-1, stacked.shape[-1]))
-    # Remove potential padded row.
-    unpacked = unpacked_full[:orig_rows, :]
-    return unpacked
+    # 3. Remove possible padding and restore layout.
+    unpacked = unpacked[:orig_len, ...]
+    return ops.transpose(unpacked, inv_perm)
