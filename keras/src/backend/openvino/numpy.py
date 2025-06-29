@@ -1291,7 +1291,76 @@ def reciprocal(x):
 
 
 def repeat(x, repeats, axis=None):
-    raise NotImplementedError("`repeat` is not supported with openvino backend")
+    x = get_ov_output(x)
+
+    if axis is not None and axis < 0:
+        axis += len(x.get_partial_shape())
+
+    if axis is None:
+        x = ov_opset.reshape(
+            x, ov_opset.constant([-1], Type.i32), special_zero=False
+        ).output(0)
+        axis = 0
+
+    if isinstance(repeats, (int, np.integer)) or (
+        isinstance(repeats, np.ndarray)
+        and repeats.ndim == 1
+        and repeats.size == 1
+    ):
+        repeats_val = (
+            int(repeats) if isinstance(repeats, np.ndarray) else repeats
+        )
+        input_shape = ov_opset.shape_of(x, Type.i32).output(0)
+        dim_len = ov_opset.gather(
+            input_shape,
+            ov_opset.constant([axis], Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+        dim_len = ov_opset.squeeze(
+            dim_len, ov_opset.constant([0], Type.i32)
+        ).output(0)
+        idx_range = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            dim_len,
+            ov_opset.constant(1, Type.i32),
+            output_type=Type.i32,
+        ).output(0)
+        idx_range = ov_opset.unsqueeze(
+            idx_range, ov_opset.constant([1], Type.i32)
+        ).output(0)
+        tiled = ov_opset.tile(
+            idx_range, ov_opset.constant([1, repeats_val], Type.i32)
+        ).output(0)
+        idx = ov_opset.reshape(
+            tiled, ov_opset.constant([-1], Type.i32), special_zero=False
+        ).output(0)
+        result = ov_opset.gather(
+            x, idx, ov_opset.constant(axis, Type.i32)
+        ).output(0)
+        return OpenVINOKerasTensor(result)
+
+    repeats_np = np.array(repeats)
+    input_shape = ov_opset.shape_of(x, Type.i32).output(0)
+
+    # Only check if shape is static
+    axis_len_static = x.get_partial_shape()[axis]
+    if axis_len_static.is_static and axis_len_static.get_length() != len(
+        repeats_np
+    ):
+        raise ValueError("repeats length does not match axis length")
+
+    gather_indices = np.concatenate(
+        [
+            np.full(r, i, dtype=np.int32)
+            for i, r in enumerate(repeats_np)
+            if r > 0
+        ]
+    )
+    gather_indices_ov = ov_opset.constant(gather_indices, Type.i32).output(0)
+    result = ov_opset.gather(
+        x, gather_indices_ov, ov_opset.constant(axis, Type.i32)
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def reshape(x, newshape):
