@@ -297,11 +297,19 @@ class Distribution:
 
     Args:
         device_mesh: A `DeviceMesh` instance.
+        batch_dim_name: Optional string name for the batch dimension.
+            Defaults to None.
+        auto_shard_dataset: Automatically shard the dataset amongst
+            processes in a multi-process setting. Set to `False` if the dataset
+            is already sharded across hosts.  Defaults to `True`.
     """
 
-    def __init__(self, device_mesh, batch_dim_name=None):
+    def __init__(
+        self, device_mesh, batch_dim_name=None, auto_shard_dataset=True
+    ):
         self._device_mesh = device_mesh
         self._batch_dim_name = batch_dim_name
+        self._auto_shard_dataset = auto_shard_dataset
 
     def get_data_layout(self, data_shape):
         """Retrieve the `TensorLayout` for the input data.
@@ -358,16 +366,28 @@ class Distribution:
     def batch_dim_name(self):
         return self._batch_dim_name
 
+    @property
+    def auto_shard_dataset(self):
+        return self._auto_shard_dataset
+
+    @auto_shard_dataset.setter
+    def auto_shard_dataset(self, auto_shard_dataset):
+        self._auto_shard_dataset = auto_shard_dataset
+
     def distribute_dataset(self, dataset):
-        """Create a distributed dataset instance from the original user dataset.
+        """Create a distributed dataset from the original global dataset.
 
         Args:
-            dataset: the original global dataset instance. Only
-            `tf.data.Dataset` is supported at the moment.
+            dataset: the original global dataset instance.
 
         Returns:
-            a sharded `tf.data.Dataset` instance, which will produce data for
-            the current local worker/process.
+            If `auto_shard_dataset` is `True`, returns a sharded dataset that
+            only produces data for the current local worker/process.  Otherwise,
+            returns the original dataset.
+
+        Raises:
+            ValueError: if auto-sharding is requested in a multi-process
+            setting, but the dataset type is not supported.
         """
         raise NotImplementedError()
 
@@ -400,31 +420,33 @@ class DataParallel(Distribution):
     Args:
         device_mesh: Optional `DeviceMesh` instance.
         devices: Optional list of devices.
-        auto_shard_dataset: Automatically shard the dataset amongst processes.
-            Defaults to true.
+        auto_shard_dataset: Automatically shard the dataset amongst
+            processes in a multi-process setting. Set to `False` if the dataset
+            is already sharded across hosts.  Defaults to `True`.
     """
 
     def __init__(self, device_mesh=None, devices=None, auto_shard_dataset=True):
         if device_mesh:
-            self._initialize_with_device_mesh(device_mesh)
+            self._initialize_with_device_mesh(device_mesh, auto_shard_dataset)
         elif devices:
-            self._initialize_mesh_from_devices(devices)
+            self._initialize_mesh_from_devices(devices, auto_shard_dataset)
         else:
-            self._initialize_mesh_from_list_devices()
+            self._initialize_mesh_from_list_devices(auto_shard_dataset)
 
         # Those following attributes might get convert to public methods.
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
         self._is_multi_process = self._num_process > 1
-        self._auto_shard_dataset = auto_shard_dataset
 
-    def _initialize_with_device_mesh(self, device_mesh):
+    def _initialize_with_device_mesh(self, device_mesh, auto_shard_dataset):
         if not isinstance(device_mesh, DeviceMesh):
             raise ValueError(
                 "Expect `mesh` to be an instance of `DeviceMesh`. "
                 f"Received: mesh={device_mesh} (of type {type(device_mesh)})"
             )
-        super().__init__(device_mesh, device_mesh.axis_names[0])
+        super().__init__(
+            device_mesh, device_mesh.axis_names[0], auto_shard_dataset
+        )
         if self.device_mesh.devices.ndim != 1:
             warnings.warn(
                 "Expect the input mesh to be 1D, but received "
@@ -433,23 +455,27 @@ class DataParallel(Distribution):
                 device_mesh.devices.ndim,
             )
 
-    def _initialize_mesh_from_devices(self, devices):
+    def _initialize_mesh_from_devices(self, devices, auto_shard_dataset):
         devices = np.array(devices)
         device_mesh = DeviceMesh(
             shape=devices.shape,
             axis_names=[DEFAULT_BATCH_DIM_NAME],
             devices=devices,
         )
-        super().__init__(device_mesh, DEFAULT_BATCH_DIM_NAME)
+        super().__init__(
+            device_mesh, DEFAULT_BATCH_DIM_NAME, auto_shard_dataset
+        )
 
-    def _initialize_mesh_from_list_devices(self):
+    def _initialize_mesh_from_list_devices(self, auto_shard_dataset):
         devices = np.array(list_devices())
         device_mesh = DeviceMesh(
             shape=devices.shape,
             axis_names=[DEFAULT_BATCH_DIM_NAME],
             devices=devices,
         )
-        super().__init__(device_mesh, DEFAULT_BATCH_DIM_NAME)
+        super().__init__(
+            device_mesh, DEFAULT_BATCH_DIM_NAME, auto_shard_dataset
+        )
 
     def get_data_layout(self, data_shape):
         data_shard_spec = [None] * len(data_shape)
@@ -469,19 +495,21 @@ class DataParallel(Distribution):
         return None
 
     def distribute_dataset(self, dataset):
+        if not self._is_multi_process or not self.auto_shard_dataset:
+            return dataset
+
+        # Try to distribute a global tf.data.Dataset.
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        if not tf.available or not isinstance(dataset, tf.data.Dataset):
+            raise ValueError(
+                "Only `tf.data.Dataset` is supported for auto-sharding, "
+                f"got {type(dataset)}"
+            )
+
         from tensorflow.python.data.experimental.ops import (
             distribute as tf_data_distribute,
         )
-
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        if not isinstance(dataset, tf.data.Dataset):
-            raise ValueError(
-                "Only `tf.data.Dataset` is supported for "
-                f"sharding, got {type(dataset)}"
-            )
-        if not self._is_multi_process or not self._auto_shard_dataset:
-            return dataset
 
         batch_size = tf_data_distribute.compute_batch_size(dataset)
         if batch_size.numpy() < 0:
@@ -587,9 +615,19 @@ class ModelParallel(Distribution):
             (of the `layout_map` object)
             that will be used to distribute data. If unspecified, the
             first axis from the device mesh will be used.
+        auto_shard_dataset: Automatically shard the dataset amongst
+            processes in a multi-process setting. Set to `False` if the dataset
+            is already sharded across hosts.  Defaults to `True`.
     """
 
-    def __init__(self, *, layout_map=None, batch_dim_name=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        layout_map=None,
+        batch_dim_name=None,
+        auto_shard_dataset=True,
+        **kwargs,
+    ):
         kwargs.pop("device_mesh", None)
         if layout_map is None:
             raise ValueError("You must specify a layout_map argument.")
@@ -599,9 +637,9 @@ class ModelParallel(Distribution):
                 f"Received: layout_map={layout_map}"
             )
         device_mesh = layout_map.device_mesh
-        super().__init__(device_mesh)
+        batch_dim_name = batch_dim_name or device_mesh.axis_names[0]
+        super().__init__(device_mesh, batch_dim_name, auto_shard_dataset)
         self._layout_map = layout_map
-        self._batch_dim_name = batch_dim_name or self.device_mesh.axis_names[0]
 
         # Those following attributes might get convert to public methods.
         self._num_process = distribution_lib.num_processes()
@@ -628,19 +666,21 @@ class ModelParallel(Distribution):
         return self._layout_map[path]
 
     def distribute_dataset(self, dataset):
+        if not self._is_multi_process or not self.auto_shard_dataset:
+            return dataset
+
+        # Try to distribute a global tf.data.Dataset.
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        if not tf.available or not isinstance(dataset, tf.data.Dataset):
+            raise ValueError(
+                "Only `tf.data.Dataset` is supported for auto-sharding, "
+                f"got {type(dataset)}"
+            )
+
         from tensorflow.python.data.experimental.ops import (
             distribute as tf_data_distribute,
         )
-
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        if not isinstance(dataset, tf.data.Dataset):
-            raise ValueError(
-                "Only `tf.data.Dataset` is supported for "
-                f"sharding, got {type(dataset)}"
-            )
-        if not self._is_multi_process:
-            return dataset
 
         global_batch_size = tf_data_distribute.compute_batch_size(dataset)
         if global_batch_size.numpy() < 0:
