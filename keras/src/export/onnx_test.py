@@ -45,6 +45,28 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
         return models.Model(inputs=input, outputs=output)
     elif type == "subclass":
         return CustomModel(layer_list)
+    elif type == "lstm":
+        # https://github.com/keras-team/keras/issues/21390
+        inputs = layers.Input((4, 10))
+        x = layers.Bidirectional(
+            layers.LSTM(
+                10,
+                kernel_initializer="he_normal",
+                return_sequences=True,
+                kernel_regularizer=None,
+            ),
+            merge_mode="sum",
+        )(inputs)
+        outputs = layers.Bidirectional(
+            layers.LSTM(
+                10,
+                kernel_initializer="he_normal",
+                return_sequences=True,
+                kernel_regularizer=None,
+            ),
+            merge_mode="concat",
+        )(x)
+        return models.Model(inputs=inputs, outputs=outputs)
 
 
 @pytest.mark.skipif(
@@ -57,13 +79,19 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 @pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
 class ExportONNXTest(testing.TestCase):
     @parameterized.named_parameters(
-        named_product(model_type=["sequential", "functional", "subclass"])
+        named_product(
+            model_type=["sequential", "functional", "subclass", "lstm"]
+        )
     )
     def test_standard_model_export(self, model_type):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
         batch_size = 3 if backend.backend() != "torch" else 1
-        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        if model_type == "lstm":
+            ref_input = np.random.normal(size=(batch_size, 4, 10))
+        else:
+            ref_input = np.random.normal(size=(batch_size, 10))
+        ref_input = ref_input.astype("float32")
         ref_output = model(ref_input)
 
         onnx.export_onnx(model, temp_filepath)
