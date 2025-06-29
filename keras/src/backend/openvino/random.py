@@ -39,9 +39,36 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
-    raise NotImplementedError(
-        "`categorical` is not supported with openvino backend"
+    if isinstance(logits, OpenVINOKerasTensor):
+        logits = convert_to_numpy(logits)
+    assert isinstance(logits, np.ndarray), (
+        "logits must be a numpy array or an OpenVINOKerasTensor, "
+        "got: {}".format(type(logits))
     )
+    # Compute probabilities
+    probs = np.exp(logits - np.max(logits, axis=-1, keepdims=True))
+    probs = probs / np.sum(probs, axis=-1, keepdims=True)
+    rng = np.random.default_rng(draw_seed(seed).data)
+    # Batched sampling
+    if probs.ndim == 1:
+        samples = rng.choice(
+            logits.shape[-1],
+            size=(num_samples,),
+            p=probs,
+            replace=True,
+        )
+        samples = samples[None, :]  # Add batch dim for consistency
+    else:
+        samples = np.empty((probs.shape[0], num_samples), dtype=dtype)
+        for i in range(probs.shape[0]):
+            samples[i] = rng.choice(
+                logits.shape[-1],
+                size=(num_samples,),
+                p=probs[i],
+                replace=True,
+            )
+    samples = samples.astype(dtype)
+    return OpenVINOKerasTensor(ov_opset.constant(samples).output(0))
 
 
 def randint(shape, minval, maxval, dtype="int32", seed=None):
