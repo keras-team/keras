@@ -374,3 +374,65 @@ def quantize_and_dequantize(inputs, scale, quantized_dtype, compute_dtype):
     # Dequantize
     x = ops.multiply(ops.cast(x, compute_dtype), ops.cast(scale, compute_dtype))
     return x
+
+
+@keras_export("keras.quantizers.pack_int4")
+def pack_int4(arr):
+    """Pack an int4 tensor into an int8 tensor with packed nibbles.
+
+    Accepts a Keras-compatible tensor. The input values must already be int8
+    in the signed range ``[-8, 7]`` and represent the desired int4 values.
+    Packing is performed along axis 0:
+
+    * For every two consecutive rows, the **low nibble** of the output byte
+      stores the value from the first row, and the **high nibble** stores
+      the value from the second row.
+
+    Returns a tuple ``(packed, packed_shape, orig_rows)`` where ``packed``
+    is the packed ``int8`` tensor, ``packed_shape`` is its shape, and
+    ``orig_rows`` is the original (unpacked) row count prior to any padding
+    that may have been inserted when an odd number of rows is supplied.
+    """
+    if arr.dtype != "int8":
+        raise TypeError("Expected int8 tensor for packing")
+
+    shape = ops.shape(arr)
+    rows, cols = shape[0], shape[1]
+
+    orig_rows = rows
+    if rows % 2 == 1:
+        padding_row = ops.zeros((1, cols), dtype="int8")
+        arr = ops.concatenate([arr, padding_row], axis=0)
+        rows += 1
+
+    # Map signed [-8,7] to unsigned 4-bit two's complement (0..15)
+    arr_u = ops.where(arr < 0, arr + 16, arr)
+    arr_u = ops.cast(arr_u, "uint8")
+    arr_u = ops.reshape(arr_u, (rows // 2, 2, cols))
+    low = arr_u[:, 0, :]
+    high = arr_u[:, 1, :]
+    packed = ops.bitwise_or(ops.left_shift(high, 4), low)
+    packed = ops.cast(packed, "int8")
+    return packed, ops.shape(packed), orig_rows
+
+
+@keras_export("keras.quantizers.unpack_int4")
+def unpack_int4(packed, orig_rows):
+    """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
+    # Bitwise operations work element-wise.
+    low = ops.bitwise_and(packed, 0x0F)
+    high = ops.right_shift(packed, 4)
+    high = ops.bitwise_and(high, 0x0F)
+
+    def _to_signed(x):
+        return ops.where(x < 8, x, ops.subtract(x, 16))
+
+    low = _to_signed(low)
+    high = _to_signed(high)
+
+    # Interleave rows back: stacked shape (2, packed_rows, cols)
+    stacked = ops.stack([low, high], axis=1)  # (pairs, 2, cols)
+    unpacked_full = ops.reshape(stacked, (-1, stacked.shape[-1]))
+    # Remove potential padded row.
+    unpacked = unpacked_full[:orig_rows, :]
+    return unpacked

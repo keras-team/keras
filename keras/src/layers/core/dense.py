@@ -467,7 +467,7 @@ class Dense(Layer):
 
         @ops.custom_gradient
         def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
-            unpacked_kernel = self._unpack_int4_ops(
+            unpacked_kernel = quantizers.unpack_int4(
                 kernel, self._orig_input_dim
             )
 
@@ -623,7 +623,7 @@ class Dense(Layer):
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             # 2. Pack two int4 values into a single int8 byte.
-            packed_kernel_value, packed_shape, orig_rows = self._pack_int4_ops(
+            packed_kernel_value, _, orig_rows = quantizers.pack_int4(
                 kernel_value_int4
             )
             del self._kernel
@@ -658,7 +658,7 @@ class Dense(Layer):
                 # update, and then pack it again after requantization.
                 if self.quantization_mode == "int4":
                     # 1) Unpack packed int4 tensor to int8 range [-8, 7].
-                    unpacked_kernel = self._unpack_int4_ops(
+                    unpacked_kernel = quantizers.unpack_int4(
                         kernel_value, self._orig_input_dim
                     )
                     # 2) De-scale to recover float32 kernel.
@@ -679,7 +679,7 @@ class Dense(Layer):
                     )
                     kernel_scale = ops.squeeze(kernel_scale, axis=0)
                     # 5) Pack the int4 values back into the compact int8 layout.
-                    kernel_value, _, _ = self._pack_int4_ops(kernel_int4)
+                    kernel_value, _, _ = quantizers.pack_int4(kernel_int4)
                 else:
                     # int8 path (regular): unpacking not required.
                     kernel_value = ops.divide(kernel_value, kernel_scale)
@@ -694,62 +694,3 @@ class Dense(Layer):
                     kernel_scale = ops.squeeze(kernel_scale, axis=0)
             return kernel_value, kernel_scale
         return self.kernel, None
-
-    def _pack_int4_ops(self, arr):
-        """Pack an int4 tensor into an int8 tensor with packed nibbles.
-
-        Accepts a Keras-compatible tensor. The input values must already be int8
-        in the signed range ``[-8, 7]`` and represent the desired int4 values.
-        Packing is performed along axis 0:
-
-        * For every two consecutive rows, the **low nibble** of the output byte
-          stores the value from the first row, and the **high nibble** stores
-          the value from the second row.
-
-        Returns a tuple ``(packed, packed_shape, orig_rows)`` where ``packed``
-        is the packed ``int8`` tensor, ``packed_shape`` is its shape, and
-        ``orig_rows`` is the original (unpacked) row count prior to any padding
-        that may have been inserted when an odd number of rows is supplied.
-        """
-        if arr.dtype != "int8":
-            raise TypeError("Expected int8 tensor for packing")
-
-        shape = ops.shape(arr)
-        rows, cols = shape[0], shape[1]
-
-        orig_rows = rows
-        if rows % 2 == 1:
-            padding_row = ops.zeros((1, cols), dtype="int8")
-            arr = ops.concatenate([arr, padding_row], axis=0)
-            rows += 1
-
-        # Map signed [-8,7] to unsigned 4-bit two's complement (0..15)
-        arr_u = ops.where(arr < 0, arr + 16, arr)
-        arr_u = ops.cast(arr_u, "uint8")
-        arr_u = ops.reshape(arr_u, (rows // 2, 2, cols))
-        low = arr_u[:, 0, :]
-        high = arr_u[:, 1, :]
-        packed = ops.bitwise_or(ops.left_shift(high, 4), low)
-        packed = ops.cast(packed, "int8")
-        return packed, ops.shape(packed), orig_rows
-
-    @staticmethod
-    def _unpack_int4_ops(packed, orig_rows):
-        """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
-        # Bitwise operations work element-wise.
-        low = ops.bitwise_and(packed, 0x0F)
-        high = ops.right_shift(packed, 4)
-        high = ops.bitwise_and(high, 0x0F)
-
-        def _to_signed(x):
-            return ops.where(x < 8, x, ops.subtract(x, 16))
-
-        low = _to_signed(low)
-        high = _to_signed(high)
-
-        # Interleave rows back: stacked shape (2, packed_rows, cols)
-        stacked = ops.stack([low, high], axis=1)  # (pairs, 2, cols)
-        unpacked_full = ops.reshape(stacked, (-1, stacked.shape[-1]))
-        # Remove potential padded row.
-        unpacked = unpacked_full[:orig_rows, :]
-        return unpacked
