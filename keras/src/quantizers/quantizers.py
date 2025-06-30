@@ -411,37 +411,20 @@ def pack_int4(arr, axis=0):
     needs_pad = ops.equal(ops.mod(rows, 2), 1)
 
     def _pad(x):
-        pad_shape = ops.concatenate(
-            [ops.array([1]), ops.array(ops.shape(x)[1:])], axis=0
-        )
-        pad_row = ops.zeros(pad_shape, dtype="int8")
+        pad_row = ops.zeros_like(x[0:1])
         return ops.concatenate([x, pad_row], axis=0)
 
-    transposed = ops.cond(
-        needs_pad, lambda: _pad(transposed), lambda: transposed
-    )
-    rows_padded = ops.shape(transposed)[0]
+    padded = ops.cond(needs_pad, lambda: _pad(transposed), lambda: transposed)
 
     # 3-4. Group in pairs and pack.
-    flat_tail = ops.reshape(transposed, (rows_padded // 2, 2, -1))
-    low = flat_tail[:, 0, :]
-    high = flat_tail[:, 1, :]
+    low = padded[::2, ...]
+    high = padded[1::2, ...]
     low_u = ops.where(low < 0, low + 16, low)
     high_u = ops.where(high < 0, high + 16, high)
-    packed_flat = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
-    packed_flat = ops.cast(packed_flat, "int8")
+    packed = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
+    packed = ops.cast(packed, "int8")
 
     # 5-6. Restore shape.
-    packed = ops.reshape(
-        packed_flat,
-        ops.concatenate(
-            [
-                ops.expand_dims(rows_padded // 2, 0),
-                ops.array(ops.shape(transposed)[1:]),
-            ],
-            axis=0,
-        ),
-    )
     packed = ops.transpose(packed, inv_perm)  # back to original order
     orig_len = rows  # number of slices before padding
     return packed, ops.shape(packed), orig_len
