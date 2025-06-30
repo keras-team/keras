@@ -396,7 +396,9 @@ def pack_int4(arr, axis=0):
     if arr.dtype != "int8":
         raise TypeError("Expected int8 tensor for packing")
 
-    rank = arr.shape.rank
+    rank = getattr(arr.shape, "rank", None)
+    if rank is None:
+        rank = len(arr.shape)
     # 1. Bring `axis` to the front.
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
@@ -446,7 +448,9 @@ def pack_int4(arr, axis=0):
 @keras_export("keras.quantizers.unpack_int4")
 def unpack_int4(packed, orig_len, axis=0):
     """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
-    rank = packed.shape.rank
+    rank = getattr(packed.shape, "rank", None)
+    if rank is None:
+        rank = len(packed.shape)
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
     transposed = ops.transpose(packed, perm)
