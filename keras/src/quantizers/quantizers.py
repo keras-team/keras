@@ -410,11 +410,18 @@ def pack_int4(arr, axis=0):
     rows = ops.shape(transposed)[0]
     needs_pad = ops.equal(ops.mod(rows, 2), 1)
 
-    def _pad(x):
-        pad_row = ops.zeros_like(x[0:1])
-        return ops.concatenate([x, pad_row], axis=0)
+    # Always append one zero row so the tensor shape is static for JAX. If no
+    # padding is actually needed, we'll slice it away later.
+    zero_row = transposed[:1, ...] * 0  # same dtype/shape (1, …)
+    padded_full = ops.concatenate([transposed, zero_row], axis=0)
 
-    padded = ops.cond(needs_pad, lambda: _pad(transposed), lambda: transposed)
+    # Number of valid rows after (possible) padding:
+    # rows + (1 if needs_pad else 0)
+    rows_packed = rows + ops.cast(needs_pad, "int32")
+
+    # Slice to keep only the valid rows. This keeps the shape rank static while
+    # allowing the row count to be dynamic.
+    padded = padded_full[:rows_packed, ...]
 
     # 3-4. Group in pairs and pack.
     low = padded[::2, ...]
