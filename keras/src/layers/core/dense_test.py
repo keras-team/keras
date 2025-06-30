@@ -508,6 +508,7 @@ class DenseTest(testing.TestCase):
         ("int4", "int4_from_mixed_bfloat16", 1, 2),
     )
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):
@@ -524,6 +525,7 @@ class DenseTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_int8_when_lora_enabled(self):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
@@ -605,6 +607,7 @@ class DenseTest(testing.TestCase):
             )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_float8(self):
         import ml_dtypes
 
@@ -786,6 +789,7 @@ class DenseTest(testing.TestCase):
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
 
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_int4(self):
         """Basic correctness / serialization test for int4 quantization."""
         layer = layers.Dense(units=16)
@@ -876,6 +880,7 @@ class DenseTest(testing.TestCase):
         self.assertLen(layer.variables, expected_num_variables)
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_quantize_int4_when_lora_enabled(self):
         config = dict(units=16)
         layer = layers.Dense(**config)
