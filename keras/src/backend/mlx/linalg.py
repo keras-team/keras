@@ -35,8 +35,9 @@ def det(a):
 
 
 def eig(a):
-    # Using numpy for now, as mlx does not support eig yet.
-    return np.linalg.eig(a)
+    with mx.stream(mx.cpu):
+        # This op is not yet supported on the GPU.
+        return mx.linalg.eig(a)
 
 
 def eigh(a):

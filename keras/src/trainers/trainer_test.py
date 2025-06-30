@@ -627,9 +627,12 @@ class TestTrainer(testing.TestCase):
     ):
         if (
             dataset_kwargs.get("use_multiprocessing", False)
-            and backend.backend() == "jax"
+            and backend.backend() in ["jax", "mlx"]  # mlx fails on Linux only
         ):
-            pytest.skip("Multiprocessing not supported with JAX backend")
+            pytest.skip(
+                "Multiprocessing not supported with JAX backend "
+                "nor on MLX backend on Linux."
+            )
 
         model = ExampleModel(units=3)
         optimizer = optimizers.Adagrad()
