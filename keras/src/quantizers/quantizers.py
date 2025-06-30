@@ -393,8 +393,10 @@ def pack_int4(arr, axis=0):
     ``orig_rows`` is the original (unpacked) row count prior to any padding
     that may have been inserted when an odd number of rows is supplied.
     """
-    if arr.dtype != "int8":
-        raise TypeError("Expected int8 tensor for packing")
+    if backend.standardize_dtype(arr.dtype) != "int8":
+        raise TypeError(
+            "Expected int8 tensor for packing, got {}".format(arr.dtype)
+        )
 
     rank = getattr(arr.shape, "rank", None)
     if rank is None:
@@ -448,6 +450,11 @@ def pack_int4(arr, axis=0):
 @keras_export("keras.quantizers.unpack_int4")
 def unpack_int4(packed, orig_len, axis=0):
     """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
+    if backend.standardize_dtype(packed.dtype) != "int8":
+        raise TypeError(
+            "Expected int8 tensor for unpacking, got {}".format(packed.dtype)
+        )
+
     rank = getattr(packed.shape, "rank", None)
     if rank is None:
         rank = len(packed.shape)
