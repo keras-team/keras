@@ -627,8 +627,6 @@ class Dense(Layer):
                 kernel_value_int4
             )
             del self._kernel
-            # Save original input dim for unpacking.
-            self._orig_input_dim = orig_rows
             # Build variables using the original kernel shape; _int4_build will
             # compute the packed shape internally.
             self.quantized_build(kernel_shape, mode)
