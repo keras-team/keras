@@ -6,7 +6,7 @@ tf2onnx
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0;sys_platform != 'darwin'
+torch==2.7.1+cpu;sys_platform != 'darwin'
 torch==2.6.0;sys_platform == 'darwin'
 torch-xla==2.6.0;sys_platform != 'darwin'
 
