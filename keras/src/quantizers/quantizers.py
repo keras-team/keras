@@ -398,9 +398,8 @@ def pack_int4(arr, axis=0):
             "Expected int8 tensor for packing, got {}".format(arr.dtype)
         )
 
-    rank = getattr(arr.shape, "rank", None)
-    if rank is None:
-        rank = len(arr.shape)
+    rank = getattr(arr.shape, "rank", None) or len(arr.shape)
+
     # 1. Bring `axis` to the front.
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
@@ -445,9 +444,7 @@ def unpack_int4(packed, orig_len, axis=0):
             "Expected int8 tensor for unpacking, got {}".format(packed.dtype)
         )
 
-    rank = getattr(packed.shape, "rank", None)
-    if rank is None:
-        rank = len(packed.shape)
+    rank = getattr(packed.shape, "rank", None) or len(packed.shape)
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
     transposed = ops.transpose(packed, perm)
