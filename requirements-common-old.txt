@@ -1,23 +1,23 @@
 pre-commit
-#namex>=0.0.8
+namex>=0.0.8
 ruff
 pytest
-#numpy
+numpy
 scipy
 scikit-learn
 pillow
 pandas
-#absl-py
-#requests
-#h5py
-#ml-dtypes
-#protobuf
+absl-py
+requests
+h5py
+ml-dtypes
+protobuf
 tensorboard-plugin-profile
-#rich
+rich
 build
-#optree
+optree
 pytest-cov
-#packaging
+packaging
 # for tree_test.py
 dm_tree
 coverage!=7.6.5  # 7.6.5 breaks CI
