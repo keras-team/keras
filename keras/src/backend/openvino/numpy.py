@@ -1442,9 +1442,74 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
-    raise NotImplementedError(
-        "`take_along_axis` is not supported with openvino backend"
+    x = get_ov_output(x)
+    indices = get_ov_output(indices)
+
+    if axis is None:
+        target_shape = ov_opset.constant([-1], dtype=Type.i32).output(0)
+        x_flat = ov_opset.reshape(x, target_shape, False).output(0)
+        indices_flat = ov_opset.reshape(indices, target_shape, False).output(0)
+        result = ov_opset.gather_elements(x_flat, indices_flat, 0).output(0)
+        return OpenVINOKerasTensor(result)
+
+    x_rank = len(x.get_partial_shape())
+    if axis < 0:
+        axis += x_rank
+
+    x_shape = ov_opset.shape_of(x, Type.i32).output(0)
+    indices_shape = ov_opset.shape_of(indices, Type.i32).output(0)
+
+    zero_const = ov_opset.constant(0, dtype=Type.i32).output(0)
+    axis_index = ov_opset.constant([axis], dtype=Type.i32).output(0)
+
+    # Fix negative indices
+    dim_size = ov_opset.squeeze(
+        ov_opset.gather(x_shape, axis_index, zero_const).output(0), zero_const
+    ).output(0)
+    zero_scalar = ov_opset.constant(0, indices.get_element_type()).output(0)
+    is_neg = ov_opset.less(indices, zero_scalar).output(0)
+    dim_size_cast = ov_opset.convert(
+        dim_size, indices.get_element_type()
+    ).output(0)
+    indices = ov_opset.select(
+        is_neg, ov_opset.add(indices, dim_size_cast).output(0), indices
+    ).output(0)
+    indices = ov_opset.convert(indices, Type.i32).output(0)
+
+    x_target_parts, indices_target_parts = [], []
+
+    for i in range(x_rank):
+        dim_idx = ov_opset.constant([i], dtype=Type.i32).output(0)
+        x_dim = ov_opset.gather(x_shape, dim_idx, zero_const).output(0)
+        indices_dim = ov_opset.gather(
+            indices_shape, dim_idx, zero_const
+        ).output(0)
+
+        if i == axis:
+            # For axis dimension: keep original dimensions
+            x_target_parts.append(x_dim)
+            indices_target_parts.append(indices_dim)
+        else:
+            # For other dimensions: use maximum for broadcasting
+            max_dim = ov_opset.maximum(x_dim, indices_dim).output(0)
+            x_target_parts.append(max_dim)
+            indices_target_parts.append(max_dim)
+
+    x_target_shape = ov_opset.concat(x_target_parts, axis=0).output(0)
+    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(
+        0
     )
+
+    # Broadcast to target shapes and gather elements
+    x_broadcasted = ov_opset.broadcast(x, x_target_shape).output(0)
+    indices_broadcasted = ov_opset.broadcast(
+        indices, indices_target_shape
+    ).output(0)
+    result = ov_opset.gather_elements(
+        x_broadcasted, indices_broadcasted, axis
+    ).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def tan(x):

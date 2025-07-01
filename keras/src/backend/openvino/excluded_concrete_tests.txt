@@ -56,7 +56,6 @@ NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
 NumpyDtypeTest::test_sum
 NumpyDtypeTest::test_swapaxes
-NumpyDtypeTest::test_take_along_axis
 NumpyDtypeTest::test_tensordot_
 NumpyDtypeTest::test_tile
 NumpyDtypeTest::test_trace
@@ -145,7 +144,6 @@ NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_linspace
 NumpyTwoInputOpsCorrectnessTest::test_logspace
 NumpyTwoInputOpsCorrectnessTest::test_quantile
-NumpyTwoInputOpsCorrectnessTest::test_take_along_axis
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
 NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyOneInputOpsDynamicShapeTest::test_angle
