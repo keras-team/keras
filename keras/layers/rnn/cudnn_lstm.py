@@ -180,27 +180,38 @@ class CuDNNLSTM(_CuDNNRNN):
         input_h = tf.expand_dims(input_h, axis=0)
         input_c = tf.expand_dims(input_c, axis=0)
 
+        # Prepare weights & biases
+        weights = [
+            self.kernel[:, : self.units],
+            self.kernel[:, self.units : self.units * 2],
+            self.kernel[:, self.units * 2 : self.units * 3],
+            self.kernel[:, self.units * 3 :],
+            self.recurrent_kernel[:, : self.units],
+            self.recurrent_kernel[:, self.units : self.units * 2],
+            self.recurrent_kernel[:, self.units * 2 : self.units * 3],
+            self.recurrent_kernel[:, self.units * 3 :],
+        ]
+
+        biases = [
+            self.bias[: self.units],
+            self.bias[self.units : self.units * 2],
+            self.bias[self.units * 2 : self.units * 3],
+            self.bias[self.units * 3 : self.units * 4],
+            self.bias[self.units * 4 : self.units * 5],
+            self.bias[self.units * 5 : self.units * 6],
+            self.bias[self.units * 6 : self.units * 7],
+            self.bias[self.units * 7 :],
+        ]
+
+        # If on ROCm, reorder weights/biases: [i, f, c, o] -> [i, f, o, c]
+        if tf.sysconfig.get_build_info()["is_rocm_build"]:
+            reorder_idx = (0, 1, 3, 2, 4, 5, 7, 6)
+            weights = [weights[i] for i in reorder_idx]
+            biases = [biases[i] for i in reorder_idx]
+
         params = gru_lstm_utils.canonical_to_params(
-            weights=[
-                self.kernel[:, : self.units],
-                self.kernel[:, self.units : self.units * 2],
-                self.kernel[:, self.units * 2 : self.units * 3],
-                self.kernel[:, self.units * 3 :],
-                self.recurrent_kernel[:, : self.units],
-                self.recurrent_kernel[:, self.units : self.units * 2],
-                self.recurrent_kernel[:, self.units * 2 : self.units * 3],
-                self.recurrent_kernel[:, self.units * 3 :],
-            ],
-            biases=[
-                self.bias[: self.units],
-                self.bias[self.units : self.units * 2],
-                self.bias[self.units * 2 : self.units * 3],
-                self.bias[self.units * 3 : self.units * 4],
-                self.bias[self.units * 4 : self.units * 5],
-                self.bias[self.units * 5 : self.units * 6],
-                self.bias[self.units * 6 : self.units * 7],
-                self.bias[self.units * 7 :],
-            ],
+            weights=weights,
+            biases=biases,
             shape=self._vector_shape,
         )
 
@@ -217,6 +228,7 @@ class CuDNNLSTM(_CuDNNRNN):
         if self.stateful or self.return_state:
             h = h[0]
             c = c[0]
+
         if self.return_sequences:
             if self.time_major:
                 output = outputs
@@ -224,6 +236,7 @@ class CuDNNLSTM(_CuDNNRNN):
                 output = tf.transpose(outputs, perm=(1, 0, 2))
         else:
             output = outputs[-1]
+
         return output, [h, c]
 
     def get_config(self):
