@@ -152,23 +152,34 @@ class CuDNNGRU(_CuDNNRNN):
         input_h = initial_state[0]
         input_h = tf.expand_dims(input_h, axis=0)
 
+        
+        weights = [
+            self.kernel[:, : self.units],                      
+            self.kernel[:, self.units : self.units * 2],       
+            self.kernel[:, self.units * 2 :],                  
+            self.recurrent_kernel[:, : self.units],            
+            self.recurrent_kernel[:, self.units : self.units * 2], 
+            self.recurrent_kernel[:, self.units * 2 :],        
+        ]
+
+        biases = [
+            self.bias[: self.units],                           
+            self.bias[self.units : self.units * 2],            
+            self.bias[self.units * 2 : self.units * 3],        
+            self.bias[self.units * 3 : self.units * 4],        
+            self.bias[self.units * 4 : self.units * 5],        
+            self.bias[self.units * 5 :],                       
+        ]
+        
+        if tf.sysconfig.get_build_info()["is_cuda_build"]:
+            weights[0], weights[1] = weights[1], weights[0]
+            weights[3], weights[4] = weights[4], weights[3]
+            biases[0], biases[1] = biases[1], biases[0]
+            biases[3], biases[4] = biases[4], biases[3]
+  
         params = gru_lstm_utils.canonical_to_params(
-            weights=[
-                self.kernel[:, self.units : self.units * 2],
-                self.kernel[:, : self.units],
-                self.kernel[:, self.units * 2 :],
-                self.recurrent_kernel[:, self.units : self.units * 2],
-                self.recurrent_kernel[:, : self.units],
-                self.recurrent_kernel[:, self.units * 2 :],
-            ],
-            biases=[
-                self.bias[self.units : self.units * 2],
-                self.bias[: self.units],
-                self.bias[self.units * 2 : self.units * 3],
-                self.bias[self.units * 4 : self.units * 5],
-                self.bias[self.units * 3 : self.units * 4],
-                self.bias[self.units * 5 :],
-            ],
+            weights=weights,
+            biases=biases,
             shape=self._vector_shape,
         )
 
@@ -185,6 +196,7 @@ class CuDNNGRU(_CuDNNRNN):
 
         if self.stateful or self.return_state:
             h = h[0]
+
         if self.return_sequences:
             if self.time_major:
                 output = outputs
@@ -192,6 +204,7 @@ class CuDNNGRU(_CuDNNRNN):
                 output = tf.transpose(outputs, perm=(1, 0, 2))
         else:
             output = outputs[-1]
+
         return output, [h]
 
     def get_config(self):
