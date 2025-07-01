@@ -2283,6 +2283,8 @@ def deg2rad(x):
     >>> ops.deg2rad([0.0, 90.0, 180.0])
     array([0.        , 1.57079633, 3.14159265])
     """
+    if any_symbolic_tensors((x,)):
+        return Deg2rad().symbolic_call(x)
     return backend.numpy.deg2rad(x)
 
 

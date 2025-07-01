@@ -1926,7 +1926,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
     def test_deg2rad(self):
         x = KerasTensor((2, 3))
-        self.assertEqual(knp.deg2rad(x).shape, (6,))
+        self.assertEqual(knp.deg2rad(x).shape, (2, 3))
 
     def test_diag(self):
         x = KerasTensor((3,))
