@@ -9,6 +9,6 @@
 torch==2.6.0
 
 # Jax cpu-only version (needed for testing).
-jax[cpu]
+jax
 
 -r requirements-common.txt
