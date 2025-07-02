@@ -1,7 +1,6 @@
-import tensorflow as tf
-from unittest.mock import patch
 import os
 
+import tensorflow as tf
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -10,16 +9,17 @@ from keras.src.backend.common import dtypes
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
+os.environ["TPU_NAME"] = "harshith-tf-4"
+os.environ["JAX_PLATFORMS"] = ""
 
-os.environ['TPU_NAME'] = 'harshith-tf-4'
-os.environ['JAX_PLATFORMS'] = ''
 
 class DtypesTPUTest(test_case.TestCase):
-    """Test the dtype to verify that the behavior matches JAX, with TPU support."""
+    """Test the dtype to verify that the behavior matches
+    JAX, with TPU support."""
 
     # Configuration for TPU retry logic
-    TPU_MAX_RETRIES = int(os.environ.get('TPU_MAX_RETRIES', '3'))
-    TPU_BASE_DELAY = float(os.environ.get('TPU_BASE_DELAY', '2.0'))
+    TPU_MAX_RETRIES = int(os.environ.get("TPU_MAX_RETRIES", "3"))
+    TPU_BASE_DELAY = float(os.environ.get("TPU_BASE_DELAY", "2.0"))
 
     if backend.backend() == "torch":
         from keras.src.backend.torch.core import to_torch_dtype
@@ -54,7 +54,7 @@ class DtypesTPUTest(test_case.TestCase):
             pass
 
         try:
-            tf.config.experimental_reset_memory_stats('TPU_SYSTEM')
+            tf.config.experimental_reset_memory_stats("TPU_SYSTEM")
         except:
             pass
 
@@ -80,27 +80,35 @@ class DtypesTPUTest(test_case.TestCase):
                 tf.config.experimental_connect_to_cluster(resolver)
                 tf.tpu.experimental.initialize_tpu_system(resolver)
 
-                tpu_devices = tf.config.list_logical_devices('TPU_SYSTEM')
+                tpu_devices = tf.config.list_logical_devices("TPU_SYSTEM")
                 if not tpu_devices:
-                    raise RuntimeError("No TPU devices found after initialization")
+                    raise RuntimeError(
+                        "No TPU devices found after initialization"
+                    )
 
                 cls.tpu_strategy = tf.distribute.TPUStrategy(resolver)
                 cls.tpu_available = True
 
                 print("✓ TPU initialization successful!")
                 print("TPU devices found: ", tpu_devices)
-                print(f"Number of TPU cores: {cls.tpu_strategy.num_replicas_in_sync}")
+                print(
+                    f"Number of TPU cores: \
+                    {cls.tpu_strategy.num_replicas_in_sync}"
+                )
                 break
 
             except (ValueError, RuntimeError, Exception) as e:
                 print(f"✗ TPU initialization attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt) + (attempt * 0.5)
+                    delay = base_delay * (2**attempt) + (attempt * 0.5)
                     print(f"Retrying in {delay:.1f} seconds...")
                     time.sleep(delay)
                     cls._cleanup_tpu_state()
                 else:
-                    print("All TPU initialization attempts failed. Falling back to CPU/GPU testing")
+                    print(
+                        "All TPU initialization attempts failed. \
+                        Falling back to CPU/GPU testing"
+                    )
                     cls.tpu_available = False
 
     def setUp(self):
