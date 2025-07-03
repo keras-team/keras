@@ -1257,6 +1257,8 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def deg2rad(x):
+    x = convert_to_tensor(x)
+
     dtype = x.dtype
     if standardize_dtype(dtype) in [
         "bool",
@@ -1272,7 +1274,6 @@ def deg2rad(x):
         dtype = "float64"
     x = tf.cast(x, dtype)
 
-    x = convert_to_tensor(x)
     pi = tf.constant(math.pi, dtype=dtype)
     return x * (pi / tf.constant(180.0, dtype=dtype))
 

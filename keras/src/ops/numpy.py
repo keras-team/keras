@@ -2277,11 +2277,11 @@ def deg2rad(x):
         A tensor containing angles converted to radians.
 
     Examples:
-    >>> from keras.src import ops
+    >>> from keras import ops
     >>> ops.deg2rad(180.0)
     3.141592653589793
     >>> ops.deg2rad([0.0, 90.0, 180.0])
-    array([0.        , 1.57079633, 3.14159265])
+    array([0., 1.57079633, 3.14159265])
     """
     if any_symbolic_tensors((x,)):
         return Deg2rad().symbolic_call(x)
