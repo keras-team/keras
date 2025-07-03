@@ -22,6 +22,9 @@ def pytest_configure(config):
         "markers",
         "requires_trainable_backend: mark test for trainable backend only",
     )
+    config.addinivalue_line(
+        "markers", "requires_tpu: mark test to run only on TPU"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -61,3 +64,67 @@ def skip_if_backend(given_backend, reason):
     return pytest.mark.skipif(backend() == given_backend, reason=reason)
 
 
+
+
+def _cleanup_tpu_state():
+    import tensorflow as tf
+
+    try:
+        tf.config.experimental_disconnect_from_cluster()
+    except:
+        pass
+
+    try:
+        tf.config.experimental_reset_memory_stats("TPU_SYSTEM")
+    except:
+        pass
+
+
+@pytest.fixture(scope="session")
+def tpu_strategy_fixture():
+    import tensorflow as tf
+    import time
+
+    os.environ["TPU_NAME"] = "harshith-tf-4"
+    os.environ["JAX_PLATFORMS"] = ""
+    max_retries = int(os.environ.get("TPU_MAX_RETRIES", "3"))
+    base_delay = float(os.environ.get("TPU_BASE_DELAY", "2.0"))
+    tpu_available = False
+    strategy = None
+
+    for attempt in range(max_retries):
+        try:
+            print(f"TPU initialization attempt {attempt + 1}/{max_retries}")
+            _cleanup_tpu_state()
+            resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
+            tf.config.experimental_connect_to_cluster(resolver)
+            tf.tpu.experimental.initialize_tpu_system(resolver)
+            strategy = tf.distribute.TPUStrategy(resolver)
+            tpu_available = True
+            print("✓ TPU initialization successful!")
+            break
+        except (ValueError, RuntimeError, Exception) as e:
+            print(f"✗ TPU initialization attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                delay = base_delay * (2**attempt) + (attempt * 0.5)
+                print(f"Retrying in {delay:.1f} seconds...")
+                time.sleep(delay)
+                _cleanup_tpu_state()
+            else:
+                print("All TPU initialization attempts failed.")
+
+    if not tpu_available:
+        pytest.skip("TPU not available")
+
+    yield strategy
+
+    # Teardown
+    _cleanup_tpu_state()
+
+
+@pytest.fixture(autouse=True)
+def tpu(request):
+    marker = request.node.get_closest_marker("requires_tpu")
+    if marker:
+        strategy = request.getfixturevalue("tpu_strategy_fixture")
+        request.node.cls.tpu_strategy = strategy
