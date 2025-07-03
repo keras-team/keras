@@ -906,9 +906,14 @@ class Layer(BackendLayer, Operation):
 
         # We need to cache the `previous_mask` before `__call__` because the
         # mask might be removed during the call, such as `MultiHeadAttention`.
-        previous_mask = tree.map_structure(
-            backend.get_keras_mask, call_spec.first_arg
-        )
+        if "mask" in kwargs and kwargs["mask"] is not None:
+            # Case 1: Mask was explicitly passed or auto-populated in step 6.
+            previous_mask = kwargs["mask"]
+        else:
+            # Case 2: Fallback to the mask attached to the first input tensor.
+            previous_mask = tree.map_structure(
+                backend.get_keras_mask, call_spec.first_arg
+            )
 
         ####################
         # 7. Call the layer.
