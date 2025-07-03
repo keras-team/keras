@@ -812,7 +812,7 @@ class DenseTest(testing.TestCase):
 
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
-        self.assertLess(mse, 2e-3)  # Weak correctness check
+        self.assertLess(mse, 15e-4)  # Weak correctness check
 
         # Check model save / load round-trip.
         model = models.Sequential([layer])

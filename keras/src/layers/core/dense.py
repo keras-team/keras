@@ -359,9 +359,9 @@ class Dense(Layer):
         `ceil(input_dim/2)` because two int4 values are packed into a single
         int8 byte.
         """
-        # Per-channel quantizer for the last axis (features).
+        # Per-channel int8 quantizer for the last axis (features).
         self.inputs_quantizer = quantizers.AbsMaxQuantizer(
-            axis=-1, value_range=(-8, 7)
+            axis=-1,
         )
         input_dim, output_dim = kernel_shape
         packed_rows = (input_dim + 1) // 2  # ceil for odd dims
@@ -430,6 +430,16 @@ class Dense(Layer):
     def _int8_call(self, inputs, training=None):
         @ops.custom_gradient
         def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
+            """Custom gradient function to handle the int8 quantized weights.
+
+            Automatic differentiation will not know how to handle the int8
+            quantized weights. So a custom gradient function is needed to
+            handle the int8 quantized weights.
+
+            The custom gradient function will use the dequantized kernel to
+            compute the gradient.
+            """
+
             def grad_fn(*args, upstream=None):
                 if upstream is None:
                     (upstream,) = args
@@ -467,6 +477,16 @@ class Dense(Layer):
 
         @ops.custom_gradient
         def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
+            """Custom gradient function for int4 quantized weights.
+
+            Automatic differentiation will not know how to handle the
+            int4 quantized weights. So a custom gradient function is needed
+            to handle the int4 quantized weights.
+
+            The custom gradient function will use the dequantized kernel to
+            compute the gradient.
+            """
+
             unpacked_kernel = quantizers.unpack_int4(
                 kernel, self._orig_input_dim
             )
