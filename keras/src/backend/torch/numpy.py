@@ -670,6 +670,15 @@ def cumsum(x, axis=None, dtype=None):
     return torch.cumsum(x, dim=axis, dtype=to_torch_dtype(dtype))
 
 
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.deg2rad(x), "float64")
+
+    return torch.deg2rad(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return torch.diag(x, diagonal=k)

@@ -515,6 +515,19 @@ def cumsum(x, axis=None, dtype=None):
     return np.cumsum(x, axis=axis, dtype=dtype)
 
 
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.deg2rad(x).astype(dtype)
+
+
 def diag(x, k=0):
     return np.diag(x, k=k)
 

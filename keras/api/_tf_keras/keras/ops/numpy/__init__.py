@@ -52,6 +52,7 @@ from keras.src.ops.numpy import count_nonzero as count_nonzero
 from keras.src.ops.numpy import cross as cross
 from keras.src.ops.numpy import cumprod as cumprod
 from keras.src.ops.numpy import cumsum as cumsum
+from keras.src.ops.numpy import deg2rad as deg2rad
 from keras.src.ops.numpy import diag as diag
 from keras.src.ops.numpy import diagflat as diagflat
 from keras.src.ops.numpy import diagonal as diagonal
