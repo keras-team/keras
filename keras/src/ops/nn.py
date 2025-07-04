@@ -2816,7 +2816,8 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
     x = backend.convert_to_tensor(x, dtype=compute_dtype)
     if scale is not None:
-        scale = backend.convert_to_tensor(scale, x.dtype)
+        scale = backend.convert_to_tensor(scale)
+        scale = backend.cast(scale, x.dtype)
 
     if backend.backend() == "torch" and is_continuous_axis(axis):
         import torch.nn.functional as F
@@ -2932,9 +2933,11 @@ def _layer_normalization(
 
     x = backend.convert_to_tensor(x, dtype=compute_dtype)
     if gamma is not None:
-        gamma = backend.convert_to_tensor(gamma, x.dtype)
+        gamma = backend.convert_to_tensor(gamma)
+        gamma = backend.cast(gamma, x.dtype)
     if beta is not None:
-        beta = backend.convert_to_tensor(beta, x.dtype)
+        beta = backend.convert_to_tensor(beta)
+        beta = backend.cast(beta, x.dtype)
 
     # Compute the axes along which to reduce the mean / variance
     input_shape = x.shape
