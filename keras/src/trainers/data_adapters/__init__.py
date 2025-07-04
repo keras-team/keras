@@ -97,7 +97,12 @@ def get_data_adapter(
         if class_weight is not None:
             raise ValueError(
                 "Argument `class_weight` is not supported for torch "
-                f"DataLoader inputs. Received: class_weight={class_weight}"
+                f"DataLoader inputs. You can modify your `__getitem__ ` method"
+                " to return input tensor, label and class_weight. "
+                "Alternatively, use a custom training loop. See the User Guide "
+                "https://keras.io/guides/custom_train_step_in_torch/"
+                "#supporting-sampleweight-amp-classweight for more details. "
+                f"Received: class_weight={class_weight}"
             )
         return TorchDataLoaderAdapter(x)
         # TODO: should we warn or not?
