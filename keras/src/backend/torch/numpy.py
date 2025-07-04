@@ -540,6 +540,11 @@ def broadcast_to(x, shape):
     return torch.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+    return torch.sign(x) * torch.abs(x) ** (1.0 / 3.0)
+
+
 def ceil(x):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)

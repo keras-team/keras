@@ -1089,6 +1089,11 @@ def broadcast_to(x, shape):
     return tf.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+    return tf.sign(x) * tf.pow(tf.abs(x), 1.0 / 3.0)
+
+
 @sparse.elementwise_unary
 def ceil(x):
     x = convert_to_tensor(x)

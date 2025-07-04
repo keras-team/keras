@@ -414,6 +414,11 @@ def broadcast_to(x, shape):
     return np.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+    return np.cbrt(x)
+
+
 def ceil(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
