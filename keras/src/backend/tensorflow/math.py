@@ -9,6 +9,12 @@ from keras.src.backend.tensorflow.core import convert_to_tensor
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
         return tf.math.segment_sum(data, segment_ids)
     else:
         if num_segments is None:
@@ -19,6 +25,12 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
     if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
         return tf.math.segment_max(data, segment_ids)
     else:
         if num_segments is None:
@@ -99,6 +111,15 @@ def fft2(x):
     complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = tf.signal.fft2d(complex_input)
     return tf.math.real(complex_output), tf.math.imag(complex_output)
+
+
+def ifft2(x):
+    real, imag = x
+    h = cast(tf.shape(real)[-2], real.dtype)
+    w = cast(tf.shape(real)[-1], real.dtype)
+    real_conj, imag_conj = real, -imag
+    fft_real, fft_imag = fft2((real_conj, imag_conj))
+    return fft_real / (h * w), -fft_imag / (h * w)
 
 
 def rfft(x, fft_length=None):
@@ -284,7 +305,7 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
 
-    # Fast path to utilze `tf.linalg.norm`
+    # Fast path to utilize `tf.linalg.norm`
     if (num_axes == 1 and ord in ("euclidean", 1, 2, float("inf"))) or (
         num_axes == 2 and ord in ("euclidean", "fro", 1, 2, float("inf"))
     ):
@@ -353,3 +374,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
         )
     else:
         raise ValueError(f"Invalid axis values. Received: axis={axis}")
+
+
+def logdet(x):
+    x = convert_to_tensor(x)
+    return tf.linalg.logdet(x)

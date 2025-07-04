@@ -15,6 +15,8 @@ class BaseGlobalPooling(Layer):
         self.keepdims = keepdims
         self.input_spec = InputSpec(ndim=pool_dimensions + 2)
 
+        self._build_at_init()
+
     def call(self, inputs):
         raise NotImplementedError
 

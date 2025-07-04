@@ -33,6 +33,7 @@ class MaxPooling3D(BasePooling):
             will be `"channels_last"`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         5D tensor with shape:
         `(batch_size, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
@@ -41,6 +42,7 @@ class MaxPooling3D(BasePooling):
         `(batch_size, channels, spatial_dim1, spatial_dim2, spatial_dim3)`
 
     Output shape:
+
     - If `data_format="channels_last"`:
         5D tensor with shape:
         `(batch_size, pooled_dim1, pooled_dim2, pooled_dim3, channels)`
@@ -69,7 +71,7 @@ class MaxPooling3D(BasePooling):
         padding="valid",
         data_format=None,
         name=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             pool_size,

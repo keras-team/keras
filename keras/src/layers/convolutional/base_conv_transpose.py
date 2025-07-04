@@ -112,6 +112,7 @@ class BaseConvTranspose(Layer):
                 output_padding,
                 rank,
                 "output_padding",
+                allow_zero=True,
             )
         self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)
@@ -186,7 +187,6 @@ class BaseConvTranspose(Layer):
             )
         else:
             self.bias = None
-        self.built = True
 
     def call(self, inputs):
         outputs = ops.conv_transpose(
@@ -205,7 +205,7 @@ class BaseConvTranspose(Layer):
             else:
                 bias_shape = (1, self.filters) + (1,) * self.rank
             bias = ops.reshape(self.bias, bias_shape)
-            outputs += bias
+            outputs = ops.add(outputs, bias)
 
         if self.activation is not None:
             return self.activation(outputs)

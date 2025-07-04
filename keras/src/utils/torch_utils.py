@@ -2,6 +2,7 @@ import io
 
 from packaging.version import parse
 
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers import Layer
 from keras.src.ops import convert_to_numpy
@@ -16,11 +17,16 @@ class TorchModuleWrapper(Layer):
     `torch.nn.Module` into a Keras layer, in particular by making its
     parameters trackable by Keras.
 
+    `TorchModuleWrapper` is only compatible with the PyTorch backend and
+    cannot be used with the TensorFlow or JAX backends.
+
     Args:
         module: `torch.nn.Module` instance. If it's a `LazyModule`
             instance, then its parameters must be initialized before
             passing the instance to `TorchModuleWrapper` (e.g. by calling
             it once).
+        output_shape :The shape of the output of this layer. It helps Keras
+            perform automatic shape inference.
         name: The name of the layer (string).
 
     Example:
@@ -29,11 +35,12 @@ class TorchModuleWrapper(Layer):
     PyTorch modules.
 
     ```python
+    import torch
     import torch.nn as nn
     import torch.nn.functional as F
 
     import keras
-    from keras.src.layers import TorchModuleWrapper
+    from keras.layers import TorchModuleWrapper
 
     class Classifier(keras.Model):
         def __init__(self, **kwargs):
@@ -75,7 +82,7 @@ class TorchModuleWrapper(Layer):
     ```
     """
 
-    def __init__(self, module, name=None, **kwargs):
+    def __init__(self, module, name=None, output_shape=None, **kwargs):
         super().__init__(name=name, **kwargs)
         import torch.nn as nn
 
@@ -93,23 +100,26 @@ class TorchModuleWrapper(Layer):
 
         self.module = module.to(get_device())
         self._track_module_parameters()
+        self.output_shape = output_shape
 
     def parameters(self, recurse=True):
         return self.module.parameters(recurse=recurse)
 
     def _track_module_parameters(self):
-        from keras.src.backend.torch import Variable
-
         for param in self.module.parameters():
             # The Variable will reuse the raw `param`
             # and simply wrap it.
-            variable = Variable(
+            variable = backend.Variable(
                 initializer=param, trainable=param.requires_grad
             )
             self._track_variable(variable)
         self.built = True
 
-    def call(self, *args, **kwargs):
+    def call(self, *args, training=None, **kwargs):
+        if training is False:
+            self.eval()
+        else:
+            self.train()
         return self.module(*args, **kwargs)
 
     def save_own_variables(self, store):
@@ -131,13 +141,21 @@ class TorchModuleWrapper(Layer):
             state_dict[key] = convert_to_tensor(store[key])
         self.module.load_state_dict(state_dict)
 
+    def compute_output_shape(self, input_shape):
+        if self.output_shape is None:
+            return super().compute_output_shape(input_shape)
+        return self.output_shape
+
     def get_config(self):
         base_config = super().get_config()
         import torch
 
         buffer = io.BytesIO()
         torch.save(self.module, buffer)
-        config = {"module": buffer.getvalue()}
+        config = {
+            "module": buffer.getvalue(),
+            "output_shape": self.output_shape,
+        }
         return {**base_config, **config}
 
     @classmethod
@@ -146,7 +164,7 @@ class TorchModuleWrapper(Layer):
 
         if "module" in config:
             buffer = io.BytesIO(config["module"])
-            config["module"] = torch.load(buffer)
+            config["module"] = torch.load(buffer, weights_only=False)
         return cls(**config)
 
 

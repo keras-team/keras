@@ -28,7 +28,7 @@ class AdditiveAttention(Attention):
         dropout: Float between 0 and 1. Fraction of the units to drop for the
             attention scores. Defaults to `0.0`.
 
-    Call Args:
+    Call arguments:
         inputs: List of the following tensors:
             - `query`: Query tensor of shape `(batch_size, Tq, dim)`.
             - `value`: Value tensor of shape `(batch_size, Tv, dim)`.
@@ -77,7 +77,6 @@ class AdditiveAttention(Attention):
                 dtype=self.dtype,
                 trainable=True,
             )
-        self.built = True
 
     def _calculate_scores(self, query, key):
         """Calculates attention scores as a nonlinear sum of query and key.

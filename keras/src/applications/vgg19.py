@@ -26,6 +26,7 @@ def VGG19(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="vgg19",
 ):
     """Instantiates the VGG19 model.
 
@@ -86,6 +87,7 @@ def VGG19(
             `classifier_activation=None` to return the logits of the "top"
             layer.  When loading pretrained weights, `classifier_activation` can
             only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A model instance.
@@ -209,7 +211,7 @@ def VGG19(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name="vgg19")
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":

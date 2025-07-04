@@ -7,10 +7,19 @@ class Conv2D(BaseConv):
     """2D convolution layer.
 
     This layer creates a convolution kernel that is convolved with the layer
-    input over a single spatial (or temporal) dimension to produce a tensor of
-    outputs. If `use_bias` is True, a bias vector is created and added to the
-    outputs. Finally, if `activation` is not `None`, it is applied to the
-    outputs as well.
+    input over a 2D spatial (or temporal) dimension (height and width) to
+    produce a tensor of outputs. If `use_bias` is True, a bias vector is created
+    and added to the outputs. Finally, if `activation` is not `None`, it is
+    applied to the outputs as well.
+
+    Note on numerical precision: While in general Keras operation execution
+    results are identical across backends up to 1e-7 precision in float32,
+    `Conv2D` operations may show larger variations. Due to the large
+    number of element-wise multiplications and additions in convolution
+    operations, especially with large inputs or kernel sizes, accumulated
+    floating-point differences can exceed this 1e-7 threshold. These variations
+    are particularly noticeable when using different backends (e.g., TensorFlow
+    vs JAX) or different hardware.
 
     Args:
         filters: int, the dimension of the output space (the number of filters
@@ -59,12 +68,14 @@ class Conv2D(BaseConv):
             bias after being updated by an `Optimizer`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         A 4D tensor with shape: `(batch_size, height, width, channels)`
     - If `data_format="channels_first"`:
         A 4D tensor with shape: `(batch_size, channels, height, width)`
 
     Output shape:
+
     - If `data_format="channels_last"`:
         A 4D tensor with shape: `(batch_size, new_height, new_width, filters)`
     - If `data_format="channels_first"`:
@@ -102,7 +113,7 @@ class Conv2D(BaseConv):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=2,
@@ -122,5 +133,5 @@ class Conv2D(BaseConv):
             activity_regularizer=activity_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
-            **kwargs
+            **kwargs,
         )

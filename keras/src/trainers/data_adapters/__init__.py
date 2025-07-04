@@ -2,6 +2,7 @@ import types
 
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import array_data_adapter
+from keras.src.trainers.data_adapters import data_adapter
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.trainers.data_adapters.array_data_adapter import ArrayDataAdapter
 from keras.src.trainers.data_adapters.generator_data_adapter import (
@@ -23,16 +24,24 @@ def get_data_adapter(
     shuffle=False,
     class_weight=None,
 ):
-    # Check for multi-process/worker distribution. Since only tf.dataset
-    # is supported at the moment, we will raise error if the inputs fail
-    # the type check
+    # Allow passing a custom data adapter.
+    if isinstance(x, data_adapter.DataAdapter):
+        return x
+
+    # Check for multi-process/worker distribution.
     distribution = distribution_lib.distribution()
-    if getattr(distribution, "_is_multi_process", False) and not is_tf_dataset(
-        x
+    if (
+        distribution is not None
+        and getattr(distribution, "_is_multi_process", False)
+        and getattr(distribution, "auto_shard_dataset", False)
+        and not is_tf_dataset(x)
     ):
         raise ValueError(
-            "When using multi-worker distribution, the data must be provided "
-            f"as a `tf.data.Dataset` instance. Received: type(x)={type(x)}."
+            "When using a multi-worker distribution with auto-sharding enabled, "
+            "the data must be provided as a `tf.data.Dataset` instance. "
+            f"Received: type(x)={type(x)}. "
+            "If the dataset is already sharded across workers, then set "
+            "`distribution.auto_shard_dataset = False`."
         )
 
     if array_data_adapter.can_convert_arrays((x, y, sample_weight)):
@@ -134,6 +143,7 @@ def is_tf_dataset(x):
             if parent.__name__ in (
                 "DatasetV2",
                 "DistributedDataset",
+                "DistributedDatasetsFromFunction",
             ) and "tensorflow.python." in str(parent.__module__):
                 return True
     return False

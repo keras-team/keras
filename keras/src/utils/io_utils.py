@@ -91,10 +91,22 @@ def set_logging_verbosity(level):
 
 def print_msg(message, line_break=True):
     """Print the message to absl logging or stdout."""
+    message = str(message)
     if is_interactive_logging_enabled():
-        if line_break:
-            sys.stdout.write(message + "\n")
-        else:
+        message = message + "\n" if line_break else message
+        try:
+            sys.stdout.write(message)
+        except UnicodeEncodeError:
+            # If the encoding differs from UTF-8, `sys.stdout.write` may fail.
+            # To address this, replace special unicode characters in the
+            # message, and then encode and decode using the target encoding.
+            message = _replace_special_unicode_character(message)
+            # Fallback to UTF-8 when `sys.stdout.encoding` is `None` (e.g. when
+            # stdout is redirected). This prevents a `TypeError` that would be
+            # raised by `bytes.encode(None)` / `bytes.decode(None)`.
+            encoding = sys.stdout.encoding or "utf-8"
+            message_bytes = message.encode(encoding, errors="ignore")
+            message = message_bytes.decode(encoding)
             sys.stdout.write(message)
         sys.stdout.flush()
     else:
@@ -123,3 +135,8 @@ def ask_to_proceed_with_overwrite(filepath):
         return False
     print_msg("[TIP] Next time specify overwrite=True!")
     return True
+
+
+def _replace_special_unicode_character(message):
+    message = str(message).replace("━", "=")  # Fall back to Keras2 behavior.
+    return message

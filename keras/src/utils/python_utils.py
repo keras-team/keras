@@ -5,6 +5,24 @@ import os
 import types as python_types
 
 
+def is_continuous_axis(axis):
+    # Used to determine whether the dimensions in an axis are continuous
+    if isinstance(axis, int) or len(axis) == 1:
+        return True
+    positive_order_flag = True
+    for i in range(len(axis) - 1):
+        if axis[i + 1] - axis[i] != 1:
+            positive_order_flag = False
+            break
+
+    negative_order_flag = True
+    for i in range(len(axis) - 1):
+        if axis[i + 1] - axis[i] != 1:
+            negative_order_flag = False
+            break
+    return positive_order_flag or negative_order_flag
+
+
 def default(method):
     """Decorates a method to detect overrides in subclasses."""
     method._is_default = True
@@ -148,3 +166,30 @@ def remove_by_id(lst, value):
         if id(v) == id(value):
             del lst[i]
             return
+
+
+def pythonify_logs(logs):
+    """Flatten and convert log values to Python-native types.
+
+    This function attempts to convert dict value by `float(value)` and skips
+    the conversion if it fails.
+
+    Args:
+        logs: A dict containing log values.
+
+    Returns:
+        A flattened dict with values converted to Python-native types if
+        possible.
+    """
+    logs = logs or {}
+    result = {}
+    for key, value in sorted(logs.items()):
+        if isinstance(value, dict):
+            result.update(pythonify_logs(value))
+        else:
+            try:
+                value = float(value)
+            except:
+                pass
+            result[key] = value
+    return result

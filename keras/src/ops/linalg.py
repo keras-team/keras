@@ -7,9 +7,6 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Cholesky(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _cholesky(x)
 
@@ -47,10 +44,6 @@ def _cholesky(x):
 
 
 class Det(Operation):
-
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _det(x)
 
@@ -68,7 +61,7 @@ def det(x):
         x: Input tensor of shape `(..., M, M)`.
 
     Returns:
-        A tensor of shape `(...,)` represeting the determinant of `x`.
+        A tensor of shape `(...,)` representing the determinant of `x`.
 
     """
     if any_symbolic_tensors((x,)):
@@ -84,10 +77,6 @@ def _det(x):
 
 
 class Eig(Operation):
-
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eig(x)
 
@@ -124,10 +113,6 @@ def _eig(x):
 
 
 class Eigh(Operation):
-
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eigh(x)
 
@@ -165,10 +150,6 @@ def _eigh(x):
 
 
 class Inv(Operation):
-
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _inv(x)
 
@@ -202,10 +183,6 @@ def _inv(x):
 
 
 class LuFactor(Operation):
-
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _lu_factor(x)
 
@@ -253,8 +230,8 @@ def _lu_factor(x):
 
 
 class Norm(Operation):
-    def __init__(self, ord=None, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, ord=None, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(ord, str):
             if ord not in ("fro", "nuc"):
                 raise ValueError(
@@ -372,8 +349,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
 
 
 class Qr(Operation):
-    def __init__(self, mode="reduced"):
-        super().__init__()
+    def __init__(self, mode="reduced", *, name=None):
+        super().__init__(name=name)
         if mode not in {"reduced", "complete"}:
             raise ValueError(
                 "`mode` argument value not supported. "
@@ -445,10 +422,6 @@ def qr(x, mode="reduced"):
 
 
 class Solve(Operation):
-
-    def __init__(self):
-        super().__init__()
-
     def call(self, a, b):
         return _solve(a, b)
 
@@ -466,7 +439,7 @@ def solve(a, b):
 
     Args:
         a: A tensor of shape `(..., M, M)` representing the coefficients matrix.
-        b: A tensor of shape `(..., M)` or `(..., M, N)` represeting the
+        b: A tensor of shape `(..., M)` or `(..., M, N)` representing the
         right-hand side or "dependent variable" matrix.
 
     Returns:
@@ -490,9 +463,8 @@ def _solve(a, b):
 
 
 class SolveTriangular(Operation):
-
-    def __init__(self, lower=False):
-        super().__init__()
+    def __init__(self, lower=False, *, name=None):
+        super().__init__(name=name)
         self.lower = lower
 
     def call(self, a, b):
@@ -514,7 +486,7 @@ def solve_triangular(a, b, lower=False):
 
     Args:
         a: A tensor of shape `(..., M, M)` representing the coefficients matrix.
-        b: A tensor of shape `(..., M)` or `(..., M, N)` represeting the
+        b: A tensor of shape `(..., M)` or `(..., M, N)` representing the
         right-hand side or "dependent variable" matrix.
 
     Returns:
@@ -538,9 +510,8 @@ def _solve_triangular(a, b, lower=False):
 
 
 class SVD(Operation):
-
-    def __init__(self, full_matrices=True, compute_uv=True):
-        super().__init__()
+    def __init__(self, full_matrices=True, compute_uv=True, *, name=None):
+        super().__init__(name=name)
         self.full_matrices = full_matrices
         self.compute_uv = compute_uv
 
@@ -593,12 +564,87 @@ def _svd(x, full_matrices=True, compute_uv=True):
     return backend.linalg.svd(x, full_matrices, compute_uv)
 
 
+class Lstsq(Operation):
+    def __init__(self, rcond=None, *, name=None):
+        super().__init__(name=name)
+        self.rcond = rcond
+
+    def call(self, a, b):
+        return backend.linalg.lstsq(a, b, rcond=self.rcond)
+
+    def compute_output_spec(self, a, b):
+        if len(a.shape) != 2:
+            raise ValueError(
+                f"Expected a to have rank 2. Received: a.shape={a.shape}"
+            )
+        if len(b.shape) not in (1, 2):
+            raise ValueError(
+                f"Expected b to have rank 1 or 2. Received: b.shape={b.shape}"
+            )
+        m, n = a.shape
+        if b.shape[0] != m:
+            raise ValueError(
+                "Expected b.shape[0] to be equal to "
+                "a.shape[0]. Received: "
+                f"a.shape={a.shape}, b.shape={b.shape}"
+            )
+        if len(b.shape) == 2:
+            k = b.shape[1]
+            x = KerasTensor((n, k), dtype=a.dtype)
+        else:
+            x = KerasTensor((n,), dtype=a.dtype)
+        return x
+
+
+@keras_export(["keras.ops.lstsq", "keras.ops.linalg.lstsq"])
+def lstsq(a, b, rcond=None):
+    """Return the least-squares solution to a linear matrix equation.
+
+    Computes the vector x that approximately solves the equation
+    `a @ x = b`. The equation may be under-, well-, or over-determined
+    (i.e., the number of linearly independent rows of a can be less than,
+    equal to, or greater than its number of linearly independent columns).
+    If a is square and of full rank, then `x` (but for round-off error)
+    is the exact solution of the equation. Else, `x` minimizes the
+    L2 norm of `b - a * x`.
+
+    If there are multiple minimizing solutions,
+    the one with the smallest L2 norm  is returned.
+
+    Args:
+        a: "Coefficient" matrix of shape `(M, N)`.
+        b: Ordinate or "dependent variable" values,
+            of shape `(M,)` or `(M, K)`.
+            If `b` is two-dimensional, the least-squares solution
+            is calculated for each of the K columns of `b`.
+        rcond: Cut-off ratio for small singular values of `a`.
+            For the purposes of rank determination,
+            singular values are treated as zero if they are
+            smaller than rcond times the largest
+            singular value of `a`.
+
+    Returns:
+        Tensor with shape `(N,)` or `(N, K)` containing
+        the least-squares solutions.
+
+    **NOTE:** The output differs from `numpy.linalg.lstsq`.
+    NumPy returns a tuple with four elements, the first of which
+    being the least-squares solutions and the others
+    being essentially never used.
+    Keras only returns the first value. This is done both
+    to ensure consistency across backends (which cannot be achieved
+    for the other values) and to simplify the API.
+    """
+    if any_symbolic_tensors((a, b)):
+        return Lstsq(rcond=rcond).symbolic_call(a, b)
+    return backend.linalg.lstsq(a, b, rcond=rcond)
+
+
 def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
             raise ValueError(
-                "Expected input to have rank >= 1. "
-                "Received scalar input {a}."
+                f"Expected input to have rank >= 1. Received scalar input {a}."
             )
 
 
@@ -607,7 +653,7 @@ def _assert_2d(*arrays):
         if a.ndim < 2:
             raise ValueError(
                 "Expected input to have rank >= 2. "
-                "Received input with shape {a.shape}."
+                f"Received input with shape {a.shape}."
             )
 
 

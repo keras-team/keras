@@ -1,4 +1,6 @@
+import builtins
 import contextlib
+import functools
 
 import ml_dtypes
 import numpy as np
@@ -8,12 +10,18 @@ from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.stateless_scope import get_stateless_scope
+from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_RAGGED_TENSORS = False
+IS_THREAD_SAFE = True
 
 # Some operators such as 'aten::_foreach_mul_.Scalar'
 # are not currently implemented for the MPS device.
@@ -22,6 +30,8 @@ if torch.backends.mps.is_available():
     DEFAULT_DEVICE = "mps"
 elif torch.cuda.is_available():
     DEFAULT_DEVICE = "cuda"
+elif hasattr(torch, "xpu") and torch.xpu.is_available():
+    DEFAULT_DEVICE = "xpu"
 else:
     DEFAULT_DEVICE = "cpu"
 
@@ -40,6 +50,9 @@ TORCH_DTYPES = {
     "bool": torch.bool,
     "float8_e4m3fn": torch.float8_e4m3fn,
     "float8_e5m2": torch.float8_e5m2,
+    "complex32": torch.complex32,
+    "complex64": torch.complex64,
+    "complex128": torch.complex128,
 }
 
 
@@ -106,13 +119,11 @@ class Variable(KerasVariable):
     # Overload native accessor.
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
-        args = [
-            arg.value if isinstance(arg, KerasVariable) else arg for arg in args
-        ]
+        args = [arg.value if isinstance(arg, Variable) else arg for arg in args]
         if kwargs is None:
             kwargs = {}
         kwargs = {
-            key: value.value if isinstance(value, KerasVariable) else value
+            key: value.value if isinstance(value, Variable) else value
             for key, value in kwargs.items()
         }
         return func(*args, **kwargs)
@@ -125,15 +136,38 @@ class Variable(KerasVariable):
 
     @property
     def value(self):
-        value = super().value
-        # Create and use a symbolic tensor stub in symbolic calls.
-        if str(get_device()) == "meta" and str(value.device) != "meta":
-            return torch.empty(
-                size=value.shape,
-                dtype=value.dtype,
-                device="meta",
+        # We cannot chain super() here because it will fail TorchDynamo. The
+        # reason why is unclear.
+        def maybe_use_symbolic_tensor(value):
+            # Create and use a symbolic tensor stub in symbolic calls.
+            if str(get_device()) == "meta" and str(value.device) != "meta":
+                return torch.nn.Parameter(
+                    torch.empty(
+                        size=self._shape,
+                        dtype=to_torch_dtype(self._dtype),
+                        device="meta",
+                    ),
+                    requires_grad=self.trainable,
+                )
+            return value
+
+        if in_stateless_scope():
+            scope = get_stateless_scope()
+            value = scope.get_current_value(self)
+            if value is not None:
+                value = self._maybe_autocast(value)
+                return maybe_use_symbolic_tensor(value)
+        if self._value is None:
+            # Uninitialized variable. Return a placeholder.
+            # This is fine because it's only ever used
+            # in during shape inference / graph tracing
+            # (anything else would be a bug, to be fixed.)
+            value = self._maybe_autocast(
+                self._initializer(self._shape, dtype=self._dtype)
             )
-        return value
+        else:
+            value = self._maybe_autocast(self._value)
+        return maybe_use_symbolic_tensor(value)
 
     @property
     def trainable(self):
@@ -152,21 +186,26 @@ class Variable(KerasVariable):
             return False
 
 
-def convert_to_tensor(x, dtype=None, sparse=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
-    if is_tensor(x):
-        device = get_device()
-        if x.device != device:
-            x = x.to(device)
-        if dtype is None:
-            return x
-        return x.to(to_torch_dtype(dtype))
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with torch backend")
     if isinstance(x, Variable):
         # TorchDynamo has bugs supporting nn.Parameter type check.
         # Return it directly instead of pass it to the rest of the logic in the
         # function.
         return x.value
+    if is_tensor(x):
+        device = get_device()
+        if x.device != device:
+            if x.is_meta:
+                x = torch.empty_like(x, device=device)
+            else:
+                x = x.to(device)
+        if dtype is None:
+            return x
+        return x.to(to_torch_dtype(dtype))
     if dtype is None:
         if isinstance(x, bool):
             return torch.as_tensor(x, dtype=torch.bool, device=get_device())
@@ -206,7 +245,7 @@ def convert_to_numpy(x):
             if x.requires_grad:
                 x = x.detach()
             # Tensor has to be moved to CPU before converting to numpy.
-            if x.is_cuda or x.is_mps:
+            if x.device != torch.device("cpu"):
                 x = x.cpu()
             if x.dtype == torch.bfloat16:
                 # Attempting to call .numpy() on a bfloat16 torch tensor leads
@@ -234,12 +273,13 @@ def is_tensor(x):
 
 
 def shape(x):
-    return x.shape
+    # Convert from `torch.Size` to plain tuple.
+    return tuple(x.shape)
 
 
 def cast(x, dtype):
     dtype = to_torch_dtype(dtype)
-    if isinstance(x, KerasVariable):
+    if isinstance(x, Variable):
         x = x.value
     if is_tensor(x):
         if x.dtype == dtype:
@@ -301,10 +341,12 @@ def compute_output_spec(fn, *args, **kwargs):
                 )
                 return fn(*eager_args, **eager_kwargs)
 
-    with StatelessScope(), torch.no_grad():
+    with StatelessScope(), SymbolicScope(), torch.no_grad():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
 
-        none_in_shape = any(map(has_none_shape, tree.flatten((args, kwargs))))
+        none_in_shape = any(
+            builtins.map(has_none_shape, tree.flatten((args, kwargs)))
+        )
         if none_in_shape:
             outputs_1 = outputs
             outputs_2 = symbolic_call(fn, args, kwargs, fill_value=89)
@@ -339,6 +381,181 @@ def vectorized_map(function, elements):
     return torch.vmap(function)(elements)
 
 
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
+
+
+def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
+    # Ref: jax.lax.scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    if not isinstance(unroll, bool):
+        if not isinstance(unroll, int) or unroll < 1:
+            raise ValueError(
+                "`unroll` must be an positive integer or boolean. "
+                f"Received: unroll={unroll}"
+            )
+    if xs is None and length is None:
+        raise ValueError("Got no `xs` to scan over and `length` not provided.")
+
+    input_is_sequence = tree.is_nested(xs)
+    output_is_sequence = tree.is_nested(init)
+
+    def pack_input(x):
+        return tree.pack_sequence_as(xs, x) if input_is_sequence else x[0]
+
+    def pack_output(x):
+        return tree.pack_sequence_as(init, x) if output_is_sequence else x[0]
+
+    if xs is None:
+        xs_flat = []
+        n = int(length)
+    else:
+        xs_flat = tree.flatten(xs)
+        xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
+        n = int(length) if length is not None else shape(xs_flat[0])[0]
+
+    init_flat = tree.flatten(init)
+    init_flat = [convert_to_tensor(init) for init in init_flat]
+    init = pack_output(init_flat)
+    dummy_y = [torch.zeros_like(init) for init in init_flat]
+
+    carry = init
+    ys = []
+    maybe_reversed = reversed if reverse else lambda x: x
+    for i in maybe_reversed(range(n)):
+        xs_slice = [x[i] for x in xs_flat]
+        packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
+        carry, y = f(carry, packed_xs)
+        ys.append(y if y is not None else dummy_y)
+    stacked_y = tree.map_structure(
+        lambda *ys: torch.stack(ys), *maybe_reversed(ys)
+    )
+    return carry, stacked_y
+
+
+def associative_scan(f, elems, reverse=False, axis=0):
+    # Ref: jax.lax.associative_scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    elems_flat = tree.flatten(elems)
+    elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
+    if reverse:
+        elems_flat = [torch.flip(elem, (axis,)) for elem in elems_flat]
+
+    def _combine(a_flat, b_flat):
+        a_flat = [convert_to_tensor(a) for a in a_flat]
+        b_flat = [convert_to_tensor(b) for b in b_flat]
+
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
+        c = f(a, b)
+        c_flat = tree.flatten(c)
+        return c_flat
+
+    num_elems = int(elems_flat[0].shape[axis])
+    if not all(int(elem.shape[axis]) == num_elems for elem in elems_flat[1:]):
+        raise ValueError(
+            "Array inputs to associative_scan must have the same "
+            "first dimension. (saw: {})".format(
+                [elem.shape for elem in elems_flat]
+            )
+        )
+
+    def _interleave(a, b, axis):
+        """Given two Tensors of static shape, interleave them along axis."""
+        assert (
+            a.shape[axis] == b.shape[axis] or a.shape[axis] == b.shape[axis] + 1
+        )
+
+        # we want to get a: [a1, a2], b: [b1, b2]
+        # to a: [a1, 0, a2, 0], b: [0, b1, 0, b2]
+        a_shape = list(a.shape)
+        a_shape[axis] = a.shape[axis] * 2 - 1
+
+        b_shape = list(b.shape)
+        b_shape[axis] = b.shape[axis] * 2 - 1
+
+        a_dil = torch.zeros(a_shape)
+        slice_along_axis(a_dil, 0, None, 2, axis).copy_(a)
+
+        b_dil = torch.zeros(b_shape)
+        slice_along_axis(b_dil, 0, None, 2, axis).copy_(b)
+
+        a_pad = [[0, 0] for _ in range(a.dim())]
+        a_pad[axis][-1] = 1 if a.shape[axis] == b.shape[axis] else 0
+        a_pad = a_pad[::-1]
+        a_pad = tree.flatten(a_pad)
+
+        b_pad = [[0, 0] for _ in range(b.dim())]
+        b_pad[axis] = [1, 0] if a.shape[axis] == b.shape[axis] else [1, 1]
+        b_pad = b_pad[::-1]
+        b_pad = tree.flatten(b_pad)
+
+        op = torch.bitwise_or if a.dtype == torch.bool else torch.add
+        return op(
+            torch.nn.functional.pad(a_dil, a_pad),
+            torch.nn.functional.pad(b_dil, b_pad),
+        )
+
+    def _scan(elems):
+        num_elems = elems[0].shape[axis]
+        if num_elems < 2:
+            return elems
+
+        reduced_elems = _combine(
+            [
+                slice_along_axis(elem, 0, -1, step=2, axis=axis)
+                for elem in elems
+            ],
+            [
+                slice_along_axis(elem, 1, None, step=2, axis=axis)
+                for elem in elems
+            ],
+        )
+
+        odd_elems = _scan(reduced_elems)
+        if num_elems % 2 == 0:
+            even_elems = _combine(
+                [slice_along_axis(e, 0, -1, axis=axis) for e in odd_elems],
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
+            )
+        else:
+            even_elems = _combine(
+                odd_elems,
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
+            )
+
+        even_elems = [
+            torch.cat(
+                [slice_along_axis(elem, 0, 1, axis=axis), result],
+                dim=axis,
+            )
+            for (elem, result) in zip(elems, even_elems)
+        ]
+        return list(
+            builtins.map(
+                functools.partial(_interleave, axis=axis), even_elems, odd_elems
+            )
+        )
+
+    scans = _scan(elems_flat)
+    if reverse:
+        scans = [torch.flip(scanned, (axis,)) for scanned in scans]
+
+    return tree.pack_sequence_as(elems, scans)
+
+
 def scatter(indices, values, shape):
     indices = convert_to_tensor(indices)
     values = convert_to_tensor(values)
@@ -361,8 +578,9 @@ def scatter_update(inputs, indices, updates):
     updates = convert_to_tensor(updates)
     indices = torch.transpose(indices, 0, 1)
 
-    inputs[tuple(indices)] = updates
-    return inputs
+    outputs = torch.clone(inputs)
+    outputs[tuple(indices)] = updates
+    return outputs
 
 
 def slice(inputs, start_indices, shape):
@@ -395,6 +613,12 @@ def slice_update(inputs, start_indices, updates):
     return outputs
 
 
+def switch(index, branches, *operands):
+    index = convert_to_tensor(index, "int32")
+    index = torch.clamp(index, 0, len(branches) - 1)
+    return branches[index](*operands)
+
+
 def while_loop(
     cond,
     body,
@@ -425,6 +649,8 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
+    if isinstance(variable, Variable):
+        variable = variable.value
     # We can't use `.requires_grad_(False)` here since it only
     # works when the tensor is a leaf node in the graph.
     return variable.detach()
@@ -432,6 +658,27 @@ def stop_gradient(variable):
 
 def unstack(x, num=None, axis=0):
     return x.unbind(axis)
+
+
+def random_seed_dtype():
+    # uint32 doesn't exist in torch, use int32 instead.
+    return "int32"
+
+
+def remat(f):
+    """Implementation of rematerialization.
+
+    Args:
+        f: The function or operation to rematerialize.
+    Returns:
+        A function wrapping f that defines a custom gradient, which
+        recomputes f on the backwards pass of a gradient call.
+    """
+
+    def wrapped(*args, **kwargs):
+        return torch.utils.checkpoint.checkpoint(f, *args, use_reentrant=False)
+
+    return wrapped
 
 
 class custom_gradient:

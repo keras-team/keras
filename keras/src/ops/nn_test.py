@@ -1,3 +1,6 @@
+import math
+from itertools import combinations
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -33,7 +36,58 @@ from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
 
 
-class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
+def _dot_product_attention(
+    query, key, value, bias=None, mask=None, scale=None, is_causal=False
+):
+    # A pure and simplified numpy version of `dot_product_attention`
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+
+    def _apply_masks(logits, mask, is_causal):
+        def _get_large_negative(dtype):
+            dtype = backend.standardize_dtype(dtype)
+            if dtype == "float16":
+                val = 65500.0
+            else:
+                val = 3.38953e38
+            return np.asarray(val * -0.7, dtype=dtype)
+
+        def _get_causal_mask(query_length, key_length):
+            mask = np.tril(np.ones((query_length, key_length), dtype=np.bool_))
+            return mask[None, None, :, :]
+
+        if mask is None and not is_causal:
+            return logits
+        combined_mask = np.ones_like(logits, dtype=np.bool_)
+        if mask is not None:
+            combined_mask = np.logical_and(combined_mask, mask)
+        if is_causal:
+            T, S = logits.shape[2], logits.shape[3]
+            mask = _get_causal_mask(T, S)
+            combined_mask = np.logical_and(combined_mask, mask)
+        padded_logits = np.where(
+            combined_mask, logits, _get_large_negative(logits.dtype)
+        )
+        return padded_logits
+
+    def softmax(x, axis=None):
+        exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
+        return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
+
+    _, _, _, H = key.shape
+    scale = (1.0 / np.sqrt(H)) if scale is None else scale
+    logits = np.einsum("BTNH,BSNH->BNTS", query, key)
+    logits *= np.array(scale, dtype=logits.dtype)
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+    padded_logits = _apply_masks(logits, mask, is_causal)
+    padded_logits = padded_logits.astype(np.float32)
+    probs = softmax(padded_logits, axis=-1).astype(key.dtype)
+    return np.einsum("BNTS,BSNH->BTNH", probs, value)
+
+
+class NNOpsDynamicShapeTest(testing.TestCase):
     def test_relu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.relu(x).shape, (None, 2, 3))
@@ -45,6 +99,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
     def test_sigmoid(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sigmoid(x).shape, (None, 2, 3))
+
+    def test_sparse_sigmoid(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.sparse_sigmoid(x).shape, (None, 2, 3))
 
     def test_softplus(self):
         x = KerasTensor([None, 2, 3])
@@ -86,6 +144,42 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.gelu(x).shape, (None, 2, 3))
 
+    def test_celu(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.celu(x).shape, (None, 2, 3))
+
+    def test_glu(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.glu(x).shape, (None, 2, 3))
+
+    def test_tanh_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.tanh_shrink(x).shape, (None, 2, 3))
+
+    def test_hard_tanh(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.hard_tanh(x).shape, (None, 2, 3))
+
+    def test_hard_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.hard_shrink(x).shape, (None, 2, 3))
+
+    def test_threshld(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.threshold(x, 0, 0).shape, (None, 2, 3))
+
+    def test_squareplus(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.squareplus(x).shape, (None, 2, 3))
+
+    def test_soft_shrink(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.soft_shrink(x).shape, (None, 2, 3))
+
+    def test_sparse_plus(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.sparse_plus(x).shape, (None, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (None, 2, 3))
@@ -113,6 +207,10 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.log_softmax(x).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
+
+    def test_sparsemax(self):
+        x = KerasTensor([None, 2, 3])
+        self.assertEqual(knn.sparsemax(x).shape, (None, 2, 3))
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -210,12 +308,17 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.multi_hot(x, 5, 2).shape, (None, 5, 1))
         self.assertSparse(knn.multi_hot(x, 5, sparse=True))
 
-    @parameterized.product(dtype=["float32", "int32"])
-    def test_multi_hot_dtype(self, dtype):
-        # dtype tests
+    @parameterized.named_parameters(
+        named_product(dtype=["float32", "int32", "bool"], sparse=[False, True])
+    )
+    def test_multi_hot_dtype(self, dtype, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+
         x = np.arange(5)
-        out = knn.multi_hot(x, 5, axis=0, dtype=dtype)
+        out = knn.multi_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertSparse(out, sparse)
 
     def test_conv(self):
         data_format = backend.config.image_data_format()
@@ -564,12 +667,17 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (None, 3, 5, 1))
         self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
-    @parameterized.product(dtype=["float32", "int32"])
-    def test_one_hot_dtype(self, dtype):
-        # dtype tests
+    @parameterized.named_parameters(
+        named_product(dtype=["float32", "int32", "bool"], sparse=[False, True])
+    )
+    def test_one_hot_dtype(self, dtype, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors")
+
         x = np.arange(5)
-        out = knn.one_hot(x, 5, axis=0, dtype=dtype)
+        out = knn.one_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertSparse(out, sparse)
 
     def test_moments(self):
         x = KerasTensor([None, 3, 4])
@@ -660,6 +768,26 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         out = knn.psnr(x1, x2, max_val=224)
         self.assertEqual(out.shape, ())
 
+    def test_dot_product_attention(self):
+        query = KerasTensor([None, None, 8, 16])
+        key = KerasTensor([None, None, 6, 16])
+        value = KerasTensor([None, None, 6, 16])
+        out = knn.dot_product_attention(query, key, value)
+        self.assertEqual(out.shape, query.shape)
+
+    def test_rms_normalization(self):
+        x = KerasTensor([None, 8, 16])
+        scale = KerasTensor([None, 8, 16])
+        out = knn.rms_normalization(x, scale)
+        self.assertEqual(out.shape, x.shape)
+
+    def test_layer_normalization(self):
+        x = KerasTensor([None, 8, 16])
+        gamma = KerasTensor([None, 16])
+        beta = KerasTensor([None, 16])
+        out = knn.layer_normalization(x, gamma, beta)
+        self.assertEqual(out.shape, x.shape)
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -673,6 +801,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
     def test_sigmoid(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.sigmoid(x).shape, (1, 2, 3))
+
+    def test_sparse_sigmoid(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.sparse_sigmoid(x).shape, (1, 2, 3))
 
     def test_softplus(self):
         x = KerasTensor([1, 2, 3])
@@ -714,6 +846,42 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.gelu(x).shape, (1, 2, 3))
 
+    def test_celu(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.celu(x).shape, (1, 2, 3))
+
+    def test_glu(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.glu(x).shape, (1, 2, 3))
+
+    def test_tanh_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.tanh_shrink(x).shape, (1, 2, 3))
+
+    def test_hard_tanh(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.hard_tanh(x).shape, (1, 2, 3))
+
+    def test_hard_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.hard_shrink(x).shape, (1, 2, 3))
+
+    def test_threshold(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.threshold(x, 0, 0).shape, (1, 2, 3))
+
+    def test_squareplus(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.squareplus(x).shape, (1, 2, 3))
+
+    def test_soft_shrink(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.soft_shrink(x).shape, (1, 2, 3))
+
+    def test_sparse_plus(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.sparse_plus(x).shape, (1, 2, 3))
+
     def test_softmax(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.softmax(x).shape, (1, 2, 3))
@@ -725,6 +893,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.log_softmax(x).shape, (1, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (1, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (1, 2, 3))
+
+    def test_sparsemax(self):
+        x = KerasTensor([1, 2, 3])
+        self.assertEqual(knn.sparsemax(x).shape, (1, 2, 3))
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -1126,8 +1298,32 @@ class NNOpsStaticShapeTest(testing.TestCase):
         out = knn.psnr(x1, x2, max_val=224)
         self.assertEqual(out.shape, ())
 
+    def test_dot_product_attention(self):
+        query = KerasTensor([2, 3, 8, 16])
+        key = KerasTensor([2, 4, 6, 16])
+        value = KerasTensor([2, 4, 6, 16])
+        out = knn.dot_product_attention(query, key, value)
+        self.assertEqual(out.shape, query.shape)
 
-class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
+    def test_rms_normalization(self):
+        x = KerasTensor([2, 8, 16])
+        scale = KerasTensor([2, 8, 16])
+        self.assertEqual(knn.rms_normalization(x, scale).shape, x.shape)
+
+    def test_layer_normalization(self):
+        x = KerasTensor([2, 8, 16])
+        gamma = KerasTensor([2, 16])
+        beta = KerasTensor([2, 16])
+        self.assertEqual(knn.layer_normalization(x, gamma, beta).shape, x.shape)
+
+    def test_polar(self):
+        abs_ = KerasTensor([1, 2])
+        angle = KerasTensor([3, 4])
+        out = knn.polar(abs_, angle)
+        self.assertEqual(out.shape, abs_.shape)
+
+
+class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.relu(x), [0, 0, 1, 2, 3])
@@ -1141,6 +1337,10 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knn.sigmoid(x), [0.26894143, 0.5, 0.7310586, 0.880797, 0.95257413]
         )
+
+    def test_sparse_sigmoid(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(knn.sparse_sigmoid(x), [0.0, 0.5, 1.0, 1.0, 1.0])
 
     def test_softplus(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -1213,6 +1413,69 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             [-0.15880796, 0.0, 0.841192, 1.9545977, 2.9963627],
         )
 
+    def test_celu(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.celu(x),
+            [-0.63212055, 0.0, 1.0, 2.0, 3.0],
+        )
+
+    def test_glu(self):
+        x = np.array([-1, 0, 1, 2, 3, 4], dtype=np.float32)
+        self.assertAllClose(
+            knn.glu(x),
+            [-0.8807971, 0.0, 0.98201376],
+        )
+
+    def test_tanh_shrink(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.tanh_shrink(x),
+            [-0.238406, 0.0, 0.238406, 1.035972, 2.004945],
+        )
+
+    def test_hard_tanh(self):
+        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.hard_tanh(x),
+            [-1.0, 0.0, 1.0, 1.0, 1.0],
+        )
+
+    def test_hard_shrink(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.hard_shrink(x),
+            [0.0, 0.0, 1.0, 2.0, 3.0],
+        )
+
+    def test_threshold(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.threshold(x, 0, 0),
+            [0.0, 0.0, 1.0, 2.0, 3.0],
+        )
+
+    def test_squareplus(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.squareplus(x),
+            [0.780776, 1.0, 1.618034, 2.414214, 3.302776],
+        )
+
+    def test_soft_shrink(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.soft_shrink(x),
+            [0.0, 0.0, 0.5, 1.5, 2.5],
+        )
+
+    def test_sparse_plus(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.sparse_plus(x),
+            [0.0625, 0.25, 1.0, 2.0, 3.0],
+        )
+
     def test_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
@@ -1237,6 +1500,16 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [0.09003057, 0.24472848, 0.66524094],
             ],
         )
+
+    def test_softmax_correctness_with_axis_tuple(self):
+        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
+        combination = combinations(range(3), 2)
+        for axis in list(combination):
+            result = keras.ops.nn.softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(
+                ops.convert_to_numpy(result), axis=axis
+            )
+            self.assertAllClose(normalized_sum_by_axis, 1.0)
 
     def test_log_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
@@ -1267,6 +1540,31 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [-2.407606, -1.407606, -0.407606],
                 [-2.407606, -1.407606, -0.407606],
             ],
+        )
+
+    def test_log_softmax_correctness_with_axis_tuple(self):
+        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
+        combination = combinations(range(3), 2)
+        for axis in list(combination):
+            result = keras.ops.nn.log_softmax(input, axis=axis)
+            normalized_sum_by_axis = np.sum(
+                np.exp(ops.convert_to_numpy(result)), axis=axis
+            )
+            self.assertAllClose(normalized_sum_by_axis, 1.0)
+
+    def test_polar_corectness(self):
+        abs_ = np.array([1, 2], dtype="float32")
+        angle = np.array([2, 3], dtype="float32")
+        out = knn.polar(abs_, angle)
+        self.assertAllClose(
+            out, [-0.41614684 + 0.9092974j, -1.979985 + 0.28224j], atol=1e-3
+        )
+
+    def test_sparsemax(self):
+        x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
+        self.assertAllClose(
+            knn.sparsemax(x),
+            [0.0, 0.0, 0.0, 0.0, 1.0],
         )
 
     def test_max_pool(self):
@@ -1303,7 +1601,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_average_pool_valid_padding(self):
         data_format = backend.config.image_data_format()
-        # Test 1D max pooling.
+        # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1314,7 +1612,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool1d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
-        # Test 2D max pooling.
+        # Test 2D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 10, 9, 3)
         else:
@@ -1325,13 +1623,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool2d(x, 2, 1, padding="valid", data_format=data_format),
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Torch outputs differently from TF when using `same` padding.",
-    )
     def test_average_pool_same_padding(self):
         data_format = backend.config.image_data_format()
-        # Test 1D max pooling.
+        # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1343,7 +1637,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np_avgpool1d(x, 2, 2, padding="same", data_format=data_format),
         )
 
-        # Test 2D max pooling.
+        # Test 2D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 10, 9, 3)
         else:
@@ -1352,6 +1646,18 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knn.average_pool(x, 2, (2, 1), padding="same"),
             np_avgpool2d(x, 2, (2, 1), padding="same", data_format=data_format),
+        )
+        # Test 2D average pooling with different pool size.
+        if data_format == "channels_last":
+            input_shape = (2, 10, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 9)
+        x = np.arange(540, dtype=float).reshape(input_shape)
+        self.assertAllClose(
+            knn.average_pool(x, (2, 3), (3, 3), padding="same"),
+            np_avgpool2d(
+                x, (2, 3), (3, 3), padding="same", data_format=data_format
+            ),
         )
 
     @parameterized.product(
@@ -1445,27 +1751,46 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(outputs, expected)
 
-    @parameterized.product(strides=(1, (1, 1, 1), 2), padding=("valid", "same"))
-    def test_conv_3d(self, strides, padding):
-        if backend.config.image_data_format() == "channels_last":
+    @parameterized.product(
+        strides=(1, (1, 1, 1), 2),
+        padding=("valid", "same"),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_conv_3d(self, strides, padding, data_format):
+        if data_format == "channels_last":
             input_shape = (2, 8, 8, 8, 3)
         else:
             input_shape = (2, 3, 8, 8, 8)
         inputs_3d = np.arange(3072, dtype=float).reshape(input_shape)
         kernel = np.arange(162, dtype=float).reshape([3, 3, 3, 3, 2])
 
-        outputs = knn.conv(inputs_3d, kernel, strides, padding=padding)
+        outputs = knn.conv(
+            inputs_3d, kernel, strides, padding=padding, data_format=data_format
+        )
         expected = np_conv3d(
             inputs_3d,
             kernel,
             bias_weights=np.zeros((2,)),
             strides=strides,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=1,
             groups=1,
         )
         self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+
+        # Test for tracing error on tensorflow backend.
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            @tf.function
+            def conv(x):
+                return knn.conv(
+                    x, kernel, strides, padding=padding, data_format=data_format
+                )
+
+            outputs = conv(inputs_3d)
+            self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
 
     @parameterized.product(
         strides=(1, (1, 1), (2, 2)),
@@ -1643,6 +1968,15 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             output_2d, np.transpose(np.eye(4)[indices_2d], (0, 2, 1))
         )
         self.assertSparse(output_2d, sparse)
+
+        # Test 1D one-hot with 1 extra dimension.
+        indices_1d = np.array([[0], [1], [2], [3]])
+        output_1d = knn.one_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d])
+        self.assertSparse(output_1d, sparse)
+        output_1d = knn.one_hot(indices_1d, 4, axis=0, sparse=sparse)
+        self.assertAllClose(output_1d, np.eye(4)[indices_1d].swapaxes(1, 2))
+        self.assertSparse(output_1d, sparse)
 
         # Test 1D one-hot with negative inputs
         indices_1d = np.array([0, -1, -1, 3])
@@ -1857,7 +2191,11 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         reason="synchronized=True only implemented for TF backend",
     )
     def test_moments_sync_with_distribution_strategy(self, dtype):
+        from tensorflow.python.eager import context
+
         from keras.src.utils.module_utils import tensorflow as tf
+
+        context._reset_context()
 
         # Config 2 CPUs for testing.
         logical_cpus = tf.config.list_logical_devices("CPU")
@@ -1887,6 +2225,8 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(mean.values[0], 4.5)
             self.assertEqual(variance.values[0], 8.75)
             self.assertEqual(variance.values[0], 8.75)
+
+        context._reset_context()
 
     def test_batch_normalization(self):
         x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
@@ -1946,30 +2286,31 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             [
                 [
                     [0.1, 0.4, 0.2, 0.4],
-                    [0.3, 0.3, 0.4, 0.2],
+                    [0.3, -0.3, 0.4, 0.2],
                     [0.3, 0.2, 0.4, 0.3],
                 ],
                 [
-                    [0.1, 0.4, 0.7, 0.2],
+                    [0.7, 0.4, 0.3, 0.2],
                     [0.3, 0.3, 0.4, 0.1],
-                    [0.2, 0.1, 0.1, 0.5],
+                    [0.6, -0.1, 0.1, 0.5],
                 ],
                 [
                     [0.1, 0.4, 0.2, 0.7],
-                    [0.3, 0.3, 0.2, 0.7],
+                    [0.3, 0.3, -0.2, 0.7],
                     [0.3, 0.2, 0.4, 0.1],
                 ],
             ]
         )
-        labels = np.array([[1, 2, -1], [2, -1, -1], [-1, -1, -1]])
-        score_labels = np.array([[-1.2], [-1.6], [-0.7]])
-        repeated_labels = np.array([[1, 2, 2], [2, 2, -1], [-1, -1, -1]])
+        labels = np.array([[1, 2, -1], [2, -1, -1], [3, -1, -1]])
+        score_labels = np.array([[-1.2], [-1.7], [-0.7]])
+        repeated_labels = np.array([[1, 2, 2], [2, -1, -1], [3, -1, -1]])
 
         # Test strategy="greedy" and merge_repeated=True
         (decoded,), scores = knn.ctc_decode(
             inputs,
             sequence_lengths=[3, 3, 1],
             strategy="greedy",
+            mask_index=0,
         )
         self.assertAllClose(decoded, labels)
         self.assertAllClose(scores, score_labels)
@@ -1980,6 +2321,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             sequence_lengths=[3, 3, 1],
             strategy="greedy",
             merge_repeated=False,
+            mask_index=0,
         )
         self.assertAllClose(decoded, repeated_labels)
         self.assertAllClose(scores, score_labels)
@@ -1987,15 +2329,17 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         if backend.backend() == "torch":
             self.skipTest("torch doesn't support 'beam_search' strategy")
 
-        labels = [
-            np.array([[1, 2, -1], [2, -1, -1], [-1, -1, -1]]),
-            np.array([[2, -1, -1], [2, 0, -1], [1, -1, -1]]),
-        ]
+        labels = np.array(
+            [
+                [[1, 2, -1], [2, -1, -1], [3, -1, -1]],
+                [[2, -1, -1], [3, -1, -1], [1, -1, -1]],
+            ]
+        )
         score_labels = np.array(
             [
-                [-2.33578291, -2.44335217],
-                [-2.22499622, -2.25768432],
-                [-1.0633859, -1.3633859],
+                [-2.426537, -2.435596],
+                [-2.127681, -2.182338],
+                [-1.063386, -1.363386],
             ]
         )
         beam_width = 4
@@ -2008,9 +2352,9 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             strategy="beam_search",
             beam_width=beam_width,
             top_paths=top_paths,
+            mask_index=0,
         )
-        for i in range(top_paths):
-            self.assertAllClose(decoded[i], labels[i])
+        self.assertAllClose(decoded, labels)
         self.assertAllClose(scores, score_labels)
 
     def test_normalize(self):
@@ -2044,6 +2388,13 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ],
         )
 
+        # linalg.norm(x, ...) < epsilon
+        x = np.array([[1e-6, 1e-8]], dtype=np.float32)
+        self.assertAllClose(
+            knn.normalize(x, axis=-1, order=2, epsilon=1e-5),
+            [[1e-1, 1e-3]],
+        )
+
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         x2 = np.array([[0.2, 0.2, 0.3], [0.4, 0.6, 0.6]])
@@ -2063,8 +2414,142 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         psnr_2 = knn.psnr(x3, x4, max_val)
         self.assertAlmostEqual(psnr_2, expected_psnr_2)
 
+    @parameterized.named_parameters(
+        named_product(
+            bias=(None, True),
+            scale=(None, 1.0),
+            mask_and_is_causal=((None, False), (True, False), (None, True)),
+            flash_attention=(None, True, False),
+        )
+    )
+    def test_dot_product_attention(
+        self, bias, scale, mask_and_is_causal, flash_attention
+    ):
+        mask, is_causal = mask_and_is_causal
+        query_shape = (2, 3, 4, 8)
+        key_shape = (2, 3, 4, 8)
+        bias_shape = (2, 4, 3, 3)
+        query = np.arange(math.prod(query_shape), dtype=float).reshape(
+            query_shape
+        )
+        key = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
+        value = np.arange(math.prod(key_shape), dtype=float).reshape(key_shape)
+        if mask is not None:
+            mask = np.tril(np.ones((3, 3))).astype("bool")
+            mask = mask[None, None, ...]
+            mask = np.tile(mask, (2, 4, 1, 1))
+        if bias is not None:
+            if backend.backend() == "torch":
+                self.skipTest(
+                    "torch does not support `bias` with `dot_product_attention`"
+                )
+            bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
+                bias_shape
+            )
 
-class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
+        if flash_attention:
+            if backend.backend() in ("tensorflow", "numpy"):
+                self.skipTest(
+                    "Flash attention is not supported in tensorflow and numpy "
+                    "backends."
+                )
+            elif backend.backend() == "torch":
+                import torch
+
+                if mask is not None:
+                    self.skipTest(
+                        "Flash attention doesn't support `mask=None` in torch "
+                        "backend."
+                    )
+                if not torch.cuda.is_available():
+                    self.skipTest(
+                        "Flash attention must be run on CUDA in torch backend."
+                    )
+                cuda_compute_capability = tuple(
+                    int(x) for x in torch.cuda.get_device_capability()
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in torch backend."
+                    )
+            elif backend.backend() == "jax":
+                import jax
+                from jax._src import xla_bridge
+
+                if "cuda" not in xla_bridge.get_backend().platform_version:
+                    self.skipTest(
+                        "Flash attention must be run on CUDA in jax backend."
+                    )
+                d, *_ = jax.local_devices(backend="gpu")
+                cuda_compute_capability = tuple(
+                    int(x) for x in d.compute_capability.split(".")
+                )
+                if cuda_compute_capability < (8, 0):
+                    self.skipTest(
+                        "Flash attention must be run on CUDA compute "
+                        "capability >= 8.0 in jax backend."
+                    )
+
+            # Flash attention only supports float16 and bfloat16. We multiply
+            # 0.1 to avoid overflow.
+            query = (query * 0.1).astype("float16")
+            key = (key * 0.1).astype("float16")
+            value = (value * 0.1).astype("float16")
+            if bias is not None:
+                bias = (bias * 0.1).astype("float16")
+
+        outputs = knn.dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+            flash_attention=flash_attention,
+        )
+
+        expected = _dot_product_attention(
+            query,
+            key,
+            value,
+            bias=bias,
+            mask=mask,
+            scale=scale,
+            is_causal=is_causal,
+        )
+        self.assertAllClose(
+            outputs, expected, atol=1e-3 if flash_attention else 1e-6
+        )
+
+    @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
+    def test_rms_normalization(self, scale):
+        x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype="float32")
+        scale = np.array([scale] * x.shape[-1], dtype="float32")
+        expected_output = (
+            np.array([[0.46291, 0.92582, 1.38873], [0.78954, 0.98693, 1.18431]])
+            * scale
+        )
+
+        self.assertAllClose(
+            knn.rms_normalization(x, scale), expected_output, atol=1e-3
+        )
+        self.assertAllClose(knn.RMSNorm()(x, scale), expected_output, atol=1e-3)
+
+    def test_layer_normalization(self):
+        x = np.arange(5, dtype="float32")
+        expected_output = np.array(
+            [-1.4142135, -0.70710677, 0.0, 0.7071067, 1.4142135]
+        )
+
+        self.assertAllClose(
+            knn.layer_normalization(x), expected_output, atol=1e-3
+        )
+        self.assertAllClose(knn.LayerNorm()(x), expected_output, atol=1e-3)
+
+
+class NNOpsDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     FLOAT_DTYPES = dtypes.FLOAT_TYPES
@@ -2076,7 +2561,7 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         self.jax_enable_x64.__enter__()
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
         return super().tearDown()
 
@@ -2126,6 +2611,174 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Gelu(False).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_celu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.celu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.celu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Celu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_tanh_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.tanhshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.tanh_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.TanhShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_tanh(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_tanh(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_tanh(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardTanh().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hard_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.hardshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_threshold(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.threshold(x_torch, 0, 0).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.threshold(x, 0, 0).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Threshold(0, 0).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_soft_shrink(self, dtype):
+        import torch
+        import torch.nn.functional as tnn
+
+        x = knp.ones((1), dtype=dtype)
+        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
+        expected_dtype = standardize_dtype(tnn.softshrink(x_torch).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.soft_shrink(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.SoftShrink().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sparse_plus(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.sparse_plus(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.sparse_plus(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.SparsePlus().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_glu(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        if dtype == "bfloat16":
+            self.skipTest("Weirdness with numpy")
+
+        x = knp.ones((2), dtype=dtype)
+        x_jax = jnp.ones((2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.glu(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.glu(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Glu().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_squareplus(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        if dtype == "bfloat16":
+            self.skipTest("Weirdness with numpy")
+
+        x = knp.ones((2), dtype=dtype)
+        x_jax = jnp.ones((2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.squareplus(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.squareplus(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Squareplus().symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -2292,6 +2945,24 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sparse_sigmoid(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.sparse_sigmoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.sparse_sigmoid(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.SparseSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_silu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -2364,6 +3035,24 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_polar(self, dtype):
+        import jax.nn as jnn
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnn.hard_tanh(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knn.hard_tanh(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.HardTanh().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_ctc_loss(self, dtype):
         labels = knp.array([[1, 2, 1]], dtype="int32")
         outputs = knp.array(
@@ -2425,8 +3114,56 @@ class NNOpsDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(standardize_dtype(decoded.dtype), "int32")
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
 
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_dot_product_attention(self, dtype):
+        # TODO: Get expected output from jax if `jax.nn.dot_product_attention`
+        # is available.
+        query = knp.ones((2, 3, 3, 8), dtype=dtype)
+        key = knp.ones((2, 3, 3, 8), dtype=dtype)
+        value = knp.ones((2, 3, 3, 8), dtype=dtype)
+        expected_dtype = dtype
 
-class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
+        self.assertDType(
+            knn.dot_product_attention(query, key, value), expected_dtype
+        )
+        self.assertDType(
+            knn.DotProductAttention().symbolic_call(query, key, value),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=combinations(FLOAT_DTYPES, 2))
+    )
+    def test_rms_normalization(self, dtypes):
+        input_dtype, weight_dtype = dtypes
+        inputs = knp.ones((2, 8), dtype=input_dtype)
+        scale = knp.ones((8,), dtype=weight_dtype)
+        expected_dtype = input_dtype
+
+        self.assertDType(knn.rms_normalization(inputs, scale), expected_dtype)
+        self.assertDType(
+            knn.RMSNorm().symbolic_call(inputs, scale), expected_dtype
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=combinations(FLOAT_DTYPES, 2))
+    )
+    def test_layer_normalization(self, dtypes):
+        input_dtype, weight_dtype = dtypes
+        inputs = knp.ones((2, 8), dtype=input_dtype)
+        gamma = knp.ones((8,), dtype=weight_dtype)
+        beta = knp.ones((8,), dtype=weight_dtype)
+        expected_dtype = input_dtype
+
+        self.assertDType(
+            knn.layer_normalization(inputs, gamma, beta), expected_dtype
+        )
+        self.assertDType(
+            knn.LayerNorm().symbolic_call(inputs, gamma, beta), expected_dtype
+        )
+
+
+class NNOpsBehaviorTest(testing.TestCase):
     def test_logit_recovery_binary_crossentropy(self):
         layer = layers.Dense(
             4, activation="sigmoid", use_bias=False, kernel_initializer="ones"
@@ -2515,3 +3252,10 @@ class NNOpsBehaviorTest(testing.TestCase, parameterized.TestCase):
                 beam_width=beam_width,
                 top_paths=top_paths,
             )
+
+    def test_layer_normalization_rms_scaling_warning(self):
+        x = np.arange(5, dtype="float32")
+        with self.assertWarnsRegex(
+            UserWarning, r"You passed `rms_scaling=True`, which is deprecated"
+        ):
+            knn.layer_normalization(x, rms_scaling=True)

@@ -27,7 +27,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
     scaling to it. This loss scale is dynamically updated over time as follows:
     - On any train step, if a nonfinite gradient is encountered, the loss scale
       is halved, and the train step is skipped.
-    - If `dynamic_growth_steps` have ocurred since the last time the loss scale
+    - If `dynamic_growth_steps` have occurred since the last time the loss scale
       was updated, and no nonfinite gradients have occurred, the loss scale
       is doubled.
 
@@ -52,7 +52,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
     ):
         if not kwargs.pop("dynamic", True):
             raise ValueError(
-                "LossScaleOptimizer no longer suports `dynamic=False`. "
+                "LossScaleOptimizer no longer supports `dynamic=False`. "
                 "Instead, simply set `loss_scale_factor` directly on the "
                 "`inner_optimizer`."
             )
@@ -60,6 +60,9 @@ class LossScaleOptimizer(optimizer.Optimizer):
         self.inner_optimizer = inner_optimizer
         self.initial_scale = initial_scale
         self.dynamic_growth_steps = dynamic_growth_steps
+        # Disable the inner optimizer's loss scaling, otherwise
+        # gradients will be scaled twice.
+        self.inner_optimizer.loss_scale_factor = None
 
     @tracking.no_automatic_dependency_tracking
     def build(self, var_list):
@@ -67,12 +70,14 @@ class LossScaleOptimizer(optimizer.Optimizer):
             shape=(),
             dtype="int",
             initializer=initializers.Zeros(),
+            aggregation="none",
             name="step_counter",
         )
         self.dynamic_scale = self.add_variable(
             shape=(),
             dtype="float32",
             initializer=initializers.Constant(self.initial_scale),
+            aggregation="none",
             name="dynamic_scale",
         )
         self.inner_optimizer.build(var_list)
@@ -128,7 +133,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
             # Unscale gradients.
             scale = self.dynamic_scale
             unscaled_grads = [
-                g if g is None else ops.divide(g, scale) for g in grads
+                g
+                if g is None or self._overwrite_variable_with_gradient(v)
+                else ops.divide(g, scale)
+                for g, v in zip(grads, trainable_variables)
             ]
             (
                 new_trainable_variables,
@@ -169,8 +177,12 @@ class LossScaleOptimizer(optimizer.Optimizer):
     def _stateful_handle_finite_grads(self, grads, trainable_variables):
         scale = self.dynamic_scale
         # Unscale gradients.
+        tvs = trainable_variables or self._trainable_variables
         unscaled_grads = [
-            g if g is None else ops.divide(g, scale) for g in grads
+            g
+            if g is None or self._overwrite_variable_with_gradient(v)
+            else ops.divide(g, scale)
+            for g, v in zip(grads, tvs)
         ]
         self.inner_optimizer.apply(
             unscaled_grads, trainable_variables=trainable_variables
@@ -259,6 +271,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
     @learning_rate.setter
     def learning_rate(self, learning_rate):
         self.inner_optimizer.learning_rate = learning_rate
+
+    @property
+    def iterations(self):
+        return self.inner_optimizer.iterations
 
     def scale_loss(self, loss):
         scale = self.dynamic_scale if self.built else self.initial_scale

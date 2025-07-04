@@ -19,13 +19,27 @@ class DropoutRNNCell:
     all incoming steps, so that the same mask is used for every step.
     """
 
+    def _create_dropout_mask(self, step_input, dropout_rate):
+        count = getattr(self, "dropout_mask_count", None)
+        ones = ops.ones_like(step_input)
+        if count is None:
+            return backend.random.dropout(
+                ones, rate=dropout_rate, seed=self.seed_generator
+            )
+        else:
+            return [
+                backend.random.dropout(
+                    ones, rate=dropout_rate, seed=self.seed_generator
+                )
+                for _ in range(count)
+            ]
+
     def get_dropout_mask(self, step_input):
         if not hasattr(self, "_dropout_mask"):
             self._dropout_mask = None
         if self._dropout_mask is None and self.dropout > 0:
-            ones = ops.ones_like(step_input)
-            self._dropout_mask = backend.random.dropout(
-                ones, rate=self.dropout, seed=self.seed_generator
+            self._dropout_mask = self._create_dropout_mask(
+                step_input, self.dropout
             )
         return self._dropout_mask
 
@@ -33,9 +47,8 @@ class DropoutRNNCell:
         if not hasattr(self, "_recurrent_dropout_mask"):
             self._recurrent_dropout_mask = None
         if self._recurrent_dropout_mask is None and self.recurrent_dropout > 0:
-            ones = ops.ones_like(step_input)
-            self._recurrent_dropout_mask = backend.random.dropout(
-                ones, rate=self.recurrent_dropout, seed=self.seed_generator
+            self._recurrent_dropout_mask = self._create_dropout_mask(
+                step_input, self.recurrent_dropout
             )
         return self._recurrent_dropout_mask
 

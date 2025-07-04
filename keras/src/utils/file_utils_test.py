@@ -58,7 +58,7 @@ class IsPathInDirTest(test_case.TestCase):
 
 class IsLinkInDirTest(test_case.TestCase):
     def setUp(self):
-        self._cleanup("test_path/to/base_dir")
+        self._cleanup(os.path.join("test_path", "to", "base_dir"))
         self._cleanup("./base_dir")
 
     def _cleanup(self, base_dir):
@@ -66,7 +66,7 @@ class IsLinkInDirTest(test_case.TestCase):
             shutil.rmtree(base_dir)
 
     def test_is_link_in_dir_with_absolute_paths(self):
-        base_dir = "test_path/to/base_dir"
+        base_dir = os.path.join("test_path", "to", "base_dir")
         link_path = os.path.join(base_dir, "symlink")
         target_path = os.path.join(base_dir, "file.txt")
 
@@ -120,7 +120,7 @@ class IsLinkInDirTest(test_case.TestCase):
         self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
 
     def tearDown(self):
-        self._cleanup("test_path/to/base_dir")
+        self._cleanup(os.path.join("test_path", "to", "base_dir"))
         self._cleanup("./base_dir")
 
 
@@ -319,7 +319,7 @@ class GetFileTest(test_case.TestCase):
         """Test valid tar.gz extraction and hash validation."""
         dest_dir = self.get_temp_dir()
         orig_dir = self.get_temp_dir()
-        text_file_path, tar_file_path = self._create_tar_file(orig_dir)
+        _, tar_file_path = self._create_tar_file(orig_dir)
         self._test_file_extraction_and_validation(
             dest_dir, tar_file_path, "tar.gz"
         )
@@ -328,7 +328,7 @@ class GetFileTest(test_case.TestCase):
         """Test valid zip extraction and hash validation."""
         dest_dir = self.get_temp_dir()
         orig_dir = self.get_temp_dir()
-        text_file_path, zip_file_path = self._create_zip_file(orig_dir)
+        _, zip_file_path = self._create_zip_file(orig_dir)
         self._test_file_extraction_and_validation(
             dest_dir, zip_file_path, "zip"
         )
@@ -348,7 +348,7 @@ class GetFileTest(test_case.TestCase):
         """Test extraction of file with .tar.gz extension."""
         dest_dir = self.get_temp_dir()
         orig_dir = dest_dir
-        text_file_path, tar_file_path = self._create_tar_file(orig_dir)
+        _, tar_file_path = self._create_tar_file(orig_dir)
 
         origin = urllib.parse.urljoin(
             "file://",
@@ -358,8 +358,8 @@ class GetFileTest(test_case.TestCase):
         path = file_utils.get_file(
             "test.txt.tar.gz", origin, untar=True, cache_subdir=dest_dir
         )
-        self.assertTrue(path.endswith(".txt"))
         self.assertTrue(os.path.exists(path))
+        self.assertTrue(os.path.exists(os.path.join(path, "test.txt")))
 
     def test_get_file_with_integrity_check(self):
         """Test file download with integrity check."""
@@ -459,7 +459,7 @@ class GetFileTest(test_case.TestCase):
             text_file.write("Float like a butterfly, sting like a bee.")
 
         with tarfile.open(tar_file_path, "w:gz") as tar_file:
-            tar_file.add(text_file_path)
+            tar_file.add(text_file_path, arcname="test.txt")
 
         return text_file_path, tar_file_path
 
@@ -471,7 +471,7 @@ class GetFileTest(test_case.TestCase):
             text_file.write("Float like a butterfly, sting like a bee.")
 
         with zipfile.ZipFile(zip_file_path, "w") as zip_file:
-            zip_file.write(text_file_path)
+            zip_file.write(text_file_path, arcname="test.txt")
 
         return text_file_path, zip_file_path
 
@@ -484,7 +484,6 @@ class GetFileTest(test_case.TestCase):
             urllib.request.pathname2url(os.path.abspath(file_path)),
         )
 
-        hashval_sha256 = file_utils.hash_file(file_path)
         hashval_md5 = file_utils.hash_file(file_path, algorithm="md5")
 
         if archive_type:
@@ -499,17 +498,15 @@ class GetFileTest(test_case.TestCase):
             extract=extract,
             cache_subdir=dest_dir,
         )
-        path = file_utils.get_file(
-            "test",
-            origin,
-            file_hash=hashval_sha256,
-            extract=extract,
-            cache_subdir=dest_dir,
-        )
+        if extract:
+            fpath = path + "_archive"
+        else:
+            fpath = path
+
         self.assertTrue(os.path.exists(path))
-        self.assertTrue(file_utils.validate_file(path, hashval_sha256))
-        self.assertTrue(file_utils.validate_file(path, hashval_md5))
-        os.remove(path)
+        self.assertTrue(file_utils.validate_file(fpath, hashval_md5))
+        if extract:
+            self.assertTrue(os.path.exists(os.path.join(path, "test.txt")))
 
     def test_exists(self):
         temp_dir = self.get_temp_dir()
@@ -718,8 +715,25 @@ class IsRemotePathTest(test_case.TestCase):
     def test_cns_remote_path(self):
         self.assertTrue(file_utils.is_remote_path("/cns/some/path"))
 
+    def test_placer_remote_path(self):
+        self.assertTrue(
+            file_utils.is_remote_path("/placer/prod/home/some/path")
+        )
+        self.assertTrue(
+            file_utils.is_remote_path("/placer/test/home/some/path")
+        )
+        self.assertTrue(
+            file_utils.is_remote_path("/placer/prod/scratch/home/some/path")
+        )
+
+    def test_tfhub_remote_path(self):
+        self.assertTrue(file_utils.is_remote_path("/tfhub/some/path"))
+
     def test_cfs_remote_path(self):
         self.assertTrue(file_utils.is_remote_path("/cfs/some/path"))
+
+    def test_readahead_remote_path(self):
+        self.assertTrue(file_utils.is_remote_path("/readahead/some/path"))
 
     def test_non_remote_paths(self):
         self.assertFalse(file_utils.is_remote_path("/local/path/to/file.txt"))

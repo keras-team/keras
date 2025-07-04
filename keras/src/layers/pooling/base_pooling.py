@@ -35,6 +35,8 @@ class BasePooling(Layer):
 
         self.input_spec = InputSpec(ndim=pool_dimensions + 2)
 
+        self._build_at_init()
+
     def call(self, inputs):
         if self.pool_mode == "max":
             return ops.max_pool(

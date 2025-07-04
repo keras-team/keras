@@ -83,6 +83,8 @@ class ReLU(ops.Operation):
                 negative_part = backend.nn.relu(-x + threshold)
             else:
                 negative_part = backend.nn.relu(-x)
+        else:
+            negative_part = 1
 
         clip_max = max_value is not None
         if threshold != 0:
@@ -169,7 +171,7 @@ def softmax(x, axis=-1):
 def elu(x, alpha=1.0):
     """Exponential Linear Unit.
 
-    The exponential linear unit (ELU) with `alpha > 0` is define as:
+    The exponential linear unit (ELU) with `alpha > 0` is defined as:
 
     - `x` if `x > 0`
     - alpha * `exp(x) - 1` if `x < 0`
@@ -185,6 +187,7 @@ def elu(x, alpha=1.0):
 
     Args:
         x: Input tensor.
+        alpha: A scalar, slope of positive section. Defaults to `1.0`.
 
     Reference:
 
@@ -257,6 +260,41 @@ def softsign(x):
     return ops.softsign(x)
 
 
+@keras_export("keras.activations.soft_shrink")
+def soft_shrink(x, threshold=0.5):
+    """Soft Shrink activation function.
+
+    It is defined as:
+
+    `soft_shrink(x) = x - threshold` if `x > threshold`,
+    `soft_shrink(x) = x + threshold` if `x < -threshold`,
+    `soft_shrink(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    """
+    return ops.soft_shrink(x, threshold=threshold)
+
+
+@keras_export("keras.activations.sparse_plus")
+def sparse_plus(x):
+    """SparsePlus activation function.
+
+    SparsePlus is defined as:
+
+    `sparse_plus(x) = 0` for `x <= -1`.
+    `sparse_plus(x) = (1/4) * (x + 1)^2` for `-1 < x < 1`.
+    `sparse_plus(x) = x` for `x >= 1`.
+
+    Args:
+        x: Input tensor.
+
+    """
+    return ops.sparse_plus(x)
+
+
 @keras_export(["keras.activations.silu", "keras.activations.swish"])
 def silu(x):
     """Swish (or Silu) activation function.
@@ -275,6 +313,27 @@ def silu(x):
     - [Ramachandran et al., 2017](https://arxiv.org/abs/1710.05941)
     """
     return ops.silu(x)
+
+
+@keras_export("keras.activations.squareplus")
+def squareplus(x, b=4):
+    """Squareplus activation function.
+
+    The Squareplus activation function is defined as:
+
+    `f(x) = (x + sqrt(x^2 + b)) / 2`
+
+    Where `b` is a smoothness parameter.
+
+    Args:
+        x: Input tensor.
+        b: Smoothness parameter. Defaults to 4.
+
+    Reference:
+
+    - [Ramachandran et al., 2021](https://arxiv.org/abs/2112.11687)
+    """
+    return ops.squareplus(x, b=b)
 
 
 @keras_export("keras.activations.gelu")
@@ -300,6 +359,48 @@ def gelu(x, approximate=False):
     return ops.gelu(x, approximate=approximate)
 
 
+@keras_export("keras.activations.celu")
+def celu(x, alpha=1.0):
+    """Continuously Differentiable Exponential Linear Unit.
+
+    The CeLU activation function is defined as:
+
+    `celu(x) = alpha * (exp(x / alpha) - 1) for x < 0`,`celu(x) = x for x >= 0`.
+
+    where `alpha` is a scaling parameter that controls the activation's shape.
+
+    Args:
+        x: Input tensor.
+        alpha: The α value for the CeLU formulation. Defaults to `1.0`.
+
+    Reference:
+
+    - [Barron, J. T., 2017](https://arxiv.org/abs/1704.07483)
+    """
+    return ops.celu(x, alpha=alpha)
+
+
+@keras_export("keras.activations.glu")
+def glu(x, axis=-1):
+    """Gated Linear Unit (GLU) activation function.
+
+    The GLU activation function is defined as:
+
+    `glu(x) = a * sigmoid(b)`,
+
+    where `x` is split into two equal parts `a` and `b` along the given axis.
+
+    Args:
+        x: Input tensor.
+        axis: The axis along which to split the input tensor. Defaults to `-1`.
+
+    Reference:
+
+    - [Dauphin et al., 2017](https://arxiv.org/abs/1612.08083)
+    """
+    return ops.glu(x, axis=axis)
+
+
 @keras_export("keras.activations.tanh")
 def tanh(x):
     """Hyperbolic tangent activation function.
@@ -312,6 +413,70 @@ def tanh(x):
         x: Input tensor.
     """
     return ops.tanh(x)
+
+
+@keras_export("keras.activations.tanh_shrink")
+def tanh_shrink(x):
+    """Tanh shrink activation function.
+
+    It is defined as:
+
+    `f(x) = x - tanh(x)`.
+
+    Args:
+        x: Input tensor.
+    """
+    return ops.tanh_shrink(x)
+
+
+@keras_export("keras.activations.hard_tanh")
+def hard_tanh(x):
+    """HardTanh activation function.
+
+    It is defined as:
+    `hard_tanh(x) = -1 for x < -1`,
+    `hard_tanh(x) = x for -1 <= x <= 1`,
+    `hard_tanh(x) = 1 for x > 1`.
+
+    Args:
+        x: Input tensor.
+    """
+    return ops.hard_tanh(x)
+
+
+@keras_export("keras.activations.hard_shrink")
+def hard_shrink(x, threshold=0.5):
+    """Hard Shrink activation function.
+
+    It is defined as:
+
+    `hard_shrink(x) = x` if `|x| > threshold`,
+    `hard_shrink(x) = 0` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: Threshold value. Defaults to 0.5.
+
+    """
+    return ops.hard_shrink(x, threshold=threshold)
+
+
+@keras_export("keras.activations.threshold")
+def threshold(x, threshold, default_value):
+    """Threshold activation function.
+
+    It is defined as:
+
+    `threshold(x) = x` if `x > threshold`,
+    `threshold(x) = default_value` otherwise.
+
+    Args:
+        x: Input tensor.
+        threshold: The value that decides when to retain or replace x.
+        default_value: Value to assign when `x <= threshold`.
+
+    """
+    return ops.threshold(x, threshold, default_value)
 
 
 @keras_export("keras.activations.sigmoid")
@@ -372,6 +537,40 @@ def hard_sigmoid(x):
     - [Wikipedia "Hard sigmoid"](https://en.wikipedia.org/wiki/Hard_sigmoid)
     """
     return ops.hard_sigmoid(x)
+
+
+@keras_export("keras.activations.log_sigmoid")
+def log_sigmoid(x):
+    """Logarithm of the sigmoid activation function.
+
+    It is defined as `f(x) = log(1 / (1 + exp(-x)))`.
+
+    Args:
+        x: Input tensor.
+
+    """
+    return ops.log_sigmoid(x)
+
+
+@keras_export("keras.activations.sparse_sigmoid")
+def sparse_sigmoid(x):
+    """Sparse sigmoid activation function.
+
+    It is defined as
+
+    `f(x) = 0` for `x <= -1`,
+    `f(x) = 0.5 * (x + 1)` for `-1 < x < 1`,
+    `f(x) = 1` for `x >= 1`.
+
+    Args:
+        x: Input tensor.
+
+    Reference:
+
+    - [M. Blondel, A. F. T. Martins, V. Niculae, 2019](https://arxiv.org/pdf/1901.02324)
+
+    """
+    return ops.sparse_sigmoid(x)
 
 
 @keras_export(["keras.activations.hard_silu", "keras.activations.hard_swish"])
@@ -458,3 +657,28 @@ def log_softmax(x, axis=-1):
         axis: Integer, axis along which the softmax is applied.
     """
     return ops.log_softmax(x, axis=axis)
+
+
+@keras_export(["keras.activations.sparsemax"])
+def sparsemax(x, axis=-1):
+    """Sparsemax activation function.
+
+    For each batch `i`, and class `j`,
+    sparsemax activation function is defined as:
+
+    `sparsemax(x)[i, j] = max(x[i, j] - τ(x[i, :]), 0).`
+
+    Args:
+        x: Input tensor.
+        axis: `int`, axis along which the sparsemax operation is applied.
+
+    Returns:
+        A tensor, output of sparsemax transformation. Has the same type and
+        shape as `x`.
+
+    Reference:
+
+    - [Martins et.al., 2016](https://arxiv.org/abs/1602.02068)
+    """
+    x = backend.convert_to_tensor(x)
+    return ops.sparsemax(x, axis)

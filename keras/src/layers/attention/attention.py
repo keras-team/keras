@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 
 
@@ -27,13 +28,13 @@ class Attention(Layer):
             attention scores.
         dropout: Float between 0 and 1. Fraction of the units to drop for the
             attention scores. Defaults to `0.0`.
-        seed: A Python integer to use as random seed incase of `dropout`.
+        seed: A Python integer to use as random seed in case of `dropout`.
         score_mode: Function to use to compute attention scores, one of
             `{"dot", "concat"}`. `"dot"` refers to the dot product between the
             query and key vectors. `"concat"` refers to the hyperbolic tangent
             of the concatenation of the `query` and `key` vectors.
 
-    Call Args:
+    Call arguments:
         inputs: List of the following tensors:
             - `query`: Query tensor of shape `(batch_size, Tq, dim)`.
             - `value`: Value tensor of shape `(batch_size, Tv, dim)`.
@@ -84,6 +85,8 @@ class Attention(Layer):
                 f"Received: score_mode={score_mode}"
             )
 
+        self._return_attention_scores = False
+
     def build(self, input_shape):
         self._validate_inputs(input_shape)
         self.scale = None
@@ -104,7 +107,6 @@ class Attention(Layer):
                 dtype=self.dtype,
                 trainable=True,
             )
-        self.built = True
 
     def _calculate_scores(self, query, key):
         """Calculates attention scores as a query-key dot product.
@@ -134,6 +136,8 @@ class Attention(Layer):
                 scores = self.concat_score_weight * ops.sum(
                     ops.tanh(q_reshaped + k_reshaped), axis=-1
                 )
+        else:
+            raise ValueError("scores not computed")
 
         return scores
 
@@ -215,6 +219,7 @@ class Attention(Layer):
         use_causal_mask=False,
     ):
         self._validate_inputs(inputs=inputs, mask=mask)
+        self._return_attention_scores = return_attention_scores
         q = inputs[0]
         v = inputs[1]
         k = inputs[2] if len(inputs) > 2 else v
@@ -224,16 +229,17 @@ class Attention(Layer):
         scores_mask = self._calculate_score_mask(
             scores, v_mask, use_causal_mask
         )
-        result, attention_scores = self._apply_scores(
+        attention_output, attention_scores = self._apply_scores(
             scores=scores, value=v, scores_mask=scores_mask, training=training
         )
         if q_mask is not None:
             # Mask of shape [batch_size, Tq, 1].
             q_mask = ops.expand_dims(q_mask, axis=-1)
-            result *= ops.cast(q_mask, dtype=result.dtype)
+            attention_output *= ops.cast(q_mask, dtype=attention_output.dtype)
         if return_attention_scores:
-            return result, attention_scores
-        return result
+            return (attention_output, attention_scores)
+        else:
+            return attention_output
 
     def compute_mask(self, inputs, mask=None):
         self._validate_inputs(inputs=inputs, mask=mask)
@@ -242,8 +248,49 @@ class Attention(Layer):
         return ops.convert_to_tensor(mask[0])
 
     def compute_output_shape(self, input_shape):
-        """Returns shape of value tensor dim, but for query tensor length"""
-        return (*input_shape[0][:-1], input_shape[1][-1])
+        query_shape, value_shape, key_shape = input_shape
+        if key_shape is None:
+            key_shape = value_shape
+
+        output_shape = (*query_shape[:-1], value_shape[-1])
+        if self._return_attention_scores:
+            scores_shape = (query_shape[0], query_shape[1], key_shape[1])
+            return output_shape, scores_shape
+        return output_shape
+
+    def compute_output_spec(
+        self,
+        inputs,
+        mask=None,
+        return_attention_scores=False,
+        training=None,
+        use_causal_mask=False,
+    ):
+        # Validate and unpack inputs
+        self._validate_inputs(inputs, mask)
+        query = inputs[0]
+        value = inputs[1]
+        key = inputs[2] if len(inputs) > 2 else value
+
+        # Compute primary output shape
+        output_shape = self.compute_output_shape(
+            [query.shape, value.shape, key.shape]
+        )
+        output_spec = KerasTensor(output_shape, dtype=self.compute_dtype)
+
+        # Handle attention scores if requested
+        if self._return_attention_scores or return_attention_scores:
+            scores_shape = (
+                query.shape[0],
+                query.shape[1],
+                key.shape[1],
+            )  # (batch_size, Tq, Tv)
+            attention_scores_spec = KerasTensor(
+                scores_shape, dtype=self.compute_dtype
+            )
+            return (output_spec, attention_scores_spec)
+
+        return output_spec
 
     def _validate_inputs(self, inputs, mask=None):
         """Validates arguments of the call method."""

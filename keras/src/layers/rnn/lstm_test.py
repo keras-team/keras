@@ -7,9 +7,19 @@ from keras.src import layers
 from keras.src import testing
 
 
-class LSTMTest(testing.TestCase, parameterized.TestCase):
+class LSTMTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_basics(self):
+        self.run_layer_test(
+            layers.LSTM,
+            init_kwargs={"units": 3, "dropout": 0.5},
+            input_shape=(3, 2, 4),
+            call_kwargs={"training": True},
+            expected_output_shape=(3, 3),
+            expected_num_trainable_weights=3,
+            expected_num_non_trainable_weights=0,
+            supports_masking=True,
+        )
         self.run_layer_test(
             layers.LSTM,
             init_kwargs={"units": 3, "dropout": 0.5, "recurrent_dropout": 0.5},

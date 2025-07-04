@@ -5,7 +5,7 @@ from keras.src import testing
 from keras.src.metrics import f_score_metrics
 
 
-class FBetaScoreTest(parameterized.TestCase, testing.TestCase):
+class FBetaScoreTest(testing.TestCase):
     def _run_test(
         self,
         y_true,

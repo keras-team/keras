@@ -47,6 +47,8 @@ class AlphaDropout(Layer):
             self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
 
+        self._build_at_init()
+
     def call(self, inputs, training=False):
         if training and self.rate > 0:
             noise_shape = self._get_concrete_noise_shape(

@@ -12,6 +12,59 @@ from keras.src.utils.naming import auto_name
 
 
 class BaseOptimizer(KerasSaveable):
+    """Abstract optimizer base class.
+
+    If you intend to create your own optimization algorithm, please inherit from
+    this class and override the following methods:
+
+    - `build`: Create your optimizer-related variables, such as momentum
+        variables in the SGD optimizer.
+    - `update_step`: Implement your optimizer's variable updating logic.
+    - `get_config`: serialization of the optimizer.
+
+    Example:
+
+    ```python
+    class SGD(Optimizer):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.momentum = 0.9
+
+        def build(self, variables):
+            super().build(variables)
+            self.momentums = []
+            for variable in variables:
+                self.momentums.append(
+                    self.add_variable_from_reference(
+                        reference_variable=variable, name="momentum"
+                    )
+                )
+
+        def update_step(self, gradient, variable, learning_rate):
+            learning_rate = ops.cast(learning_rate, variable.dtype)
+            gradient = ops.cast(gradient, variable.dtype)
+            m = self.momentums[self._get_variable_index(variable)]
+            self.assign(
+                m,
+                ops.subtract(
+                    ops.multiply(m, ops.cast(self.momentum, variable.dtype)),
+                    ops.multiply(gradient, learning_rate),
+                ),
+            )
+            self.assign_add(variable, m)
+
+        def get_config(self):
+            config = super().get_config()
+            config.update(
+                {
+                    "momentum": self.momentum,
+                    "nesterov": self.nesterov,
+                }
+            )
+            return config
+    ```
+    """
+
     def __init__(
         self,
         learning_rate,
@@ -110,7 +163,7 @@ class BaseOptimizer(KerasSaveable):
                 aggregation="only_first_replica",
             )
         self._track_variable(iterations)
-        self.iterations = iterations
+        self._iterations = iterations
 
         # Create learning rate (schedule or variable)
         if isinstance(
@@ -139,24 +192,31 @@ class BaseOptimizer(KerasSaveable):
             self._track_variable(learning_rate)
             self._learning_rate = learning_rate
 
+    @property
+    def iterations(self):
+        if self.gradient_accumulation_steps:
+            return ops.floor_divide(
+                self._iterations, self.gradient_accumulation_steps
+            )
+
+        return self._iterations
+
     def _track_variable(self, variable):
         self._tracker.add_to_store("variables", variable)
+
+    def _overwrite_variable_with_gradient(self, variable):
+        return getattr(variable, "overwrite_with_gradient", False)
 
     @tracking.no_automatic_dependency_tracking
     def build(self, variables):
         if self.use_ema:
-            self._model_variables_moving_average = []
+            self._model_variables_moving_average = self.add_optimizer_variables(
+                variables, "average"
+            )
         if self.gradient_accumulation_steps:
             self._accumulated_gradients = []
         for i, variable in enumerate(variables):
             self._trainable_variables_indices[self._var_key(variable)] = i
-            if self.use_ema:
-                self._model_variables_moving_average.append(
-                    self.add_variable_from_reference(
-                        variable,
-                        name="average",
-                    )
-                )
             if self.gradient_accumulation_steps:
                 self._accumulated_gradients.append(
                     self.add_variable_from_reference(
@@ -183,9 +243,31 @@ class BaseOptimizer(KerasSaveable):
         shape,
         initializer="zeros",
         dtype=None,
-        aggregation="mean",
+        aggregation="none",
+        layout=None,
         name=None,
     ):
+        """Add a variable to the optimizer.
+
+        Args:
+            shape: Shape tuple for the variable. Must be fully-defined
+                (no `None` entries).
+            initializer: Initializer object to use to populate the initial
+                variable value, or string name of a built-in initializer
+                (e.g. `"random_normal"`). Defaults to `"zeros"`.
+            dtype: Dtype of the variable to create, e.g. `"float32"`. If
+                unspecified, defaults to the `keras.backend.floatx()`.
+            aggregation: Optional string, one of `None`, `"none"`, `"mean"`,
+                `"sum"` or `"only_first_replica"`. Annotates the variable with
+                the type of multi-replica aggregation to be used for this
+                variable when writing custom data parallel training loops.
+                Defaults to `"none"`.
+            layout: Optional tensor layout.  Defaults to `None`.
+            name: String name of the variable. Useful for debugging purposes.
+
+        Returns:
+            An optimizer variable, in the format of `keras.Variable`.
+        """
         self._check_super_called()
         initializer = initializers.get(initializer)
         with backend.name_scope(self.name, caller=self):
@@ -195,6 +277,7 @@ class BaseOptimizer(KerasSaveable):
                 dtype=dtype,
                 trainable=False,
                 aggregation=aggregation,
+                layout=layout,
                 name=name,
             )
         self._track_variable(variable)
@@ -203,8 +286,27 @@ class BaseOptimizer(KerasSaveable):
     def add_variable_from_reference(
         self, reference_variable, name=None, initializer="zeros"
     ):
-        """Add an all-zeros variable with the shape and dtype of a reference
-        variable.
+        """Add an optimizer variable from the model variable.
+
+        Create an optimizer variable based on the information of model variable.
+        For example, in SGD optimizer momemtum, for each model variable, a
+        corresponding momemtum variable is created of the same shape and dtype.
+
+        Args:
+            reference_variable: `keras.Variable`. The corresponding model
+                variable to the optimizer variable to be created.
+            name: Optional string. The name prefix of the optimizer variable to
+                be created. If not provided, it will be set to `"var"`. The
+                variable name will follow the pattern
+                `{variable_name}_{reference_variable.name}`,
+                e.g., `momemtum/dense_1`. Defaults to `None`.
+            initializer: Initializer object to use to populate the initial
+                variable value, or string name of a built-in initializer
+                (e.g. `"random_normal"`). If unspecified, defaults to
+                `"zeros"`.
+
+        Returns:
+            An optimizer variable, in the format of `keras.Variable`.
         """
         name = name or "var"
         if hasattr(reference_variable, "path"):
@@ -220,7 +322,86 @@ class BaseOptimizer(KerasSaveable):
             initializer=initializer,
             dtype=reference_variable.dtype,
             name=name,
+            layout=getattr(reference_variable, "_layout", None),
         )
+
+    def add_optimizer_variables(
+        self, trainable_variables, name, initializer="zeros"
+    ):
+        """Add optimizer variables from the list of trainable model variables.
+
+        Create an optimizer variable based on the information of the supplied
+        model variables.  For example, in SGD optimizer momemtum, for each model
+        variable, a corresponding momemtum variable is created of the same shape
+        and dtype.
+
+        Note that trainable variables with `v.overwrite_with_gradient == True`
+        will insert `None`, into the output list, since the optimizer variable
+        will not be used anyways, and could be wasteful.
+
+        Args:
+            trainable_variables: `keras.Variable`, the corresponding model
+                variable to the optimizer variable to be created.
+            name: The name prefix(es) of the optimizer variable(s) to be
+                created. Can be a single string or list of strings.  If a
+                list of strings, will create an optimizer variable for each
+                prefix.  The variable name will follow the pattern
+                `{variable_name}_{trainable_variable.name}`, e.g.,
+                `momemtum/dense_1`.
+            initializer: Initializer object(s) to use to populate the initial
+                variable value(s), or string name of a built-in initializer
+                (e.g. `"random_normal"`). If unspecified, defaults to
+                `"zeros"`.
+
+        Returns:
+            A list of optimizer variables, in the format of `keras.Variable`s.
+            If multiple names are provide, returns a tuple of lists.
+        """
+        name_list = name
+        initializer_list = initializer
+        if isinstance(name, str):
+            # Single name/initializer.
+            name_list = [name]
+            initializer_list = [initializer]
+        else:
+            # Multiple names/initializers.
+            # If there is only one initializer, use it for all names.
+            if isinstance(initializer, str) or isinstance(
+                initializer, initializers.Initializer
+            ):
+                initializer_list = [initializer] * len(name_list)
+
+        if len(name_list) != len(initializer_list):
+            raise ValueError(
+                f"The number of provided names must match the number of "
+                f"provided initializers.  Received name='{name}', "
+                f"initializer='{initializer}'"
+            )
+
+        # Build up lists of optimizer variables.
+        optimizer_variables = tuple([] for _ in name_list)
+        for variable in trainable_variables:
+            # Interleaves adding variables for backward-compatibility.
+            if not self._overwrite_variable_with_gradient(variable):
+                for i, (var_name, var_init) in enumerate(
+                    zip(name_list, initializer_list)
+                ):
+                    optimizer_variables[i].append(
+                        self.add_variable_from_reference(
+                            variable,
+                            name=var_name,
+                            initializer=var_init,
+                        )
+                    )
+            else:
+                for i in range(len(name_list)):
+                    optimizer_variables[i].append(None)
+
+        # If single input name, return the single list.
+        if isinstance(name, str):
+            return optimizer_variables[0]
+
+        return optimizer_variables
 
     def _check_variables_are_known(self, variables):
         for v in variables:
@@ -281,7 +462,7 @@ class BaseOptimizer(KerasSaveable):
         grads, trainable_variables = zip(*grads_and_vars)
         self.apply(grads, trainable_variables)
         # Return iterations for compat with tf.keras.
-        return self.iterations
+        return self._iterations
 
     def apply(self, grads, trainable_variables=None):
         """Update traininable variables according to provided gradient values.
@@ -323,6 +504,11 @@ class BaseOptimizer(KerasSaveable):
             self._check_variables_are_known(trainable_variables)
 
         with backend.name_scope(self.name, caller=self):
+            # Filter empty gradients.
+            grads, trainable_variables = self._filter_empty_gradients(
+                grads, trainable_variables
+            )
+
             # Overwrite targeted variables directly with their gradients if
             # their `overwrite_with_gradient` is set.
             grads, trainable_variables = (
@@ -331,28 +517,21 @@ class BaseOptimizer(KerasSaveable):
                 )
             )
 
-            # Filter empty gradients.
-            grads, trainable_variables = self._filter_empty_gradients(
-                grads, trainable_variables
-            )
-            if len(list(grads)) == 0:
-                return
+            if len(list(grads)) > 0:
+                # Unscale gradients.
+                scale = self.loss_scale_factor
+                if scale is not None:
+                    grads = [g if g is None else g / scale for g in grads]
 
-            # Unscale gradients.
-            scale = self.loss_scale_factor
-            if scale is not None:
-                grads = [g if g is None else g / scale for g in grads]
+                # Apply gradient updates.
+                self._backend_apply_gradients(grads, trainable_variables)
+                # Apply variable constraints after applying gradients.
+                for variable in trainable_variables:
+                    if variable.constraint is not None:
+                        variable.assign(variable.constraint(variable))
 
-            # Apply clipping and weight decay.
-            grads = self._clip_gradients(grads)
-            self._apply_weight_decay(trainable_variables)
-
-            # Apply gradient updates.
-            self._backend_apply_gradients(grads, trainable_variables)
-            # Apply variable constraints after applying gradients.
-            for variable in trainable_variables:
-                if variable.constraint is not None:
-                    variable.assign(variable.constraint(variable))
+        # Update iteration counter.
+        self._iterations.assign_add(1)
 
     def _backend_apply_gradients(self, grads, trainable_variables):
         """Apply method that can be overridden by different backends.
@@ -372,7 +551,7 @@ class BaseOptimizer(KerasSaveable):
         """
         if self.gradient_accumulation_steps:
             is_update_step = (
-                self.iterations + 1
+                self._iterations + 1
             ) % self.gradient_accumulation_steps == 0
             # `trainable_variables` might have been filtered in previous
             # processing steps, so we need to ensure the correct mapping between
@@ -388,6 +567,11 @@ class BaseOptimizer(KerasSaveable):
                 grads = [
                     (g + acc_g) / steps for g, acc_g in zip(grads, acc_grads)
                 ]
+
+                # Apply clipping and weight decay.
+                grads = self._clip_gradients(grads)
+                self._apply_weight_decay(trainable_variables)
+
                 self._backend_update_step(
                     grads, trainable_variables, self.learning_rate
                 )
@@ -401,7 +585,11 @@ class BaseOptimizer(KerasSaveable):
                 ),
             )
         else:
-            # Run udpate step.
+            # Apply clipping and weight decay.
+            grads = self._clip_gradients(grads)
+            self._apply_weight_decay(trainable_variables)
+
+            # Run update step.
             self._backend_update_step(
                 grads, trainable_variables, self.learning_rate
             )
@@ -423,8 +611,6 @@ class BaseOptimizer(KerasSaveable):
                     ),
                     lambda: None,
                 )
-        # Update iteration counter.
-        self.iterations.assign_add(1)
 
     def _backend_update_step(self, grads, trainable_variables, learning_rate):
         """Collective update_step that can be overridden by the backend.
@@ -437,7 +623,8 @@ class BaseOptimizer(KerasSaveable):
 
     def _backend_reset_gradient_accumulators(self):
         for g_acc in self._accumulated_gradients:
-            g_acc.assign(ops.zeros(g_acc.shape, dtype=g_acc.dtype))
+            if g_acc is not None:
+                g_acc.assign(ops.zeros(g_acc.shape, dtype=g_acc.dtype))
 
     def _backend_increment_gradient_accumulators(self, grads, acc_grads):
         new_g_accs = [(g + acc_g) for g, acc_g in zip(grads, acc_grads)]
@@ -586,7 +773,7 @@ class BaseOptimizer(KerasSaveable):
         if isinstance(
             self._learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
-            return self._learning_rate(self.iterations)
+            return self._learning_rate(self._iterations)
         elif callable(self._learning_rate):
             return self._learning_rate()
         return self._learning_rate
@@ -604,8 +791,8 @@ class BaseOptimizer(KerasSaveable):
         After the update, the processed pairs will be filtered out.
         """
         # Shortcut for `tf.Variable` because it doesn't have a
-        # `overwrite_with_gradient` attr
-        if not hasattr(vars[0], "overwrite_with_gradient"):
+        # `overwrite_with_gradient` attr.
+        if not any(self._overwrite_variable_with_gradient(v) for v in vars):
             return grads, vars
 
         # Shallow copies
@@ -615,11 +802,11 @@ class BaseOptimizer(KerasSaveable):
         # Iterate from right to left for safe popping
         for i in range(len(filtered_grads) - 1, -1, -1):
             g, v = filtered_grads[i], filtered_vars[i]
-            if v.overwrite_with_gradient:
+            if self._overwrite_variable_with_gradient(v):
                 if self.gradient_accumulation_steps:
                     # Utilize a stateless manner for JAX compatibility
                     steps = self.gradient_accumulation_steps
-                    is_update_step = (self.iterations + 1) % steps == 0
+                    is_update_step = (self._iterations + 1) % steps == 0
                     acc_g = self._accumulated_gradients[
                         self._get_variable_index(v)
                     ]
@@ -656,7 +843,11 @@ class BaseOptimizer(KerasSaveable):
             if filtered_grads[i] is None:
                 filtered_grads.pop(i)
                 v = filtered_vars.pop(i)
-                missing_grad_vars.append(v.name)
+                try:
+                    missing_grad_vars.append(v.path)
+                except AttributeError:
+                    # `tf.Variable` doesn't have `path` attr.
+                    missing_grad_vars.append(v.name)
 
         if not filtered_grads:
             raise ValueError("No gradients provided for any variable.")
@@ -699,7 +890,7 @@ class BaseOptimizer(KerasSaveable):
         """
         if hasattr(self, "_built") and self._built:
             raise ValueError(
-                "`exclude_from_weight_decay()` can only be configued before "
+                "`exclude_from_weight_decay()` can only be configured before "
                 "the optimizer is built."
             )
 
@@ -775,11 +966,12 @@ class BaseOptimizer(KerasSaveable):
             for var, average in zip(
                 trainable_variables, self._model_variables_moving_average
             ):
-                not_first_step = ops.not_equal(self.iterations, 0)
-                momentum = (
-                    ops.cast(not_first_step, var.dtype) * self.ema_momentum
-                )
-                average.assign(momentum * average + (1 - momentum) * var)
+                if average is not None:
+                    not_first_step = ops.not_equal(self.iterations, 0)
+                    momentum = (
+                        ops.cast(not_first_step, var.dtype) * self.ema_momentum
+                    )
+                    average.assign(momentum * average + (1 - momentum) * var)
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables
@@ -798,7 +990,8 @@ class BaseOptimizer(KerasSaveable):
         for var, average_var in zip(
             trainable_variables, self._model_variables_moving_average
         ):
-            var.assign(average_var)
+            if average_var is not None:
+                var.assign(average_var)
 
     def finalize_variable_values(self, var_list):
         """Set the final value of model's trainable variables.
@@ -847,6 +1040,8 @@ class BaseOptimizer(KerasSaveable):
             learning_rate = serialization_lib.serialize_keras_object(
                 self._learning_rate
             )
+        else:
+            learning_rate = 0.5
 
         config = {
             "name": self.name,
@@ -964,7 +1159,10 @@ base_optimizer_keyword_args = """name: String. The name to use
             value of the gradients since the last update. This is known as
             "gradient accumulation". This can be useful
             when your batch size is very small, in order to reduce gradient
-            noise at each update step.
+            noise at each update step. EMA frequency will look at "accumulated"
+            iterations value (optimizer steps // gradient_accumulation_steps).
+            Learning rate schedules will look at "real" iterations value
+            (optimizer steps).
 """
 
 

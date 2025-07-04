@@ -31,8 +31,24 @@ def sigmoid(x):
     return np.array(1.0, x.dtype) / (np.array(1.0, x.dtype) + np.exp(-x))
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return np.where(
+        x <= -1,
+        np.array(0.0, x.dtype),
+        np.where(
+            x >= 1, np.array(1.0, x.dtype), np.array(0.5 * (x + 1), x.dtype)
+        ),
+    )
+
+
 def tanh(x):
     return np.tanh(x)
+
+
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - np.tanh(x)
 
 
 def softplus(x):
@@ -45,9 +61,36 @@ def softsign(x):
     return x / (np.array(1.0, x.dtype) + np.abs(x))
 
 
+def soft_shrink(x, threshold=0.5):
+    return np.where(
+        x > threshold,
+        np.array(x - threshold, dtype=x.dtype),
+        np.where(
+            x < -threshold,
+            np.array(x + threshold, dtype=x.dtype),
+            np.array(0.0, dtype=x.dtype),
+        ),
+    )
+
+
+def sparse_plus(x):
+    return np.where(
+        x <= -1,
+        np.zeros_like(x, dtype=x.dtype),
+        np.where(x < 1, np.array((1 / 4) * (x + 1) ** 2, dtype=x.dtype), x),
+    )
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return x * sigmoid(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + np.sqrt(x**2 + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -82,11 +125,9 @@ def elu(x, alpha=1.0):
     )
 
 
-def selu(
-    x,
-    alpha=1.6732632423543772848170429916717,
-    scale=1.0507009873554804934193349852946,
-):
+def selu(x):
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
     return np.array(scale, x.dtype) * elu(x, alpha)
 
@@ -113,15 +154,73 @@ def gelu(x, approximate=True):
         )
 
 
-def softmax(x, axis=None):
+def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    alpha = np.array(alpha, x.dtype)
+    return np.maximum(x, np.array(0.0, dtype=x.dtype)) + alpha * np.expm1(
+        np.minimum(x, np.array(0.0, dtype=x.dtype)) / alpha
+    )
+
+
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    if x.shape[axis] % 2 != 0:
+        raise ValueError(
+            "axis size must be divisible by 2. "
+            f"Received: x.shape={x.shape} with axis={axis}"
+        )
+    x1, x2 = np.split(x, 2, axis)
+    return x1 * (1 / (1 + np.exp(-x2)))
+
+
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    min_val = np.asarray(-1.0, x.dtype)
+    max_val = np.asarray(1.0, x.dtype)
+    return np.array(np.clip(x, min_val, max_val), dtype=x.dtype)
+
+
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    threshold = np.asarray(threshold, x.dtype)
+    return np.array(
+        np.where(np.abs(x) > threshold, x, np.array(0.0, dtype=x.dtype)),
+        dtype=x.dtype,
+    )
+
+
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return np.where(x > threshold, x, np.array(default_value, dtype=x.dtype))
+
+
+def softmax(x, axis=-1):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 
-def log_softmax(x, axis=None):
+def log_softmax(x, axis=-1):
     max_x = np.max(x, axis=axis, keepdims=True)
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
+
+
+def sparsemax(x, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(x)
+    logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
+    logits_cumsum = np.cumsum(logits_sorted, axis=axis)
+    r = np.arange(1, logits.shape[axis] + 1)
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.reshape(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = np.sum(support, axis=axis, keepdims=True)
+    logits_cumsum_safe = np.where(support, logits_cumsum, 0.0)
+    tau = (np.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = np.maximum(logits - tau, 0.0)
+    return output
 
 
 def _convert_to_spatial_operand(
@@ -203,8 +302,8 @@ def max_pool(
 def average_pool(
     inputs,
     pool_size,
-    strides,
-    padding,
+    strides=None,
+    padding="valid",
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
@@ -442,15 +541,13 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")
+    if dtype is None:
+        dtype = "float32"
     x = convert_to_tensor(x)
     input_shape = x.shape
-
-    # Shrink the last dimension if the shape is (..., 1).
-    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
-        input_shape = tuple(input_shape[:-1])
 
     x = x.reshape(-1)
     if not num_classes:
@@ -472,7 +569,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     return categorical
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")
     x = convert_to_tensor(x)
@@ -621,11 +718,11 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length, "int32")
     output_length = convert_to_tensor(output_length, "int32")
-    batch_size, _, num_classes = output.shape
+    batch_size, max_input_length, num_classes = output.shape
     batch_size, max_label_length = target.shape
     log_epsilon = -1e5
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = output.astype(dtype)
 
@@ -638,7 +735,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
         return np.logical_not(elem_valid)
 
     target_paddings = _lengths_to_paddings(target_length, max_label_length)
-    output_paddings = _lengths_to_paddings(output_length, max_label_length)
+    output_paddings = _lengths_to_paddings(output_length, max_input_length)
     target_paddings = target_paddings.astype(output.dtype)
     output_paddings = output_paddings.astype(output.dtype)
 
@@ -729,12 +826,12 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
 def _ctc_greedy_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     merge_repeated=True,
     mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
-    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
@@ -744,7 +841,7 @@ def _ctc_greedy_decode(
     scores = np.max(inputs, axis=-1)
 
     seqlen_mask = np.arange(max_length)[None, :]
-    seqlen_mask = seqlen_mask >= sequence_length[:, None]
+    seqlen_mask = seqlen_mask >= sequence_lengths[:, None]
 
     indices = np.where(seqlen_mask, mask_index, indices)
     scores = np.where(seqlen_mask, 0.0, scores)
@@ -754,16 +851,17 @@ def _ctc_greedy_decode(
         repeat_mask = np.pad(repeat_mask, ((0, 0), (1, 0)))
         indices = np.where(repeat_mask, mask_index, indices)
 
-    # We rearrange the indices by moving `mask_index` to the end of the array
+    # We set to -1 for blank labels
     invalid_mask = indices == mask_index
+    indices = np.where(invalid_mask, -1, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
     order = np.expand_dims(np.arange(max_length), axis=0)  # [1, N]
     order = np.tile(order, (batch_size, 1))  # [B, N]
     order = np.where(invalid_mask, max_length, order)
     order = np.argsort(order, axis=-1)
     indices = np.take_along_axis(indices, order, axis=-1)
 
-    # We set to -1 for blank labels
-    indices = np.where(invalid_mask, -1, indices)
     scores = -np.sum(scores, axis=1)[:, None]
     indices = np.expand_dims(indices, axis=0)
     return indices, scores
@@ -771,17 +869,17 @@ def _ctc_greedy_decode(
 
 def _ctc_beam_search_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     beam_width=100,
     top_paths=1,
     mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
-    sequence_length = convert_to_tensor(sequence_length)
+    sequence_lengths = convert_to_tensor(sequence_lengths)
 
     batch_size, max_seq_len, num_classes = inputs.shape
     inputs = log_softmax(inputs, axis=-1)
-    seqlen_mask = np.arange(max_seq_len)[None, :] >= sequence_length[:, None]
+    seqlen_mask = np.arange(max_seq_len)[None, :] >= sequence_lengths[:, None]
 
     if mask_index is None:
         mask_index = num_classes - 1
@@ -936,12 +1034,12 @@ def _ctc_beam_search_decode(
 
 def ctc_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
-    mask_index=None,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
     dtype = backend.result_type(inputs.dtype, "float32")
@@ -950,14 +1048,14 @@ def ctc_decode(
     if strategy == "greedy":
         return _ctc_greedy_decode(
             inputs,
-            sequence_length,
+            sequence_lengths,
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )
     elif strategy == "beam_search":
         return _ctc_beam_search_decode(
             inputs,
-            sequence_length,
+            sequence_lengths,
             beam_width=beam_width,
             top_paths=top_paths,
             mask_index=mask_index,
@@ -980,3 +1078,93 @@ def psnr(x1, x2, max_val):
     mse = np.mean(np.square(x1 - x2))
     psnr = 20 * np.log10(max_val) - 10 * np.log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    val = 65500.0 if dtype == "float16" else 3.38953e38
+    return np.asarray(val * -0.7, dtype=dtype)
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = np.ones_like(logits, dtype=np.bool_)
+    if mask is not None:
+        combined_mask = np.logical_and(combined_mask, mask)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        mask = np.tril(np.ones((T, S), dtype=np.bool_))
+        mask = mask[None, None, :, :]
+        combined_mask = np.logical_and(combined_mask, mask)
+
+    padded_logits = np.where(
+        combined_mask, logits, _get_large_negative(logits.dtype)
+    )
+    return padded_logits
+
+
+def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
+    original_dtype = key.dtype
+    logits_dtype = np.promote_types(query.dtype, np.float32)
+    if backend.standardize_dtype(key.dtype) == "bfloat16":
+        # `np.einsum` doesn't support bfloat16
+        key = key.astype("float32")
+        value = value.astype("float32")
+    logits = np.einsum("BTNH,BSNH->BNTS", query, key)
+    logits = logits.astype(logits_dtype)
+    logits *= np.array(scale, dtype=logits.dtype)
+
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax and it is always carried out in fp32.
+    padded_logits = padded_logits.astype(np.float32)
+    probs = softmax(padded_logits, axis=-1).astype(original_dtype)
+    encoded_dtype = probs.dtype
+    if backend.standardize_dtype(probs.dtype) == "bfloat16":
+        # `np.einsum` doesn't support bfloat16
+        probs = probs.astype("float32")
+        value = value.astype("float32")
+    encoded = np.einsum("BNTS,BSNH->BTNH", probs, value)
+    encoded = encoded.astype(encoded_dtype)
+    return encoded
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+    attn_logits_soft_cap=None,
+):
+    if flash_attention is None:
+        flash_attention = False
+    if flash_attention:
+        raise ValueError("Flash attention is not supported in numpy backend.")
+
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    _, _, _, H = key.shape
+    scale = (1.0 / np.sqrt(H)) if scale is None else scale
+    return _dot_product_attention_xla(
+        query, key, value, bias, mask, is_causal, scale
+    )

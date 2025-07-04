@@ -17,7 +17,7 @@ class AveragePooling2D(BasePooling):
     (when `input_shape >= pool_size`)
 
     The resulting output shape when using the `"same"` padding option is:
-    `output_shape = math.floor((input_shape - 1) / strides) + 1`
+    `output_shape = input_shape`
 
     Args:
         pool_size: int or tuple of 2 integers, factors by which to downscale
@@ -40,12 +40,14 @@ class AveragePooling2D(BasePooling):
             `"channels_last"`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         4D tensor with shape `(batch_size, height, width, channels)`.
     - If `data_format="channels_first"`:
         4D tensor with shape `(batch_size, channels, height, width)`.
 
     Output shape:
+
     - If `data_format="channels_last"`:
         4D tensor with shape
         `(batch_size, pooled_height, pooled_width, channels)`.
@@ -93,7 +95,7 @@ class AveragePooling2D(BasePooling):
         padding="valid",
         data_format=None,
         name=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             pool_size,

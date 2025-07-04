@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -12,8 +13,12 @@ class Metric(KerasSaveable):
     """Encapsulates metric logic and state.
 
     Args:
-        name: (Optional) string name of the metric instance.
-        dtype: (Optional) data type of the metric result.
+        name: Optional name for the metric instance.
+        dtype: The dtype of the metric's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
 
     Example:
 
@@ -86,7 +91,8 @@ class Metric(KerasSaveable):
 
     def __init__(self, dtype=None, name=None):
         self.name = name or auto_name(self.__class__.__name__)
-        self._dtype = dtype or backend.floatx()
+        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
+        self._dtype = self._dtype_policy.compute_dtype
         self._metrics = []
         self._variables = []
         self._tracker = Tracker(
@@ -195,6 +201,7 @@ class Metric(KerasSaveable):
                 dtype=dtype,
                 trainable=False,
                 aggregation=aggregation,
+                synchronization="on_read",
                 name=name,
             )
         # Prevent double-tracking
@@ -209,9 +216,9 @@ class Metric(KerasSaveable):
 
     @property
     def variables(self):
-        variables = self._variables[:]
+        variables = list(self._variables)
         for metric in self._metrics:
-            variables.extend(metric._variables)
+            variables.extend(metric.variables)
         return variables
 
     def __call__(self, *args, **kwargs):
@@ -241,7 +248,7 @@ class Metric(KerasSaveable):
             )
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} " f"name={self.name}>"
+        return f"<{self.__class__.__name__} name={self.name}>"
 
     def __str__(self):
         return self.__repr__()

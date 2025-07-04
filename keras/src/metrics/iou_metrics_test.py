@@ -5,6 +5,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src.metrics import iou_metrics as metrics
+from keras.src.ops import convert_to_tensor
 
 
 class IoUTest(testing.TestCase):
@@ -25,9 +26,7 @@ class IoUTest(testing.TestCase):
         y_pred = [0, 1, 0, 1]
         y_true = [0, 0, 1, 1]
 
-        obj = metrics.IoU(
-            num_classes=2, target_class_ids=[0, 1], dtype="float32"
-        )
+        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
 
         result = obj(y_true, y_pred)
 
@@ -64,7 +63,9 @@ class IoUTest(testing.TestCase):
         y_true = np.array([[0, 0], [1, 1]])
         sample_weight = np.array([[0.2, 0.3], [0.4, 0.1]])
 
-        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+        obj = metrics.IoU(
+            num_classes=2, target_class_ids=[0, 1], dtype="float32"
+        )
 
         result = obj(y_true, y_pred, sample_weight=sample_weight)
 
@@ -136,7 +137,9 @@ class BinaryIoUTest(testing.TestCase):
         expected_result = (
             0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)
         ) / 2
-        obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.3)
+        obj = metrics.BinaryIoU(
+            target_class_ids=[0, 1], threshold=0.3, dtype="float32"
+        )
         result = obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
 
@@ -150,7 +153,9 @@ class BinaryIoUTest(testing.TestCase):
         expected_result = (
             0.5 / (0.5 + 0.7 - 0.5) + 0.3 / (0.5 + 0.3 - 0.3)
         ) / 2
-        obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=0.5)
+        obj = metrics.BinaryIoU(
+            target_class_ids=[0, 1], threshold=0.5, dtype="float32"
+        )
         result = obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
 
@@ -191,7 +196,9 @@ class BinaryIoUTest(testing.TestCase):
         expected_result = (
             0.2 / (0.6 + 0.3 - 0.2) + 0.3 / (0.4 + 0.7 - 0.3)
         ) / 2
-        obj = metrics.BinaryIoU(target_class_ids=[0, 1], threshold=threshold)
+        obj = metrics.BinaryIoU(
+            target_class_ids=[0, 1], threshold=threshold, dtype="float32"
+        )
         result = obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
 
@@ -281,7 +288,7 @@ class MeanIoUTest(testing.TestCase):
         y_true = np.array([0, 0, 1, 1])
         sample_weight = np.array([0.2, 0.3, 0.4, 0.1])
 
-        m_obj = metrics.MeanIoU(num_classes=2)
+        m_obj = metrics.MeanIoU(num_classes=2, dtype="float32")
 
         result = m_obj(y_true, y_pred, sample_weight=sample_weight)
 
@@ -300,7 +307,7 @@ class MeanIoUTest(testing.TestCase):
         y_true = np.array([0, 0, 1, -1])
         sample_weight = np.array([0.2, 0.3, 0.4, 0.1])
 
-        m_obj = metrics.MeanIoU(num_classes=2, ignore_class=-1)
+        m_obj = metrics.MeanIoU(num_classes=2, ignore_class=-1, dtype="float32")
 
         result = m_obj(y_true, y_pred, sample_weight=sample_weight)
 
@@ -319,7 +326,7 @@ class MeanIoUTest(testing.TestCase):
         y_true = np.array([[0, 0], [1, 1]])
         sample_weight = np.array([[0.2, 0.3], [0.4, 0.1]])
 
-        m_obj = metrics.MeanIoU(num_classes=2)
+        m_obj = metrics.MeanIoU(num_classes=2, dtype="float32")
 
         result = m_obj(y_true, y_pred, sample_weight=sample_weight)
 
@@ -350,6 +357,112 @@ class MeanIoUTest(testing.TestCase):
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (0 + 1 / (1 + 1 - 1)) / 1
         self.assertAllClose(result, expected_result, atol=1e-3)
+
+    @staticmethod
+    def _confusion_matrix(y_true, y_pred, num_classes):
+        """
+        Creates a confusion matrix as a numpy array using vectorized operations.
+
+        Parameters:
+        - y_true: array-like, true class labels.
+        - y_pred: array-like, predicted class labels.
+        - num_classes: int, number of classes.
+
+        Returns:
+        - conf_matrix: np.ndarray, confusion matrix of shape (num_classes,
+                                                              num_classes).
+        """
+        # Map pairs of (y_true, y_pred) to indices in the confusion matrix
+        indices = y_true * num_classes + y_pred
+        # Count occurrences of each index
+        conf_matrix = np.bincount(indices, minlength=num_classes * num_classes)
+        # Reshape the flat array into a 2D confusion matrix
+        conf_matrix = conf_matrix.reshape((num_classes, num_classes))
+        return conf_matrix
+
+    @staticmethod
+    def _get_big_chunk(dtype):
+        np.random.seed(14)
+        all_y_true = np.random.choice([0, 1, 2], size=(10, 530, 530))
+        # Generate random probabilities for each channel
+        random_probs = np.random.rand(10, 530, 530, 3)
+        # Normalize to ensure the last dimension sums to 1
+        all_y_pred = random_probs / random_probs.sum(axis=-1, keepdims=True)
+        # Convert predictions to class indices
+        all_y_pred_arg = np.argmax(all_y_pred, axis=-1)
+        mean_iou_metric = metrics.MeanIoU(num_classes=3, dtype=dtype)
+        conf_matrix_start_point = np.array(
+            [
+                [18729664, 18728760, 18731196],
+                [18727297, 18726105, 18728071],
+                [18727917, 18717835, 18723155],
+            ]
+        )
+        mean_iou_metric.total_cm = mean_iou_metric.add_variable(
+            name="total_confusion_matrix",
+            shape=(3, 3),
+            initializer=convert_to_tensor(conf_matrix_start_point),
+            dtype=dtype or "int",
+        )
+        mean_iou_metric.update_state(all_y_true, all_y_pred_arg)
+        tmp_true = np.reshape(all_y_true, -1)
+        tmp_pred = np.reshape(all_y_pred_arg, -1)
+        return (
+            all_y_true,
+            all_y_pred_arg,
+            mean_iou_metric,
+            tmp_true,
+            tmp_pred,
+            conf_matrix_start_point,
+        )
+
+    def test_big_chunk(self):
+        # Init. process with dtype=None which will default to int
+        (
+            all_y_true,
+            all_y_pred_arg,
+            mean_iou_metric_all,
+            tmp_true,
+            tmp_pred,
+            conf_matrix_start_point,
+        ) = self._get_big_chunk(dtype=None)
+        conf_matrix_from_keras = np.array(mean_iou_metric_all.total_cm)
+        # Validate confusion matrices and results
+        conf_matrix_manual = (
+            self._confusion_matrix(tmp_true, tmp_pred, 3)
+            + conf_matrix_start_point
+        )
+        self.assertTrue(
+            np.array_equal(conf_matrix_from_keras, conf_matrix_manual),
+            msg="Confusion matrices do not match!",
+        )
+        # Now same but with float32 dtype, in here the confusion matrix
+        # should not match. Likely this can be removed
+        (
+            all_y_true,
+            all_y_pred_arg,
+            mean_iou_metric_all,
+            tmp_true,
+            tmp_pred,
+            conf_matrix_start_point,
+        ) = self._get_big_chunk(dtype="float32")
+        conf_matrix_from_keras = np.array(mean_iou_metric_all.total_cm)
+        # Validate confusion matrices and results
+        conf_matrix_manual = (
+            self._confusion_matrix(tmp_true, tmp_pred, 3)
+            + conf_matrix_start_point
+        )
+        self.assertFalse(
+            np.array_equal(conf_matrix_from_keras, conf_matrix_manual),
+            msg="Confusion matrices match, but they should not!",
+        )
+
+    def test_user_warning_float_weight(self):
+        y_pred = [0, 1, 1, 1]
+        y_true = [0, 1, 1, 0]
+        m_obj = metrics.MeanIoU(num_classes=3)
+        with pytest.warns(Warning, match=r"weight.*float.*int.*casting"):
+            m_obj(y_true, y_pred, sample_weight=np.array([0.2, 0.3, 0.4, 0.1]))
 
 
 class OneHotIoUTest(testing.TestCase):
@@ -385,7 +498,9 @@ class OneHotIoUTest(testing.TestCase):
         # true_positives = [0, 0, 0.1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (0 / (0.3 + 0.6 - 0) + 0.1 / (0.7 + 0.1 - 0.1)) / 2
-        obj = metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2])
+        obj = metrics.OneHotIoU(
+            num_classes=3, target_class_ids=[0, 2], dtype="float32"
+        )
         result = obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
 
@@ -439,6 +554,12 @@ class OneHotMeanIoUTest(testing.TestCase):
         expected_result = (
             0.1 / (0.4 + 0.6 - 0.1) + 0 + 0.1 / (0.6 + 0.1 - 0.1)
         ) / 3
-        obj = metrics.OneHotMeanIoU(num_classes=3)
+        obj = metrics.OneHotMeanIoU(num_classes=3, dtype="float32")
         result = obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
+
+        # Check same result with int weights
+        sample_weight_int = [1, 2, 3, 3, 1]
+        obj_int = metrics.OneHotMeanIoU(num_classes=3)
+        result_int = obj_int(y_true, y_pred, sample_weight=sample_weight_int)
+        self.assertAllClose(result_int, expected_result, atol=1e-3)

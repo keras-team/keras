@@ -6,6 +6,7 @@ from multiprocessing.pool import ThreadPool
 
 import numpy as np
 
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import tensorflow as tf
@@ -137,16 +138,7 @@ def _convert_dataset_to_list(
         data_size_warning_flag,
         start_time,
     ):
-        if dataset_type_spec in [tuple, list]:
-            # The try-except here is for NumPy 1.24 compatibility, see:
-            # https://numpy.org/neps/nep-0034-infer-dtype-is-object.html
-            try:
-                arr = np.array(sample)
-            except ValueError:
-                arr = np.array(sample, dtype=object)
-            dataset_as_list.append(arr)
-        else:
-            dataset_as_list.append(sample)
+        dataset_as_list.append(sample)
 
     return dataset_as_list
 
@@ -162,66 +154,66 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
     Returns:
         iterator: An `iterator` object.
     """
-    if dataset_type_spec == list:
+    if dataset_type_spec is list:
         if len(dataset) == 0:
             raise ValueError(
                 "Received an empty list dataset. "
                 "Please provide a non-empty list of arrays."
             )
 
-        if _get_type_spec(dataset[0]) is np.ndarray:
-            expected_shape = dataset[0].shape
-            for i, element in enumerate(dataset):
-                if np.array(element).shape[0] != expected_shape[0]:
-                    raise ValueError(
-                        "Received a list of NumPy arrays with different "
-                        f"lengths. Mismatch found at index {i}, "
-                        f"Expected shape={expected_shape} "
-                        f"Received shape={np.array(element).shape}."
-                        "Please provide a list of NumPy arrays with "
-                        "the same length."
-                    )
-        else:
-            raise ValueError(
-                "Expected a list of `numpy.ndarray` objects,"
-                f"Received: {type(dataset[0])}"
-            )
+        expected_shape = None
+        for i, element in enumerate(dataset):
+            if not isinstance(element, np.ndarray):
+                raise ValueError(
+                    "Expected a list of `numpy.ndarray` objects,"
+                    f"Received: {type(element)} at index {i}."
+                )
+            if expected_shape is None:
+                expected_shape = element.shape
+            elif element.shape[0] != expected_shape[0]:
+                raise ValueError(
+                    "Received a list of NumPy arrays with different lengths."
+                    f"Mismatch found at index {i}, "
+                    f"Expected shape={expected_shape} "
+                    f"Received shape={np.array(element).shape}."
+                    "Please provide a list of NumPy arrays of the same length."
+                )
 
         return iter(zip(*dataset))
-    elif dataset_type_spec == tuple:
+    elif dataset_type_spec is tuple:
         if len(dataset) == 0:
             raise ValueError(
                 "Received an empty list dataset."
                 "Please provide a non-empty tuple of arrays."
             )
 
-        if _get_type_spec(dataset[0]) is np.ndarray:
-            expected_shape = dataset[0].shape
-            for i, element in enumerate(dataset):
-                if np.array(element).shape[0] != expected_shape[0]:
-                    raise ValueError(
-                        "Received a tuple of NumPy arrays with different "
-                        f"lengths. Mismatch found at index {i}, "
-                        f"Expected shape={expected_shape} "
-                        f"Received shape={np.array(element).shape}."
-                        "Please provide a tuple of NumPy arrays with "
-                        "the same length."
-                    )
-        else:
-            raise ValueError(
-                "Expected a tuple of `numpy.ndarray` objects, "
-                f"Received: {type(dataset[0])}"
-            )
+        expected_shape = None
+        for i, element in enumerate(dataset):
+            if not isinstance(element, np.ndarray):
+                raise ValueError(
+                    "Expected a tuple of `numpy.ndarray` objects,"
+                    f"Received: {type(element)} at index {i}."
+                )
+            if expected_shape is None:
+                expected_shape = element.shape
+            elif element.shape[0] != expected_shape[0]:
+                raise ValueError(
+                    "Received a tuple of NumPy arrays with different lengths."
+                    f"Mismatch found at index {i}, "
+                    f"Expected shape={expected_shape} "
+                    f"Received shape={np.array(element).shape}."
+                    "Please provide a tuple of NumPy arrays of the same length."
+                )
 
         return iter(zip(*dataset))
-    elif dataset_type_spec == tf.data.Dataset:
+    elif dataset_type_spec is tf.data.Dataset:
         if is_batched(dataset):
             dataset = dataset.unbatch()
         return iter(dataset)
 
     elif is_torch_dataset(dataset):
         return iter(dataset)
-    elif dataset_type_spec == np.ndarray:
+    elif dataset_type_spec is np.ndarray:
         return iter(dataset)
     raise ValueError(f"Invalid dataset_type_spec: {dataset_type_spec}")
 
@@ -358,9 +350,9 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
 
     # check left_size is non-negative and less than 1 and less than total_length
     if (
-        left_size_type == int
+        left_size_type is int
         and (left_size <= 0 or left_size >= total_length)
-        or left_size_type == float
+        or left_size_type is float
         and (left_size <= 0 or left_size >= 1)
     ):
         raise ValueError(
@@ -373,9 +365,9 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     # check right_size is non-negative and less than 1 and less than
     # total_length
     if (
-        right_size_type == int
+        right_size_type is int
         and (right_size <= 0 or right_size >= total_length)
-        or right_size_type == float
+        or right_size_type is float
         and (right_size <= 0 or right_size >= 1)
     ):
         raise ValueError(
@@ -388,7 +380,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     # check sum of left_size and right_size is less than or equal to
     # total_length
     if (
-        right_size_type == left_size_type == float
+        right_size_type is left_size_type is float
         and right_size + left_size > 1
     ):
         raise ValueError(
@@ -396,14 +388,14 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
             "than 1. It must be less than or equal to 1."
         )
 
-    if left_size_type == float:
+    if left_size_type is float:
         left_size = round(left_size * total_length)
-    elif left_size_type == int:
+    elif left_size_type is int:
         left_size = float(left_size)
 
-    if right_size_type == float:
+    if right_size_type is float:
         right_size = round(right_size * total_length)
-    elif right_size_type == int:
+    elif right_size_type is int:
         right_size = float(right_size)
 
     if left_size is None:
@@ -414,8 +406,8 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     if left_size + right_size > total_length:
         raise ValueError(
             "The sum of `left_size` and `right_size` should "
-            "be smaller than the {total_length}. "
-            f"Received: left_size + right_size = {left_size+right_size}"
+            f"be smaller than the {total_length}. "
+            f"Received: left_size + right_size = {left_size + right_size}"
             f"and total_length = {total_length}"
         )
 
@@ -436,23 +428,24 @@ def _restore_dataset_from_list(
     dataset_as_list, dataset_type_spec, original_dataset
 ):
     """Restore the dataset from the list of arrays."""
-    if dataset_type_spec in [tuple, list]:
-        return tuple(np.array(sample) for sample in zip(*dataset_as_list))
-    elif dataset_type_spec == tf.data.Dataset:
-        if isinstance(original_dataset.element_spec, dict):
-            restored_dataset = {}
-            for d in dataset_as_list:
-                for k, v in d.items():
-                    if k not in restored_dataset:
-                        restored_dataset[k] = [v]
-                    else:
-                        restored_dataset[k].append(v)
-            return restored_dataset
-        else:
-            return tuple(np.array(sample) for sample in zip(*dataset_as_list))
+    if dataset_type_spec in [tuple, list, tf.data.Dataset] or is_torch_dataset(
+        original_dataset
+    ):
+        # Save structure by taking the first element.
+        element_spec = dataset_as_list[0]
+        # Flatten each element.
+        dataset_as_list = [tree.flatten(sample) for sample in dataset_as_list]
+        # Combine respective elements at all indices.
+        dataset_as_list = [np.array(sample) for sample in zip(*dataset_as_list)]
+        # Recreate the original structure of elements.
+        dataset_as_list = tree.pack_sequence_as(element_spec, dataset_as_list)
+        # Turn lists to tuples as tf.data will fail on lists.
+        return tree.traverse(
+            lambda x: tuple(x) if isinstance(x, list) else x,
+            dataset_as_list,
+            top_down=False,
+        )
 
-    elif is_torch_dataset(original_dataset):
-        return tuple(np.array(sample) for sample in zip(*dataset_as_list))
     return dataset_as_list
 
 
@@ -477,14 +470,12 @@ def _get_type_spec(dataset):
         return list
     elif isinstance(dataset, np.ndarray):
         return np.ndarray
-    elif isinstance(dataset, dict):
-        return dict
     elif isinstance(dataset, tf.data.Dataset):
         return tf.data.Dataset
     elif is_torch_dataset(dataset):
-        from torch.utils.data import Dataset as torchDataset
+        from torch.utils.data import Dataset as TorchDataset
 
-        return torchDataset
+        return TorchDataset
     else:
         return None
 
@@ -672,7 +663,7 @@ def index_subdirectory(directory, class_indices, follow_links, formats):
 
 
 def get_training_or_validation_split(samples, labels, validation_split, subset):
-    """Potentially restict samples & labels to a training or validation split.
+    """Potentially restrict samples & labels to a training or validation split.
 
     Args:
         samples: List of elements.
@@ -691,7 +682,7 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
     num_val_samples = int(validation_split * len(samples))
     if subset == "training":
         io_utils.print_msg(
-            f"Using {len(samples) - num_val_samples} " f"files for training."
+            f"Using {len(samples) - num_val_samples} files for training."
         )
         samples = samples[:-num_val_samples]
         if labels is not None:

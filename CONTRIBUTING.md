@@ -83,7 +83,7 @@ To set up your local dev environment, you will need the following tools.
 2.  [python](https://www.python.org/) to build and code in Keras.
 
 The following commands check the tools above are successfully installed. Note
-that Keras requires at least Python 3.9 to run.
+that Keras requires at least Python 3.10 to run.
 
 ```shell
 git --version
@@ -107,23 +107,35 @@ You can also add GPU support to your environment, see the
 [Adding GPU support](https://github.com/keras-team/keras/blob/master/README.md#adding-gpu-support)
 section of the README.
 
-## Code style
+## Generating public API and formatting the code
 
-Keras uses [Black](https://black.readthedocs.io/en/stable/) and
-[isort](https://pycqa.github.io/isort/) to format the code. Please refer to
-[requirements-common.txt](https://github.com/keras-team/keras/blob/master/requirements-common.txt)
-for the required versions. Run the following command **at the root directory of
-the repo** to format your code.
+For the first time you are setting up the repo, please run `pre-commit install`.
+Note that this needs to be done only once at the beginning.
+
+Now, whenever you run `git commit -m "<message>"`, three things are
+automatically done:
+
+- Public API generation
+- Code formatting
+- Code linting
+
+If there's any error, the commit will not go through. Please fix the error (
+most of the times, the error is fixed automatically by the formatter/linter) and
+re-run the following:
 
 ```
-sh shell/format.sh
+git add .
+git commit -m "<message>" # This will not get logged as a duplicate commit.
 ```
 
-It will also display the errors that cannot be resolved by autoformatting. You
-need to follow the output of the command to resolve them manually.
+In case you want to run the above manually on all files, you can do the
+following:
 
-If you do not want to auto format the code but only show the lint errors, you
-can run `sh shell/lint.sh` **at the root directory of the repo**.
+```
+pre-commit run --all-files
+```
+
+KerasHub uses [Ruff](https://docs.astral.sh/ruff/) to format the code.
 
 ### Docstrings
 
@@ -163,11 +175,11 @@ We use [pytest](https://pytest.org/) to run the tests.
 
 ### Run a test file
 
-To run the tests in `keras/losses/losses_test.py`, use the following command
+To run the tests in `keras/src/losses/losses_test.py`, use the following command
 at the root directory of the repo.
 
 ```shell
-pytest keras/losses/losses_test.py
+pytest keras/src/losses/losses_test.py
 ```
 
 ### Run a single test case
@@ -175,13 +187,13 @@ pytest keras/losses/losses_test.py
 You can specify a single test class to run within a file.
 
 ```shell
-pytest keras/losses/losses_test.py::MeanSquaredErrorTest
+pytest keras/src/losses/losses_test.py::MeanSquaredErrorTest
 ```
 
 You can also specify a single test method to run within a class.
 
 ```shell
-pytest keras/losses/losses_test.py::MeanSquaredErrorTest::test_sample_weighted
+pytest keras/src/losses/losses_test.py::MeanSquaredErrorTest::test_sample_weighted
 ```
 
 ### Run all tests

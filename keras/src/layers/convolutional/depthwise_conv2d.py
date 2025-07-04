@@ -68,12 +68,14 @@ class DepthwiseConv2D(BaseDepthwiseConv):
             bias after being updated by an `Optimizer`.
 
     Input shape:
+
     - If `data_format="channels_last"`:
         A 4D tensor with shape: `(batch_size, height, width, channels)`
     - If `data_format="channels_first"`:
         A 4D tensor with shape: `(batch_size, channels, height, width)`
 
     Output shape:
+
     - If `data_format="channels_last"`:
         A 4D tensor with shape:
         `(batch_size, new_height, new_width, channels * depth_multiplier)`
@@ -91,9 +93,9 @@ class DepthwiseConv2D(BaseDepthwiseConv):
     Example:
 
     >>> x = np.random.rand(4, 10, 10, 12)
-    >>> y = keras.layers.DepthwiseConv2D(3, 3, activation='relu')(x)
+    >>> y = keras.layers.DepthwiseConv2D(kernel_size=3, activation='relu')(x)
     >>> print(y.shape)
-    (4, 8, 8, 36)
+    (4, 8, 8, 12)
     """
 
     def __init__(
@@ -113,7 +115,7 @@ class DepthwiseConv2D(BaseDepthwiseConv):
         activity_regularizer=None,
         depthwise_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             rank=2,
@@ -132,5 +134,5 @@ class DepthwiseConv2D(BaseDepthwiseConv):
             activity_regularizer=activity_regularizer,
             depthwise_constraint=depthwise_constraint,
             bias_constraint=bias_constraint,
-            **kwargs
+            **kwargs,
         )

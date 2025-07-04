@@ -31,6 +31,10 @@ class ModelCheckpointTest(testing.TestCase):
         h5py is None,
         reason="`h5py` is a required dependency for `ModelCheckpoint` tests.",
     )
+    @pytest.mark.skipif(
+        testing.jax_uses_gpu(),
+        reason="Mysterious core dump on CI after upgrading JAX",
+    )
     @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_options(self):
         def get_model():
@@ -160,20 +164,20 @@ class ModelCheckpointTest(testing.TestCase):
         # Case 5: metric not available.
         cbks = [
             callbacks.ModelCheckpoint(
-                filepath, monitor="unknown", save_best_only=True
+                filepath, monitor="unknown", save_best_only=True, mode="min"
             )
         ]
-        model.fit(
-            x_train,
-            y_train,
-            batch_size=BATCH_SIZE,
-            validation_data=(x_test, y_test),
-            callbacks=cbks,
-            epochs=1,
-            verbose=0,
-        )
-        # File won't be written.
-        self.assertFalse(os.path.exists(filepath))
+        with pytest.warns(UserWarning):
+            model.fit(
+                x_train,
+                y_train,
+                batch_size=BATCH_SIZE,
+                validation_data=(x_test, y_test),
+                callbacks=cbks,
+                epochs=1,
+                verbose=0,
+            )
+        self.assertTrue(os.path.exists(filepath))
 
         # Case 6
         with warnings.catch_warnings(record=True) as warning_logs:
@@ -397,7 +401,8 @@ class ModelCheckpointTest(testing.TestCase):
         self.assertTrue(os.path.exists(filepath))
         os.remove(filepath)
 
-        # Case 13: ModelCheckpoint doesnt save model if loss was minimum earlier
+        # Case 13: ModelCheckpoint doesn't save model if loss was minimum
+        # earlier
         mode = "min"
         monitor = "val_loss"
         initial_value_threshold = 0
@@ -422,7 +427,7 @@ class ModelCheckpointTest(testing.TestCase):
         )
         self.assertFalse(os.path.exists(filepath))
 
-        # Case 14: ModelCheckpoint doesnt save model if loss was min earlier in
+        # Case 14: ModelCheckpoint doesn't save model if loss was min earlier in
         # auto mode
         mode = "auto"
         monitor = "val_loss"
@@ -437,6 +442,37 @@ class ModelCheckpointTest(testing.TestCase):
                 mode=mode,
             )
         ]
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=cbks,
+            epochs=1,
+            verbose=0,
+        )
+        self.assertFalse(os.path.exists(filepath))
+
+        # Case 15: ModelCheckpoint doesn't save model if auc was max earlier in
+        # auto mode
+        mode = "auto"
+        monitor = "val_auc"
+        initial_value_threshold = 1
+        save_best_only = True
+        cbks = [
+            callbacks.ModelCheckpoint(
+                filepath,
+                monitor=monitor,
+                save_best_only=save_best_only,
+                initial_value_threshold=initial_value_threshold,
+                mode=mode,
+            )
+        ]
+        model.compile(
+            loss="categorical_crossentropy",
+            optimizer="sgd",
+            metrics=[metrics.AUC()],
+        )
         model.fit(
             x_train,
             y_train,

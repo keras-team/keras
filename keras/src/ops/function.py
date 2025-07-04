@@ -81,6 +81,12 @@ class Function(Operation):
         self._nodes_by_depth = nodes_by_depth
         self._operations = operations
         self._operations_by_depth = operations_by_depth
+        for input in self._inputs:
+            if (
+                input._keras_history.operation
+                and not input._keras_history.operation._outbound_nodes
+            ):
+                raise ValueError("`inputs` not connected to `outputs`")
 
     @property
     def operations(self):
@@ -88,10 +94,12 @@ class Function(Operation):
 
     @property
     def inputs(self):
+        """Flat list of the symbolic inputs of the Function."""
         return self._inputs
 
     @property
     def outputs(self):
+        """Flat list of the symbolic outputs of the Function."""
         return self._outputs
 
     def compute_output_spec(self, inputs):
@@ -115,6 +123,20 @@ class Function(Operation):
         return self._run_through_graph(
             inputs, operation_fn=lambda op: op.compute_output_spec
         )
+
+    def compute_output_shape(self, input_shape):
+        # Wrap `input_shape` into the structure of KerasTensor to utilize
+        # `compute_output_spec`.
+        input_shape_struct = tree.map_shape_structure(
+            lambda x: KerasTensor(shape=x), input_shape
+        )
+        # Ensure that dtype and sparse settings are the same as self._inputs,
+        # because we only care about the shape in this function.
+        for x, x_ref in zip(tree.flatten(input_shape_struct), self._inputs):
+            x._dtype = x_ref.dtype
+            x._sparse = x_ref.sparse
+        output_spec = self.compute_output_spec(input_shape_struct)
+        return tree.map_structure(lambda x: x.shape, output_spec)
 
     def call(self, inputs):
         """Computes output tensors for new inputs."""
@@ -166,9 +188,7 @@ class Function(Operation):
 
     def _assert_input_compatibility(self, inputs):
         try:
-            tree.assert_same_structure(
-                inputs, self._inputs_struct, check_types=False
-            )
+            tree.assert_same_structure(inputs, self._inputs_struct)
         except ValueError:
             raise ValueError(
                 "Function was called with an invalid input structure. "
@@ -302,7 +322,7 @@ def map_graph(inputs, outputs):
                         "The following previous operations were accessed "
                         f"without issue: {operations_with_complete_input}"
                     )
-                operations_with_complete_input.append(operation.name)
+                operations_with_complete_input.append(node.operation.name)
 
             for x in tree.flatten(node.outputs):
                 computable_tensors.add(x)

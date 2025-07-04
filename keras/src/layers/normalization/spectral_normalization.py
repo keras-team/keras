@@ -52,7 +52,7 @@ class SpectralNormalization(Wrapper):
 
     def build(self, input_shape):
         super().build(input_shape)
-        self.input_spec = InputSpec(shape=[None] + list(input_shape[1:]))
+        self.input_spec = InputSpec(min_ndim=1, axes={-1: input_shape[-1]})
 
         if hasattr(self.layer, "kernel"):
             self.kernel = self.layer.kernel
@@ -105,8 +105,8 @@ class SpectralNormalization(Wrapper):
                 ops.matmul(vector_u, ops.transpose(weights)), axis=None
             )
             vector_u = normalize(ops.matmul(vector_v, weights), axis=None)
-        # vector_u = tf.stop_gradient(vector_u)
-        # vector_v = tf.stop_gradient(vector_v)
+        vector_u = ops.stop_gradient(vector_u)
+        vector_v = ops.stop_gradient(vector_v)
         sigma = ops.matmul(
             ops.matmul(vector_v, weights), ops.transpose(vector_u)
         )

@@ -164,12 +164,16 @@ def rnn(
                 else:
                     # Assume the first state is the previous output.
                     output_tm1 = states[0]
+                    if tree.is_nested(output_tm1):
+                        # Stacked RNN case: assume first state of last cell.
+                        output_tm1 = states[-1][0]
                     masked_outs = jnp.where(is_masked, output_tm1, output_t)
 
-                new_states = [
-                    jnp.where(is_masked, s, ns)
-                    for s, ns in zip(states, new_states)
-                ]
+                new_states = tree.map_structure(
+                    lambda s, ns: jnp.where(is_masked, s, ns),
+                    states,
+                    new_states,
+                )
                 return (new_states, masked_outs)
 
             scan_xs = (inputs, mask)

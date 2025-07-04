@@ -3,9 +3,9 @@ set -x
 
 cd "${KOKORO_ROOT}/"
 
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 
-PYTHON_BINARY="/usr/bin/python3.9"
+PYTHON_BINARY="/usr/bin/python3.10"
 
 "${PYTHON_BINARY}" -m venv venv
 source venv/bin/activate
@@ -13,7 +13,8 @@ source venv/bin/activate
 python --version
 python3 --version
 
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:"
+# setting the LD_LIBRARY_PATH manually is causing segmentation fault
+#export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:"
 # Check cuda
 nvidia-smi
 nvcc --version
@@ -36,7 +37,8 @@ then
    # TODO: keras/layers/merging/merging_test.py::MergingLayersTest::test_sparse_dot_2d Fatal Python error: Aborted
    pytest keras --ignore keras/src/applications \
                --ignore keras/src/layers/merging/merging_test.py \
-               --cov=keras
+               --cov=keras \
+               --cov-config=pyproject.toml
 fi
 
 if [ "$KERAS_BACKEND" == "jax" ]
@@ -56,7 +58,10 @@ then
                --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
                --ignore keras/src/backend/jax/distribution_lib_test.py \
                --ignore keras/src/distribution/distribution_lib_test.py \
-               --cov=keras
+               --cov=keras \
+               --cov-config=pyproject.toml
+
+   pytest keras/src/distribution/distribution_lib_test.py --cov=keras --cov-config=pyproject.toml
 fi
 
 if [ "$KERAS_BACKEND" == "torch" ]
@@ -69,5 +74,7 @@ then
    python3 -c 'import torch;assert torch.cuda.is_available()'
 
    pytest keras --ignore keras/src/applications \
-               --cov=keras
+               --cov=keras \
+               --cov-config=pyproject.toml
+
 fi

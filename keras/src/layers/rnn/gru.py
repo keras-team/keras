@@ -131,6 +131,10 @@ class GRUCell(Layer, DropoutRNNCell):
 
         self.dropout = min(1.0, max(0.0, dropout))
         self.recurrent_dropout = min(1.0, max(0.0, recurrent_dropout))
+        if self.recurrent_dropout != 0.0:
+            self.implementation = 1
+        if self.implementation == 1:
+            self.dropout_mask_count = 3
         self.seed = seed
         self.seed_generator = backend.random.SeedGenerator(seed=seed)
 
@@ -174,15 +178,11 @@ class GRUCell(Layer, DropoutRNNCell):
             )
         else:
             self.bias = None
-        self.built = True
 
     def call(self, inputs, states, training=False):
         h_tm1 = (
             states[0] if tree.is_nested(states) else states
         )  # previous state
-
-        dp_mask = self.get_dropout_mask(inputs)
-        rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
 
         if self.use_bias:
             if not self.reset_after:
@@ -193,15 +193,16 @@ class GRUCell(Layer, DropoutRNNCell):
                     for e in ops.split(self.bias, self.bias.shape[0], axis=0)
                 )
 
-        if training and 0.0 < self.dropout < 1.0:
-            inputs = inputs * dp_mask
-        if training and 0.0 < self.recurrent_dropout < 1.0:
-            h_tm1 = h_tm1 * rec_dp_mask
-
         if self.implementation == 1:
-            inputs_z = inputs
-            inputs_r = inputs
-            inputs_h = inputs
+            if training and 0.0 < self.dropout < 1.0:
+                dp_mask = self.get_dropout_mask(inputs)
+                inputs_z = inputs * dp_mask[0]
+                inputs_r = inputs * dp_mask[1]
+                inputs_h = inputs * dp_mask[2]
+            else:
+                inputs_z = inputs
+                inputs_r = inputs
+                inputs_h = inputs
 
             x_z = ops.matmul(inputs_z, self.kernel[:, : self.units])
             x_r = ops.matmul(
@@ -214,9 +215,15 @@ class GRUCell(Layer, DropoutRNNCell):
                 x_r += input_bias[self.units : self.units * 2]
                 x_h += input_bias[self.units * 2 :]
 
-            h_tm1_z = h_tm1
-            h_tm1_r = h_tm1
-            h_tm1_h = h_tm1
+            if training and 0.0 < self.recurrent_dropout < 1.0:
+                rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
+                h_tm1_z = h_tm1 * rec_dp_mask[0]
+                h_tm1_r = h_tm1 * rec_dp_mask[1]
+                h_tm1_h = h_tm1 * rec_dp_mask[2]
+            else:
+                h_tm1_z = h_tm1
+                h_tm1_r = h_tm1
+                h_tm1_h = h_tm1
 
             recurrent_z = ops.matmul(
                 h_tm1_z, self.recurrent_kernel[:, : self.units]
@@ -246,6 +253,10 @@ class GRUCell(Layer, DropoutRNNCell):
 
             hh = self.activation(x_h + recurrent_h)
         else:
+            if training and 0.0 < self.dropout < 1.0:
+                dp_mask = self.get_dropout_mask(inputs)
+                inputs = inputs * dp_mask
+
             # inputs projected by all gate matrices at once
             matrix_x = ops.matmul(inputs, self.kernel)
             if self.use_bias:
@@ -342,7 +353,7 @@ class GRU(RNN):
 
     1. `activation` == `tanh`
     2. `recurrent_activation` == `sigmoid`
-    3. `dropout` == 0 and `recurrent_dropout` == 0
+    3. `recurrent_dropout` == 0
     4. `unroll` is `False`
     5. `use_bias` is `True`
     6. `reset_after` is `True`
@@ -500,6 +511,7 @@ class GRU(RNN):
             trainable=kwargs.get("trainable", True),
             name="gru_cell",
             seed=seed,
+            implementation=kwargs.pop("implementation", 2),
         )
         super().__init__(
             cell,
@@ -538,14 +550,23 @@ class GRU(RNN):
         if tree.is_nested(mask):
             mask = mask[0]
         if self.use_cudnn in ("auto", True):
-            if not self.dropout and not self.recurrent_dropout:
+            if not self.recurrent_dropout:
                 try:
+                    if training and self.dropout:
+                        dp_mask = self.cell.get_dropout_mask(sequences[:, 0, :])
+                        dp_mask = ops.expand_dims(dp_mask, axis=1)
+                        dp_mask = ops.broadcast_to(
+                            dp_mask, ops.shape(sequences)
+                        )
+                        dp_sequences = sequences * dp_mask
+                    else:
+                        dp_sequences = sequences
                     # Backends are allowed to specify (optionally) optimized
                     # implementation of the inner GRU loop. In the case of
                     # TF for instance, it will leverage cuDNN when feasible, and
                     # it will raise NotImplementedError otherwise.
                     out = backend.gru(
-                        sequences,
+                        dp_sequences,
                         initial_state,
                         mask,
                         kernel=self.cell.kernel,

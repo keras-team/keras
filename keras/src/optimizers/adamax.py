@@ -23,7 +23,7 @@ class Adamax(optimizer.Optimizer):
     ```
 
     The update rule for parameter `w` with gradient `g` is described at the end
-    of section 7.1 of the paper (see the referenece section):
+    of section 7.1 of the paper (see the reference section):
 
     ```python
     t += 1
@@ -98,19 +98,9 @@ class Adamax(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self._m = []
-        self._u = []
-        for var in var_list:
-            self._m.append(
-                self.add_variable_from_reference(
-                    reference_variable=var, name="momentum"
-                )
-            )
-            self._u.append(
-                self.add_variable_from_reference(
-                    reference_variable=var, name="norm"
-                )
-            )
+        self._m, self._u = self.add_optimizer_variables(
+            var_list, ["momentum", "norm"]
+        )
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""

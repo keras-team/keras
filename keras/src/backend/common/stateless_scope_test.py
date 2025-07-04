@@ -41,7 +41,7 @@ class TestStatelessScope(testing.TestCase):
         value1 = ops.ones(shape=(2,))
 
         with self.assertRaisesRegex(
-            ValueError, "all keys in argument `mapping` must be KerasVariable"
+            ValueError, "all keys in argument `mapping` must be Variable"
         ):
             StatelessScope(state_mapping=[(invalid_key, value1)])
 

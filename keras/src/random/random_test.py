@@ -14,7 +14,7 @@ from keras.src.testing.test_utils import named_product
 from keras.src.utils.rng_utils import set_random_seed
 
 
-class RandomTest(testing.TestCase, parameterized.TestCase):
+class RandomCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {"seed": 10, "shape": (5,), "mean": 0, "stddev": 1},
         {"seed": 10, "shape": (2, 3), "mean": 0, "stddev": 1},
@@ -62,12 +62,6 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(res.shape, (batch_size, num_samples))
         expected = np.tile(np.arange(batch_size)[:, None], (1, num_samples))
         self.assertAllClose(res, expected)
-
-    def test_categorical_errors(self):
-        with self.assertRaises(ValueError):
-            random.categorical(np.ones((5,)), 5)
-        with self.assertRaises(ValueError):
-            random.categorical(np.ones((5, 5, 5)), 5)
 
     @parameterized.parameters(
         {"seed": 10, "shape": (5,), "min": 0, "max": 10, "dtype": "uint16"},
@@ -117,62 +111,12 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertGreater(ops.max(x_res), ops.max(x))
         self.assertGreater(ops.sum(x_res == 0), 2)
 
-    @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
-        reason="This test requires `jax` as the backend.",
-    )
-    def test_dropout_jax_jit_stateless(self):
-        import jax
-        import jax.numpy as jnp
-
-        x = ops.ones(3)
-
-        @jax.jit
-        def train_step(x):
-            with keras.src.backend.StatelessScope():
-                x = keras.layers.Dropout(rate=0.1)(x, training=True)
-            return x
-
-        x = train_step(x)
-        self.assertIsInstance(x, jnp.ndarray)
-
     def test_dropout_noise_shape(self):
         inputs = ops.ones((2, 3, 5, 7))
         x = random.dropout(
             inputs, rate=0.3, noise_shape=[None, 3, 5, None], seed=0
         )
         self.assertEqual(x.shape, (2, 3, 5, 7))
-
-    @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
-        reason="This test requires `jax` as the backend.",
-    )
-    def test_jax_rngkey_seed(self):
-        import jax
-        import jax.numpy as jnp
-
-        seed = 1234
-        rng = jax.random.PRNGKey(seed)
-        self.assertEqual(rng.shape, (2,))
-        self.assertEqual(rng.dtype, jnp.uint32)
-        x = random.randint((3, 5), 0, 10, seed=rng)
-        self.assertIsInstance(x, jnp.ndarray)
-
-    @pytest.mark.skipif(
-        keras.backend.backend() != "jax",
-        reason="This test requires `jax` as the backend.",
-    )
-    def test_jax_unseed_disallowed_during_tracing(self):
-        import jax
-
-        @jax.jit
-        def jit_fn():
-            return random.randint((2, 2), 0, 10, seed=None)
-
-        with self.assertRaisesRegex(
-            ValueError, "you should only use seeded random ops"
-        ):
-            jit_fn()
 
     def test_global_seed_generator(self):
         # Check that unseeded RNG calls use and update global_rng_state()
@@ -237,19 +181,6 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertFalse(np.all(x == ops.convert_to_numpy(y)))
         self.assertAllClose(np.sum(x, axis=1), ops.sum(y, axis=1))
         self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
-
-    def test_randint_dtype_validation(self):
-        with self.assertRaisesRegex(
-            ValueError, "`keras.random.randint` requires an integer `dtype`."
-        ):
-            random.randint((3, 4), minval=0, maxval=10, dtype="float64")
-
-    def test_uniform_dtype_validation(self):
-        with self.assertRaisesRegex(
-            ValueError,
-            "`keras.random.uniform` requires a floating point `dtype`.",
-        ):
-            random.uniform((3, 4), minval=0, maxval=10, dtype="int64")
 
     @parameterized.parameters(
         {"seed": 10, "shape": (5, 2), "alpha": 2.0, "dtype": "float16"},
@@ -391,7 +322,124 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
             )
 
 
-class RandomDTypeTest(testing.TestCase, parameterized.TestCase):
+class RandomBehaviorTest(testing.TestCase):
+    def test_beta_tf_data_compatibility(self):
+        import tensorflow as tf
+
+        from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+        from keras.src.random.seed_generator import SeedGenerator
+
+        class BetaLayer(TFDataLayer):
+            def __init__(self, seed=None, **kwargs):
+                super().__init__(**kwargs)
+                self.seed = seed
+                self.generator = SeedGenerator(seed)
+
+            def compute_output_shape(self, input_shape):
+                return input_shape
+
+            def call(self, inputs):
+                seed_generator = self._get_seed_generator(self.backend._backend)
+                noise = self.backend.random.beta(
+                    self.backend.shape(inputs),
+                    alpha=0.5,
+                    beta=0.5,
+                    seed=seed_generator,
+                )
+                inputs = inputs + noise
+                return inputs
+
+        layer = BetaLayer()
+        input_data = np.random.random([2, 4, 4, 3])
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        for output in ds.take(1):
+            output = ops.convert_to_numpy(output)
+        self.assertEqual(output.shape, (2, 4, 4, 3))
+
+    def test_categorical_errors(self):
+        with self.assertRaises(ValueError):
+            random.categorical(np.ones((5,)), 5)
+        with self.assertRaises(ValueError):
+            random.categorical(np.ones((5, 5, 5)), 5)
+
+    def test_randint_dtype_validation(self):
+        with self.assertRaisesRegex(
+            ValueError, "`keras.random.randint` requires an integer `dtype`."
+        ):
+            random.randint((3, 4), minval=0, maxval=10, dtype="float64")
+
+    def test_uniform_dtype_validation(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`keras.random.uniform` requires a floating point `dtype`.",
+        ):
+            random.uniform((3, 4), minval=0, maxval=10, dtype="int64")
+
+    @pytest.mark.skipif(
+        keras.backend.backend() != "jax",
+        reason="This test requires `jax` as the backend.",
+    )
+    def test_dropout_jax_jit_stateless(self):
+        import jax
+        import jax.numpy as jnp
+
+        x = ops.ones(3)
+
+        @jax.jit
+        def train_step(x):
+            with keras.src.backend.StatelessScope():
+                x = keras.layers.Dropout(rate=0.1)(x, training=True)
+            return x
+
+        x = train_step(x)
+        self.assertIsInstance(x, jnp.ndarray)
+
+    @pytest.mark.skipif(
+        keras.backend.backend() != "jax",
+        reason="This test requires `jax` as the backend.",
+    )
+    def test_jax_rngkey_seed(self):
+        import jax
+        import jax.numpy as jnp
+
+        seed = 1234
+        rng = jax.random.PRNGKey(seed)
+        self.assertEqual(rng.shape, (2,))
+        self.assertEqual(rng.dtype, jnp.uint32)
+        x = random.randint((3, 5), 0, 10, seed=rng)
+        self.assertIsInstance(x, jnp.ndarray)
+
+    @pytest.mark.skipif(
+        keras.backend.backend() != "jax",
+        reason="This test requires `jax` as the backend.",
+    )
+    def test_jax_unseed_disallowed_during_tracing(self):
+        import jax
+
+        @jax.jit
+        def jit_fn():
+            return random.randint((2, 2), 0, 10, seed=None)
+
+        with self.assertRaisesRegex(
+            ValueError, "you should only use seeded random ops"
+        ):
+            jit_fn()
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="This test requires `tensorflow` as the backend.",
+    )
+    def test_tf_cast_seed(self):
+        import tensorflow as tf
+
+        inputs = tf.ones([2, 3], dtype="float32")
+        seed = tf.int32.max + 1000  # Test floormod operation
+        outputs_mod = random.categorical(inputs, 2, seed=seed)
+        outputs_nomod = random.categorical(inputs, 2, seed=1001)
+        self.assertAllClose(outputs_mod, outputs_nomod)
+
+
+class RandomDTypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
     FLOAT_DTYPES = dtypes.FLOAT_TYPES
     if backend.backend() == "torch":
@@ -408,7 +456,7 @@ class RandomDTypeTest(testing.TestCase, parameterized.TestCase):
             self.jax_enable_x64.__enter__()
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         if backend.backend() == "jax":
             self.jax_enable_x64.__exit__(None, None, None)
         return super().tearDown()

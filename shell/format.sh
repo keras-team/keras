@@ -1,11 +1,13 @@
 #!/bin/bash
 set -Eeuo pipefail
 
+if ! command -v pre-commit 2>&1 >/dev/null
+then
+    echo 'Please `pip install pre-commit` to run format.sh.'
+    exit 1
+fi
+
 base_dir=$(dirname $(dirname $0))
 
-isort --sp "${base_dir}/pyproject.toml" .
-
-black --config "${base_dir}/pyproject.toml" .
-
-flake8 --config "${base_dir}/setup.cfg" .
-
+echo "Formatting all files..."
+SKIP=api-gen pre-commit run --all-files

@@ -6,15 +6,15 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import export
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
-from keras.src.export import export_lib
 from keras.src.testing import test_case
 
 
-class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
+class EmbeddingTest(test_case.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_embedding_basics(self):
         self.run_layer_test(
@@ -59,6 +59,27 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=False,
+        )
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_RAGGED_TENSORS,
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_ragged(self):
+        self.run_layer_test(
+            layers.Embedding,
+            {"input_dim": 5, "output_dim": 4},
+            input_shape=(2, 3),
+            input_dtype="int32",
+            input_ragged=True,
+            expected_output_shape=(2, None, 4),
+            expected_output_ragged=True,
+            expected_num_trainable_weights=1,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
+            # run_training_check=False,
         )
 
     def test_correctness(self):
@@ -182,6 +203,38 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
     @pytest.mark.requires_trainable_backend
+    def test_enable_lora_with_alpha(self):
+        # Create an `Embedding` layer without specifying `lora_rank`
+        layer = layers.Embedding(input_dim=3, output_dim=2)
+        layer.build((None,))  # Build the layer
+
+        # Set the base embeddings to known values.
+        base_emb = np.array(
+            [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype=np.float32
+        )
+        layer.embeddings.assign(base_emb)
+
+        # Enable LoRA with a custom alpha: `rank`=2, `lora_alpha`=3.0.
+        layer.enable_lora(2, lora_alpha=3.0)
+        self.assertEqual(layer.lora_rank, 2)
+        self.assertEqual(layer.lora_alpha, 3.0)
+
+        # Manually assign known values to lora weights.
+        a_val = np.array([[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]], dtype=np.float32)
+        b_val = np.array([[0.5, 0.5], [0.6, 0.6]], dtype=np.float32)
+        layer.lora_embeddings_a.assign(a_val)
+        layer.lora_embeddings_b.assign(b_val)
+
+        # Compute the expected delta.
+        # Scaling factor: (3.0 / 2) = 1.5
+        effective_delta = 1.5 * np.matmul(a_val, b_val)
+        expected_embeddings = base_emb + effective_delta
+
+        # Verify that the effective embeddings match expectation.
+        actual_embeddings = ops.convert_to_numpy(layer.embeddings)
+        self.assertAllClose(actual_embeddings, expected_embeddings)
+
+    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Embedding,
@@ -211,6 +264,8 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         layer.enable_lora(rank=2)
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
+
+    # Test quantization-related (int8) methods
 
     def test_quantize_int8(self):
         layer = layers.Embedding(10, 16)
@@ -306,8 +361,11 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
             pass
 
         layer = MyEmbedding(10, 16)
+        layer.build()
         with self.assertRaises(NotImplementedError):
             layer.quantize("int8")
+
+        layer.quantize("int8", type_check=False)  # No error
 
     def test_quantize_when_already_quantized(self):
         layer = layers.Embedding(10, 16)
@@ -318,7 +376,6 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         ):
             layer.quantize("int8")
 
-    def test_quantize_when_already_quantized_using_dtype_argument(self):
         layer = layers.Embedding(10, 16, dtype="int8_from_float32")
         layer.build()
         with self.assertRaisesRegex(
@@ -336,6 +393,38 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
         layer.build()
         layer.dtype_policy = policy
         self.assertLen(layer.variables, expected_num_variables)
+
+    @parameterized.named_parameters(
+        ("int7", "int7"),
+        ("float7", "float7"),
+    )
+    def test_quantize_invalid_mode(self, mode):
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        x = np.random.randint(0, 9, size=(1, 3))
+        # dtype_policy should not be altered by failed quantization
+        original_dtype_policy = layer.dtype_policy
+
+        # Test quantize
+        with self.assertRaisesRegex(ValueError, "Invalid quantization mode."):
+            layer.quantize(mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_build
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            layer.quantized_build((None, 2), mode)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+        # Test quantized_call
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            # Explicitly set quantization_mode
+            layer._dtype_policy._quantization_mode = mode
+            layer.quantized_call(x)
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_when_lora_enabled(self):
@@ -402,8 +491,8 @@ class EmbeddingTest(test_case.TestCase, parameterized.TestCase):
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
             ref_input = tf.random.normal((32, 3))
             ref_output = model(ref_input)
-            export_lib.export_model(model, temp_filepath)
-            reloaded_layer = export_lib.TFSMLayer(temp_filepath)
+            model.export(temp_filepath, format="tf_saved_model")
+            reloaded_layer = export.TFSMLayer(temp_filepath)
             self.assertAllClose(
                 reloaded_layer(ref_input), ref_output, atol=1e-7
             )

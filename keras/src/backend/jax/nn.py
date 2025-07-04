@@ -6,6 +6,12 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 from jax import lax
 from jax import nn as jnn
+from jax.experimental.pallas.ops.tpu.splash_attention import (
+    splash_attention_kernel,
+)
+from jax.experimental.pallas.ops.tpu.splash_attention import (
+    splash_attention_mask,
+)
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
@@ -30,9 +36,19 @@ def sigmoid(x):
     return jnn.sigmoid(x)
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return jnn.sparse_sigmoid(x)
+
+
 def tanh(x):
     x = convert_to_tensor(x)
     return jnn.tanh(x)
+
+
+def tanh_shrink(x):
+    x = convert_to_tensor(x)
+    return x - jnp.tanh(x)
 
 
 def softplus(x):
@@ -45,9 +61,28 @@ def softsign(x):
     return jnn.soft_sign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(
+        x > threshold,
+        x - threshold,
+        jnp.where(x < -threshold, x + threshold, 0.0),
+    )
+
+
+def sparse_plus(x):
+    x = convert_to_tensor(x)
+    return jnn.sparse_plus(x)
+
+
 def silu(x):
     x = convert_to_tensor(x)
     return jnn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    return jnn.squareplus(x, b=b)
 
 
 def log_sigmoid(x):
@@ -85,6 +120,31 @@ def gelu(x, approximate=True):
     return jnn.gelu(x, approximate)
 
 
+def celu(x, alpha=1.0):
+    x = convert_to_tensor(x)
+    return jnn.celu(x, alpha=alpha)
+
+
+def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    return jnn.glu(x, axis=axis)
+
+
+def hard_tanh(x):
+    x = convert_to_tensor(x)
+    return jnn.hard_tanh(x)
+
+
+def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    return jnp.where(jnp.abs(x) > threshold, x, 0.0)
+
+
+def threshold(x, threshold, default_value):
+    x = convert_to_tensor(x)
+    return jnp.where(x > threshold, x, default_value)
+
+
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)
@@ -93,6 +153,24 @@ def softmax(x, axis=-1):
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.log_softmax(x, axis=axis)
+
+
+def sparsemax(x, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(x)
+    logits_sorted = -1.0 * jnp.sort(logits * -1.0, axis=axis)
+    logits_cumsum = jnp.cumsum(logits_sorted, axis=axis)  # find cumulative sum
+    r = jnp.arange(1, logits.shape[axis] + 1)  # Determine the sparsity
+    r_shape = [1] * logits.ndim
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = r.reshape(r_shape)
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    k = jnp.sum(support, axis=axis, keepdims=True)
+    logits_cumsum_safe = jnp.where(support, logits_cumsum, 0.0)
+    tau = (jnp.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = jnp.maximum(logits - tau, 0.0)
+    return output
 
 
 def _convert_to_spatial_operand(
@@ -172,8 +250,8 @@ def max_pool(
 def average_pool(
     inputs,
     pool_size,
-    strides,
-    padding,
+    strides=None,
+    padding="valid",
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
@@ -273,9 +351,11 @@ def conv(
             f"kernel in_channels {kernel_in_channels}. "
         )
     feature_group_count = channels // kernel_in_channels
+    kernel = convert_to_tensor(kernel)
+    inputs = convert_to_tensor(inputs, dtype=kernel.dtype)
     return jax.lax.conv_general_dilated(
-        convert_to_tensor(inputs),
-        convert_to_tensor(kernel),
+        inputs,
+        kernel,
         strides,
         padding,
         rhs_dilation=dilation_rate,
@@ -405,7 +485,7 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     x = convert_to_tensor(x)
     if sparse:
         if axis < 0:
@@ -433,7 +513,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     return jnn.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     if sparse:
@@ -593,11 +673,11 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length, "int32")
     output_length = convert_to_tensor(output_length, "int32")
-    batch_size, _, num_classes = output.shape
+    batch_size, max_input_length, num_classes = output.shape
     batch_size, max_label_length = target.shape
     log_epsilon = -1e5
 
-    # Ensure that the dtype promotion behavior matchs that of `tf.nn.ctc_loss`
+    # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
@@ -610,7 +690,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
         return jnp.logical_not(elem_valid)
 
     target_paddings = _lengths_to_paddings(target_length, max_label_length)
-    output_paddings = _lengths_to_paddings(output_length, max_label_length)
+    output_paddings = _lengths_to_paddings(output_length, max_input_length)
     target_paddings = target_paddings.astype(output.dtype)
     output_paddings = output_paddings.astype(output.dtype)
 
@@ -690,12 +770,12 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
 def _ctc_greedy_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     merge_repeated=True,
     mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
-    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     batch_size, max_length, num_classes = inputs.shape
 
     if mask_index is None:
@@ -705,7 +785,7 @@ def _ctc_greedy_decode(
     scores = jnp.max(inputs, axis=-1)
 
     seqlen_mask = jnp.arange(max_length)[None, :]
-    seqlen_mask = seqlen_mask >= sequence_length[:, None]
+    seqlen_mask = seqlen_mask >= sequence_lengths[:, None]
 
     indices = jnp.where(seqlen_mask, mask_index, indices)
     scores = jnp.where(seqlen_mask, 0.0, scores)
@@ -715,16 +795,17 @@ def _ctc_greedy_decode(
         repeat_mask = jnp.pad(repeat_mask, ((0, 0), (1, 0)))
         indices = jnp.where(repeat_mask, mask_index, indices)
 
-    # We rearrange the indices by moving `mask_index` to the end of the array
+    # We set to -1 for blank labels
     invalid_mask = indices == mask_index
+    indices = jnp.where(invalid_mask, -1, indices)
+
+    # We rearrange the indices by moving `mask_index` to the end of the array
     order = jnp.expand_dims(jnp.arange(max_length), axis=0)  # [1, N]
     order = jnp.tile(order, (batch_size, 1))  # [B, N]
     order = jnp.where(invalid_mask, max_length, order)
     order = jnp.argsort(order, axis=-1)
     indices = jnp.take_along_axis(indices, order, axis=-1)
 
-    # We set to -1 for blank labels
-    indices = jnp.where(invalid_mask, -1, indices)
     scores = -jnp.sum(scores, axis=1)[:, None]
     indices = jnp.expand_dims(indices, axis=0)
     return indices, scores
@@ -732,17 +813,17 @@ def _ctc_greedy_decode(
 
 def _ctc_beam_search_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     beam_width=100,
     top_paths=1,
     mask_index=None,
 ):
     inputs = convert_to_tensor(inputs)
-    sequence_length = convert_to_tensor(sequence_length)
+    sequence_lengths = convert_to_tensor(sequence_lengths)
 
     batch_size, max_seq_len, num_classes = inputs.shape
     inputs = jnn.log_softmax(inputs)
-    seqlen_mask = jnp.arange(max_seq_len)[None, :] >= sequence_length[:, None]
+    seqlen_mask = jnp.arange(max_seq_len)[None, :] >= sequence_lengths[:, None]
 
     if mask_index is None:
         mask_index = num_classes - 1
@@ -895,12 +976,12 @@ def _ctc_beam_search_decode(
 
 def ctc_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
-    mask_index=None,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
     dtype = backend.result_type(inputs.dtype, "float32")
@@ -909,14 +990,14 @@ def ctc_decode(
     if strategy == "greedy":
         return _ctc_greedy_decode(
             inputs,
-            sequence_length,
+            sequence_lengths,
             merge_repeated=merge_repeated,
             mask_index=mask_index,
         )
     elif strategy == "beam_search":
         return _ctc_beam_search_decode(
             inputs,
-            sequence_length,
+            sequence_lengths,
             beam_width=beam_width,
             top_paths=top_paths,
             mask_index=mask_index,
@@ -939,3 +1020,381 @@ def psnr(x1, x2, max_val):
     mse = jnp.mean(jnp.square(x1 - x2))
     psnr = 20 * jnp.log10(max_val) - 10 * jnp.log10(mse)
     return psnr
+
+
+def _can_use_flash_attention(query, key, value, bias, raise_error=False):
+    """Verify the availability of flash attention."""
+    try:
+        from jax._src.cudnn.fused_attention_stablehlo import _normalize_layout
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_compute_capability,
+        )
+        from jax._src.cudnn.fused_attention_stablehlo import check_cudnn_version
+        from jax._src.cudnn.fused_attention_stablehlo import (
+            check_is_flash_attention,
+        )
+        from jax._src.cudnn.fused_attention_stablehlo import check_layout
+        from jax.nn import dot_product_attention as dot_product_attention
+    except ImportError:
+        if raise_error:
+            raise ImportError(
+                "Flash attention is not supported in your current JAX version. "
+                "Please update it by following the official guide: "
+                "https://jax.readthedocs.io/en/latest/installation.html"
+            )
+        return False
+
+    if jax.devices()[0].platform == "tpu":
+        return True
+    try:
+        # Check if cuDNN is installed and raise RuntimeError if cuDNN is not
+        # detected
+        cudnn_version = check_cudnn_version()
+        # Only support at least Ampere
+        if not check_compute_capability("8.0"):
+            raise RuntimeError("Require at least Ampere arch to run")
+        # Check inputs layout
+        check_layout(
+            query,
+            key,
+            value,
+            bias,
+            q_seqlen=None,
+            kv_seqlen=None,
+            layout=_normalize_layout("BTNH"),
+            q_offsets=None,
+            kv_offsets=None,
+        )
+        check_is_flash_attention(
+            query,
+            key,
+            _normalize_layout("BTNH"),
+            cudnn_version,
+            bias is not None,
+            is_training=False,
+        )
+        return True
+    except:
+        if raise_error:
+            raise
+        return False
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = jnp.ones_like(logits, dtype="bool")
+    if mask is not None:
+        combined_mask = jnp.logical_and(combined_mask, mask)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        mask = jnp.tril(jnp.ones((T, S), dtype="bool"))
+        mask = mask[None, None, :, :]
+        combined_mask = jnp.logical_and(combined_mask, mask)
+
+    large_negative_number = jnp.asarray(
+        -0.7 * jnp.finfo(logits.dtype).max, dtype=logits.dtype
+    )
+    padded_logits = jnp.where(combined_mask, logits, large_negative_number)
+    return padded_logits
+
+
+def _dot_product_attention_core(
+    query, key, value, bias, mask, is_causal, scale
+):
+    logits_dtype = jnp.promote_types(query.dtype, jnp.float32)
+    logits = jnp.einsum(
+        "BTNH,BSNH->BNTS", query, key, preferred_element_type=logits_dtype
+    )
+    logits *= jnp.array(scale, dtype=logits.dtype)
+
+    if bias is not None:
+        logits = (logits + bias).astype(logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax and it is always carried out in fp32.
+    padded_logits = padded_logits.astype(jnp.float32)
+    probs = jax.nn.softmax(padded_logits, axis=-1).astype(key.dtype)
+    return jnp.einsum("BNTS,BSNH->BTNH", probs, value)
+
+
+def wrap_flash_attention(
+    query,
+    key,
+    value,
+    decoder_segment_ids,
+    custom_mask=None,
+    attn_logits_soft_cap=None,
+    head_shards=1,
+    q_seq_shards=1,
+):
+    """Applies a wrapped flash attention mechanism using the Splash kernel.
+    This function prepares the appropriate attention mask (causal or custom),
+    constructs a multi-head mask, and applies the Splash multi-head attention
+    kernel to the provided query, key, and value tensors. It supports optional
+    sharding and soft capping of attention logits.
+    Args:
+        query: jax.Array. The query tensor of shape
+            (batch, num_heads, seq_len, head_dim).
+        key: jax.Array. The key tensor of shape
+            (batch, num_heads, seq_len, head_dim).
+        value: jax.Array. The value tensor of shape
+            (batch, num_heads, seq_len, head_dim).
+        decoder_segment_ids: Optional. Segment IDs for the decoder, used for
+            sharding or masking.
+        custom_mask: Optional[jax.Array]. A custom attention mask to apply. If
+            None, a causal mask is used.
+        attn_logits_soft_cap: Optional[float]. If provided, applies a soft cap
+            to the attention logits.
+        head_shards: int, default=1. Number of shards for the attention heads.
+        q_seq_shards: int, default=1. Number of shards for the query sequence
+            dimension.
+    Returns:
+        jax.Array: The result of applying the Splash multi-head attention
+            kernel to the inputs.
+    Raises:
+        AssertionError: If sharding along the sequence dimension is attempted
+            with decoder_segment_ids.
+    """
+    if decoder_segment_ids is not None:
+        assert query.shape[2] == decoder_segment_ids.q.shape[1], (
+            "Sharding along sequence dimension not allowed"
+            " in TPU kernel attention"
+        )
+
+    if custom_mask is not None:
+        mask = splash_attention_mask.NumpyMask(array=custom_mask)
+    else:
+        mask = splash_attention_mask.CausalMask(
+            shape=(query.shape[2], query.shape[2])
+        )
+
+    # Create multi-head mask
+    multi_head_mask = splash_attention_mask.MultiHeadMask(
+        masks=(mask,) * query.shape[1]
+    )
+    splash_kernel = splash_attention_kernel.make_splash_mha(
+        mask=multi_head_mask,
+        head_shards=head_shards,
+        q_seq_shards=q_seq_shards,
+        attn_logits_soft_cap=attn_logits_soft_cap,
+    )
+
+    return jax.vmap(splash_kernel)(
+        query, key, value, segment_ids=decoder_segment_ids
+    )
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+    attn_logits_soft_cap=None,
+):
+    """Computes dot-product attention given query, key, and value.
+
+    This is the core computation of attention that is used in transformers.
+    For TPU platforms, flash attention optimizations are automatically applied
+    when possible, and sharding parameters are inferred from the layout map
+    in the current distribution context.
+
+    Args:
+        query: Queries with shape `[batch, time, heads,
+            depth_k]`.
+        key: Keys with shape `[batch, time, heads,
+            depth_k]`.
+        value: Values with shape `[batch, time, heads,
+            depth_v]`.
+        bias: Optional bias with shape broadcastable to
+            `[batch, heads, dest_time, source_time]`.
+        mask: Optional mask with shape broadcastable to
+            `[batch, heads, dest_time, source_time]`.
+        scale: Float. Optional scale that is applied to the attention
+            computation.
+        is_causal: Boolean. Specifying whether causal masking is applied.
+        flash_attention: Boolean. Whether to use flash attention optimization
+            for increased performance. Default to None, which means it will
+            be auto-determined based on the platform, input shapes and
+            compatibility.
+        attn_logits_soft_cap: Float. Optional float to softly cap attention
+            logits to avoid numerical stability issues. Applied as:
+            `logits = logits / (1.0 + abs(logits) / attn_logits_soft_cap)`.
+
+    Returns:
+        JAX Array of shape `[batch, time, heads, depth_v]`.
+    """
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+
+    # Check platform
+    platform = jax.devices()[0].platform
+    is_tpu = platform == "tpu"
+
+    # Determine flash attention compatibility
+    if flash_attention is None:
+        flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
+        _can_use_flash_attention(query, key, value, bias, raise_error=True)
+
+    # TPU-specific flash attention path
+    if is_tpu and flash_attention:
+        # Get sharding parameters from distribution context
+        try:
+            from keras.src.distribution.distribution_lib import ModelParallel
+            from keras.src.distribution.distribution_lib import (
+                distribution as get_dist,
+            )
+
+            # Get current distribution if available
+            dist = get_dist()
+            if dist and isinstance(dist, ModelParallel):
+                mesh = dist.device_mesh
+                if "model" in mesh.axis_names:
+                    model_dim_index = mesh.axis_names.index("model")
+                    # Set head_shards based on the model dimension of the mesh
+                    head_shards = mesh.shape[model_dim_index]
+                    # Typically keep q_seq_shards=1 for best performance
+                    q_seq_shards = 1
+        except (ImportError, ValueError, AttributeError):
+            # Use default values if detection fails
+            head_shards = 1
+            q_seq_shards = 1
+        # Transpose to ('batch', 'heads', 'length', 'head_dim')
+        query_tpu_layout = jnp.transpose(query, axes=(0, 2, 1, 3))
+        key_tpu_layout = jnp.transpose(key, axes=(0, 2, 1, 3))
+        value_tpu_layout = jnp.transpose(value, axes=(0, 2, 1, 3))
+
+        bs, num_heads, q_len, head_dim = query_tpu_layout.shape
+
+        # Apply scale to query if provided
+        if scale is not None:
+            # TPU kernel applies 1/sqrt(head_dim) internally, to achieve
+            # overall QK^T * scale, scale query by (scale * sqrt(head_dim))
+            query_tpu_layout = query_tpu_layout * (scale * math.sqrt(head_dim))
+
+        # Create segment IDs for Splash Attention (for packing/batching)
+        segment_ids = jnp.zeros([bs, q_len], dtype=jnp.int32)
+        decoder_segment_ids = splash_attention_kernel.SegmentIds(
+            q=segment_ids, kv=segment_ids
+        )
+
+        # Process mask for Splash Attention
+        custom_mask = None
+        if mask is not None:
+            mask_bool = mask.astype("bool") if mask.dtype != jnp.bool_ else mask
+
+            if mask_bool.ndim == 3 and mask_bool.shape[0] == bs:
+                custom_mask = mask_bool[0]
+            elif mask_bool.ndim == 4 and mask_bool.shape[0] == bs:
+                custom_mask = mask_bool[0, 0]
+
+            if is_causal and custom_mask is not None:
+                causal_mask = jnp.tril(
+                    jnp.ones((q_len, q_len), dtype=jnp.bool_)
+                )
+                custom_mask = jnp.logical_and(custom_mask, causal_mask)
+
+        if custom_mask is None and is_causal:
+            custom_mask = jnp.tril(jnp.ones((q_len, q_len), dtype=jnp.bool_))
+
+        try:
+            output = wrap_flash_attention(
+                query_tpu_layout,
+                key_tpu_layout,
+                value_tpu_layout,
+                decoder_segment_ids=decoder_segment_ids,
+                custom_mask=custom_mask,
+                attn_logits_soft_cap=attn_logits_soft_cap,
+                head_shards=head_shards,
+                q_seq_shards=q_seq_shards,
+            )
+            # Transpose output back to Keras layout
+            return jnp.transpose(output, axes=(0, 2, 1, 3))
+        except Exception:
+            flash_attention = False
+
+    # JAX native dot_product_attention for GPU or fallback for TPU
+    if hasattr(jax.nn, "dot_product_attention"):
+        try:
+            return jax.nn.dot_product_attention(
+                query,
+                key,
+                value,
+                bias=bias,
+                mask=mask,
+                scale=scale,
+                is_causal=is_causal,
+                implementation="cudnn" if flash_attention else "xla",
+            )
+        except Exception:
+            # If flash attention fails, fall back to XLA implementation
+            if flash_attention:
+                return jax.nn.dot_product_attention(
+                    query,
+                    key,
+                    value,
+                    bias=bias,
+                    mask=mask,
+                    scale=scale,
+                    is_causal=is_causal,
+                    implementation="xla",
+                )
+            raise
+
+    if flash_attention:
+        raise RuntimeError(
+            "Flash attention is not supported in your current JAX version. "
+            "Please update it by following the official guide: "
+            "https://jax.readthedocs.io/en/latest/installation.html"
+        )
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.33/jax/_src/nn/functions.py#L886
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+
+    # Fallback to custom XLA implementation
+    # This is the reference implementation from jax.nn.dot_product_attention
+    output_shape = query.shape
+    _, _, K, H = key.shape
+    scale = (1.0 / jnp.sqrt(H)) if scale is None else scale
+
+    # _dot_product_attention_xla
+    B, T, N, H = query.shape
+    G = N // K
+    query = jnp.reshape(query, (B, T, K, G, H))
+
+    def _reshape_to_grouped(t):
+        if t is not None:
+            tB, tN, tT, tS = t.shape
+            if tN == 1:
+                t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
+            else:
+                assert tN == N
+                t = jnp.reshape(t, (tB, K, G, tT, tS))
+        return t
+
+    bias = _reshape_to_grouped(bias)
+    mask = _reshape_to_grouped(mask)
+    vmapped_fn = jax.vmap(
+        _dot_product_attention_core,
+        in_axes=(3, None, None, 2, 2, None, None),
+        out_axes=3,
+    )
+    encoded = vmapped_fn(query, key, value, bias, mask, is_causal, scale)
+    return jnp.reshape(encoded, output_shape)

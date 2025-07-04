@@ -1,10 +1,13 @@
 # Tensorflow cpu-only version (needed for testing).
-tensorflow-cpu~=2.16.1  # Pin to TF 2.16
+tensorflow-cpu~=2.18.1
+tf2onnx
 
 # Torch with cuda support.
+# - torch is pinned to a version that is compatible with torch-xla
+# - torch-xla is pinned to a version that supports GPU (2.6 doesn't)
 --extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.2.1+cu121
-torchvision==0.17.1+cu121
+torch==2.6.0
+torch-xla==2.6.0;sys_platform != 'darwin'
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]

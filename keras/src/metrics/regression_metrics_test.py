@@ -299,7 +299,7 @@ class LogCoshErrorTest(testing.TestCase):
         self.assertAllClose(result, expected_result, atol=1e-3)
 
 
-class R2ScoreTest(parameterized.TestCase, testing.TestCase):
+class R2ScoreTest(testing.TestCase):
     def _run_test(
         self,
         y_true,

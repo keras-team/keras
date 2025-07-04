@@ -7,15 +7,16 @@ from keras.src.backend import KerasTensor
 from keras.src.layers import InputLayer
 
 
-class InputLayerTest(testing.TestCase, parameterized.TestCase):
+class InputLayerTest(testing.TestCase):
     # Testing happy path for layer without input tensor
     @parameterized.named_parameters(
         [
-            {"testcase_name": "dense", "sparse": False},
+            {"testcase_name": "dense"},
             {"testcase_name": "sparse", "sparse": True},
+            {"testcase_name": "ragged", "ragged": True},
         ]
     )
-    def test_input_basic(self, sparse):
+    def test_input_basic(self, sparse=False, ragged=False):
         input_shape = (2, 3)
         batch_size = 4
         dtype = "float32"
@@ -26,11 +27,18 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
             "batch_size": batch_size,
             "dtype": dtype,
             "sparse": sparse,
+            "ragged": ragged,
         }
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             with self.assertRaisesRegex(
                 ValueError, "`sparse=True` is not supported"
+            ):
+                InputLayer(**init_kwargs)
+            return
+        if ragged and not backend.SUPPORTS_RAGGED_TENSORS:
+            with self.assertRaisesRegex(
+                ValueError, "`ragged=True` is not supported"
             ):
                 InputLayer(**init_kwargs)
             return
@@ -41,11 +49,13 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(values.batch_shape[0], batch_size)
         self.assertEqual(values.batch_shape[1:], input_shape)
         self.assertEqual(values.sparse, sparse)
+        self.assertEqual(values.ragged, ragged)
         self.assertEqual(values.trainable, True)
         self.assertIsInstance(values.output, KerasTensor)
         self.assertEqual(values.output.ndim, ndim)
         self.assertEqual(values.output.dtype, dtype)
         self.assertEqual(values.output.sparse, sparse)
+        self.assertEqual(values.output.ragged, ragged)
 
     # Testing shape is not None and batch_shape is not None condition
     def test_input_error1(self):
@@ -89,25 +99,20 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
     # Testing happy path for layer with input tensor
     def testing_input_tensor(self):
         input_shape = (2, 3)
-        batch_size = 4
         dtype = "float32"
         input_tensor = KerasTensor(shape=input_shape, dtype=dtype)
 
-        values = InputLayer(
-            shape=input_shape,
-            batch_size=batch_size,
+        layer = InputLayer(
             input_tensor=input_tensor,
-            dtype=dtype,
         )
 
-        self.assertEqual(values.dtype, dtype)
-        self.assertEqual(values.batch_shape[0], batch_size)
-        self.assertEqual(values.batch_shape[1:], input_shape)
-        self.assertEqual(values.trainable, True)
-        self.assertIsInstance(values.output, KerasTensor)
-        self.assertEqual(values.output, input_tensor)
-        self.assertEqual(values.output.ndim, input_tensor.ndim)
-        self.assertEqual(values.output.dtype, dtype)
+        self.assertEqual(layer.dtype, dtype)
+        self.assertEqual(layer.batch_shape, (2, 3))
+        self.assertEqual(layer.trainable, True)
+        self.assertIsInstance(layer.output, KerasTensor)
+        self.assertEqual(layer.output, input_tensor)
+        self.assertEqual(layer.output.ndim, input_tensor.ndim)
+        self.assertEqual(layer.output.dtype, dtype)
 
     def test_input_shape_deprecated(self):
         input_shape = (2, 3)
@@ -135,3 +140,51 @@ class InputLayerTest(testing.TestCase, parameterized.TestCase):
     def test_numpy_shape(self):
         # non-python int type shapes should be ok
         InputLayer(shape=(np.int64(32),))
+
+    def test_invalid_arg_combinations(self):
+        input_tensor = KerasTensor(shape=(2, 3), dtype="float32")
+
+        with self.assertRaisesRegex(
+            ValueError, "cannot provide an incompatible `shape`"
+        ):
+            _ = InputLayer(
+                shape=(2, 4),
+                input_tensor=input_tensor,
+            )
+        with self.assertRaisesRegex(
+            ValueError, "cannot provide an incompatible `batch_shape`"
+        ):
+            _ = InputLayer(
+                batch_shape=(2, 4),
+                input_tensor=input_tensor,
+            )
+        with self.assertRaisesRegex(
+            ValueError, "cannot provide an incompatible `batch_size`"
+        ):
+            _ = InputLayer(
+                batch_size=5,
+                input_tensor=input_tensor,
+            )
+        with self.assertRaisesRegex(
+            ValueError, "cannot provide an incompatible `dtype`"
+        ):
+            _ = InputLayer(
+                dtype="float16",
+                input_tensor=input_tensor,
+            )
+        with self.assertRaisesRegex(
+            ValueError, "cannot provide an incompatible `sparse`"
+        ):
+            _ = InputLayer(
+                sparse=True,
+                input_tensor=input_tensor,
+            )
+
+        # This works
+        _ = InputLayer(
+            shape=(3,),
+            batch_size=2,
+            sparse=False,
+            dtype="float32",
+            input_tensor=input_tensor,
+        )

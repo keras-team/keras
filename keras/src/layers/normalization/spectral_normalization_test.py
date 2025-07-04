@@ -25,7 +25,7 @@ class SpectralNormalizationTest(testing.TestCase):
         self.run_layer_test(
             layers.SpectralNormalization,
             init_kwargs={"layer": layers.Embedding(10, 4)},
-            input_data=np.random.randint(10, size=(10,)),
+            input_data=np.random.randint(10, size=(10,)).astype("float32"),
             expected_output_shape=(10, 4),
             expected_num_trainable_weights=1,
             expected_num_non_trainable_weights=1,
@@ -33,6 +33,20 @@ class SpectralNormalizationTest(testing.TestCase):
             expected_num_losses=0,
             supports_masking=False,
             run_training_check=False,
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_spectralnorm_higher_dim(self):
+        self.run_layer_test(
+            layers.SpectralNormalization,
+            init_kwargs={"layer": layers.Dense(2)},
+            input_data=np.random.uniform(size=(10, 3, 4, 5)),
+            expected_output_shape=(10, 3, 4, 2),
+            expected_num_trainable_weights=2,
+            expected_num_non_trainable_weights=1,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
         )
 
     def test_invalid_power_iterations(self):

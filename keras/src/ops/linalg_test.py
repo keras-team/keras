@@ -101,6 +101,15 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(q.shape, qref_shape)
         self.assertEqual(r.shape, rref_shape)
 
+    def test_qr_invalid_mode(self):
+        # backend agnostic error message
+        x = np.array([[1, 2], [3, 4]])
+        invalid_mode = "invalid_mode"
+        with self.assertRaisesRegex(
+            ValueError, "Expected one of {'reduced', 'complete'}."
+        ):
+            linalg.qr(x, mode=invalid_mode)
+
     def test_solve(self):
         a = KerasTensor([None, 20, 20])
         b = KerasTensor([None, 20, 5])
@@ -320,8 +329,7 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(s.shape, (10, 2))
 
 
-class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
-
+class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
         x = np.random.rand(4, 3, 3).astype("float32")
         with self.assertRaises(ValueError):
@@ -342,14 +350,6 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_eig(self):
         x = np.random.rand(2, 3, 3)
         x = x @ x.transpose((0, 2, 1))
-        if backend.backend() == "jax":
-            import jax
-
-            if jax.default_backend() == "gpu":
-                # eig not implemented for jax on gpu backend
-                with self.assertRaises(NotImplementedError):
-                    linalg.eig(x)
-                return
         w, v = map(ops.convert_to_numpy, linalg.eig(x))
         x_reconstructed = (v * w[..., None, :]) @ v.transpose((0, 2, 1))
         self.assertAllClose(x_reconstructed, x, atol=1e-4)
@@ -436,9 +436,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     )
     def test_norm(self, ndim, ord, axis, keepdims):
         if ndim == 1:
-            x = np.random.random((5,))
+            x = np.random.random((5,)).astype("float32")
         else:
-            x = np.random.random((5, 6))
+            x = np.random.random((5, 6)).astype("float32")
 
         vector_norm = (ndim == 1) or isinstance(axis, int)
 
@@ -473,7 +473,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         expected_result = np.linalg.norm(
             x, ord=ord, axis=axis, keepdims=keepdims
         )
-        self.assertAllClose(output, expected_result)
+        self.assertAllClose(output, expected_result, atol=1e-5)
 
     def test_qr(self):
         x = np.random.random((4, 5))
@@ -517,12 +517,38 @@ class LinalgOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(output, expected_result)
 
     def test_svd(self):
-        x = np.random.rand(4, 30, 20)
+        x = np.random.rand(4, 30, 20).astype("float32")
         u, s, vh = linalg.svd(x)
         x_reconstructed = (u[..., :, : s.shape[-1]] * s[..., None, :]) @ vh[
             ..., : s.shape[-1], :
         ]
-        self.assertAllClose(x_reconstructed, x, atol=1e-4)
+        # High tolerance due to numerical instability
+        self.assertAllClose(x_reconstructed, x, atol=1e-3)
+
+        # Test `compute_uv=False`
+        s_no_uv = linalg.svd(x, compute_uv=False)
+        self.assertAllClose(s_no_uv, s)
+
+    @parameterized.named_parameters(
+        ("b_rank_1", 1, None),
+        ("b_rank_2", 2, None),
+        ("rcond", 1, 1e-3),
+    )
+    def test_lstsq(self, b_rank, rcond):
+        a = np.random.random((5, 7)).astype("float32")
+        a_symb = backend.KerasTensor((5, 7))
+        if b_rank == 1:
+            b = np.random.random((5,)).astype("float32")
+            b_symb = backend.KerasTensor((5,))
+        else:
+            b = np.random.random((5, 4)).astype("float32")
+            b_symb = backend.KerasTensor((5, 4))
+        out = linalg.lstsq(a, b, rcond=rcond)
+        ref_out = np.linalg.lstsq(a, b, rcond=rcond)[0]
+        self.assertAllClose(out, ref_out, atol=1e-5)
+
+        out_symb = linalg.lstsq(a_symb, b_symb)
+        self.assertEqual(out_symb.shape, out.shape)
 
 
 class QrOpTest(testing.TestCase):

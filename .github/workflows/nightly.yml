@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.9]
+        python-version: ['3.10']
         backend: [tensorflow, jax, torch, numpy]
     name: Run tests
     runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
@@ -55,17 +55,17 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/src/applications --cov=keras
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
 
   format:
     name: Check the code format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.9
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
       - name: Get pip cache dir
         id: pip-cache
         run: |
@@ -75,23 +75,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
-      - name: Lint
-        run: bash shell/lint.sh
-      - name: Check for API changes
-        run: |
-          bash shell/api_gen.sh
-          git status
-          clean=$(git status | grep "nothing to commit")
-          if [ -z "$clean" ]; then
-            echo "Please run shell/api_gen.sh to generate API."
-            exit 1
-          fi
+      - name: Run pre-commit
+        run: pre-commit run --all-files --hook-stage manual
 
 
   nightly:
@@ -103,7 +94,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: '3.10'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools

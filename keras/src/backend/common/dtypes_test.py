@@ -9,7 +9,7 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
-class DtypesTest(test_case.TestCase, parameterized.TestCase):
+class DtypesTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":
@@ -23,6 +23,12 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
                 if x not in ALL_DTYPES:  # skip duplicates created by remapping
                     ALL_DTYPES.append(x)
         ALL_DTYPES += [None]
+    elif backend.backend() == "openvino":
+        ALL_DTYPES = [
+            x
+            for x in dtypes.ALLOWED_DTYPES
+            if x not in ["string", "complex64", "complex128"]
+        ] + [None]
     else:
         ALL_DTYPES = [x for x in dtypes.ALLOWED_DTYPES if x != "string"] + [
             None
@@ -37,7 +43,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         self.jax_enable_x64.__enter__()
         return super().setUp()
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
         return super().tearDown()
 
@@ -89,6 +95,16 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     def test_resolve_weak_type_for_bfloat16_with_precision(self):
         self.assertEqual(
             dtypes._resolve_weak_type("bfloat16", precision="64"), "float64"
+        )
+
+    def test_respect_weak_type_for_complex64(self):
+        self.assertAllEqual(
+            dtypes._respect_weak_type("complex64", True), "complex"
+        )
+
+    def test_respect_weak_type_for_complex128(self):
+        self.assertAllEqual(
+            dtypes._respect_weak_type("complex128", True), "complex"
         )
 
     def test_invalid_dtype_for_keras_promotion(self):

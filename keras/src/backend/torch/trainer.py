@@ -8,6 +8,7 @@ from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -49,8 +50,8 @@ class TorchTrainer(base_trainer.Trainer):
         # for the weights from the previous train step.
         self.zero_grad()
 
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -85,8 +86,8 @@ class TorchTrainer(base_trainer.Trainer):
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
-        loss = self.compute_loss(
-            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
@@ -187,6 +188,11 @@ class TorchTrainer(base_trainer.Trainer):
             raise ValueError(
                 "You must call `compile()` before calling `fit()`."
             )
+        # Possibly cap epochs for debugging runs.
+        max_epochs = config.max_epochs()
+        if max_epochs and max_epochs < epochs:
+            warnings.warn("Limiting epochs to %d" % max_epochs)
+            epochs = max_epochs
 
         # TODO: respect compiled trainable state
         self._eval_epoch_iterator = None
@@ -195,10 +201,9 @@ class TorchTrainer(base_trainer.Trainer):
             # for TF/numpy/jax arrays.
             # TODO: Support torch tensors for validation data.
             (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = array_slicing.train_validation_split(
+                (x, y, sample_weight),
+                validation_data,
+            ) = array_slicing.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -222,6 +227,7 @@ class TorchTrainer(base_trainer.Trainer):
         )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -236,6 +242,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         self.stop_training = False
+        training_logs = {}
         self.make_train_function()
         callbacks.on_train_begin()
         initial_epoch = self._initial_epoch or initial_epoch
@@ -247,15 +254,16 @@ class TorchTrainer(base_trainer.Trainer):
             # do training behavior in case the user did not use `self.training`
             # when implementing a custom layer with torch layers.
             self.train()
-            for step, data in epoch_iterator.enumerate_epoch():
+
+            logs = {}
+            for begin_step, end_step, data in epoch_iterator:
                 # Callbacks
-                callbacks.on_train_batch_begin(step)
+                callbacks.on_train_batch_begin(begin_step)
 
                 logs = self.train_function(data)
-                logs = self._pythonify_logs(logs)
 
                 # Callbacks
-                callbacks.on_train_batch_end(step, logs)
+                callbacks.on_train_batch_end(end_step, logs)
                 if self.stop_training:
                     break
 
@@ -345,12 +353,12 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         self._symbolic_build(iterator=epoch_iterator)
+        epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -364,13 +372,12 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.stop_evaluating = False
         callbacks.on_test_begin()
-        logs = None
+        logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator.enumerate_epoch():
-            callbacks.on_test_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_test_batch_begin(begin_step)
             logs = self.test_function(data)
-            logs = self._pythonify_logs(logs)
-            callbacks.on_test_batch_end(step, logs)
+            callbacks.on_test_batch_end(end_step, logs)
             if self.stop_evaluating:
                 break
         logs = self._get_metrics_result_or_logs(logs)
@@ -397,7 +404,6 @@ class TorchTrainer(base_trainer.Trainer):
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -427,11 +433,11 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch():
-            callbacks.on_predict_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_predict_batch_begin(begin_step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
-            callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()

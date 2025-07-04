@@ -24,6 +24,8 @@ class ELU(Layer):
         self.alpha = alpha
         self.supports_masking = True
 
+        self._build_at_init()
+
     def call(self, inputs):
         return activations.elu(inputs, alpha=self.alpha)
 

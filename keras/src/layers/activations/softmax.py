@@ -22,9 +22,10 @@ class Softmax(Layer):
     ```
 
     Example:
-    >>>softmax_layer = keras.layers.activations.Softmax()
-    >>>input = np.array([1.0, 2.0, 1.0])
-    >>>result = softmax_layer(input)
+    >>> softmax_layer = keras.layers.Softmax()
+    >>> input = np.array([1.0, 2.0, 1.0])
+    >>> result = softmax_layer(input)
+    >>> result
     [0.21194157, 0.5761169, 0.21194157]
 
 
@@ -44,9 +45,10 @@ class Softmax(Layer):
 
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
-        self.supports_masking = True
         self.axis = axis
-        self.built = True
+        self.supports_masking = True
+
+        self._build_at_init()
 
     def call(self, inputs, mask=None):
         if mask is not None:
@@ -56,15 +58,25 @@ class Softmax(Layer):
             inputs += adder
         if isinstance(self.axis, (tuple, list)):
             if len(self.axis) > 1:
-                return backend.numpy.exp(
+                outputs = backend.numpy.exp(
                     inputs
                     - backend.math.logsumexp(
                         inputs, axis=self.axis, keepdims=True
                     )
                 )
             else:
-                return activations.softmax(inputs, axis=self.axis[0])
-        return activations.softmax(inputs, axis=self.axis)
+                outputs = activations.softmax(inputs, axis=self.axis[0])
+        else:
+            outputs = activations.softmax(inputs, axis=self.axis)
+
+        if mask is not None:
+            # Apply the mask to the softmax output to ensure that masked
+            # values are set to 0 in case the entire axis is masked.
+            outputs = backend.numpy.multiply(
+                outputs, backend.cast(mask, outputs.dtype)
+            )
+
+        return outputs
 
     def get_config(self):
         config = super().get_config()

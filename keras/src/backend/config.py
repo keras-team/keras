@@ -15,6 +15,10 @@ _IMAGE_DATA_FORMAT = "channels_last"
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
 
+# Cap run duration for debugging.
+_MAX_EPOCHS = None
+_MAX_STEPS_PER_EPOCH = None
+
 
 @keras_export(["keras.config.floatx", "keras.backend.floatx"])
 def floatx():
@@ -167,6 +171,65 @@ def set_image_data_format(data_format):
     _IMAGE_DATA_FORMAT = data_format
 
 
+@keras_export("keras.config.enable_flash_attention")
+def enable_flash_attention():
+    """Enable flash attention.
+
+    Flash attention offers performance optimization for attention layers,
+    making it especially useful for large language models (LLMs) that
+    benefit from faster and more memory-efficient attention computations.
+
+    Once enabled, supported layers like `MultiHeadAttention` will **attempt** to
+    use flash attention for faster computations. By default, this feature is
+    enabled.
+
+    Note that enabling flash attention does not guarantee it will always be
+    used. Typically, the inputs must be in `float16` or `bfloat16` dtype, and
+    input layout requirements may vary depending on the backend.
+    """
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute("flash_attention", None)
+
+
+@keras_export("keras.config.disable_flash_attention")
+def disable_flash_attention():
+    """Disable flash attention.
+
+    Flash attention offers performance optimization for attention layers,
+    making it especially useful for large language models (LLMs) that
+    benefit from faster and more memory-efficient attention computations.
+
+    Once disabled, supported layers like `MultiHeadAttention` will not
+    use flash attention for faster computations.
+    """
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute("flash_attention", False)
+
+
+@keras_export("keras.config.is_flash_attention_enabled")
+def is_flash_attention_enabled():
+    """Checks whether flash attention is globally enabled in Keras.
+
+    Flash attention is a performance-optimized method for computing attention
+    in large models, such as transformers, allowing for faster and more
+    memory-efficient operations. This function checks the global Keras
+    configuration to determine if flash attention is enabled for compatible
+    layers (e.g., `MultiHeadAttention`).
+
+    Note that enabling flash attention does not guarantee it will always be
+    used. Typically, the inputs must be in `float16` or `bfloat16` dtype, and
+    input layout requirements may vary depending on the backend.
+
+    Returns:
+        `False` if disabled; otherwise, it indicates that it is enabled.
+    """
+    from keras.src.backend.common import global_state
+
+    return global_state.get_global_attribute("flash_attention", default=None)
+
+
 def standardize_data_format(data_format):
     if data_format is None:
         return image_data_format()
@@ -245,7 +308,10 @@ if "KERAS_BACKEND" in os.environ:
     _backend = os.environ["KERAS_BACKEND"]
     if _backend:
         _BACKEND = _backend
-
+if "KERAS_MAX_EPOCHS" in os.environ:
+    _MAX_EPOCHS = int(os.environ["KERAS_MAX_EPOCHS"])
+if "KERAS_MAX_STEPS_PER_EPOCH" in os.environ:
+    _MAX_STEPS_PER_EPOCH = int(os.environ["KERAS_MAX_STEPS_PER_EPOCH"])
 
 if _BACKEND != "tensorflow":
     # If we are not running on the tensorflow backend, we should stop tensorflow
@@ -274,3 +340,66 @@ def backend():
 
     """
     return _BACKEND
+
+
+@keras_export(["keras.config.set_max_epochs"])
+def set_max_epochs(max_epochs):
+    """Limit the maximum number of epochs for any call to fit.
+
+    This will cap the number of epochs for any training run using `model.fit()`.
+    This is purely for debugging, and can also be set via the `KERAS_MAX_EPOCHS`
+    environment variable to quickly run a script without modifying its source.
+
+    Args:
+        max_epochs: The integer limit on the number of epochs or `None`. If
+            `None`, no limit is applied.
+    """
+    global _MAX_EPOCHS
+    _MAX_EPOCHS = max_epochs
+
+
+@keras_export(["keras.config.set_max_steps_per_epoch"])
+def set_max_steps_per_epoch(max_steps_per_epoch):
+    """Limit the maximum number of steps for any call to fit/evaluate/predict.
+
+    This will cap the number of steps for single epoch of a call to `fit()`,
+    `evaluate()`, or `predict()`. This is purely for debugging, and can also be
+    set via the `KERAS_MAX_STEPS_PER_EPOCH` environment variable to quickly run
+    a scrip without modifying its source.
+
+    Args:
+        max_epochs: The integer limit on the number of epochs or `None`. If
+            `None`, no limit is applied.
+    """
+    global _MAX_STEPS_PER_EPOCH
+    _MAX_STEPS_PER_EPOCH = max_steps_per_epoch
+
+
+@keras_export(["keras.config.max_epochs"])
+def max_epochs():
+    """Get the maximum number of epochs for any call to fit.
+
+    Retrieves the limit on the number of epochs set by
+    `keras.config.set_max_epochs` or the `KERAS_MAX_EPOCHS` environment
+    variable.
+
+    Returns:
+        The integer limit on the number of epochs or `None`, if no limit has
+        been set.
+    """
+    return _MAX_EPOCHS
+
+
+@keras_export(["keras.config.max_steps_per_epoch"])
+def max_steps_per_epoch():
+    """Get the maximum number of steps for any call to fit/evaluate/predict.
+
+    Retrieves the limit on the number of epochs set by
+    `keras.config.set_max_steps_per_epoch` or the `KERAS_MAX_STEPS_PER_EPOCH`
+    environment variable.
+
+    Args:
+        max_epochs: The integer limit on the number of epochs or `None`. If
+            `None`, no limit is applied.
+    """
+    return _MAX_STEPS_PER_EPOCH

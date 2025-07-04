@@ -11,14 +11,26 @@ from keras.src.utils.naming import auto_name
 
 @keras_export("keras.random.SeedGenerator")
 class SeedGenerator:
-    """Generates variable seeds upon each call to a RNG-using function.
+    """Generates variable seeds upon each call to a function generating
+    random numbers.
 
-    In Keras, all RNG-using methods (such as `keras.random.normal()`)
-    are stateless, meaning that if you pass an integer seed to them
-    (such as `seed=42`), they will return the same values at each call.
-    In order to get different values at each call, you must use a
-    `SeedGenerator` instead as the seed argument. The `SeedGenerator`
-    object is stateful.
+    In Keras, all random number generators (such as
+    `keras.random.normal()`) are stateless, meaning that if you pass an
+    integer seed to them (such as `seed=42`), they will return the same
+    values for repeated calls. To get different values for each
+    call, a `SeedGenerator` providing the state of the random generator
+    has to be used.
+
+    Note that all the random number generators have a default seed of None,
+    which implies that an internal global SeedGenerator is used.
+    If you need to decouple the RNG from the global state you can provide
+    a local `StateGenerator` with either a deterministic or random initial
+    state.
+
+    Remark concerning the JAX backen: Note that the use of a local
+    `StateGenerator` as seed argument is required for JIT compilation of
+    RNG with the JAX backend, because the use of global state is not
+    supported.
 
     Example:
 
@@ -64,19 +76,20 @@ class SeedGenerator:
 
         if not isinstance(seed, int):
             raise ValueError(
-                "Argument `seed` must be an integer. " f"Received: seed={seed}"
+                f"Argument `seed` must be an integer. Received: seed={seed}"
             )
 
         def seed_initializer(*args, **kwargs):
             dtype = kwargs.get("dtype", None)
             return self.backend.convert_to_tensor([seed, 0], dtype=dtype)
 
-        with backend.name_scope(self.name, caller=self):
+        with self.backend.name_scope(self.name, caller=self):
             self.state = self.backend.Variable(
                 seed_initializer,
                 shape=(2,),
-                dtype="uint32",
+                dtype=self.backend.random_seed_dtype(),
                 trainable=False,
+                aggregation="none",
                 name="seed_generator_state",
             )
 
@@ -86,9 +99,9 @@ class SeedGenerator:
         new_seed_value = seed_state.value * 1
         if ordered:
             increment = self.backend.convert_to_tensor(
-                np.array([0, 1]), dtype="uint32"
+                np.array([0, 1]), dtype=seed_state.dtype
             )
-            self.state.assign(seed_state + increment)
+            self.state.assign(self.backend.numpy.add(seed_state, increment))
         else:
             # This produces a sequence of near-unique numbers
             # between 0 and 1M
@@ -133,11 +146,12 @@ def make_default_seed():
 
 def draw_seed(seed):
     from keras.src.backend import convert_to_tensor
+    from keras.src.backend import random_seed_dtype
 
     if isinstance(seed, SeedGenerator):
         return seed.next()
     elif isinstance(seed, int):
-        return convert_to_tensor([seed, 0], dtype="uint32")
+        return convert_to_tensor([seed, 0], dtype=random_seed_dtype())
     elif seed is None:
         return global_seed_generator().next(ordered=False)
     raise ValueError(

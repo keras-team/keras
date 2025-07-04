@@ -31,6 +31,7 @@ def NASNet(
     classes=1000,
     default_size=None,
     classifier_activation="softmax",
+    name="NASNet",
 ):
     """Instantiates a NASNet model.
 
@@ -105,6 +106,7 @@ def NASNet(
             Set `classifier_activation=None` to return the logits
             of the "top" layer. When loading pretrained weights,
             `classifier_activation` can only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A model instance.
@@ -179,8 +181,8 @@ def NASNet(
     if penultimate_filters % (24 * (filter_multiplier**2)) != 0:
         raise ValueError(
             "For NASNet-A models, the `penultimate_filters` must be a multiple "
-            "of 24 * (`filter_multiplier` ** 2). Current value: %d"
-            % penultimate_filters
+            "of 24 * (`filter_multiplier` ** 2). "
+            f"Current value: {penultimate_filters}"
         )
 
     channel_dim = 1 if backend.image_data_format() == "channels_first" else -1
@@ -209,10 +211,10 @@ def NASNet(
     )
 
     for i in range(num_blocks):
-        x, p = _normal_a_cell(x, p, filters, block_id="%d" % (i))
+        x, p = _normal_a_cell(x, p, filters, block_id=f"{i}")
 
     x, p0 = _reduction_a_cell(
-        x, p, filters * filter_multiplier, block_id="reduce_%d" % (num_blocks)
+        x, p, filters * filter_multiplier, block_id=f"reduce_{num_blocks}"
     )
 
     p = p0 if not skip_reduction else p
@@ -222,14 +224,14 @@ def NASNet(
             x,
             p,
             filters * filter_multiplier,
-            block_id="%d" % (num_blocks + i + 1),
+            block_id=f"{num_blocks + i + 1}",
         )
 
     x, p0 = _reduction_a_cell(
         x,
         p,
         filters * filter_multiplier**2,
-        block_id="reduce_%d" % (2 * num_blocks),
+        block_id=f"reduce_{2 * num_blocks}",
     )
 
     p = p0 if not skip_reduction else p
@@ -239,7 +241,7 @@ def NASNet(
             x,
             p,
             filters * filter_multiplier**2,
-            block_id="%d" % (2 * num_blocks + i + 1),
+            block_id=f"{2 * num_blocks + i + 1}",
         )
 
     x = layers.Activation("relu")(x)
@@ -263,7 +265,7 @@ def NASNet(
     else:
         inputs = img_input
 
-    model = Functional(inputs, x, name="NASNet")
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":
@@ -324,6 +326,7 @@ def NASNetMobile(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="nasnet_mobile",
 ):
     """Instantiates a Mobile NASNet model in ImageNet mode.
 
@@ -374,6 +377,7 @@ def NASNetMobile(
             `classifier_activation=None` to return the logits of the "top"
             layer.  When loading pretrained weights, `classifier_activation` can
             only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A Keras model instance.
@@ -400,6 +404,7 @@ def NASNetMobile(
         classes=classes,
         default_size=224,
         classifier_activation=classifier_activation,
+        name=name,
     )
 
 
@@ -417,6 +422,7 @@ def NASNetLarge(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="nasnet_large",
 ):
     """Instantiates a NASNet model in ImageNet mode.
 
@@ -467,6 +473,7 @@ def NASNetLarge(
             `classifier_activation=None` to return the logits of the "top"
             layer.  When loading pretrained weights, `classifier_activation`
             can only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A Keras model instance.
@@ -485,6 +492,7 @@ def NASNetLarge(
         classes=classes,
         default_size=331,
         classifier_activation=classifier_activation,
+        name=name,
     )
 
 

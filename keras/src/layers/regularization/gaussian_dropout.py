@@ -38,6 +38,8 @@ class GaussianDropout(layers.Layer):
             self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
 
+        self._build_at_init()
+
     def call(self, inputs, training=False):
         if training and self.rate > 0:
             stddev = math.sqrt(self.rate / (1.0 - self.rate))

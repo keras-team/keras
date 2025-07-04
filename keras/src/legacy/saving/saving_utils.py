@@ -4,11 +4,8 @@ import threading
 from absl import logging
 
 from keras.src import backend
-from keras.src import layers
 from keras.src import losses
 from keras.src import metrics as metrics_module
-from keras.src import models
-from keras.src import optimizers
 from keras.src import tree
 from keras.src.legacy.saving import serialization
 from keras.src.saving import object_registration
@@ -49,6 +46,9 @@ def model_from_config(config, custom_objects=None):
     global MODULE_OBJECTS
 
     if not hasattr(MODULE_OBJECTS, "ALL_OBJECTS"):
+        from keras.src import layers
+        from keras.src import models
+
         MODULE_OBJECTS.ALL_OBJECTS = layers.__dict__
         MODULE_OBJECTS.ALL_OBJECTS["InputLayer"] = layers.InputLayer
         MODULE_OBJECTS.ALL_OBJECTS["Functional"] = models.Functional
@@ -63,8 +63,11 @@ def model_from_config(config, custom_objects=None):
             config["config"]["input_shape"] = batch_input_shape
 
     axis = config["config"].pop("axis", None)
-    if axis is not None and isinstance(axis, list) and len(axis) == 1:
-        config["config"]["axis"] = int(axis[0])
+    if axis is not None:
+        if isinstance(axis, list) and len(axis) == 1:
+            config["config"]["axis"] = int(axis[0])
+        elif isinstance(axis, (int, float)):
+            config["config"]["axis"] = int(axis)
 
     # Handle backwards compatibility for Keras lambdas
     if config["class_name"] == "Lambda":
@@ -129,6 +132,8 @@ def compile_args_from_training_config(training_config, custom_objects=None):
         custom_objects = {}
 
     with object_registration.CustomObjectScope(custom_objects):
+        from keras.src import optimizers
+
         optimizer_config = training_config["optimizer_config"]
         optimizer = optimizers.deserialize(optimizer_config)
         # Ensure backwards compatibility for optimizers in legacy H5 files

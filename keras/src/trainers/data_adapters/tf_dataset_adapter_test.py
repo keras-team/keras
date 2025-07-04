@@ -2,20 +2,19 @@ from unittest import mock
 
 import jax
 import numpy as np
+import pytest
 import tensorflow as tf
 import torch
-from absl.testing import parameterized
 
+from keras.src import Sequential
+from keras.src import backend
+from keras.src import layers
 from keras.src import testing
-from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import tf_dataset_adapter
 
 
-class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax", "torch"])
-    )
-    def test_basic_flow(self, iterator_type):
+class TestTFDatasetAdapter(testing.TestCase):
+    def test_basic_flow(self):
         x = tf.random.normal((34, 4))
         y = tf.random.normal((34, 2))
         base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(16)
@@ -26,16 +25,16 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
         self.assertEqual(adapter.has_partial_batch, None)
         self.assertEqual(adapter.partial_batch_size, None)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
-            expected_class = jax.Array
-        elif iterator_type == "torch":
+            expected_class = np.ndarray
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
@@ -92,7 +91,7 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
         adapter = tf_dataset_adapter.TFDatasetAdapter(dataset)
         self.assertEqual(adapter.num_batches, 42)
 
-        # Test for Infiniate Cardinality
+        # Test for Infinite Cardinality
         dataset = tf.data.Dataset.range(42)
         dataset = dataset.repeat()
         cardinality = int(dataset.cardinality())
@@ -258,10 +257,11 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(tuple(bx.shape), (2, 4))
                 self.assertEqual(tuple(by.shape), (2, 2))
 
-    @parameterized.named_parameters(
-        named_product(iterator_type=["np", "tf", "jax"])
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS and backend.backend() != "numpy",
+        reason="Backend does not support sparse tensors",
     )
-    def test_tf_sparse_tensors(self, iterator_type):
+    def test_tf_sparse_tensors(self):
         x = tf.SparseTensor(
             indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 4)
         )
@@ -271,13 +271,13 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
         base_ds = tf.data.Dataset.from_tensors((x, y))
         adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.SparseTensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.experimental.sparse.BCOO
 
@@ -288,3 +288,65 @@ class TestTFDatasetAdapter(testing.TestCase, parameterized.TestCase):
             self.assertIsInstance(by, expected_class)
             self.assertEqual(bx.shape, (2, 4))
             self.assertEqual(by.shape, (2, 2))
+
+    def test_distributed_datasets_from_function_adapter_properties(self):
+        strategy = tf.distribute.MirroredStrategy(["CPU:0"])
+
+        def dataset_fn(input_context):
+            batch_size = input_context.get_per_replica_batch_size(
+                global_batch_size=2
+            )
+            x = tf.random.uniform((32, 4))
+            y = tf.random.uniform((32, 2))
+            return tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
+
+        dist_dataset = strategy.distribute_datasets_from_function(dataset_fn)
+        adapter = tf_dataset_adapter.TFDatasetAdapter(dist_dataset)
+        self.assertEqual(adapter.num_batches, 16)
+        self.assertIsNone(adapter.batch_size)
+        self.assertIsNone(adapter.has_partial_batch)
+        self.assertIsNone(adapter.partial_batch_size)
+
+        if backend.backend() == "numpy":
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
+        elif backend.backend() == "tensorflow":
+            it = adapter.get_tf_dataset()
+            expected_class = tf.Tensor
+        elif backend.backend() == "jax":
+            it = adapter.get_jax_iterator()
+            expected_class = np.ndarray
+        elif backend.backend() == "torch":
+            it = adapter.get_torch_dataloader()
+            expected_class = torch.Tensor
+
+        batch_count = 0
+        for batch in it:
+            batch_count += 1
+            self.assertEqual(len(batch), 2)
+            data, labels = batch
+            self.assertIsInstance(data, expected_class)
+            self.assertIsInstance(labels, expected_class)
+            self.assertEqual(data.shape, (2, 4))
+            self.assertEqual(labels.shape, (2, 2))
+
+        self.assertEqual(batch_count, 16)
+
+    @pytest.mark.requires_trainable_backend
+    def test_distributed_datasets_from_function_model_integration(self):
+        strategy = tf.distribute.MirroredStrategy(["CPU:0"])
+
+        def dataset_fn(input_context):
+            batch_size = input_context.get_per_replica_batch_size(
+                global_batch_size=2
+            )
+            x = tf.random.uniform((4, 1))
+            y = tf.random.uniform((4, 2))
+            return tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
+
+        dist_dataset = strategy.distribute_datasets_from_function(dataset_fn)
+
+        model = Sequential([layers.Dense(2, input_shape=(1,))])
+        model.compile(optimizer="adam", loss="mse")
+        history = model.fit(dist_dataset, epochs=1)
+        self.assertIn("loss", history.history)

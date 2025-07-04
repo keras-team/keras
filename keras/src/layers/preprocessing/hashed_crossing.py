@@ -3,6 +3,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
+from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -13,7 +14,7 @@ class HashedCrossing(Layer):
 
     This layer performs crosses of categorical features using the "hashing
     trick". Conceptually, the transformation can be thought of as:
-    `hash(concatenate(features)) % num_bins.
+    `hash(concatenate(features)) % num_bins`.
 
     This layer currently only performs crosses of scalar inputs and batches of
     scalar inputs. Valid input shapes are `(batch_size, 1)`, `(batch_size,)` and
@@ -89,7 +90,7 @@ class HashedCrossing(Layer):
         super().__init__(name=name, dtype=dtype)
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse=True` can only be used with the " "TensorFlow backend."
+                "`sparse=True` can only be used with the TensorFlow backend."
             )
 
         argument_validation.validate_string_arg(
@@ -127,7 +128,7 @@ class HashedCrossing(Layer):
                 return ()
             return (self.num_bins,)
         if self.output_mode == "int":
-            return input_shape[0]
+            return tuple(input_shape[0])
 
         if self.output_mode == "one_hot" and input_shape[0][-1] != 1:
             return tuple(input_shape[0]) + (self.num_bins,)
@@ -135,39 +136,42 @@ class HashedCrossing(Layer):
         return tuple(input_shape[0])[:-1] + (self.num_bins,)
 
     def call(self, inputs):
+        from keras.src.backend import tensorflow as tf_backend
+
         self._check_at_least_two_inputs(inputs)
         inputs = [tf_utils.ensure_tensor(x) for x in inputs]
         self._check_input_shape_and_type(inputs)
 
         # Uprank to rank 2 for the cross_hashed op.
-        rank = len(inputs[0].shape)
+        first_shape = tuple(inputs[0].shape)
+        rank = len(first_shape)
         if rank < 2:
-            inputs = [tf_utils.expand_dims(x, -1) for x in inputs]
+            inputs = [tf_backend.numpy.expand_dims(x, -1) for x in inputs]
         if rank < 1:
-            inputs = [tf_utils.expand_dims(x, -1) for x in inputs]
+            inputs = [tf_backend.numpy.expand_dims(x, -1) for x in inputs]
 
         # Perform the cross and convert to dense
         outputs = tf.sparse.cross_hashed(inputs, self.num_bins)
         outputs = tf.sparse.to_dense(outputs)
 
-        # Fix output shape and downrank to match input rank.
+        # tf.sparse.cross_hashed output shape will always have None dimensions.
+        # Re-apply the known static shape and downrank to match input rank.
         if rank == 2:
-            # tf.sparse.cross_hashed output shape will always be None on the
-            # last dimension. Given our input shape restrictions, we want to
-            # force shape 1 instead.
-            outputs = tf.reshape(outputs, [-1, 1])
+            outputs.set_shape(first_shape)
         elif rank == 1:
-            outputs = tf.reshape(outputs, [-1])
+            outputs.set_shape(first_shape + (1,))
+            outputs = tf.squeeze(outputs, axis=1)
         elif rank == 0:
             outputs = tf.reshape(outputs, [])
 
         # Encode outputs.
-        outputs = tf_utils.encode_categorical_inputs(
+        outputs = numerical_utils.encode_categorical_inputs(
             outputs,
             output_mode=self.output_mode,
             depth=self.num_bins,
             sparse=self.sparse,
             dtype=self.compute_dtype,
+            backend_module=tf_backend,
         )
         return backend_utils.convert_tf_tensor(outputs, dtype=self.dtype)
 

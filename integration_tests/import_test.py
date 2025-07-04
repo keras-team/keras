@@ -8,10 +8,11 @@ from keras.src import backend
 BACKEND_REQ = {
     "tensorflow": ("tensorflow-cpu", ""),
     "torch": (
-        "torch torchvision",
+        "torch",
         "--extra-index-url https://download.pytorch.org/whl/cpu ",
     ),
     "jax": ("jax[cpu]", ""),
+    "openvino": ("openvino", ""),
 }
 
 
@@ -27,11 +28,12 @@ def setup_package():
     whl_path = re.findall(
         r"[^\s]*\.whl",
         build_process.stdout,
-    )[-1]
+    )
     if not whl_path:
+        print(build_process.stdout)
         print(build_process.stderr)
         raise ValueError("Installing Keras package unsuccessful. ")
-    return whl_path
+    return whl_path[-1]
 
 
 def create_virtualenv():
@@ -57,7 +59,9 @@ def manage_venv_installs(whl_path):
         "pip uninstall -y "
         + BACKEND_REQ[other_backends[0]][0]
         + " "
-        + BACKEND_REQ[other_backends[1]][0],
+        + BACKEND_REQ[other_backends[1]][0]
+        + " "
+        + BACKEND_REQ[other_backends[2]][0],
         # Install `.whl` package
         "pip install " + whl_path,
     ]

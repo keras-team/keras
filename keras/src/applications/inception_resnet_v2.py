@@ -27,6 +27,7 @@ def InceptionResNetV2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    name="inception_resnet_v2",
 ):
     """Instantiates the Inception-ResNet v2 architecture.
 
@@ -88,6 +89,7 @@ def InceptionResNetV2(
             Set `classifier_activation=None` to return the logits
             of the "top" layer. When loading pretrained weights,
             `classifier_activation` can only be `None` or `"softmax"`.
+        name: The name of the model (string).
 
     Returns:
         A model instance.
@@ -213,7 +215,7 @@ def InceptionResNetV2(
         inputs = img_input
 
     # Create model.
-    model = Functional(inputs, x, name="inception_resnet_v2")
+    model = Functional(inputs, x, name=name)
 
     # Load weights.
     if weights == "imagenet":

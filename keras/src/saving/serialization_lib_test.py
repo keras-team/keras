@@ -8,6 +8,7 @@ import pytest
 import keras
 from keras.src import ops
 from keras.src import testing
+from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
 
 
@@ -343,6 +344,85 @@ class SerializationLibTest(testing.TestCase):
         serialized, deserialized, reserialized = self.roundtrip(func)
         self.assertLen(deserialized.layers, 3)
 
+    def test_keras36_custom_function_reloading(self):
+        @object_registration.register_keras_serializable(package="serial_test")
+        def custom_registered_fn(x):
+            return x**2
+
+        config36 = {
+            "module": "builtins",
+            "class_name": "function",
+            "config": "custom_registered_fn",
+            "registered_name": "function",
+        }
+        obj = serialization_lib.deserialize_keras_object(config36)
+        self.assertIs(obj, custom_registered_fn)
+
+        config = {
+            "module": "builtins",
+            "class_name": "function",
+            "config": "serial_test>custom_registered_fn",
+            "registered_name": "function",
+        }
+        obj = serialization_lib.deserialize_keras_object(config)
+        self.assertIs(obj, custom_registered_fn)
+
+    def test_layer_instance_as_activation(self):
+        """Tests serialization when activation is a Layer instance."""
+
+        # Dense layer with ReLU layer as activation
+        layer_dense_relu = keras.layers.Dense(
+            units=4, activation=keras.layers.ReLU(name="my_relu")
+        )
+        # Build the layer to ensure weights/state are initialized if needed
+        layer_dense_relu.build(input_shape=(None, 8))
+        _, restored_dense_relu, _ = self.roundtrip(layer_dense_relu)
+
+        # Verify the activation is correctly deserialized as a ReLU layer
+        self.assertIsInstance(restored_dense_relu.activation, keras.layers.ReLU)
+        # Verify properties are preserved
+        self.assertEqual(restored_dense_relu.activation.name, "my_relu")
+
+    def test_layer_instance_with_config_as_activation(self):
+        """
+        Tests serialization when activation is a Layer instance with config.
+        """
+
+        # Conv1D layer with LeakyReLU layer (with config) as activation
+        leaky_activation = keras.layers.LeakyReLU(
+            negative_slope=0.15, name="my_leaky"
+        )
+        layer_conv_leaky = keras.layers.Conv1D(
+            filters=2, kernel_size=3, activation=leaky_activation
+        )
+        # Build the layer
+        layer_conv_leaky.build(input_shape=(None, 10, 4))
+        _, restored_conv_leaky, _ = self.roundtrip(layer_conv_leaky)
+
+        # Verify the activation is correctly deserialized as LeakyReLU
+        self.assertIsInstance(
+            restored_conv_leaky.activation, keras.layers.LeakyReLU
+        )
+        # Verify configuration of the activation layer is preserved
+        self.assertEqual(restored_conv_leaky.activation.negative_slope, 0.15)
+        self.assertEqual(restored_conv_leaky.activation.name, "my_leaky")
+
+    def test_layer_string_as_activation(self):
+        """Tests serialization when activation is a string."""
+
+        layer_dense_relu_string = keras.layers.Dense(units=4, activation="relu")
+        layer_dense_relu_string.build(input_shape=(None, 8))
+        _, restored_dense_relu_string, _ = self.roundtrip(
+            layer_dense_relu_string
+        )
+
+        # Verify the activation is correctly deserialized to the relu function
+        self.assertTrue(callable(restored_dense_relu_string.activation))
+        # Check if it resolves to the canonical keras activation function
+        self.assertEqual(
+            restored_dense_relu_string.activation, keras.activations.relu
+        )
+
 
 @keras.saving.register_keras_serializable()
 class MyDense(keras.layers.Layer):
@@ -352,7 +432,7 @@ class MyDense(keras.layers.Layer):
         *,
         kernel_regularizer=None,
         kernel_initializer=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self._units = units
@@ -364,7 +444,7 @@ class MyDense(keras.layers.Layer):
             units=self._units,
             kernel_initializer=self._kernel_initializer,
             kernel_regularizer=self._kernel_regularizer,
-            **super().get_config()
+            **super().get_config(),
         )
 
     def build(self, input_shape):

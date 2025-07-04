@@ -16,7 +16,7 @@ except ImportError:
 
 
 @keras_export(["keras.saving.save_model", "keras.models.save_model"])
-def save_model(model, filepath, overwrite=True, **kwargs):
+def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
     """Saves a model as a `.keras` file.
 
     Args:
@@ -24,6 +24,9 @@ def save_model(model, filepath, overwrite=True, **kwargs):
         filepath: `str` or `pathlib.Path` object. Path where to save the model.
         overwrite: Whether we should overwrite any existing model at the target
             location, or instead ask the user via an interactive prompt.
+        zipped: Whether to save the model as a zipped `.keras`
+            archive (default when saving locally), or as an unzipped directory
+            (default when saving on the Hugging Face Hub).
 
     Example:
 
@@ -42,7 +45,7 @@ def save_model(model, filepath, overwrite=True, **kwargs):
 
     Note that `model.save()` is an alias for `keras.saving.save_model()`.
 
-    The saved `.keras` file contains:
+    The saved `.keras` file is a `zip` archive that contains:
 
     - The model's configuration (architecture)
     - The model's weights
@@ -86,9 +89,13 @@ def save_model(model, filepath, overwrite=True, **kwargs):
             "`keras.saving.save_model(model, 'my_model.keras')`. "
         )
 
+    is_hf = str(filepath).startswith("hf://")
+    if zipped is None:
+        zipped = not is_hf  # default behavior depends on destination
+
     # If file exists and should not be overwritten.
     try:
-        exists = os.path.exists(filepath)
+        exists = (not is_hf) and os.path.exists(filepath)
     except TypeError:
         exists = False
     if exists and not overwrite:
@@ -96,21 +103,22 @@ def save_model(model, filepath, overwrite=True, **kwargs):
         if not proceed:
             return
 
-    if str(filepath).endswith(".keras"):
-        saving_lib.save_model(model, filepath)
-    elif str(filepath).endswith((".h5", ".hdf5")):
-        legacy_h5_format.save_model_to_hdf5(
+    if zipped and str(filepath).endswith(".keras"):
+        return saving_lib.save_model(model, filepath)
+    if not zipped:
+        return saving_lib.save_model(model, filepath, zipped=False)
+    if str(filepath).endswith((".h5", ".hdf5")):
+        return legacy_h5_format.save_model_to_hdf5(
             model, filepath, overwrite, include_optimizer
         )
-    else:
-        raise ValueError(
-            "Invalid filepath extension for saving. "
-            "Please add either a `.keras` extension for the native Keras "
-            f"format (recommended) or a `.h5` extension. "
-            "Use `model.export(filepath)` if you want to export a SavedModel "
-            "for use with TFLite/TFServing/etc. "
-            f"Received: filepath={filepath}."
-        )
+    raise ValueError(
+        "Invalid filepath extension for saving. "
+        "Please add either a `.keras` extension for the native Keras "
+        f"format (recommended) or a `.h5` extension. "
+        "Use `model.export(filepath)` if you want to export a SavedModel "
+        "for use with TFLite/TFServing/etc. "
+        f"Received: filepath={filepath}."
+    )
 
 
 @keras_export(["keras.saving.load_model", "keras.models.load_model"])
@@ -153,14 +161,19 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
         filepath
     )
+    is_keras_dir = file_utils.isdir(filepath) and file_utils.exists(
+        file_utils.join(filepath, "config.json")
+    )
+    is_hf = str(filepath).startswith("hf://")
 
     # Support for remote zip files
     if (
         file_utils.is_remote_path(filepath)
         and not file_utils.isdir(filepath)
         and not is_keras_zip
+        and not is_hf
     ):
-        local_path = os.path.join(
+        local_path = file_utils.join(
             saving_lib.get_temp_dir(), os.path.basename(filepath)
         )
 
@@ -172,7 +185,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             filepath = local_path
             is_keras_zip = True
 
-    if is_keras_zip:
+    if is_keras_zip or is_keras_dir or is_hf:
         return saving_lib.load_model(
             filepath,
             custom_objects=custom_objects,
@@ -206,32 +219,45 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
 
 
 @keras_export("keras.saving.save_weights")
-def save_weights(model, filepath, overwrite=True, **kwargs):
-    if not str(filepath).endswith(".weights.h5"):
+def save_weights(
+    model, filepath, overwrite=True, max_shard_size=None, **kwargs
+):
+    filepath_str = str(filepath)
+    if max_shard_size is None and not filepath_str.endswith(".weights.h5"):
         raise ValueError(
             "The filename must end in `.weights.h5`. "
-            f"Received: filepath={filepath}"
+            f"Received: filepath={filepath_str}"
+        )
+    elif max_shard_size is not None and not filepath_str.endswith(
+        ("weights.h5", "weights.json")
+    ):
+        raise ValueError(
+            "The filename must end in `.weights.json` when `max_shard_size` is "
+            f"specified. Received: filepath={filepath_str}"
         )
     try:
         exists = os.path.exists(filepath)
     except TypeError:
         exists = False
     if exists and not overwrite:
-        proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
+        proceed = io_utils.ask_to_proceed_with_overwrite(filepath_str)
         if not proceed:
             return
-    saving_lib.save_weights_only(model, filepath, **kwargs)
+    saving_lib.save_weights_only(model, filepath, max_shard_size, **kwargs)
 
 
 @keras_export("keras.saving.load_weights")
 def load_weights(model, filepath, skip_mismatch=False, **kwargs):
-    if str(filepath).endswith(".keras"):
+    filepath_str = str(filepath)
+    if filepath_str.endswith(".keras"):
         if kwargs:
             raise ValueError(f"Invalid keyword arguments: {kwargs}")
         saving_lib.load_weights_only(
             model, filepath, skip_mismatch=skip_mismatch
         )
-    elif str(filepath).endswith(".weights.h5"):
+    elif filepath_str.endswith(".weights.h5") or filepath_str.endswith(
+        ".weights.json"
+    ):
         objects_to_skip = kwargs.pop("objects_to_skip", None)
         if kwargs:
             raise ValueError(f"Invalid keyword arguments: {kwargs}")
@@ -241,7 +267,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             skip_mismatch=skip_mismatch,
             objects_to_skip=objects_to_skip,
         )
-    elif str(filepath).endswith(".h5") or str(filepath).endswith(".hdf5"):
+    elif filepath_str.endswith(".h5") or filepath_str.endswith(".hdf5"):
         by_name = kwargs.pop("by_name", False)
         if kwargs:
             raise ValueError(f"Invalid keyword arguments: {kwargs}")

@@ -338,7 +338,7 @@ class CategoricalTruePositives(keras.metrics.Metric):
 
     def reset_state(self):
         # The state of the metric will be reset at the start of each epoch.
-        self.true_positives.assign(0.0)
+        self.true_positives.assign(0)
 
 
 model = get_uncompiled_model()
@@ -592,6 +592,7 @@ A `PyDataset` must implement two methods:
 
 The method `__getitem__` should return a complete batch.
 If you want to modify your dataset between epochs, you may implement `on_epoch_end`.
+You may also implement `on_epoch_begin` to be called at the start of each epoch.
 
 Here's a quick example:
 """
@@ -619,8 +620,8 @@ val_py_dataset = ExamplePyDataset(x_val, y_val, batch_size=32)
 """
 To fit the model, pass the dataset instead as the `x` argument (no need for a `y`
 argument since the dataset includes the targets), and pass the validation dataset
-as the `validation_data` argument. And no need for the `batch_size` argument, since
-the dataset is already batched!
+as the `validation_data` argument. And no need for the `validation_batch_size`
+argument, since the dataset is already batched!
 """
 
 model = get_compiled_model()
@@ -649,7 +650,7 @@ that handle the parallel processing configuration:
     `True` if your dataset can be safely pickled.
 - `max_queue_size`: Maximum number of batches to keep in the queue
     when iterating over the dataset in a multithreaded or
-    multipricessed setting.
+    multiprocessed setting.
     You can reduce this value to reduce the CPU memory consumption of
     your dataset. It defaults to 10.
 

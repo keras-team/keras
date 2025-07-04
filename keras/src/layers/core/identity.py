@@ -16,6 +16,8 @@ class Identity(Layer):
         super().__init__(**kwargs)
         self.supports_masking = True
 
+        self._build_at_init()
+
     def call(self, inputs):
         return inputs
 

@@ -226,11 +226,11 @@ class TextVectorization(Layer):
             )
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
-                "`sparse=True` can only be used with the " "TensorFlow backend."
+                "`sparse=True` can only be used with the TensorFlow backend."
             )
         if ragged and backend.backend() != "tensorflow":
             raise ValueError(
-                "`ragged=True` can only be used with the " "TensorFlow backend."
+                "`ragged=True` can only be used with the TensorFlow backend."
             )
 
         # 'standardize' must be one of
@@ -330,7 +330,7 @@ class TextVectorization(Layer):
         self._encoding = encoding
 
         # We save this hidden option to persist the fact
-        # that we have have a non-adaptable layer with a
+        # that we have a non-adaptable layer with a
         # manually set vocab.
         self._has_input_vocabulary = kwargs.pop(
             "has_input_vocabulary", (vocabulary is not None)
@@ -508,7 +508,7 @@ class TextVectorization(Layer):
         Args:
             vocabulary: Either an array or a string path to a text file.
                 If passing an array, can pass a tuple, list, 1D NumPy array,
-                or 1D tensor containing the vocbulary terms.
+                or 1D tensor containing the vocabulary terms.
                 If passing a file path, the file should contain one line
                 per term in the vocabulary.
             idf_weights: A tuple, list, 1D NumPy array, or 1D tensor of inverse
@@ -590,13 +590,10 @@ class TextVectorization(Layer):
             # dimension to the bounding shape of the ragged dimension.
             shape[-1] = self._output_sequence_length
             outputs = lookup_data.to_tensor(default_value=0, shape=shape)
-        else:
-            outputs = lookup_data
-
         # If we have a dense tensor, we need to pad/trim directly.
-        if self._output_sequence_length is not None:
+        elif self._output_sequence_length is not None:
             # Maybe trim the output.
-            outputs = outputs[..., : self._output_sequence_length]
+            outputs = lookup_data[..., : self._output_sequence_length]
 
             # Maybe pad the output. We need to be careful to use dynamic shape
             # here as required_space_to_batch_paddings requires a fully known
@@ -610,6 +607,13 @@ class TextVectorization(Layer):
                     shape, padded_shape
                 )
                 outputs = tf.pad(outputs, padding)
+                # Because `tf.pad` used a dynamic shape, the output shape is
+                # dynamic. Apply the known static `_output_sequence_length`.
+                static_padded_shape = lookup_data.shape.as_list()
+                static_padded_shape[-1] = self._output_sequence_length
+                outputs.set_shape(static_padded_shape)
+        else:
+            outputs = lookup_data
 
         return backend_utils.convert_tf_tensor(outputs)
 

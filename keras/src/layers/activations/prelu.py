@@ -37,7 +37,7 @@ class PReLU(Layer):
         alpha_regularizer=None,
         alpha_constraint=None,
         shared_axes=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.supports_masking = True
@@ -70,7 +70,6 @@ class PReLU(Layer):
                 if i not in self.shared_axes:
                     axes[i] = input_shape[i]
         self.input_spec = InputSpec(ndim=len(input_shape), axes=axes)
-        self.built = True
 
     def call(self, inputs):
         pos = activations.relu(inputs)

@@ -26,8 +26,21 @@ def sigmoid(x):
     return output
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return tf.where(
+        x <= -1,
+        tf.constant(0.0, dtype=x.dtype),
+        tf.where(x >= 1, tf.constant(1.0, dtype=x.dtype), 0.5 * (x + 1)),
+    )
+
+
 def tanh(x):
     return tf.nn.tanh(x)
+
+
+def tanh_shrink(x):
+    return x - tf.math.tanh(x)
 
 
 def softplus(x):
@@ -38,8 +51,31 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
+def soft_shrink(x, threshold=0.5):
+    return tf.where(
+        x > threshold,
+        x - threshold,
+        tf.where(x < -threshold, x + threshold, tf.zeros_like(x)),
+    )
+
+
+def sparse_plus(x):
+    return tf.where(
+        x <= -1,
+        tf.zeros_like(x),
+        tf.where(x < 1, (1 / 4) * tf.pow(x + 1, 2), x),
+    )
+
+
 def silu(x):
     return tf.nn.silu(x)
+
+
+def squareplus(x, b=4):
+    x = convert_to_tensor(x)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    y = x + tf.sqrt(tf.square(x) + b)
+    return y / 2
 
 
 def log_sigmoid(x):
@@ -76,6 +112,34 @@ def gelu(x, approximate=True):
     return tf.nn.gelu(x, approximate=approximate)
 
 
+def celu(x, alpha=1.0):
+    return tf.maximum(x, 0.0) + alpha * tf.math.expm1(
+        tf.minimum(x, 0.0) / alpha
+    )
+
+
+def glu(x, axis=-1):
+    if x.shape[axis] % 2 != 0:
+        raise ValueError(
+            "axis size must be divisible by 2. "
+            f"Received: x.shape={x.shape} with axis={axis}"
+        )
+    x1, x2 = tf.split(x, num_or_size_splits=2, axis=axis)
+    return x1 * tf.sigmoid(x2)
+
+
+def hard_tanh(x):
+    return tf.clip_by_value(x, clip_value_min=-1.0, clip_value_max=1.0)
+
+
+def hard_shrink(x, threshold=0.5):
+    return tf.where(tf.abs(x) > threshold, x, tf.zeros_like(x))
+
+
+def threshold(x, threshold, default_value):
+    return tf.where(x > threshold, x, default_value)
+
+
 def softmax(x, axis=-1):
     logits = x
     if axis is None:
@@ -98,6 +162,24 @@ def log_softmax(x, axis=-1):
         output = tf.nn.log_softmax(output, axis=-1)
         return tf.reshape(output, tf.shape(x))
     return tf.nn.log_softmax(x, axis=axis)
+
+
+def sparsemax(x, axis=-1):
+    # Sort logits along the specified axis in descending order
+    logits = convert_to_tensor(x)
+    logits_sorted = tf.sort(logits, direction="DESCENDING", axis=axis)
+    logits_cumsum = tf.cumsum(logits_sorted, axis=axis)
+    r = tf.range(1, tf.shape(logits)[axis] + 1, dtype=logits.dtype)
+    r_shape = [1] * len(logits.shape)
+    r_shape[axis] = -1  # Broadcast to match the target axis
+    r = tf.reshape(r, r_shape)  # Reshape for broadcasting
+    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    # Find the threshold
+    logits_cumsum_safe = tf.where(support, logits_cumsum, 0.0)
+    k = tf.reduce_sum(tf.cast(support, logits.dtype), axis=axis, keepdims=True)
+    tau = (tf.reduce_sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    output = tf.maximum(logits - tau, 0.0)
+    return output
 
 
 def _transpose_spatial_inputs(inputs):
@@ -237,22 +319,25 @@ def conv(
             dilations=dilation_rate,
         )
 
-    # Reason for making this function is in Tensorflow, `groups > 1` does not
-    # work on CPU for `tf.nn.convolution`, but wrapping it by XLA works.
+    # Certain ops are are broken in Tensorflow on CPU only.
+    # We can work around by compiling the op with XLA.
     @tf.function(jit_compile=True)
     def _conv_xla():
         return _conv()
 
+    # Channels first "NCDHW" (3d convolutions) are broken on CPU without XLA.
+    needs_xla = data_format == "channels_first" and len(inputs.shape) == 5
+    # grouped convolutions are broken on CPU without XLA.
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels = inputs.shape[-1]
     else:
         channels = inputs.shape[1]
-    if channels != kernel.shape[-2]:
-        # If kernel's in_channel does not match input's channels,  it indicates
-        # convolution is broken down into groups.
+    needs_xla = needs_xla or channels != kernel.shape[-2]
+    if needs_xla:
         return _conv_xla()
-    return _conv()
+    else:
+        return _conv()
 
 
 def depthwise_conv(
@@ -268,7 +353,7 @@ def depthwise_conv(
     if num_spatial_dims > 2:
         raise ValueError(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
-            "{inputs.ndim}."
+            f"{inputs.ndim}."
         )
     # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
@@ -420,10 +505,12 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     x = convert_to_tensor(x, dtype="int64")
     if dtype is None:
         dtype = "float32"
+    else:
+        dtype = backend.standardize_dtype(dtype)
     if sparse:
         # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
         # and only support rank 1 and 2 tensors (`one_hot` adds a dimension).
@@ -443,21 +530,49 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
         shape = list(x.shape)
         shape.insert(axis, num_classes)
         return tf.SparseTensor(indices, values, shape)
-    return tf.one_hot(x, num_classes, axis=axis, dtype=dtype)
-
-
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
-    x = convert_to_tensor(x)
-    reduction_axis = 1 if len(x.shape) > 1 else 0
-    one_hot_outputs = one_hot(
-        cast(x, "int32"), num_classes, axis=axis, dtype=dtype, sparse=sparse
+    on_value, off_value = (True, False) if dtype == "bool" else (None, None)
+    return tf.one_hot(
+        x,
+        num_classes,
+        on_value=on_value,
+        off_value=off_value,
+        axis=axis,
+        dtype=dtype,
     )
-    if sparse:
-        # We don't use `tf.sparse.bincount`, it doesn't handle negative indices.
-        return tf.sparse.reduce_max(
-            one_hot_outputs, axis=reduction_axis, output_is_sparse=True
-        )
-    return tf.reduce_max(one_hot_outputs, axis=reduction_axis)
+
+
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
+    reduction_axis = 1 if len(x.shape) > 1 else 0
+    if backend.standardize_dtype(dtype) == "bool":
+        if sparse:
+            # `tf.sparse.reduce_max` doesn't work on bool and there is no
+            # `tf.sparse.reduce_any`.
+            outputs = one_hot(
+                x, num_classes, axis=axis, dtype="int8", sparse=True
+            )
+            outputs = tf.sparse.reduce_max(
+                outputs, axis=reduction_axis, output_is_sparse=True
+            )
+            outputs_shape = outputs.shape
+            outputs = tf.cast(outputs, dtype)
+            outputs.set_shape(outputs_shape)
+            return outputs
+        else:
+            outputs = one_hot(x, num_classes, axis=axis, dtype=dtype)
+            return tf.reduce_any(outputs, axis=reduction_axis)
+    else:
+        if sparse:
+            # We don't use `tf.sparse.bincount`, it doesn't handle negative
+            # indices and has a rank limitation.
+            outputs = one_hot(
+                x, num_classes, axis=axis, dtype=dtype, sparse=True
+            )
+            return tf.sparse.reduce_max(
+                outputs, axis=reduction_axis, output_is_sparse=True
+            )
+        else:
+            outputs = one_hot(x, num_classes, axis=axis, dtype=dtype)
+            return tf.reduce_max(outputs, axis=reduction_axis)
 
 
 def _get_logits(output, from_logits, op_type, fn_name):
@@ -771,13 +886,7 @@ def batch_normalization(
     )
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
-    mask_index=0,
-):
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     target = tf.cast(target, dtype="int32")
@@ -802,12 +911,12 @@ def ctc_loss(
 
 def ctc_decode(
     inputs,
-    sequence_length,
+    sequence_lengths,
     strategy="greedy",
     beam_width=100,
     top_paths=1,
     merge_repeated=True,
-    mask_index=None,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
     input_shape = tf.shape(inputs)
@@ -817,18 +926,27 @@ def ctc_decode(
     dtype = backend.result_type(inputs.dtype, "float32")
     inputs = tf.cast(inputs, dtype)
 
-    sequence_length = convert_to_tensor(sequence_length, dtype="int32")
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     if strategy == "greedy":
         (decoded, scores) = tf.nn.ctc_greedy_decoder(
             inputs=inputs,
-            sequence_length=sequence_length,
+            sequence_length=sequence_lengths,
             merge_repeated=merge_repeated,
             blank_index=mask_index,
         )
     elif strategy == "beam_search":
+        # Move `mask_index` column to the last position since this is the
+        # default for `tf.nn.ctc_beam_search_decoder`
+        if mask_index is not None:
+            inputs_before = inputs[..., :mask_index]
+            inputs_mask = inputs[..., mask_index : mask_index + 1]
+            inputs_after = inputs[..., mask_index + 1 :]
+            inputs = tf.concat(
+                [inputs_before, inputs_after, inputs_mask], axis=-1
+            )
         (decoded, scores) = tf.nn.ctc_beam_search_decoder(
             inputs=inputs,
-            sequence_length=sequence_length,
+            sequence_length=sequence_lengths,
             beam_width=beam_width,
             top_paths=top_paths,
         )
@@ -845,6 +963,14 @@ def ctc_decode(
         decoded_dense.append(tf.sparse.to_dense(sp_input=st, default_value=-1))
     decoded_dense = tf.stack(decoded_dense, axis=0)
     decoded_dense = tf.cast(decoded_dense, "int32")
+
+    # We need to recover the labels because we swapped the indices earlier
+    if strategy == "beam_search" and mask_index is not None:
+        if mask_index < 0:
+            mask_index = mask_index + input_shape[-1]
+        decoded_dense = tf.where(
+            decoded_dense >= mask_index, decoded_dense + 1, decoded_dense
+        )
     return decoded_dense, scores
 
 
@@ -861,3 +987,86 @@ def psnr(x1, x2, max_val):
     mse = tf.reduce_mean(tf.square(x1 - x2))
     psnr = 20 * log10(max_val) - 10 * log10(mse)
     return psnr
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    val = 65500.0 if dtype == "float16" else 3.38953e38
+    return tf.constant(val * -0.7, dtype=dtype)
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = tf.ones_like(logits, dtype="bool")
+    if mask is not None:
+        combined_mask = tf.logical_and(combined_mask, mask)
+
+    if is_causal:
+        logits_shape = tf.shape(logits)
+        T, S = logits_shape[2], logits_shape[3]
+        mask = tf.linalg.band_part(tf.ones((T, S), "bool"), -1, 0)
+        mask = mask[None, None, :, :]
+        combined_mask = tf.logical_and(combined_mask, mask)
+
+    padded_logits = tf.where(
+        combined_mask, logits, _get_large_negative(logits.dtype)
+    )
+    return padded_logits
+
+
+def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
+    logits_dtype = backend.result_type(query.dtype, "float32")
+    logits = tf.einsum("BTNH,BSNH->BNTS", query, key, optimize="optimal")
+    logits = tf.cast(logits, logits_dtype)
+    logits = tf.multiply(logits, tf.cast(scale, logits.dtype))
+
+    if bias is not None:
+        logits = tf.add(logits, tf.cast(bias, logits.dtype))
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax is always carried out in high precision.
+    probs_dtype = backend.result_type(padded_logits.dtype, "float32")
+    probs = tf.cast(
+        tf.nn.softmax(tf.cast(padded_logits, probs_dtype), axis=-1), key.dtype
+    )
+    return tf.einsum("BNTS,BSNH->BTNH", probs, value, optimize="optimal")
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+    attn_logits_soft_cap=None,
+):
+    if flash_attention is None:
+        flash_attention = False
+    if flash_attention:
+        raise ValueError(
+            "Flash attention is not supported in tensorflow backend."
+        )
+
+    # Ref: jax.nn.dot_product_attention
+    # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
+    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    H = tf.shape(key)[-1]
+    scale = (1.0 / tf.sqrt(tf.cast(H, "float32"))) if scale is None else scale
+    return _dot_product_attention_xla(
+        query, key, value, bias, mask, is_causal, scale
+    )

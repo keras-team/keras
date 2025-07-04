@@ -57,6 +57,11 @@ class Dense(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing
             `Dense` layer by calling `layer.enable_lora(rank)`.
+        lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
 
     Input shape:
         N-D tensor with shape: `(batch_size, ..., input_dim)`.
@@ -82,6 +87,7 @@ class Dense(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
@@ -95,26 +101,21 @@ class Dense(Layer):
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
 
     def build(self, input_shape):
-        input_dim = input_shape[-1]
-        # We use `self._dtype_policy` to check to avoid issues in torch dynamo
-        is_quantized = isinstance(
-            self._dtype_policy, dtype_policies.QuantizedDTypePolicy
-        )
-        if is_quantized:
-            self.quantized_build(
-                input_shape, mode=self.dtype_policy.quantization_mode
-            )
-        if not is_quantized or self.dtype_policy.quantization_mode != "int8":
+        kernel_shape = (input_shape[-1], self.units)
+        if self.quantization_mode:
+            self.quantized_build(kernel_shape, mode=self.quantization_mode)
+        if self.quantization_mode != "int8":
             # If the layer is quantized to int8, `self._kernel` will be added
             # in `self._int8_build`. Therefore, we skip it here.
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=(input_dim, self.units),
+                shape=kernel_shape,
                 initializer=self.kernel_initializer,
                 regularizer=self.kernel_regularizer,
                 constraint=self.kernel_constraint,
@@ -129,7 +130,7 @@ class Dense(Layer):
             )
         else:
             self.bias = None
-        self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
+        self.input_spec = InputSpec(min_ndim=2, axes={-1: input_shape[-1]})
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
@@ -141,12 +142,12 @@ class Dense(Layer):
                 "You must build the layer before accessing `kernel`."
             )
         if self.lora_enabled:
-            return self._kernel + ops.matmul(
-                self.lora_kernel_a, self.lora_kernel_b
-            )
+            return self._kernel + (
+                self.lora_alpha / self.lora_rank
+            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
         return self._kernel
 
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)
@@ -160,7 +161,11 @@ class Dense(Layer):
         return tuple(output_shape)
 
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.kernel_constraint:
             raise ValueError(
@@ -174,8 +179,7 @@ class Dense(Layer):
             )
         if self.lora_enabled:
             raise ValueError(
-                "lora is already enabled. "
-                "This can only be done once per layer."
+                "lora is already enabled. This can only be done once per layer."
             )
         self._tracker.unlock()
         self.lora_kernel_a = self.add_weight(
@@ -194,6 +198,7 @@ class Dense(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -205,11 +210,10 @@ class Dense(Layer):
         target_variables = [kernel_value]
         if self.use_bias:
             target_variables.append(self.bias)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            mode = self.dtype_policy.quantization_mode
-            if mode == "int8":
+        if self.quantization_mode is not None:
+            if self.quantization_mode == "int8":
                 target_variables.append(kernel_scale)
-            elif mode == "float8":
+            elif self.quantization_mode == "float8":
                 target_variables.append(self.inputs_scale)
                 target_variables.append(self.inputs_amax_history)
                 target_variables.append(self.kernel_scale)
@@ -217,9 +221,7 @@ class Dense(Layer):
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
             else:
-                raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
-                )
+                raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
             store[str(i)] = variable
 
@@ -234,11 +236,10 @@ class Dense(Layer):
         target_variables = [self._kernel]
         if self.use_bias:
             target_variables.append(self.bias)
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            mode = self.dtype_policy.quantization_mode
-            if mode == "int8":
+        if self.quantization_mode is not None:
+            if self.quantization_mode == "int8":
                 target_variables.append(self.kernel_scale)
-            elif mode == "float8":
+            elif self.quantization_mode == "float8":
                 target_variables.append(self.inputs_scale)
                 target_variables.append(self.inputs_amax_history)
                 target_variables.append(self.kernel_scale)
@@ -246,9 +247,7 @@ class Dense(Layer):
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
             else:
-                raise NotImplementedError(
-                    self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
-                )
+                raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
             variable.assign(store[str(i)])
         if self.lora_enabled:
@@ -274,6 +273,7 @@ class Dense(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -310,57 +310,43 @@ class Dense(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    """Quantization-related (int8 and float8) methods"""
+    # Quantization-related (int8 and float8) methods
 
-    QUANTIZATION_MODE_ERROR_TEMPLATE = (
-        f"Invalid quantization mode. Expected one of "
-        f"{dtype_policies.QUANTIZATION_MODES}. "
-        "Received: quantization_mode={mode}"
-    )
-
-    def quantized_build(self, input_shape, mode):
+    def quantized_build(self, kernel_shape, mode):
         if mode == "int8":
-            input_dim = input_shape[-1]
-            kernel_shape = (input_dim, self.units)
             self._int8_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
         else:
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
-            )
+            raise self._quantization_mode_error(mode)
+        self._is_quantized = True
 
-    def _int8_build(
-        self,
-        kernel_shape,
-        kernel_initializer="zeros",
-        kernel_scale_initializer="ones",
-    ):
+    def _int8_build(self, kernel_shape):
         self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
-            initializer=kernel_initializer,
+            initializer="zeros",
             dtype="int8",
             trainable=False,
         )
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=(self.units,),
-            initializer=kernel_scale_initializer,
+            initializer="ones",
             trainable=False,
         )
-        self._is_quantized = True
 
     def _float8_build(self):
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedFloat8DTypePolicy
-        ):
-            raise TypeError(
-                "`self.dtype_policy` must be the type of "
-                f"QuantizedFloat8DTypePolicy. Received {self.dtype_policy}"
-            )
-        amax_history_length = self.dtype_policy.amax_history_length
+        from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
+
+        # If `self.dtype_policy` is not QuantizedFloat8DTypePolicy, then set
+        # `amax_history_length` to its default value.
+        amax_history_length = getattr(
+            self.dtype_policy,
+            "amax_history_length",
+            QuantizedFloat8DTypePolicy.default_amax_history_length,
+        )
         # We set `trainable=True` because we will use the gradients to overwrite
         # these variables
         scale_kwargs = {
@@ -369,6 +355,7 @@ class Dense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         amax_history_kwargs = {
             "shape": (amax_history_length,),
@@ -376,6 +363,7 @@ class Dense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         self.inputs_scale = self.add_weight(name="inputs_scale", **scale_kwargs)
         self.inputs_amax_history = self.add_weight(
@@ -391,29 +379,8 @@ class Dense(Layer):
         self.outputs_grad_amax_history = self.add_weight(
             name="outputs_grad_amax_history", **amax_history_kwargs
         )
-        # We need to set `overwrite_with_gradient=True` to instruct the
-        # optimizer to directly overwrite these variables with their computed
-        # gradients during training
-        self.inputs_scale.overwrite_with_gradient = True
-        self.inputs_amax_history.overwrite_with_gradient = True
-        self.kernel_scale.overwrite_with_gradient = True
-        self.kernel_amax_history.overwrite_with_gradient = True
-        self.outputs_grad_scale.overwrite_with_gradient = True
-        self.outputs_grad_amax_history.overwrite_with_gradient = True
-        self._is_quantized = True
 
-    def quantized_call(self, inputs):
-        if self.dtype_policy.quantization_mode == "int8":
-            return self._int8_call(inputs)
-        elif self.dtype_policy.quantization_mode == "float8":
-            return self._float8_call(inputs)
-        else:
-            mode = self.dtype_policy.quantization_mode
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
-            )
-
-    def _int8_call(self, inputs):
+    def _int8_call(self, inputs, training=None):
         @ops.custom_gradient
         def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
             def grad_fn(*args, upstream=None):
@@ -441,14 +408,14 @@ class Dense(Layer):
         if self.lora_enabled:
             lora_x = ops.matmul(inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
-            x = ops.add(x, lora_x)
+            x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x
 
-    def _float8_call(self, inputs):
+    def _float8_call(self, inputs, training=None):
         if self.lora_enabled:
             raise NotImplementedError(
                 "Currently, `_float8_call` doesn't support LoRA"
@@ -456,18 +423,22 @@ class Dense(Layer):
 
         @ops.custom_gradient
         def quantized_dequantize_inputs(inputs, scale, amax_history):
-            new_scale = quantizers.compute_float8_scale(
-                ops.max(amax_history, axis=0),
-                scale,
-                ops.cast(
-                    float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
-                ),
-            )
+            if training:
+                new_scale = quantizers.compute_float8_scale(
+                    ops.max(amax_history, axis=0),
+                    scale,
+                    ops.cast(
+                        float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
+                    ),
+                )
+                new_amax_history = quantizers.compute_float8_amax_history(
+                    inputs, amax_history
+                )
+            else:
+                new_scale = None
+                new_amax_history = None
             qdq_inputs = quantizers.quantize_and_dequantize(
                 inputs, scale, "float8_e4m3fn", self.compute_dtype
-            )
-            new_amax_history = quantizers.compute_float8_amax_history(
-                inputs, amax_history
             )
 
             def grad(*args, upstream=None, variables=None):
@@ -535,56 +506,30 @@ class Dense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode):
-        import gc
-
+    def quantize(self, mode, type_check=True):
         # Prevent quantization of the subclasses
-        if type(self) is not Dense:
-            raise NotImplementedError(
-                f"Layer {self.__class__.__name__} does not have a `quantize()` "
-                "method implemented."
-            )
-        self._check_quantize_args(mode, self.compute_dtype)
+        if type_check and (type(self) is not Dense):
+            raise self._not_implemented_error(self.quantize)
 
-        # Set new dtype policy
-        if not isinstance(
-            self.dtype_policy, dtype_policies.QuantizedDTypePolicy
-        ):
-            quantized_dtype = f"{mode}_from_{self.dtype_policy.name}"
-            # We set the internal `self._dtype_policy` instead of using the
-            # setter to avoid double `quantize` call
-            self._dtype_policy = dtype_policies.get(quantized_dtype)
-
-        self._tracker.unlock()
+        kernel_shape = self._kernel.shape
         if mode == "int8":
-            # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                self._kernel, axis=0
+                self._kernel, axis=0, to_numpy=True
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
-            self._untrack_variable(self._kernel)
-            kernel_shape = self._kernel.shape
             del self._kernel
-            # Utilize a lambda expression as an initializer to prevent adding a
-            # large constant to the computation graph.
-            self._int8_build(
-                kernel_shape,
-                lambda shape, dtype: kernel_value,
-                lambda shape, dtype: kernel_scale,
-            )
-        elif mode == "float8":
-            self._float8_build()
-        else:
-            raise NotImplementedError(
-                self.QUANTIZATION_MODE_ERROR_TEMPLATE.format(mode)
-            )
-        self._tracker.lock()
+        self.quantized_build(kernel_shape, mode)
+        if mode == "int8":
+            self._kernel.assign(kernel_value)
+            self.kernel_scale.assign(kernel_scale)
 
-        # Release memory manually because sometimes the backend doesn't
-        gc.collect()
+        # Set new dtype policy
+        if self.dtype_policy.quantization_mode is None:
+            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            self.dtype_policy = policy
 
     def _get_kernel_with_merged_lora(self):
-        if isinstance(self.dtype_policy, dtype_policies.QuantizedDTypePolicy):
+        if self.dtype_policy.quantization_mode is not None:
             kernel_value = self._kernel
             kernel_scale = self.kernel_scale
             if self.lora_enabled:
@@ -593,10 +538,11 @@ class Dense(Layer):
                 kernel_value = ops.divide(kernel_value, kernel_scale)
                 kernel_value = ops.add(
                     kernel_value,
-                    ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    (self.lora_alpha / self.lora_rank)
+                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 )
                 kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                    kernel_value, axis=0
+                    kernel_value, axis=0, to_numpy=True
                 )
                 kernel_scale = ops.squeeze(kernel_scale, axis=0)
             return kernel_value, kernel_scale

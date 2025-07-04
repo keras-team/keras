@@ -40,19 +40,19 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
-    targets = targets[..., None]
-    topk_values = top_k(predictions, k)[0]
-    targets_values = jnp.take_along_axis(predictions, targets, axis=-1)
-    mask = targets_values >= topk_values
-    return jnp.any(mask, axis=1)
+    preds_at_label = jnp.take_along_axis(
+        predictions, jnp.expand_dims(targets, axis=-1), axis=-1
+    )
+    # `nan` shouldn't be considered as large probability.
+    preds_at_label = jnp.where(
+        jnp.isnan(preds_at_label), -jnp.inf, preds_at_label
+    )
+    rank = 1 + jnp.sum(jnp.greater(predictions, preds_at_label), axis=-1)
+    return jnp.less_equal(rank, k)
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    max_x = jnp.max(x, axis=axis, keepdims=True)
-    result = (
-        jnp.log(jnp.sum(jnp.exp(x - max_x), axis=axis, keepdims=True)) + max_x
-    )
-    return jnp.squeeze(result) if not keepdims else result
+    return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def qr(x, mode="reduced"):
@@ -116,6 +116,12 @@ def fft(x):
 def fft2(x):
     complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = jnp.fft.fft2(complex_input)
+    return jnp.real(complex_output), jnp.imag(complex_output)
+
+
+def ifft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    complex_output = jnp.fft.ifft2(complex_input)
     return jnp.real(complex_output), jnp.imag(complex_output)
 
 
@@ -204,6 +210,12 @@ def istft(
     x = _get_complex_tensor_from_tuple(x)
     dtype = jnp.real(x).dtype
 
+    if len(x.shape) < 2:
+        raise ValueError(
+            f"Input `x` must have at least 2 dimensions. "
+            f"Received shape: {x.shape}"
+        )
+
     expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)
     l_pad = (fft_length - sequence_length) // 2
     r_pad = fft_length - sequence_length - l_pad
@@ -275,3 +287,12 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
     return jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+
+
+def logdet(x):
+    from keras.src.backend.jax.numpy import slogdet
+
+    # In JAX (like in NumPy) slogdet is more stable than
+    # `np.log(np.linalg.det(x))`. See
+    # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
+    return slogdet(x)[1]

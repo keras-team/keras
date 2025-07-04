@@ -60,12 +60,12 @@ def load_data():
     assert y_test.shape == (10000, 1)
     ```
     """
-    dirname = "cifar-10-batches-py"
+    dirname = "cifar-10-batches-py-target"
     origin = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
     path = get_file(
         fname=dirname,
         origin=origin,
-        untar=True,
+        extract=True,
         file_hash=(  # noqa: E501
             "6d958be074577803d12ecdefd02955f39262c83c16fe9348329d7fe0b5c001ce"
         ),
@@ -76,6 +76,8 @@ def load_data():
     x_train = np.empty((num_train_samples, 3, 32, 32), dtype="uint8")
     y_train = np.empty((num_train_samples,), dtype="uint8")
 
+    # batches are within an inner folder
+    path = os.path.join(path, "cifar-10-batches-py")
     for i in range(1, 6):
         fpath = os.path.join(path, "data_batch_" + str(i))
         (

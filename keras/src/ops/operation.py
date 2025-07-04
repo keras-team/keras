@@ -7,14 +7,15 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.ops.node import Node
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils.naming import auto_name
 
 
 @keras_export("keras.Operation")
-class Operation:
-    def __init__(self, dtype=None, name=None):
+class Operation(KerasSaveable):
+    def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
@@ -23,7 +24,6 @@ class Operation:
                 "cannot contain character `/`. "
                 f"Received: name={name} (of type {type(name)})"
             )
-        self._dtype_policy = dtype_policies.get(dtype)
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
@@ -35,12 +35,22 @@ class Operation:
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if isinstance(
-                    self._dtype_policy, dtype_policies.QuantizedDTypePolicy
-                ):
-                    call_fn = self.quantized_call
+                if getattr(self, "_remat_mode", None) is not None:
+                    if getattr(self, "quantization_mode", None) is not None:
+                        call_fn = self.rematerialized_call(
+                            self.quantized_call,
+                            *args,
+                            **kwargs,
+                        )
+                    else:
+                        call_fn = self.rematerialized_call(
+                            self.call, *args, **kwargs
+                        )
                 else:
-                    call_fn = self.call
+                    if getattr(self, "quantization_mode", None) is not None:
+                        call_fn = self.quantized_call
+                    else:
+                        call_fn = self.call
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
                 object_name=(f"{self.__class__.__name__}.call()"),
@@ -50,10 +60,20 @@ class Operation:
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        if isinstance(self._dtype_policy, dtype_policies.QuantizedDTypePolicy):
-            return self.quantized_call(*args, **kwargs)
+        elif getattr(self, "_remat_mode", None) is not None:
+            if getattr(self, "quantization_mode", None) is not None:
+                return self.rematerialized_call(
+                    self.quantized_call, *args, **kwargs
+                )(*args, **kwargs)
+            else:
+                return self.rematerialized_call(self.call, *args, **kwargs)(
+                    *args, **kwargs
+                )
         else:
-            return self.call(*args, **kwargs)
+            if getattr(self, "quantization_mode", None) is not None:
+                return self.quantized_call(*args, **kwargs)
+            else:
+                return self.call(*args, **kwargs)
 
     def symbolic_call(self, *args, **kwargs):
         # Perform shape/dtype inference.
@@ -79,19 +99,16 @@ class Operation:
         try:
             return backend.compute_output_spec(self.call, *args, **kwargs)
         except Exception as e:
-            if isinstance(e, TypeError):
-                raise e
-            else:
-                new_e = RuntimeError(
-                    "Could not automatically infer the output shape / dtype of "
-                    f"'{self.name}' (of type {self.__class__.__name__}). "
-                    f"Either the `{self.__class__.__name__}.call()` method "
-                    f"is incorrect, or you need to implement the "
-                    f"`{self.__class__.__name__}.compute_output_spec() / "
-                    "compute_output_shape()` method. "
-                    f"Error encountered:\n\n{e}"
-                )
-                raise new_e.with_traceback(e.__traceback__) from None
+            new_e = e.__class__(
+                "Could not automatically infer the output shape / dtype of "
+                f"'{self.name}' (of type {self.__class__.__name__}). "
+                f"Either the `{self.__class__.__name__}.call()` method "
+                f"is incorrect, or you need to implement the "
+                f"`{self.__class__.__name__}.compute_output_spec() / "
+                "compute_output_shape()` method. "
+                f"Error encountered:\n\n{e}"
+            )
+            raise new_e.with_traceback(e.__traceback__) from None
 
     def __new__(cls, *args, **kwargs):
         """We override __new__ to saving serializable constructor arguments.
@@ -101,10 +118,12 @@ class Operation:
         out of the box in most cases without forcing the user
         to manually implement `get_config()`.
         """
+        instance = super(Operation, cls).__new__(cls)
+
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
-        instance = super(Operation, cls).__new__(cls)
+
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
         supported_types = (str, int, float, bool, type(None))
@@ -153,13 +172,16 @@ class Operation:
         # In this case the subclass doesn't implement get_config():
         # Let's see if we can autogenerate it.
         if getattr(self, "_auto_config", None) is not None:
-            xtra_args = set(config.keys())
             config.update(self._auto_config.config)
-            # Remove args non explicitly supported
-            argspec = inspect.getfullargspec(self.__init__)
-            if argspec.varkw != "kwargs":
-                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
-                    config.pop(key, None)
+            init_params = inspect.signature(self.__init__).parameters
+            init_has_name = "name" in init_params
+            init_has_kwargs = (
+                "kwargs" in init_params
+                and init_params["kwargs"].kind == inspect.Parameter.VAR_KEYWORD
+            )
+            if not init_has_name and not init_has_kwargs:
+                # We can't pass `name` back to `__init__`, remove it.
+                config.pop("name", None)
             return config
         else:
             raise NotImplementedError(
@@ -190,20 +212,38 @@ class Operation:
 
     @classmethod
     def from_config(cls, config):
-        """Creates a layer from its config.
+        """Creates an operation from its config.
 
-        This method is the reverse of `get_config`,
-        capable of instantiating the same layer from the config
-        dictionary. It does not handle layer connectivity
-        (handled by Network), nor weights (handled by `set_weights`).
+        This method is the reverse of `get_config`, capable of instantiating the
+        same operation from the config dictionary.
+
+        Note: If you override this method, you might receive a serialized dtype
+        config, which is a `dict`. You can deserialize it as follows:
+
+        ```python
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            policy = dtype_policies.deserialize(config["dtype"])
+        ```
 
         Args:
-            config: A Python dictionary, typically the
-                output of get_config.
+            config: A Python dictionary, typically the output of `get_config`.
 
         Returns:
-            A layer instance.
+            An operation instance.
         """
+        # Explicitly deserialize dtype config if needed. This enables users to
+        # directly interact with the instance of `DTypePolicy`.
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            config = config.copy()
+            policy = dtype_policies.deserialize(config["dtype"])
+            if (
+                not isinstance(policy, dtype_policies.DTypePolicyMap)
+                and policy.quantization_mode is None
+            ):
+                # For backward compatibility, we use a str (`name`) for
+                # `DTypePolicy`
+                policy = policy.name
+            config["dtype"] = policy
         try:
             return cls(**config)
         except Exception as e:
@@ -256,7 +296,7 @@ class Operation:
             The operation's attribute `attr` at the node of index `node_index`.
         """
         if not self._inbound_nodes:
-            raise ValueError(
+            raise AttributeError(
                 f"The layer {self.name} has never been called "
                 f"and thus has no defined {attr_name}."
             )
@@ -271,6 +311,9 @@ class Operation:
             return values[0]
         else:
             return values
+
+    def _obj_type(self):
+        return "Operation"
 
     # Hooks for backend layer classes
     def _post_build(self):

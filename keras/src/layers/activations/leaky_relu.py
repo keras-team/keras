@@ -39,8 +39,7 @@ class LeakyReLU(Layer):
         if "alpha" in kwargs:
             negative_slope = kwargs.pop("alpha")
             warnings.warn(
-                "Argument `alpha` is deprecated. "
-                "Use `negative_slope` instead."
+                "Argument `alpha` is deprecated. Use `negative_slope` instead."
             )
         super().__init__(**kwargs)
         if negative_slope is None or negative_slope < 0:
@@ -49,8 +48,10 @@ class LeakyReLU(Layer):
                 "cannot be None or negative value. Expected a float."
                 f" Received: negative_slope={negative_slope}"
             )
-        self.supports_masking = True
         self.negative_slope = negative_slope
+        self.supports_masking = True
+
+        self._build_at_init()
 
     def call(self, inputs):
         return activations.leaky_relu(

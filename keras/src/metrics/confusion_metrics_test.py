@@ -700,7 +700,7 @@ class RecallTest(testing.TestCase):
         self.assertAlmostEqual(3, r_obj.false_negatives)
 
 
-class SensitivityAtSpecificityTest(testing.TestCase, parameterized.TestCase):
+class SensitivityAtSpecificityTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.SensitivityAtSpecificity(
             0.4,
@@ -788,7 +788,7 @@ class SensitivityAtSpecificityTest(testing.TestCase, parameterized.TestCase):
             metrics.SensitivityAtSpecificity(0.4, num_thresholds=-1)
 
 
-class SpecificityAtSensitivityTest(testing.TestCase, parameterized.TestCase):
+class SpecificityAtSensitivityTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.SpecificityAtSensitivity(
             0.4,
@@ -877,7 +877,7 @@ class SpecificityAtSensitivityTest(testing.TestCase, parameterized.TestCase):
             metrics.SpecificityAtSensitivity(0.4, num_thresholds=-1)
 
 
-class PrecisionAtRecallTest(testing.TestCase, parameterized.TestCase):
+class PrecisionAtRecallTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.PrecisionAtRecall(
             0.4, num_thresholds=100, class_id=12, name="precision_at_recall_1"
@@ -965,7 +965,7 @@ class PrecisionAtRecallTest(testing.TestCase, parameterized.TestCase):
             metrics.PrecisionAtRecall(0.4, num_thresholds=-1)
 
 
-class RecallAtPrecisionTest(testing.TestCase, parameterized.TestCase):
+class RecallAtPrecisionTest(testing.TestCase):
     def test_config(self):
         s_obj = metrics.RecallAtPrecision(
             0.4, num_thresholds=100, class_id=12, name="recall_at_precision_1"
@@ -1395,6 +1395,79 @@ class AUCTest(testing.TestCase):
         # because the all values in tp and fn are negative, divide_no_nan will
         # produce all zeros.
         self.assertAllClose(result, 0.0, 1e-3)
+
+    def test_weighted_prgain_majoring(self):
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds,
+            curve="PRGAIN",
+            summation_method="majoring",
+        )
+        result = auc_obj(
+            self.y_true, self.y_pred, sample_weight=self.sample_weight
+        )
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # scaling_facor (P/N) = 7/3
+        # recall_gain = 1 - 7/3 [0/7, 3/4, 7/0] = [1, -3/4, -inf] -> [1, 0, 0]
+        # precision_gain = 1 - 7/3 [3/7, 0/4, 0/0] = [0, 1, NaN] -> [0, 1, 1]
+        # heights = [max(0, 1), max(1, 1)] = [1, 1]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = 1 * 1 + 0 * 1
+        self.assertAllClose(result, expected_result, 1e-3)
+
+    def test_weighted_prgain_minoring(self):
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds,
+            curve="PRGAIN",
+            summation_method="minoring",
+        )
+        result = auc_obj(
+            self.y_true, self.y_pred, sample_weight=self.sample_weight
+        )
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # scaling_facor (P/N) = 7/3
+        # recall_gain = 1 - 7/3 [0/7, 3/4, 7/0] = [1, -3/4, -inf] -> [1, 0, 0]
+        # precision_gain = 1 - 7/3 [3/7, 0/4, 0/0] = [0, 1, NaN] -> [0, 1, 1]
+        # heights = [min(0, 1), min(1, 1)] = [0, 1]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = 1 * 0 + 0 * 1
+        self.assertAllClose(result, expected_result, 1e-3)
+
+    def test_weighted_prgain_interpolation(self):
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds, curve="PRGAIN"
+        )
+        result = auc_obj(
+            self.y_true, self.y_pred, sample_weight=self.sample_weight
+        )
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # scaling_facor (P/N) = 7/3
+        # recall_gain = 1 - 7/3 [0/7, 3/4, 7/0] = [1, -3/4, -inf] -> [1, 0, 0]
+        # precision_gain = 1 - 7/3 [3/7, 0/4, 0/0] = [0, 1, NaN] -> [0, 1, 1]
+        # heights = [(0+1)/2, (1+1)/2] = [0.5, 1]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = 1 * 0.5 + 0 * 1
+        self.assertAllClose(result, expected_result, 1e-3)
+
+    def test_prgain_interpolation(self):
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds, curve="PRGAIN"
+        )
+
+        y_true = np.array([0, 0, 0, 1, 0, 1, 0, 1, 1, 1])
+        y_pred = np.array([0.1, 0.2, 0.3, 0.3, 0.4, 0.4, 0.6, 0.6, 0.8, 0.9])
+        result = auc_obj(y_true, y_pred)
+
+        # tp = [5, 3, 0], fp = [5, 1, 0], fn = [0, 2, 5], tn = [0, 4, 4]
+        # scaling_facor (P/N) = 5/5 = 1
+        # recall_gain = 1 - [0/5, 2/3, 5/0] = [1, 1/3, -inf] -> [1, 1/3, 0]
+        # precision_gain = 1 - [5/5, 1/3, 0/0] = [1, 1/3, NaN] -> [0, 2/3, 1]
+        # heights = [(0+2/3)/2, (2/3+1)/2] = [0.333333, 0.833333]
+        # widths = [(1 - 1/3), (1/3 - 0)] = [0.666666, 0.333333]
+        expected_result = 0.666666 * 0.333333 + 0.333333 * 0.833333
+        self.assertAllClose(result, expected_result, 1e-3)
 
     def test_invalid_num_thresholds(self):
         with self.assertRaisesRegex(

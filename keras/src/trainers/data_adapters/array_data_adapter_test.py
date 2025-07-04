@@ -13,7 +13,7 @@ from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
 
 
-class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
+class TestArrayDataAdapter(testing.TestCase):
     def make_array(self, array_type, shape, dtype):
         x = np.array([[i] * shape[1] for i in range(shape[0])], dtype=dtype)
         if array_type == "np":
@@ -52,11 +52,10 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
                 "scipy_sparse",
             ],
             array_dtype=["float32", "float64"],
-            iterator_type=["np", "tf", "jax", "torch"],
             shuffle=[False, "batch", True],
         )
     )
-    def test_basic_flow(self, array_type, array_dtype, iterator_type, shuffle):
+    def test_basic_flow(self, array_type, array_dtype, shuffle):
         x = self.make_array(array_type, (34, 4), array_dtype)
         y = self.make_array(array_type, (34, 2), "int32")
         xdim1 = 1 if array_type == "pandas_series" else 4
@@ -75,10 +74,10 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if iterator_type == "np":
+        if backend.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif iterator_type == "tf":
+        elif backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             if array_type == "tf_ragged":
                 expected_class = tf.RaggedTensor
@@ -88,13 +87,13 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
                 expected_class = tf.SparseTensor
             else:
                 expected_class = tf.Tensor
-        elif iterator_type == "jax":
+        elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
             if array_type in ("tf_sparse", "jax_sparse", "scipy_sparse"):
                 expected_class = jax_sparse.JAXSparse
             else:
-                expected_class = jax.Array
-        elif iterator_type == "torch":
+                expected_class = np.ndarray
+        elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
 
@@ -245,5 +244,58 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
 
     def test_errors(self):
-        # TODO
-        pass
+        x = np.random.random((34, 1))
+        y = np.random.random((34, 3))
+        sw = np.random.random((34,))
+        cw = {
+            0: 0.1,
+            1: 0.2,
+            2: 0.3,
+            3: 0.4,
+        }
+
+        with self.assertRaisesRegex(
+            ValueError, "Expected all elements of `x` to be array-like"
+        ):
+            array_data_adapter.ArrayDataAdapter(x="Invalid")
+        with self.assertRaisesRegex(
+            ValueError, "Expected all elements of `x` to be array-like"
+        ):
+            array_data_adapter.ArrayDataAdapter(x=x, y="Invalid")
+        with self.assertRaisesRegex(
+            ValueError, "Expected all elements of `x` to be array-like"
+        ):
+            array_data_adapter.ArrayDataAdapter(
+                x=x, y=y, sample_weight="Invalid"
+            )
+
+        with self.assertRaisesRegex(
+            ValueError, "You cannot `class_weight` and `sample_weight`"
+        ):
+            array_data_adapter.ArrayDataAdapter(
+                x=x, y=y, sample_weight=sw, class_weight=cw
+            )
+
+        nested_y = ({"x": x, "y": y},)
+        with self.assertRaisesRegex(
+            ValueError, "You should provide one `sample_weight` array per"
+        ):
+            array_data_adapter.ArrayDataAdapter(
+                x=x, y=nested_y, sample_weight=[]
+            )
+
+        tensor_sw = self.make_array("tf", (34, 2), "int32")
+        with self.assertRaisesRegex(
+            ValueError, "For a model with multiple outputs, when providing"
+        ):
+            array_data_adapter.ArrayDataAdapter(
+                x=x, y=nested_y, sample_weight=tensor_sw
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`class_weight` is only supported for Models with a single",
+        ):
+            array_data_adapter.ArrayDataAdapter(
+                x=x, y=nested_y, class_weight=cw
+            )

@@ -23,6 +23,8 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
+elif backend.backend() == "openvino":
+    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement the Trainer class."
@@ -39,7 +41,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     You start from `Input`,
     you chain layer calls to specify the model's forward pass,
-    and finally you create your model from inputs and outputs:
+    and finally, you create your model from inputs and outputs:
 
     ```python
     inputs = keras.Input(shape=(37,))
@@ -138,10 +140,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def __new__(cls, *args, **kwargs):
         # Signature detection for usage of `Model` as a `Functional`
         if functional_init_arguments(args, kwargs) and cls == Model:
-            from keras.src.models import functional
+            from keras.src.models.functional import Functional
 
-            return functional.Functional(*args, **kwargs)
-        return typing.cast(Model, super().__new__(cls))
+            return Functional.__new__(Functional, *args, **kwargs)
+        return typing.cast(cls, super().__new__(cls))
 
     def __init__(self, *args, **kwargs):
         Trainer.__init__(self)
@@ -245,10 +247,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 which is the starting layer name and ending layer name
                 (both inclusive) indicating the range of layers to be printed
                 in summary. It also accepts regex patterns instead of exact
-                name. In such case, start predicate will be the first element
-                it matches to `layer_range[0]` and the end predicate will be
-                the last element it matches to `layer_range[1]`.
-                By default `None` which considers all layers of model.
+                names. In this case, the start predicate will be
+                the first element that matches `layer_range[0]`
+                and the end predicate will be the last element
+                that matches `layer_range[1]`.
+                By default `None` considers all layers of the model.
 
         Raises:
             ValueError: if `summary()` is called before the model is built.
@@ -264,18 +267,31 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         )
 
     @traceback_utils.filter_traceback
-    def save(self, filepath, overwrite=True, **kwargs):
+    def save(self, filepath, overwrite=True, zipped=None, **kwargs):
         """Saves a model as a `.keras` file.
 
+        Note that `model.save()` is an alias for `keras.saving.save_model()`.
+
+        The saved `.keras` file contains:
+
+        - The model's configuration (architecture)
+        - The model's weights
+        - The model's optimizer's state (if any)
+
+        Thus models can be reinstantiated in the exact same state.
+
         Args:
-            filepath: `str` or `pathlib.Path` object. Path where to save
-                the model. Must end in `.keras`.
+            filepath: `str` or `pathlib.Path` object.
+                The path where to save the model. Must end in `.keras`
+                (unless saving the model as an unzipped directory
+                via `zipped=False`).
             overwrite: Whether we should overwrite any existing model at
                 the target location, or instead ask the user via
                 an interactive prompt.
-            save_format: The `save_format` argument is deprecated in Keras 3.
-                Format to use, as a string. Only the `"keras"` format is
-                supported at this time.
+            zipped: Whether to save the model as a zipped `.keras`
+                archive (default when saving locally), or as an
+                unzipped directory (default when saving on the
+                Hugging Face Hub).
 
         Example:
 
@@ -291,64 +307,120 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         x = keras.random.uniform((10, 3))
         assert np.allclose(model.predict(x), loaded_model.predict(x))
         ```
-
-        Note that `model.save()` is an alias for `keras.saving.save_model()`.
-
-        The saved `.keras` file contains:
-
-        - The model's configuration (architecture)
-        - The model's weights
-        - The model's optimizer's state (if any)
-
-        Thus models can be reinstantiated in the exact same state.
         """
-        return saving_api.save_model(self, filepath, overwrite, **kwargs)
+        return saving_api.save_model(
+            self, filepath, overwrite=overwrite, zipped=zipped, **kwargs
+        )
 
     @traceback_utils.filter_traceback
-    def save_weights(self, filepath, overwrite=True):
-        """Saves all layer weights to a `.weights.h5` file.
+    def save_weights(self, filepath, overwrite=True, max_shard_size=None):
+        """Saves all weights to a single file or sharded files.
+
+        By default, the weights will be saved in a single `.weights.h5` file.
+        If sharding is enabled (`max_shard_size` is not `None`), the weights
+        will be saved in multiple files, each with a size at most
+        `max_shard_size` (in GB). Additionally, a configuration file
+        `.weights.json` will contain the metadata for the sharded files.
+
+        The saved sharded files contain:
+
+        - `*.weights.json`: The configuration file containing 'metadata' and
+            'weight_map'.
+        - `*_xxxxxx.weights.h5`: The sharded files containing only the
+            weights.
 
         Args:
-            filepath: `str` or `pathlib.Path` object.
-                Path where to save the model. Must end in `.weights.h5`.
-            overwrite: Whether we should overwrite any existing model
-                at the target location, or instead ask the user
-                via an interactive prompt.
+            filepath: `str` or `pathlib.Path` object. Path where the weights
+                will be saved.  When sharding, the filepath must end in
+                `.weights.json`. If `.weights.h5` is provided, it will be
+                overridden.
+            overwrite: Whether to overwrite any existing weights at the target
+                location or instead ask the user via an interactive prompt.
+            max_shard_size: `int` or `float`. Maximum size in GB for each
+                sharded file. If `None`, no sharding will be done. Defaults to
+                `None`.
+
+        Example:
+
+        ```python
+        # Instantiate a EfficientNetV2L model with about 454MB of weights.
+        model = keras.applications.EfficientNetV2L(weights=None)
+
+        # Save the weights in a single file.
+        model.save_weights("model.weights.h5")
+
+        # Save the weights in sharded files. Use `max_shard_size=0.25` means
+        # each sharded file will be at most ~250MB.
+        model.save_weights("model.weights.json", max_shard_size=0.25)
+
+        # Load the weights in a new model with the same architecture.
+        loaded_model = keras.applications.EfficientNetV2L(weights=None)
+        loaded_model.load_weights("model.weights.h5")
+        x = keras.random.uniform((1, 480, 480, 3))
+        assert np.allclose(model.predict(x), loaded_model.predict(x))
+
+        # Load the sharded weights in a new model with the same architecture.
+        loaded_model = keras.applications.EfficientNetV2L(weights=None)
+        loaded_model.load_weights("model.weights.json")
+        x = keras.random.uniform((1, 480, 480, 3))
+        assert np.allclose(model.predict(x), loaded_model.predict(x))
+        ```
         """
-        return saving_api.save_weights(self, filepath, overwrite=overwrite)
+        return saving_api.save_weights(
+            self, filepath, overwrite=overwrite, max_shard_size=max_shard_size
+        )
 
     @traceback_utils.filter_traceback
     def load_weights(self, filepath, skip_mismatch=False, **kwargs):
-        """Load weights from a file saved via `save_weights()`.
+        """Load the weights from a single file or sharded files.
 
-        Weights are loaded based on the network's
-        topology. This means the architecture should be the same as when the
-        weights were saved. Note that layers that don't have weights are not
-        taken into account in the topological ordering, so adding or removing
-        layers is fine as long as they don't have weights.
+        Weights are loaded based on the network's topology. This means the
+        architecture should be the same as when the weights were saved. Note
+        that layers that don't have weights are not taken into account in the
+        topological ordering, so adding or removing layers is fine as long as
+        they don't have weights.
 
         **Partial weight loading**
 
         If you have modified your model, for instance by adding a new layer
-        (with weights) or by changing the shape of the weights of a layer,
-        you can choose to ignore errors and continue loading
-        by setting `skip_mismatch=True`. In this case any layer with
-        mismatching weights will be skipped. A warning will be displayed
-        for each skipped layer.
+        (with weights) or by changing the shape of the weights of a layer, you
+        can choose to ignore errors and continue loading by setting
+        `skip_mismatch=True`. In this case any layer with mismatching weights
+        will be skipped. A warning will be displayed for each skipped layer.
+
+        **Sharding**
+
+        When loading sharded weights, it is important to specify `filepath` that
+        ends with `*.weights.json` which is used as the configuration file.
+        Additionally, the sharded files `*_xxxxx.weights.h5` must be in the same
+        directory as the configuration file.
 
         Args:
-            filepath: String, path to the weights file to load.
-                It can either be a `.weights.h5` file
-                or a legacy `.h5` weights file.
+            filepath: `str` or `pathlib.Path` object. Path where the weights
+                will be saved.  When sharding, the filepath must end in
+                `.weights.json`.
             skip_mismatch: Boolean, whether to skip loading of layers where
                 there is a mismatch in the number of weights, or a mismatch in
                 the shape of the weights.
+
+        Example:
+
+        ```python
+        # Load the weights in a single file.
+        model.load_weights("model.weights.h5")
+
+        # Load the weights in sharded files.
+        model.load_weights("model.weights.json")
+        ```
         """
         saving_api.load_weights(
-            self, filepath, skip_mismatch=skip_mismatch, **kwargs
+            self,
+            filepath,
+            skip_mismatch=skip_mismatch,
+            **kwargs,
         )
 
-    def quantize(self, mode):
+    def quantize(self, mode, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -361,9 +433,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
-        if not self.built:
+        type_check = kwargs.pop("type_check", True)
+        if kwargs:
             raise ValueError(
-                "The model must be built first before calling `quantize()`."
+                "Unrecognized keyword arguments "
+                f"passed to {self.__class__.__name__}: {kwargs}"
             )
         if mode not in QUANTIZATION_MODES:
             raise ValueError(
@@ -375,7 +449,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             list_of_sublayers = list(layer._flatten_layers())
             if len(list_of_sublayers) == 1:  # leaves of the model
                 try:
-                    layer.quantize(mode)
+                    layer.quantize(mode, type_check=type_check)
                     mode_changed = True
                 except NotImplementedError as e:
                     warnings.warn(str(e))
@@ -389,6 +463,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
     def build_from_config(self, config):
         if not config:
             return
+        status = False
         if "input_shape" in config:
             # Case: all inputs are in the first arg (possibly nested).
             if utils.is_default(self.build):
@@ -400,7 +475,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     self.build(config["input_shape"])
                     status = True
                 except:
-                    status = False
+                    pass
             self._build_shapes_dict = config
 
         elif "shapes_dict" in config:
@@ -412,7 +487,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     self.build(**config["shapes_dict"])
                     status = True
                 except:
-                    status = False
+                    pass
             self._build_shapes_dict = config["shapes_dict"]
 
         if not status:
@@ -449,43 +524,102 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         model_config = serialization_lib.serialize_keras_object(self)
         return json.dumps(model_config, **kwargs)
 
-    def export(self, filepath, format="tf_saved_model"):
-        """Create a TF SavedModel artifact for inference.
-
-        **Note:** This can currently only be used with
-        the TensorFlow or JAX backends.
-
-        This method lets you export a model to a lightweight SavedModel artifact
-        that contains the model's forward pass only (its `call()` method)
-        and can be served via e.g. TF-Serving. The forward pass is registered
-        under the name `serve()` (see example below).
-
-        The original code of the model (including any custom layers you may
-        have used) is *no longer* necessary to reload the artifact -- it is
-        entirely standalone.
+    def export(
+        self,
+        filepath,
+        format="tf_saved_model",
+        verbose=None,
+        input_signature=None,
+        **kwargs,
+    ):
+        """Export the model as an artifact for inference.
 
         Args:
-            filepath: `str` or `pathlib.Path` object. Path where to save
-                the artifact.
+            filepath: `str` or `pathlib.Path` object. The path to save the
+                artifact.
+            format: `str`. The export format. Supported values:
+                `"tf_saved_model"` and `"onnx"`.  Defaults to
+                `"tf_saved_model"`.
+            verbose: `bool`. Whether to print a message during export. Defaults
+                to `None`, which uses the default value set by different
+                backends and formats.
+            input_signature: Optional. Specifies the shape and dtype of the
+                model inputs. Can be a structure of `keras.InputSpec`,
+                `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
+                not provided, it will be automatically computed. Defaults to
+                `None`.
+            **kwargs: Additional keyword arguments:
+                - Specific to the JAX backend and `format="tf_saved_model"`:
+                    - `is_static`: Optional `bool`. Indicates whether `fn` is
+                        static. Set to `False` if `fn` involves state updates
+                        (e.g., RNG seeds and counters).
+                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
+                        `jax2tf.convert`. See the documentation for
+                        [`jax2tf.convert`](
+                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                        If `native_serialization` and `polymorphic_shapes` are
+                        not provided, they will be automatically computed.
 
-        Example:
+        **Note:** This feature is currently supported only with TensorFlow, JAX
+        and Torch backends.
+
+        **Note:** Be aware that the exported artifact may contain information
+        from the local file system when using `format="onnx"`, `verbose=True`
+        and Torch backend.
+
+        Examples:
+
+        Here's how to export a TensorFlow SavedModel for inference.
 
         ```python
-        # Create the artifact
-        model.export("path/to/location")
+        # Export the model as a TensorFlow SavedModel artifact
+        model.export("path/to/location", format="tf_saved_model")
 
-        # Later, in a different process / environment...
+        # Load the artifact in a different process/environment
         reloaded_artifact = tf.saved_model.load("path/to/location")
         predictions = reloaded_artifact.serve(input_data)
         ```
 
-        If you would like to customize your serving endpoints, you can
-        use the lower-level `keras.export.ExportArchive` class. The
-        `export()` method relies on `ExportArchive` internally.
-        """
-        from keras.src.export import export_lib
+        Here's how to export an ONNX for inference.
 
-        export_lib.export_model(self, filepath)
+        ```python
+        # Export the model as a ONNX artifact
+        model.export("path/to/location", format="onnx")
+
+        # Load the artifact in a different process/environment
+        ort_session = onnxruntime.InferenceSession("path/to/location")
+        ort_inputs = {
+            k.name: v for k, v in zip(ort_session.get_inputs(), input_data)
+        }
+        predictions = ort_session.run(None, ort_inputs)
+        ```
+        """
+        from keras.src.export import export_onnx
+        from keras.src.export import export_saved_model
+
+        available_formats = ("tf_saved_model", "onnx")
+        if format not in available_formats:
+            raise ValueError(
+                f"Unrecognized format={format}. Supported formats are: "
+                f"{list(available_formats)}."
+            )
+
+        if format == "tf_saved_model":
+            export_saved_model(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "onnx":
+            export_onnx(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
@@ -547,6 +681,174 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         map_saveable_variables(self, store=store, visited_saveables=set())
         return store
 
+    def get_state_tree(self, value_format="backend_tensor"):
+        """Retrieves tree-like structure of model variables.
+
+        This method allows retrieval of different model variables (trainable,
+        non-trainable, optimizer, and metrics). The variables are returned in a
+        nested dictionary format, where the keys correspond to the variable
+        names and the values are the nested representations of the variables.
+
+        Returns:
+            dict: A dictionary containing the nested representations of the
+                requested variables. The keys are the variable names, and the
+                values are the corresponding nested dictionaries.
+            value_format: One of `"backend_tensor"`, `"numpy_array"`.
+                The kind of array to return as the leaves of the nested
+                    state tree.
+
+        Example:
+
+        ```python
+        model = keras.Sequential([
+            keras.Input(shape=(1,), name="my_input"),
+            keras.layers.Dense(1, activation="sigmoid", name="my_dense"),
+        ], name="my_sequential")
+        model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        model.fit(np.array([[1.0]]), np.array([[1.0]]))
+        state_tree = model.get_state_tree()
+        ```
+
+        The `state_tree` dictionary returned looks like:
+
+        ```
+        {
+            'metrics_variables': {
+                'loss': {
+                    'count': ...,
+                    'total': ...,
+                },
+                'mean_absolute_error': {
+                    'count': ...,
+                    'total': ...,
+                }
+            },
+            'trainable_variables': {
+                'my_sequential': {
+                    'my_dense': {
+                        'bias': ...,
+                        'kernel': ...,
+                    }
+                }
+            },
+            'non_trainable_variables': {},
+            'optimizer_variables': {
+                'adam': {
+                        'iteration': ...,
+                        'learning_rate': ...,
+                        'my_sequential_my_dense_bias_momentum': ...,
+                        'my_sequential_my_dense_bias_velocity': ...,
+                        'my_sequential_my_dense_kernel_momentum': ...,
+                        'my_sequential_my_dense_kernel_velocity': ...,
+                    }
+                }
+            }
+        }
+        ```
+        """
+        variables = {}
+        variables["trainable_variables"] = self._create_nested_dict(
+            self.trainable_variables, value_format
+        )
+        variables["non_trainable_variables"] = self._create_nested_dict(
+            self.non_trainable_variables, value_format
+        )
+        variables["optimizer_variables"] = self._create_nested_dict(
+            self.optimizer.variables, value_format
+        )
+        variables["metrics_variables"] = self._create_nested_dict(
+            self.metrics_variables, value_format
+        )
+        return variables
+
+    def _create_nested_dict(self, variables, value_format):
+        flat_dict = {}
+        for v in variables:
+            if v.path in flat_dict:
+                raise ValueError(
+                    "The following variable path is found twice in the model: "
+                    f"'{v.path}'. `get_state_tree()` can only be called when "
+                    "all variable paths are unique. Make sure to give unique "
+                    "names to your layers (and other objects)."
+                )
+            if value_format == "backend_tensor":
+                flat_dict[v.path] = v.value
+            elif value_format == "numpy_array":
+                flat_dict[v.path] = v.numpy()
+            else:
+                raise ValueError(
+                    "Invalid `value_format` argument. Expected one of "
+                    "{'numpy_array', 'backend_tensor'}. Received: "
+                    f"value_format={value_format}"
+                )
+
+        nested_dict = {}
+        for path, value in flat_dict.items():
+            parts = path.split("/")
+            current_dict = nested_dict
+            for part in parts[:-1]:
+                if part not in current_dict:
+                    current_dict[part] = {}
+                current_dict = current_dict[part]
+            current_dict[parts[-1]] = value
+
+        return nested_dict
+
+    def set_state_tree(self, state_tree):
+        """Assigns values to variables of the model.
+
+        This method takes a dictionary of nested variable values, which
+        represents the state tree of the model, and assigns them to the
+        corresponding variables of the model. The dictionary keys represent the
+        variable names (e.g., `'trainable_variables'`, `'optimizer_variables'`),
+        and the values are nested dictionaries containing the variable
+        paths and their corresponding values.
+
+        Args:
+            state_tree: A dictionary representing the state tree of the model.
+                The keys are the variable names, and the values are nested
+                dictionaries representing the variable paths and their values.
+        """
+        for k, v in state_tree.items():
+            path_value_dict = self._flatten_nested_dict(v)
+            if k == "trainable_variables":
+                self._assign_variable_values(
+                    self.trainable_variables, path_value_dict
+                )
+            elif k == "non_trainable_variables":
+                self._assign_variable_values(
+                    self.non_trainable_variables, path_value_dict
+                )
+            elif k == "optimizer_variables":
+                self._assign_variable_values(
+                    self.optimizer.variables, path_value_dict
+                )
+            elif k == "metrics_variables":
+                self._assign_variable_values(
+                    self.metrics_variables, path_value_dict
+                )
+            else:
+                raise ValueError(f"Unknown variable name: {k}")
+
+    def _assign_variable_values(self, variables, path_value_dict):
+        for path, value in path_value_dict.items():
+            for variable in variables:
+                if variable.path == path:
+                    variable.assign(value)
+
+    def _flatten_nested_dict(self, nested_dict):
+        flat_dict = {}
+
+        def _flatten(current_dict, prefix=""):
+            for key, value in current_dict.items():
+                if isinstance(value, dict):
+                    _flatten(value, prefix + key + "/")
+                else:
+                    flat_dict[prefix + key] = value
+
+        _flatten(nested_dict)
+        return flat_dict
+
 
 @keras_export("keras.models.model_from_json")
 def model_from_json(json_string, custom_objects=None):
@@ -589,11 +891,11 @@ def inject_functional_model_class(cls):
     """Inject `Functional` into the hierarchy of this class if needed."""
     from keras.src.models import functional
 
-    if cls == Model:
+    if cls is Model:
         return functional.Functional
     # In case there is any multiple inheritance, we stop injecting the
     # class if keras model is not in its class hierarchy.
-    if cls == object:
+    if cls is object:
         return object
 
     cls.__bases__ = tuple(

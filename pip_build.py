@@ -24,27 +24,28 @@ import re
 import shutil
 
 # Needed because importing torch after TF causes the runtime to crash
-import torch  # noqa: F401
+try:
+    import torch  # noqa: F401
+except ImportError:
+    pass
 
 package = "keras"
 build_directory = "tmp_build_dir"
 dist_directory = "dist"
-to_copy = ["setup.py", "README.md"]
+to_copy = ["pyproject.toml", "README.md"]
 
 
 def export_version_string(version, is_nightly=False, rc_index=None):
     """Export Version and Package Name."""
     if is_nightly:
         date = datetime.datetime.now()
-        version += f".dev{date.strftime('%Y%m%d%H')}"
-        # Replaces `name="keras"` string in `setup.py` with `keras-nightly`
-        with open("setup.py") as f:
-            setup_contents = f.read()
-        with open("setup.py", "w") as f:
-            setup_contents = setup_contents.replace(
-                'name="keras"', 'name="keras-nightly"'
-            )
-            f.write(setup_contents)
+        version += f".dev{date:%Y%m%d%H}"
+        # Update `name = "keras"` with "keras-nightly"
+        pyproj_pth = pathlib.Path("pyproject.toml")
+        pyproj_str = pyproj_pth.read_text().replace(
+            'name = "keras"', 'name = "keras-nightly"'
+        )
+        pyproj_pth.write_text(pyproj_str)
     elif rc_index is not None:
         version += "rc" + str(rc_index)
 
@@ -83,8 +84,6 @@ def build(root_path, is_nightly=False, rc_index=None):
 
     try:
         copy_source_to_build_directory(root_path)
-        move_tf_keras_directory()
-        print(os.getcwd())
 
         from keras.src.version import __version__  # noqa: E402
 
@@ -93,28 +92,6 @@ def build(root_path, is_nightly=False, rc_index=None):
     finally:
         # Clean up: remove the build directory (no longer needed)
         shutil.rmtree(build_directory)
-
-
-def move_tf_keras_directory():
-    """Move `keras/api/_tf_keras` to `keras/_tf_keras`, update references."""
-    shutil.move(os.path.join(package, "api", "_tf_keras"), "keras")
-    with open(os.path.join(package, "api", "__init__.py")) as f:
-        contents = f.read()
-        contents = contents.replace("from keras.api import _tf_keras", "")
-    with open(os.path.join(package, "api", "__init__.py"), "w") as f:
-        f.write(contents)
-    # Replace `keras.api._tf_keras` with `keras._tf_keras`.
-    for root, _, fnames in os.walk(os.path.join(package, "_tf_keras")):
-        for fname in fnames:
-            if fname.endswith(".py"):
-                tf_keras_fpath = os.path.join(root, fname)
-                with open(tf_keras_fpath) as f:
-                    contents = f.read()
-                    contents = contents.replace(
-                        "keras.api._tf_keras", "keras._tf_keras"
-                    )
-                with open(tf_keras_fpath, "w") as f:
-                    f.write(contents)
 
 
 def build_and_save_output(root_path, __version__):

@@ -43,6 +43,7 @@ class AUCCurve(Enum):
 
     ROC = "ROC"
     PR = "PR"
+    PRGAIN = "PRGAIN"
 
     @staticmethod
     def from_str(key):
@@ -50,10 +51,12 @@ class AUCCurve(Enum):
             return AUCCurve.PR
         elif key in ("roc", "ROC"):
             return AUCCurve.ROC
+        elif key in ("prgain", "PRGAIN"):
+            return AUCCurve.PRGAIN
         else:
             raise ValueError(
                 f'Invalid AUC curve value: "{key}". '
-                'Expected values are ["PR", "ROC"]'
+                'Expected values are ["PR", "ROC", "PRGAIN"]'
             )
 
 
@@ -500,7 +503,7 @@ def update_confusion_matrix_variables(
             )
         thresh_label_tile = ops.where(one_thresh, num_labels, 1)
     else:
-        pred_shape = y_pred.shape
+        pred_shape = ops.shape(y_pred)
         num_predictions = pred_shape[0]
         if len(y_pred.shape) == 1:
             num_labels = 1

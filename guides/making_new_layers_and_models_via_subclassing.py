@@ -643,7 +643,7 @@ class VariationalAutoEncoder(keras.Model):
         intermediate_dim=64,
         latent_dim=32,
         name="autoencoder",
-        **kwargs
+        **kwargs,
     ):
         super().__init__(name=name, **kwargs)
         self.original_dim = original_dim
