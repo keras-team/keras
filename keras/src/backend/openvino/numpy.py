@@ -642,6 +642,12 @@ def cumsum(x, axis=None, dtype=None):
     return OpenVINOKerasTensor(ov_opset.cumsum(x, axis).output(0))
 
 
+def deg2rad(x):
+    raise NotImplementedError(
+        "`deg2rad` is not supported with openvino backend"
+    )
+
+
 def diag(x, k=0):
     raise NotImplementedError("`diag` is not supported with openvino backend")
 

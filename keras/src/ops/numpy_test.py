@@ -1346,6 +1346,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.cumsum(x, axis=1).shape, (None, 3, 3))
 
+    def test_deg2rad(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.deg2rad(x).shape, (None, 3))
+
     def test_diag(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.diag(x).shape, (None,))
@@ -1919,6 +1923,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_cumsum(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.cumsum(x).shape, (6,))
+
+    def test_deg2rad(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.deg2rad(x).shape, (2, 3))
 
     def test_diag(self):
         x = KerasTensor((3,))
@@ -3910,6 +3918,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Cumsum(axis=axis, dtype=dtype)(x),
             np.cumsum(x, axis=axis, dtype=dtype or x.dtype),
         )
+
+    def test_deg2rad(self):
+        x = np.random.uniform(-360, 360, size=(3, 3))
+        self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
+        self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
 
     def test_diag(self):
         x = np.array([1, 2, 3])
@@ -6674,6 +6687,23 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.cumsum(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Cumsum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_deg2rad(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
             expected_dtype,
         )
 

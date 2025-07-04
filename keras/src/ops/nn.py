@@ -10,7 +10,6 @@ from keras.src.backend import standardize_data_format
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
-from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
@@ -2753,18 +2752,17 @@ def dot_product_attention(
 
 
 class RMSNorm(Operation):
-    def __init__(self, scale=1, axis=-1, epsilon=None, *, name=None):
+    def __init__(self, axis=-1, epsilon=None, *, name=None):
         super().__init__(name=name)
         self.axis = axis
-        self.scale = scale
         self.epsilon = epsilon
 
-    def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape)
+    def compute_output_spec(self, x, scale):
+        return KerasTensor(shape=x.shape, dtype=x.dtype)
 
-    def call(self, x):
+    def call(self, x, scale=None):
         return _rms_normalization(
-            x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
+            x, scale=scale, axis=self.axis, epsilon=self.epsilon
         )
 
 
@@ -2774,7 +2772,7 @@ class RMSNorm(Operation):
         "keras.ops.nn.rms_normalization",
     ]
 )
-def rms_normalization(x, scale=1, axis=-1, epsilon=None):
+def rms_normalization(x, scale=None, axis=-1, epsilon=None):
     """Performs Root Mean Square (RMS) normalization on `x`.
 
     The Keras operation implements the operation as described in
@@ -2787,81 +2785,77 @@ def rms_normalization(x, scale=1, axis=-1, epsilon=None):
 
     Args:
         x: Input tensor.
-        axis: The axis or axes along which to perform normalization.
-            Default to -1.
         scale: Optional scaling factor for the normalization.
-        epsilon: A lower bound value for the norm.
-            Defaults to `backend.epsilon()`.
+        axis: The axis or axes along which to perform normalization. Defaults
+            to `-1`.
+        epsilon: A lower bound value for the norm. Defaults to
+            `backend.epsilon()`.
 
     Returns:
         The normalized array.
 
     Example:
 
-    >>> x = np.random.rand(1, 10)
-    >>> x_norm = keras.ops.rms_normalization(x, (10,))
-    >>> print(x_norm)
+    >>> x = keras.random.normal((1, 10))
+    >>> keras.ops.rms_normalization(x)
     array([[0.69384296, 0.94444374, 0.16551171, 0.05749961, 1.11008865,
-        0.52475186, 1.57686807, 1.69893307, 1.27292764, 0.30819128]])
+            0.52475186, 1.57686807, 1.69893307, 1.27292764, 0.30819128]])
     """
-    if any_symbolic_tensors((x,)):
-        return RMSNorm(scale=scale, axis=axis, epsilon=epsilon).symbolic_call(x)
+    if any_symbolic_tensors((x, scale)):
+        return RMSNorm(axis=axis, epsilon=epsilon).symbolic_call(x, scale=scale)
     return _rms_normalization(x, scale=scale, axis=axis, epsilon=epsilon)
 
 
-def _rms_normalization(x, scale=1, axis=-1, epsilon=None):
+def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    original_dtype = backend.standardize_dtype(x.dtype)
+    # Computes in at least float32 precision for stability in half precision
+    # training.
+    compute_dtype = backend.result_type(x.dtype, "float32")
+
+    x = backend.convert_to_tensor(x, dtype=compute_dtype)
+    if scale is not None:
+        scale = backend.convert_to_tensor(scale, x.dtype)
+
     if backend.backend() == "torch" and is_continuous_axis(axis):
         import torch.nn.functional as F
 
         if isinstance(axis, (tuple, list)):
             normalized_shape = tuple([x.shape[dim] for dim in axis])
         else:
-            normalized_shape = x.shape[axis]
-        return F.rms_norm(x, normalized_shape, scale, epsilon)
-    x = backend.convert_to_tensor(x)
-    if len(x.shape) == 0:
-        x = backend.numpy.expand_dims(x, axis=0)
-    if epsilon is None:
-        epsilon = backend.epsilon()
-
-    if not is_keras_tensor(scale):
-        scale = backend.convert_to_tensor(scale, dtype=x.dtype)
-    if not is_keras_tensor(epsilon):
-        epsilon = backend.convert_to_tensor(epsilon, dtype=x.dtype)
-
-    rrms = backend.math.rsqrt(
-        backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)
-        + epsilon
-    )
-    return (x * rrms) * scale
+            normalized_shape = (x.shape[axis],)
+        outputs = F.rms_norm(x, normalized_shape, scale, epsilon)
+    else:
+        if len(x.shape) == 0:
+            x = backend.numpy.expand_dims(x, axis=0)
+        rrms = backend.math.rsqrt(
+            backend.numpy.mean(
+                backend.numpy.square(x), axis=axis, keepdims=True
+            )
+            + epsilon
+        )
+        outputs = backend.numpy.multiply(x, rrms)
+        if scale is not None:
+            outputs = backend.numpy.multiply(outputs, scale)
+    return backend.cast(outputs, original_dtype)
 
 
 class LayerNorm(Operation):
-    def __init__(
-        self,
-        gamma=None,
-        beta=None,
-        axis=-1,
-        epsilon=None,
-        rms_scaling=False,
-        *,
-        name=None,
-    ):
+    def __init__(self, axis=-1, epsilon=None, rms_scaling=False, *, name=None):
         super().__init__(name=name)
         self.axis = axis
-        self.gamma = gamma
-        self.beta = beta
         self.epsilon = epsilon
         self.rms_scaling = rms_scaling
 
-    def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape)
+    def compute_output_spec(self, x, gamma, beta):
+        return KerasTensor(shape=x.shape, dtype=x.dtype)
 
-    def call(self, x):
-        return _rms_normalization(
+    def call(self, x, gamma=None, beta=None):
+        return _layer_normalization(
             x,
-            gamma=self.gamma,
-            beta=self.beta,
+            gamma=gamma,
+            beta=beta,
             axis=self.axis,
             epsilon=self.epsilon,
             rms_scaling=self.rms_scaling,
@@ -2883,21 +2877,24 @@ def layer_normalization(
     batch independently, rather than across a batch like Batch Normalization.
     i.e. applies a transformation that maintains the mean activation within each
     example close to 0 and the activation standard deviation close to 1.
+
     Args:
         x: Input tensor.
-        axis: The axis or axes along which to perform normalization.
-            Default to -1.
         gamma: Optional scaling factor for the normalization.
         beta: Optional add offset for the normalized tensor.
+        axis: The axis or axes along which to perform normalization. Default to
+            `-1`.
         epsilon: A lower bound value for the norm.
             Defaults to `backend.epsilon()`.
 
     Returns:
         The normalized array.
-    >>> x = ops.arange(5,dtype = "float32")
-    >>> x_norm = ops.layer_normalization(x)
-    >>> print(x_norm)
-    array([-1.4142135 , -0.70710677,  0.,  0.7071067 ,  1.4142135 ])
+
+    Example:
+
+    >>> x = keras.ops.arange(5, dtype="float32")
+    >>> keras.ops.layer_normalization(x)
+    array([-1.4142135, -0.70710677, 0.0, 0.7071067, 1.4142135])
     """
     rms_scaling = kwargs.pop("rms_scaling", False)
     if rms_scaling:
@@ -2909,14 +2906,10 @@ def layer_normalization(
             "instead."
         )
 
-    if any_symbolic_tensors((x,)):
+    if any_symbolic_tensors((x, gamma, beta)):
         return LayerNorm(
-            gamma=gamma,
-            beta=beta,
-            axis=axis,
-            epsilon=epsilon,
-            rms_scaling=rms_scaling,
-        ).symbolic_call(x)
+            axis=axis, epsilon=epsilon, rms_scaling=rms_scaling
+        ).symbolic_call(x, gamma, beta)
     return _layer_normalization(
         x,
         gamma=gamma,
@@ -2928,12 +2921,21 @@ def layer_normalization(
 
 
 def _layer_normalization(
-    inputs, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
+    x, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
 ):
-    compute_dtype = backend.result_type(inputs.dtype, "float32")
-    # LN is prone to overflow with float16/bfloat16 inputs, so we upcast to
-    # float32 for the subsequent computations.
-    x = backend.cast(inputs, compute_dtype)
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    original_dtype = backend.standardize_dtype(x.dtype)
+    # Computes in at least float32 precision for stability in half precision
+    # training.
+    compute_dtype = backend.result_type(x.dtype, "float32")
+
+    x = backend.convert_to_tensor(x, dtype=compute_dtype)
+    if gamma is not None:
+        gamma = backend.convert_to_tensor(gamma, x.dtype)
+    if beta is not None:
+        beta = backend.convert_to_tensor(beta, x.dtype)
+
     # Compute the axes along which to reduce the mean / variance
     input_shape = x.shape
     ndims = len(input_shape)
@@ -2951,16 +2953,12 @@ def _layer_normalization(
             return backend.numpy.reshape(v, broadcast_shape)
         return v
 
-    if epsilon is None:
-        epsilon = backend.epsilon()
-
     if rms_scaling:
-        # Calculate outputs with only variance and gamma if rms scaling
-        # is enabled
-        # Calculate the variance along self.axis (layer activations).
         variance = backend.numpy.var(x, axis=axis, keepdims=True)
         inv = backend.math.rsqrt(variance + epsilon)
-        outputs = x * inv * backend.cast(_broadcast(gamma), x.dtype)
+        outputs = outputs = x * inv
+        if gamma is not None:
+            outputs = outputs * backend.cast(_broadcast(gamma), x.dtype)
     elif backend.config.backend() == "torch" and is_continuous_axis(axis):
         # when using torch backend,use kernel to improve performance
         import torch.nn.functional as F
@@ -2973,16 +2971,14 @@ def _layer_normalization(
         gamma, beta = _broadcast(gamma), _broadcast(beta)
         inv = backend.math.rsqrt(variance + epsilon)
         if gamma is not None:
-            gamma = backend.cast(gamma, x.dtype)
             inv = inv * gamma
 
         res = -mean * inv
         if beta is not None:
-            beta = backend.cast(beta, x.dtype)
             res = res + beta
 
         outputs = x * inv + res
-    return backend.cast(outputs, inputs.dtype)
+    return backend.cast(outputs, original_dtype)
 
 
 class Polar(Operation):

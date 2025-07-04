@@ -615,7 +615,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                 dtype = "int32"
         x = np.array(x, dtype=dtype)
         return OpenVINOKerasTensor(ov_opset.constant(x).output(0), x)
-    elif isinstance(x, (float, int)):
+    elif isinstance(x, (float, int, bool)):
         dtype = standardize_dtype(dtype)
         ov_type = OPENVINO_DTYPES[dtype]
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
