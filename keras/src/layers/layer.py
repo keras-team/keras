@@ -1317,6 +1317,9 @@ class Layer(BackendLayer, Operation, KerasSaveable):
         else:
             raise self._quantization_mode_error(self.quantization_mode)
 
+    def _int4_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._int4_call)
+
     def _int8_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int8_call)
 
