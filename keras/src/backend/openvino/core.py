@@ -595,18 +595,17 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         raise ValueError("`sparse=True` is not supported with openvino backend")
     if ragged:
         raise ValueError("`ragged=True` is not supported with openvino backend")
+    if dtype is not None:
+        dtype = standardize_dtype(dtype)
     if isinstance(x, OpenVINOKerasTensor):
         return x
     elif isinstance(x, np.ndarray):
         if dtype is not None:
-            dtype = standardize_dtype(dtype)
             ov_type = OPENVINO_DTYPES[dtype]
             return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
         return OpenVINOKerasTensor(ov_opset.constant(x).output(0))
     elif isinstance(x, (list, tuple)):
-        if dtype is not None:
-            dtype = standardize_dtype(dtype)
-        else:
+        if dtype is None:
             # try to properly deduce element type
             elem = _get_first_element(x)
             if isinstance(elem, float):
@@ -619,12 +618,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         dtype = standardize_dtype(dtype)
         ov_type = OPENVINO_DTYPES[dtype]
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
-    if dtype is not None:
-        dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):
+        x = x.value
         if dtype and dtype != x.dtype:
-            return x.value.astype(dtype)
-        return x.value
+            x = cast(x, dtype)
+        return x
     if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
         return ov.Tensor(np.asarray(x).astype(dtype))
     if dtype is None:
