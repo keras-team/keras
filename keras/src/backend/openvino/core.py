@@ -817,6 +817,8 @@ def slice_update(inputs, start_indices, updates):
         "`slice_update` is not supported by openvino backend"
         " for `start_indices` of type {}".format(type(start_indices))
     )
+
+    # Process start indices
     processed_start_indices = []
     for idx in start_indices:
         val = get_ov_output(idx)
@@ -833,56 +835,113 @@ def slice_update(inputs, start_indices, updates):
                 val, ov_opset.constant(0, Type.i32)
             ).output(0)
         processed_start_indices.append(val)
-    start_indices_tensor = ov_opset.concat(processed_start_indices, axis=0)
 
-    rank = len(updates.shape)
-    ranges = []
-    for dim in updates.shape:
-        r = ov_opset.range(
+    # Get updates shape and compute total number of elements
+    updates_shape = updates.shape
+    rank = len(updates_shape)
+    num_updates = 1
+    for dim in updates_shape:
+        num_updates *= dim
+
+    # Generate multi-dimensional indices using meshgrid approach without broadcast
+    if rank == 1:
+        # For 1D case, simple range
+        indices_0 = ov_opset.range(
             ov_opset.constant(0, Type.i32),
-            ov_opset.constant(dim, Type.i32),
+            ov_opset.constant(updates_shape[0], Type.i32),
             ov_opset.constant(1, Type.i32),
             output_type=Type.i32,
-        )
-        ranges.append(r)
-
-    broadcasted_ranges = []
-    for i, r in enumerate(ranges):
-        shape = [1] * rank
-        shape[i] = updates.shape[i]
-        r_reshaped = ov_opset.reshape(
-            r, ov_opset.constant(shape, Type.i32), special_zero=False
         ).output(0)
-        target_shape = ov_opset.constant(list(updates.shape), Type.i32)
-        r_broadcasted = ov_opset.broadcast(r_reshaped, target_shape).output(0)
-        broadcasted_ranges.append(r_broadcasted)
+        all_indices = [indices_0]
+    else:
+        # For multi-dimensional case, generate meshgrid-like indices
+        all_indices = []
 
-    indices_stack = ov_opset.concat(broadcasted_ranges, axis=0).output(0)
+        for dim_idx in range(rank):
+            # Create range for this dimension
+            dim_range = ov_opset.range(
+                ov_opset.constant(0, Type.i32),
+                ov_opset.constant(updates_shape[dim_idx], Type.i32),
+                ov_opset.constant(1, Type.i32),
+                output_type=Type.i32,
+            ).output(0)
 
-    num_updates = 1
-    for dim in updates.shape:
-        num_updates *= dim
-    new_shape = ov_opset.constant([rank, num_updates], Type.i32)
+            # Calculate repeat and tile factors for meshgrid
+            repeat_factor = 1
+            for i in range(dim_idx + 1, rank):
+                repeat_factor *= updates_shape[i]
+
+            tile_factor = 1
+            for i in range(dim_idx):
+                tile_factor *= updates_shape[i]
+
+            # Repeat each element repeat_factor times
+            if repeat_factor > 1:
+                dim_indices = ov_opset.tile(
+                    ov_opset.unsqueeze(
+                        dim_range, ov_opset.constant(1, Type.i32)
+                    ).output(0),
+                    ov_opset.constant([1, repeat_factor], Type.i32),
+                ).output(0)
+                dim_indices = ov_opset.reshape(
+                    dim_indices,
+                    ov_opset.constant(
+                        [updates_shape[dim_idx] * repeat_factor], Type.i32
+                    ),
+                    special_zero=False,
+                ).output(0)
+            else:
+                dim_indices = dim_range
+
+            # Tile the whole sequence tile_factor times
+            if tile_factor > 1:
+                dim_indices = ov_opset.tile(
+                    dim_indices, ov_opset.constant([tile_factor], Type.i32)
+                ).output(0)
+
+            all_indices.append(dim_indices)
+
+    # Stack all dimension indices to create coordinate matrix
+    indices_stack = ov_opset.concat(all_indices, axis=0).output(0)
+
+    # Reshape to [rank, num_updates]
     indices_reshaped = ov_opset.reshape(
-        indices_stack, new_shape, special_zero=False
+        indices_stack,
+        ov_opset.constant([rank, num_updates], Type.i32),
+        special_zero=False,
     ).output(0)
-    absolute_indices = ov_opset.transpose(
+
+    # Transpose to [num_updates, rank]
+    relative_indices = ov_opset.transpose(
         indices_reshaped, ov_opset.constant([1, 0], Type.i32)
     ).output(0)
 
-    start_indices_expanded = ov_opset.broadcast(
-        start_indices_tensor, ov_opset.constant([num_updates, rank], Type.i32)
+    # Add start indices to get absolute indices
+    # Repeat start indices for each update point
+    start_indices_tensor = ov_opset.concat(
+        processed_start_indices, axis=0
     ).output(0)
-    absolute_indices = ov_opset.add(
-        absolute_indices, start_indices_expanded
+    start_indices_reshaped = ov_opset.reshape(
+        start_indices_tensor,
+        ov_opset.constant([1, rank], Type.i32),
+        special_zero=False,
+    ).output(0)
+    start_indices_expanded = ov_opset.tile(
+        start_indices_reshaped, ov_opset.constant([num_updates, 1], Type.i32)
     ).output(0)
 
+    absolute_indices = ov_opset.add(
+        relative_indices, start_indices_expanded
+    ).output(0)
+
+    # Flatten updates tensor
     updates_tensor = get_ov_output(updates)
     updates_flat = ov_opset.reshape(
         updates_tensor,
         ov_opset.constant([num_updates], Type.i32),
         special_zero=False,
     ).output(0)
+
     updated = ov_opset.scatter_nd_update(
         inputs, absolute_indices, updates_flat
     ).output(0)
