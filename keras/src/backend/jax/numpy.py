@@ -499,6 +499,11 @@ def broadcast_to(x, shape):
     return jnp.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+    return jnp.cbrt(x)
+
+
 @sparse.elementwise_unary(linear=False)
 def ceil(x):
     x = convert_to_tensor(x)

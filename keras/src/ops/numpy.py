@@ -1779,6 +1779,29 @@ def broadcast_to(x, shape):
     return backend.numpy.broadcast_to(x, shape)
 
 
+class Cbrt(Operation):
+    def call(self, x):
+        return backend.numpy.cbrt(x)
+
+
+@keras_export(["keras.ops.cbrt", "keras.ops.numpy.cbrt"])
+def cbrt(x):
+    """Computes the cube root of the input tensor, element-wise.
+
+    This operation returns the real-valued cube root of `x`, handling
+    negative numbers properly in the real domain.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor containing the cube root of each element in `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Cbrt().symbolic_call(x)
+    return backend.numpy.cbrt(x)
+
+
 class Ceil(Operation):
     def call(self, x):
         return backend.numpy.ceil(x)

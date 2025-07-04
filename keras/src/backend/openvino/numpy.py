@@ -545,6 +545,10 @@ def broadcast_to(x, shape):
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
 
 
+def cbrt(x):
+    raise NotImplementedError("`cbrt` is not supported with openvino backend")
+
+
 def ceil(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.ceil(x).output(0))

@@ -1089,6 +1089,18 @@ def broadcast_to(x, shape):
     return tf.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        x = tf.cast(x, "float64")
+    elif dtype not in ["bfloat16", "float16", "float64"]:
+        x = tf.cast(x, config.floatx())
+
+    return tf.sign(x) * tf.pow(tf.abs(x), 1.0 / 3.0)
+
+
 @sparse.elementwise_unary
 def ceil(x):
     x = convert_to_tensor(x)
