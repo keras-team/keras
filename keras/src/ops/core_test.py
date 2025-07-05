@@ -1151,6 +1151,11 @@ class CoreOpsDtypeTest(testing.TestCase):
             )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_convert_to_tensor_with_variable(self, dtype):
+        x = backend.Variable(np.array([1.0, 0.0, 1.0], dtype=np.float32))
+        self.assertDType(ops.convert_to_tensor(x, dtype=dtype), dtype)
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_saturate_cast(self, dtype):
         x = np.ones((1,))
 
