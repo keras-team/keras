@@ -961,12 +961,14 @@ def slice_update(inputs, start_indices, updates):
 
     absolute_indices = ov_opset.add(relative_indices, start_broadcast).output(0)
 
+    # Flatten updates to a 1D tensor for scatter_nd_update compatibility.
     updates_flat = ov_opset.reshape(
         updates_tensor,
         ov_opset.unsqueeze(num_updates, zero_scalar).output(0),
         special_zero=False,
     ).output(0)
 
+    # Scatter updates into input tensor at target indices.
     result = ov_opset.scatter_nd_update(
         inputs, absolute_indices, updates_flat
     ).output(0)
