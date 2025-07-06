@@ -68,7 +68,9 @@ class UpSampling2dTest(testing.TestCase):
         length_col=[2, 3],
     )
     @pytest.mark.requires_trainable_backend
-    def test_upsampling_2d_bilinear(self, data_format, use_set_image_data_format, length_row, length_col):
+    def test_upsampling_2d_bilinear(
+        self, data_format, use_set_image_data_format, length_row, length_col
+    ):
         num_samples = 2
         stack_size = 2
         input_num_row = 11
