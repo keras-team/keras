@@ -1484,8 +1484,6 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    # Create a lower-triangular matrix with ones below and on the k-th diagonal,
-    # zeros elsewhere.
     if M is None:
         M = N
     if dtype is None:
@@ -1493,39 +1491,47 @@ def tri(N, M=None, k=0, dtype=None):
 
     ov_dtype = OPENVINO_DTYPES[dtype]
 
-    N = ov_opset.constant(N, Type.i32)
-    M = ov_opset.constant(M, Type.i32)
-    k = ov_opset.constant(k, Type.i32)
+    def ensure_constant(value, default_type=Type.i32):
+        if isinstance(value, (int, float)):
+            return ov_opset.constant(value, default_type)
+        elif hasattr(value, "get_element_type"):
+            if value.get_element_type() != Type.i32:
+                value = ov_opset.convert(value, Type.i32)
+            return ov_opset.squeeze(value, ov_opset.constant([0], Type.i32))
+        else:
+            return ov_opset.constant(value, default_type)
 
-    # Create row and column indices: [0, 1, ..., N-1] and [0, 1, ..., M-1]
+    N_const = ensure_constant(N)
+    M_const = ensure_constant(M)
+    k_const = ensure_constant(k)
+
+    # Create row and column indices
     row_range = ov_opset.range(
         ov_opset.constant(0, Type.i32),
-        N,
+        N_const,
         ov_opset.constant(1, Type.i32),
         output_type=Type.i32,
     )
     col_range = ov_opset.range(
         ov_opset.constant(0, Type.i32),
-        M,
+        M_const,
         ov_opset.constant(1, Type.i32),
         output_type=Type.i32,
     )
 
-    # Reshape row/col indices to 2D for broadcasting:
-    # row_idx: shape (N, 1), col_idx: shape (1, M)
+    # Reshape indices for broadcasting
     row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
     col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
 
-    # Broadcast row_idx and col_idx to (N, M) so we can compare every pair
+    # Target shape for broadcasting
     target_shape = ov_opset.concat(
-        [ov_opset.unsqueeze(N, [0]), ov_opset.unsqueeze(M, [0])], axis=0
+        [ov_opset.unsqueeze(N_const, [0]), ov_opset.unsqueeze(M_const, [0])],
+        axis=0,
     )
 
     row_idx = ov_opset.broadcast(row_idx, target_shape)
     col_idx = ov_opset.broadcast(col_idx, target_shape)
-
-    # Create mask: 1 where col_idx <= row_idx + k (i.e., lower triangle), else 0
-    mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k))
+    mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k_const))
 
     if ov_dtype == Type.boolean:
         result = mask
@@ -1536,10 +1542,7 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
-    # Applies a lower-triangular mask to the last two dims of x,
-    # keeping elements below/on k-th diagonal.
     def get_shape_dims(x):
-        # get shape as 1D tensor
         shape = ov_opset.shape_of(x, Type.i32)
         rank_tensor = ov_opset.shape_of(shape, Type.i32)
         rank_scalar = ov_opset.squeeze(
@@ -1557,88 +1560,51 @@ def tril(x, k=0):
     ov_type = x.get_element_type()
     input_shape = ov_opset.shape_of(x, Type.i32)
     shape = get_shape_dims(x)
-
-    # Get matrix dimensions (last two dims)
     zero_const = ov_opset.constant(0, Type.i32)
     minus2 = ov_opset.constant([-2], Type.i32)
     minus1 = ov_opset.constant([-1], Type.i32)
+    M = ov_opset.squeeze(ov_opset.gather(shape, minus2, zero_const), zero_const)
+    N = ov_opset.squeeze(ov_opset.gather(shape, minus1, zero_const), zero_const)
 
-    M = ov_opset.squeeze(
-        ov_opset.gather(shape, minus2, zero_const),
-        ov_opset.constant([0], Type.i32),
-    )
-    N = ov_opset.squeeze(
-        ov_opset.gather(shape, minus1, zero_const),
-        ov_opset.constant([0], Type.i32),
-    )
+    # Get the lower triangular mask
+    tri_mask = tri(M, N, k=k, dtype="bool").output
 
-    # Create row and column indices for the matrix part
-    row_range = ov_opset.range(
-        ov_opset.constant(0, Type.i32),
-        M,
-        ov_opset.constant(1, Type.i32),
-        output_type=Type.i32,
-    )
-    col_range = ov_opset.range(
-        ov_opset.constant(0, Type.i32),
-        N,
-        ov_opset.constant(1, Type.i32),
-        output_type=Type.i32,
-    )
+    mask = ov_opset.convert(tri_mask, ov_type)
 
-    # Reshape for broadcasting to (M, N)
-    row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
-    col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
-
-    M_1d = ov_opset.unsqueeze(M, ov_opset.constant([0], Type.i32))
-    N_1d = ov_opset.unsqueeze(N, ov_opset.constant([0], Type.i32))
-    target_shape = ov_opset.concat([M_1d, N_1d], axis=0)
-
-    row_idx = ov_opset.broadcast(row_idx, target_shape)
-    col_idx = ov_opset.broadcast(col_idx, target_shape)
-
-    # Mask for lower triangle (col <= row + k)
-    k_const = ov_opset.constant(k, Type.i32)
-    mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k_const))
-    mask = ov_opset.convert(mask, ov_type)
-
-    # --- Batch broadcasting logic ---
-    # Compute the number of batch dimensions (all dims except last two)
-    shape_rank_tensor = ov_opset.shape_of(input_shape, Type.i32)
+    # Broadcast mask to input shape (including batch dims)
     shape_rank = ov_opset.squeeze(
-        shape_rank_tensor, ov_opset.constant([0], Type.i32)
+        ov_opset.shape_of(input_shape, Type.i32), zero_const
     )
-    batch_dims_count = ov_opset.subtract(
-        shape_rank, ov_opset.constant(2, Type.i32)
-    )
-    batch_dims_count = ov_opset.squeeze(
-        batch_dims_count, ov_opset.constant([0], Type.i32)
-    )
-
-    # Create a range for batch dimension indices
+    batch_dims = ov_opset.subtract(shape_rank, ov_opset.constant(2, Type.i32))
     batch_indices = ov_opset.range(
-        start=ov_opset.constant(0, Type.i32),
-        stop=batch_dims_count,
-        step=ov_opset.constant(1, Type.i32),
+        zero_const,
+        batch_dims,
+        ov_opset.constant(1, Type.i32),
         output_type=Type.i32,
     )
+    batch_shape = ov_opset.gather(input_shape, batch_indices, zero_const)
 
-    # Gather the batch shape from input_shape using batch_indices
-    batch_shape = ov_opset.gather(input_shape, batch_indices, axis=0)
-    full_mask_shape = ov_opset.concat([batch_shape, M_1d, N_1d], axis=0)
-    # Broadcast the mask to the full input shape (including batch)
+    M_reshaped = ov_opset.unsqueeze(M, zero_const)
+    N_reshaped = ov_opset.unsqueeze(N, zero_const)
+
+    concat_inputs = [
+        batch_shape.output(0),
+        M_reshaped.output(0),
+        N_reshaped.output(0),
+    ]
+
+    full_mask_shape = ov_opset.concat(concat_inputs, axis=0)
     mask = ov_opset.broadcast(mask, full_mask_shape)
 
     if ov_type == Type.boolean:
         out = ov_opset.logical_and(x, mask)
     else:
         out = ov_opset.multiply(x, mask)
+
     return OpenVINOKerasTensor(out.output(0))
 
 
 def triu(x, k=0):
-    # Applies an upper-triangular mask to the last two dims of x,
-    # keeping elements above/on k-th diagonal.
     def get_shape_dims(x):
         shape = ov_opset.shape_of(x, Type.i32)
         rank_tensor = ov_opset.shape_of(shape, Type.i32)
@@ -1657,75 +1623,47 @@ def triu(x, k=0):
     ov_type = x.get_element_type()
     input_shape = ov_opset.shape_of(x, Type.i32)
     shape = get_shape_dims(x)
-
-    # Get matrix dimensions (last two dims)
     zero_const = ov_opset.constant(0, Type.i32)
     minus2 = ov_opset.constant([-2], Type.i32)
     minus1 = ov_opset.constant([-1], Type.i32)
+    M = ov_opset.squeeze(ov_opset.gather(shape, minus2, zero_const), zero_const)
+    N = ov_opset.squeeze(ov_opset.gather(shape, minus1, zero_const), zero_const)
 
-    M = ov_opset.squeeze(
-        ov_opset.gather(shape, minus2, zero_const),
-        ov_opset.constant([0], Type.i32),
-    )
-    N = ov_opset.squeeze(
-        ov_opset.gather(shape, minus1, zero_const),
-        ov_opset.constant([0], Type.i32),
-    )
+    tri_mask = tri(M, N, k=k - 1, dtype="bool").output
 
-    # Create row and column indices for the matrix part
-    row_range = ov_opset.range(
-        ov_opset.constant(0, Type.i32),
-        M,
-        ov_opset.constant(1, Type.i32),
-        output_type=Type.i32,
-    )
-    col_range = ov_opset.range(
-        ov_opset.constant(0, Type.i32),
-        N,
-        ov_opset.constant(1, Type.i32),
-        output_type=Type.i32,
-    )
+    # Handle boolean type differently since subtract doesn't work with boolean
+    if ov_type == Type.boolean:
+        mask = ov_opset.logical_not(tri_mask)
+    else:
+        ones = ov_opset.broadcast(
+            ov_opset.constant(1, ov_type), ov_opset.shape_of(tri_mask, Type.i32)
+        )
+        mask = ov_opset.subtract(ones, ov_opset.convert(tri_mask, ov_type))
 
-    # Reshape for broadcasting to (M, N)
-    row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
-    col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
-
-    M_1d = ov_opset.unsqueeze(M, ov_opset.constant([0], Type.i32))
-    N_1d = ov_opset.unsqueeze(N, ov_opset.constant([0], Type.i32))
-    target_shape = ov_opset.concat([M_1d, N_1d], axis=0)
-
-    row_idx = ov_opset.broadcast(row_idx, target_shape)
-    col_idx = ov_opset.broadcast(col_idx, target_shape)
-
-    # Mask for upper triangle (col >= row + k)
-    k_const = ov_opset.constant(k, Type.i32)
-    mask = ov_opset.greater_equal(col_idx, ov_opset.add(row_idx, k_const))
-    mask = ov_opset.convert(mask, ov_type)
-
-    # --- Batch broadcasting logic ---
-    # Compute the number of batch dimensions (all dims except last two)
-    shape_rank_tensor = ov_opset.shape_of(input_shape, Type.i32)
+    # Broadcast mask
     shape_rank = ov_opset.squeeze(
-        shape_rank_tensor, ov_opset.constant([0], Type.i32)
+        ov_opset.shape_of(input_shape, Type.i32), zero_const
     )
-    batch_dims_count = ov_opset.subtract(
-        shape_rank, ov_opset.constant(2, Type.i32)
-    )
-    batch_dims_count = ov_opset.squeeze(
-        batch_dims_count, ov_opset.constant([0], Type.i32)
-    )
-
-    # Create a range for batch dimension indices
+    batch_dims = ov_opset.subtract(shape_rank, ov_opset.constant(2, Type.i32))
     batch_indices = ov_opset.range(
-        start=ov_opset.constant(0, Type.i32),
-        stop=batch_dims_count,
-        step=ov_opset.constant(1, Type.i32),
+        zero_const,
+        batch_dims,
+        ov_opset.constant(1, Type.i32),
         output_type=Type.i32,
     )
+    batch_shape = ov_opset.gather(input_shape, batch_indices, zero_const)
 
-    batch_shape = ov_opset.gather(input_shape, batch_indices, axis=0)
-    full_mask_shape = ov_opset.concat([batch_shape, M_1d, N_1d], axis=0)
-    # Broadcast the mask to the full input shape (including batch)
+    # Ensure all tensors are properly shaped before concat
+    M_reshaped = ov_opset.unsqueeze(M, zero_const)
+    N_reshaped = ov_opset.unsqueeze(N, zero_const)
+
+    concat_inputs = [
+        batch_shape.output(0),
+        M_reshaped.output(0),
+        N_reshaped.output(0),
+    ]
+
+    full_mask_shape = ov_opset.concat(concat_inputs, axis=0)
     mask = ov_opset.broadcast(mask, full_mask_shape)
 
     if ov_type == Type.boolean:
