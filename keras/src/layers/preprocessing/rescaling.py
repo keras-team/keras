@@ -56,6 +56,7 @@ class Rescaling(TFDataLayer):
         if (
             len(scale_shape) > 0
             and backend.image_data_format() == "channels_first"
+            and len(inputs.shape) > 2
         ):
             scale = self.backend.numpy.reshape(
                 scale, scale_shape + (1,) * (3 - len(scale_shape))
@@ -65,10 +66,15 @@ class Rescaling(TFDataLayer):
     def compute_output_shape(self, input_shape):
         input_shape = tuple(input_shape)
 
-        if input_shape[-1] is None:
-            return input_shape
+        if backend.image_data_format() == "channels_last":
+            channels_axis = -1
+        else:
+            channels_axis = 1
 
-        input_channels = input_shape[-1]
+        input_channels = input_shape[channels_axis]
+
+        if input_channels is None:
+            return input_shape
 
         scale_len = None
         offset_len = None
@@ -106,7 +112,9 @@ class Rescaling(TFDataLayer):
             broadcast_len = offset_len
 
         if broadcast_len:
-            return input_shape[:-1] + (broadcast_len,)
+            output_shape = list(input_shape)
+            output_shape[channels_axis] = broadcast_len
+            return tuple(output_shape)
 
         return input_shape
 
