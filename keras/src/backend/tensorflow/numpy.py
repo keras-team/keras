@@ -1256,6 +1256,28 @@ def cumsum(x, axis=None, dtype=None):
     return tf.math.cumsum(x, axis=axis)
 
 
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    dtype = x.dtype
+    if standardize_dtype(dtype) in [
+        "bool",
+        "int8",
+        "int16",
+        "int32",
+        "uint8",
+        "uint16",
+        "uint32",
+    ]:
+        dtype = config.floatx()
+    elif standardize_dtype(dtype) in ["int64"]:
+        dtype = "float64"
+    x = tf.cast(x, dtype)
+
+    pi = tf.constant(math.pi, dtype=dtype)
+    return x * (pi / tf.constant(180.0, dtype=dtype))
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     if len(x.shape) == 1:
@@ -2784,6 +2806,38 @@ def logical_xor(x1, x2):
     x1 = tf.cast(x1, "bool")
     x2 = tf.cast(x2, "bool")
     return tf.math.logical_xor(x1, x2)
+
+
+def corrcoef(x):
+    dtype = x.dtype
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    x = convert_to_tensor(x, dtype)
+
+    if tf.rank(x) == 0:
+        return tf.constant(float("nan"), dtype=config.floatx())
+
+    mean = tf.reduce_mean(x, axis=-1, keepdims=True)
+    x_centered = x - mean
+
+    num_samples = tf.cast(tf.shape(x)[-1], x.dtype)
+    cov_matrix = tf.matmul(x_centered, x_centered, adjoint_b=True) / (
+        num_samples - 1
+    )
+
+    diag = tf.linalg.diag_part(cov_matrix)
+    stddev = tf.sqrt(tf.math.real(diag))
+
+    outer_std = tf.tensordot(stddev, stddev, axes=0)
+    outer_std = tf.cast(outer_std, cov_matrix.dtype)
+    correlation = cov_matrix / outer_std
+
+    correlation_clipped = tf.clip_by_value(tf.math.real(correlation), -1.0, 1.0)
+    if correlation.dtype.is_complex:
+        imag_clipped = tf.clip_by_value(tf.math.imag(correlation), -1.0, 1.0)
+        return tf.complex(correlation_clipped, imag_clipped)
+    else:
+        return correlation_clipped
 
 
 def correlate(x1, x2, mode="valid"):

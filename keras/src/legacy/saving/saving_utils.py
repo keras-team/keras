@@ -4,11 +4,8 @@ import threading
 from absl import logging
 
 from keras.src import backend
-from keras.src import layers
 from keras.src import losses
 from keras.src import metrics as metrics_module
-from keras.src import models
-from keras.src import optimizers
 from keras.src import tree
 from keras.src.legacy.saving import serialization
 from keras.src.saving import object_registration
@@ -49,6 +46,9 @@ def model_from_config(config, custom_objects=None):
     global MODULE_OBJECTS
 
     if not hasattr(MODULE_OBJECTS, "ALL_OBJECTS"):
+        from keras.src import layers
+        from keras.src import models
+
         MODULE_OBJECTS.ALL_OBJECTS = layers.__dict__
         MODULE_OBJECTS.ALL_OBJECTS["InputLayer"] = layers.InputLayer
         MODULE_OBJECTS.ALL_OBJECTS["Functional"] = models.Functional
@@ -132,6 +132,8 @@ def compile_args_from_training_config(training_config, custom_objects=None):
         custom_objects = {}
 
     with object_registration.CustomObjectScope(custom_objects):
+        from keras.src import optimizers
+
         optimizer_config = training_config["optimizer_config"]
         optimizer = optimizers.deserialize(optimizer_config)
         # Ensure backwards compatibility for optimizers in legacy H5 files

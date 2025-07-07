@@ -642,6 +642,12 @@ def cumsum(x, axis=None, dtype=None):
     return OpenVINOKerasTensor(ov_opset.cumsum(x, axis).output(0))
 
 
+def deg2rad(x):
+    raise NotImplementedError(
+        "`deg2rad` is not supported with openvino backend"
+    )
+
+
 def diag(x, k=0):
     raise NotImplementedError("`diag` is not supported with openvino backend")
 
@@ -1664,6 +1670,12 @@ def logical_xor(x1, x2):
     x1 = ov_opset.convert(x1, Type.boolean).output(0)
     x2 = ov_opset.convert(x2, Type.boolean).output(0)
     return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
+
+
+def corrcoef(x):
+    raise NotImplementedError(
+        "`corrcoef` is not supported with openvino backend"
+    )
 
 
 def correlate(x1, x2, mode="valid"):

@@ -670,6 +670,15 @@ def cumsum(x, axis=None, dtype=None):
     return torch.cumsum(x, dim=axis, dtype=to_torch_dtype(dtype))
 
 
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.deg2rad(x), "float64")
+
+    return torch.deg2rad(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return torch.diag(x, diagonal=k)
@@ -1740,6 +1749,17 @@ def floor_divide(x1, x2):
 def logical_xor(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_xor(x1, x2)
+
+
+def corrcoef(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, config.floatx())
+    elif standardize_dtype(x.dtype) == "int64":
+        x = cast(x, "float64")
+
+    return torch.corrcoef(x)
 
 
 def correlate(x1, x2, mode="valid"):

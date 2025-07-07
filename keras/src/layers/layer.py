@@ -44,7 +44,6 @@ from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.node import Node
 from keras.src.ops.operation import Operation
-from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
@@ -67,7 +66,7 @@ else:
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
-class Layer(BackendLayer, Operation, KerasSaveable):
+class Layer(BackendLayer, Operation):
     """This is the class from which all layers inherit.
 
     A layer is a callable object that takes as input one or more tensors and
@@ -907,9 +906,14 @@ class Layer(BackendLayer, Operation, KerasSaveable):
 
         # We need to cache the `previous_mask` before `__call__` because the
         # mask might be removed during the call, such as `MultiHeadAttention`.
-        previous_mask = tree.map_structure(
-            backend.get_keras_mask, call_spec.first_arg
-        )
+        if "mask" in kwargs and kwargs["mask"] is not None:
+            # Case 1: Mask was explicitly passed or auto-populated in step 6.
+            previous_mask = kwargs["mask"]
+        else:
+            # Case 2: Fallback to the mask attached to the first input tensor.
+            previous_mask = tree.map_structure(
+                backend.get_keras_mask, call_spec.first_arg
+            )
 
         ####################
         # 7. Call the layer.

@@ -598,6 +598,11 @@ def cumsum(x, axis=None, dtype=None):
     return jnp.cumsum(x, axis=axis, dtype=dtype)
 
 
+def deg2rad(x):
+    x = convert_to_tensor(x)
+    return jnp.deg2rad(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return jnp.diag(x, k=k)
@@ -1336,6 +1341,11 @@ def logical_xor(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.logical_xor(x1, x2)
+
+
+def corrcoef(x):
+    x = convert_to_tensor(x)
+    return jnp.corrcoef(x)
 
 
 def correlate(x1, x2, mode="valid"):

@@ -249,18 +249,35 @@ def save_weights(
 @keras_export("keras.saving.load_weights")
 def load_weights(model, filepath, skip_mismatch=False, **kwargs):
     filepath_str = str(filepath)
+
+    # Get the legacy kwargs.
+    objects_to_skip = kwargs.pop("objects_to_skip", None)
+    by_name = kwargs.pop("by_name", None)
+    if kwargs:
+        raise ValueError(f"Invalid keyword arguments: {kwargs}")
+
     if filepath_str.endswith(".keras"):
-        if kwargs:
-            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+        if objects_to_skip is not None:
+            raise ValueError(
+                "`objects_to_skip` only supports loading '.weights.h5' files."
+                f"Received: {filepath}"
+            )
+        if by_name is not None:
+            raise ValueError(
+                "`by_name` only supports loading legacy '.h5' or '.hdf5' "
+                f"files. Received: {filepath}"
+            )
         saving_lib.load_weights_only(
             model, filepath, skip_mismatch=skip_mismatch
         )
     elif filepath_str.endswith(".weights.h5") or filepath_str.endswith(
         ".weights.json"
     ):
-        objects_to_skip = kwargs.pop("objects_to_skip", None)
-        if kwargs:
-            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+        if by_name is not None:
+            raise ValueError(
+                "`by_name` only supports loading legacy '.h5' or '.hdf5' "
+                f"files. Received: {filepath}"
+            )
         saving_lib.load_weights_only(
             model,
             filepath,
@@ -268,12 +285,14 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             objects_to_skip=objects_to_skip,
         )
     elif filepath_str.endswith(".h5") or filepath_str.endswith(".hdf5"):
-        by_name = kwargs.pop("by_name", False)
-        if kwargs:
-            raise ValueError(f"Invalid keyword arguments: {kwargs}")
         if not h5py:
             raise ImportError(
                 "Loading a H5 file requires `h5py` to be installed."
+            )
+        if objects_to_skip is not None:
+            raise ValueError(
+                "`objects_to_skip` only supports loading '.weights.h5' files."
+                f"Received: {filepath}"
             )
         with h5py.File(filepath, "r") as f:
             if "layer_names" not in f.attrs and "model_weights" in f:
@@ -283,7 +302,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                     f, model, skip_mismatch
                 )
             else:
-                legacy_h5_format.load_weights_from_hdf5_group(f, model)
+                legacy_h5_format.load_weights_from_hdf5_group(
+                    f, model, skip_mismatch
+                )
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "

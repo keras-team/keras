@@ -16,10 +16,12 @@ NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
+NumpyDtypeTest::test_corrcoef
 NumpyDtypeTest::test_correlate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_cumsum_bool
+NumpyDtypeTest::test_deg2rad
 NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
@@ -80,8 +82,10 @@ NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
+NumpyOneInputOpsCorrectnessTest::test_corrcoef
 NumpyOneInputOpsCorrectnessTest::test_correlate
 NumpyOneInputOpsCorrectnessTest::test_cumprod
+NumpyOneInputOpsCorrectnessTest::test_deg2rad
 NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
@@ -149,10 +153,13 @@ NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_bartlett
 NumpyOneInputOpsDynamicShapeTest::test_blackman
+NumpyOneInputOpsDynamicShapeTest::test_corrcoef
+NumpyOneInputOpsDynamicShapeTest::test_deg2rad
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsStaticShapeTest::test_angle
+NumpyOneInputOpsStaticShapeTest::test_deg2rad
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments
 CoreOpsCallsTests::test_associative_scan_basic_call
@@ -164,8 +171,6 @@ CoreOpsCallsTests::test_scatter_update_basic_call
 CoreOpsCallsTests::test_slice_update_basic_call
 CoreOpsCallsTests::test_switch_basic_call
 CoreOpsCallsTests::test_unstack_basic_functionality
-CoreOpsCallsTests::test_while_loop_basic_functionality
-CoreOpsCallsTests::test_while_loop_with_max_iterations
 CoreOpsCorrectnessTest::test_associative_scan
 CoreOpsCorrectnessTest::test_cond
 CoreOpsCorrectnessTest::test_dynamic_slice
@@ -177,7 +182,6 @@ CoreOpsCorrectnessTest::test_slice_update
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
-CoreOpsCorrectnessTest::test_while_loop
 CoreOpsDtypeTest::test_convert_to_tensor0
 CoreOpsDtypeTest::test_convert_to_tensor1
 CoreOpsDtypeTest::test_convert_to_tensor2

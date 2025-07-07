@@ -7,13 +7,14 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.ops.node import Node
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils.naming import auto_name
 
 
 @keras_export("keras.Operation")
-class Operation:
+class Operation(KerasSaveable):
     def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
@@ -171,13 +172,16 @@ class Operation:
         # In this case the subclass doesn't implement get_config():
         # Let's see if we can autogenerate it.
         if getattr(self, "_auto_config", None) is not None:
-            xtra_args = set(config.keys())
             config.update(self._auto_config.config)
-            # Remove args non explicitly supported
-            argspec = inspect.getfullargspec(self.__init__)
-            if argspec.varkw != "kwargs":
-                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
-                    config.pop(key, None)
+            init_params = inspect.signature(self.__init__).parameters
+            init_has_name = "name" in init_params
+            init_has_kwargs = (
+                "kwargs" in init_params
+                and init_params["kwargs"].kind == inspect.Parameter.VAR_KEYWORD
+            )
+            if not init_has_name and not init_has_kwargs:
+                # We can't pass `name` back to `__init__`, remove it.
+                config.pop("name", None)
             return config
         else:
             raise NotImplementedError(
@@ -307,6 +311,9 @@ class Operation:
             return values[0]
         else:
             return values
+
+    def _obj_type(self):
+        return "Operation"
 
     # Hooks for backend layer classes
     def _post_build(self):

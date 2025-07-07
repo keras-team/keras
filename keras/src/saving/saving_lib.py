@@ -16,14 +16,9 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.backend.common import global_state
-from keras.src.layers.layer import Layer
-from keras.src.losses.loss import Loss
-from keras.src.metrics.metric import Metric
-from keras.src.optimizers.optimizer import Optimizer
 from keras.src.saving.serialization_lib import ObjectSharingScope
 from keras.src.saving.serialization_lib import deserialize_keras_object
 from keras.src.saving.serialization_lib import serialize_keras_object
-from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.utils import dtype_utils
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
@@ -1040,15 +1035,20 @@ class H5IOStore:
         # will mistakenly using `__len__` to determine the value.
         return self.h5_file.__bool__()
 
-    def _get_h5_file(self, path_or_io):
+    def _get_h5_file(self, path_or_io, mode=None):
+        mode = mode or self.mode
+        if mode not in ("r", "w", "a"):
+            raise ValueError(
+                f"`mode` should be either 'r', 'w' or 'a'. Received: {mode}"
+            )
         if self.archive:
-            if self.mode == "w":
+            if mode == "w":
                 self.io_file = io.BytesIO()
             else:
                 self.io_file = self.archive.open(str(path_or_io), "r")
-            return h5py.File(self.io_file, mode=self.mode)
+            return h5py.File(self.io_file, mode=mode)
         else:
-            return h5py.File(path_or_io, mode=self.mode)
+            return h5py.File(path_or_io, mode=mode)
 
     def make(self, path, metadata=None):
         """Make a new H5 entry group.
@@ -1148,10 +1148,16 @@ class H5IOStore:
             and value.attrs["dtype"] == "bfloat16"
         ):
             value = np.array(value, dtype=ml_dtypes.bfloat16)
+        elif (
+            hasattr(value, "shape")
+            and hasattr(value, "dtype")
+            and not isinstance(value, np.ndarray)
+        ):
+            value = np.array(value)
         return value
 
     def __setitem__(self, key, value):
-        if self.mode != "w":
+        if self.mode not in ("w", "a"):
             raise ValueError("Setting a value is only allowed in write mode.")
         if not self._h5_entry_initialized:
             self._create_h5_group(self._h5_entry_path)
@@ -1164,7 +1170,7 @@ class H5IOStore:
             self._h5_entry_group[key] = value
 
     def __delitem__(self, key):
-        if self.mode != "w":
+        if self.mode not in ("w", "a"):
             raise ValueError("Deleting a value is only allowed in write mode.")
         del self._h5_entry_group[key]
 
@@ -1202,7 +1208,7 @@ class ShardedH5IOStore(H5IOStore):
         self.archive = archive
         self.io_file = None
 
-        self.max_shard_size = float(max_shard_size)
+        self.max_shard_size = float(max_shard_size) * 1024**3  # To bytes.
         self.base_name = self.path.stem.replace(".weights", "")
 
         if self.path.suffix != ".json":
@@ -1226,6 +1232,7 @@ class ShardedH5IOStore(H5IOStore):
         self.current_shard_size = 0
         self.total_shard_size = 0  # In bytes.
         self.current_shard_path = None
+        self.current_shard_filenames = []
         if self.mode == "w":
             self.sharding_config = {
                 "metadata": {
@@ -1243,6 +1250,27 @@ class ShardedH5IOStore(H5IOStore):
                     self.sharding_config = json.load(map_file)
         self.h5_file = self._create_new_shard_file()
 
+    def make(self, path, metadata=None):
+        """Make a new H5 entry group.
+
+        This method is only available in write mode. It defers the creation of
+        the H5 entry group until `__setitem__` is called, preventing the
+        creation of empty groups.
+
+        The information about the current shard is reset.
+
+        Args:
+            path: `str`. The variable path.
+            metadata: Optional `dict`. The metadata to save with the H5 entry
+                group. Defaults to `None`.
+        """
+        self.current_shard_filenames = []
+        if self.h5_file is not None:
+            self.current_shard_filenames.append(
+                pathlib.Path(self.h5_file.filename).name
+            )
+        return super().make(path, metadata)
+
     def get(self, path):
         """Get the H5 entry group.
 
@@ -1259,9 +1287,17 @@ class ShardedH5IOStore(H5IOStore):
 
         # If not found, check shard map and switch files.
         weight_map = self.sharding_config["weight_map"]
-        filename = weight_map.get(parsed_path) or weight_map.get(
+        filenames = weight_map.get(parsed_path) or weight_map.get(
             "/" + parsed_path + "/vars"
         )
+        if filenames is not None:
+            if not isinstance(filenames, list):
+                filenames = [filenames]
+            self.current_shard_filenames = filenames
+            filename = filenames[0]
+        else:
+            self.current_shard_filenames = []
+            filename = None
 
         if filename is not None and filename != self.current_shard_path.name:
             self.close()
@@ -1269,7 +1305,9 @@ class ShardedH5IOStore(H5IOStore):
         return super().get(path)
 
     def close(self):
-        self.h5_file.close()
+        if self.h5_file is not None:
+            self.h5_file.close()
+            self.h5_file = None
         if self.mode == "w":
             self.sharding_config["metadata"]["total_size"] = (
                 self.total_shard_size
@@ -1289,28 +1327,128 @@ class ShardedH5IOStore(H5IOStore):
     # Shard-specific methods.
 
     def _create_new_shard_file(self):
+        """Create a new shard file and return the H5 file object."""
         new_shard_path = (
             f"{self.base_name}_{self.current_shard_index:05}.weights.h5"
         )
         self.current_shard_index += 1
         self.current_shard_path = self.path.with_name(new_shard_path)
-        return self._get_h5_file(self.current_shard_path)
+        h5_file = self._get_h5_file(self.current_shard_path)
+        self.current_shard_filenames.append(pathlib.Path(h5_file.filename).name)
+        self._h5_entry_initialized = False
+        return h5_file
+
+    def _switch_h5_file(self, filename, mode):
+        """Switch to a different H5 file with the specified mode.
+
+        This is useful for retrieving information from all shards, such as the
+        total length, keys, and items.
+        """
+        if mode not in ("r", "a"):
+            raise ValueError(
+                f"`mode` should be either 'r' or 'a'. Received: {mode}"
+            )
+        self.close()
+        self.h5_file = self._get_h5_file(
+            self.path.with_name(filename), mode=mode
+        )
+        self._get_h5_group(self._h5_entry_path)
+
+    def _restore_h5_file(self):
+        """Ensure the current shard is the last one created.
+
+        We use mode="a" to avoid truncating the file during the switching.
+        """
+        if (
+            pathlib.Path(self.h5_file.filename).name
+            != self.current_shard_path.name
+        ):
+            self._switch_h5_file(self.current_shard_path.name, mode="a")
 
     # H5 entry level methods.
 
+    def _get_h5_group(self, path):
+        """Get the H5 entry group. If it doesn't exist, return an empty dict."""
+        try:
+            if not path:
+                self._h5_entry_group = self.h5_file["vars"]
+            else:
+                self._h5_entry_group = self.h5_file[path]["vars"]
+            self._h5_entry_initialized = True
+        except KeyError:
+            self._h5_entry_group = {}
+            self._h5_entry_initialized = False
+
+    # Dict methods.
+
+    def __len__(self):
+        total_len = self._h5_entry_group.__len__()
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            total_len += self._h5_entry_group.__len__()
+        self._restore_h5_file()
+        return total_len
+
+    def keys(self):
+        keys = set(self._h5_entry_group.keys())
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            keys.update(self._h5_entry_group.keys())
+        self._restore_h5_file()
+        return keys
+
+    def items(self):
+        yield from self._h5_entry_group.items()
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            yield from self._h5_entry_group.items()
+        self._restore_h5_file()
+
+    def values(self):
+        yield from self._h5_entry_group.values()
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            yield from self._h5_entry_group.values()
+        self._restore_h5_file()
+
+    def __getitem__(self, key):
+        if key in self._h5_entry_group:
+            return super().__getitem__(key)
+
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            if key in self._h5_entry_group:
+                item = super().__getitem__(key)
+                self._restore_h5_file()
+                return item
+        raise KeyError(
+            f"Key '{key}' not found in any of the shards: "
+            f"{self.current_shard_filenames}"
+        )
+
     def __setitem__(self, key, value):
+        self._restore_h5_file()
+
         # Accumulate `current_shard_size`.
         value = backend.convert_to_numpy(value)
         dtype = backend.standardize_dtype(value.dtype)
         weight_counts = math.prod(value.shape)
         per_param_size = dtype_utils.dtype_size(dtype)
-        value_size = weight_counts * per_param_size / (8.0 * 1024**3)  # To GB.
-        self.total_shard_size += weight_counts * per_param_size / 8  # In bytes.
+        value_size = weight_counts * per_param_size / 8  # In bytes.
+        self.total_shard_size += value_size
         if value_size > self.max_shard_size:
-            value_size_str = readable_memory_size(value_size * 1024**3)
-            max_shard_size_str = readable_memory_size(
-                self.max_shard_size * 1024**3
-            )
+            value_size_str = readable_memory_size(value_size)
+            max_shard_size_str = readable_memory_size(self.max_shard_size)
             raise ValueError(
                 f"The size of {key} is {value_size_str} which "
                 f"exceeds the maximum shard size {max_shard_size_str}. You "
@@ -1323,16 +1461,53 @@ class ShardedH5IOStore(H5IOStore):
         if self.current_shard_size > self.max_shard_size:
             self.close()
             self.h5_file = self._create_new_shard_file()
-            self.make(self._h5_entry_path)
             self.current_shard_size = value_size
 
         super().__setitem__(key, value)
 
+        # Update the weight map.
         variable_path = self._h5_entry_group.name
-        if variable_path not in self.sharding_config["weight_map"]:
-            self.sharding_config["weight_map"][variable_path] = (
-                self.current_shard_path.name
-            )
+        shard_filename = self.current_shard_path.name
+        weight_map = self.sharding_config["weight_map"]
+        if variable_path not in weight_map:
+            weight_map[variable_path] = shard_filename
+        else:
+            if not isinstance(weight_map[variable_path], list):
+                weight_map[variable_path] = [weight_map[variable_path]]
+            if shard_filename not in weight_map[variable_path]:
+                weight_map[variable_path].append(shard_filename)
+
+    def __delitem__(self, key):
+        if key in self._h5_entry_group:
+            super().__delitem__(key)
+            return
+
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="a")
+            if key in self._h5_entry_group:
+                super().__delitem__(key)
+                self._restore_h5_file()
+                return
+        raise KeyError(
+            f"Key '{key}' not found in any of the shards: "
+            f"{self.current_shard_filenames}"
+        )
+
+    def __contains__(self, item):
+        if item in self._h5_entry_group:
+            return True
+
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            if item in self._h5_entry_group:
+                self._restore_h5_file()
+                return True
+        self._restore_h5_file()
+        return False
 
 
 class NpzIOStore:
@@ -1404,32 +1579,60 @@ def get_attr_skipset(obj_type):
             "_self_unconditional_dependency_names",
         ]
     )
+    if obj_type == "Operation":
+        from keras.src.ops.operation import Operation
+
+        ref_obj = Operation()
+        skipset.update(dir(ref_obj))
     if obj_type == "Layer":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj))
     elif obj_type == "Functional":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj) + ["operations", "_operations"])
     elif obj_type == "Sequential":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj) + ["_functional"])
     elif obj_type == "Metric":
+        from keras.src.metrics.metric import Metric
+        from keras.src.trainers.compile_utils import CompileMetrics
+
         ref_obj_a = Metric()
         ref_obj_b = CompileMetrics([], [])
         skipset.update(dir(ref_obj_a) + dir(ref_obj_b))
     elif obj_type == "Optimizer":
+        from keras.src.optimizers.optimizer import Optimizer
+
         ref_obj = Optimizer(1.0)
         skipset.update(dir(ref_obj))
         skipset.remove("variables")
     elif obj_type == "Loss":
+        from keras.src.losses.loss import Loss
+
         ref_obj = Loss()
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Cross":
+        from keras.src.layers.preprocessing.feature_space import Cross
+
+        ref_obj = Cross((), 1)
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Feature":
+        from keras.src.layers.preprocessing.feature_space import Feature
+
+        ref_obj = Feature("int32", lambda x: x, "int")
         skipset.update(dir(ref_obj))
     else:
         raise ValueError(
             f"get_attr_skipset got invalid {obj_type=}. "
             "Accepted values for `obj_type` are "
             "['Layer', 'Functional', 'Sequential', 'Metric', "
-            "'Optimizer', 'Loss']"
+            "'Optimizer', 'Loss', 'Cross', 'Feature']"
         )
 
     global_state.set_global_attribute(
