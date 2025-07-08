@@ -12,20 +12,35 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 from keras.src.saving import object_registration
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 PLAIN_TYPES = (str, int, float, bool)
 
 # List of Keras modules with built-in string representations for Keras defaults
-BUILTIN_MODULES = (
-    "activations",
-    "constraints",
-    "initializers",
-    "losses",
-    "metrics",
-    "optimizers",
-    "regularizers",
+BUILTIN_MODULES = frozenset(
+    {
+        "activations",
+        "constraints",
+        "initializers",
+        "losses",
+        "metrics",
+        "optimizers",
+        "regularizers",
+    }
+)
+
+LOADING_APIS = frozenset(
+    {
+        "keras.config.enable_unsafe_deserialization",
+        "keras.models.load_model",
+        "keras.preprocessing.image.load_img",
+        "keras.saving.load_model",
+        "keras.saving.load_weights",
+        "keras.utils.get_file",
+        "keras.utils.load_img",
+    }
 )
 
 
@@ -765,6 +780,12 @@ def _retrieve_class_or_fn(
         if module == "keras" or module.startswith("keras."):
             api_name = module + "." + name
 
+            if api_name in LOADING_APIS:
+                raise ValueError(
+                    f"Cannot deserialize `{api_name}`, loading functions are "
+                    "not allowed during deserialization"
+                )
+
             obj = api_export.get_symbol_from_name(api_name)
             if obj is not None:
                 return obj
@@ -798,8 +819,13 @@ def _retrieve_class_or_fn(
             try:
                 mod = importlib.import_module(module)
                 obj = vars(mod).get(name, None)
-                if obj is not None:
+                if isinstance(obj, type) and issubclass(obj, KerasSaveable):
                     return obj
+                else:
+                    raise ValueError(
+                        f"Could not deserialize '{module}.{name}' because "
+                        "it is not a KerasSaveable subclass"
+                    )
             except ModuleNotFoundError:
                 raise TypeError(
                     f"Could not deserialize {obj_type} '{name}' because "

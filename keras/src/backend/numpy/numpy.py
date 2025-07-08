@@ -414,6 +414,18 @@ def broadcast_to(x, shape):
     return np.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+
+    return np.cbrt(x).astype(dtype)
+
+
 def ceil(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
@@ -513,6 +525,19 @@ def cumsum(x, axis=None, dtype=None):
     if dtype == "bool":
         dtype = "int32"
     return np.cumsum(x, axis=axis, dtype=dtype)
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.deg2rad(x).astype(dtype)
 
 
 def diag(x, k=0):

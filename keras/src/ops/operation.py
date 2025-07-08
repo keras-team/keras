@@ -8,13 +8,14 @@ from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils.naming import auto_name
 
 
 @keras_export("keras.Operation")
-class Operation:
+class Operation(KerasSaveable):
     def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
@@ -314,6 +315,9 @@ class Operation:
             return values[0]
         else:
             return values
+
+    def _obj_type(self):
+        return "Operation"
 
     # Hooks for backend layer classes
     def _post_build(self):

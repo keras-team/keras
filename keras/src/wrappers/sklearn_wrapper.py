@@ -172,7 +172,9 @@ class SKLBase(BaseEstimator):
 
     def predict(self, X):
         """Predict using the model."""
-        sklearn.base.check_is_fitted(self)
+        from sklearn.utils.validation import check_is_fitted
+
+        check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         raw_output = self.model_.predict(X)
         return self._reverse_process_target(raw_output)
@@ -474,7 +476,9 @@ class SKLearnTransformer(TransformerMixin, SKLBase):
             X_transformed: array-like, shape=(n_samples, n_features)
                 The transformed data.
         """
-        sklearn.base.check_is_fitted(self)
+        from sklearn.utils.validation import check_is_fitted
+
+        check_is_fitted(self)
         X = _validate_data(self, X, reset=False)
         return self.model_.predict(X)
 

@@ -1072,7 +1072,7 @@ class Trainer:
                 )
 
             if data_batch is None:
-                for _, data_or_iterator in iterator:
+                for _, _, data_or_iterator in iterator:
                     if isinstance(data_or_iterator, (list, tuple)):
                         data_batch = data_or_iterator[0]
                     else:

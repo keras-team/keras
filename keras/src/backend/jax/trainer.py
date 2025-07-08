@@ -417,9 +417,9 @@ class JAXTrainer(base_trainer.Trainer):
 
                 self._jax_state_synced = True
                 with epoch_iterator.catch_stop_iteration():
-                    for step, iterator in epoch_iterator:
+                    for begin_step, end_step, iterator in epoch_iterator:
                         # Callbacks
-                        callbacks.on_train_batch_begin(step)
+                        callbacks.on_train_batch_begin(begin_step)
 
                         # Train step
                         if self._jax_state_synced:
@@ -450,7 +450,7 @@ class JAXTrainer(base_trainer.Trainer):
                             "metrics_variables": metrics_variables,
                         }
                         # Dispatch callbacks. This takes care of async dispatch.
-                        callbacks.on_train_batch_end(step, logs)
+                        callbacks.on_train_batch_end(end_step, logs)
 
                         if self.stop_training:
                             # Stop training if a callback has set
@@ -578,8 +578,8 @@ class JAXTrainer(base_trainer.Trainer):
 
         self._jax_state_synced = True
         with epoch_iterator.catch_stop_iteration():
-            for step, iterator in epoch_iterator:
-                callbacks.on_test_batch_begin(step)
+            for begin_step, end_step, iterator in epoch_iterator:
+                callbacks.on_test_batch_begin(begin_step)
 
                 if self._jax_state_synced:
                     # The state may have been synced by a callback.
@@ -609,7 +609,7 @@ class JAXTrainer(base_trainer.Trainer):
                 }
 
                 # Dispatch callbacks. This takes care of async dispatch.
-                callbacks.on_test_batch_end(step, logs)
+                callbacks.on_test_batch_end(end_step, logs)
 
                 if self.stop_evaluating:
                     break
@@ -642,7 +642,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, iterator in epoch_iterator:
+            for _, _, iterator in epoch_iterator:
                 # Build model
                 x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(
                     next(iterator)
@@ -686,8 +686,8 @@ class JAXTrainer(base_trainer.Trainer):
         outputs = None
         non_trainable_variables = None
         with epoch_iterator.catch_stop_iteration():
-            for step, iterator in epoch_iterator:
-                callbacks.on_predict_batch_begin(step)
+            for begin_step, end_step, iterator in epoch_iterator:
+                callbacks.on_predict_batch_begin(begin_step)
                 if self._jax_state_synced:
                     # The state may have been synced by a callback.
                     state = self._get_jax_state(
@@ -710,7 +710,9 @@ class JAXTrainer(base_trainer.Trainer):
                 outputs = append_to_outputs(batch_outputs, outputs)
 
                 # Dispatch callbacks. This takes care of async dispatch.
-                callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+                callbacks.on_predict_batch_end(
+                    end_step, {"outputs": batch_outputs}
+                )
 
                 if self.stop_predicting:
                     break
