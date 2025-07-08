@@ -438,10 +438,10 @@ def pack_int4(arr, axis=0):
 
 @keras_export("keras.quantizers.unpack_int4")
 def unpack_int4(packed, orig_len, axis=0):
-    """Unpack packed int4 tensor (ops) to int8 [-8,7]."""
+    """Unpack packed int4 tensor (ops) to int8 in range [-8, 7]."""
     if backend.standardize_dtype(packed.dtype) != "int8":
         raise TypeError(
-            "Expected int8 tensor for unpacking, got {}".format(packed.dtype)
+            f"Expected int8 tensor for unpacking, got {packed.dtype}"
         )
 
     rank = getattr(packed.shape, "rank", None) or len(packed.shape)
@@ -449,17 +449,31 @@ def unpack_int4(packed, orig_len, axis=0):
     inv_perm = [perm.index(i) for i in range(rank)]
     transposed = ops.transpose(packed, perm)
 
-    # 1. Split nibbles.
-    low = ops.bitwise_and(transposed, 0x0F)
-    high = ops.bitwise_and(ops.right_shift(transposed, 4), 0x0F)
-    to_signed = lambda x: ops.where(x < 8, x, x - 16)
+    # 1. split nibbles
+    mask = ops.array([0x0F], dtype="int8")  # int8 arrays
+    low = ops.bitwise_and(transposed, mask)
+    high = ops.bitwise_and(ops.right_shift(transposed, 4), mask)
+
+    eight = ops.array([8], dtype="int8")
+    sixteen = ops.array([16], dtype="int8")
+
+    def to_signed(x):
+        # keep the whole where-expression in int8,
+        # then cast once more to be certain
+        return ops.cast(
+            ops.where(x < eight, x, x - sixteen),
+            "int8",
+        )
+
     low = to_signed(low)
     high = to_signed(high)
 
-    # 2. Interleave.
-    stacked = ops.stack([low, high], axis=1)  # (pairs, 2, …)
+    # 2. interleave & reshape
+    stacked = ops.stack([low, high], axis=1)  # (pairs, 2, ...)
     unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(transposed)[1:]))
 
-    # 3. Remove possible padding and restore layout.
+    # 3. remove padding & restore original layout
     unpacked = unpacked[:orig_len, ...]
-    return ops.transpose(unpacked, inv_perm)
+    unpacked = ops.transpose(unpacked, inv_perm)
+
+    return unpacked  # dtype is int8

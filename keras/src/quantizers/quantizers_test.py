@@ -139,6 +139,9 @@ class QuantizersTest(testing.TestCase):
         # Unpack the tensor
         unpacked = quantizers.unpack_int4(packed, orig_len, axis=axis)
 
+        # Verify that the packed tensor is int8
+        self.assertDType(packed, "int8")
+
         # The unpacked tensor should be the same as the original tensor
         self.assertAllClose(unpacked, arr)
 
