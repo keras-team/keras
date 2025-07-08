@@ -1618,7 +1618,7 @@ def transpose(x, axes=None):
             rank_minus_one, const_minus_one, const_minus_one, "i64"
         ).output(0)
     else:
-        axes = ov_opset.constant(axes, Type.i32).output(0)
+        axes = get_ov_output(axes)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 
 
