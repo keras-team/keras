@@ -142,6 +142,9 @@ class QuantizersTest(testing.TestCase):
         # Verify that the packed tensor is int8
         self.assertDType(packed, "int8")
 
+        # Verify that the unpacked tensor is int8
+        self.assertDType(unpacked, "int8")
+
         # The unpacked tensor should be the same as the original tensor
         self.assertAllClose(unpacked, arr)
 
