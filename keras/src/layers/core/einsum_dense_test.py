@@ -424,8 +424,11 @@ class EinsumDenseTest(testing.TestCase):
         )
 
     # Test quantization-related (int8 and float8) methods
-
-    def test_quantize_int8(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("int4", "int4"),
+    )
+    def test_quantize(self, quantization_mode):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -434,7 +437,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.build((None, 3))
         x = np.random.random((2, 3))
         y_float = layer(x)
-        layer.quantize("int8")
+        layer.quantize(quantization_mode)
 
         # Verify weights dtype
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
@@ -471,7 +474,7 @@ class EinsumDenseTest(testing.TestCase):
         )
         layer.build((None, 3))
         layer.enable_lora(2)
-        layer.quantize("int8")
+        layer.quantize(quantization_mode)
         x = np.random.random((2, 3))
         _ = layer(x)
 
@@ -480,7 +483,7 @@ class EinsumDenseTest(testing.TestCase):
             equation="abcde,afce->acdbf",  # Test reduce and transpose
             output_shape=(2, 4, 8, 16),
             bias_axes="d",
-            dtype="int8_from_mixed_bfloat16",
+            dtype=f"{quantization_mode}_from_mixed_bfloat16",
         )
         layer.build((1, 8, 2, 4, 32))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
@@ -490,7 +493,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(
             equation="a,b->ab",  # Test expand
             output_shape=(4,),
-            dtype="int8_from_float32",
+            dtype=f"{quantization_mode}_from_float32",
         )
         layer.build((None,))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
@@ -509,26 +512,70 @@ class EinsumDenseTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("btnh,nhd->btd", "btnh,nhd->btd", (None, 8), (1, 2, 2, 4)),
-        ("btd,ndh->btnh", "btd,ndh->btnh", (None, 2, 8), (1, 2, 4)),
-        ("btd,df->btf", "btd,df->btf", (None, 4), (1, 2, 4)),
+        (
+            "int8_btnh,nhd->btd",
+            "int8",
+            "btnh,nhd->btd",
+            (None, 8),
+            (1, 2, 2, 4),
+            1e-3,
+        ),
+        (
+            "int8_btd,ndh->btnh",
+            "int8",
+            "btd,ndh->btnh",
+            (None, 2, 8),
+            (1, 2, 4),
+            1e-3,
+        ),
+        ("int8_btd,df->btf", "int8", "btd,df->btf", (None, 4), (1, 2, 4), 1e-3),
+        (
+            "int4_btnh,nhd->btd",
+            "int4",
+            "btnh,nhd->btd",
+            (None, 8),
+            (1, 2, 2, 4),
+            15e-4,
+        ),
+        (
+            "int4_btd,ndh->btnh",
+            "int4",
+            "btd,ndh->btnh",
+            (None, 2, 8),
+            (1, 2, 4),
+            15e-4,
+        ),
+        (
+            "int4_btd,df->btf",
+            "int4",
+            "btd,df->btf",
+            (None, 4),
+            (1, 2, 4),
+            15e-4,
+        ),
     )
-    def test_quantize_int8_with_specific_equations(
-        self, equation, output_shape, input_shape
+    def test_quantize_with_specific_equations(
+        self,
+        quantization_mode,
+        equation,
+        output_shape,
+        input_shape,
+        error_threshold,
     ):
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
         x = ops.random.uniform(input_shape)
         y_float = layer(x)
 
-        layer.quantize("int8")
+        layer.quantize(quantization_mode)
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
-        self.assertLess(mse, 1e-3)  # A weak correctness test
+        self.assertLess(mse, error_threshold)  # A weak correctness test
 
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
+        ("int4", "int4"),
     )
     def test_quantize_on_unbuilt_layer(self, mode):
         layer = layers.EinsumDense(
@@ -544,6 +591,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
+        ("int4", "int4"),
     )
     def test_quantize_on_subclass(self, mode):
         class MyEinsumDense(layers.EinsumDense):
@@ -563,6 +611,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
+        ("int4", "int4"),
     )
     def test_quantize_when_already_quantized(self, mode):
         layer = layers.EinsumDense(
@@ -594,6 +643,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
         ("float8", "float8_from_float32", 8),
+        ("int4", "int4_from_float32", 3),
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
@@ -610,6 +660,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int7", "int7"),
         ("float7", "float7"),
+        ("int3", "int3"),
     )
     def test_quantize_invalid_mode(self, mode):
         layer = layers.EinsumDense(
@@ -646,6 +697,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8_from_mixed_bfloat16", 1, 2),
         ("float8", "float8_from_mixed_bfloat16", 8, 0),
+        ("int4", "int4_from_mixed_bfloat16", 1, 2),
     )
     @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(
@@ -669,12 +721,26 @@ class EinsumDenseTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("ab,bcd->acd", "ab,bcd->acd", (64, 3), (64, 8, 32)),
-        ("btd,ndh->btnh", "btd,ndh->btnh", (1, 4, 32), (1, 4, 8, 16)),
+        ("int8_ab,bcd->acd", "int8", "ab,bcd->acd", (64, 3), (64, 8, 32)),
+        (
+            "int8_btd,ndh->btnh",
+            "int8",
+            "btd,ndh->btnh",
+            (1, 4, 32),
+            (1, 4, 8, 16),
+        ),
+        ("int4_ab,bcd->acd", "int4", "ab,bcd->acd", (64, 3), (64, 8, 32)),
+        (
+            "int4_btd,ndh->btnh",
+            "int4",
+            "btd,ndh->btnh",
+            (1, 4, 32),
+            (1, 4, 8, 16),
+        ),
     )
     @pytest.mark.requires_trainable_backend
-    def test_quantize_int8_when_lora_enabled(
-        self, equation, input_shape, output_shape
+    def test_quantize_when_lora_enabled(
+        self, quantization_mode, equation, input_shape, output_shape
     ):
         config = dict(
             equation=equation, output_shape=output_shape[1:], bias_axes=None
@@ -682,7 +748,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config)
         layer.build(input_shape)
         layer.enable_lora(2)
-        layer.quantize("int8")
+        layer.quantize(quantization_mode)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 2)
         if backend.backend() == "torch":
@@ -724,7 +790,7 @@ class EinsumDenseTest(testing.TestCase):
         model.save_weights(temp_filepath)
         new_model = models.Sequential([layers.EinsumDense(**config)])
         new_model.build(input_shape)
-        new_model.quantize("int8")
+        new_model.quantize(quantization_mode)
         new_model.load_weights(temp_filepath)
         self.assertFalse(new_model.layers[0].lora_enabled)
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
