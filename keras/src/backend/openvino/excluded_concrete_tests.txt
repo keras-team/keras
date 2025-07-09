@@ -186,13 +186,3 @@ CoreOpsCorrectnessTest::test_slice_update
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
-CoreOpsDtypeTest::test_convert_to_tensor0
-CoreOpsDtypeTest::test_convert_to_tensor1
-CoreOpsDtypeTest::test_convert_to_tensor2
-CoreOpsDtypeTest::test_convert_to_tensor3
-CoreOpsDtypeTest::test_convert_to_tensor8
-CoreOpsDtypeTest::test_convert_to_tensor11
-CoreOpsDtypeTest::test_convert_to_tensor12
-CoreOpsDtypeTest::test_convert_to_tensor14
-CoreOpsDtypeTest::test_convert_to_tensor25
-CoreOpsDtypeTest::test_convert_to_tensor37

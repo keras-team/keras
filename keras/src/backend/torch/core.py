@@ -575,7 +575,7 @@ def scatter(indices, values, shape):
 def scatter_update(inputs, indices, updates):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices, dtype="int64")
-    updates = convert_to_tensor(updates)
+    updates = convert_to_tensor(updates, dtype=inputs.dtype)
     indices = torch.transpose(indices, 0, 1)
 
     outputs = torch.clone(inputs)
