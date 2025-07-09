@@ -1317,6 +1317,36 @@ def hanning(x):
     return backend.numpy.hanning(x)
 
 
+class Heaviside(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.heaviside(x1, x2)
+
+
+@keras_export(["keras.ops.heaviside", "keras.ops.numpy.heaviside"])
+def heaviside(x1, x2):
+    """Heaviside step function.
+
+    The Heaviside step function is defined as:
+    `heaviside(x1, x2) = 0 if x1 < 0, 1 if x1 > 0, x2 if x1 == 0`
+
+    Args:
+        x1: A tensor input.
+        x2: A scalar or tensor, the value to return when x1 == 0.
+
+    Returns:
+        A tensor with the same shape as x1.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([-2.0, 0.0, 3.0])
+    >>> x2 = 0.5
+    >>> keras.ops.heaviside(x1, x2)
+    array([0. , 0.5, 1. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Heaviside().symbolic_call(x1, x2)
+    return backend.numpy.heaviside(x1, x2)
+
+
 class Kaiser(Operation):
     def __init__(self, beta, *, name=None):
         super().__init__(name=name)
