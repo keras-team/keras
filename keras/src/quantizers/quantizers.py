@@ -571,6 +571,33 @@ def unpack_int4(packed, orig_len, axis=0):
         )
 
     rank = getattr(packed.shape, "rank", None) or len(packed.shape)
+
+    # Fast path for the most common case in Dense layers
+    if axis == 0 and rank == 2:
+        # The result of the bitwise op is a wider dtype (e.g., int32).
+        low_unpacked = ops.bitwise_and(packed, 0x0F)
+        high_unpacked = ops.bitwise_and(ops.right_shift(packed, 4), 0x0F)
+
+        # Convert values from [0, 15] to [-8, 7].
+        low_signed = ops.where(
+            low_unpacked < 8, low_unpacked, low_unpacked - 16
+        )
+        high_signed = ops.where(
+            high_unpacked < 8, high_unpacked, high_unpacked - 16
+        )
+
+        # Cast back to int8 as the final step.
+        low = ops.cast(low_signed, "int8")
+        high = ops.cast(high_signed, "int8")
+
+        # Interleave and reshape
+        stacked = ops.stack([low, high], axis=1)
+        unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(packed)[1:]))
+
+        # Remove padding and return
+        return unpacked[:orig_len, ...]
+
+    # General case
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
     transposed = ops.transpose(packed, perm)
