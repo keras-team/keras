@@ -156,6 +156,12 @@ def hanning(x):
     return tf.signal.hann_window(x, periodic=False)
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return tf.experimental.numpy.heaviside(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x, dtype=tf.int32)
     return tf.signal.kaiser_window(x, beta=beta)

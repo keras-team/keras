@@ -445,6 +445,12 @@ def hanning(x):
     return torch.signal.windows.hann(x)
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.heaviside(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return torch.signal.windows.kaiser(x, beta=beta)
