@@ -378,20 +378,36 @@ def quantize_and_dequantize(inputs, scale, quantized_dtype, compute_dtype):
 
 @keras_export("keras.quantizers.pack_int4")
 def pack_int4(arr, axis=0):
-    """Pack an int4 tensor into an int8 tensor with packed nibbles.
+    """
+    Pack an int4 tensor into an int8 tensor with packed nibbles.
 
-    Accepts a Keras-compatible tensor. The input values must already be int8
-    in the signed range ``[-8, 7]`` and represent the desired int4 values.
-    Packing is performed along axis 0:
+    The input values must already be int8 in the signed range `[-8, 7]` and
+    represent the desired int4 values. Packing is performed along the specified
+    axis (default is 0).
 
-    * For every two consecutive rows, the **low nibble** of the output byte
-      stores the value from the first row, and the **high nibble** stores
-      the value from the second row.
+    For every two consecutive rows, the **low nibble** of the output byte
+    stores the value from the first row, and the **high nibble** stores
+    the value from the second row.
 
-    Returns a tuple ``(packed, packed_shape, orig_rows)`` where ``packed``
-    is the packed ``int8`` tensor, ``packed_shape`` is its shape, and
-    ``orig_rows`` is the original (unpacked) row count prior to any padding
-    that may have been inserted when an odd number of rows is supplied.
+    Args:
+        arr: An int8 tensor containing int4 values in the range `[-8, 7]`.
+        axis: The axis along which to pack the tensor. Defaults to 0.
+
+    Returns:
+        tuple: A tuple `(packed, packed_shape, orig_rows)` where `packed` is
+        the packed int8 tensor with int4 values stored in nibbles,
+        `packed_shape` is the shape of the packed tensor, and `orig_rows` is
+        the original (unpacked) row count prior to any padding that may have
+        been inserted when an odd number of rows is supplied.
+
+    Example:
+        >>> import numpy as np
+        >>> from keras.quantizers import pack_int4, unpack_int4
+        >>> arr = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+        >>> packed, packed_shape, orig_len = pack_int4(arr, axis=0)
+        >>> unpacked = unpack_int4(packed, orig_len, axis=0)
+        >>> np.allclose(arr, unpacked)
+        True
     """
     if backend.standardize_dtype(arr.dtype) != "int8":
         raise TypeError(
@@ -438,7 +454,39 @@ def pack_int4(arr, axis=0):
 
 @keras_export("keras.quantizers.unpack_int4")
 def unpack_int4(packed, orig_len, axis=0):
-    """Unpack packed int4 tensor (ops) to int8 in range [-8, 7]."""
+    """
+    Unpack a packed int4 tensor (with values stored in nibbles of int8)
+    back to an int8 tensor in the range [-8, 7].
+
+    This function reverses the packing performed by `pack_int4`, restoring
+    the original int8 tensor (values in the range [-8, 7]) from a packed int8
+    tensor where each element contains two int4 values (one in the lower nibble,
+    one in the upper nibble).
+
+    The function restores the original axis order and removes any
+    padding that was added during packing.
+
+    Args:
+        packed: An int8 tensor containing packed int4 values along the
+            specified axis. Each int8 value encodes two int4 values.
+        orig_len: The original (unpadded) length of the axis that was
+            packed. This is used to remove any padding that may have
+            been added during packing to ensure an even number of rows.
+        axis: The axis along which the tensor was packed. Defaults to 0.
+
+    Returns:
+        unpacked: An int8 tensor with the same shape as the original
+        (unpacked) tensor, with values in the range [-8, 7].
+
+    Example:
+        >>> import numpy as np
+        >>> from keras.quantizers import pack_int4, unpack_int4
+        >>> arr = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+        >>> packed, packed_shape, orig_len = pack_int4(arr, axis=0)
+        >>> unpacked = unpack_int4(packed, orig_len, axis=0)
+        >>> np.allclose(arr, unpacked)
+        True
+    """
     if backend.standardize_dtype(packed.dtype) != "int8":
         raise TypeError(
             f"Expected int8 tensor for unpacking, got {packed.dtype}"
