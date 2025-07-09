@@ -87,10 +87,10 @@ if config.is_nnx_enabled():
                 dummy_value = jnp.array(0.0)
             else:
                 dummy_value = jnp.zeros(shape, dtype=standardize_dtype(dtype))
-            
+
             # Initialize nnx.Variable first
             nnx.Variable.__init__(self, value=dummy_value, **nnx_metadata)
-            
+
             # Now we can safely set layout
             self._layout = layout
 
@@ -202,7 +202,12 @@ if config.is_nnx_enabled():
 
             # Set the value for both Keras and NNX parts
             # This ensures both systems see the same value
-            object.__setattr__(self, "raw_value", value)
+            try:
+                object.__setattr__(self, "raw_value", value)
+            except Exception:
+                # If setting raw_value fails (e.g., during JAX tracing),
+                # fall back to regular JAX variable behavior
+                self._value = value
 
         @property
         def value(self):
