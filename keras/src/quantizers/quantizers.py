@@ -403,10 +403,49 @@ def pack_int4(arr, axis=0):
     Example:
         >>> import numpy as np
         >>> from keras.quantizers import pack_int4, unpack_int4
-        >>> arr = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
-        >>> packed, packed_shape, orig_len = pack_int4(arr, axis=0)
+
+        # Example with axis=0
+        # Original array has shape (3, 2)
+        >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+
+        # Pack the array along axis 0. Since the length of axis 0 (3) is
+        # odd, it will be padded to a length of 4. The packed array will
+        # have a shape of (ceil(3/2), 2) = (2, 2).
+        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
+        >>> print("Packed array:\n", packed)
+        Packed array:
+        [[  45 -121]
+        [   1    0]]
+
+        # Now, unpack the array back to its original form
         >>> unpacked = unpack_int4(packed, orig_len, axis=0)
-        >>> np.allclose(arr, unpacked)
+        >>> print("Unpacked array:\n", unpacked)
+        Unpacked array:
+        [[-3  7]
+        [ 2 -8]
+        [ 1  0]]
+        >>> np.allclose(original_array, unpacked)
+        True
+
+        # Example with axis=1
+        # Original array has shape (2, 3)
+        >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
+
+        # Pack along axis 1. Length of axis 1 (3) is padded to 4.
+        # The new shape is (2, ceil(3/2)) = (2, 2).
+        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
+        >>> print("Packed array:\n", packed)
+        Packed array:
+        [[ 125   2]
+        [  24   0]]
+
+        # Unpack the array
+        >>> unpacked = unpack_int4(packed, orig_len, axis=1)
+        >>> print("Unpacked array:\n", unpacked)
+        Unpacked array:
+        [[-3  7  2]
+        [-8  1  0]]
+        >>> np.allclose(original_array, unpacked)
         True
     """
     if backend.standardize_dtype(arr.dtype) != "int8":
@@ -427,7 +466,7 @@ def pack_int4(arr, axis=0):
 
     # Always append one zero row so the tensor shape is static for JAX. If no
     # padding is actually needed, we'll slice it away later.
-    zero_row = transposed[:1, ...] * 0  # same dtype/shape (1, …)
+    zero_row = transposed[:1, ...] * 0  # same dtype/shape (1, ...)
     padded_full = ops.concatenate([transposed, zero_row], axis=0)
 
     # Number of valid rows after (possible) padding:
@@ -481,10 +520,49 @@ def unpack_int4(packed, orig_len, axis=0):
     Example:
         >>> import numpy as np
         >>> from keras.quantizers import pack_int4, unpack_int4
-        >>> arr = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
-        >>> packed, packed_shape, orig_len = pack_int4(arr, axis=0)
+
+        # Example with axis=0
+        # Original array has shape (3, 2)
+        >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+
+        # Pack the array along axis 0. Since the length of axis 0 (3) is
+        # odd, it will be padded to a length of 4. The packed array will
+        # have a shape of (ceil(3/2), 2) = (2, 2).
+        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
+        >>> print("Packed array:\n", packed)
+        Packed array:
+        [[  45 -121]
+        [   1    0]]
+
+        # Now, unpack the array back to its original form
         >>> unpacked = unpack_int4(packed, orig_len, axis=0)
-        >>> np.allclose(arr, unpacked)
+        >>> print("Unpacked array:\n", unpacked)
+        Unpacked array:
+        [[-3  7]
+        [ 2 -8]
+        [ 1  0]]
+        >>> np.allclose(original_array, unpacked)
+        True
+
+        # Example with axis=1
+        # Original array has shape (2, 3)
+        >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
+
+        # Pack along axis 1. Length of axis 1 (3) is padded to 4.
+        # The new shape is (2, ceil(3/2)) = (2, 2).
+        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
+        >>> print("Packed array:\n", packed)
+        Packed array:
+        [[ 125   2]
+        [  24   0]]
+
+        # Unpack the array
+        >>> unpacked = unpack_int4(packed, orig_len, axis=1)
+        >>> print("Unpacked array:\n", unpacked)
+        Unpacked array:
+        [[-3  7  2]
+        [-8  1  0]]
+        >>> np.allclose(original_array, unpacked)
         True
     """
     if backend.standardize_dtype(packed.dtype) != "int8":
