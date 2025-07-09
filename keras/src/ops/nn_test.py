@@ -3137,7 +3137,7 @@ class NNOpsDtypeTest(testing.TestCase):
     def test_rms_normalization(self, dtypes):
         input_dtype, weight_dtype = dtypes
         inputs = knp.ones((2, 8), dtype=input_dtype)
-        scale = knp.ones((8,), dtype=weight_dtype)
+        scale = backend.Variable(knp.ones((8,), dtype=weight_dtype))
         expected_dtype = input_dtype
 
         self.assertDType(knn.rms_normalization(inputs, scale), expected_dtype)
@@ -3151,8 +3151,8 @@ class NNOpsDtypeTest(testing.TestCase):
     def test_layer_normalization(self, dtypes):
         input_dtype, weight_dtype = dtypes
         inputs = knp.ones((2, 8), dtype=input_dtype)
-        gamma = knp.ones((8,), dtype=weight_dtype)
-        beta = knp.ones((8,), dtype=weight_dtype)
+        gamma = backend.Variable(knp.ones((8,), dtype=weight_dtype))
+        beta = backend.Variable(knp.ones((8,), dtype=weight_dtype))
         expected_dtype = input_dtype
 
         self.assertDType(
