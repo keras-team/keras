@@ -78,6 +78,7 @@ class DtypesTPUTest(test_case.TestCase):
         def _test_on_tpu():
             x1 = ops.ones((1,), dtype=dtype1)
             x2 = ops.ones((1,), dtype=dtype2)
+            self.assertIn("TPU", x1.device)
 
             result = ops.add(x1, x2)
 

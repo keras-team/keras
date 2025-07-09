@@ -82,8 +82,9 @@ def _cleanup_tpu_state():
 
 @pytest.fixture(scope="session")
 def tpu_strategy_fixture():
-    import tensorflow as tf
     import time
+
+    import tensorflow as tf
 
     os.environ["TPU_NAME"] = "harshith-tf-4"
     os.environ["JAX_PLATFORMS"] = ""

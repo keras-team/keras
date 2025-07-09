@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -8,8 +9,6 @@ from keras.src.backend.common import dtypes
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
-os.environ["TPU_NAME"] = "harshith-tf-4"
-os.environ["JAX_PLATFORMS"] = ""
 
 @pytest.mark.requires_tpu
 class DtypesTest(test_case.TestCase):
@@ -40,15 +39,15 @@ class DtypesTest(test_case.TestCase):
     ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
 
     def setUp(self):
+        super().setUp()
         from jax.experimental import enable_x64
 
         self.jax_enable_x64 = enable_x64()
         self.jax_enable_x64.__enter__()
-        return super().setUp()
 
     def tearDown(self):
         self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        super().tearDown()
 
     @parameterized.named_parameters(
         named_product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])
@@ -257,17 +256,13 @@ class DtypesTest(test_case.TestCase):
         """Test dtype result_type behavior specifically on TPU."""
         import jax.numpy as jnp
 
-        def _test_on_tpu():
+        with self.tpu_strategy.scope():
             x1 = ops.ones((1,), dtype=dtype1)
             x2 = ops.ones((1,), dtype=dtype2)
-
             result = ops.add(x1, x2)
-
             out = backend.result_type(x1.dtype, x2.dtype)
-            return out, result.dtype
-
-        with self.tpu_strategy.scope():
-            out, result_dtype = _test_on_tpu()
+            result_dtype = result.dtype
+            self.assertIn("TPU", x1.device)
 
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
