@@ -140,11 +140,11 @@ class Functional(Function, Model):
             self.trainable = trainable
 
         self._layers = self.layers
-        
+
         # Special handling for NNX to ensure consistent layer instance usage
         if is_nnx_enabled():
             self._setup_nnx_layer_mapping()
-        
+
         self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
@@ -156,7 +156,7 @@ class Functional(Function, Model):
         """Setup layer mapping for NNX to ensure consistent layer instances."""
         # Create a mapping from operation id to layer instance
         self._nnx_layer_mapping = {}
-        
+
         # Store layers as direct attributes for NNX traversal
         for i, layer in enumerate(self._layers):
             if isinstance(layer, Layer):
@@ -165,7 +165,7 @@ class Functional(Function, Model):
                 setattr(self, attr_name, layer)
                 # Map the operation id to this layer instance
                 self._nnx_layer_mapping[id(layer)] = layer
-        
+
         # Also map any operations in the graph to ensure consistency
         for operation in self._operations:
             if isinstance(operation, Layer):
@@ -207,7 +207,7 @@ class Functional(Function, Model):
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
-        
+
         # Use NNX-compatible execution when NNX is enabled
         if is_nnx_enabled():
             outputs = self._run_through_graph_nnx_compatible(
@@ -225,7 +225,9 @@ class Functional(Function, Model):
             )
         return unpack_singleton(outputs)
 
-    def _run_through_graph_nnx_compatible(self, inputs, operation_fn, call_fn=None):
+    def _run_through_graph_nnx_compatible(
+        self, inputs, operation_fn, call_fn=None
+    ):
         """NNX-compatible graph execution that ensures consistent layer instances."""
         inputs = tree.flatten(inputs)
 
@@ -248,12 +250,15 @@ class Functional(Function, Model):
                     continue  # Node is not computable, try skipping.
 
                 args, kwargs = node.arguments.fill_in(tensor_dict)
-                
+
                 # Use the consistent layer instance for NNX compatibility
                 operation = node.operation
-                if hasattr(self, '_nnx_layer_mapping') and id(operation) in self._nnx_layer_mapping:
+                if (
+                    hasattr(self, "_nnx_layer_mapping")
+                    and id(operation) in self._nnx_layer_mapping
+                ):
                     operation = self._nnx_layer_mapping[id(operation)]
-                
+
                 op = operation_fn(operation)
                 if call_fn is not None:
                     outputs = call_fn(op, *args, **kwargs)

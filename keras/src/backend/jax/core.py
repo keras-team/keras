@@ -87,10 +87,10 @@ if config.is_nnx_enabled():
                 dummy_value = jnp.array(0.0)
             else:
                 dummy_value = jnp.zeros(shape, dtype=standardize_dtype(dtype))
-            
+
             # Initialize nnx.Variable first
             nnx.Variable.__init__(self, value=dummy_value, **nnx_metadata)
-            
+
             # Now we can safely set layout
             self._layout = layout
 
