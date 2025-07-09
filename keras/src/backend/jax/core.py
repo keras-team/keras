@@ -81,24 +81,21 @@ if config.is_nnx_enabled():
             # param takes precedence.
             nnx_metadata["mutable"] = trainable if mutable is None else mutable
 
-            # Initialize nnx.Variable first.
-            # Determine the dtype for the placeholder.
-            _placeholder_value = jnp.zeros(
-                shape or (), dtype=standardize_dtype(dtype)
-            )
+            # First, initialize a basic nnx.Variable with a dummy value
+            # This sets up the NNX variable structure
+            if shape is None:
+                dummy_value = jnp.array(0.0)
+            else:
+                dummy_value = jnp.zeros(shape, dtype=standardize_dtype(dtype))
+            
+            # Initialize nnx.Variable first
+            nnx.Variable.__init__(self, value=dummy_value, **nnx_metadata)
+            
+            # Now we can safely set layout
+            self._layout = layout
 
-            # Call nnx.Variable.__init__ directly.
-            nnx.Variable.__init__(
-                self, value=_placeholder_value, **nnx_metadata
-            )
-
-            # Store JAX-specific layout using object.__setattr__ BEFORE
-            # KerasVariable init.
-            # This is because KerasVariable.__init__ will call
-            # self._initialize, which uses self._layout.
-            object.__setattr__(self, "_layout", layout)
-
-            # Initialize JaxVariable (which will call KerasVariable.__init__).
+            # Initialize JaxVariable (which will call KerasVariable.__init__
+            # and set up the real value).
             JaxVariable.__init__(
                 self,
                 initializer=initializer,
@@ -110,6 +107,9 @@ if config.is_nnx_enabled():
                 synchronization=synchronization,
                 name=name,
             )
+
+            # The real value is now set in self._value, sync it to raw_value
+            object.__setattr__(self, "raw_value", self._value)
 
         @property
         def _value(self):
@@ -193,11 +193,6 @@ if config.is_nnx_enabled():
                     value, self._layout
                 )
 
-            # Ensure that nnx.Variable part is initialized
-            if not hasattr(self, "_var_metadata"):
-                # todo: should add a warning
-                pass
-
             # Apply on_set_value hook if it exists
             if (
                 hasattr(self, "_var_metadata")
@@ -205,8 +200,8 @@ if config.is_nnx_enabled():
             ):
                 value = self._var_metadata["on_set_value"](self, value)
 
-            # Directly set raw_value. nnx.Variable handles mutable array
-            # updates
+            # Set the value for both Keras and NNX parts
+            # This ensures both systems see the same value
             object.__setattr__(self, "raw_value", value)
 
         @property
