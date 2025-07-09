@@ -206,30 +206,35 @@ if config.is_nnx_enabled():
 
         def __setattr__(self, name, value):
             """Override __setattr__ to handle NNX trace level compatibility."""
-            try:
-                # Try the normal NNX variable setattr first
-                super().__setattr__(name, value)
-            except Exception as e:
-                # If we get a trace context error, use object.__setattr__ as fallback
-                if "TraceContextError" in str(type(e)) or "trace level" in str(
-                    e
-                ):
-                    object.__setattr__(self, name, value)
-                else:
-                    raise e
+            if name == "raw_value":
+                # For raw_value assignment, use object.__setattr__ directly
+                object.__setattr__(self, name, value)
+            else:
+                try:
+                    # Try the normal NNX variable setattr first
+                    super().__setattr__(name, value)
+                except Exception as e:
+                    # If we get a trace context error, use object.__setattr__ as fallback
+                    if "TraceContextError" in str(
+                        type(e)
+                    ) or "trace level" in str(e):
+                        object.__setattr__(self, name, value)
+                    else:
+                        raise e
 
         def assign(self, value):
             """Override assign to handle NNX trace level compatibility."""
             try:
-                # Try the normal assignment first
-                object.__setattr__(self, "raw_value", value)
-            except Exception:
-                # If that fails due to trace level issues, fall back to direct assignment
-                try:
-                    super().assign(value)
-                except Exception:
-                    # Last resort: bypass all trace checks
+                # Try to use the parent assign method first for proper NNX synchronization
+                super().assign(value)
+            except Exception as e:
+                # If that fails due to trace level issues, use direct assignment
+                if "TraceContextError" in str(type(e)) or "trace level" in str(
+                    e
+                ):
                     object.__setattr__(self, "raw_value", value)
+                else:
+                    raise e
 
         @property
         def value(self):
@@ -257,55 +262,28 @@ if config.is_nnx_enabled():
                     self, current_value
                 )
 
-            # Handle traced values that don't have sharding attribute
+            # Handle sharding access for traced values
             autocast_value = self._maybe_autocast(current_value)
             if not hasattr(autocast_value, "sharding"):
-                # Create a wrapper that provides a valid sharding for traced values
-                class TracedValueWrapper:
-                    def __init__(self, wrapped_value):
-                        self._wrapped = wrapped_value
-
-                    @property
-                    def sharding(self):
-                        # Provide a valid default sharding for traced values
-                        # Use SingleDeviceSharding for the default device
-                        return jax.sharding.SingleDeviceSharding(
-                            jax.devices()[0]
-                        )
+                # Create a transparent proxy that only adds sharding
+                class MinimalShardingProxy:
+                    def __init__(self, wrapped):
+                        self._wrapped = wrapped
 
                     def __getattr__(self, name):
+                        if name == "sharding":
+                            return jax.sharding.SingleDeviceSharding(
+                                jax.devices()[0]
+                            )
                         return getattr(self._wrapped, name)
 
                     def __array__(self):
-                        return (
-                            self._wrapped.__array__()
-                            if hasattr(self._wrapped, "__array__")
-                            else self._wrapped
-                        )
+                        return self._wrapped
 
                     def __jax_array__(self):
                         return self._wrapped
 
-                    # Forward basic array properties
-                    @property
-                    def shape(self):
-                        return self._wrapped.shape
-
-                    @property
-                    def dtype(self):
-                        return self._wrapped.dtype
-
-                    @property
-                    def ndim(self):
-                        return self._wrapped.ndim
-
-                    def __str__(self):
-                        return str(self._wrapped)
-
-                    def __repr__(self):
-                        return repr(self._wrapped)
-
-                return TracedValueWrapper(autocast_value)
+                return MinimalShardingProxy(autocast_value)
 
             return autocast_value
 
