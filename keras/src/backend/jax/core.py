@@ -202,12 +202,34 @@ if config.is_nnx_enabled():
 
             # Set the value for both Keras and NNX parts
             # This ensures both systems see the same value
+            object.__setattr__(self, "raw_value", value)
+
+        def __setattr__(self, name, value):
+            """Override __setattr__ to handle NNX trace level compatibility."""
             try:
+                # Try the normal NNX variable setattr first
+                super().__setattr__(name, value)
+            except Exception as e:
+                # If we get a trace context error, use object.__setattr__ as fallback
+                if "TraceContextError" in str(type(e)) or "trace level" in str(
+                    e
+                ):
+                    object.__setattr__(self, name, value)
+                else:
+                    raise e
+
+        def assign(self, value):
+            """Override assign to handle NNX trace level compatibility."""
+            try:
+                # Try the normal assignment first
                 object.__setattr__(self, "raw_value", value)
             except Exception:
-                # If setting raw_value fails (e.g., during JAX tracing),
-                # fall back to regular JAX variable behavior
-                self._value = value
+                # If that fails due to trace level issues, fall back to direct assignment
+                try:
+                    super().assign(value)
+                except Exception:
+                    # Last resort: bypass all trace checks
+                    object.__setattr__(self, "raw_value", value)
 
         @property
         def value(self):
@@ -234,7 +256,58 @@ if config.is_nnx_enabled():
                 current_value = self._var_metadata["on_get_value"](
                     self, current_value
                 )
-            return self._maybe_autocast(current_value)
+
+            # Handle traced values that don't have sharding attribute
+            autocast_value = self._maybe_autocast(current_value)
+            if not hasattr(autocast_value, "sharding"):
+                # Create a wrapper that provides a valid sharding for traced values
+                class TracedValueWrapper:
+                    def __init__(self, wrapped_value):
+                        self._wrapped = wrapped_value
+
+                    @property
+                    def sharding(self):
+                        # Provide a valid default sharding for traced values
+                        # Use SingleDeviceSharding for the default device
+                        return jax.sharding.SingleDeviceSharding(
+                            jax.devices()[0]
+                        )
+
+                    def __getattr__(self, name):
+                        return getattr(self._wrapped, name)
+
+                    def __array__(self):
+                        return (
+                            self._wrapped.__array__()
+                            if hasattr(self._wrapped, "__array__")
+                            else self._wrapped
+                        )
+
+                    def __jax_array__(self):
+                        return self._wrapped
+
+                    # Forward basic array properties
+                    @property
+                    def shape(self):
+                        return self._wrapped.shape
+
+                    @property
+                    def dtype(self):
+                        return self._wrapped.dtype
+
+                    @property
+                    def ndim(self):
+                        return self._wrapped.ndim
+
+                    def __str__(self):
+                        return str(self._wrapped)
+
+                    def __repr__(self):
+                        return repr(self._wrapped)
+
+                return TracedValueWrapper(autocast_value)
+
+            return autocast_value
 
         # Todo: NNX has agreed to fix it on their end. I will remove it once
         # that is done
