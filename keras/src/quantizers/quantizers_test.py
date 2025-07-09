@@ -110,6 +110,8 @@ class QuantizersTest(testing.TestCase):
     @parameterized.named_parameters(
         ("even_rows", (4, 5), 0),
         ("odd_rows", (5, 5), 0),
+        ("even_rows_axis_0_negative", (4, 5), -1),
+        ("odd_rows_axis_0_negative", (5, 5), -1),
         ("even_rows_axis_1", (4, 6), 1),
         ("odd_rows_axis_1", (4, 7), 1),
         ("3d_even_rows_axis_0", (4, 5, 3), 0),
@@ -126,6 +128,10 @@ class QuantizersTest(testing.TestCase):
         ("4d_even_rows_axis_1", (2, 4, 5, 4), 1),
         ("4d_even_rows_axis_2", (2, 4, 5, 4), 2),
         ("4d_even_rows_axis_3", (2, 4, 5, 4), 3),
+        ("4d_even_rows_axis_0_negative", (2, 4, 5, 4), -1),
+        ("4d_even_rows_axis_1_negative", (2, 4, 5, 4), -2),
+        ("4d_even_rows_axis_2_negative", (2, 4, 5, 4), -3),
+        ("4d_even_rows_axis_3_negative", (2, 4, 5, 4), -4),
     )
     def test_pack_unpack_int4(self, shape, axis):
         # Create a random tensor with int4 values [-8, 7]
