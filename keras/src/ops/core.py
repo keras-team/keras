@@ -542,7 +542,9 @@ class WhileLoop(Operation):
         )
 
     def compute_output_spec(self, loop_vars):
-        return [KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars]
+        return tree.map_structure(
+            lambda v: KerasTensor(v.shape, dtype=v.dtype), loop_vars
+        )
 
 
 @keras_export("keras.ops.while_loop")
@@ -587,6 +589,10 @@ def while_loop(
     >>> keras.ops.while_loop(cond, body, (x, y))
     10, 11
     """
+    if any_symbolic_tensors((loop_vars,)):
+        return WhileLoop(
+            cond, body, maximum_iterations=maximum_iterations
+        ).symbolic_call(loop_vars)
     return backend.core.while_loop(
         cond,
         body,
@@ -808,8 +814,6 @@ def cast(x, dtype):
     >>> x = keras.ops.arange(4)
     >>> x = keras.ops.cast(x, dtype="float16")
     """
-    dtype = backend.standardize_dtype(dtype)
-
     if any_symbolic_tensors((x,)):
         return Cast(dtype=dtype)(x)
     return backend.core.cast(x, dtype)
@@ -874,8 +878,6 @@ def saturate_cast(x, dtype):
     >>> #  [255 255 255 255]]
 
     """
-    dtype = backend.standardize_dtype(dtype)
-
     if any_symbolic_tensors((x,)):
         return SaturateCast(dtype=dtype)(x)
     return _saturate_cast(x, dtype)
