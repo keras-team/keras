@@ -228,7 +228,7 @@ class Functional(Function, Model):
     def _run_through_graph_nnx_compatible(
         self, inputs, operation_fn, call_fn=None
     ):
-        """NNX-compatible graph execution that ensures consistent layer instances."""
+        """NNX-compatible graph execution ensures consistent layer instances."""
         inputs = tree.flatten(inputs)
 
         # Dictionary mapping reference tensors to computed tensors.
