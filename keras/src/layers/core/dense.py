@@ -354,6 +354,7 @@ class Dense(Layer):
 
     def _int4_build(self, kernel_shape):
         """Build variables for int4 quantization.
+
         `kernel_shape` is the *original* float32 kernel shape
         `(input_dim, units)`. We allocate the stored kernel with rows
         `ceil(input_dim/2)` because two int4 values are packed into a single

@@ -378,8 +378,7 @@ def quantize_and_dequantize(inputs, scale, quantized_dtype, compute_dtype):
 
 @keras_export("keras.quantizers.pack_int4")
 def pack_int4(arr, axis=0):
-    """
-    Pack an int4 tensor into an int8 tensor with packed nibbles.
+    """Pack an int4 tensor into an int8 tensor with packed nibbles.
 
     The input values must already be int8 in the signed range `[-8, 7]` and
     represent the desired int4 values. Packing is performed along the specified
@@ -395,58 +394,61 @@ def pack_int4(arr, axis=0):
 
     Returns:
         tuple: A tuple `(packed, packed_shape, orig_rows)` where `packed` is
-        the packed int8 tensor with int4 values stored in nibbles,
-        `packed_shape` is the shape of the packed tensor, and `orig_rows` is
-        the original (unpacked) row count prior to any padding that may have
-        been inserted when an odd number of rows is supplied.
+            the packed int8 tensor with int4 values stored in nibbles,
+            `packed_shape` is the shape of the packed tensor, and `orig_rows`
+            is the original (unpacked) row count prior to any padding that may
+            have been inserted when an odd number of rows is supplied.
 
     Example:
-        >>> import numpy as np
-        >>> from keras.quantizers import pack_int4, unpack_int4
 
-        # Example with axis=0
-        # Original array has shape (3, 2)
-        >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_int4, unpack_int4
 
-        # Pack the array along axis 0. Since the length of axis 0 (3) is
-        # odd, it will be padded to a length of 4. The packed array will
-        # have a shape of (ceil(3/2), 2) = (2, 2).
-        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
-        >>> print("Packed array:\n", packed)
-        Packed array:
-        [[  45 -121]
-        [   1    0]]
+    # Example with axis=0
+    # Original array has shape (3, 2)
+    >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
 
-        # Now, unpack the array back to its original form
-        >>> unpacked = unpack_int4(packed, orig_len, axis=0)
-        >>> print("Unpacked array:\n", unpacked)
-        Unpacked array:
-        [[-3  7]
-        [ 2 -8]
-        [ 1  0]]
-        >>> np.allclose(original_array, unpacked)
-        True
+    # Pack the array along axis 0. Since the length of axis 0 (3) is
+    # odd, it will be padded to a length of 4. The packed array will
+    # have a shape of (ceil(3/2), 2) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[  45 -121]
+    [   1    0]]
 
-        # Example with axis=1
-        # Original array has shape (2, 3)
-        >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
+    # Now, unpack the array back to its original form
+    >>> unpacked = unpack_int4(packed, orig_len, axis=0)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7]
+    [ 2 -8]
+    [ 1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
 
-        # Pack along axis 1. Length of axis 1 (3) is padded to 4.
-        # The new shape is (2, ceil(3/2)) = (2, 2).
-        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
-        >>> print("Packed array:\n", packed)
-        Packed array:
-        [[ 125   2]
-        [  24   0]]
+    # Example with axis=1
+    # Original array has shape (2, 3)
+    >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
 
-        # Unpack the array
-        >>> unpacked = unpack_int4(packed, orig_len, axis=1)
-        >>> print("Unpacked array:\n", unpacked)
-        Unpacked array:
-        [[-3  7  2]
-        [-8  1  0]]
-        >>> np.allclose(original_array, unpacked)
-        True
+    # Pack along axis 1. Length of axis 1 (3) is padded to 4.
+    # The new shape is (2, ceil(3/2)) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[ 125   2]
+    [  24   0]]
+
+    # Unpack the array
+    >>> unpacked = unpack_int4(packed, orig_len, axis=1)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7  2]
+    [-8  1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+    ```
     """
     if backend.standardize_dtype(arr.dtype) != "int8":
         raise TypeError(
@@ -499,9 +501,7 @@ def pack_int4(arr, axis=0):
 
 @keras_export("keras.quantizers.unpack_int4")
 def unpack_int4(packed, orig_len, axis=0):
-    """
-    Unpack a packed int4 tensor (with values stored in nibbles of int8)
-    back to an int8 tensor in the range [-8, 7].
+    """Unpack a packed int4 back to an int8 tensor in the range [-8, 7].
 
     This function reverses the packing performed by `pack_int4`, restoring
     the original int8 tensor (values in the range [-8, 7]) from a packed int8
@@ -521,55 +521,58 @@ def unpack_int4(packed, orig_len, axis=0):
 
     Returns:
         unpacked: An int8 tensor with the same shape as the original
-        (unpacked) tensor, with values in the range [-8, 7].
+            (unpacked) tensor, with values in the range [-8, 7].
 
     Example:
-        >>> import numpy as np
-        >>> from keras.quantizers import pack_int4, unpack_int4
 
-        # Example with axis=0
-        # Original array has shape (3, 2)
-        >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_int4, unpack_int4
 
-        # Pack the array along axis 0. Since the length of axis 0 (3) is
-        # odd, it will be padded to a length of 4. The packed array will
-        # have a shape of (ceil(3/2), 2) = (2, 2).
-        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
-        >>> print("Packed array:\n", packed)
-        Packed array:
-        [[  45 -121]
-        [   1    0]]
+    # Example with axis=0
+    # Original array has shape (3, 2)
+    >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
 
-        # Now, unpack the array back to its original form
-        >>> unpacked = unpack_int4(packed, orig_len, axis=0)
-        >>> print("Unpacked array:\n", unpacked)
-        Unpacked array:
-        [[-3  7]
-        [ 2 -8]
-        [ 1  0]]
-        >>> np.allclose(original_array, unpacked)
-        True
+    # Pack the array along axis 0. Since the length of axis 0 (3) is
+    # odd, it will be padded to a length of 4. The packed array will
+    # have a shape of (ceil(3/2), 2) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[  45 -121]
+    [   1    0]]
 
-        # Example with axis=1
-        # Original array has shape (2, 3)
-        >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
+    # Now, unpack the array back to its original form
+    >>> unpacked = unpack_int4(packed, orig_len, axis=0)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7]
+    [ 2 -8]
+    [ 1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
 
-        # Pack along axis 1. Length of axis 1 (3) is padded to 4.
-        # The new shape is (2, ceil(3/2)) = (2, 2).
-        >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
-        >>> print("Packed array:\n", packed)
-        Packed array:
-        [[ 125   2]
-        [  24   0]]
+    # Example with axis=1
+    # Original array has shape (2, 3)
+    >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
 
-        # Unpack the array
-        >>> unpacked = unpack_int4(packed, orig_len, axis=1)
-        >>> print("Unpacked array:\n", unpacked)
-        Unpacked array:
-        [[-3  7  2]
-        [-8  1  0]]
-        >>> np.allclose(original_array, unpacked)
-        True
+    # Pack along axis 1. Length of axis 1 (3) is padded to 4.
+    # The new shape is (2, ceil(3/2)) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[ 125   2]
+    [  24   0]]
+
+    # Unpack the array
+    >>> unpacked = unpack_int4(packed, orig_len, axis=1)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7  2]
+    [-8  1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+    ```
     """
     if backend.standardize_dtype(packed.dtype) != "int8":
         raise TypeError(
