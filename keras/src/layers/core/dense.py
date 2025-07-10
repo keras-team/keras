@@ -366,7 +366,7 @@ class Dense(Layer):
         input_dim, output_dim = kernel_shape
         packed_rows = (input_dim + 1) // 2  # ceil for odd dims
 
-        # Kernel is stored **packed**: each int8 byte contains two int4 values.
+        # Kernel is stored *packed*: each int8 byte contains two int4 values.
         self._kernel = self.add_weight(
             name="kernel",
             shape=(packed_rows, output_dim),
@@ -675,19 +675,19 @@ class Dense(Layer):
                 # original float representation before merging with the LoRA
                 # update, and then pack it again after requantization.
                 if self.quantization_mode == "int4":
-                    # 1) Unpack packed int4 tensor to int8 range [-8, 7].
+                    # 1. Unpack packed int4 tensor to int8 range [-8, 7].
                     unpacked_kernel = quantizers.unpack_int4(
                         kernel_value, self._orig_input_dim
                     )
-                    # 2) De-scale to recover float32 kernel.
+                    # 2. De-scale to recover float32 kernel.
                     kernel_value_fp = ops.divide(unpacked_kernel, kernel_scale)
-                    # 3) Merge LoRA delta in float32 domain.
+                    # 3. Merge LoRA delta in float32 domain.
                     kernel_value_fp = ops.add(
                         kernel_value_fp,
                         (self.lora_alpha / self.lora_rank)
                         * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                     )
-                    # 4) Re-quantize to int4 (values still held in int8 dtype).
+                    # 4. Re-quantize to int4 (values still held in int8 dtype).
                     kernel_int4, kernel_scale = quantizers.abs_max_quantize(
                         kernel_value_fp,
                         axis=0,
@@ -696,7 +696,7 @@ class Dense(Layer):
                         to_numpy=True,
                     )
                     kernel_scale = ops.squeeze(kernel_scale, axis=0)
-                    # 5) Pack the int4 values back into the compact int8 layout.
+                    # 5. Pack the int4 values back into the compact int8 layout.
                     kernel_value, _, _ = quantizers.pack_int4(kernel_int4)
                 else:
                     # int8 path (regular): unpacking not required.
