@@ -486,7 +486,7 @@ def pack_int4(arr, axis=0):
     low = padded[::2, ...]
     high = padded[1::2, ...]
 
-    mask = ops.array([0x0F], dtype="int8")
+    mask = ops.array(0x0F, dtype="int8")
     low_u = ops.bitwise_and(low, mask)
     high_u = ops.bitwise_and(high, mask)
 
@@ -587,8 +587,9 @@ def unpack_int4(packed, orig_len, axis=0):
     # Fast path for the most common case in Dense layers
     if axis == 0 and rank == 2:
         # The result of the bitwise op is a wider dtype (e.g., int32).
-        low_unpacked = ops.bitwise_and(packed, 0x0F)
-        high_unpacked = ops.bitwise_and(ops.right_shift(packed, 4), 0x0F)
+        mask = ops.array(0x0F, dtype=packed.dtype)
+        low_unpacked = ops.bitwise_and(packed, mask)
+        high_unpacked = ops.bitwise_and(ops.right_shift(packed, 4), mask)
 
         # Convert values from [0, 15] to [-8, 7].
         low_signed = ops.where(
@@ -598,12 +599,8 @@ def unpack_int4(packed, orig_len, axis=0):
             high_unpacked < 8, high_unpacked, high_unpacked - 16
         )
 
-        # Cast back to int8 as the final step.
-        low = ops.cast(low_signed, "int8")
-        high = ops.cast(high_signed, "int8")
-
         # Interleave and reshape
-        stacked = ops.stack([low, high], axis=1)
+        stacked = ops.stack([low_signed, high_signed], axis=1)
         unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(packed)[1:]))
 
         # Remove padding and return
@@ -615,12 +612,12 @@ def unpack_int4(packed, orig_len, axis=0):
     transposed = ops.transpose(packed, perm)
 
     # 1. Split nibbles.
-    mask = ops.array([0x0F], dtype="int8")  # int8 arrays
+    mask = ops.array(0x0F, dtype="int8")  # int8 arrays
     low = ops.bitwise_and(transposed, mask)
     high = ops.bitwise_and(ops.right_shift(transposed, 4), mask)
 
-    eight = ops.array([8], dtype="int8")
-    sixteen = ops.array([16], dtype="int8")
+    eight = ops.array(8, dtype="int8")
+    sixteen = ops.array(16, dtype="int8")
 
     def to_signed(x):
         return ops.where(x < eight, x, x - sixteen)
@@ -631,9 +628,6 @@ def unpack_int4(packed, orig_len, axis=0):
     # 2. Interleave and reshape.
     stacked = ops.stack([low, high], axis=1)  # (pairs, 2, ...)
     unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(transposed)[1:]))
-
-    # 3. Cast back to int8 as the final step.
-    unpacked = ops.cast(unpacked, "int8")
 
     # 4. Remove padding and restore original layout.
     unpacked = unpacked[:orig_len, ...]
