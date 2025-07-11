@@ -166,13 +166,6 @@ class Functional(Function, Model):
                 # Map the operation id to this layer instance
                 self._nnx_layer_mapping[id(layer)] = layer
 
-        # Also map any operations in the graph to ensure consistency
-        for operation in self._operations:
-            if isinstance(operation, Layer):
-                # Ensure the graph operation points to the same instance
-                if id(operation) not in self._nnx_layer_mapping:
-                    self._nnx_layer_mapping[id(operation)] = operation
-
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
         # build. E.g. to attach a layer to a model that is not part of the

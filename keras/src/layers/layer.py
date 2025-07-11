@@ -1675,8 +1675,12 @@ class Layer(BackendLayer, Operation):
             if not (is_nnx_enabled() and jax_utils.is_in_jax_tracing_scope()):
                 try:
                     self._parent_path = current_path()
-                except Exception:
-                    pass
+                except Exception as e:
+                    warnings.warn(
+                        "Could not set `_parent_path` in "
+                        f"`_open_name_scope` for layer {self.name}. "
+                        f"Error: {e}"
+                    )
         return backend.name_scope(self.name, caller=self)
 
     def rematerialized_call(self, layer_call, *args, **kwargs):

@@ -443,9 +443,9 @@ if not os.path.exists(_config_path):
 
 if "KERAS_NNX_ENABLED" in os.environ:
     env_val = os.environ["KERAS_NNX_ENABLED"].lower()
-    if env_val == "true":
+    if env_val:
         _NNX_ENABLED = True
-    elif env_val == "false":
+    else:
         _NNX_ENABLED = False
 
 set_nnx_enabled(_NNX_ENABLED)
