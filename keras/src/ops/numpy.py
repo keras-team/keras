@@ -1779,6 +1779,29 @@ def broadcast_to(x, shape):
     return backend.numpy.broadcast_to(x, shape)
 
 
+class Cbrt(Operation):
+    def call(self, x):
+        return backend.numpy.cbrt(x)
+
+
+@keras_export(["keras.ops.cbrt", "keras.ops.numpy.cbrt"])
+def cbrt(x):
+    """Computes the cube root of the input tensor, element-wise.
+
+    This operation returns the real-valued cube root of `x`, handling
+    negative numbers properly in the real domain.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor containing the cube root of each element in `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return Cbrt().symbolic_call(x)
+    return backend.numpy.cbrt(x)
+
+
 class Ceil(Operation):
     def call(self, x):
         return backend.numpy.ceil(x)
@@ -2256,6 +2279,36 @@ def cumsum(x, axis=None, dtype=None):
         Output tensor.
     """
     return Cumsum(axis=axis, dtype=dtype)(x)
+
+
+class Deg2rad(Operation):
+    def call(self, x):
+        return backend.numpy.deg2rad(x)
+
+
+@keras_export(["keras.ops.deg2rad", "keras.ops.numpy.deg2rad"])
+def deg2rad(x):
+    """Convert angles from degrees to radians.
+
+    The conversion is defined as:
+    `rad = deg * (π / 180)`
+
+    Args:
+        x: Input tensor of angles in degrees.
+
+    Returns:
+        A tensor containing angles converted to radians.
+
+    Examples:
+    >>> from keras import ops
+    >>> ops.deg2rad(180.0)
+    3.141592653589793
+    >>> ops.deg2rad([0.0, 90.0, 180.0])
+    array([0., 1.57079633, 3.14159265])
+    """
+    if any_symbolic_tensors((x,)):
+        return Deg2rad().symbolic_call(x)
+    return backend.numpy.deg2rad(x)
 
 
 class Diag(Operation):

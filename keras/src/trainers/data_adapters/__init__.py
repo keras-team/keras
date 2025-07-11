@@ -28,16 +28,20 @@ def get_data_adapter(
     if isinstance(x, data_adapter.DataAdapter):
         return x
 
-    # Check for multi-process/worker distribution. Since only tf.dataset
-    # is supported at the moment, we will raise error if the inputs fail
-    # the type check
+    # Check for multi-process/worker distribution.
     distribution = distribution_lib.distribution()
-    if getattr(distribution, "_is_multi_process", False) and not is_tf_dataset(
-        x
+    if (
+        distribution is not None
+        and getattr(distribution, "_is_multi_process", False)
+        and getattr(distribution, "auto_shard_dataset", False)
+        and not is_tf_dataset(x)
     ):
         raise ValueError(
-            "When using multi-worker distribution, the data must be provided "
-            f"as a `tf.data.Dataset` instance. Received: type(x)={type(x)}."
+            "When using a multi-worker distribution with auto-sharding enabled, "
+            "the data must be provided as a `tf.data.Dataset` instance. "
+            f"Received: type(x)={type(x)}. "
+            "If the dataset is already sharded across workers, then set "
+            "`distribution.auto_shard_dataset = False`."
         )
 
     if array_data_adapter.can_convert_arrays((x, y, sample_weight)):
@@ -93,7 +97,12 @@ def get_data_adapter(
         if class_weight is not None:
             raise ValueError(
                 "Argument `class_weight` is not supported for torch "
-                f"DataLoader inputs. Received: class_weight={class_weight}"
+                f"DataLoader inputs. You can modify your `__getitem__ ` method"
+                " to return input tensor, label and class_weight. "
+                "Alternatively, use a custom training loop. See the User Guide "
+                "https://keras.io/guides/custom_train_step_in_torch/"
+                "#supporting-sampleweight-amp-classweight for more details. "
+                f"Received: class_weight={class_weight}"
             )
         return TorchDataLoaderAdapter(x)
         # TODO: should we warn or not?

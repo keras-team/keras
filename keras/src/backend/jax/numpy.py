@@ -499,6 +499,11 @@ def broadcast_to(x, shape):
     return jnp.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+    return jnp.cbrt(x)
+
+
 @sparse.elementwise_unary(linear=False)
 def ceil(x):
     x = convert_to_tensor(x)
@@ -596,6 +601,11 @@ def cumprod(x, axis=None, dtype=None):
 def cumsum(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     return jnp.cumsum(x, axis=axis, dtype=dtype)
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+    return jnp.deg2rad(x)
 
 
 def diag(x, k=0):

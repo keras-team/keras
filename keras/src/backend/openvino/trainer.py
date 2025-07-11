@@ -213,11 +213,11 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch():
-            callbacks.on_predict_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator.enumerate_epoch():
+            callbacks.on_predict_batch_begin(begin_step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
-            callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()

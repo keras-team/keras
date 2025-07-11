@@ -339,8 +339,13 @@ class OpenVINOKerasTensor:
                 raise ValueError(
                     "OpenVINO backend does not support boolean indexing"
                 )
-            elif isinstance(index, (int, np.integer)):
-                if isinstance(index, np.integer):
+            elif isinstance(index, (int, np.integer, np.ndarray)):
+                if isinstance(index, (np.ndarray, np.integer)):
+                    if isinstance(index, np.ndarray) and len(index.shape) != 0:
+                        raise ValueError(
+                            "OpenVINO backend does not support"
+                            "multi-dimensional indexing"
+                        )
                     index = int(index)
                 actual_dim = dim - count_unsqueeze_before(dim)
                 if not (0 <= actual_dim < rank):
@@ -577,52 +582,44 @@ def _is_scalar(elem):
     return not isinstance(elem, (list, tuple, set, dict))
 
 
-def _get_first_element(x):
-    if isinstance(x, (tuple, list)):
-        for elem_in_x in x:
-            elem = _get_first_element(elem_in_x)
-            if elem is not None:
-                return elem
-    elif _is_scalar(x):
-        return x
-    return None
-
-
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with openvino backend")
     if ragged:
         raise ValueError("`ragged=True` is not supported with openvino backend")
+    if dtype is not None:
+        dtype = standardize_dtype(dtype)
     if isinstance(x, OpenVINOKerasTensor):
+        if dtype and dtype != standardize_dtype(x.dtype):
+            x = cast(x, dtype)
         return x
     elif isinstance(x, np.ndarray):
         if dtype is not None:
-            dtype = standardize_dtype(dtype)
             ov_type = OPENVINO_DTYPES[dtype]
-            return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
-        return OpenVINOKerasTensor(ov_opset.constant(x).output(0))
-    elif isinstance(x, (list, tuple)):
-        if dtype is not None:
-            dtype = standardize_dtype(dtype)
         else:
-            # try to properly deduce element type
-            elem = _get_first_element(x)
-            if isinstance(elem, float):
-                dtype = "float32"
-            elif isinstance(elem, int):
-                dtype = "int32"
+            ov_type = OPENVINO_DTYPES[standardize_dtype(x.dtype)]
+        return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
+    elif isinstance(x, (list, tuple)):
+        if dtype is None:
+            dtype = result_type(
+                *[
+                    getattr(item, "dtype", type(item))
+                    for item in tree.flatten(x)
+                ]
+            )
         x = np.array(x, dtype=dtype)
-        return OpenVINOKerasTensor(ov_opset.constant(x).output(0), x)
-    elif isinstance(x, (float, int)):
-        dtype = standardize_dtype(dtype)
         ov_type = OPENVINO_DTYPES[dtype]
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
-    if dtype is not None:
-        dtype = standardize_dtype(dtype)
+    elif isinstance(x, (float, int, bool)):
+        if dtype is None:
+            dtype = standardize_dtype(type(x))
+        ov_type = OPENVINO_DTYPES[dtype]
+        return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
     if isinstance(x, Variable):
+        x = x.value
         if dtype and dtype != x.dtype:
-            return x.value.astype(dtype)
-        return x.value
+            x = cast(x, dtype)
+        return x
     if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
         return ov.Tensor(np.asarray(x).astype(dtype))
     if dtype is None:

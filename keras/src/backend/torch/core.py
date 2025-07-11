@@ -192,10 +192,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if ragged:
         raise ValueError("`ragged=True` is not supported with torch backend")
     if isinstance(x, Variable):
-        # TorchDynamo has bugs supporting nn.Parameter type check.
-        # Return it directly instead of pass it to the rest of the logic in the
-        # function.
-        return x.value
+        if dtype is None:
+            return x.value
+        x = x.value
+        return x.to(to_torch_dtype(dtype))
     if is_tensor(x):
         device = get_device()
         if x.device != device:
@@ -575,7 +575,7 @@ def scatter(indices, values, shape):
 def scatter_update(inputs, indices, updates):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices, dtype="int64")
-    updates = convert_to_tensor(updates)
+    updates = convert_to_tensor(updates, dtype=inputs.dtype)
     indices = torch.transpose(indices, 0, 1)
 
     outputs = torch.clone(inputs)

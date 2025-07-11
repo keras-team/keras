@@ -31,9 +31,10 @@ class TestEpochIterator(testing.TestCase):
             generator = iterator
         else:
             generator = iterator.enumerate_epoch()
-        for step, batch in generator:
+        for begin_step, end_step, batch in generator:
             batch = batch[0]
-            steps_seen.append(step)
+            steps_seen.append(begin_step)
+            self.assertEqual(begin_step, end_step)
             self.assertEqual(len(batch), 3)
             self.assertIsInstance(batch[0], np.ndarray)
         self.assertEqual(steps_seen, [0, 1, 2, 3, 4, 5, 6])
@@ -52,7 +53,7 @@ class TestEpochIterator(testing.TestCase):
         )
         steps_seen = []
         with pytest.warns(match="Your input ran out of data"):
-            for step, _ in iterator:
+            for step, _, _ in iterator:
                 steps_seen.append(step)
         self.assertLen(steps_seen, steps_per_epoch - 2)
 
@@ -96,7 +97,7 @@ class TestEpochIterator(testing.TestCase):
             torch_dataset, batch_size=8, shuffle=True
         )
         iterator = epoch_iterator.EpochIterator(torch_dataloader)
-        for _, batch in iterator:
+        for _, _, batch in iterator:
             batch = batch[0]
             self.assertEqual(batch[0].shape, (8, 2))
             self.assertEqual(batch[1].shape, (8, 1))
@@ -226,7 +227,7 @@ class TestEpochIterator(testing.TestCase):
 
         num_epochs = 5
         for epoch in range(num_epochs):
-            for step, batch in epoch_iter:
+            for _, _, _ in epoch_iter:
                 pass
 
         self.assertAllEqual(ds.tracker, [1, 2] * num_epochs)
