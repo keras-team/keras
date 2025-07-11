@@ -644,9 +644,7 @@ class Dense(Layer):
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             # 2. Pack two int4 values into a single int8 byte.
-            packed_kernel_value, _, orig_rows = quantizers.pack_int4(
-                kernel_value_int4
-            )
+            packed_kernel_value, _, _ = quantizers.pack_int4(kernel_value_int4)
             del self._kernel
             # Build variables using the original kernel shape; _int4_build will
             # compute the packed shape internally.
