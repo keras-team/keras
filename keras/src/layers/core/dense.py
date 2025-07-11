@@ -667,49 +667,81 @@ class Dense(Layer):
             self.dtype_policy = policy
 
     def _get_kernel_with_merged_lora(self):
+        """Returns the kernel with LoRA matrices merged, for serialization.
+
+        This method is called by `save_own_variables` to produce a single
+        kernel tensor that includes the adaptations from LoRA. This is useful
+        for deploying the model or for continuing training after permanently
+        applying the LoRA update.
+
+        If the layer is quantized (`int8` or `int4`), the process is:
+        1. Dequantize the base kernel to float.
+        2. Compute the LoRA delta (`lora_kernel_a @ lora_kernel_b`) and add
+            it to the dequantized kernel.
+        3. Re-quantize the merged result back to the original quantized
+            type (`int8` or packed `int4`), calculating a new scale factor.
+
+        If the layer is not quantized, this method returns the result of the
+        `kernel` property (which computes the merge in floating-point) and a
+        scale of `None`.
+
+        If LoRA is not enabled, it returns the original kernel and scale
+        without modification.
+
+        Returns:
+            A tuple `(kernel_value, kernel_scale)`:
+                `kernel_value`: The merged kernel. A quantized tensor if
+                    quantization is active, otherwise a high precision tensor.
+                `kernel_scale`: The quantization scale for the merged kernel.
+                    This is `None` if the layer is not quantized.
+        """
         if self.dtype_policy.quantization_mode is not None:
             kernel_value = self._kernel
             kernel_scale = self.kernel_scale
             if self.lora_enabled:
-                # For int4, `_kernel` is stored in a packed representation
-                # (two int4 values per int8 byte). We need to unpack it to the
-                # original float representation before merging with the LoRA
-                # update, and then pack it again after requantization.
+                # Dequantize kernel to float
                 if self.quantization_mode == "int4":
-                    # 1. Unpack packed int4 tensor to int8 range [-8, 7].
                     unpacked_kernel = quantizers.unpack_int4(
                         kernel_value, self._orig_input_dim
                     )
-                    # 2. De-scale to recover float32 kernel.
-                    kernel_value_fp = ops.divide(unpacked_kernel, kernel_scale)
-                    # 3. Merge LoRA delta in float32 domain.
-                    kernel_value_fp = ops.add(
-                        kernel_value_fp,
-                        (self.lora_alpha / self.lora_rank)
-                        * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    float_kernel = ops.divide(
+                        ops.cast(unpacked_kernel, self.compute_dtype),
+                        kernel_scale,
                     )
-                    # 4. Re-quantize to int4 (values still held in int8 dtype).
-                    kernel_int4, kernel_scale = quantizers.abs_max_quantize(
-                        kernel_value_fp,
-                        axis=0,
-                        value_range=(-8, 7),
-                        dtype="int8",
-                        to_numpy=True,
+                    quant_range = (-8, 7)
+                elif self.quantization_mode == "int8":
+                    float_kernel = ops.divide(
+                        ops.cast(kernel_value, self.compute_dtype), kernel_scale
                     )
-                    kernel_scale = ops.squeeze(kernel_scale, axis=0)
-                    # 5. Pack the int4 values back into the compact int8 layout.
-                    kernel_value, _, _ = quantizers.pack_int4(kernel_int4)
+                    quant_range = (-127, 127)
                 else:
-                    # int8 path (regular): unpacking not required.
-                    kernel_value = ops.divide(kernel_value, kernel_scale)
-                    kernel_value = ops.add(
-                        kernel_value,
-                        (self.lora_alpha / self.lora_rank)
-                        * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    raise ValueError(
+                        "Unsupported quantization mode: "
+                        f"{self.quantization_mode}"
                     )
-                    kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                        kernel_value, axis=0, to_numpy=True
+
+                # Merge LoRA weights in float domain
+                lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
+                    self.lora_kernel_a, self.lora_kernel_b
+                )
+                merged_float_kernel = ops.add(float_kernel, lora_delta)
+
+                # Requantize
+                requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
+                    merged_float_kernel,
+                    axis=0,
+                    value_range=quant_range,
+                    dtype="int8",
+                    to_numpy=True,
+                )
+                kernel_scale = ops.squeeze(kernel_scale, axis=0)
+
+                # Pack if int4
+                if self.quantization_mode == "int4":
+                    kernel_value, _, _ = quantizers.pack_int4(
+                        requantized_kernel
                     )
-                    kernel_scale = ops.squeeze(kernel_scale, axis=0)
+                else:
+                    kernel_value = requantized_kernel
             return kernel_value, kernel_scale
         return self.kernel, None
