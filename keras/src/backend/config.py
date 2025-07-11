@@ -15,6 +15,9 @@ _IMAGE_DATA_FORMAT = "channels_last"
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
 
+# Whether NNX is enabled.
+_NNX_ENABLED = False
+
 # Cap run duration for debugging.
 _MAX_EPOCHS = None
 _MAX_STEPS_PER_EPOCH = None
@@ -230,6 +233,33 @@ def is_flash_attention_enabled():
     return global_state.get_global_attribute("flash_attention", default=None)
 
 
+@keras_export("keras.config.is_nnx_enabled")
+def is_nnx_enabled():
+    """Checks whether NNX specific features are enabled for the JAX backend.
+
+    Returns:
+        bool: `True` if NNX backend features are enabled, `False` otherwise.
+        Defaults to `False`.
+    """
+    return _NNX_ENABLED
+
+
+def set_nnx_enabled(value):
+    global _NNX_ENABLED
+    from keras.src.backend.common import global_state
+
+    _NNX_ENABLED = bool(value)
+    if _NNX_ENABLED:
+        try:
+            from flax import nnx  # noqa F401
+        except ImportError:
+            raise ImportError(
+                "To use the NNX backend, you must install `flax`."
+                "Try: `pip install flax`"
+            )
+    global_state.set_global_attribute("nnx_enabled", bool(value))
+
+
 def standardize_data_format(data_format):
     if data_format is None:
         return image_data_format()
@@ -261,6 +291,7 @@ def keras_home():
 
 # Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_KERAS_DIR, "keras.json"))
+
 if os.path.exists(_config_path):
     try:
         with open(_config_path) as f:
@@ -274,36 +305,18 @@ if os.path.exists(_config_path):
     _backend = _config.get("backend", _BACKEND)
     _image_data_format = _config.get("image_data_format", image_data_format())
     assert _image_data_format in {"channels_last", "channels_first"}
+    _nnx_enabled_config = _config.get("nnx_enabled", _NNX_ENABLED)
+    if not isinstance(_nnx_enabled_config, bool):
+        _NNX_ENABLED = str(_nnx_enabled_config).lower() == "true"
+    else:
+        _NNX_ENABLED = _nnx_enabled_config
 
+    # Apply basic configs that don't cause circular import
     set_floatx(_floatx)
     set_epsilon(_epsilon)
     set_image_data_format(_image_data_format)
     _BACKEND = _backend
 
-# Save config file, if possible.
-if not os.path.exists(_KERAS_DIR):
-    try:
-        os.makedirs(_KERAS_DIR)
-    except OSError:
-        # Except permission denied and potential race conditions
-        # in multi-threaded environments.
-        pass
-
-if not os.path.exists(_config_path):
-    _config = {
-        "floatx": floatx(),
-        "epsilon": epsilon(),
-        "backend": _BACKEND,
-        "image_data_format": image_data_format(),
-    }
-    try:
-        with open(_config_path, "w") as f:
-            f.write(json.dumps(_config, indent=4))
-    except IOError:
-        # Except permission denied.
-        pass
-
-# Set backend based on KERAS_BACKEND flag, if applicable.
 if "KERAS_BACKEND" in os.environ:
     _backend = os.environ["KERAS_BACKEND"]
     if _backend:
@@ -312,6 +325,7 @@ if "KERAS_MAX_EPOCHS" in os.environ:
     _MAX_EPOCHS = int(os.environ["KERAS_MAX_EPOCHS"])
 if "KERAS_MAX_STEPS_PER_EPOCH" in os.environ:
     _MAX_STEPS_PER_EPOCH = int(os.environ["KERAS_MAX_STEPS_PER_EPOCH"])
+
 
 if _BACKEND != "tensorflow":
     # If we are not running on the tensorflow backend, we should stop tensorflow
@@ -403,3 +417,35 @@ def max_steps_per_epoch():
             `None`, no limit is applied.
     """
     return _MAX_STEPS_PER_EPOCH
+
+
+if not os.path.exists(_KERAS_DIR):
+    try:
+        os.makedirs(_KERAS_DIR)
+    except OSError:
+        # Except permission denied and potential race conditions
+        pass
+
+if not os.path.exists(_config_path):
+    _config_to_save = {
+        "floatx": floatx(),
+        "epsilon": epsilon(),
+        "backend": _BACKEND,  # Use the final _BACKEND value
+        "image_data_format": image_data_format(),
+        "nnx_enabled": _NNX_ENABLED,
+    }
+    try:
+        with open(_config_path, "w") as f:
+            f.write(json.dumps(_config_to_save, indent=4))
+    except IOError:
+        # Except permission denied.
+        pass
+
+if "KERAS_NNX_ENABLED" in os.environ:
+    env_val = os.environ["KERAS_NNX_ENABLED"].lower()
+    if env_val:
+        _NNX_ENABLED = True
+    else:
+        _NNX_ENABLED = False
+
+set_nnx_enabled(_NNX_ENABLED)
