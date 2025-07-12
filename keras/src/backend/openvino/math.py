@@ -18,7 +18,14 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
 
 def top_k(x, k, sorted=True):
-    raise NotImplementedError("`top_k` is not supported with openvino backend")
+    x = get_ov_output(x)
+    k_tensor = ov_opset.constant(k, dtype=Type.i32)
+    axis = -1
+    sort_type = "value" if sorted else "none"
+    topk_node = ov_opset.topk(x, k_tensor, axis, "max", sort_type)
+    values = topk_node.output(0)
+    indices = topk_node.output(1)
+    return OpenVINOKerasTensor(values), OpenVINOKerasTensor(indices)
 
 
 def in_top_k(targets, predictions, k):
