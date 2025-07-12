@@ -1523,14 +1523,6 @@ def tri(N, M=None, k=0, dtype=None):
     row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
     col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
 
-    # Target shape for broadcasting
-    target_shape = ov_opset.concat(
-        [ov_opset.unsqueeze(N_const, [0]), ov_opset.unsqueeze(M_const, [0])],
-        axis=0,
-    )
-
-    row_idx = ov_opset.broadcast(row_idx, target_shape)
-    col_idx = ov_opset.broadcast(col_idx, target_shape)
     mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k_const))
 
     if ov_dtype == Type.boolean:
@@ -1558,7 +1550,6 @@ def tril(x, k=0):
 
     x = get_ov_output(x)
     ov_type = x.get_element_type()
-    input_shape = ov_opset.shape_of(x, Type.i32)
     shape = get_shape_dims(x)
     zero_const = ov_opset.constant(0, Type.i32)
     minus2 = ov_opset.constant([-2], Type.i32)
@@ -1570,31 +1561,6 @@ def tril(x, k=0):
     tri_mask = tri(M, N, k=k, dtype="bool").output
 
     mask = ov_opset.convert(tri_mask, ov_type)
-
-    # Broadcast mask to input shape (including batch dims)
-    shape_rank = ov_opset.squeeze(
-        ov_opset.shape_of(input_shape, Type.i32), zero_const
-    )
-    batch_dims = ov_opset.subtract(shape_rank, ov_opset.constant(2, Type.i32))
-    batch_indices = ov_opset.range(
-        zero_const,
-        batch_dims,
-        ov_opset.constant(1, Type.i32),
-        output_type=Type.i32,
-    )
-    batch_shape = ov_opset.gather(input_shape, batch_indices, zero_const)
-
-    M_reshaped = ov_opset.unsqueeze(M, zero_const)
-    N_reshaped = ov_opset.unsqueeze(N, zero_const)
-
-    concat_inputs = [
-        batch_shape.output(0),
-        M_reshaped.output(0),
-        N_reshaped.output(0),
-    ]
-
-    full_mask_shape = ov_opset.concat(concat_inputs, axis=0)
-    mask = ov_opset.broadcast(mask, full_mask_shape)
 
     if ov_type == Type.boolean:
         out = ov_opset.logical_and(x, mask)
@@ -1621,7 +1587,6 @@ def triu(x, k=0):
 
     x = get_ov_output(x)
     ov_type = x.get_element_type()
-    input_shape = ov_opset.shape_of(x, Type.i32)
     shape = get_shape_dims(x)
     zero_const = ov_opset.constant(0, Type.i32)
     minus2 = ov_opset.constant([-2], Type.i32)
@@ -1631,7 +1596,6 @@ def triu(x, k=0):
 
     tri_mask = tri(M, N, k=k - 1, dtype="bool").output
 
-    # Handle boolean type differently since subtract doesn't work with boolean
     if ov_type == Type.boolean:
         mask = ov_opset.logical_not(tri_mask)
     else:
@@ -1639,32 +1603,6 @@ def triu(x, k=0):
             ov_opset.constant(1, ov_type), ov_opset.shape_of(tri_mask, Type.i32)
         )
         mask = ov_opset.subtract(ones, ov_opset.convert(tri_mask, ov_type))
-
-    # Broadcast mask
-    shape_rank = ov_opset.squeeze(
-        ov_opset.shape_of(input_shape, Type.i32), zero_const
-    )
-    batch_dims = ov_opset.subtract(shape_rank, ov_opset.constant(2, Type.i32))
-    batch_indices = ov_opset.range(
-        zero_const,
-        batch_dims,
-        ov_opset.constant(1, Type.i32),
-        output_type=Type.i32,
-    )
-    batch_shape = ov_opset.gather(input_shape, batch_indices, zero_const)
-
-    # Ensure all tensors are properly shaped before concat
-    M_reshaped = ov_opset.unsqueeze(M, zero_const)
-    N_reshaped = ov_opset.unsqueeze(N, zero_const)
-
-    concat_inputs = [
-        batch_shape.output(0),
-        M_reshaped.output(0),
-        N_reshaped.output(0),
-    ]
-
-    full_mask_shape = ov_opset.concat(concat_inputs, axis=0)
-    mask = ov_opset.broadcast(mask, full_mask_shape)
 
     if ov_type == Type.boolean:
         out = ov_opset.logical_and(x, mask)
