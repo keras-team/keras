@@ -211,6 +211,12 @@ class Variable:
 
     def _deferred_initialize(self):
         if self._value is not None:
+            # If NNX is enabled, it's possible the variable was already
+            # initialized by a concrete call. In this case,
+            # _deferred_initialize becomes a no-op for this variable.
+            if config.is_nnx_enabled():
+                self._initializer = None  # Clear initializer as it's now "used"
+                return
             raise ValueError(f"Variable {self.path} is already initialized.")
 
         if in_stateless_scope():
