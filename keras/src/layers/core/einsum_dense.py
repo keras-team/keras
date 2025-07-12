@@ -655,7 +655,7 @@ class EinsumDense(Layer):
 
             Args:
                 inputs: The full-precision input tensor.
-                kernel: The int8 quantized kernel tensor.
+                packed_kernel: The int4-packed kernel tensor.
                 kernel_scale: The float32 scale factor for the kernel.
 
             Returns:
@@ -676,7 +676,7 @@ class EinsumDense(Layer):
                 if upstream is None:
                     (upstream,) = args
                 # Align `kernel_scale` to the same layout as `unpacked_kernel`.
-                _kernel_scale = kernel_scale  # Avoid UnboundLocalError
+                _kernel_scale = kernel_scale
                 if self._kernel_squeeze_axes:
                     _kernel_scale = ops.expand_dims(
                         _kernel_scale, axis=self._kernel_squeeze_axes
@@ -704,8 +704,7 @@ class EinsumDense(Layer):
             # Compute einsum on quantized inputs and unpacked int4 kernel.
             x = ops.einsum(self.equation, inputs_q, unpacked_kernel)
 
-            # Align `inputs_scale` axes with the output for correct
-            # broadcasting, mirroring the logic used in the int8 path.
+            # Align `inputs_scale` axes with the output for correct broadcasting
             inputs_scale = ops.transpose(
                 inputs_scale, self._input_transpose_axes
             )
