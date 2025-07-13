@@ -545,6 +545,10 @@ def broadcast_to(x, shape):
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
 
 
+def cbrt(x):
+    raise NotImplementedError("`cbrt` is not supported with openvino backend")
+
+
 def ceil(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.ceil(x).output(0))
@@ -640,6 +644,12 @@ def cumsum(x, axis=None, dtype=None):
         axis = 0
     axis = ov_opset.constant(axis, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.cumsum(x, axis).output(0))
+
+
+def deg2rad(x):
+    raise NotImplementedError(
+        "`deg2rad` is not supported with openvino backend"
+    )
 
 
 def diag(x, k=0):
@@ -1052,43 +1062,33 @@ def median(x, axis=None, keepdims=False):
 
     x = get_ov_output(x)
     x_type = x.get_element_type()
-    x_rank_org = x.get_partial_shape().rank.get_length()
     if x_type == Type.boolean or x_type.is_integral():
         x_type = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, x_type).output(0)
 
     x_shape_original = ov_opset.shape_of(x, Type.i32).output(0)
+    x_rank_org = ov_opset.shape_of(x_shape_original, Type.i32).output(0)
+    x_rank_org_scalar = ov_opset.squeeze(
+        x_rank_org, ov_opset.constant(0, Type.i32).output(0)
+    ).output(0)
 
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-        axis_norm = axis
-        ov_axis_positive = get_ov_output(axis)
+        ov_axis_positive = ov_opset.constant([0], Type.i32).output(0)
         flattened = True
-        k_value = x.get_partial_shape().get_dimension(index=0).get_length()
-    elif isinstance(axis, int):
-        flattened = False
-        x_rank = x.get_partial_shape().rank.get_length()
-        if axis < 0:
-            axis_norm = x_rank + axis
-        else:
-            axis_norm = axis
-        ov_axis_positive = ov_axis = get_ov_output(axis)
-        k_value = (
-            x.get_partial_shape().get_dimension(index=axis_norm).get_length()
-        )
+
     else:
-        # where axis is tuple or list of integers, move 'axis' dims to the
-        # rightmost positions and flatten them
+        # move 'axis' dims to the rightmost positions
         flattened = False
+        if isinstance(axis, int):
+            axis = [axis]
         if isinstance(axis, (tuple, list)):
-            ov_axis = axis = list(axis)
+            axis = list(axis)
         ov_axis = ov_opset.constant(axis, Type.i32).output(0)
-        x_rank = x.get_partial_shape().rank.get_length()
         axis_as_range = ov_opset.range(
             ov_opset.constant(0, Type.i32).output(0),
-            x_rank,
+            x_rank_org_scalar,
             ov_opset.constant(1, Type.i32).output(0),
             Type.i32,
         ).output(0)
@@ -1096,67 +1096,89 @@ def median(x, axis=None, keepdims=False):
         ov_axis_positive = ov_opset.gather(
             axis_as_range, ov_axis, ov_opset.constant([0], Type.i32)
         ).output(0)
-        # only move axis dims if tuple contains more than 1 axis
-        if ov_axis_positive.get_partial_shape().rank.get_length() > 1:
-            axis_compare = ov_opset.not_equal(
-                ov_opset.unsqueeze(axis_as_range, 1).output(0),
-                ov_opset.unsqueeze(ov_axis_positive, 0).output(0),
-            ).output(0)
-            keep_axes = ov_opset.reduce_logical_or(
-                axis_compare, ov_opset.constant([1], Type.i32).output(0)
-            ).output(0)
-            nz = ov_opset.non_zero(keep_axes, Type.i32).output(0)
-            keep_axes = ov_opset.reduce_sum(
-                nz, ov_opset.constant([1], Type.i32).output(0)
-            ).output(0)
-            reordered_axes = ov_opset.concat(
-                [keep_axes, ov_axis_positive], 0
-            ).output(0)
-            x = ov_opset.transpose(x, reordered_axes).output(0)
 
-            flat_rank = ov_opset.subtract(
-                x_rank, ov_opset.constant([1], Type.i64).output(0)
+        # reshape axis tensors and compare to seperate the flatten and keep axes
+        axis_comparison_shape = ov_opset.concat(
+            [
+                ov_opset.shape_of(ov_axis_positive, Type.i32).output(0),
+                ov_opset.shape_of(axis_as_range, Type.i32).output(0),
+            ],
+            0,
+        ).output(0)
+        reshaped_axis_range = ov_opset.broadcast(
+            axis_as_range, axis_comparison_shape
+        ).output(0)
+        axis_compare = ov_opset.not_equal(
+            reshaped_axis_range,
+            ov_opset.unsqueeze(
+                ov_axis_positive, ov_opset.constant(1, Type.i32).output(0)
+            ).output(0),
+        ).output(0)
+        axis_compare = ov_opset.reduce_logical_and(
+            axis_compare, ov_opset.constant(0, Type.i32).output(0)
+        ).output(0)
+        nz = ov_opset.non_zero(axis_compare, Type.i32).output(0)
+        nz = ov_opset.squeeze(
+            nz, ov_opset.constant(0, Type.i32).output(0)
+        ).output(0)
+        keep_axes = ov_opset.gather(
+            axis_as_range, nz, ov_opset.constant(0, Type.i32).output(0)
+        ).output(0)
+        # concat to place keep axes on the left and flatten axes on the right
+        reordered_axes = ov_opset.concat(
+            [keep_axes, ov_axis_positive], 0
+        ).output(0)
+        x_transposed = ov_opset.transpose(x, reordered_axes).output(0)
+
+        # flatten the axis dims if more than 1 axis in input
+        if len(axis) > 1:
+            x_flatten_rank = ov_opset.subtract(
+                x_rank_org, ov_opset.constant([1], Type.i32).output(0)
             ).output(0)
-            flatten_shape = ov_opset.broadcast(
-                ov_opset.constant([0], Type.i32).output(0), flat_rank
+            x_flatten_shape = ov_opset.broadcast(
+                ov_opset.constant([0], Type.i32).output(0), x_flatten_rank
             ).output(0)
-            flatten_shape = ov_opset.scatter_elements_update(
-                flatten_shape,
+            x_flatten_shape = ov_opset.scatter_elements_update(
+                x_flatten_shape,
                 ov_opset.constant([-1], Type.i32).output(0),
                 ov_opset.constant([-1], Type.i32).output(0),
                 0,
                 "sum",
             ).output(0)
 
-            x = ov_opset.reshape(x, flatten_shape, True).output(0)
-        axis = -1
-        x_rank = x.get_partial_shape().rank.get_length()
-        axis_norm = x_rank + axis
-        ov_axis_positive = get_ov_output(axis_norm)
-        k_value = (
-            x.get_partial_shape().get_dimension(index=axis_norm).get_length()
-        )
+            x_transposed = ov_opset.reshape(
+                x_transposed, x_flatten_shape, True
+            ).output(0)
+
+        x = x_transposed
+
+    k_value = ov_opset.gather(
+        ov_opset.shape_of(x, Type.i32).output(0),
+        ov_opset.constant(-1, Type.i32).output(0),
+        ov_opset.constant(0, Type.i32).output(0),
+    ).output(0)
 
     x_sorted = ov_opset.topk(
-        x, k_value, axis_norm, "min", "value", stable=True
+        x, k_value, -1, "min", "value", stable=True
     ).output(0)
-    k_value = ov_opset.convert(k_value, x_type).output(0)
-    half_index = ov_opset.floor(
-        ov_opset.divide(k_value, ov_opset.constant([2], x_type)).output(0)
-    ).output(0)
-    half_index = ov_opset.convert(half_index, Type.i32).output(0)
-    x_mod = ov_opset.mod(k_value, ov_opset.constant([2], x_type)).output(0)
-    is_even = ov_opset.equal(x_mod, ov_opset.constant([0], x_type)).output(0)
 
-    med_0 = ov_opset.gather(x_sorted, half_index, ov_axis_positive).output(0)
+    half_index = ov_opset.floor(
+        ov_opset.divide(k_value, ov_opset.constant(2, Type.i32)).output(0)
+    ).output(0)
+    x_mod = ov_opset.mod(k_value, ov_opset.constant(2, Type.i32)).output(0)
+    is_even = ov_opset.equal(x_mod, ov_opset.constant(0, Type.i32)).output(0)
+
+    med_0 = ov_opset.gather(
+        x_sorted, half_index, ov_opset.constant(-1, Type.i32).output(0)
+    ).output(0)
     med_1 = ov_opset.select(
         is_even,
         ov_opset.gather(
             x_sorted,
             ov_opset.subtract(
-                half_index, ov_opset.constant([1], Type.i32)
+                half_index, ov_opset.constant(1, Type.i32)
             ).output(0),
-            ov_axis_positive,
+            ov_opset.constant(-1, Type.i32).output(0),
         ).output(0),
         med_0,
     ).output(0)
@@ -1164,7 +1186,7 @@ def median(x, axis=None, keepdims=False):
     median_odd = med_0
     median_even = ov_opset.divide(
         ov_opset.add(med_1, med_0).output(0),
-        ov_opset.constant([2], x_type),
+        ov_opset.constant(2, x_type),
     ).output(0)
 
     median_eval = ov_opset.select(is_even, median_even, median_odd).output(0)
@@ -1178,11 +1200,9 @@ def median(x, axis=None, keepdims=False):
                 median_eval, median_shape, False
             ).output(0)
         else:
-            if median_eval.get_partial_shape().rank.get_length() != x_rank_org:
-                median_eval = ov_opset.unsqueeze(median_eval, ov_axis).output(0)
-
-    else:
-        median_eval = ov_opset.squeeze(median_eval, ov_axis_positive).output(0)
+            median_eval = ov_opset.unsqueeze(
+                median_eval, ov_axis_positive
+            ).output(0)
 
     return OpenVINOKerasTensor(median_eval)
 
@@ -1305,9 +1325,9 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 
 def ndim(x):
     x = get_ov_output(x)
-    x_shape = ov_opset.shape_of(x).output(0)
-    x_dim = ov_opset.shape_of(x_shape, "i64")
-    return x_dim
+    shape_tensor = ov_opset.shape_of(x, Type.i64).output(0)
+    rank_tensor = ov_opset.shape_of(shape_tensor, Type.i64).output(0)
+    return OpenVINOKerasTensor(rank_tensor)
 
 
 def nonzero(x):
@@ -1782,6 +1802,10 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     x = get_ov_output(x)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
     axis = ov_opset.constant(axis, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.reduce_sum(x, axis, keepdims).output(0))
 
