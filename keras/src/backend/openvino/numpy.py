@@ -1092,7 +1092,8 @@ def median(x, axis=None, keepdims=False):
             ov_opset.constant(1, Type.i32).output(0),
             Type.i32,
         ).output(0)
-        # normalise any negative axes to their positive indices
+        # normalise any negative axes to their positive equivalents by gathering
+        # the indices from axis range
         ov_axis_positive = ov_opset.gather(
             axis_as_range, ov_axis, ov_opset.constant([0], Type.i32)
         ).output(0)
@@ -1194,6 +1195,7 @@ def median(x, axis=None, keepdims=False):
 
     if keepdims:
         if flattened:
+            # create a tensor of ones, length matching original rank of x
             median_shape = ov_opset.divide(
                 x_shape_original, x_shape_original, "none"
             ).output(0)
