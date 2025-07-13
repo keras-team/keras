@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
@@ -27,8 +29,16 @@ class Rescaling(TFDataLayer):
     (independently of which backend you're using).
 
     Args:
-        scale: Float, the scale to apply to the inputs.
-        offset: Float, the offset to apply to the inputs.
+        scale: Float, int, list, tuple or np.ndarray.
+            The scale to apply to the inputs.
+            If scalar, the same scale will be applied to
+            all features or channels of input. If a list, tuple or
+            1D array, the scaling is applied per channel.
+        offset: Float, int, list/tuple or numpy ndarray.
+            The offset to apply to the inputs.
+            If scalar, the same scale will be applied to
+            all features or channels of input. If a list, tuple or
+            1D array, the scaling is applied per channel.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """
 
@@ -46,6 +56,7 @@ class Rescaling(TFDataLayer):
         if (
             len(scale_shape) > 0
             and backend.image_data_format() == "channels_first"
+            and len(inputs.shape) > 2
         ):
             scale = self.backend.numpy.reshape(
                 scale, scale_shape + (1,) * (3 - len(scale_shape))
@@ -53,6 +64,58 @@ class Rescaling(TFDataLayer):
         return self.backend.cast(inputs, dtype) * scale + offset
 
     def compute_output_shape(self, input_shape):
+        input_shape = tuple(input_shape)
+
+        if backend.image_data_format() == "channels_last":
+            channels_axis = -1
+        else:
+            channels_axis = 1
+
+        input_channels = input_shape[channels_axis]
+
+        if input_channels is None:
+            return input_shape
+
+        scale_len = None
+        offset_len = None
+
+        if isinstance(self.scale, (list, tuple)):
+            scale_len = len(self.scale)
+        elif isinstance(self.scale, np.ndarray) and self.scale.ndim == 1:
+            scale_len = self.scale.size
+        elif isinstance(self.scale, (int, float)):
+            scale_len = 1
+
+        if isinstance(self.offset, (list, tuple)):
+            offset_len = len(self.offset)
+        elif isinstance(self.offset, np.ndarray) and self.offset.ndim == 1:
+            offset_len = self.offset.size
+        elif isinstance(self.offset, (int, float)):
+            offset_len = 1
+
+        if scale_len == 1 and offset_len == 1:
+            return input_shape
+
+        broadcast_len = None
+        if scale_len is not None and scale_len != input_channels:
+            broadcast_len = scale_len
+        if offset_len is not None and offset_len != input_channels:
+            if broadcast_len is not None and offset_len != broadcast_len:
+                raise ValueError(
+                    "Inconsistent `scale` and `offset` lengths "
+                    f"for broadcasting."
+                    f" Received: `scale` = {self.scale},"
+                    f"`offset` = {self.offset}. "
+                    f"Ensure both `scale` and `offset` are either scalar "
+                    f"or list, tuples, arrays of the same length."
+                )
+            broadcast_len = offset_len
+
+        if broadcast_len:
+            output_shape = list(input_shape)
+            output_shape[channels_axis] = broadcast_len
+            return tuple(output_shape)
+
         return input_shape
 
     def get_config(self):
