@@ -1133,7 +1133,8 @@ def median(x, axis=None, keepdims=False):
         # flatten the axis dims if more than 1 axis in input
         if len(axis) > 1:
             x_flatten_rank = ov_opset.subtract(
-                x_rank_org, ov_opset.constant([1], Type.i32).output(0)
+                x_rank_org,
+                ov_opset.constant([len(axis) - 1], Type.i32).output(0),
             ).output(0)
             x_flatten_shape = ov_opset.broadcast(
                 ov_opset.constant([0], Type.i32).output(0), x_flatten_rank
