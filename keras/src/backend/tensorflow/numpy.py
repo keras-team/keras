@@ -172,7 +172,7 @@ def heaviside(x1, x2):
     return tf.where(
         x1 < 0,
         tf.zeros_like(x1),
-        tf.where(x1 > 0, tf.ones_like(x1), tf.broadcast_to(x2, tf.shape(x1))),
+        tf.where(x1 > 0, tf.ones_like(x1), x2),
     )
 
 
