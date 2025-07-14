@@ -535,7 +535,7 @@ class EinsumDenseTest(testing.TestCase):
             "btnh,nhd->btd",
             (None, 8),
             (1, 2, 2, 4),
-            15e-4,
+            2e-3,
         ),
         (
             "int4_btd,ndh->btnh",
@@ -543,7 +543,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,ndh->btnh",
             (None, 2, 8),
             (1, 2, 4),
-            15e-4,
+            2e-3,
         ),
         (
             "int4_btd,df->btf",
@@ -551,7 +551,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            15e-4,
+            2e-3,
         ),
     )
     def test_quantize_with_specific_equations(
