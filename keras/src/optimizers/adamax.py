@@ -141,6 +141,7 @@ class Adamax(optimizer.Optimizer):
         return config
 
 
-Adamax.__doc__ = Adamax.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adamax.__doc__ is not None:
+    Adamax.__doc__ = Adamax.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

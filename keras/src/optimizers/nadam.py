@@ -158,6 +158,7 @@ class Nadam(optimizer.Optimizer):
         return config
 
 
-Nadam.__doc__ = Nadam.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Nadam.__doc__ is not None:
+    Nadam.__doc__ = Nadam.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

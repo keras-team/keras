@@ -233,7 +233,7 @@ class Ftrl(optimizer.Optimizer):
         )
         return config
 
-
-Ftrl.__doc__ = Ftrl.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Ftrl.__doc__ is not None:
+    Ftrl.__doc__ = Ftrl.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )
