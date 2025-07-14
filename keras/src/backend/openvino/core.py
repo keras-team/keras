@@ -105,6 +105,28 @@ def get_ov_output(x, ov_type=None):
         if ov_type is None:
             ov_type = Type.i32
         x = ov_opset.constant(x, ov_type).output(0)
+    elif isinstance(x, (list, tuple)):
+        if len(x) == 0:
+            raise ValueError(f"Input {type(x)} must not be empty.")
+        constants = []
+        for i, element in enumerate(x):
+            elem_output = get_ov_output(element, ov_type)
+            elem_shape = elem_output.get_partial_shape()
+            if elem_shape.rank.get_length() == 0:
+                elem_output = ov_opset.unsqueeze(elem_output, 0).output(0)
+                elem_shape = elem_output.get_partial_shape()
+            if i > 0:
+                first_shape = constants[0].get_partial_shape()
+                if not first_shape.compatible(elem_shape):
+                    raise ValueError(
+                        "Shapes of elements must match."
+                        f"Got {first_shape} e(0) vs {elem_shape} e({i})."
+                    )
+                constants[0], elem_output = align_operand_types(
+                    constants[0], elem_output, "list/tuple concatenation"
+                )
+            constants.append(elem_output)
+        x = ov_opset.concat(constants, axis=0).output(0)
     elif isinstance(x, np.ndarray):
         if x.dtype == np.dtype("bfloat16"):
             x = ov_opset.constant(x, OPENVINO_DTYPES["bfloat16"]).output(0)
@@ -808,7 +830,7 @@ def slice(inputs, start_indices, shape):
     step = ov_opset.constant(step, Type.i32).output(0)
     start = ov_opset.concat(start, axis=0).output(0)
     stop = ov_opset.concat(stop, axis=0).output(0)
-    axes = ov_opset.constant(axes, Type.i32).output(0)
+    axes = get_ov_output(axes)
     return OpenVINOKerasTensor(
         ov_opset.slice(inputs, start, stop, step, axes).output(0)
     )
