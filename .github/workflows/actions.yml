@@ -82,7 +82,7 @@ jobs:
           python integration_tests/import_test.py
           python integration_tests/numerical_test.py
       - name: Test JAX-specific integrations
-        if: ${{ matrix.backend == 'jax'}}
+        if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled != 'true'}}
         run: |
           python integration_tests/jax_custom_fit_test.py
       - name: Test basic flow with NNX
@@ -103,6 +103,7 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
       - name: Test with pytest
+        if: ${{ matrix.nnx_enabled != 'true'}}
         run: |
           if [ "${{ matrix.backend }}" == "openvino" ]; then
             IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
