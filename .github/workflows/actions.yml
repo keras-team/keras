@@ -1,5 +1,8 @@
 name: Tests
 
+# TODO: Consider enabling all tests (pytest, applications, etc.) with NNX in the future
+# Currently only basic flow tests run with NNX enabled
+
 on:
   push:
     branches: [ master ]
@@ -17,11 +20,18 @@ jobs:
       matrix:
         python-version: ['3.10']
         backend: [tensorflow, jax, torch, numpy, openvino]
+        nnx_enabled: [false]
+        include:
+          - python-version: '3.10'
+            backend: jax
+            nnx_enabled: true
     name: Run tests
     runs-on: ubuntu-latest
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+      KERAS_BACKEND: ${{ matrix.backend }}
+      KERAS_NNX_ENABLED: ${{ matrix.nnx_enabled }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for changes in keras/src/applications
@@ -48,6 +58,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
+          if [ "${{ matrix.nnx_enabled }}" == "true" ]; then
+            pip install --upgrade git+https://github.com/divyashreepathihalli/flax.git@use-id
+          fi
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Test applications with pytest
@@ -73,6 +86,11 @@ jobs:
         if: ${{ matrix.backend == 'jax'}}
         run: |
           python integration_tests/jax_custom_fit_test.py
+      - name: Test basic flow with NNX
+        if: ${{ matrix.nnx_enabled == 'true'}}
+        run: |
+          python integration_tests/import_test.py
+          python integration_tests/basic_full_flow.py
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |
@@ -96,8 +114,8 @@ jobs:
       - name: Codecov keras
         uses: codecov/codecov-action@v5
         with:
-          env_vars: PYTHON,KERAS_HOME
-          flags: keras,keras-${{ matrix.backend }}
+          env_vars: PYTHON,KERAS_HOME,KERAS_BACKEND,KERAS_NNX_ENABLED
+          flags: keras,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
           files: core-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
