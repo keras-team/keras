@@ -1456,6 +1456,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             sliced = knp.get_item(x, np.s_[:, :, :, :])
 
+    def test_heaviside(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (None, 3))
+
     def test_hstack(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
@@ -2052,6 +2057,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             ]
         )
         self.assertEqual(knp.get_item(x, 0).shape, ())
+
+    def test_heaviside(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
 
     def test_hstack(self):
         x = KerasTensor((2, 3))
@@ -4105,6 +4115,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1.1, 2.2, -3.3], [3.3, 2.2, -1.1]])
         self.assertAllClose(knp.floor(x), np.floor(x))
         self.assertAllClose(knp.Floor()(x), np.floor(x))
+
+    def test_heaviside(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
+        self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array(4)
+        self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
+        self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
 
     def test_hstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
