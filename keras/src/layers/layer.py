@@ -1680,11 +1680,12 @@ class Layer(BackendLayer, Operation):
             if not (is_nnx_enabled() and jax_utils.is_in_jax_tracing_scope()):
                 try:
                     self._parent_path = current_path()
-                except Exception as e:
+                except Exception:
                     warnings.warn(
-                        "Could not set `_parent_path` in "
-                        f"`_open_name_scope` for layer {self.name}. "
-                        f"Error: {e}"
+                        f"Layer '{self.name}' encountered an issue during "
+                        "model construction. If you're experiencing unexpected "
+                        "behavior, try calling your model on a small test "
+                        "input first to ensure proper initialization."
                     )
         return backend.name_scope(self.name, caller=self)
 

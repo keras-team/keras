@@ -141,9 +141,9 @@ class Functional(Function, Model):
 
         self._layers = self.layers
 
-        # Special handling for NNX to ensure consistent layer instance usage
+        # Special handling for NNX to ensure consistent operation instance usage
         if is_nnx_enabled():
-            self._setup_nnx_layer_mapping()
+            self._setup_nnx_op_mapping()
 
         self.build(None)
         # We will convert directly (to the correct dtype per input).
@@ -152,19 +152,19 @@ class Functional(Function, Model):
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
 
-    def _setup_nnx_layer_mapping(self):
-        """Setup layer mapping for NNX to ensure consistent layer instances."""
-        # Create a mapping from operation id to layer instance
-        self._nnx_layer_mapping = {}
+    def _setup_nnx_op_mapping(self):
+        """Setup operation mapping for NNX"""
+        # Create a mapping from operation id to operation instance
+        self._nnx_op_mapping = {}
 
-        # Store layers as direct attributes for NNX traversal
-        for i, layer in enumerate(self._layers):
-            if isinstance(layer, Layer):
-                # Store layer as direct attribute with unique name
-                attr_name = f"_layer_{i}_{layer.name}"
-                setattr(self, attr_name, layer)
-                # Map the operation id to this layer instance
-                self._nnx_layer_mapping[id(layer)] = layer
+        # Store operations as direct attributes for NNX traversal
+        for i, operation in enumerate(self._operations):
+            if isinstance(operation, Layer):
+                # Store operation as direct attribute with unique name
+                attr_name = f"_layer_{i}_{operation.name}"
+                setattr(self, attr_name, operation)
+                # Map the operation id to this operation instance
+                self._nnx_op_mapping[id(operation)] = operation
 
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
@@ -190,8 +190,45 @@ class Functional(Function, Model):
             "Please use another name."
         )
 
+    def _get_operation_for_node(self, node):
+        operation = node.operation
+        if hasattr(self, "_nnx_op_mapping") and id(operation) in getattr(
+            self, "_nnx_op_mapping", {}
+        ):
+            return self._nnx_op_mapping[id(operation)]
+        return operation
+
+    def _run_through_graph(self, inputs, operation_fn, call_fn=None):
+        """Unified graph execution that supports NNX layer mapping."""
+        inputs = tree.flatten(inputs)
+        tensor_dict = {}
+        for x, y in zip(self.inputs, inputs):
+            tensor_dict[id(x)] = y
+        nodes_by_depth = self._nodes_by_depth
+        depth_keys = list(nodes_by_depth.keys())
+        depth_keys.sort(reverse=True)
+        for depth in depth_keys:
+            nodes = nodes_by_depth[depth]
+            for node in nodes:
+                if not node.operation or node.is_input:
+                    continue
+                if any(id(x) not in tensor_dict for x in node.input_tensors):
+                    continue
+                args, kwargs = node.arguments.fill_in(tensor_dict)
+                operation = self._get_operation_for_node(node)
+                op = operation_fn(operation)
+                if call_fn is not None:
+                    outputs = call_fn(op, *args, **kwargs)
+                else:
+                    outputs = op(*args, **kwargs)
+                for x, y in zip(node.outputs, tree.flatten(outputs)):
+                    tensor_dict[id(x)] = y
+        output_tensors = []
+        for x in self.outputs:
+            output_tensors.append(tensor_dict[id(x)])
+        return tree.pack_sequence_as(self._outputs_struct, output_tensors)
+
     def call(self, inputs, training=None, mask=None, **kwargs):
-        # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
             masks = [None] * len(inputs)
@@ -200,73 +237,13 @@ class Functional(Function, Model):
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
-
-        # Use NNX-compatible execution when NNX is enabled
-        if is_nnx_enabled():
-            outputs = self._run_through_graph_nnx_compatible(
-                inputs,
-                operation_fn=lambda op: operation_fn(
-                    op, training=training, **kwargs
-                ),
-            )
-        else:
-            outputs = self._run_through_graph(
-                inputs,
-                operation_fn=lambda op: operation_fn(
-                    op, training=training, **kwargs
-                ),
-            )
+        outputs = self._run_through_graph(
+            inputs,
+            operation_fn=lambda op: operation_fn(
+                op, training=training, **kwargs
+            ),
+        )
         return unpack_singleton(outputs)
-
-    def _run_through_graph_nnx_compatible(
-        self, inputs, operation_fn, call_fn=None
-    ):
-        """NNX-compatible graph execution ensures consistent layer instances."""
-        inputs = tree.flatten(inputs)
-
-        # Dictionary mapping reference tensors to computed tensors.
-        tensor_dict = {}
-        for x, y in zip(self.inputs, inputs):
-            tensor_dict[id(x)] = y
-
-        nodes_by_depth = self._nodes_by_depth
-        depth_keys = list(nodes_by_depth.keys())
-        depth_keys.sort(reverse=True)
-
-        for depth in depth_keys:
-            nodes = nodes_by_depth[depth]
-            for node in nodes:
-                if not node.operation or node.is_input:
-                    continue  # Input tensors already exist.
-
-                if any(id(x) not in tensor_dict for x in node.input_tensors):
-                    continue  # Node is not computable, try skipping.
-
-                args, kwargs = node.arguments.fill_in(tensor_dict)
-
-                # Use the consistent layer instance for NNX compatibility
-                operation = node.operation
-                if (
-                    hasattr(self, "_nnx_layer_mapping")
-                    and id(operation) in self._nnx_layer_mapping
-                ):
-                    operation = self._nnx_layer_mapping[id(operation)]
-
-                op = operation_fn(operation)
-                if call_fn is not None:
-                    outputs = call_fn(op, *args, **kwargs)
-                else:
-                    outputs = op(*args, **kwargs)
-
-                # Update tensor_dict.
-                for x, y in zip(node.outputs, tree.flatten(outputs)):
-                    tensor_dict[id(x)] = y
-
-        output_tensors = []
-        for x in self.outputs:
-            output_tensors.append(tensor_dict[id(x)])
-
-        return tree.pack_sequence_as(self._outputs_struct, output_tensors)
 
     def compute_output_spec(self, inputs, training=None, mask=None):
         # From Function
@@ -473,7 +450,7 @@ class Functional(Function, Model):
             # the author of the subclassed network).
             return Model.get_config(self)
 
-        config = {
+        cfg = {
             "name": self.name,
             "trainable": self.trainable,
         }
@@ -520,7 +497,7 @@ class Functional(Function, Model):
             layer_config["name"] = operation.name
             layer_config["inbound_nodes"] = filtered_inbound_nodes
             layer_configs.append(layer_config)
-        config["layers"] = layer_configs
+        cfg["layers"] = layer_configs
 
         # Gather info about inputs and outputs.
         def get_tensor_config(tensor):
@@ -535,9 +512,9 @@ class Functional(Function, Model):
         def map_tensors(tensors):
             return tree.map_structure(get_tensor_config, tensors)
 
-        config["input_layers"] = map_tensors(self._inputs_struct)
-        config["output_layers"] = map_tensors(self._outputs_struct)
-        return copy.deepcopy(config)
+        cfg["input_layers"] = map_tensors(self._inputs_struct)
+        cfg["output_layers"] = map_tensors(self._outputs_struct)
+        return copy.deepcopy(cfg)
 
 
 def functional_from_config(cls, config, custom_objects=None):

@@ -305,6 +305,7 @@ if not os.path.exists(_config_path):
         "epsilon": _EPSILON,
         "backend": _BACKEND,
         "image_data_format": _IMAGE_DATA_FORMAT,
+        "nnx_enabled": is_nnx_enabled(),
     }
     try:
         with open(_config_path, "w") as f:
@@ -327,10 +328,9 @@ if os.path.exists(_config_path):
     _image_data_format = _config.get("image_data_format", image_data_format())
     assert _image_data_format in {"channels_last", "channels_first"}
     _nnx_enabled_config = _config.get("nnx_enabled", _NNX_ENABLED)
-    if not isinstance(_nnx_enabled_config, bool):
-        _NNX_ENABLED = str(_nnx_enabled_config).lower() == "true"
-    else:
+    if isinstance(_nnx_enabled_config, bool):
         _NNX_ENABLED = _nnx_enabled_config
+    # else: ignore non-bool values for nnx_enabled
 
     # Apply basic configs that don't cause circular import
     set_floatx(_floatx)
