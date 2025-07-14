@@ -29,7 +29,6 @@ keras/src/metrics
 keras/src/models
 keras/src/ops/image_test.py
 keras/src/ops/linalg_test.py
-keras/src/ops/math_test.py
 keras/src/ops/nn_test.py
 keras/src/optimizers
 keras/src/quantizers
