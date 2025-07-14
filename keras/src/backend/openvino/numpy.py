@@ -1494,15 +1494,94 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    raise NotImplementedError("`tri` is not supported with openvino backend")
+    if M is None:
+        M = N
+    if dtype is None:
+        dtype = "float32"
+
+    ov_dtype = OPENVINO_DTYPES[dtype]
+
+    def ensure_constant(value, default_type=Type.i32):
+        if isinstance(value, (int, float)):
+            return ov_opset.constant(value, default_type)
+        elif hasattr(value, "get_element_type"):
+            if value.get_element_type() != Type.i32:
+                value = ov_opset.convert(value, Type.i32)
+            return ov_opset.squeeze(value, ov_opset.constant([0], Type.i32))
+        else:
+            return ov_opset.constant(value, default_type)
+
+    N_const = ensure_constant(N)
+    M_const = ensure_constant(M)
+    k_const = ensure_constant(k)
+
+    # Create row and column indices
+    row_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32),
+        N_const,
+        ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+    col_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32),
+        M_const,
+        ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+
+    # Reshape indices for broadcasting
+    row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
+    col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
+
+    mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k_const))
+
+    if ov_dtype == Type.boolean:
+        result = mask
+    else:
+        result = ov_opset.convert(mask, ov_dtype)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def tril(x, k=0):
-    raise NotImplementedError("`tril` is not supported with openvino backend")
+    x = get_ov_output(x)
+    ov_type = x.get_element_type()
+    shape = ov_opset.shape_of(x, Type.i32)
+    zero_const = ov_opset.constant(0, Type.i32)
+    minus2 = ov_opset.constant([-2], Type.i32)
+    minus1 = ov_opset.constant([-1], Type.i32)
+    M = ov_opset.squeeze(ov_opset.gather(shape, minus2, zero_const), zero_const)
+    N = ov_opset.squeeze(ov_opset.gather(shape, minus1, zero_const), zero_const)
+    tri_mask = tri(M, N, k=k, dtype="bool").output
+    mask = ov_opset.convert(tri_mask, ov_type)
+    if ov_type == Type.boolean:
+        out = ov_opset.logical_and(x, mask)
+    else:
+        out = ov_opset.multiply(x, mask)
+    return OpenVINOKerasTensor(out.output(0))
 
 
 def triu(x, k=0):
-    raise NotImplementedError("`triu` is not supported with openvino backend")
+    x = get_ov_output(x)
+    ov_type = x.get_element_type()
+    shape = ov_opset.shape_of(x, Type.i32)
+    zero_const = ov_opset.constant(0, Type.i32)
+    minus2 = ov_opset.constant([-2], Type.i32)
+    minus1 = ov_opset.constant([-1], Type.i32)
+    M = ov_opset.squeeze(ov_opset.gather(shape, minus2, zero_const), zero_const)
+    N = ov_opset.squeeze(ov_opset.gather(shape, minus1, zero_const), zero_const)
+    tri_mask = tri(M, N, k=k - 1, dtype="bool").output
+    if ov_type == Type.boolean:
+        mask = ov_opset.logical_not(tri_mask)
+    else:
+        const_one = ov_opset.constant(1, ov_type)
+        converted_mask = ov_opset.convert(tri_mask, ov_type)
+        mask = ov_opset.subtract(const_one, converted_mask)
+    if ov_type == Type.boolean:
+        out = ov_opset.logical_and(x, mask)
+    else:
+        out = ov_opset.multiply(x, mask)
+    return OpenVINOKerasTensor(out.output(0))
 
 
 def vdot(x1, x2):
