@@ -231,11 +231,6 @@ if config.is_nnx_enabled():
                 )
             return self._maybe_autocast(current_value)
 
-        # Todo: NNX has agreed to fix it on their end. I will remove it once
-        # that is done
-        def __hash__(self):
-            return id(self)
-
     _JAX_VARIABLE_TYPE = NnxVariable
 
 
