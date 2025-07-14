@@ -1,0 +1,61 @@
+name: NNX Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  nnx-tests:
+    name: Run NNX tests
+    runs-on: ubuntu-latest
+    env:
+      PYTHON: '3.10'
+      KERAS_HOME: .github/workflows/config/nnx
+      KERAS_BACKEND: jax
+      KERAS_NNX_ENABLED: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+
+      - name: pip cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip install --upgrade git+https://github.com/divyashreepathihalli/flax.git@use-id
+          pip uninstall -y keras keras-nightly
+          pip install -e "." --progress-bar off --upgrade
+
+      - name: Test basic flow with NNX
+        run: |
+          python integration_tests/import_test.py
+          python integration_tests/basic_full_flow.py
+
+      - name: Codecov NNX
+        uses: codecov/codecov-action@v5
+        with:
+          env_vars: PYTHON,KERAS_HOME,KERAS_BACKEND,KERAS_NNX_ENABLED
+          flags: keras-nnx
+          files: nnx-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

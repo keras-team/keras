@@ -3,6 +3,7 @@ import re
 import subprocess
 
 from keras.src import backend
+from keras.src.backend import config
 
 # For torch, use index url to avoid installing nvidia drivers for the test.
 BACKEND_REQ = {
@@ -11,9 +12,7 @@ BACKEND_REQ = {
         "torch",
         "--extra-index-url https://download.pytorch.org/whl/cpu ",
     ),
-    # please update the jax version here if jax version is updated in
-    # requirements file
-    "jax": ("jax[cpu]==0.5.1 flax>=0.10.1", ""),
+    "jax": ("jax[cpu]", ""),
     "openvino": ("openvino", ""),
 }
 
@@ -57,16 +56,25 @@ def manage_venv_installs(whl_path):
         "pip install " + backend_extra_url + backend_pkg,
         "pip install -r requirements-common.txt",
         "pip install pytest",
-        # Ensure other backends are uninstalled
-        "pip uninstall -y "
-        + BACKEND_REQ[other_backends[0]][0]
-        + " "
-        + BACKEND_REQ[other_backends[1]][0]
-        + " "
-        + BACKEND_REQ[other_backends[2]][0],
-        # Install `.whl` package
-        "pip install " + whl_path,
     ]
+
+    # Install flax for JAX when NNX is enabled
+    if backend.backend() == "jax" and config.is_nnx_enabled():
+        install_setup.append("pip install flax>=0.10.1")
+
+    install_setup.extend(
+        [
+            # Ensure other backends are uninstalled
+            "pip uninstall -y "
+            + BACKEND_REQ[other_backends[0]][0]
+            + " "
+            + BACKEND_REQ[other_backends[1]][0]
+            + " "
+            + BACKEND_REQ[other_backends[2]][0],
+            # Install `.whl` package
+            "pip install " + whl_path,
+        ]
+    )
     run_commands_venv(install_setup)
 
 

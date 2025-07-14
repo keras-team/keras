@@ -254,8 +254,7 @@ def set_nnx_enabled(value):
             from flax import nnx  # noqa F401
         except ImportError:
             raise ImportError(
-                "To use the NNX backend, you must install `flax`."
-                "Try: `pip install flax`"
+                "To use NNX with the JAX backend, you must install `flax`."
             )
     global_state.set_global_attribute("nnx_enabled", bool(value))
 
@@ -291,6 +290,28 @@ def keras_home():
 
 # Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_KERAS_DIR, "keras.json"))
+
+# Save config file, if possible.
+if not os.path.exists(_KERAS_DIR):
+    try:
+        os.makedirs(_KERAS_DIR)
+    except OSError:
+        # Except permission denied.
+        pass
+
+if not os.path.exists(_config_path):
+    _config_to_save = {
+        "floatx": _FLOATX,
+        "epsilon": _EPSILON,
+        "backend": _BACKEND,
+        "image_data_format": _IMAGE_DATA_FORMAT,
+    }
+    try:
+        with open(_config_path, "w") as f:
+            f.write(json.dumps(_config_to_save, indent=4))
+    except IOError:
+        # Except permission denied.
+        pass
 
 if os.path.exists(_config_path):
     try:
@@ -418,28 +439,6 @@ def max_steps_per_epoch():
     """
     return _MAX_STEPS_PER_EPOCH
 
-
-if not os.path.exists(_KERAS_DIR):
-    try:
-        os.makedirs(_KERAS_DIR)
-    except OSError:
-        # Except permission denied and potential race conditions
-        pass
-
-if not os.path.exists(_config_path):
-    _config_to_save = {
-        "floatx": floatx(),
-        "epsilon": epsilon(),
-        "backend": _BACKEND,  # Use the final _BACKEND value
-        "image_data_format": image_data_format(),
-        "nnx_enabled": _NNX_ENABLED,
-    }
-    try:
-        with open(_config_path, "w") as f:
-            f.write(json.dumps(_config_to_save, indent=4))
-    except IOError:
-        # Except permission denied.
-        pass
 
 if "KERAS_NNX_ENABLED" in os.environ:
     env_val = os.environ["KERAS_NNX_ENABLED"].lower()
