@@ -10,7 +10,6 @@ from openvino import Model
 from openvino import Tensor
 from openvino import Type
 from openvino import compile_model
-
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
