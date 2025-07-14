@@ -1327,7 +1327,7 @@ class Heaviside(Operation):
             dtype = backend.floatx()
         elif dtype == "int64":
             dtype = "float64"
-        return KerasTensor(x1.shape, dtype=dtype)
+        return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
 
 
 @keras_export(["keras.ops.heaviside", "keras.ops.numpy.heaviside"])
