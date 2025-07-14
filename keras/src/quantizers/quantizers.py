@@ -374,3 +374,263 @@ def quantize_and_dequantize(inputs, scale, quantized_dtype, compute_dtype):
     # Dequantize
     x = ops.multiply(ops.cast(x, compute_dtype), ops.cast(scale, compute_dtype))
     return x
+
+
+@keras_export("keras.quantizers.pack_int4")
+def pack_int4(arr, axis=0):
+    """Pack an int4 tensor into an int8 tensor with packed nibbles.
+
+    The input values must already be int8 in the signed range `[-8, 7]` and
+    represent the desired int4 values. Packing is performed along the specified
+    axis (default is 0).
+
+    For every two consecutive rows, the **low nibble** of the output byte
+    stores the value from the first row, and the **high nibble** stores
+    the value from the second row.
+
+    Args:
+        arr: An int8 tensor containing int4 values in the range `[-8, 7]`.
+        axis: The axis along which to pack the tensor. Defaults to 0.
+
+    Returns:
+        tuple: A tuple `(packed, packed_shape, orig_rows)` where `packed` is
+            the packed int8 tensor with int4 values stored in nibbles,
+            `packed_shape` is the shape of the packed tensor, and `orig_rows`
+            is the original (unpacked) row count prior to any padding that may
+            have been inserted when an odd number of rows is supplied.
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_int4, unpack_int4
+
+    # Example with axis=0
+    # Original array has shape (3, 2)
+    >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+
+    # Pack the array along axis 0. Since the length of axis 0 (3) is
+    # odd, it will be padded to a length of 4. The packed array will
+    # have a shape of (ceil(3/2), 2) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[  45 -121]
+    [   1    0]]
+
+    # Now, unpack the array back to its original form
+    >>> unpacked = unpack_int4(packed, orig_len, axis=0)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7]
+    [ 2 -8]
+    [ 1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+
+    # Example with axis=1
+    # Original array has shape (2, 3)
+    >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
+
+    # Pack along axis 1. Length of axis 1 (3) is padded to 4.
+    # The new shape is (2, ceil(3/2)) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[ 125   2]
+    [  24   0]]
+
+    # Unpack the array
+    >>> unpacked = unpack_int4(packed, orig_len, axis=1)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7  2]
+    [-8  1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+    ```
+    """
+    if backend.standardize_dtype(arr.dtype) != "int8":
+        raise TypeError(
+            "Expected int8 tensor for packing, got {}".format(arr.dtype)
+        )
+
+    rank = getattr(arr.shape, "rank", None) or len(arr.shape)
+
+    if axis < 0:
+        axis += rank
+
+    # 1. Bring `axis` to the front.
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(arr, perm)
+
+    # 2. Pad to even length.
+    rows = ops.shape(transposed)[0]
+    needs_pad = ops.equal(ops.mod(rows, 2), 1)
+
+    # Always append one zero row so the tensor shape is static for JAX. If no
+    # padding is actually needed, we'll slice it away later.
+    zero_row = transposed[:1, ...] * 0  # same dtype/shape (1, ...)
+    padded_full = ops.concatenate([transposed, zero_row], axis=0)
+
+    # Number of valid rows after (possible) padding:
+    # rows + (1 if needs_pad else 0)
+    rows_packed = rows + ops.cast(needs_pad, "int32")
+
+    # Slice to keep only the valid rows. This keeps the shape rank static while
+    # allowing the row count to be dynamic.
+    padded = padded_full[:rows_packed, ...]
+
+    # 3-4. Group in pairs and pack.
+    low = padded[::2, ...]
+    high = padded[1::2, ...]
+
+    mask = ops.array(0x0F, dtype="int8")
+    low_u = ops.bitwise_and(low, mask)
+    high_u = ops.bitwise_and(high, mask)
+
+    packed = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
+    packed = ops.cast(packed, "int8")
+
+    # 5-6. Restore shape.
+    packed = ops.transpose(packed, inv_perm)  # back to original order
+    orig_len = rows  # number of slices before padding
+    return packed, ops.shape(packed), orig_len
+
+
+@keras_export("keras.quantizers.unpack_int4")
+def unpack_int4(packed, orig_len, axis=0):
+    """Unpack a packed int4 back to an int8 tensor in the range [-8, 7].
+
+    This function reverses the packing performed by `pack_int4`, restoring
+    the original int8 tensor (values in the range [-8, 7]) from a packed int8
+    tensor where each element contains two int4 values (one in the lower nibble,
+    one in the upper nibble).
+
+    The function restores the original axis order and removes any
+    padding that was added during packing.
+
+    Args:
+        packed: An int8 tensor containing packed int4 values along the
+            specified axis. Each int8 value encodes two int4 values.
+        orig_len: The original (unpadded) length of the axis that was
+            packed. This is used to remove any padding that may have
+            been added during packing to ensure an even number of rows.
+        axis: The axis along which the tensor was packed. Defaults to 0.
+
+    Returns:
+        unpacked: An int8 tensor with the same shape as the original
+            (unpacked) tensor, with values in the range [-8, 7].
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_int4, unpack_int4
+
+    # Example with axis=0
+    # Original array has shape (3, 2)
+    >>> original_array = np.array([[-3, 7], [2, -8], [1, 0]], dtype=np.int8)
+
+    # Pack the array along axis 0. Since the length of axis 0 (3) is
+    # odd, it will be padded to a length of 4. The packed array will
+    # have a shape of (ceil(3/2), 2) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=0)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[  45 -121]
+    [   1    0]]
+
+    # Now, unpack the array back to its original form
+    >>> unpacked = unpack_int4(packed, orig_len, axis=0)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7]
+    [ 2 -8]
+    [ 1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+
+    # Example with axis=1
+    # Original array has shape (2, 3)
+    >>> original_array = np.array([[-3, 7, 2], [-8, 1, 0]], dtype=np.int8)
+
+    # Pack along axis 1. Length of axis 1 (3) is padded to 4.
+    # The new shape is (2, ceil(3/2)) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int4(original_array, axis=1)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[ 125   2]
+    [  24   0]]
+
+    # Unpack the array
+    >>> unpacked = unpack_int4(packed, orig_len, axis=1)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-3  7  2]
+    [-8  1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+    ```
+    """
+    if backend.standardize_dtype(packed.dtype) != "int8":
+        raise TypeError(
+            f"Expected int8 tensor for unpacking, got {packed.dtype}"
+        )
+
+    rank = getattr(packed.shape, "rank", None) or len(packed.shape)
+
+    if axis < 0:
+        axis += rank
+
+    # Fast path for the most common case in Dense layers
+    if axis == 0 and rank == 2:
+        # The result of the bitwise op is a wider dtype (e.g., int32).
+        mask = ops.array(0x0F, dtype=packed.dtype)
+        low_unpacked = ops.bitwise_and(packed, mask)
+        high_unpacked = ops.bitwise_and(ops.right_shift(packed, 4), mask)
+
+        # Convert values from [0, 15] to [-8, 7].
+        low_signed = ops.where(
+            low_unpacked < 8, low_unpacked, low_unpacked - 16
+        )
+        high_signed = ops.where(
+            high_unpacked < 8, high_unpacked, high_unpacked - 16
+        )
+
+        # Interleave and reshape
+        stacked = ops.stack([low_signed, high_signed], axis=1)
+        unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(packed)[1:]))
+
+        # Remove padding and return
+        return unpacked[:orig_len, ...]
+
+    # General case
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(packed, perm)
+
+    # 1. Split nibbles.
+    mask = ops.array(0x0F, dtype="int8")  # int8 arrays
+    low = ops.bitwise_and(transposed, mask)
+    high = ops.bitwise_and(ops.right_shift(transposed, 4), mask)
+
+    eight = ops.array(8, dtype="int8")
+    sixteen = ops.array(16, dtype="int8")
+
+    def to_signed(x):
+        return ops.where(x < eight, x, x - sixteen)
+
+    low = to_signed(low)
+    high = to_signed(high)
+
+    # 2. Interleave and reshape.
+    stacked = ops.stack([low, high], axis=1)  # (pairs, 2, ...)
+    unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(transposed)[1:]))
+
+    # 4. Remove padding and restore original layout.
+    unpacked = unpacked[:orig_len, ...]
+    unpacked = ops.transpose(unpacked, inv_perm)
+
+    return unpacked  # dtype is int8

@@ -14,6 +14,7 @@ NumpyDtypeTest::test_hamming
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
+NumpyDtypeTest::test_cbrt
 NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_corrcoef
@@ -81,6 +82,7 @@ NumpyOneInputOpsCorrectnessTest::test_hamming
 NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
+NumpyOneInputOpsCorrectnessTest::test_cbrt
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_corrcoef
 NumpyOneInputOpsCorrectnessTest::test_correlate
@@ -153,12 +155,14 @@ NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_bartlett
 NumpyOneInputOpsDynamicShapeTest::test_blackman
+NumpyOneInputOpsDynamicShapeTest::test_cbrt
 NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_deg2rad
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsStaticShapeTest::test_angle
+NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_deg2rad
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments
@@ -182,13 +186,3 @@ CoreOpsCorrectnessTest::test_slice_update
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
-CoreOpsDtypeTest::test_convert_to_tensor0
-CoreOpsDtypeTest::test_convert_to_tensor1
-CoreOpsDtypeTest::test_convert_to_tensor2
-CoreOpsDtypeTest::test_convert_to_tensor3
-CoreOpsDtypeTest::test_convert_to_tensor8
-CoreOpsDtypeTest::test_convert_to_tensor11
-CoreOpsDtypeTest::test_convert_to_tensor12
-CoreOpsDtypeTest::test_convert_to_tensor14
-CoreOpsDtypeTest::test_convert_to_tensor25
-CoreOpsDtypeTest::test_convert_to_tensor37

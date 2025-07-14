@@ -1255,6 +1255,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             x = KerasTensor((3, 3))
             knp.broadcast_to(x, (2, 2, 3))
 
+    def test_cbrt(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.cbrt(x).shape, (None, 3))
+
     def test_ceil(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ceil(x).shape, (None, 3))
@@ -1874,6 +1878,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             x = KerasTensor((3, 3))
             knp.broadcast_to(x, (2, 2, 3))
+
+    def test_cbrt(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.cbrt(x).shape, (2, 3))
 
     def test_ceil(self):
         x = KerasTensor((2, 3))
@@ -3736,6 +3744,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.BroadcastTo([2, 2, 3])(x),
             np.broadcast_to(x, [2, 2, 3]),
         )
+
+    def test_cbrt(self):
+        x = np.array([[-8, -1, 0], [1, 8, 27]], dtype="float32")
+        ref_y = np.sign(x) * np.abs(x) ** (1.0 / 3.0)
+        y = knp.cbrt(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
+
+        y = knp.Cbrt()(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
 
     def test_ceil(self):
         x = np.array([[1.2, 2.1, -2.5], [2.4, -11.9, -5.5]])
@@ -6476,6 +6495,20 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.BroadcastTo((3, 3)).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_cbrt(self, dtype):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((1,), dtype=dtype)
+        x1_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.cbrt(x1_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.cbrt(x1).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Cbrt().symbolic_call(x1).dtype),
             expected_dtype,
         )
 
