@@ -31,7 +31,6 @@ jobs:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
       KERAS_BACKEND: ${{ matrix.backend }}
-      KERAS_NNX_ENABLED: ${{ matrix.backend == 'jax' && matrix.nnx_enabled || 'false' }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for changes in keras/src/applications
@@ -88,6 +87,8 @@ jobs:
           python integration_tests/jax_custom_fit_test.py
       - name: Test basic flow with NNX
         if: ${{ matrix.nnx_enabled == 'true'}}
+        env:
+          KERAS_NNX_ENABLED: true
         run: |
           python integration_tests/import_test.py
           python integration_tests/basic_full_flow.py
