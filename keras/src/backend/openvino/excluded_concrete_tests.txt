@@ -81,7 +81,6 @@ NumpyOneInputOpsCorrectnessTest::test_bartlett
 NumpyOneInputOpsCorrectnessTest::test_blackman
 NumpyOneInputOpsCorrectnessTest::test_hamming
 NumpyOneInputOpsCorrectnessTest::test_hanning
-NumpyOneInputOpsCorrectnessTest::test_heaviside
 NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_cbrt
@@ -147,6 +146,7 @@ NumpyTwoInputOpsCorrectnessTest::test_cross
 NumpyTwoInputOpsCorrectnessTest::test_digitize
 NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
+NumpyTwoInputOpsCorrectnessTest::test_heaviside
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_linspace
 NumpyTwoInputOpsCorrectnessTest::test_logspace
@@ -162,11 +162,12 @@ NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_deg2rad
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
-NumpyOneInputOpsDynamicShapeTest::test_heaviside
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_deg2rad
+NumpyTwoInputOpsDynamicShapeTest::test_heaviside
+NumpyTwoInputOpsStaticShapeTest::test_heaviside
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments
 CoreOpsCallsTests::test_associative_scan_basic_call
