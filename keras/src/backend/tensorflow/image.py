@@ -707,7 +707,7 @@ def map_coordinates(
         gathered = tf.transpose(tf.gather_nd(input_arr, indices))
 
         # Cast to computation dtype early to avoid type issues
-        dtype=weights[0].dtype
+        dtype = weights[0].dtype
         gathered = tf.cast(gathered, dtype)
         gathered = tf.cast(gathered, weights[0].dtype)
 
