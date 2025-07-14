@@ -401,18 +401,7 @@ class EinsumDense(Layer):
         self._is_quantized = True
 
     def _int8_build(self, kernel_shape):
-        (
-            self._input_reduced_axes,
-            self._kernel_reduced_axes,
-            self._input_transpose_axes,
-            self._kernel_transpose_axes,
-            self._input_expand_axes,
-            self._kernel_expand_axes,
-            self._input_squeeze_axes,
-            self._kernel_squeeze_axes,
-            self._custom_gradient_equation,
-            self._kernel_reverse_transpose_axes,
-        ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
+        self._set_quantization_info()
         self.inputs_quantizer = quantizers.AbsMaxQuantizer(
             axis=self._input_reduced_axes
         )
@@ -447,19 +436,7 @@ class EinsumDense(Layer):
         the einsum and thus analogous to the input-dim axis of a `Dense`
         layer).
         """
-
-        (
-            self._input_reduced_axes,
-            self._kernel_reduced_axes,
-            self._input_transpose_axes,
-            self._kernel_transpose_axes,
-            self._input_expand_axes,
-            self._kernel_expand_axes,
-            self._input_squeeze_axes,
-            self._kernel_squeeze_axes,
-            self._custom_gradient_equation,
-            self._kernel_reverse_transpose_axes,
-        ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
+        self._set_quantization_info()
 
         # Quantizer for the inputs (per the reduced axes)
         self.inputs_quantizer = quantizers.AbsMaxQuantizer(
@@ -840,35 +817,14 @@ class EinsumDense(Layer):
 
         kernel_shape = self._kernel.shape
         if mode in ("int8", "int4"):
-            (
-                self._input_reduced_axes,
-                self._kernel_reduced_axes,
-                self._input_transpose_axes,
-                self._kernel_transpose_axes,
-                self._input_expand_axes,
-                self._kernel_expand_axes,
-                self._input_squeeze_axes,
-                self._kernel_squeeze_axes,
-                self._custom_gradient_equation,
-                self._kernel_reverse_transpose_axes,
-            ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
+            self._set_quantization_info()
 
         if mode == "int8":
             # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=self._kernel_reduced_axes, to_numpy=True
             )
-            kernel_scale = ops.transpose(
-                kernel_scale, self._kernel_transpose_axes
-            )
-            if self._kernel_expand_axes:
-                kernel_scale = ops.expand_dims(
-                    kernel_scale, axis=self._kernel_expand_axes
-                )
-            if self._kernel_squeeze_axes:
-                kernel_scale = ops.squeeze(
-                    kernel_scale, axis=self._kernel_squeeze_axes
-                )
+            kernel_scale = self._adjust_scale_for_quant(kernel_scale)
             del self._kernel
         elif mode == "int4":
             # Quantize to int4 values (stored in int8 dtype, range [-8, 7])
@@ -879,17 +835,7 @@ class EinsumDense(Layer):
                 dtype="int8",
                 to_numpy=True,
             )
-            kernel_scale = ops.transpose(
-                kernel_scale, self._kernel_transpose_axes
-            )
-            if self._kernel_expand_axes:
-                kernel_scale = ops.expand_dims(
-                    kernel_scale, axis=self._kernel_expand_axes
-                )
-            if self._kernel_squeeze_axes:
-                kernel_scale = ops.squeeze(
-                    kernel_scale, axis=self._kernel_squeeze_axes
-                )
+            kernel_scale = self._adjust_scale_for_quant(kernel_scale)
 
             # Pack along the first kernel-reduced axis.
             pack_axis = self._kernel_reduced_axes[0]
@@ -1047,6 +993,23 @@ class EinsumDense(Layer):
         if self._kernel_squeeze_axes:
             scale = ops.squeeze(scale, axis=self._kernel_squeeze_axes)
         return scale
+
+    def _set_quantization_info(self):
+        if hasattr(self, "_input_reduced_axes"):
+            # Already set.
+            return
+        (
+            self._input_reduced_axes,
+            self._kernel_reduced_axes,
+            self._input_transpose_axes,
+            self._kernel_transpose_axes,
+            self._input_expand_axes,
+            self._kernel_expand_axes,
+            self._input_squeeze_axes,
+            self._kernel_squeeze_axes,
+            self._custom_gradient_equation,
+            self._kernel_reverse_transpose_axes,
+        ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
 
 
 def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
