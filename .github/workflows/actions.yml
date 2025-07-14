@@ -25,13 +25,13 @@ jobs:
           - python-version: '3.10'
             backend: jax
             nnx_enabled: true
-    name: Run tests
+    name: ${{ matrix.backend == 'jax' && format('Run tests ({0}, {1}, nnx_enabled = {2})', matrix.python-version, matrix.backend, matrix.nnx_enabled) || format('Run tests ({0}, {1})', matrix.python-version, matrix.backend) }}
     runs-on: ubuntu-latest
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
       KERAS_BACKEND: ${{ matrix.backend }}
-      KERAS_NNX_ENABLED: ${{ matrix.nnx_enabled }}
+      KERAS_NNX_ENABLED: ${{ matrix.backend == 'jax' && matrix.nnx_enabled || 'false' }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for changes in keras/src/applications
