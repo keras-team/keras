@@ -1,4 +1,6 @@
 #!/bin/bash
+pip install --quiet --upgrade 'flake8>=5.0.0'
+
 isort --check --sl -c keras
 if ! [ $? -eq 0 ]
 then
