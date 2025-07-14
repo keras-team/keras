@@ -492,6 +492,9 @@ class OpenVINOKerasTensor:
         )
         return OpenVINOKerasTensor(ov_opset.mod(first, other).output(0))
 
+    def __array__(self):
+        return convert_to_numpy(self)
+
 
 def ov_to_keras_type(ov_type):
     for _keras_type, _ov_type in OPENVINO_DTYPES.items():
