@@ -1150,6 +1150,8 @@ def median(x, axis=None, keepdims=False):
                 x_rank_original,
                 ov_opset.constant([len(axis) - 1], Type.i32).output(0),
             ).output(0)
+            # create flatten shape of 0's (keep axes)
+            # and -1 at the end (flattened axis)
             x_flatten_shape = ov_opset.broadcast(
                 ov_opset.constant([0], Type.i32).output(0), x_flatten_rank
             ).output(0)
