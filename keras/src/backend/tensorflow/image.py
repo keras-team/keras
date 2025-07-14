@@ -707,11 +707,13 @@ def map_coordinates(
         gathered = tf.transpose(tf.gather_nd(input_arr, indices))
 
         # Cast to computation dtype early to avoid type issues
+        dtype=weights[0].dtype
+        gathered = tf.cast(gathered, dtype)
         gathered = tf.cast(gathered, weights[0].dtype)
 
         if fill_mode == "constant":
             all_valid = tf.reduce_all(validities, axis=0)
-            fill_value_typed = tf.cast(fill_value, weights[0].dtype)
+            fill_value_typed = tf.cast(fill_value, dtype)
             gathered = tf.where(all_valid, gathered, fill_value_typed)
 
         outputs.append(functools.reduce(operator.mul, weights) * gathered)
