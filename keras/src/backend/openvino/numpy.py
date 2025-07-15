@@ -481,6 +481,12 @@ def hamming(x):
     )
 
 
+def heaviside(x1, x2):
+    raise NotImplementedError(
+        "`heaviside` is not supported with openvino backend"
+    )
+
+
 def kaiser(x, beta):
     raise NotImplementedError("`kaiser` is not supported with openvino backend")
 

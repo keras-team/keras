@@ -90,6 +90,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.add(x, y).shape, (2, 3))
 
+    def test_heaviside(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (None, 3))
+
     def test_subtract(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -496,6 +501,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.add(x, y)
+
+    def test_heaviside(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
 
     def test_subtract(self):
         x = KerasTensor((2, 3))
@@ -2341,6 +2359,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Add()(x, y), np.add(x, y))
         self.assertAllClose(knp.Add()(x, z), np.add(x, z))
+
+    def test_heaviside(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
+        self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array(4)
+        self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
+        self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
 
     def test_subtract(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7324,6 +7353,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.GreaterEqual().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_heaviside(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.heaviside(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.heaviside(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Heaviside().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 
