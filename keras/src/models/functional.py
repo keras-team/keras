@@ -7,7 +7,6 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.backend.common import global_state
-from keras.src.backend.config import is_nnx_enabled
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.input_spec import InputSpec
@@ -141,10 +140,6 @@ class Functional(Function, Model):
 
         self._layers = self.layers
 
-        # Special handling for NNX to ensure consistent operation instance usage
-        if is_nnx_enabled():
-            self._setup_nnx_op_mapping()
-
         self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
@@ -189,44 +184,6 @@ class Functional(Function, Model):
             "`Model.layers` attribute is reserved and should not be used. "
             "Please use another name."
         )
-
-    def _get_operation_for_node(self, node):
-        operation = node.operation
-        if hasattr(self, "_nnx_op_mapping") and id(operation) in getattr(
-            self, "_nnx_op_mapping", {}
-        ):
-            return self._nnx_op_mapping[id(operation)]
-        return operation
-
-    def _run_through_graph(self, inputs, operation_fn, call_fn=None):
-        """Unified graph execution that supports NNX layer mapping."""
-        inputs = tree.flatten(inputs)
-        tensor_dict = {}
-        for x, y in zip(self.inputs, inputs):
-            tensor_dict[id(x)] = y
-        nodes_by_depth = self._nodes_by_depth
-        depth_keys = list(nodes_by_depth.keys())
-        depth_keys.sort(reverse=True)
-        for depth in depth_keys:
-            nodes = nodes_by_depth[depth]
-            for node in nodes:
-                if not node.operation or node.is_input:
-                    continue
-                if any(id(x) not in tensor_dict for x in node.input_tensors):
-                    continue
-                args, kwargs = node.arguments.fill_in(tensor_dict)
-                operation = self._get_operation_for_node(node)
-                op = operation_fn(operation)
-                if call_fn is not None:
-                    outputs = call_fn(op, *args, **kwargs)
-                else:
-                    outputs = op(*args, **kwargs)
-                for x, y in zip(node.outputs, tree.flatten(outputs)):
-                    tensor_dict[id(x)] = y
-        output_tensors = []
-        for x in self.outputs:
-            output_tensors.append(tensor_dict[id(x)])
-        return tree.pack_sequence_as(self._outputs_struct, output_tensors)
 
     def call(self, inputs, training=None, mask=None, **kwargs):
         inputs = self._standardize_inputs(inputs)
