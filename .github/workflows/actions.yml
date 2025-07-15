@@ -63,12 +63,12 @@ jobs:
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Test applications with pytest
-        if: ${{ steps.filter.outputs.applications == 'true' }}
+        if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
         run: |
           pytest keras/src/applications --cov=keras/src/applications --cov-config=pyproject.toml
           coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
       - name: Codecov keras.applications
-        if: ${{ steps.filter.outputs.applications == 'true' }}
+        if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
         uses: codecov/codecov-action@v5
         with:
           env_vars: PYTHON,KERAS_HOME
@@ -77,16 +77,16 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
       - name: Test integrations
-        if: ${{ matrix.backend != 'numpy'}}
+        if: ${{ matrix.backend != 'numpy' && matrix.nnx_enabled == false }}
         run: |
           python integration_tests/import_test.py
           python integration_tests/numerical_test.py
       - name: Test JAX-specific integrations
-        if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled != 'true'}}
+        if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled == false }}
         run: |
           python integration_tests/jax_custom_fit_test.py
       - name: Test basic flow with NNX
-        if: ${{ matrix.nnx_enabled == 'true'}}
+        if: ${{ matrix.nnx_enabled == true }}
         env:
           KERAS_NNX_ENABLED: true
         run: |
@@ -103,7 +103,7 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
       - name: Test with pytest
-        if: ${{ matrix.nnx_enabled != 'true'}}
+        if: ${{ matrix.nnx_enabled == false }}
         run: |
           if [ "${{ matrix.backend }}" == "openvino" ]; then
             IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
@@ -114,6 +114,7 @@ jobs:
           pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
+        if: ${{ matrix.nnx_enabled == false }}
         uses: codecov/codecov-action@v5
         with:
           env_vars: PYTHON,KERAS_HOME,KERAS_BACKEND,KERAS_NNX_ENABLED
