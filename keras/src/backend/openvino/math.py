@@ -44,13 +44,17 @@ def logsumexp(x, axis=None, keepdims=False):
         axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
     const_zero = ov_opset.constant(0, x.get_element_type()).output(0)
-    reduce_max = ov_opset.reduce_max(x, axis, keepdims).output(0)
+    # Use keepdims=True for reduce_max to ensure proper broadcasting
+    reduce_max = ov_opset.reduce_max(x, axis, True).output(0)
     is_finite = ov_opset.is_finite(reduce_max).output(0)
     norm_max = ov_opset.select(is_finite, reduce_max, const_zero).output(0)
     norm_max_sub = ov_opset.subtract(x, norm_max).output(0)
     exp_norm_max = ov_opset.exp(norm_max_sub).output(0)
     sum_exp = ov_opset.reduce_sum(exp_norm_max, axis, keepdims).output(0)
     log_sum_exp = ov_opset.log(sum_exp).output(0)
+    # Squeeze norm_max if needed to match dimensions
+    if not keepdims:
+        norm_max = ov_opset.squeeze(norm_max, axis).output(0)
     log_sum_exp = ov_opset.add(norm_max, log_sum_exp).output(0)
     return OpenVINOKerasTensor(log_sum_exp)
 
