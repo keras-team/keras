@@ -52,8 +52,8 @@ class BasicFlowTest(testing.TestCase):
     def test_basic_fit_no_training(self):
         model = MyModel(hidden_dim=2, output_dim=1)
         x = np.random.random((128, 4))
-        model.predict(x)
         model(x)
+        model.predict(x)
 
     @pytest.mark.skipif(
         os.environ.get("KERAS_NNX_ENABLED") != "true",
