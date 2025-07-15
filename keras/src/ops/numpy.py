@@ -1339,10 +1339,10 @@ def heaviside(x1, x2):
 
     Args:
         x1: A tensor input.
-        x2: A scalar or tensor, the value to return when x1 == 0.
+        x2: A scalar or tensor, the value to return when `x1 == 0`.
 
     Returns:
-        A tensor with a shape determined by broadcasting x1 and x2.
+        A tensor with a shape determined by broadcasting `x1` and `x2`.
 
     Example:
     >>> x1 = keras.ops.convert_to_tensor([-2.0, 0.0, 3.0])
