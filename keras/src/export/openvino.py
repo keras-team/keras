@@ -80,10 +80,14 @@ def export_openvino(
         parameters = [p.output.get_node() for p in tree.flatten(params)]
         results = [ov_opset.result(r.output) for r in tree.flatten(outputs)]
         ov_model = ov.Model(results=results, parameters=parameters)
-        for param in ov_model.inputs:
-            rank = len(param.get_partial_shape())
-            dynamic_shape = ov.PartialShape([-1] * rank)
-            param.get_node().set_partial_shape(dynamic_shape)
+        flat_specs = tree.flatten(input_signature)
+        for ov_input, spec in zip(ov_model.inputs, flat_specs):
+            # Respect the dynamic axes from the original input signature.
+            dynamic_shape_dims = [
+                -1 if dim is None else dim for dim in spec.shape
+            ]
+            dynamic_shape = ov.PartialShape(dynamic_shape_dims)
+            ov_input.get_node().set_partial_shape(dynamic_shape)
 
     elif backend.backend() == "tensorflow":
         import tempfile
