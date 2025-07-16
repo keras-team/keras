@@ -412,14 +412,7 @@ class EinsumDense(Layer):
             dtype="int8",
             trainable=False,
         )
-        kernel_scale_shape = np.array(kernel_shape)
-        kernel_scale_shape[self._kernel_reduced_axes] = 1
-        kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
-        kernel_scale_shape = kernel_scale_shape.tolist()
-        for a in sorted(self._kernel_expand_axes):
-            kernel_scale_shape.insert(a, 1)
-        for a in sorted(self._kernel_squeeze_axes, reverse=True):
-            kernel_scale_shape.pop(a)
+        kernel_scale_shape = self._get_kernel_scale_shape(kernel_shape)
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=kernel_scale_shape,
@@ -470,14 +463,7 @@ class EinsumDense(Layer):
         )
 
         # Kernel scale
-        kernel_scale_shape = np.array(kernel_shape)
-        kernel_scale_shape[self._kernel_reduced_axes] = 1
-        kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
-        kernel_scale_shape = kernel_scale_shape.tolist()
-        for a in sorted(self._kernel_expand_axes):
-            kernel_scale_shape.insert(a, 1)
-        for a in sorted(self._kernel_squeeze_axes, reverse=True):
-            kernel_scale_shape.pop(a)
+        kernel_scale_shape = self._get_kernel_scale_shape(kernel_shape)
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=kernel_scale_shape,
@@ -558,18 +544,8 @@ class EinsumDense(Layer):
                 if upstream is None:
                     (upstream,) = args
                 # De-scale kernel
-                _kernel_scale = kernel_scale  # Overcome UnboundLocalError
-                if self._kernel_squeeze_axes:
-                    _kernel_scale = ops.expand_dims(
-                        _kernel_scale, axis=self._kernel_squeeze_axes
-                    )
-                if self._kernel_expand_axes:
-                    _kernel_scale = ops.squeeze(
-                        _kernel_scale, axis=self._kernel_expand_axes
-                    )
-                _kernel_scale = ops.transpose(
-                    _kernel_scale, self._kernel_reverse_transpose_axes
-                )
+                _kernel_scale = kernel_scale
+                _kernel_scale = self._adjust_scale_for_dequant(_kernel_scale)
                 float_kernel = ops.divide(
                     ops.cast(kernel, dtype=self.compute_dtype),
                     _kernel_scale,
@@ -583,17 +559,7 @@ class EinsumDense(Layer):
             inputs, inputs_scale = self.inputs_quantizer(inputs)
             x = ops.einsum(self.equation, inputs, kernel)
             # Deal with `inputs_scale`
-            inputs_scale = ops.transpose(
-                inputs_scale, self._input_transpose_axes
-            )
-            if self._input_expand_axes:
-                inputs_scale = ops.expand_dims(
-                    inputs_scale, axis=self._input_expand_axes
-                )
-            if self._input_squeeze_axes:
-                inputs_scale = ops.squeeze(
-                    inputs_scale, axis=self._input_squeeze_axes
-                )
+            inputs_scale = self._adjust_scale_for_quant(inputs_scale, "input")
             # De-scale outputs
             x = ops.cast(x, self.compute_dtype)
             x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
@@ -654,17 +620,7 @@ class EinsumDense(Layer):
                     (upstream,) = args
                 # Align `kernel_scale` to the same layout as `unpacked_kernel`.
                 _kernel_scale = kernel_scale
-                if self._kernel_squeeze_axes:
-                    _kernel_scale = ops.expand_dims(
-                        _kernel_scale, axis=self._kernel_squeeze_axes
-                    )
-                if self._kernel_expand_axes:
-                    _kernel_scale = ops.squeeze(
-                        _kernel_scale, axis=self._kernel_expand_axes
-                    )
-                _kernel_scale = ops.transpose(
-                    _kernel_scale, self._kernel_reverse_transpose_axes
-                )
+                _kernel_scale = self._adjust_scale_for_dequant(_kernel_scale)
 
                 float_kernel = ops.divide(
                     ops.cast(unpacked_kernel, dtype=self.compute_dtype),
@@ -682,17 +638,7 @@ class EinsumDense(Layer):
             x = ops.einsum(self.equation, inputs_q, unpacked_kernel)
 
             # Align `inputs_scale` axes with the output for correct broadcasting
-            inputs_scale = ops.transpose(
-                inputs_scale, self._input_transpose_axes
-            )
-            if self._input_expand_axes:
-                inputs_scale = ops.expand_dims(
-                    inputs_scale, axis=self._input_expand_axes
-                )
-            if self._input_squeeze_axes:
-                inputs_scale = ops.squeeze(
-                    inputs_scale, axis=self._input_squeeze_axes
-                )
+            inputs_scale = self._adjust_scale_for_quant(inputs_scale, "input")
 
             # De-scale outputs.
             x = ops.cast(x, self.compute_dtype)
@@ -824,7 +770,7 @@ class EinsumDense(Layer):
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=self._kernel_reduced_axes, to_numpy=True
             )
-            kernel_scale = self._adjust_scale_for_quant(kernel_scale)
+            kernel_scale = self._adjust_scale_for_quant(kernel_scale, "kernel")
             del self._kernel
         elif mode == "int4":
             # Quantize to int4 values (stored in int8 dtype, range [-8, 7])
@@ -835,7 +781,7 @@ class EinsumDense(Layer):
                 dtype="int8",
                 to_numpy=True,
             )
-            kernel_scale = self._adjust_scale_for_quant(kernel_scale)
+            kernel_scale = self._adjust_scale_for_quant(kernel_scale, "kernel")
 
             # Pack along the first kernel-reduced axis.
             pack_axis = self._kernel_reduced_axes[0]
@@ -855,6 +801,30 @@ class EinsumDense(Layer):
         if self.dtype_policy.quantization_mode is None:
             policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
             self.dtype_policy = policy
+
+    def _get_kernel_scale_shape(self, kernel_shape):
+        """Get the shape of the kernel scale tensor.
+
+        The kernel scale tensor is used to scale the kernel tensor.
+        The shape of the kernel scale tensor is the same as the shape of the
+        kernel tensor, but with the reduced axes set to 1 and the transpose
+        axes set to the original axes
+
+        Args:
+            kernel_shape: The shape of the kernel tensor.
+
+        Returns:
+            The shape of the kernel scale tensor.
+        """
+        kernel_scale_shape = np.array(kernel_shape)
+        kernel_scale_shape[self._kernel_reduced_axes] = 1
+        kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
+        kernel_scale_shape = kernel_scale_shape.tolist()
+        for a in sorted(self._kernel_expand_axes):
+            kernel_scale_shape.insert(a, 1)
+        for a in sorted(self._kernel_squeeze_axes, reverse=True):
+            kernel_scale_shape.pop(a)
+        return kernel_scale_shape
 
     def _get_kernel_with_merged_lora(self):
         """Returns the kernel with LoRA matrices merged, for serialization.
@@ -945,7 +915,7 @@ class EinsumDense(Layer):
             )
 
         # Adjust the new scale tensor to the required layout.
-        new_scale = self._adjust_scale_for_quant(new_scale)
+        new_scale = self._adjust_scale_for_quant(new_scale, "kernel")
 
         return new_kernel, new_scale
 
@@ -974,7 +944,7 @@ class EinsumDense(Layer):
             scale = ops.transpose(scale, axes=reverse_transpose)
         return scale
 
-    def _adjust_scale_for_quant(self, scale):
+    def _adjust_scale_for_quant(self, scale, tensor_type="kernel"):
         """Adjusts scale tensor layout after quantization.
 
         Helper method to handle scale adjustments after re-quantization.
@@ -982,16 +952,28 @@ class EinsumDense(Layer):
 
         Args:
             scale: The scale tensor to adjust.
-
+            tensor_type: The type of tensor to adjust the scale for.
+                "kernel" or "input".
         Returns:
             The adjusted scale tensor.
         """
-        if self._kernel_transpose_axes:
-            scale = ops.transpose(scale, self._kernel_transpose_axes)
-        if self._kernel_expand_axes:
-            scale = ops.expand_dims(scale, axis=self._kernel_expand_axes)
-        if self._kernel_squeeze_axes:
-            scale = ops.squeeze(scale, axis=self._kernel_squeeze_axes)
+        if tensor_type == "kernel":
+            transpose_axes = self._kernel_transpose_axes
+            expand_axes = self._kernel_expand_axes
+            squeeze_axes = self._kernel_squeeze_axes
+        elif tensor_type == "input":
+            transpose_axes = self._input_transpose_axes
+            expand_axes = self._input_expand_axes
+            squeeze_axes = self._input_squeeze_axes
+        else:
+            raise ValueError(f"Invalid tensor type: {tensor_type}")
+
+        if transpose_axes:
+            scale = ops.transpose(scale, transpose_axes)
+        if expand_axes:
+            scale = ops.expand_dims(scale, axis=expand_axes)
+        if squeeze_axes:
+            scale = ops.squeeze(scale, axis=squeeze_axes)
         return scale
 
     def _set_quantization_info(self):
