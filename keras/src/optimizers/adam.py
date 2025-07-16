@@ -148,6 +148,7 @@ class Adam(optimizer.Optimizer):
         )
         return config
 
+
 if Adam.__doc__ is not None:
     Adam.__doc__ = Adam.__doc__.replace(
         "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
