@@ -8,7 +8,30 @@ from keras.src.utils import io_utils
 def export_openvino(
     model, filepath, verbose=None, input_signature=None, **kwargs
 ):
-    import os
+    """Export the model as an OpenVINO IR artifact for inference.
+
+    This method exports the model to the OpenVINO IR format,
+    which includes two files:
+    a `.xml` file containing the model structure and a `.bin` file
+    containing the weights.
+    The exported model contains only the forward pass
+    (i.e., the model's `call()` method), and can be deployed with the
+    OpenVINO Runtime for fast inference on CPU and other Intel hardware.
+
+    Args:
+        filepath: `str` or `pathlib.Path`. Path to the output `.xml` file.
+        The corresponding `.bin` file will be saved alongside it.
+        verbose: Optional `bool`. Whether to print a confirmation message
+        after export. If `None`, it uses the default verbosity configured
+        by the backend.
+        input_signature: Optional. Specifies the shape and dtype of the
+        model inputs. If not provided, it will be inferred.
+        **kwargs: Additional keyword arguments (currently unused).
+    """
+    assert filepath.endswith(".xml"), (
+        "The OpenVINO export requires the filepath to end with '.xml'. "
+        f"Got: {filepath}"
+    )
 
     import openvino as ov
     from openvino.runtime import opset14 as ov_opset
@@ -16,11 +39,20 @@ def export_openvino(
     from keras.src.backend.openvino.core import OPENVINO_DTYPES
     from keras.src.backend.openvino.core import OpenVINOKerasTensor
 
-    actual_verbose = verbose
-    if actual_verbose is None:
-        actual_verbose = True
+    actual_verbose = verbose if verbose is not None else True
+
+    if input_signature is None:
+        input_signature = get_input_signature(model)
+    if isinstance(input_signature, list) and len(input_signature) == 1:
+        input_signature = input_signature[0]
+
+    sample_inputs = tree.map_structure(
+        lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+        input_signature,
+    )
 
     if backend.backend() == "openvino":
+        import inspect
 
         def parameterize_inputs(inputs, prefix=""):
             if isinstance(inputs, (list, tuple)):
@@ -39,16 +71,12 @@ def export_openvino(
             else:
                 raise TypeError(f"Unknown input type: {type(inputs)}")
 
-        if input_signature is None:
-            input_signature = get_input_signature(model)
-        if isinstance(input_signature, list) and len(input_signature) == 1:
-            input_signature = input_signature[0]
-        sample_inputs = tree.map_structure(
-            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
-            input_signature,
-        )
         params = parameterize_inputs(sample_inputs)
-        outputs = model(params)
+        signature = inspect.signature(model.call)
+        if len(signature.parameters) > 1 and isinstance(params, (list, tuple)):
+            outputs = model(*params)
+        else:
+            outputs = model(params)
         parameters = [p.output.get_node() for p in tree.flatten(params)]
         results = [ov_opset.result(r.output) for r in tree.flatten(outputs)]
         ov_model = ov.Model(results=results, parameters=parameters)
@@ -56,23 +84,20 @@ def export_openvino(
             rank = len(param.get_partial_shape())
             dynamic_shape = ov.PartialShape([-1] * rank)
             param.get_node().set_partial_shape(dynamic_shape)
-    elif backend.backend() in ("tensorflow", "jax", "torch"):
-        if backend.backend() in ("torch", "jax", "tensorflow"):
-            import tempfile
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                model.export(temp_dir, format="tf_saved_model")
-                ov_model = ov.convert_model(temp_dir)
-        else:
-            ov_model = ov.convert_model(model)
+    elif backend.backend() == "tensorflow":
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model.export(temp_dir, format="tf_saved_model")
+            ov_model = ov.convert_model(temp_dir)
     else:
         raise NotImplementedError(
-            "`export_openvino` is only compatible with OpenVINO, "
-            "TensorFlow, JAX and Torch backends."
+            "`export_openvino` is only compatible with OpenVINO and "
+            "TensorFlow backends."
         )
 
-    xml_path = os.path.join(filepath, f"{model.name}.xml")
-    ov.serialize(ov_model, xml_path)
+    ov.serialize(ov_model, filepath)
 
     if actual_verbose:
         io_utils.print_msg(f"Saved OpenVINO IR at '{filepath}'.")
