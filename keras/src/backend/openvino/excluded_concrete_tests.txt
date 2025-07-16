@@ -207,7 +207,6 @@ MathOpsCorrectnessTest::test_istft4
 MathOpsCorrectnessTest::test_istft5
 MathOpsCorrectnessTest::test_istft6
 MathOpsCorrectnessTest::test_logdet
-MathOpsCorrectnessTest::test_logsumexp
 MathOpsCorrectnessTest::test_rfft0
 MathOpsCorrectnessTest::test_rfft1
 MathOpsCorrectnessTest::test_rfft2
