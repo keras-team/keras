@@ -139,27 +139,12 @@ class Functional(Function, Model):
             self.trainable = trainable
 
         self._layers = self.layers
-
         self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
-
-    def _setup_nnx_op_mapping(self):
-        """Setup operation mapping for NNX"""
-        # Create a mapping from operation id to operation instance
-        self._nnx_op_mapping = {}
-
-        # Store operations as direct attributes for NNX traversal
-        for i, operation in enumerate(self._operations):
-            if isinstance(operation, Layer):
-                # Store operation as direct attribute with unique name
-                attr_name = f"_layer_{i}_{operation.name}"
-                setattr(self, attr_name, operation)
-                # Map the operation id to this operation instance
-                self._nnx_op_mapping[id(operation)] = operation
 
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
@@ -186,6 +171,7 @@ class Functional(Function, Model):
         )
 
     def call(self, inputs, training=None, mask=None, **kwargs):
+        # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
             masks = [None] * len(inputs)
@@ -407,7 +393,7 @@ class Functional(Function, Model):
             # the author of the subclassed network).
             return Model.get_config(self)
 
-        cfg = {
+        config = {
             "name": self.name,
             "trainable": self.trainable,
         }
@@ -454,7 +440,7 @@ class Functional(Function, Model):
             layer_config["name"] = operation.name
             layer_config["inbound_nodes"] = filtered_inbound_nodes
             layer_configs.append(layer_config)
-        cfg["layers"] = layer_configs
+        config["layers"] = layer_configs
 
         # Gather info about inputs and outputs.
         def get_tensor_config(tensor):
@@ -469,9 +455,9 @@ class Functional(Function, Model):
         def map_tensors(tensors):
             return tree.map_structure(get_tensor_config, tensors)
 
-        cfg["input_layers"] = map_tensors(self._inputs_struct)
-        cfg["output_layers"] = map_tensors(self._outputs_struct)
-        return copy.deepcopy(cfg)
+        config["input_layers"] = map_tensors(self._inputs_struct)
+        config["output_layers"] = map_tensors(self._outputs_struct)
+        return copy.deepcopy(config)
 
 
 def functional_from_config(cls, config, custom_objects=None):
