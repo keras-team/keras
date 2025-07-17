@@ -1,6 +1,5 @@
-import random
-
 import keras.src.layers as layers
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -37,20 +36,6 @@ class RandAugment(BaseImagePreprocessingLayer):
     _USE_BASE_FACTOR = False
     _FACTOR_BOUNDS = (0, 1)
 
-    _AUGMENT_LAYERS = [
-        "random_shear",
-        "random_translation",
-        "random_rotation",
-        "random_brightness",
-        "random_color_degeneration",
-        "random_contrast",
-        "random_sharpness",
-        "random_posterization",
-        "solarization",
-        "auto_contrast",
-        "equalization",
-    ]
-
     def __init__(
         self,
         value_range=(0, 255),
@@ -70,92 +55,84 @@ class RandAugment(BaseImagePreprocessingLayer):
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
-        self.random_shear = layers.RandomShear(
-            x_factor=self.factor,
-            y_factor=self.factor,
-            interpolation=interpolation,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.random_translation = layers.RandomTranslation(
-            height_factor=self.factor,
-            width_factor=self.factor,
-            interpolation=interpolation,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.random_rotation = layers.RandomRotation(
-            factor=self.factor,
-            interpolation=interpolation,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.random_brightness = layers.RandomBrightness(
-            factor=self.factor,
-            value_range=self.value_range,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.random_color_degeneration = layers.RandomColorDegeneration(
-            factor=self.factor,
-            value_range=self.value_range,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.random_contrast = layers.RandomContrast(
-            factor=self.factor,
-            value_range=self.value_range,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.random_sharpness = layers.RandomSharpness(
-            factor=self.factor,
-            value_range=self.value_range,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.solarization = layers.Solarization(
-            addition_factor=self.factor,
-            threshold_factor=self.factor,
-            value_range=self.value_range,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.random_posterization = layers.RandomPosterization(
-            factor=max(1, int(8 * self.factor[1])),
-            value_range=self.value_range,
-            seed=self.seed,
-            data_format=data_format,
-            **kwargs,
-        )
-
-        self.auto_contrast = layers.AutoContrast(
-            value_range=self.value_range, data_format=data_format, **kwargs
-        )
-
-        self.equalization = layers.Equalization(
-            value_range=self.value_range, data_format=data_format, **kwargs
-        )
+        self.augmentations = [
+            layers.RandomShear(
+                x_factor=self.factor,
+                y_factor=self.factor,
+                interpolation=interpolation,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.RandomTranslation(
+                height_factor=self.factor,
+                width_factor=self.factor,
+                interpolation=interpolation,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.RandomRotation(
+                factor=self.factor,
+                interpolation=interpolation,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.RandomBrightness(
+                factor=self.factor,
+                value_range=self.value_range,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.RandomColorDegeneration(
+                factor=self.factor,
+                value_range=self.value_range,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.RandomContrast(
+                factor=self.factor,
+                value_range=self.value_range,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.RandomSharpness(
+                factor=self.factor,
+                value_range=self.value_range,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.Solarization(
+                addition_factor=self.factor,
+                threshold_factor=self.factor,
+                value_range=self.value_range,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.RandomPosterization(
+                factor=max(1, int(8 * self.factor[1])),
+                value_range=self.value_range,
+                seed=self.seed,
+                data_format=data_format,
+                **kwargs,
+            ),
+            layers.AutoContrast(
+                value_range=self.value_range, data_format=data_format, **kwargs
+            ),
+            layers.Equalization(
+                value_range=self.value_range, data_format=data_format, **kwargs
+            )
+        ]
+        self.num_layers = len(self.augmentations)
 
     def build(self, input_shape):
-        for layer_name in self._AUGMENT_LAYERS:
-            augmentation_layer = getattr(self, layer_name)
+        for augmentation_layer in self.augmentations:
             augmentation_layer.build(input_shape)
 
     def get_random_transformation(self, data, training=True, seed=None):
@@ -165,15 +142,18 @@ class RandAugment(BaseImagePreprocessingLayer):
         if backend_utils.in_tf_graph():
             self.backend.set_backend("tensorflow")
 
-            for layer_name in self._AUGMENT_LAYERS:
-                augmentation_layer = getattr(self, layer_name)
+            for augmentation_layer in self.augmentations:
                 augmentation_layer.backend.set_backend("tensorflow")
 
-        transformation = {}
-        random.shuffle(self._AUGMENT_LAYERS)
-        for layer_name in self._AUGMENT_LAYERS[: self.num_ops]:
-            augmentation_layer = getattr(self, layer_name)
-            transformation[layer_name] = (
+        transformation = []
+        idx = self.backend.random.shuffle(
+            self.backend.numpy.arange(self.num_layers, dtype="int32"),
+            seed=self._get_seed_generator(self.backend._backend),
+        )
+        
+        for i in range(self.num_layers):
+            augmentation_layer = self.augmentations[i]
+            transformation.append(
                 augmentation_layer.get_random_transformation(
                     data,
                     training=training,
@@ -181,18 +161,36 @@ class RandAugment(BaseImagePreprocessingLayer):
                 )
             )
 
-        return transformation
+        return idx, transformation
+    
+    def _apply_augs(self, transformation, func_name, inputs):
+        aug_index, transforms = transformation
+        
 
+        def get_fn(aug, xform):
+            def func(x):
+                if isinstance(x, dict):
+                    z = tree.map_structure(self.backend.numpy.copy, x)
+                    return getattr(aug, func_name)(z, xform)
+                return getattr(aug, func_name)(x, xform)
+            return func
+        
+        def body(i, loop_var):
+            idx = aug_index[i]
+            return self.backend.core.switch(
+                idx,
+                [get_fn(aug, xform) for aug, xform in zip(self.augmentations, transforms)],
+                loop_var,
+            )
+        
+        return self.backend.core.fori_loop(0, self.num_ops, body, inputs)
+    
     def transform_images(self, images, transformation, training=True):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
 
-            for layer_name, transformation_value in transformation.items():
-                augmentation_layer = getattr(self, layer_name)
-                images = augmentation_layer.transform_images(
-                    images, transformation_value
-                )
-
+            images = self._apply_augs(transformation, "transform_images", images)
+            
         images = self.backend.cast(images, self.compute_dtype)
         return images
 
@@ -206,11 +204,7 @@ class RandAugment(BaseImagePreprocessingLayer):
         training=True,
     ):
         if training:
-            for layer_name, transformation_value in transformation.items():
-                augmentation_layer = getattr(self, layer_name)
-                bounding_boxes = augmentation_layer.transform_bounding_boxes(
-                    bounding_boxes, transformation_value, training=training
-                )
+            bounding_boxes = self._apply_augs(transformation, "transform_bounding_boxes", bounding_boxes)
         return bounding_boxes
 
     def transform_segmentation_masks(
