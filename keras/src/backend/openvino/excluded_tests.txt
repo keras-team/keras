@@ -32,7 +32,7 @@ keras/src/ops/linalg_test.py
 keras/src/ops/nn_test.py
 keras/src/optimizers
 keras/src/quantizers
-keras/src/random
+keras/src/random/seed_generator_test.py
 keras/src/regularizers
 keras/src/saving
 keras/src/trainers
