@@ -595,9 +595,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         ```
         """
         from keras.src.export import export_onnx
+        from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx")
+        available_formats = ("tf_saved_model", "onnx", "openvino")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
@@ -614,6 +615,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             )
         elif format == "onnx":
             export_onnx(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "openvino":
+            export_openvino(
                 self,
                 filepath,
                 verbose,
