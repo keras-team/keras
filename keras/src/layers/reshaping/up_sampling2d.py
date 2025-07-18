@@ -163,7 +163,12 @@ class UpSampling2D(Layer):
                 shape[1] * height_factor,
                 shape[2] * width_factor,
             )
-            x = ops.image.resize(x, new_shape, interpolation=interpolation)
+            x = ops.image.resize(
+                x,
+                new_shape,
+                data_format="channels_last",
+                interpolation=interpolation,
+            )
         if data_format == "channels_first":
             x = ops.transpose(x, [0, 3, 1, 2])
 
