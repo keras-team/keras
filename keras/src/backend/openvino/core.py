@@ -107,25 +107,27 @@ def get_ov_output(x, ov_type=None):
         x = ov_opset.constant(x, ov_type).output(0)
     elif isinstance(x, (list, tuple)):
         if len(x) == 0:
-            raise ValueError(f"Input {type(x)} must not be empty.")
-        constants = []
-        for i, element in enumerate(x):
-            elem_output = get_ov_output(element, ov_type)
-            elem_shape = elem_output.get_partial_shape()
+            raise ValueError(f"Input {type(x).__name__} must not be empty.")
+        constants = [get_ov_output(element, ov_type) for element in x]
+        for i, c in enumerate(constants):
+            elem_shape = c.get_partial_shape()
             if elem_shape.rank.get_length() == 0:
-                elem_output = ov_opset.unsqueeze(elem_output, 0).output(0)
-                elem_shape = elem_output.get_partial_shape()
-            if i > 0:
-                first_shape = constants[0].get_partial_shape()
+                constants[i] = ov_opset.unsqueeze(c, 0).output(0)
+        if len(constants) > 1:
+            first_shape = constants[0].get_partial_shape()
+            for i, c in enumerate(constants[1:], 1):
+                elem_shape = c.get_partial_shape()
                 if not first_shape.compatible(elem_shape):
                     raise ValueError(
-                        "Shapes of elements must match."
+                        "Shapes of elements must match.\n"
                         f"Got {first_shape} e(0) vs {elem_shape} e({i})."
                     )
-                constants[0], elem_output = align_operand_types(
-                    constants[0], elem_output, "list/tuple concatenation"
-                )
-            constants.append(elem_output)
+            keras_types = [ov_to_keras_type(c.element_type) for c in constants]
+            result_keras_type = dtypes.result_type(*keras_types)
+            result_ov_type = OPENVINO_DTYPES[result_keras_type]
+            for i, c in enumerate(constants):
+                if c.element_type != result_ov_type:
+                    constants[i] = ov_opset.convert(c, result_ov_type).output(0)
         x = ov_opset.concat(constants, axis=0).output(0)
     elif isinstance(x, np.ndarray):
         if x.dtype == np.dtype("bfloat16"):
