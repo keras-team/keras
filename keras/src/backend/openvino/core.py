@@ -105,6 +105,30 @@ def get_ov_output(x, ov_type=None):
         if ov_type is None:
             ov_type = Type.i32
         x = ov_opset.constant(x, ov_type).output(0)
+    elif isinstance(x, (list, tuple)):
+        if len(x) == 0:
+            raise ValueError(f"Input {type(x).__name__} must not be empty.")
+        constants = [get_ov_output(element, ov_type) for element in x]
+        for i, c in enumerate(constants):
+            elem_shape = c.get_partial_shape()
+            if elem_shape.rank.get_length() == 0:
+                constants[i] = ov_opset.unsqueeze(c, 0).output(0)
+        if len(constants) > 1:
+            first_shape = constants[0].get_partial_shape()
+            for i, c in enumerate(constants[1:], 1):
+                elem_shape = c.get_partial_shape()
+                if not first_shape.compatible(elem_shape):
+                    raise ValueError(
+                        "Shapes of elements must match.\n"
+                        f"Got {first_shape} e(0) vs {elem_shape} e({i})."
+                    )
+            keras_types = [ov_to_keras_type(c.element_type) for c in constants]
+            result_keras_type = dtypes.result_type(*keras_types)
+            result_ov_type = OPENVINO_DTYPES[result_keras_type]
+            for i, c in enumerate(constants):
+                if c.element_type != result_ov_type:
+                    constants[i] = ov_opset.convert(c, result_ov_type).output(0)
+        x = ov_opset.concat(constants, axis=0).output(0)
     elif isinstance(x, np.ndarray):
         if x.dtype == np.dtype("bfloat16"):
             x = ov_opset.constant(x, OPENVINO_DTYPES["bfloat16"]).output(0)
@@ -808,7 +832,7 @@ def slice(inputs, start_indices, shape):
     step = ov_opset.constant(step, Type.i32).output(0)
     start = ov_opset.concat(start, axis=0).output(0)
     stop = ov_opset.concat(stop, axis=0).output(0)
-    axes = ov_opset.constant(axes, Type.i32).output(0)
+    axes = get_ov_output(axes)
     return OpenVINOKerasTensor(
         ov_opset.slice(inputs, start, stop, step, axes).output(0)
     )
