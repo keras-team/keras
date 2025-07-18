@@ -58,7 +58,7 @@ class JaxVariable(KerasVariable):
         return self.value
 
 
-_JAX_VARIABLE_TYPE = JaxVariable
+Variable = JaxVariable
 if config.is_nnx_enabled():
     from flax import nnx
 
@@ -231,7 +231,7 @@ if config.is_nnx_enabled():
                 )
             return self._maybe_autocast(current_value)
 
-    _JAX_VARIABLE_TYPE = NnxVariable
+    Variable = NnxVariable
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
@@ -247,7 +247,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         # an existing distributed jax array will raise error.
         return x
 
-    if isinstance(x, _JAX_VARIABLE_TYPE):
+    if isinstance(x, Variable):
         if dtype is not None and x.dtype != dtype:
             return x.value.astype(dtype)
         return x.value
@@ -531,7 +531,7 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(variable):
-    if isinstance(variable, _JAX_VARIABLE_TYPE):
+    if isinstance(variable, Variable):
         variable = variable.value
     return jax.lax.stop_gradient(variable)
 
