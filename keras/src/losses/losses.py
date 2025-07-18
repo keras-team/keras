@@ -1183,8 +1183,8 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
 
     Examples:
 
-    >>> y_true = [1, 2]
-    >>> y_pred = [[0.05, 0.95, 0], [0.1, 0.8, 0.1]]
+    >>> y_true = np.array([1, 2])
+    >>> y_pred = np.array([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
     >>> # Using 'auto'/'sum_over_batch_size' reduction type.
     >>> scce = keras.losses.SparseCategoricalCrossentropy()
     >>> scce(y_true, y_pred)
