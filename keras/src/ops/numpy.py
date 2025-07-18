@@ -1821,6 +1821,23 @@ class Cbrt(Operation):
     def call(self, x):
         return backend.numpy.cbrt(x)
 
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in [
+            "bool",
+            "int8",
+            "int16",
+            "int32",
+            "uint8",
+            "uint16",
+            "uint32",
+        ]:
+            dtype = backend.floatx()
+        elif dtype == "int64":
+            dtype = "float64"
+
+        return KerasTensor(x.shape, dtype=dtype)
+
 
 @keras_export(["keras.ops.cbrt", "keras.ops.numpy.cbrt"])
 def cbrt(x):
