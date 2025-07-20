@@ -647,8 +647,11 @@ class JAXTrainer(base_trainer.Trainer):
                 x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(
                     next(iterator)
                 )
-                with backend.StatelessScope():
+                if is_nnx_enabled():
                     self(x)
+                else:
+                    with backend.StatelessScope():
+                        self(x)
                 break
             epoch_iterator.reset()
         # Container that configures and calls callbacks.
