@@ -1307,7 +1307,96 @@ def reciprocal(x):
 
 
 def repeat(x, repeats, axis=None):
-    raise NotImplementedError("`repeat` is not supported with openvino backend")
+    x = get_ov_output(x)
+
+    if axis is not None and axis < 0:
+        axis += len(x.get_partial_shape())
+
+    if axis is None:
+        x = ov_opset.reshape(
+            x, ov_opset.constant([-1], Type.i32), special_zero=False
+        ).output(0)
+        axis = 0
+
+    if isinstance(repeats, (int, np.integer)) or (
+        isinstance(repeats, np.ndarray)
+        and repeats.ndim == 1
+        and repeats.size == 1
+    ):
+        repeats_val = (
+            int(repeats) if isinstance(repeats, np.ndarray) else repeats
+        )
+        input_shape = ov_opset.shape_of(x, Type.i32).output(0)
+        dim_len = ov_opset.gather(
+            input_shape,
+            ov_opset.constant([axis], Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+        dim_len = ov_opset.squeeze(
+            dim_len, ov_opset.constant([0], Type.i32)
+        ).output(0)
+        idx_range = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            dim_len,
+            ov_opset.constant(1, Type.i32),
+            output_type=Type.i32,
+        ).output(0)
+        idx_range = ov_opset.unsqueeze(
+            idx_range, ov_opset.constant([1], Type.i32)
+        ).output(0)
+        tiled = ov_opset.tile(
+            idx_range, ov_opset.constant([1, repeats_val], Type.i32)
+        ).output(0)
+        idx = ov_opset.reshape(
+            tiled, ov_opset.constant([-1], Type.i32), special_zero=False
+        ).output(0)
+        result = ov_opset.gather(
+            x, idx, ov_opset.constant(axis, Type.i32)
+        ).output(0)
+        return OpenVINOKerasTensor(result)
+
+    repeats_tensor = get_ov_output(repeats)
+    input_shape = ov_opset.shape_of(x, Type.i32)
+    axis_len = ov_opset.gather(
+        input_shape,
+        ov_opset.constant([axis], Type.i32),
+        ov_opset.constant(0, Type.i32),
+    )
+    axis_len = ov_opset.squeeze(axis_len, ov_opset.constant([0], Type.i32))
+
+    # cumsum and total output length
+    cumsum = ov_opset.cumsum(repeats_tensor, ov_opset.constant(0, Type.i32))
+    total = ov_opset.reduce_sum(
+        repeats_tensor, ov_opset.constant([0], Type.i32), keep_dims=False
+    )
+    total = ov_opset.convert(total, Type.i32)
+
+    # Build output indices [0, 1, ..., total-1]
+    out_indices = ov_opset.range(
+        ov_opset.constant(0, Type.i32),
+        total,
+        ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+
+    # For each out_index, find which interval it falls in (searchsorted)
+    # Equivalent to: sum(out_indices >= cumsum) for each out_index
+    cumsum_unsq = ov_opset.unsqueeze(cumsum, ov_opset.constant([0], Type.i32))
+    out_indices_unsq = ov_opset.unsqueeze(
+        out_indices, ov_opset.constant([1], Type.i32)
+    )
+    cumsum_unsq = ov_opset.convert(cumsum_unsq, Type.i32)
+    mask = ov_opset.greater_equal(out_indices_unsq, cumsum_unsq)
+    gather_indices = ov_opset.reduce_sum(
+        ov_opset.convert(mask, Type.i32),
+        ov_opset.constant([1], Type.i32),
+        keep_dims=False,
+    )
+
+    result = ov_opset.gather(
+        x, gather_indices, ov_opset.constant(axis, Type.i32)
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def reshape(x, newshape):
@@ -1565,15 +1654,94 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    raise NotImplementedError("`tri` is not supported with openvino backend")
+    if M is None:
+        M = N
+    if dtype is None:
+        dtype = "float32"
+
+    ov_dtype = OPENVINO_DTYPES[dtype]
+
+    def ensure_constant(value, default_type=Type.i32):
+        if isinstance(value, (int, float)):
+            return ov_opset.constant(value, default_type)
+        elif hasattr(value, "get_element_type"):
+            if value.get_element_type() != Type.i32:
+                value = ov_opset.convert(value, Type.i32)
+            return ov_opset.squeeze(value, ov_opset.constant([0], Type.i32))
+        else:
+            return ov_opset.constant(value, default_type)
+
+    N_const = ensure_constant(N)
+    M_const = ensure_constant(M)
+    k_const = ensure_constant(k)
+
+    # Create row and column indices
+    row_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32),
+        N_const,
+        ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+    col_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32),
+        M_const,
+        ov_opset.constant(1, Type.i32),
+        output_type=Type.i32,
+    )
+
+    # Reshape indices for broadcasting
+    row_idx = ov_opset.unsqueeze(row_range, ov_opset.constant([1], Type.i32))
+    col_idx = ov_opset.unsqueeze(col_range, ov_opset.constant([0], Type.i32))
+
+    mask = ov_opset.less_equal(col_idx, ov_opset.add(row_idx, k_const))
+
+    if ov_dtype == Type.boolean:
+        result = mask
+    else:
+        result = ov_opset.convert(mask, ov_dtype)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def tril(x, k=0):
-    raise NotImplementedError("`tril` is not supported with openvino backend")
+    x = get_ov_output(x)
+    ov_type = x.get_element_type()
+    shape = ov_opset.shape_of(x, Type.i32)
+    zero_const = ov_opset.constant(0, Type.i32)
+    minus2 = ov_opset.constant([-2], Type.i32)
+    minus1 = ov_opset.constant([-1], Type.i32)
+    M = ov_opset.squeeze(ov_opset.gather(shape, minus2, zero_const), zero_const)
+    N = ov_opset.squeeze(ov_opset.gather(shape, minus1, zero_const), zero_const)
+    tri_mask = tri(M, N, k=k, dtype="bool").output
+    mask = ov_opset.convert(tri_mask, ov_type)
+    if ov_type == Type.boolean:
+        out = ov_opset.logical_and(x, mask)
+    else:
+        out = ov_opset.multiply(x, mask)
+    return OpenVINOKerasTensor(out.output(0))
 
 
 def triu(x, k=0):
-    raise NotImplementedError("`triu` is not supported with openvino backend")
+    x = get_ov_output(x)
+    ov_type = x.get_element_type()
+    shape = ov_opset.shape_of(x, Type.i32)
+    zero_const = ov_opset.constant(0, Type.i32)
+    minus2 = ov_opset.constant([-2], Type.i32)
+    minus1 = ov_opset.constant([-1], Type.i32)
+    M = ov_opset.squeeze(ov_opset.gather(shape, minus2, zero_const), zero_const)
+    N = ov_opset.squeeze(ov_opset.gather(shape, minus1, zero_const), zero_const)
+    tri_mask = tri(M, N, k=k - 1, dtype="bool").output
+    if ov_type == Type.boolean:
+        mask = ov_opset.logical_not(tri_mask)
+    else:
+        const_one = ov_opset.constant(1, ov_type)
+        converted_mask = ov_opset.convert(tri_mask, ov_type)
+        mask = ov_opset.subtract(const_one, converted_mask)
+    if ov_type == Type.boolean:
+        out = ov_opset.logical_and(x, mask)
+    else:
+        out = ov_opset.multiply(x, mask)
+    return OpenVINOKerasTensor(out.output(0))
 
 
 def vdot(x1, x2):
@@ -1699,6 +1867,8 @@ def transpose(x, axes=None):
             rank_minus_one, const_minus_one, const_minus_one, "i64"
         ).output(0)
     else:
+        if isinstance(axes, tuple):
+            axes = list(axes)
         axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 
