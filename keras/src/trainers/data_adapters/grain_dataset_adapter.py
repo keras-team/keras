@@ -102,11 +102,6 @@ class GrainDatasetAdapter(DataAdapter):
         elif isinstance(self._dataset, grain.IterDataset):
             dataset = map.MapIterDataset(self._dataset, ConvertToNumpy())
         else:
-
-            class ConvertToNumpy(grain.transforms.Map):
-                def map(self, x):
-                    return tree.map_structure(convert_to_numpy, x)
-
             # Instantiate a new `DataLoader`.
             dataset = grain.DataLoader(
                 data_source=self._dataset._data_source,

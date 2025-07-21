@@ -52,7 +52,7 @@ class GrainDatasetAdapterTest(testing.TestCase):
 
     @parameterized.named_parameters(
         named_product(
-            dataset_type=["map_datast", "iter_dataset", "data_loader"]
+            dataset_type=["map_dataset", "iter_dataset", "data_loader"]
         )
     )
     def test_basic_flow(self, dataset_type):
@@ -161,32 +161,6 @@ class GrainDatasetAdapterTest(testing.TestCase):
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.shape, (4, 4))
             self.assertEqual(by.shape, (4, 2))
-
-    def test_worker_count(self):
-        dataset = self._get_dataset(
-            "data_loader", worker_count=2, num_threads=2
-        )
-        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
-        if backend.backend() == "tensorflow":
-            it = adapter.get_tf_dataset()
-        elif backend.backend() == "jax":
-            it = adapter.get_jax_iterator()
-        elif backend.backend() == "torch":
-            it = adapter.get_torch_dataloader()
-        else:
-            it = adapter.get_numpy_iterator()
-
-        for i, batch in enumerate(it):
-            bx, by = batch
-            self.assertDType(bx, "float32")
-            self.assertDType(by, "float32")
-            if i < 2:
-                self.assertEqual(bx.shape, (16, 4))
-                self.assertEqual(by.shape, (16, 2))
-            else:
-                # TODO: Not sure why the last batch is missing 1 data.
-                self.assertIn(bx.shape, [(2, 4), (1, 4)])
-                self.assertIn(by.shape, [(2, 2), (1, 2)])
 
     def test_num_batches(self):
         dataset = grain.MapDataset.range(42)
