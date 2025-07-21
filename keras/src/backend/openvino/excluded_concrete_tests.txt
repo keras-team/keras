@@ -1,6 +1,5 @@
 NumPyTestRot90
 NumpyArrayCreateOpsCorrectnessTest::test_eye
-NumpyArrayCreateOpsCorrectnessTest::test_tri
 NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_all
@@ -62,7 +61,6 @@ NumpyDtypeTest::test_swapaxes
 NumpyDtypeTest::test_tensordot_
 NumpyDtypeTest::test_tile
 NumpyDtypeTest::test_trace
-NumpyDtypeTest::test_tri
 NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
@@ -128,9 +126,6 @@ NumpyOneInputOpsCorrectnessTest::test_swapaxes
 NumpyOneInputOpsCorrectnessTest::test_tile
 NumpyOneInputOpsCorrectnessTest::test_trace
 NumpyOneInputOpsCorrectnessTest::test_transpose
-NumpyOneInputOpsCorrectnessTest::test_tril
-NumpyOneInputOpsCorrectnessTest::test_tril_in_layer
-NumpyOneInputOpsCorrectnessTest::test_triu
 NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_unravel_index
 NumpyOneInputOpsCorrectnessTest::test_var
