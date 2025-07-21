@@ -498,7 +498,7 @@ class OpenVINOKerasTensor:
             return convert_to_numpy(tensor)
         except Exception as e:
             raise RuntimeError(
-                "A OpenVINOKerasTensor is symbolic: it's a placeholder "
+                "An OpenVINOKerasTensor is symbolic: it's a placeholder "
                 "for a shape and a dtype.\n"
                 "It doesn't have any actual numerical value.\n"
                 "You cannot convert it to a NumPy array."
