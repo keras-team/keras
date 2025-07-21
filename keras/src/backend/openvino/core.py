@@ -110,6 +110,13 @@ def get_ov_output(x, ov_type=None):
             x = ov_opset.constant(x, OPENVINO_DTYPES["bfloat16"]).output(0)
         else:
             x = ov_opset.constant(x).output(0)
+    elif isinstance(x, (list, tuple)):
+        if isinstance(x, tuple):
+            x = list(x)
+        if ov_type is None:
+            x = ov_opset.constant(x).output(0)
+        else:
+            x = ov_opset.constant(x, ov_type).output(0)
     elif np.isscalar(x):
         x = ov_opset.constant(x).output(0)
     elif isinstance(x, KerasVariable):
