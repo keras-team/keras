@@ -79,6 +79,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
         "the tensorflow, jax, torch and openvino backends."
     ),
 )
+@pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
 @pytest.mark.skipif(
     testing.tensorflow_uses_gpu(), reason="Leads to core dumps on CI"
 )
