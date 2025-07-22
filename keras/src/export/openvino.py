@@ -2,6 +2,9 @@ from keras.src import backend
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import get_input_signature
+from keras.src.export.export_utils import make_tf_tensor_spec
+from keras.src.export.saved_model import DEFAULT_ENDPOINT_NAME
+from keras.src.export.saved_model import ExportArchive
 from keras.src.utils import io_utils
 
 
@@ -27,6 +30,18 @@ def export_openvino(
         input_signature: Optional. Specifies the shape and dtype of the
         model inputs. If not provided, it will be inferred.
         **kwargs: Additional keyword arguments (currently unused).
+     Example:
+        import keras
+
+        # Define or load a Keras model
+        model = keras.models.Sequential([
+            keras.layers.Input(shape=(128,)),
+            keras.layers.Dense(64, activation="relu"),
+            keras.layers.Dense(10)
+        ])
+
+        # Export to OpenVINO IR
+        model.export("model.xml",format="openvino")
     """
     assert filepath.endswith(".xml"), (
         "The OpenVINO export requires the filepath to end with '.xml'. "
@@ -43,13 +58,6 @@ def export_openvino(
 
     if input_signature is None:
         input_signature = get_input_signature(model)
-    if isinstance(input_signature, list) and len(input_signature) == 1:
-        input_signature = input_signature[0]
-
-    sample_inputs = tree.map_structure(
-        lambda x: convert_spec_to_tensor(x, replace_none_number=1),
-        input_signature,
-    )
 
     if backend.backend() == "openvino":
         import inspect
@@ -71,6 +79,13 @@ def export_openvino(
             else:
                 raise TypeError(f"Unknown input type: {type(inputs)}")
 
+        if isinstance(input_signature, list) and len(input_signature) == 1:
+            input_signature = input_signature[0]
+
+        sample_inputs = tree.map_structure(
+            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+            input_signature,
+        )
         params = parameterize_inputs(sample_inputs)
         signature = inspect.signature(model.call)
         if len(signature.parameters) > 1 and isinstance(params, (list, tuple)):
@@ -89,19 +104,58 @@ def export_openvino(
             dynamic_shape = ov.PartialShape(dynamic_shape_dims)
             ov_input.get_node().set_partial_shape(dynamic_shape)
 
-    elif backend.backend() == "tensorflow":
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            model.export(temp_dir, format="tf_saved_model")
-            ov_model = ov.convert_model(temp_dir)
+    elif backend.backend() in ("tensorflow", "jax"):
+        inputs = tree.map_structure(make_tf_tensor_spec, input_signature)
+        decorated_fn = get_concrete_fn(model, inputs, **kwargs)
+        ov_model = ov.convert_model(decorated_fn)
     else:
         raise NotImplementedError(
-            "`export_openvino` is only compatible with OpenVINO and "
-            "TensorFlow backends."
+            "`export_openvino` is only compatible with OpenVINO, "
+            "TensorFlow and JAX backends."
         )
 
     ov.serialize(ov_model, filepath)
 
     if actual_verbose:
         io_utils.print_msg(f"Saved OpenVINO IR at '{filepath}'.")
+
+
+def _check_jax_kwargs(kwargs):
+    kwargs = kwargs.copy()
+    if "is_static" not in kwargs:
+        kwargs["is_static"] = True
+    if "jax2tf_kwargs" not in kwargs:
+        # TODO: These options will be deprecated in JAX. We need to
+        # find another way to export OpenVINO.
+        kwargs["jax2tf_kwargs"] = {
+            "enable_xla": False,
+            "native_serialization": False,
+        }
+    if kwargs["is_static"] is not True:
+        raise ValueError(
+            "`is_static` must be `True` in `kwargs` when using the jax backend."
+        )
+    if kwargs["jax2tf_kwargs"]["enable_xla"] is not False:
+        raise ValueError(
+            "`enable_xla` must be `False` in `kwargs['jax2tf_kwargs']` "
+            "when using the jax backend."
+        )
+    if kwargs["jax2tf_kwargs"]["native_serialization"] is not False:
+        raise ValueError(
+            "`native_serialization` must be `False` in "
+            "`kwargs['jax2tf_kwargs']` when using the jax backend."
+        )
+    return kwargs
+
+
+def get_concrete_fn(model, input_signature, **kwargs):
+    """Get the `tf.function` associated with the model."""
+    if backend.backend() == "jax":
+        kwargs = _check_jax_kwargs(kwargs)
+    export_archive = ExportArchive()
+    export_archive.track_and_add_endpoint(
+        DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
+    )
+    if backend.backend() == "tensorflow":
+        export_archive._filter_and_track_resources()
+    return export_archive._get_concrete_fn(DEFAULT_ENDPOINT_NAME)
