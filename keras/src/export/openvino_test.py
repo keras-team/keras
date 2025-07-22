@@ -227,5 +227,3 @@ class ExportOpenVINOTest(testing.TestCase):
         larger_input_x = np.concatenate([ref_input_x, ref_input_x], axis=0)
         larger_input_y = np.concatenate([ref_input_y, ref_input_y], axis=0)
         compiled_model([larger_input_x, larger_input_y])
-        larger_input_y = np.concatenate([ref_input_y, ref_input_y], axis=0)
-        compiled_model([larger_input_x, larger_input_y])
