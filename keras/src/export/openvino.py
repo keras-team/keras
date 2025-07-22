@@ -43,7 +43,7 @@ def export_openvino(
         ])
 
         # Export to OpenVINO IR
-        model.export("model.xml",format="openvino")
+        model.export("model.xml", format="openvino")
     """
     assert filepath.endswith(".xml"), (
         "The OpenVINO export requires the filepath to end with '.xml'. "
