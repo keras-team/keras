@@ -397,7 +397,7 @@ class Slice(Operation):
         return backend.core.slice(inputs, start_indices, self.shape)
 
     def compute_output_spec(self, inputs, start_indices):
-        # If shape[i] is -1, all remaining elements in dimension i are
+        # If self.shape[i] is -1, all remaining elements in dimension i are
         # included in the slice.
         final_shape = tuple(
             inputs.shape[i] - start_indices[i] if s == -1 else s
