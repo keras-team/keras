@@ -887,7 +887,7 @@ def slice_update(inputs, start_indices, updates):
     dim_sizes = []
     strides = []
 
-    # For each dimension, compute its size and the stride
+    # For each dimension, compute its size and the stride.
     # (number of elements to skip to move to the next index in this dimension).
     # Example:
     # for shape [2, 3], strides = [3, 1].
@@ -898,12 +898,10 @@ def slice_update(inputs, start_indices, updates):
         dim_size_scalar = ov_opset.squeeze(dim_size, zero_tensor).output(0)
         dim_sizes.append(dim_size_scalar)
 
-        # We need strides to convert a flat index
-        # into a multi-dimensional index.
-        # This allows us to map each element in the
-        # flattened updates tensor to its correct N-dimensional position,
-        # so we can compute the absolute index in the input tensor
-        # for the scatter update.
+        # Strides to convert a flat index into a multi-dimensional index.
+        # This allows us to map each element in the flattened updates tensor
+        # to its correct N-dimensional position, so we can compute the absolute
+        # index in the input tensor for the scatter update.
         # Stride for a dimension is the product of all dimensions after it.
         # For the last dimension, stride is 1.
         # Example:
@@ -921,13 +919,10 @@ def slice_update(inputs, start_indices, updates):
                 one_tensor,
                 zero_tensor,
             ).output(0)
-            # Multiply all sizes of dimensions after the current one
-            # to get the stride.
             stride = ov_opset.reduce_prod(
                 remaining_dims, zero_tensor, keep_dims=False
             ).output(0)
         else:
-            # The last dimension always has stride 1.
             stride = one_scalar
         strides.append(stride)
 
@@ -973,8 +968,8 @@ def slice_update(inputs, start_indices, updates):
 
     start_broadcast = ov_opset.tile(start_reshaped, broadcast_shape).output(0)
 
-    # Add the broadcasted start indices to the relative indices to get
-    # absolute indices in the input tensor.
+    # Add the broadcasted start indices to the relative indices
+    # to get absolute indices in the input tensor.
     # Example:
     # if start=(2,3), update index [1,1] -> absolute index [3,4].
     absolute_indices = ov_opset.add(indices_matrix, start_broadcast).output(0)
@@ -985,6 +980,7 @@ def slice_update(inputs, start_indices, updates):
         ov_opset.unsqueeze(total_elements, zero_tensor).output(0),
         special_zero=False,
     ).output(0)
+
     # Perform the scatter update: for each absolute index,
     # set the corresponding value from updates_flat.
     result = ov_opset.scatter_nd_update(
