@@ -300,7 +300,13 @@ def scatter_update(inputs, indices, updates):
 
 
 def slice(inputs, start_indices, shape):
-    return jax.lax.dynamic_slice(inputs, start_indices, shape)
+    # If shape[i] is -1, all remaining elements in dimension i are included in
+    #  the slice.
+    final_shape = tuple(
+        inputs.shape[i] - start_indices[i] if s == -1 else s
+        for i, s in enumerate(shape)
+    )
+    return jax.lax.dynamic_slice(inputs, start_indices, final_shape)
 
 
 def slice_update(inputs, start_indices, updates):

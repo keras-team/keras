@@ -397,7 +397,13 @@ class Slice(Operation):
         return backend.core.slice(inputs, start_indices, self.shape)
 
     def compute_output_spec(self, inputs, start_indices):
-        return KerasTensor(self.shape, dtype=inputs.dtype)
+        # If shape[i] is -1, all remaining elements in dimension i are
+        # included in the slice.
+        final_shape = tuple(
+            inputs.shape[i] - start_indices[i] if s == -1 else s
+            for i, s in enumerate(self.shape)
+        )
+        return KerasTensor(final_shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.slice")

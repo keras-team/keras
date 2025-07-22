@@ -265,6 +265,14 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         shape = (2, 2)
         self.assertEqual(core.slice(inputs, start_indices, shape).shape, (2, 2))
 
+    def test_slice_dynamic_shape(self):
+        inputs = KerasTensor(shape=(3, 3), dtype="float32")
+        start_indices = (1, 1)
+        dynamic_shape = (-1, -1)
+        self.assertEqual(
+            core.slice(inputs, start_indices, dynamic_shape).shape, (2, 2)
+        )
+
     def test_slice_update(self):
         inputs = KerasTensor((4, 4))
         start_indices = KerasTensor((2,))
