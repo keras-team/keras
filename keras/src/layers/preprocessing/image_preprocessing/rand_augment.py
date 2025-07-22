@@ -167,15 +167,11 @@ class RandAugment(BaseImagePreprocessingLayer):
                 augmentation_layer = getattr(self, layer_name)
                 augmentation_layer.backend.set_backend("tensorflow")
 
-        cond = self.backend.random.shuffle(
-            self.backend.numpy.concatenate(
-                [
-                    self.backend.numpy.ones(self.num_ops, dtype="int32"),
-                    self.backend.numpy.zeros(
-                        len(self._AUGMENT_LAYERS) - self.num_ops, dtype="int32"
-                    ),
-                ]
-            )
+        layer_idxes = self.backend.random.randint(
+            (self.num_ops,),
+            0,
+            len(self._AUGMENT_LAYERS),
+            seed=self._get_seed_generator(self.backend._backend),
         )
 
         transformation = {}
@@ -191,22 +187,23 @@ class RandAugment(BaseImagePreprocessingLayer):
 
         return {
             "transforms": transformation,
-            "cond": cond,
+            "layer_idxes": layer_idxes,
         }
 
     def transform_images(self, images, transformation, training=True):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
 
-            cond = transformation["cond"]
+            layer_idxes = transformation["layer_idxes"]
             transforms = transformation["transforms"]
-            for idx, (key, value) in enumerate(transforms.items()):
-                augmentation_layer = getattr(self, key)
-                images = self.backend.numpy.where(
-                    cond[idx],
-                    augmentation_layer.transform_images(images, value),
-                    images,
-                )
+            for i in range(self.num_ops):
+                for idx, (key, value) in enumerate(transforms.items()):
+                    augmentation_layer = getattr(self, key)
+                    images = self.backend.numpy.where(
+                        layer_idxes[i] == idx,
+                        augmentation_layer.transform_images(images, value),
+                        images,
+                    )
 
         images = self.backend.cast(images, self.compute_dtype)
         return images
@@ -221,28 +218,29 @@ class RandAugment(BaseImagePreprocessingLayer):
         training=True,
     ):
         if training:
-            cond = transformation["cond"]
+            layer_idxes = transformation["layer_idxes"]
             transforms = transformation["transforms"]
-            for idx, (key, value) in enumerate(transforms.items()):
-                augmentation_layer = getattr(self, key)
+            for i in range(self.num_ops):
+                for idx, (key, value) in enumerate(transforms.items()):
+                    augmentation_layer = getattr(self, key)
 
-                transformed_bounding_box = (
-                    augmentation_layer.transform_bounding_boxes(
-                        bounding_boxes, value
+                    transformed_bounding_box = (
+                        augmentation_layer.transform_bounding_boxes(
+                            bounding_boxes.copy(), value
+                        )
                     )
-                )
 
-                bounding_boxes["boxes"] = self.backend.numpy.where(
-                    cond[idx],
-                    transformed_bounding_box["boxes"],
-                    bounding_boxes["boxes"],
-                )
+                    bounding_boxes["boxes"] = self.backend.numpy.where(
+                        layer_idxes[i] == idx,
+                        transformed_bounding_box["boxes"],
+                        bounding_boxes["boxes"],
+                    )
 
-                bounding_boxes["labels"] = self.backend.numpy.where(
-                    cond[idx],
-                    transformed_bounding_box["labels"],
-                    bounding_boxes["labels"],
-                )
+                    bounding_boxes["labels"] = self.backend.numpy.where(
+                        layer_idxes[i] == idx,
+                        transformed_bounding_box["labels"],
+                        bounding_boxes["labels"],
+                    )
 
         return bounding_boxes
 

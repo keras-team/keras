@@ -124,6 +124,6 @@ class RandAugmentTest(testing.TestCase):
 
         key_list = []
         for output in ds:
-            key_list.append(output["cond"])
+            key_list.append(output["layer_idxes"])
 
         self.assertNotEquals(len(np.unique(key_list)), 1)
