@@ -220,16 +220,15 @@ class RandAugment(BaseImagePreprocessingLayer):
         if training:
             layer_idxes = transformation["layer_idxes"]
             transforms = transformation["transforms"]
-            for i in range(self.num_ops):
-                for idx, (key, value) in enumerate(transforms.items()):
-                    augmentation_layer = getattr(self, key)
+            for idx, (key, value) in enumerate(transforms.items()):
+                augmentation_layer = getattr(self, key)
 
-                    transformed_bounding_box = (
-                        augmentation_layer.transform_bounding_boxes(
-                            bounding_boxes.copy(), value
-                        )
+                transformed_bounding_box = (
+                    augmentation_layer.transform_bounding_boxes(
+                        bounding_boxes.copy(), value
                     )
-
+                )
+                for i in range(self.num_ops):
                     bounding_boxes["boxes"] = self.backend.numpy.where(
                         layer_idxes[i] == idx,
                         transformed_bounding_box["boxes"],
