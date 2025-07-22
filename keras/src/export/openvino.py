@@ -1,3 +1,5 @@
+import warnings
+
 from keras.src import backend
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
@@ -108,10 +110,24 @@ def export_openvino(
         inputs = tree.map_structure(make_tf_tensor_spec, input_signature)
         decorated_fn = get_concrete_fn(model, inputs, **kwargs)
         ov_model = ov.convert_model(decorated_fn)
+    elif backend.backend() == "torch":
+        import torch
+
+        sample_inputs = tree.map_structure(
+            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+            input_signature,
+        )
+        sample_inputs = tuple(sample_inputs)
+        if hasattr(model, "eval"):
+            model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
+            traced = torch.jit.trace(model, sample_inputs)
+            ov_model = ov.convert_model(traced)
     else:
         raise NotImplementedError(
             "`export_openvino` is only compatible with OpenVINO, "
-            "TensorFlow and JAX backends."
+            "TensorFlow, JAX and Torch backends."
         )
 
     ov.serialize(ov_model, filepath)
@@ -147,7 +163,6 @@ def _check_jax_kwargs(kwargs):
 
 
 def get_concrete_fn(model, input_signature, **kwargs):
-    """Get the `tf.function` associated with the model."""
     if backend.backend() == "jax":
         kwargs = _check_jax_kwargs(kwargs)
     export_archive = ExportArchive()

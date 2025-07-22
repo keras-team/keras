@@ -73,10 +73,10 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 
 @pytest.mark.skipif(ov is None, reason="OpenVINO is not installed")
 @pytest.mark.skipif(
-    backend.backend() not in ("tensorflow", "openvino", "jax"),
+    backend.backend() not in ("tensorflow", "openvino", "jax", "torch"),
     reason=(
         "`export_openvino` only currently supports"
-        "the tensorflow and openvino backends."
+        "the tensorflow, jax, torch and openvino backends."
     ),
 )
 @pytest.mark.skipif(
