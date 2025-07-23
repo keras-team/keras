@@ -1372,8 +1372,9 @@ class Layer(BackendLayer, Operation):
 
         # Save non-quantized variables
         all_vars = self._trainable_variables + self._non_trainable_variables
+        quantized_vars_set = set(quantized_vars)
         non_quantized_vars = [
-            v for v in all_vars if v not in quantized_vars and v.trainable
+            v for v in all_vars if v not in quantized_vars_set
         ]
         for i, v in enumerate(non_quantized_vars):
             store[f"{i}"] = v
@@ -1440,8 +1441,9 @@ class Layer(BackendLayer, Operation):
 
         # Load non-quantized variables
         all_vars = self._trainable_variables + self._non_trainable_variables
+        quantized_vars_set = set(quantized_vars)
         non_quantized_vars = [
-            v for v in all_vars if v not in quantized_vars and v.trainable
+            v for v in all_vars if v not in quantized_vars_set
         ]
         for i, v in enumerate(non_quantized_vars):
             v.assign(store[f"{i}"])
