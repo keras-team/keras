@@ -1,3 +1,4 @@
+import os
 import pickle
 from unittest import mock
 
@@ -12,6 +13,7 @@ from keras.src import layers
 from keras.src import metrics
 from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
@@ -1758,3 +1760,16 @@ class LayerTest(testing.TestCase):
         # foo_mode omitted -> foo_mode defaults to False -> no change
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)
+
+    def test_quantized_model_save_and_load(self):
+        inputs = layers.Input(shape=(None,))
+        x = layers.Embedding(input_dim=10, output_dim=10)(inputs)
+        x = layers.Dense(10)(x)
+        model = models.Model(inputs=inputs, outputs=x)
+        path = os.path.join(self.get_temp_dir(), "quantized_model.keras")
+        model.quantize(mode="int8")
+        model.save(path)
+
+        quantized_model = saving.load_model(path)
+
+        self.assertTrue(quantized_model.built)

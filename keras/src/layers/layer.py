@@ -1359,9 +1359,31 @@ class Layer(BackendLayer, Operation):
         Args:
             store: Dict where the state of the model will be saved.
         """
+        if not getattr(self, "_is_quantized", False):
+            all_vars = self._trainable_variables + self._non_trainable_variables
+            for i, v in enumerate(all_vars):
+                store[f"{i}"] = v
+            return
+
+        # Case: quantized layer
+        quantized_vars = self._get_quantized_variables()
+        for i, v in enumerate(quantized_vars):
+            store[f"quantized_{i}"] = v
+
+        # Save non-quantized variables
         all_vars = self._trainable_variables + self._non_trainable_variables
-        for i, v in enumerate(all_vars):
+        non_quantized_vars = [
+            v for v in all_vars if v not in quantized_vars and v.trainable
+        ]
+        for i, v in enumerate(non_quantized_vars):
             store[f"{i}"] = v
+
+    def _get_quantized_variables(self):
+        quantized_vars = []
+        for v in self._trainable_variables + self._non_trainable_variables:
+            if not backend.is_float_dtype(v.dtype):
+                quantized_vars.append(v)
+        return quantized_vars
 
     def load_own_variables(self, store):
         """Loads the state of the layer.
@@ -1372,6 +1394,10 @@ class Layer(BackendLayer, Operation):
         Args:
             store: Dict from which the state of the model will be loaded.
         """
+        if any(key.startswith("quantized_") for key in store.keys()):
+            self._load_quantized_variables(store)
+            return
+
         all_vars = self._trainable_variables + self._non_trainable_variables
         if len(store.keys()) != len(all_vars):
             if len(all_vars) == 0 and not self.built:
@@ -1405,6 +1431,19 @@ class Layer(BackendLayer, Operation):
                 f"Expected: {[v.name for v in all_vars]}"
             )
         for i, v in enumerate(all_vars):
+            v.assign(store[f"{i}"])
+
+    def _load_quantized_variables(self, store):
+        quantized_vars = self._get_quantized_variables()
+        for i, v in enumerate(quantized_vars):
+            v.assign(store[f"quantized_{i}"])
+
+        # Load non-quantized variables
+        all_vars = self._trainable_variables + self._non_trainable_variables
+        non_quantized_vars = [
+            v for v in all_vars if v not in quantized_vars and v.trainable
+        ]
+        for i, v in enumerate(non_quantized_vars):
             v.assign(store[f"{i}"])
 
     def _track_variable(self, variable):
