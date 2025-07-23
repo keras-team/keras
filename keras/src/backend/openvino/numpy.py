@@ -929,6 +929,10 @@ def isfinite(x):
     return OpenVINOKerasTensor(ov_opset.is_finite(x).output(0))
 
 
+def isin(x1, x2):
+    raise NotImplementedError("`isin` is not supported with openvino backend")
+
+
 def isinf(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.is_inf(x).output(0))
