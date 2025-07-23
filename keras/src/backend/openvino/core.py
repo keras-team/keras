@@ -843,6 +843,22 @@ def slice_update(inputs, start_indices, updates):
 
     updates_shape = ov_opset.shape_of(updates_tensor, Type.i32).output(0)
     rank = updates_tensor.get_partial_shape().rank.get_length()
+    if rank == 0:
+        # Handle scalar update
+        start_tensor = ov_opset.concat(processed_start_indices, axis=0).output(
+            0
+        )
+        # For scatter_nd_update,
+        # indices should be of shape [num_updates, rank_of_inputs]
+        # and updates should be of shape [num_updates]. Here num_updates is 1.
+        absolute_indices = ov_opset.unsqueeze(start_tensor, zero_scalar).output(
+            0
+        )
+        updates_flat = ov_opset.unsqueeze(updates_tensor, zero_scalar).output(0)
+        result = ov_opset.scatter_nd_update(
+            inputs, absolute_indices, updates_flat
+        ).output(0)
+        return OpenVINOKerasTensor(result)
 
     # Compute the total number of elements in the updates tensor.
     # Example:
