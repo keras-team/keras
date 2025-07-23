@@ -164,9 +164,11 @@ def serialize_keras_object(obj):
 
     # Special cases:
     if isinstance(obj, bytes):
+        import base64
+
         return {
             "class_name": "__bytes__",
-            "config": {"value": obj.decode("utf-8")},
+            "config": {"value": base64.b64encode(obj).decode("utf-8")},
         }
     if isinstance(obj, slice):
         return {
@@ -632,7 +634,9 @@ def deserialize_keras_object(
     if class_name == "__numpy__":
         return np.array(inner_config["value"], dtype=inner_config["dtype"])
     if config["class_name"] == "__bytes__":
-        return inner_config["value"].encode("utf-8")
+        import base64
+
+        return base64.b64decode(inner_config["value"].encode("utf-8"))
     if config["class_name"] == "__ellipsis__":
         return Ellipsis
     if config["class_name"] == "__slice__":
