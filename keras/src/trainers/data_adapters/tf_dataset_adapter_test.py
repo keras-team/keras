@@ -84,6 +84,11 @@ class TestTFDatasetAdapter(testing.TestCase):
     def test_class_weights_categorical_targets(self):
         self._test_class_weights(target_encoding="categorical")
 
+    def test_builtin_prefetch(self):
+        dataset = tf.data.Dataset.range(42)
+        adapter = tf_dataset_adapter.TFDatasetAdapter(dataset)
+        self.assertTrue(adapter.builtin_prefetch)
+
     def test_num_batches(self):
         dataset = tf.data.Dataset.range(42)
         cardinality = int(dataset.cardinality())
