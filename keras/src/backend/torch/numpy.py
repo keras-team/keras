@@ -886,6 +886,12 @@ def isfinite(x):
     return torch.isfinite(x)
 
 
+def isin(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.isin(x1, x2)
+
+
 def isinf(x):
     x = convert_to_tensor(x)
     return torch.isinf(x)

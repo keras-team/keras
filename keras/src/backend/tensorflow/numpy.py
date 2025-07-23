@@ -1592,6 +1592,24 @@ def isfinite(x):
     return tf.math.is_finite(x)
 
 
+def isin(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    original_shape = tf.shape(x1)
+
+    x1 = tf.reshape(x1, [-1])
+    x2 = tf.reshape(x2, [-1])
+
+    if tf.size(x1) == 0 or tf.size(x2) == 0:
+        return tf.zeros(x1.shape, dtype=tf.bool)
+
+    cmp = tf.equal(tf.expand_dims(x1, 1), tf.expand_dims(x2, 0))
+    result_flat = tf.reduce_any(cmp, axis=1)
+
+    return tf.reshape(result_flat, original_shape)
+
+
 def isinf(x):
     x = convert_to_tensor(x)
     dtype_as_dtype = tf.as_dtype(x.dtype)
