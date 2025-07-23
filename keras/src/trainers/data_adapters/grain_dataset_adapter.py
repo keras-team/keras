@@ -1,80 +1,66 @@
 import itertools
-import math
-import sys
 
 import numpy as np
 
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
+from keras.src.utils.module_utils import tensorflow as tf
+
+try:
+    import grain
+except ImportError:
+    grain = None
 
 
 class GrainDatasetAdapter(DataAdapter):
-    """Adapter that Grain dataset."""
+    """Adapter that handles `grain.DataLoader`, `grain.MapDataset` and
+    `grain.IterDataset`.
+    """
 
     def __init__(self, dataset):
-        import grain
+        """Initialize the GrainDatasetAdapter.
+
+        Args:
+            dataset: A Grain dataset instance. Must be one of
+                `grain.DataLoader`, `grain.MapDataset`, or `grain.IterDataset`.
+        """
 
         if not isinstance(
             dataset, (grain.MapDataset, grain.IterDataset, grain.DataLoader)
         ):
             raise ValueError(
-                "Expected argument `dataset` to be a grain.MapDataset, "
+                "Expected `dataset` to be a grain.MapDataset, "
                 "grain.IterDataset or grain.DataLoader. "
                 f"Received: {dataset} of type {type(dataset)}"
             )
 
         self._dataset = dataset
 
-        # Retrieve the information.
-        num_batches = None
-        batch_size = None
-        if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
-            from grain._src.python.dataset.transformations import batch
-
-            current_dataset = self._dataset
-            while True:
-                if isinstance(current_dataset, batch.BatchMapDataset):
-                    num_batches = len(current_dataset)
-                    batch_size = current_dataset._batch_size
-                    break
-                elif isinstance(current_dataset, batch.BatchIterDataset):
-                    batch_size = current_dataset._batch_size
-                    break
-                else:
-                    try:
-                        # We may receive a non-batched dataset.
-                        num_batches = len(current_dataset)
-                        break
-                    except TypeError:
-                        pass
-                if not hasattr(current_dataset, "_parent"):
-                    break
-                try:
-                    current_dataset = current_dataset._parent
-                except AssertionError:
-                    break
-        else:
-            drop_remainder = False
-            operations = self._dataset._operations
-            # Retrieve the `batch_size`.
-            for op in reversed(operations):
-                if isinstance(op, grain.transforms.Batch):
-                    batch_size = op.batch_size
-                    drop_remainder = op.drop_remainder
-                    break
-            if batch_size is not None:
-                data_source = self._dataset._data_source
-                if drop_remainder:
-                    num_batches = len(data_source) // batch_size
-                else:
-                    num_batches = math.ceil(len(data_source) / batch_size)
-        self._num_batches = num_batches
+        batch_size, output_signature = self._get_dataset_info(dataset)
         self._batch_size = batch_size
-        self._output_signature = None
+        self._output_signature = output_signature
+        self._output_tf_signature = None
+
+    def _get_dataset_info(self, dataset):
+        """Get the `batch_size` and `output_signature` from the dataset.
+
+        We use a small list of batches to infer the `batch_size` and
+        `output_signature`.
+        """
+        batches = list(
+            itertools.islice(
+                dataset, data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC
+            )
+        )
+        output_signature = data_adapter_utils.get_keras_tensor_spec(batches)
+        flat_output_signature = tree.flatten(output_signature)
+        batch_size = flat_output_signature[0].shape[0]
+        if batch_size is not None:
+            batch_size = int(batch_size)
+        return batch_size, output_signature
 
     def get_numpy_iterator(self):
-        import grain
         from grain._src.python.dataset.transformations import map
         from grain._src.python.shared_memory_array import (
             SharedMemoryArrayMetadata,
@@ -117,7 +103,6 @@ class GrainDatasetAdapter(DataAdapter):
         return dataset
 
     def get_jax_iterator(self):
-        import grain
         from grain._src.python.dataset.transformations import map
 
         def convert_to_jax_compatible(x):
@@ -154,8 +139,6 @@ class GrainDatasetAdapter(DataAdapter):
         return dataset
 
     def get_tf_dataset(self):
-        import grain
-        import tensorflow as tf
         from grain._src.python.dataset.transformations import map
 
         def convert_to_tf(x):
@@ -196,17 +179,14 @@ class GrainDatasetAdapter(DataAdapter):
                 enable_profiling=self._dataset._multiprocessing_options.enable_profiling,
             )
 
-        if self._output_signature is None:
-            batches = list(
-                itertools.islice(
-                    self._dataset,
-                    data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC,
-                )
+        if self._output_tf_signature is None:
+            self._output_tf_signature = tree.map_structure(
+                data_adapter_utils.convert_to_tf_tensor_spec,
+                self._output_signature,
             )
-            self._output_signature = data_adapter_utils.get_tensor_spec(batches)
 
         return tf.data.Dataset.from_generator(
-            lambda: dataset, output_signature=self._output_signature
+            lambda: dataset, output_signature=self._output_tf_signature
         )
 
     def get_torch_dataloader(self):
@@ -231,11 +211,7 @@ class GrainDatasetAdapter(DataAdapter):
 
     @property
     def num_batches(self):
-        # After calling `repeat()`, the number of batches becomes `sys.maxsize`
-        # which means infinite.
-        if self._num_batches == sys.maxsize:
-            return None
-        return self._num_batches
+        return None
 
     @property
     def batch_size(self):

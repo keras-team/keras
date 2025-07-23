@@ -10,6 +10,18 @@ from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import grain_dataset_adapter
 
 
+class Range2DSource(grain.sources.RandomAccessDataSource):
+    def __init__(self, start, stop):
+        self.start = start
+        self.stop = stop
+
+    def __getitem__(self, idx):
+        return np.expand_dims(np.array([self.start + idx]), axis=0)
+
+    def __len__(self):
+        return self.stop - self.start
+
+
 class GrainDatasetAdapterTest(testing.TestCase):
     def _get_dataset(self, dataset_type, worker_count=0, num_threads=0):
         x = np.random.normal(size=(34, 4)).astype("float32")
@@ -59,10 +71,7 @@ class GrainDatasetAdapterTest(testing.TestCase):
         dataset = self._get_dataset(dataset_type)
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
 
-        if dataset_type == "iter_dataset":
-            self.assertEqual(adapter.num_batches, None)
-        else:
-            self.assertEqual(adapter.num_batches, 3)
+        self.assertEqual(adapter.num_batches, None)
         self.assertEqual(adapter.batch_size, 16)
         self.assertEqual(adapter.has_partial_batch, None)
         self.assertEqual(adapter.partial_batch_size, None)
@@ -162,13 +171,18 @@ class GrainDatasetAdapterTest(testing.TestCase):
             self.assertEqual(bx.shape, (4, 4))
             self.assertEqual(by.shape, (4, 2))
 
-    def test_num_batches(self):
-        dataset = grain.MapDataset.range(42)
+    def test_builtin_prefetch(self):
+        dataset = grain.MapDataset.source(Range2DSource(0, 42))
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
-        self.assertEqual(adapter.num_batches, 42)
+        self.assertTrue(adapter.builtin_prefetch)
+
+    def test_num_batches(self):
+        dataset = grain.MapDataset.source(Range2DSource(0, 42))
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+        self.assertEqual(adapter.num_batches, None)
 
         # Test for Infinite Cardinality
-        dataset = grain.MapDataset.range(42)
+        dataset = grain.MapDataset.source(Range2DSource(0, 42))
         dataset = dataset.repeat()
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
         self.assertIsNone(adapter.num_batches)
@@ -182,7 +196,7 @@ class GrainDatasetAdapterTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             (
-                r"Expected argument `dataset` to be a grain.MapDataset, "
+                r"Expected `dataset` to be a grain.MapDataset, "
                 r"grain.IterDataset or grain.DataLoader. "
             ),
         ):
