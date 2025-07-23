@@ -1074,18 +1074,18 @@ def vectorized_map(function, elements):
     in the case of a single tensor input `elements`:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         outputs = []
         for e in elements:
             outputs.append(function(e))
-        return stack(outputs)
+        return np.stack(outputs)
     ```
 
     In the case of an iterable of tensors `elements`,
     it implements the following:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         batch_size = elements[0].shape[0]
         outputs = []
         for index in range(batch_size):
