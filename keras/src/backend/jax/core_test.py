@@ -24,7 +24,7 @@ if is_nnx_enabled():
     not is_nnx_enabled(),
     reason="Test requires NNX backend to be enabled by default for setup.",
 )
-class JaxCoreVariableTest(testing.TestCase):
+class NnxVariableTest(testing.TestCase):
     def setup(self):
         super().setup()
 
