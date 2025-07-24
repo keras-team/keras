@@ -56,25 +56,19 @@ def manage_venv_installs(whl_path):
         "pip install " + backend_extra_url + backend_pkg,
         "pip install -r requirements-common.txt",
         "pip install pytest",
+        # Ensure other backends are uninstalled
+        "pip uninstall -y "
+        + BACKEND_REQ[other_backends[0]][0]
+        + " "
+        + BACKEND_REQ[other_backends[1]][0]
+        + " "
+        + BACKEND_REQ[other_backends[2]][0],
+        # Install `.whl` package
+        "pip install " + whl_path,
     ]
-
     # Install flax for JAX when NNX is enabled
     if backend.backend() == "jax" and config.is_nnx_enabled():
         install_setup.append("pip install flax>=0.10.1")
-
-    install_setup.extend(
-        [
-            # Ensure other backends are uninstalled
-            "pip uninstall -y "
-            + BACKEND_REQ[other_backends[0]][0]
-            + " "
-            + BACKEND_REQ[other_backends[1]][0]
-            + " "
-            + BACKEND_REQ[other_backends[2]][0],
-            # Install `.whl` package
-            "pip install " + whl_path,
-        ]
-    )
     run_commands_venv(install_setup)
 
 

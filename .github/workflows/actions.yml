@@ -30,7 +30,6 @@ jobs:
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
-      KERAS_BACKEND: ${{ matrix.backend }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for changes in keras/src/applications
@@ -117,7 +116,7 @@ jobs:
         if: ${{ matrix.nnx_enabled == false }}
         uses: codecov/codecov-action@v5
         with:
-          env_vars: PYTHON,KERAS_HOME,KERAS_BACKEND,KERAS_NNX_ENABLED
+          env_vars: PYTHON,KERAS_HOME,KERAS_NNX_ENABLED
           flags: keras,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
           files: core-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}

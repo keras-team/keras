@@ -112,11 +112,9 @@ class Function(Operation):
         # Create a mapping from operation id to operation instance
         self._nnx_op_mapping = {}
 
-        # Store operations as direct attributes for NNX traversal
-        for i, operation in enumerate(self._operations):
-            # Store operation as direct attribute with unique name
-            attr_name = f"_op_{i}_{operation.name}"
-            setattr(self, attr_name, operation)
+        # Assign the list of operations to a single attribute for NNX traversal
+        self.nnx_operations = self._operations[:]
+        for operation in self._operations:
             # Map the operation id to this operation instance
             self._nnx_op_mapping[id(operation)] = operation
 
