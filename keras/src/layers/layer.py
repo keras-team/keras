@@ -1382,7 +1382,7 @@ class Layer(BackendLayer, Operation):
     def _get_quantized_variables(self):
         quantized_vars = []
         for v in self._trainable_variables + self._non_trainable_variables:
-            if not backend.is_float_dtype(v.dtype):
+            if getattr(v, "_is_quantized", False):
                 quantized_vars.append(v)
         return quantized_vars
 

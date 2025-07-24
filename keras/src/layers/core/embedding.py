@@ -328,6 +328,7 @@ class Embedding(Layer):
             dtype="int8",
             trainable=False,
         )
+        self._embeddings._is_quantized = True
         # We choose to reduce the axis of `output_dim` because, typically,
         # `input_dim` is larger than `output_dim`. This reduces quantization
         # error.
@@ -337,6 +338,7 @@ class Embedding(Layer):
             initializer="ones",
             trainable=False,
         )
+        self.embeddings_scale._is_quantized = True
 
     def quantized_call(self, *args, **kwargs):
         if self.quantization_mode != "int8":
