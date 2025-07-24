@@ -625,14 +625,12 @@ class TestTrainer(testing.TestCase):
     def test_fit_with_data_adapter(
         self, dataset_type, dataset_kwargs={}, fit_kwargs={}
     ):
-        if (
-            dataset_kwargs.get("use_multiprocessing", False)
-            and backend.backend() in ["jax", "mlx"]  # mlx fails on Linux only
-        ):
+        if dataset_kwargs.get(
+            "use_multiprocessing", False
+        ) and backend.backend() in ["jax", "mlx"]:
+            # note: multiprocessing works for mlx on Apple silicon
             pytest.skip(
-                "Multiprocessing not supported with JAX backend "
-                "nor on MLX backend on Linux."
-            )
+                "Multiprocessing not supported with JAX and MLX backends on Linux"
 
         model = ExampleModel(units=3)
         optimizer = optimizers.Adagrad()
