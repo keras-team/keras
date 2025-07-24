@@ -442,7 +442,7 @@ def max_steps_per_epoch():
 
 if "KERAS_NNX_ENABLED" in os.environ:
     env_val = os.environ["KERAS_NNX_ENABLED"].lower()
-    if env_val:
+    if env_val == "true" or env_val == "1":
         _NNX_ENABLED = True
     else:
         _NNX_ENABLED = False
