@@ -1674,15 +1674,8 @@ class Layer(BackendLayer, Operation):
             # level. We check if we are in NNX mode and if we are in a JAX
             # trace.
             if not (is_nnx_enabled() and jax_utils.is_in_jax_tracing_scope()):
-                try:
-                    self._parent_path = current_path()
-                except Exception:
-                    warnings.warn(
-                        f"Layer '{self.name}' encountered an issue during "
-                        "model construction. If you're experiencing unexpected "
-                        "behavior, try calling your model on a small test "
-                        "input first to ensure proper initialization."
-                    )
+                self._parent_path = current_path()
+
         return backend.name_scope(self.name, caller=self)
 
     def rematerialized_call(self, layer_call, *args, **kwargs):
