@@ -149,11 +149,14 @@ class TorchModuleWrapper(Layer):
     def get_config(self):
         base_config = super().get_config()
         import torch
+        import base64
 
         buffer = io.BytesIO()
         torch.save(self.module, buffer)
+        # Encode the buffer using base64 to ensure safe serialization
+        buffer_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
         config = {
-            "module": buffer.getvalue(),
+            "module": buffer_b64,
             "output_shape": self.output_shape,
         }
         return {**base_config, **config}
@@ -161,9 +164,12 @@ class TorchModuleWrapper(Layer):
     @classmethod
     def from_config(cls, config):
         import torch
+        import base64
 
         if "module" in config:
-            buffer = io.BytesIO(config["module"])
+            # Decode the base64 string back to bytes
+            buffer_bytes = base64.b64decode(config["module"].encode("utf-8"))
+            buffer = io.BytesIO(buffer_bytes)
             config["module"] = torch.load(buffer, weights_only=False)
         return cls(**config)
 
