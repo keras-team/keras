@@ -3,9 +3,10 @@ from keras.src.backend.config import is_nnx_enabled
 if is_nnx_enabled():
     from flax import nnx
 
-    class NnxLayer(nnx.Module):
-        pass
+    BaseLayer = nnx.Module
+else:
+    BaseLayer = object
 
 
-class JaxLayer:
+class JaxLayer(BaseLayer):
     pass

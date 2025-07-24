@@ -53,10 +53,7 @@ from keras.src.utils import tracking
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
 elif backend.backend() == "jax":
-    if is_nnx_enabled():
-        from keras.src.backend.jax.layer import NnxLayer as BackendLayer
-    else:
-        from keras.src.backend.jax.layer import JaxLayer as BackendLayer
+    from keras.src.backend.jax.layer import JaxLayer as BackendLayer
 elif backend.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
 elif backend.backend() == "numpy":
@@ -1547,6 +1544,7 @@ class Layer(BackendLayer, Operation):
             value = self._tracker.track(value)
 
         # NNX-specific bypass for `_called` and `built` attributes
+        # bypass nnx.Module.__setattr__ which cannot be called while tracing
         if (
             backend.backend() == "jax"
             and is_nnx_enabled()
@@ -1555,9 +1553,7 @@ class Layer(BackendLayer, Operation):
             object.__setattr__(self, name, value)
             return
 
-        super().__setattr__(
-            name, value
-        )  # Default path, including for NnxLayer -> nnx.Module
+        super().__setattr__(name, value)
 
     def __delattr__(self, name):
         obj = getattr(self, name)

@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 
@@ -7,6 +9,7 @@ from keras.src import losses
 from keras.src import metrics
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend.common.variables import initialize_all_variables
 
 
 class MyModel(keras.Model):
@@ -52,3 +55,25 @@ class BasicFlowTest(testing.TestCase):
         x = np.random.random((128, 4))
         model.predict(x)
         model(x)
+
+
+def test_nnx_variable_initializer_bug():
+    # Enable JAX + NNX backend
+    os.environ["KERAS_BACKEND"] = "jax"
+    os.environ["KERAS_NNX_ENABLED"] = "true"
+    import keras
+
+    model = keras.Sequential([keras.layers.Dense(1, input_shape=(2,))])
+    x = np.ones((1, 2))
+    # First call: triggers tracing and variable initialization
+    model(x)
+    # Save the kernel value after first call
+    kernel_before = model.layers[0].kernel.value.copy()
+    # Now forcibly re-initialize all variables
+    initialize_all_variables()
+    # Check if the kernel value has changed
+    kernel_after = model.layers[0].kernel.value
+    assert np.allclose(kernel_before, kernel_after), (
+        "Kernel was re-initialized! This is a bug if NNX is enabled and "
+        "the initializer was not cleared."
+    )
