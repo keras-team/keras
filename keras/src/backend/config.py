@@ -23,6 +23,28 @@ _MAX_EPOCHS = None
 _MAX_STEPS_PER_EPOCH = None
 
 
+@keras_export(
+    [
+        "keras.config.backend",
+        "keras.backend.backend",
+    ]
+)
+def backend():
+    """Publicly accessible method for determining the current backend.
+
+    Returns:
+        String, the name of the backend Keras is currently using. One of
+            `"tensorflow"`, `"torch"`, or `"jax"`.
+
+    Example:
+
+    >>> keras.config.backend()
+    'tensorflow'
+
+    """
+    return _BACKEND
+
+
 @keras_export(["keras.config.floatx", "keras.backend.floatx"])
 def floatx():
     """Return the default float type, as a string.
@@ -353,28 +375,6 @@ if _BACKEND != "tensorflow":
     # from using all available GPU memory. See
     # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-
-
-@keras_export(
-    [
-        "keras.config.backend",
-        "keras.backend.backend",
-    ]
-)
-def backend():
-    """Publicly accessible method for determining the current backend.
-
-    Returns:
-        String, the name of the backend Keras is currently using. One of
-            `"tensorflow"`, `"torch"`, or `"jax"`.
-
-    Example:
-
-    >>> keras.config.backend()
-    'tensorflow'
-
-    """
-    return _BACKEND
 
 
 @keras_export(["keras.config.set_max_epochs"])
