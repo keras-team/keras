@@ -492,6 +492,21 @@ class OpenVINOKerasTensor:
         )
         return OpenVINOKerasTensor(ov_opset.mod(first, other).output(0))
 
+    def __array__(self, dtype=None):
+        try:
+            tensor = cast(self, dtype=dtype) if dtype is not None else self
+            return convert_to_numpy(tensor)
+        except Exception as e:
+            raise RuntimeError(
+                "An OpenVINOKerasTensor is symbolic: it's a placeholder "
+                "for a shape and a dtype.\n"
+                "It doesn't have any actual numerical value.\n"
+                "You cannot convert it to a NumPy array."
+            ) from e
+
+    def numpy(self):
+        return self.__array__()
+
 
 def ov_to_keras_type(ov_type):
     for _keras_type, _ov_type in OPENVINO_DTYPES.items():
@@ -672,8 +687,10 @@ def convert_to_numpy(x):
         ov_model = Model(results=[ov_result], parameters=[])
         ov_compiled_model = compile_model(ov_model, get_device())
         result = ov_compiled_model({})[0]
-    except:
-        raise "`convert_to_numpy` cannot convert to numpy"
+    except Exception as inner_exception:
+        raise RuntimeError(
+            "`convert_to_numpy` failed to convert the tensor."
+        ) from inner_exception
     return result
 
 
@@ -690,6 +707,7 @@ def shape(x):
 
 
 def cast(x, dtype):
+    dtype = standardize_dtype(dtype)
     ov_type = OPENVINO_DTYPES[dtype]
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.convert(x, ov_type).output(0))
