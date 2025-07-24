@@ -1,20 +1,117 @@
+import io
+import logging
 import os
 import pickle
+import tarfile
 from collections import namedtuple
 
 import numpy as np
 import pytest
+import requests
 from absl.testing import parameterized
+from datasets import load_dataset
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
+from keras.src import models
 from keras.src import testing
 from keras.src import tree
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
+from keras.src.quantizers.gptqconfig import GPTQConfig
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+
+def get_dataset_text(dataset_identifier: str, nsamples=1000) -> str:
+    """
+    Loads a specified dataset and extracts its text content into a
+    single string.
+    """
+    DATASET_CONFIGS = {
+        "wikitext2": {
+            "name": "wikitext",
+            "config": "wikitext-2-raw-v1",
+            "split": "test",
+            "text_column": "text",
+        },
+        "ptb": {
+            "name": "ptb_text_only",
+            "config": "penn_treebank",
+            "split": "validation",
+            "text_column": "sentence",
+        },
+        "c4": {
+            "name": "allenai/c4",
+            "config": "en",
+            "split": "validation",  # Use validation for C4's test split
+            "text_column": "text",
+        },
+    }
+
+    if dataset_identifier not in DATASET_CONFIGS:
+        raise ValueError(
+            f"Unknown dataset identifier '{dataset_identifier}'. "
+            f"Available options are: {list(DATASET_CONFIGS.keys())}"
+        )
+
+    config = DATASET_CONFIGS[dataset_identifier]
+
+    if dataset_identifier == "ptb":
+        url = "http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz"
+        try:
+            # 1. Download the archive into memory
+            response = requests.get(url)
+            response.raise_for_status()
+
+            # 2. Extract only the test file from the in-memory archive
+            with tarfile.open(
+                fileobj=io.BytesIO(response.content), mode="r:gz"
+            ) as tar:
+                test_path = "./simple-examples/data/ptb.test.txt"
+                test_bytes = tar.extractfile(test_path).read()
+
+            # 3. Decode the bytes and join into a single string
+            test_lines = test_bytes.decode("utf-8").strip().split("\n")
+            all_text = "\n\n".join(test_lines)
+
+            print("✅ Successfully processed PTB test data.")
+            return all_text
+
+        except Exception as e:
+            print(f"Failed to download or process PTB data: {e!r}")
+            raise e
+
+    load_kwargs = {"name": config["config"]}
+
+    if dataset_identifier == "c4":
+        load_kwargs["streaming"] = True
+    # For PTB, force a redownload to bypass potential cache errors.
+    if dataset_identifier == "ptb":
+        load_kwargs["download_mode"] = "force_redownload"
+
+    print(f"Loading dataset '{config['name']}'...")
+
+    test_data = load_dataset(
+        config["name"], split=config["split"], **load_kwargs
+    )
+
+    if dataset_identifier == "c4":
+        print(f"   -> Limiting C4 to the first {nsamples} documents forspeed.")
+        test_data = test_data.take(nsamples)
+
+    all_text = "\n\n".join(
+        row[config["text_column"]]
+        for row in test_data
+        if row.get(config["text_column"])
+    )
+
+    print(f"Successfully loaded and processed {dataset_identifier}.")
+    return all_text
 
 
 def _get_model():
@@ -1237,3 +1334,156 @@ class ModelTest(testing.TestCase):
                 ),
             ):
                 model.export(temp_filepath, format="tf_saved_model")
+
+
+# Helper function to generate dummy data for quick testing.
+def dummy_dataset_generator(nsamples, seqlen, vocab_size=1000):
+    """A generator that yields random numpy arrays for fast,
+    self-contained tests."""
+    for _ in range(nsamples):
+        yield np.random.randint(0, vocab_size, size=(1, seqlen))
+
+
+# Helper function to build a simple transformer model that uses standard
+# Keras `Dense` layers for its attention projections.
+def _get_model_with_dense_attention():
+    """Builds a simple transformer model using Dense for attention."""
+    vocab_size = 1000
+    embed_dim = 32
+    num_heads = 4
+    ff_dim = 32
+
+    class SimpleTransformerBlock(layers.Layer):
+        def __init__(self, embed_dim, num_heads, ff_dim, **kwargs):
+            super().__init__(**kwargs)
+            # The standard MultiHeadAttention layer uses Dense layers
+            # for its projections.
+            self.att = layers.MultiHeadAttention(
+                num_heads=num_heads, key_dim=embed_dim
+            )
+            self.ffn = models.Sequential(
+                [
+                    layers.Dense(ff_dim, activation="relu"),
+                    layers.Dense(embed_dim),
+                ]
+            )
+            self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+            self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+
+        def call(self, inputs):
+            attention_output = self.att(inputs, inputs)
+            out1 = self.layernorm1(inputs + attention_output)
+            ffn_output = self.ffn(out1)
+            return self.layernorm2(out1 + ffn_output)
+
+    inputs = layers.Input(shape=(None,), dtype="int32")
+    embedding_layer = layers.Embedding(vocab_size, embed_dim)
+    x = embedding_layer(inputs)
+    transformer_block = SimpleTransformerBlock(embed_dim, num_heads, ff_dim)
+    x = transformer_block(x)
+    outputs = layers.Dense(vocab_size)(x)
+    model = models.Model(inputs=inputs, outputs=outputs)
+    return model
+
+
+def _run_gptq_test_on_dataset(test_case, dataset):
+    """Helper function to run a full GPTQ quantization
+    test on a given dataset."""
+    model = _get_model_with_dense_attention()
+
+    # --- 1. Common Setup ---
+    NUM_SAMPLES = 16
+    SEQUENCE_LENGTH = 128
+    VOCAB_SIZE = 1000
+    W_BITS = 4
+    GROUP_SIZE = 32
+
+    mock_tokenizer = lambda text: np.array([ord(c) % VOCAB_SIZE for c in text])
+    mock_tokenizer.tokenize = mock_tokenizer
+
+    # --- 2. Find Target Layer and Get Original Weights ---
+    target_layer = None
+    for layer in model.layers:
+        if hasattr(layer, "ffn") and hasattr(layer.ffn, "layers"):
+            dense_layer_in_ffn = next(
+                (
+                    ffn_layer
+                    for ffn_layer in layer.ffn.layers
+                    if isinstance(ffn_layer, layers.Dense)
+                ),
+                None,
+            )
+            if dense_layer_in_ffn:
+                target_layer = dense_layer_in_ffn
+                break
+
+    test_case.assertIsNotNone(
+        target_layer,
+        "Test setup failed: No Dense layer was found inside an 'ffn' block.",
+    )
+    original_weights = np.copy(target_layer.kernel.numpy())
+
+    # --- 3. Configure and Run Quantization ---
+    gptq_config = GPTQConfig(
+        dataset=dataset,
+        tokenizer=mock_tokenizer,
+        wbits=W_BITS,
+        nsamples=NUM_SAMPLES,
+        seqlen=SEQUENCE_LENGTH,
+        groupsize=GROUP_SIZE,
+    )
+    model.quantize("gptq", quant_config=gptq_config)
+
+    # --- 4. Assertions and Verification ---
+    quantized_weights = target_layer.kernel.numpy()
+
+    # Assert that the weights have been changed
+    test_case.assertFalse(
+        np.allclose(original_weights, quantized_weights),
+        f"Weights were not changed by the GPTQ process for dataset: {dataset}",
+    )
+
+    # Verify the quantized model can still make a prediction
+    try:
+        dummy_input = np.random.randint(
+            0, VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
+        )
+        _ = model.predict(dummy_input)
+    except Exception as e:
+        test_case.fail(
+            "Prediction failed for the quantized model with dataset: "
+            f"{dataset}. Error: {e}"
+        )
+
+
+@pytest.mark.requires_trainable_backend
+class ModelQuantizationTest(testing.TestCase):
+    def test_quantize_gptq_with_dense_attention(self):
+        """Tests GPTQ with an in-memory list of strings as the dataset."""
+
+        long_text = """auto-gptq is an easy-to-use model quantization library
+        with user-friendly apis, based on GPTQ algorithm. The goal is to
+        quantize pre-trained models to 4-bit or even 3-bit precision with
+        minimal performance degradation.
+        This allows for running larger models on less powerful hardware,
+        reducing memory footprint and increasing inference speed.
+        The process involves calibrating the model on a small dataset
+        to determine the quantization parameters.
+        This technique is particularly useful for deploying large language
+        models in resource-constrained environments where every bit of memory
+        and every millisecond of latency counts."""
+
+        string_dataset = [long_text]
+        _run_gptq_test_on_dataset(self, string_dataset)
+
+    def test_quantize_gptq_with_data_gen(self):
+        """Tests GPTQ with a Python generator as the dataset."""
+        generator_dataset = dummy_dataset_generator(
+            nsamples=16, seqlen=128, vocab_size=1000
+        )
+        _run_gptq_test_on_dataset(self, generator_dataset)
+
+    @pytest.mark.slow
+    def test_quantize_gptq_with_wikitext2(self):
+        """Tests GPTQ with the 'wikitext2' dataset identifier."""
+        _run_gptq_test_on_dataset(self, "wikitext2")
