@@ -625,6 +625,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             dtype = standardize_dtype(type(x))
         ov_type = OPENVINO_DTYPES[dtype]
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
+    elif isinstance(x, ov.Output):
+        return OpenVINOKerasTensor(x)
     if isinstance(x, Variable):
         x = x.value
         if dtype and dtype != x.dtype:
