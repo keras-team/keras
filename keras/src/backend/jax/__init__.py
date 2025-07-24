@@ -1,3 +1,4 @@
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.backend.jax import core
 from keras.src.backend.jax import distribution_lib
 from keras.src.backend.jax import image
