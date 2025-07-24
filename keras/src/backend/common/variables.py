@@ -214,8 +214,6 @@ class Variable:
             # If NNX is enabled, it's possible the variable was already
             # initialized by a concrete call. In this case,
             # _deferred_initialize becomes a no-op for this variable.
-            if config.is_nnx_enabled():
-                return
             raise ValueError(f"Variable {self.path} is already initialized.")
 
         if in_stateless_scope():
