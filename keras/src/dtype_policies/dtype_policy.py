@@ -3,7 +3,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
-QUANTIZATION_MODES = ("int8", "float8", "int4")
+QUANTIZATION_MODES = ("int8", "float8", "int4", "gptq")
 
 
 @keras_export(
