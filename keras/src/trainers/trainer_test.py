@@ -217,6 +217,35 @@ def create_dataset(dataset_type, dataset_kwargs):
             return generate_infinite(), None
         else:
             return generate_finite(), None
+    elif dataset_type == "grain_datast":
+        import grain
+
+        class TestIterableDataset(grain.sources.RandomAccessDataSource):
+            def __init__(self):
+                super().__init__()
+                self.x = np.ones((100, 4)).astype("float32")
+                self.y = np.zeros((100, 3)).astype("float32")
+
+            def __len__(self):
+                return len(self.x)
+
+            def __getitem__(self, idx):
+                return self.x[idx], self.y[idx]
+
+        if dataset_kwargs.get("use_dataloader", False):
+            source = TestIterableDataset()
+            dataloader = grain.DataLoader(
+                data_source=source,
+                sampler=grain.samplers.IndexSampler(len(source), num_epochs=1),
+                operations=[grain.transforms.Batch(batch_size=5)],
+            )
+            return dataloader, None
+        else:
+            dataset = grain.MapDataset.source(TestIterableDataset())
+            if dataset_kwargs.get("has_len", False):
+                dataset = dataset.to_iter_dataset()
+            dataset = dataset.batch(5)
+            return dataset, None
     else:
         raise ValueError(f"Invalid dataset type {dataset_type}")
 
@@ -615,17 +644,36 @@ class TestTrainer(testing.TestCase):
                 "dataset_kwargs": {"infinite": True},
                 "fit_kwargs": {"steps_per_epoch": 20},
             },
+            {
+                "testcase_name": "grain_datast",
+                "dataset_type": "grain_datast",
+                "dataset_kwargs": {"has_len": False},
+            },
+            {
+                "testcase_name": "grain_datast_with_len",
+                "dataset_type": "grain_datast",
+                "dataset_kwargs": {"has_len": True},
+            },
+            {
+                "testcase_name": "grain_dataloader",
+                "dataset_type": "grain_datast",
+                "dataset_kwargs": {"use_dataloader": True},
+            },
         ]
     )
     @pytest.mark.requires_trainable_backend
     def test_fit_with_data_adapter(
         self, dataset_type, dataset_kwargs={}, fit_kwargs={}
     ):
+        jit_compile = True
         if (
             dataset_kwargs.get("use_multiprocessing", False)
             and backend.backend() == "jax"
         ):
             pytest.skip("Multiprocessing not supported with JAX backend")
+        if dataset_type == "grain_datast" and backend.backend() == "torch":
+            # Grain datasets are not supported with torch + jit_compile.
+            jit_compile = False
 
         model = ExampleModel(units=3)
         optimizer = optimizers.Adagrad()
@@ -633,7 +681,7 @@ class TestTrainer(testing.TestCase):
             optimizer=optimizer,
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            jit_compile=True,
+            jit_compile=jit_compile,
         )
         x, y = create_dataset(dataset_type, dataset_kwargs)
         model.fit(x, y, epochs=3, **fit_kwargs)

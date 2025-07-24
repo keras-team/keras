@@ -27,3 +27,5 @@ onnxruntime
 # > 0.3.1 breaks LSTM model export in torch backend.
 onnxscript<=0.3.1
 openvino
+# for grain_dataset_adapter_test.py
+grain

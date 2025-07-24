@@ -1026,10 +1026,12 @@ class JAXEpochIterator(EpochIterator):
         distribution = distribution_lib.distribution()
         if distribution is not None:
             return self._get_distributed_iterator(distribution)
-
-        return self._prefetch_numpy_iterator(
-            self.data_adapter.get_jax_iterator()
-        )
+        if self.data_adapter.builtin_prefetch:
+            return self.data_adapter.get_jax_iterator()
+        else:
+            return self._prefetch_numpy_iterator(
+                self.data_adapter.get_jax_iterator()
+            )
 
     def _get_distributed_iterator(self, distribution):
         """Lazily compute layouts to reduce host to device transfer latency."""
