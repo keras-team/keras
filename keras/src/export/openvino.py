@@ -31,19 +31,23 @@ def export_openvino(
         by the backend.
         input_signature: Optional. Specifies the shape and dtype of the
         model inputs. If not provided, it will be inferred.
-        **kwargs: Additional keyword arguments (currently unused).
+        **kwargs: Additional keyword arguments.
+
      Example:
-        import keras
 
-        # Define or load a Keras model
-        model = keras.models.Sequential([
-            keras.layers.Input(shape=(128,)),
-            keras.layers.Dense(64, activation="relu"),
-            keras.layers.Dense(10)
-        ])
+    ```python
+    import keras
 
-        # Export to OpenVINO IR
-        model.export("model.xml", format="openvino")
+    # Define or load a Keras model
+    model = keras.models.Sequential([
+        keras.layers.Input(shape=(128,)),
+        keras.layers.Dense(64, activation="relu"),
+        keras.layers.Dense(10)
+    ])
+
+    # Export to OpenVINO IR
+    model.export("model.xml", format="openvino")
+    ```
     """
     assert filepath.endswith(".xml"), (
         "The OpenVINO export requires the filepath to end with '.xml'. "
