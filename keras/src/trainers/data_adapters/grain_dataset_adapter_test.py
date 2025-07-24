@@ -171,6 +171,20 @@ class GrainDatasetAdapterTest(testing.TestCase):
             self.assertEqual(bx.shape, (4, 4))
             self.assertEqual(by.shape, (4, 2))
 
+    def test_multiple_calling_on_iterators(self):
+        dataset = self._get_dataset("iter_dataset")
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+
+        numpy_it = adapter.get_numpy_iterator()
+        jax_it = adapter.get_jax_iterator()
+        tf_it = adapter.get_tf_dataset()
+        torch_it = adapter.get_torch_dataloader()
+        for it in (numpy_it, jax_it, tf_it, torch_it):
+            for batch in it:
+                self.assertEqual(len(batch), 2)
+                bx, by = batch
+                self.assertEqual(bx.dtype, by.dtype)
+
     def test_builtin_prefetch(self):
         dataset = grain.MapDataset.source(Range2DSource(0, 42))
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)

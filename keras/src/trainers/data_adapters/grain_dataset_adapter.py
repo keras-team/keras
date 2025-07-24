@@ -61,7 +61,6 @@ class GrainDatasetAdapter(DataAdapter):
         return batch_size, output_signature
 
     def get_numpy_iterator(self):
-        from grain._src.python.dataset.transformations import map
         from grain._src.python.shared_memory_array import (
             SharedMemoryArrayMetadata,
         )
@@ -83,10 +82,8 @@ class GrainDatasetAdapter(DataAdapter):
             def map(self, x):
                 return tree.map_structure(convert_to_numpy, x)
 
-        if isinstance(self._dataset, grain.MapDataset):
-            dataset = map.MapMapDataset(self._dataset, ConvertToNumpy())
-        elif isinstance(self._dataset, grain.IterDataset):
-            dataset = map.MapIterDataset(self._dataset, ConvertToNumpy())
+        if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
+            dataset = self._dataset.map(ConvertToNumpy())
         else:
             # Instantiate a new `DataLoader`.
             dataset = grain.DataLoader(
@@ -103,8 +100,6 @@ class GrainDatasetAdapter(DataAdapter):
         return dataset
 
     def get_jax_iterator(self):
-        from grain._src.python.dataset.transformations import map
-
         def convert_to_jax_compatible(x):
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_jax_sparse(x)
@@ -116,12 +111,8 @@ class GrainDatasetAdapter(DataAdapter):
             def map(self, x):
                 return tree.map_structure(convert_to_jax_compatible, x)
 
-        if isinstance(self._dataset, grain.MapDataset):
-            dataset = map.MapMapDataset(self._dataset, ConvertToJaxCompatible())
-        elif isinstance(self._dataset, grain.IterDataset):
-            dataset = map.MapIterDataset(
-                self._dataset, ConvertToJaxCompatible()
-            )
+        if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
+            dataset = self._dataset.map(ConvertToJaxCompatible())
         else:
             # Instantiate a new `DataLoader`.
             dataset = grain.DataLoader(
@@ -139,8 +130,6 @@ class GrainDatasetAdapter(DataAdapter):
         return dataset
 
     def get_tf_dataset(self):
-        from grain._src.python.dataset.transformations import map
-
         def convert_to_tf(x):
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_tf_sparse(x)
@@ -158,12 +147,9 @@ class GrainDatasetAdapter(DataAdapter):
             def map(self, x):
                 return tree.lists_to_tuples(x)
 
-        if isinstance(self._dataset, grain.MapDataset):
-            dataset = map.MapMapDataset(self._dataset, ConvertToTF())
-            dataset = map.MapMapDataset(dataset, ListToTuple())
-        elif isinstance(self._dataset, grain.IterDataset):
-            dataset = map.MapIterDataset(self._dataset, ConvertToTF())
-            dataset = map.MapIterDataset(dataset, ListToTuple())
+        if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
+            dataset = self._dataset.map(ConvertToTF())
+            dataset = dataset.map(ListToTuple())
         else:
             # Instantiate a new `DataLoader`.
             dataset = grain.DataLoader(
