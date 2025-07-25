@@ -213,7 +213,9 @@ class Discretization(TFDataLayer):
         self.summary = np.array([[], []], dtype="float32")
 
     def compute_output_spec(self, inputs):
-        output_dtype = "int64" if self.output_mode == "int" else self.compute_dtype
+        output_dtype = (
+            "int64" if self.output_mode == "int" else self.compute_dtype
+        )
         return backend.KerasTensor(shape=inputs.shape, dtype=output_dtype)
 
     def load_own_variables(self, store):
