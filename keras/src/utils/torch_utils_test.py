@@ -260,7 +260,8 @@ class TorchUtilsTest(testing.TestCase):
                 return self.sequence(x)
 
         m = M()
-        x = torch.ones((10, 1, 28, 28))
+        device = backend.get_device()  # Get the current device (e.g., "cuda" or "cpu")
+        x = torch.ones((10, 1, 28, 28), device=device)  # Place input on the correct device
         m(x)
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
         m.save(temp_filepath)
