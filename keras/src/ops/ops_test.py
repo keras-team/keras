@@ -182,6 +182,7 @@ class OperationTest(testing.TestCase):
             # Check order of parameters.
             if name in (
                 "fori_loop",
+                "vectorized_map",
                 "while_loop",
                 "batch_normalization",
                 "dot_product_attention",
@@ -223,6 +224,16 @@ class OperationTest(testing.TestCase):
                     "Inconsistent static parameter position for op "
                     f"function `{name}` and op class `{op_class.__name__}`",
                 )
+
+            # ==== Check compute_output_spec is implement ====
+            # - op class should override Operation's `compute_output_spec`
+            self.assertTrue(
+                hasattr(op_class, "compute_output_spec")
+                and op_class.compute_output_spec
+                is not Operation.compute_output_spec,
+                f"Op class `{op_class.__name__}` should override "
+                "`compute_output_spec`",
+            )
 
     @parameterized.named_parameters(named_product(module_name=OPS_MODULES))
     def test_backend_consistency(self, module_name):
