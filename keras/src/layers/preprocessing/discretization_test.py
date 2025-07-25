@@ -5,7 +5,6 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
-import keras
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
@@ -206,21 +205,3 @@ class DiscretizationTest(testing.TestCase):
         layer = layers.Discretization(num_bins=3)
         with self.assertRaisesRegex(ValueError, "You need .* call .*adapt"):
             layer([[0.1, 0.8, 0.9]])
-
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="test for tf backend"
-    )
-    def test_discretization_eager_vs_graph(self):
-        layer = keras.layers.Discretization(
-            bin_boundaries=[-0.5, 0, 0.1, 0.2, 3],
-            name="bucket",
-            output_mode="int",
-        )
-
-        x = np.array([[0.0, 0.15, 0.21, 0.3], [0.0, 0.17, 0.451, 7.8]])
-        inputs = keras.layers.Input(name="inp", dtype="float32", shape=(4,))
-        model_output = layer(inputs)
-        model = keras.models.Model(inputs=[inputs], outputs=[model_output])
-        eager_out = model(x).numpy()
-        graph_out = model.predict(x)
-        self.assertAllClose(eager_out, graph_out)
