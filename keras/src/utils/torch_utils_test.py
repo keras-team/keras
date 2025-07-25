@@ -11,6 +11,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.torch.core import get_device
 from keras.src.utils.torch_utils import TorchModuleWrapper
 
 
@@ -246,3 +247,27 @@ class TorchUtilsTest(testing.TestCase):
         model = keras.Model(x, y)
         self.assertEqual(model.predict(np.zeros([5, 4])).shape, (5, 16))
         self.assertEqual(model(np.zeros([5, 4])).shape, (5, 16))
+
+    def test_save_load(self):
+        @keras.saving.register_keras_serializable()
+        class M(keras.Model):
+            def __init__(self, channels=10, **kwargs):
+                super().__init__()
+                self.sequence = torch.nn.Sequential(
+                    torch.nn.Conv2d(1, channels, kernel_size=(3, 3)),
+                )
+
+            def call(self, x):
+                return self.sequence(x)
+
+        m = M()
+        device = get_device()  # Get the current device (e.g., "cuda" or "cpu")
+        x = torch.ones(
+            (10, 1, 28, 28), device=device
+        )  # Place input on the correct device
+        m(x)
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        m.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        for ref_w, new_w in zip(m.get_weights(), new_model.get_weights()):
+            self.assertAllClose(ref_w, new_w, atol=1e-5)
