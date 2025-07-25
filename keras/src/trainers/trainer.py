@@ -795,14 +795,14 @@ class Trainer:
             or list of scalars (if the model has multiple outputs
             and/or metrics).
 
-            Note: When using compiled metrics, `evaluate()` may return multiple
-            submetric values, while `model.metrics_names` often lists only
-            top-level names (e.g., 'loss', 'compile_metrics'), leading to a
-            length mismatch. The order of the `evaluate()` output corresponds
-            to the order of metrics specified during `model.compile()`. You can
-            use this order to map the evaluate() results to the intended
-            metric. `model.metrics_names` itself will still return only the
-            top-level names.
+        Note: When using compiled metrics, `evaluate()` may return multiple
+        submetric values, while `model.metrics_names` often lists only
+        top-level names (e.g., 'loss', 'compile_metrics'), leading to a
+        length mismatch. The order of the `evaluate()` output corresponds
+        to the order of metrics specified during `model.compile()`. You can
+        use this order to map the evaluate() results to the intended
+        metric. `model.metrics_names` itself will still return only the
+        top-level names.
         """
         raise NotImplementedError
 
