@@ -64,7 +64,7 @@ dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recomm
 backend to avoid CUDA version mismatches. As an example, here is how to create a JAX GPU environment with `conda`:
 
 ```shell
-conda create -y -n keras-jax python=3.10
+conda create -y -n keras-jax python=3.11
 conda activate keras-jax
 pip install -r requirements-jax-cuda.txt
 python pip_build.py --install
@@ -88,7 +88,7 @@ os.environ["KERAS_BACKEND"] = "jax"
 import keras
 ```
 
-**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
+**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after
 the package has been imported.
 
 **Note:** The OpenVINO backend is an inference-only backend, meaning it is designed only for running model
