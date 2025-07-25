@@ -92,12 +92,9 @@ class Discretization(TFDataLayer):
         epsilon=0.01,
         output_mode="int",
         sparse=False,
-        dtype=None,
+        dtype="int64", # because default output mode is int
         name=None,
     ):
-        if dtype is None:
-            dtype = "float32"
-
         super().__init__(name=name, dtype=dtype)
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
