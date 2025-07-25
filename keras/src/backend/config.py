@@ -305,8 +305,6 @@ if os.path.exists(_config_path):
     assert _image_data_format in {"channels_last", "channels_first"}
     _nnx_enabled_config = _config.get("nnx_enabled", _NNX_ENABLED)
 
-    # else: ignore non-bool values for nnx_enabled
-
     # Apply basic configs that don't cause circular import
     set_floatx(_floatx)
     _NNX_ENABLED = _nnx_enabled_config
