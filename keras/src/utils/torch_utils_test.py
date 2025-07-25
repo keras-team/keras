@@ -11,6 +11,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.torch.core import get_device
 from keras.src.utils.torch_utils import TorchModuleWrapper
 
 
@@ -260,8 +261,10 @@ class TorchUtilsTest(testing.TestCase):
                 return self.sequence(x)
 
         m = M()
-        device = backend.get_device()  # Get the current device (e.g., "cuda" or "cpu")
-        x = torch.ones((10, 1, 28, 28), device=device)  # Place input on the correct device
+        device = get_device()  # Get the current device (e.g., "cuda" or "cpu")
+        x = torch.ones(
+            (10, 1, 28, 28), device=device
+        )  # Place input on the correct device
         m(x)
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
         m.save(temp_filepath)
