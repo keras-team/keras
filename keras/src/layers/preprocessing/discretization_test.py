@@ -205,3 +205,32 @@ class DiscretizationTest(testing.TestCase):
         layer = layers.Discretization(num_bins=3)
         with self.assertRaisesRegex(ValueError, "You need .* call .*adapt"):
             layer([[0.1, 0.8, 0.9]])
+
+
+def test_discretization_eager_vs_graph():
+    import os
+
+    os.environ["KERAS_BACKEND"] = "tensorflow"
+    import tensorflow as tf
+
+    import keras
+
+    layer = keras.layers.Discretization(
+        bin_boundaries=[-0.5, 0, 0.1, 0.2, 3],
+        name="bucket",
+        output_mode="int",
+    )
+
+    x = tf.constant([[0.0, 0.15, 0.21, 0.3], [0.0, 0.17, 0.451, 7.8]])
+    inputs = keras.layers.Input(name="inp", dtype="float32", shape=(4,))
+    model_output = layer(inputs)
+    model = keras.models.Model(inputs=[inputs], outputs=[model_output])
+
+    print("Eager mode (layer(x)):")
+    print(layer(x).numpy())
+
+    print("Model call (model(x)):")
+    print(model(x).numpy())
+
+    print("Model predict (model.predict(x)):")
+    print(model.predict(x))

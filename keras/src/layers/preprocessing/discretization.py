@@ -229,6 +229,8 @@ class Discretization(TFDataLayer):
                 "start using the `Discretization` layer."
             )
 
+        if self.backend.backend() == "tensorflow":
+            inputs = self.backend.convert_to_tensor(inputs)
         indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
         return numerical_utils.encode_categorical_inputs(
             indices,
