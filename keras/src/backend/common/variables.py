@@ -216,7 +216,7 @@ class Variable:
             # returns early and does not raise an error.
             if config.is_nnx_enabled():
                 return
-            raise RuntimeError("Variable is already initialized.")
+            raise ValueError(f"Variable {self.path} is already initialized.")
 
         if in_stateless_scope():
             raise ValueError(
