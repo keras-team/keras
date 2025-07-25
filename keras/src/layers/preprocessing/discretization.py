@@ -96,7 +96,7 @@ class Discretization(TFDataLayer):
         name=None,
     ):
         if dtype is None:
-            dtype = "int64" if output_mode == "int" else backend.floatx()
+            dtype = "float32"
 
         super().__init__(name=name, dtype=dtype)
 
@@ -213,7 +213,8 @@ class Discretization(TFDataLayer):
         self.summary = np.array([[], []], dtype="float32")
 
     def compute_output_spec(self, inputs):
-        return backend.KerasTensor(shape=inputs.shape, dtype=self.compute_dtype)
+        output_dtype = "int64" if self.output_mode == "int" else self.compute_dtype
+        return backend.KerasTensor(shape=inputs.shape, dtype=output_dtype)
 
     def load_own_variables(self, store):
         if len(store) == 1:
@@ -229,9 +230,9 @@ class Discretization(TFDataLayer):
                 "start using the `Discretization` layer."
             )
 
-        if self.backend.backend() == "tensorflow":
-            inputs = self.backend.convert_to_tensor(inputs)
+        # Use the backend's digitize function for all backends
         indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
+
         return numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
