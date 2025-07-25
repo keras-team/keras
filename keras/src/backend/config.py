@@ -23,28 +23,6 @@ _MAX_EPOCHS = None
 _MAX_STEPS_PER_EPOCH = None
 
 
-@keras_export(
-    [
-        "keras.config.backend",
-        "keras.backend.backend",
-    ]
-)
-def backend():
-    """Publicly accessible method for determining the current backend.
-
-    Returns:
-        String, the name of the backend Keras is currently using. One of
-            `"tensorflow"`, `"torch"`, or `"jax"`.
-
-    Example:
-
-    >>> keras.config.backend()
-    'tensorflow'
-
-    """
-    return _BACKEND
-
-
 @keras_export(["keras.config.floatx", "keras.backend.floatx"])
 def floatx():
     """Return the default float type, as a string.
@@ -312,30 +290,6 @@ def keras_home():
 
 # Attempt to read Keras config file.
 _config_path = os.path.expanduser(os.path.join(_KERAS_DIR, "keras.json"))
-
-# Save config file, if possible.
-if not os.path.exists(_KERAS_DIR):
-    try:
-        os.makedirs(_KERAS_DIR)
-    except OSError:
-        # Except permission denied.
-        pass
-
-if not os.path.exists(_config_path):
-    _config_to_save = {
-        "floatx": _FLOATX,
-        "epsilon": _EPSILON,
-        "backend": _BACKEND,
-        "image_data_format": _IMAGE_DATA_FORMAT,
-        "nnx_enabled": _NNX_ENABLED,
-    }
-    try:
-        with open(_config_path, "w") as f:
-            f.write(json.dumps(_config_to_save, indent=4))
-    except IOError:
-        # Except permission denied.
-        pass
-
 if os.path.exists(_config_path):
     try:
         with open(_config_path) as f:
@@ -355,11 +309,35 @@ if os.path.exists(_config_path):
 
     # Apply basic configs that don't cause circular import
     set_floatx(_floatx)
-    set_nnx_enabled(_nnx_enabled_config)
+    _NNX_ENABLED = _nnx_enabled_config
     set_epsilon(_epsilon)
     set_image_data_format(_image_data_format)
     _BACKEND = _backend
 
+# Save config file, if possible.
+if not os.path.exists(_KERAS_DIR):
+    try:
+        os.makedirs(_KERAS_DIR)
+    except OSError:
+        # Except permission denied and potential race conditions
+        # in multi-threaded environments.
+        pass
+
+if not os.path.exists(_config_path):
+    _config = {
+        "floatx": floatx(),
+        "epsilon": epsilon(),
+        "backend": _BACKEND,
+        "image_data_format": image_data_format(),
+    }
+    try:
+        with open(_config_path, "w") as f:
+            f.write(json.dumps(_config, indent=4))
+    except IOError:
+        # Except permission denied.
+        pass
+
+# Set backend based on KERAS_BACKEND flag, if applicable.
 if "KERAS_BACKEND" in os.environ:
     _backend = os.environ["KERAS_BACKEND"]
     if _backend:
@@ -375,6 +353,28 @@ if _BACKEND != "tensorflow":
     # from using all available GPU memory. See
     # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+
+
+@keras_export(
+    [
+        "keras.config.backend",
+        "keras.backend.backend",
+    ]
+)
+def backend():
+    """Publicly accessible method for determining the current backend.
+
+    Returns:
+        String, the name of the backend Keras is currently using. One of
+            `"tensorflow"`, `"torch"`, or `"jax"`.
+
+    Example:
+
+    >>> keras.config.backend()
+    'tensorflow'
+
+    """
+    return _BACKEND
 
 
 @keras_export(["keras.config.set_max_epochs"])
