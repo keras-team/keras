@@ -171,3 +171,17 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
             else:
                 self.assertEqual(bx.shape, (2, 6))
                 self.assertEqual(by.shape, (2, 2))
+
+    @parameterized.named_parameters(named_product(num_workers=[0, 2]))
+    def test_builtin_prefetch(self, num_workers):
+        x = torch.normal(2, 3, size=(34, 4))
+        y = torch.normal(1, 3, size=(34, 2))
+        ds = torch.utils.data.TensorDataset(x, y)
+        dataloader = torch.utils.data.DataLoader(
+            ds, batch_size=16, num_workers=num_workers
+        )
+        adapter = TorchDataLoaderAdapter(dataloader)
+        if num_workers > 0:
+            self.assertTrue(adapter.builtin_prefetch)
+        else:
+            self.assertFalse(adapter.builtin_prefetch)

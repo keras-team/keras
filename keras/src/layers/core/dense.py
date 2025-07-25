@@ -693,53 +693,56 @@ class Dense(Layer):
                 `kernel_scale`: The quantization scale for the merged kernel.
                     This is `None` if the layer is not quantized.
         """
-        if self.dtype_policy.quantization_mode is not None:
-            kernel_value = self._kernel
-            kernel_scale = self.kernel_scale
-            if self.lora_enabled:
-                # Dequantize kernel to float
-                if self.quantization_mode == "int4":
-                    unpacked_kernel = quantizers.unpack_int4(
-                        kernel_value, self._orig_input_dim
-                    )
-                    float_kernel = ops.divide(
-                        ops.cast(unpacked_kernel, self.compute_dtype),
-                        kernel_scale,
-                    )
-                    quant_range = (-8, 7)
-                elif self.quantization_mode == "int8":
-                    float_kernel = ops.divide(
-                        ops.cast(kernel_value, self.compute_dtype), kernel_scale
-                    )
-                    quant_range = (-127, 127)
-                else:
-                    raise ValueError(
-                        "Unsupported quantization mode: "
-                        f"{self.quantization_mode}"
-                    )
+        if self.dtype_policy.quantization_mode is None:
+            return self.kernel, None
 
-                # Merge LoRA weights in float domain
-                lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
-                    self.lora_kernel_a, self.lora_kernel_b
-                )
-                merged_float_kernel = ops.add(float_kernel, lora_delta)
+        kernel_value = self._kernel
+        kernel_scale = self.kernel_scale
 
-                # Requantize
-                requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
-                    merged_float_kernel,
-                    axis=0,
-                    value_range=quant_range,
-                    dtype="int8",
-                    to_numpy=True,
-                )
-                kernel_scale = ops.squeeze(kernel_scale, axis=0)
-
-                # Pack if int4
-                if self.quantization_mode == "int4":
-                    kernel_value, _, _ = quantizers.pack_int4(
-                        requantized_kernel
-                    )
-                else:
-                    kernel_value = requantized_kernel
+        if not self.lora_enabled:
             return kernel_value, kernel_scale
-        return self.kernel, None
+
+        # Dequantize, Merge, and Re-quantize
+
+        # Dequantize kernel to float
+        if self.quantization_mode == "int4":
+            unpacked_kernel = quantizers.unpack_int4(
+                kernel_value, self._orig_input_dim
+            )
+            float_kernel = ops.divide(
+                ops.cast(unpacked_kernel, self.compute_dtype),
+                kernel_scale,
+            )
+            quant_range = (-8, 7)
+        elif self.quantization_mode == "int8":
+            float_kernel = ops.divide(
+                ops.cast(kernel_value, self.compute_dtype), kernel_scale
+            )
+            quant_range = (-127, 127)
+        else:
+            raise ValueError(
+                f"Unsupported quantization mode: {self.quantization_mode}"
+            )
+
+        # Merge LoRA weights in float domain
+        lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
+            self.lora_kernel_a, self.lora_kernel_b
+        )
+        merged_float_kernel = ops.add(float_kernel, lora_delta)
+
+        # Requantize
+        requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
+            merged_float_kernel,
+            axis=0,
+            value_range=quant_range,
+            dtype="int8",
+            to_numpy=True,
+        )
+        kernel_scale = ops.squeeze(kernel_scale, axis=0)
+
+        # Pack if int4
+        if self.quantization_mode == "int4":
+            kernel_value, _, _ = quantizers.pack_int4(requantized_kernel)
+        else:
+            kernel_value = requantized_kernel
+        return kernel_value, kernel_scale

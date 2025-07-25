@@ -52,6 +52,12 @@ def hanning(x):
     return jnp.hanning(x)
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.heaviside(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return jnp.kaiser(x, beta)
