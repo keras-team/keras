@@ -1,4 +1,5 @@
 import builtins
+import inspect
 import math
 
 import jax
@@ -1054,16 +1055,15 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
         if not check_compute_capability("8.0"):
             raise RuntimeError("Require at least Ampere arch to run")
         # Check inputs layout
+        check_layout_params = list(
+            inspect.signature(check_layout).parameters.keys()
+        )
+        for known_param in ("query", "key", "value", "bias", "layout"):
+            check_layout_params.remove(known_param)
+        # Defaults to `None` when not specified.
+        kwargs = {key: None for key in check_layout_params}
         check_layout(
-            query,
-            key,
-            value,
-            bias,
-            q_seqlen=None,
-            kv_seqlen=None,
-            layout=_normalize_layout("BTNH"),
-            q_offsets=None,
-            kv_offsets=None,
+            query, key, value, bias, layout=_normalize_layout("BTNH"), **kwargs
         )
         check_is_flash_attention(
             query,
