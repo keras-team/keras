@@ -397,7 +397,20 @@ class Slice(Operation):
         return backend.core.slice(inputs, start_indices, self.shape)
 
     def compute_output_spec(self, inputs, start_indices):
-        return KerasTensor(self.shape, dtype=inputs.dtype)
+        if any(s == -1 for s in self.shape) and isinstance(
+            start_indices, KerasTensor
+        ):
+            raise ValueError(
+                "When using -1 in `shape`, `start_indices` should not be a "
+                "KerasTensor. "
+            )
+        # If self.shape[i] is -1, all remaining elements in dimension i are
+        # included in the slice.
+        final_shape = tuple(
+            inputs.shape[i] - start_indices[i] if s == -1 else s
+            for i, s in enumerate(self.shape)
+        )
+        return KerasTensor(final_shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.slice")
@@ -1074,18 +1087,18 @@ def vectorized_map(function, elements):
     in the case of a single tensor input `elements`:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         outputs = []
         for e in elements:
             outputs.append(function(e))
-        return stack(outputs)
+        return np.stack(outputs)
     ```
 
     In the case of an iterable of tensors `elements`,
     it implements the following:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         batch_size = elements[0].shape[0]
         outputs = []
         for index in range(batch_size):

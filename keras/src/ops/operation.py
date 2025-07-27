@@ -6,6 +6,7 @@ from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -119,7 +120,10 @@ class Operation(KerasSaveable):
         to manually implement `get_config()`.
         """
         instance = super(Operation, cls).__new__(cls)
+        if backend.backend() == "jax" and is_nnx_enabled():
+            from flax import nnx
 
+            vars(instance)["_object__state"] = nnx.object.ObjectState()
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
