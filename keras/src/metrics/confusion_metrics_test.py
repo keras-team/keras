@@ -1407,7 +1407,7 @@ class AUCTest(testing.TestCase):
         )
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
-        # scaling_facor (P/N) = 7/3
+        # scaling_factor (P/N) = 7/3
         # recall_gain = 1 - 7/3 [0/7, 3/4, 7/0] = [1, -3/4, -inf] -> [1, 0, 0]
         # precision_gain = 1 - 7/3 [3/7, 0/4, 0/0] = [0, 1, NaN] -> [0, 1, 1]
         # heights = [max(0, 1), max(1, 1)] = [1, 1]
@@ -1426,7 +1426,7 @@ class AUCTest(testing.TestCase):
         )
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
-        # scaling_facor (P/N) = 7/3
+        # scaling_factor (P/N) = 7/3
         # recall_gain = 1 - 7/3 [0/7, 3/4, 7/0] = [1, -3/4, -inf] -> [1, 0, 0]
         # precision_gain = 1 - 7/3 [3/7, 0/4, 0/0] = [0, 1, NaN] -> [0, 1, 1]
         # heights = [min(0, 1), min(1, 1)] = [0, 1]
@@ -1443,7 +1443,7 @@ class AUCTest(testing.TestCase):
         )
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
-        # scaling_facor (P/N) = 7/3
+        # scaling_factor (P/N) = 7/3
         # recall_gain = 1 - 7/3 [0/7, 3/4, 7/0] = [1, -3/4, -inf] -> [1, 0, 0]
         # precision_gain = 1 - 7/3 [3/7, 0/4, 0/0] = [0, 1, NaN] -> [0, 1, 1]
         # heights = [(0+1)/2, (1+1)/2] = [0.5, 1]
@@ -1461,7 +1461,7 @@ class AUCTest(testing.TestCase):
         result = auc_obj(y_true, y_pred)
 
         # tp = [5, 3, 0], fp = [5, 1, 0], fn = [0, 2, 5], tn = [0, 4, 4]
-        # scaling_facor (P/N) = 5/5 = 1
+        # scaling_factor (P/N) = 5/5 = 1
         # recall_gain = 1 - [0/5, 2/3, 5/0] = [1, 1/3, -inf] -> [1, 1/3, 0]
         # precision_gain = 1 - [5/5, 1/3, 0/0] = [1, 1/3, NaN] -> [0, 2/3, 1]
         # heights = [(0+2/3)/2, (2/3+1)/2] = [0.333333, 0.833333]

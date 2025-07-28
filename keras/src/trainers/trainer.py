@@ -249,7 +249,7 @@ class Trainer:
     @property
     def metrics(self):
         # Order: loss tracker, individual loss trackers, compiled metrics,
-        # custom metrcis, sublayer metrics.
+        # custom metrics, sublayer metrics.
         metrics = []
         if self.compiled:
             if self._loss_tracker is not None:

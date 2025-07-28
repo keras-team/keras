@@ -1494,16 +1494,16 @@ class AUC(Metric):
             # 1) Both measures diverge when there are no negative values;
             # 2) Both measures diverge when there are no true positives;
             # 3) Recall gain becomes negative when the recall is lower than the
-            #    label average (i.e. when more negative exampless are
+            #    label average (i.e. when more negative examples are
             #    classified positive than real positives).
             #
             # We ignore case 1 as it is easily understood that metrics would be
             # badly defined then. For case 2 we set recall_gain to 0 and
             # precision_gain to 1. For case 3 we set recall_gain to 0. These
-            # fixes will result in an overstimation of the AUCfor estimators
+            # fixes will result in an overestimation of the AUC for estimators
             # that are anti-correlated with the label (at some threshold).
 
-            # The scaling factor $\frac{P}{N}$ that is used to for mboth gain
+            # The scaling factor $\frac{P}{N}$ that is used to for both gain
             # values.
             scaling_factor = ops.divide_no_nan(
                 ops.add(self.true_positives, self.false_negatives),
