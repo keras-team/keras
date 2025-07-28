@@ -38,6 +38,7 @@ from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
@@ -219,7 +220,6 @@ class Layer(BackendLayer, Operation):
 
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls, *args, **kwargs)
-
         # Wrap the user-provided `build` method in the `build_wrapper`
         # to add name scope support and serialization support.
         original_build_method = obj.build
@@ -906,9 +906,14 @@ class Layer(BackendLayer, Operation):
 
         # We need to cache the `previous_mask` before `__call__` because the
         # mask might be removed during the call, such as `MultiHeadAttention`.
-        previous_mask = tree.map_structure(
-            backend.get_keras_mask, call_spec.first_arg
-        )
+        if "mask" in kwargs and kwargs["mask"] is not None:
+            # Case 1: Mask was explicitly passed or auto-populated in step 6.
+            previous_mask = kwargs["mask"]
+        else:
+            # Case 2: Fallback to the mask attached to the first input tensor.
+            previous_mask = tree.map_structure(
+                backend.get_keras_mask, call_spec.first_arg
+            )
 
         ####################
         # 7. Call the layer.
@@ -1311,8 +1316,13 @@ class Layer(BackendLayer, Operation):
             return self._int8_call(*args, **kwargs)
         elif self.quantization_mode == "float8":
             return self._float8_call(*args, **kwargs)
+        elif self.quantization_mode == "int4":
+            return self._int4_call(*args, **kwargs)
         else:
             raise self._quantization_mode_error(self.quantization_mode)
+
+    def _int4_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._int4_call)
 
     def _int8_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int8_call)
@@ -1532,7 +1542,18 @@ class Layer(BackendLayer, Operation):
             if not hasattr(self, "_tracker"):
                 self._initialize_tracker()
             value = self._tracker.track(value)
-        return super().__setattr__(name, value)
+
+        # NNX-specific bypass for `_called` and `built` attributes
+        # bypass nnx.Module.__setattr__ which cannot be called while tracing
+        if (
+            backend.backend() == "jax"
+            and is_nnx_enabled()
+            and (name == "_called" or name == "built")
+        ):
+            object.__setattr__(self, name, value)
+            return
+
+        super().__setattr__(name, value)
 
     def __delattr__(self, name):
         obj = getattr(self, name)
@@ -1645,8 +1666,16 @@ class Layer(BackendLayer, Operation):
         return {**base_config, **config}
 
     def _open_name_scope(self):
+        from keras.src.utils import jax_utils  # avoid circular imports
+
         if self._parent_path is None:
-            self._parent_path = current_path()
+            # Avoid mutating _parent_path during a JAX trace if it's part of
+            # nnx.Object state and the object was created at a different trace
+            # level. We check if we are in NNX mode and if we are in a JAX
+            # trace.
+            if not (is_nnx_enabled() and jax_utils.is_in_jax_tracing_scope()):
+                self._parent_path = current_path()
+
         return backend.name_scope(self.name, caller=self)
 
     def rematerialized_call(self, layer_call, *args, **kwargs):

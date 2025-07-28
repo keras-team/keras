@@ -90,6 +90,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.add(x, y).shape, (2, 3))
 
+    def test_heaviside(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (None, 3))
+
     def test_subtract(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -496,6 +501,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.add(x, y)
+
+    def test_heaviside(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
 
     def test_subtract(self):
         x = KerasTensor((2, 3))
@@ -1255,6 +1273,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             x = KerasTensor((3, 3))
             knp.broadcast_to(x, (2, 2, 3))
 
+    def test_cbrt(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.cbrt(x).shape, (None, 3))
+
     def test_ceil(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ceil(x).shape, (None, 3))
@@ -1345,6 +1367,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.cumsum(x, axis=1).shape, (None, 3, 3))
+
+    def test_deg2rad(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.deg2rad(x).shape, (None, 3))
 
     def test_diag(self):
         x = KerasTensor((None, 3))
@@ -1871,6 +1897,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((3, 3))
             knp.broadcast_to(x, (2, 2, 3))
 
+    def test_cbrt(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.cbrt(x).shape, (2, 3))
+
     def test_ceil(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.ceil(x).shape, (2, 3))
@@ -1919,6 +1949,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_cumsum(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.cumsum(x).shape, (6,))
+
+    def test_deg2rad(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.deg2rad(x).shape, (2, 3))
 
     def test_diag(self):
         x = KerasTensor((3,))
@@ -2325,6 +2359,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Add()(x, y), np.add(x, y))
         self.assertAllClose(knp.Add()(x, z), np.add(x, z))
+
+    def test_heaviside(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
+        self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array(4)
+        self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
+        self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
 
     def test_subtract(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3729,6 +3774,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.broadcast_to(x, [2, 2, 3]),
         )
 
+    def test_cbrt(self):
+        x = np.array([[-8, -1, 0], [1, 8, 27]], dtype="float32")
+        ref_y = np.sign(x) * np.abs(x) ** (1.0 / 3.0)
+        y = knp.cbrt(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
+
+        y = knp.Cbrt()(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
+
     def test_ceil(self):
         x = np.array([[1.2, 2.1, -2.5], [2.4, -11.9, -5.5]])
         self.assertAllClose(knp.ceil(x), np.ceil(x))
@@ -3910,6 +3966,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Cumsum(axis=axis, dtype=dtype)(x),
             np.cumsum(x, axis=axis, dtype=dtype or x.dtype),
         )
+
+    def test_deg2rad(self):
+        x = np.random.uniform(-360, 360, size=(3, 3))
+        self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
+        self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
 
     def test_diag(self):
         x = np.array([1, 2, 3])
@@ -6467,6 +6528,20 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_cbrt(self, dtype):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((1,), dtype=dtype)
+        x1_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.cbrt(x1_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.cbrt(x1).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Cbrt().symbolic_call(x1).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_ceil(self, dtype):
         import jax.numpy as jnp
 
@@ -6674,6 +6749,23 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.cumsum(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Cumsum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_deg2rad(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -7261,6 +7353,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.GreaterEqual().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_heaviside(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.heaviside(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.heaviside(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Heaviside().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 

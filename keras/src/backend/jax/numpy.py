@@ -52,6 +52,12 @@ def hanning(x):
     return jnp.hanning(x)
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.heaviside(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return jnp.kaiser(x, beta)
@@ -499,6 +505,11 @@ def broadcast_to(x, shape):
     return jnp.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+    return jnp.cbrt(x)
+
+
 @sparse.elementwise_unary(linear=False)
 def ceil(x):
     x = convert_to_tensor(x)
@@ -596,6 +607,11 @@ def cumprod(x, axis=None, dtype=None):
 def cumsum(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     return jnp.cumsum(x, axis=axis, dtype=dtype)
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+    return jnp.deg2rad(x)
 
 
 def diag(x, k=0):

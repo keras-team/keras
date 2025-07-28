@@ -61,6 +61,10 @@ class TFDatasetAdapter(DataAdapter):
         return data_adapter_utils.get_torch_dataloader(self._dataset)
 
     @property
+    def builtin_prefetch(self):
+        return True
+
+    @property
     def num_batches(self):
         cardinality = self._dataset.cardinality
         if callable(cardinality):

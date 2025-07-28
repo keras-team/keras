@@ -156,6 +156,26 @@ def hanning(x):
     return tf.signal.hann_window(x, periodic=False)
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    return tf.where(
+        x1 < 0,
+        tf.zeros_like(x1),
+        tf.where(x1 > 0, tf.ones_like(x1), x2),
+    )
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x, dtype=tf.int32)
     return tf.signal.kaiser_window(x, beta=beta)
@@ -1089,6 +1109,18 @@ def broadcast_to(x, shape):
     return tf.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        x = tf.cast(x, "float64")
+    elif dtype not in ["bfloat16", "float16", "float64"]:
+        x = tf.cast(x, config.floatx())
+
+    return tf.sign(x) * tf.pow(tf.abs(x), 1.0 / 3.0)
+
+
 @sparse.elementwise_unary
 def ceil(x):
     x = convert_to_tensor(x)
@@ -1254,6 +1286,28 @@ def cumsum(x, axis=None, dtype=None):
         x = tf.reshape(x, [-1])
         axis = 0
     return tf.math.cumsum(x, axis=axis)
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    dtype = x.dtype
+    if standardize_dtype(dtype) in [
+        "bool",
+        "int8",
+        "int16",
+        "int32",
+        "uint8",
+        "uint16",
+        "uint32",
+    ]:
+        dtype = config.floatx()
+    elif standardize_dtype(dtype) in ["int64"]:
+        dtype = "float64"
+    x = tf.cast(x, dtype)
+
+    pi = tf.constant(math.pi, dtype=dtype)
+    return x * (pi / tf.constant(180.0, dtype=dtype))
 
 
 def diag(x, k=0):

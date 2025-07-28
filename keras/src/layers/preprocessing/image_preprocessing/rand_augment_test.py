@@ -112,3 +112,18 @@ class RandAugmentTest(testing.TestCase):
             bounding_box_format="xyxy",
         )
         ds.map(layer)
+
+    def test_graph_issue(self):
+        input_data = np.random.random((10, 8, 8, 3))
+        layer = layers.RandAugment()
+        ds = (
+            tf_data.Dataset.from_tensor_slices(input_data)
+            .batch(2)
+            .map(lambda x: layer.get_random_transformation(x))
+        )
+
+        key_list = []
+        for output in ds:
+            key_list.append(output["layer_idxes"])
+
+        self.assertNotEqual(len(np.unique(key_list)), 1)

@@ -397,7 +397,20 @@ class Slice(Operation):
         return backend.core.slice(inputs, start_indices, self.shape)
 
     def compute_output_spec(self, inputs, start_indices):
-        return KerasTensor(self.shape, dtype=inputs.dtype)
+        if any(s == -1 for s in self.shape) and isinstance(
+            start_indices, KerasTensor
+        ):
+            raise ValueError(
+                "When using -1 in `shape`, `start_indices` should not be a "
+                "KerasTensor. "
+            )
+        # If self.shape[i] is -1, all remaining elements in dimension i are
+        # included in the slice.
+        final_shape = tuple(
+            inputs.shape[i] - start_indices[i] if s == -1 else s
+            for i, s in enumerate(self.shape)
+        )
+        return KerasTensor(final_shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.slice")
@@ -542,7 +555,9 @@ class WhileLoop(Operation):
         )
 
     def compute_output_spec(self, loop_vars):
-        return [KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars]
+        return tree.map_structure(
+            lambda v: KerasTensor(v.shape, dtype=v.dtype), loop_vars
+        )
 
 
 @keras_export("keras.ops.while_loop")
@@ -587,6 +602,10 @@ def while_loop(
     >>> keras.ops.while_loop(cond, body, (x, y))
     10, 11
     """
+    if any_symbolic_tensors((loop_vars,)):
+        return WhileLoop(
+            cond, body, maximum_iterations=maximum_iterations
+        ).symbolic_call(loop_vars)
     return backend.core.while_loop(
         cond,
         body,
@@ -808,8 +827,6 @@ def cast(x, dtype):
     >>> x = keras.ops.arange(4)
     >>> x = keras.ops.cast(x, dtype="float16")
     """
-    dtype = backend.standardize_dtype(dtype)
-
     if any_symbolic_tensors((x,)):
         return Cast(dtype=dtype)(x)
     return backend.core.cast(x, dtype)
@@ -874,8 +891,6 @@ def saturate_cast(x, dtype):
     >>> #  [255 255 255 255]]
 
     """
-    dtype = backend.standardize_dtype(dtype)
-
     if any_symbolic_tensors((x,)):
         return SaturateCast(dtype=dtype)(x)
     return _saturate_cast(x, dtype)
@@ -1072,18 +1087,18 @@ def vectorized_map(function, elements):
     in the case of a single tensor input `elements`:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         outputs = []
         for e in elements:
             outputs.append(function(e))
-        return stack(outputs)
+        return np.stack(outputs)
     ```
 
     In the case of an iterable of tensors `elements`,
     it implements the following:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         batch_size = elements[0].shape[0]
         outputs = []
         for index in range(batch_size):

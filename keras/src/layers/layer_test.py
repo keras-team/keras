@@ -874,6 +874,42 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertAllClose(y._keras_mask, mask)
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
+    def test_masking_with_explicit_kwarg_propagation(self):
+        """This test validates that an explicit `mask` kwarg is correctly
+        used to compute the output mask.
+        """
+
+        class PassthroughMaskLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.supports_masking = True
+
+            def call(self, x, mask=None):
+                # The layer itself can use the mask.
+                self.used_mask = mask is not None
+                return x
+
+        layer = PassthroughMaskLayer()
+        # Create an input tensor WITHOUT an attached mask.
+        x = backend.numpy.ones((4, 4))
+        self.assertIsNone(getattr(x, "_keras_mask", None))
+
+        # Create a mask to be passed explicitly.
+        explicit_mask = backend.numpy.array([True, True, False, False])
+
+        # Call the layer, passing the mask as a keyword argument.
+        y = layer(x, mask=explicit_mask)
+
+        # Assert that the layer's internal call received the mask.
+        self.assertTrue(layer.used_mask)
+
+        # Assert that the output tensor 'y' now has the explicit mask attached
+        # for propagation to the next layer.
+        self.assertAllClose(backend.get_keras_mask(y), explicit_mask)
+
     def test_stateless_call(self):
         class TestLayer(layers.Layer):
             def __init__(self):
