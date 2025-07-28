@@ -37,8 +37,8 @@ jobs:
       # Mount the host's Docker socket into this container.
       # This is CRUCIAL: It allows 'docker' commands executed *inside* this container
       # to control the *host's* Docker daemon.
-      volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
+      # volumes:
+      #   - /var/run/docker.sock:/var/run/docker.sock
       # Running this "controlling" container in privileged mode is often necessary
       # when it needs to manage other containers and access host resources like TPUs
       # through the host's Docker daemon.
