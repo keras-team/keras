@@ -1,7 +1,7 @@
-FROM python:3.10-slim
+FROM --platform=linux/amd64 python:3.10-slim
 
-ENV KERAS_HOME=/github/workspace/.github/workflows/config/tensorflow \
-    KERAS_BACKEND=tensorflow
+ENV KERAS_HOME=/github/workspace/.github/workflows/config/jax \
+    KERAS_BACKEND=jax
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -13,16 +13,16 @@ COPY . /github/workspace
 WORKDIR /github/workspace
 
 # Create and activate venv, install pip/setuptools/psutil, then run tests
-RUN cd src/github/keras && \
-    pip install -U pip setuptools && \
-    pip install -U psutil && \
-    pip install -r requirements-tensorflow-tpu.txt && \
+# RUN cd ./keras/src/github/keras && \
+RUN pip install --no-cache-dir -U pip setuptools && \
+    pip install --no-cache-dir -U psutil && \
+    pip install --no-cache-dir -r requirements-jax-tpu.txt && \
     pip uninstall -y keras keras-nightly && \
-    python3 -c 'import tensorflow as tf;print(tf.__version__);print(tf.config.list_physical_devices("TPU"))' && \
-    python3 -c 'import tensorflow as tf;assert len(tf.config.list_physical_devices("TPU")) > 0' && \
+    python3 -c 'import jax;print(jax.__version__);print(jax.default_backend())' && \
+    python3 -c 'import jax;assert jax.default_backend().lower() == "tpu"' && \
     pytest keras --ignore keras/src/applications \
                  --ignore keras/src/layers/merging/merging_test.py \
                  --cov=keras \
                  --cov-config=pyproject.toml
 
-CMD ["bash"]
+CMD ["/bin/bash"]
