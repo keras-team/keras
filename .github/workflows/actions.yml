@@ -22,9 +22,9 @@ jobs:
         backend: [jax]
     name: Run TPU tests
     runs-on: 
-      # - linux-x86-ct5lp-112-4tpu
+      - linux-x86-ct5lp-112-4tpu
       # - linux-x86-ct5lp-112-4tpu-fvn6n-runner-6kb8n
-      - linux-x86-ct6e-44-1tpu
+      # - linux-x86-ct6e-44-1tpu
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-x4st4
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-45nmc
 
