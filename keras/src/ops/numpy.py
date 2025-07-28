@@ -2340,6 +2340,14 @@ class Deg2rad(Operation):
     def call(self, x):
         return backend.numpy.deg2rad(x)
 
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype)
+
 
 @keras_export(["keras.ops.deg2rad", "keras.ops.numpy.deg2rad"])
 def deg2rad(x):
