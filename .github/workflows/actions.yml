@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 jobs:
-  tpu_build:
+  build-and-test-on-tpu:
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.10']
-        backend: [tensorflow]
+        backend: [jax]
     name: Run TPU tests
     runs-on: 
       # - linux-x86-ct5lp-112-4tpu
@@ -25,23 +25,83 @@ jobs:
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-x4st4
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-45nmc
     
-    container:
-      image: docker:latest
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
-      KERAS_BACKEND: tensorflow
-    steps:
-      - uses: actions/checkout@v4
+      KERAS_BACKEND: jax
+      PROJECT_ID: gtech-rmi-dev  # Replace with your GCP project ID
+      GAR_LOCATION: us-central1        # Replace with your Artifact Registry location (e.g., us-central1)
+      IMAGE_NAME: keras-jax-tpu-amd64:latest          # Name of your Docker image
+      TPU_VM_NAME: kharshith-jax-tpu    # Replace with your TPU VM instance name
+      TPU_VM_ZONE: us-central1-b       # Replace with your TPU VM zone
 
-      - name: Build and run Docker image for TPU tests
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Docker (if not present)
         run: |
+          # Check if docker is already installed
+          if ! command -v docker &> /dev/null
+          then
+              echo "Docker not found. Installing Docker..."
+              # Update apt package index
+              sudo apt-get update
+              # Install packages to allow apt to use a repository over HTTPS
+              sudo apt-get install -y ca-certificates curl gnupg
+              # Add Docker's official GPG key
+              sudo install -m 0755 -d /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              sudo chmod a+r /etc/apt/keyrings/docker.gpg
+              # Add the repository to Apt sources
+              echo \
+                "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+                \"$(. /etc/os-release && echo \"$VERSION_CODENAME\")\" stable" | \
+                sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              # Install Docker Engine, containerd, and Docker Compose
+              sudo apt-get update
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              # Add the current user (runner user) to the docker group to run docker without sudo
+              sudo usermod -aG docker $USER
+              # You might need to log out and log back in for group changes to take effect,
+              # or restart the Docker daemon and the runner agent.
+              # For a CI environment, `newgrp docker` might work temporarily or a restart is implied.
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              echo "Docker installed."
+          else
+              echo "Docker is already installed."
+          fi
+
+      - name: Set up Docker BuildX
+        uses: docker/setup-buildx-action@v3
+
+
+      - name: Build Docker image for TPU tests
+        run: |
+          echo "Building Docker image using Dockerfile at .github/workflows/tpu/Dockerfile..."
+          # Use 'sudo docker' if the 'docker' group membership hasn't fully applied yet.
           docker build -f .github/workflows/tpu/Dockerfile -t keras-tpu-test .
+          echo "Docker image built successfully."
+
+      - name: Run Docker container and execute tests on TPU
+        run: |
+          echo "Running Docker container with TPU access and executing tests..."
+          # Use 'sudo docker' if the 'docker' group membership hasn't fully applied yet.
           docker run --rm \
-            -e PYTHON=${{ matrix.python-version }} \
-            -e KERAS_HOME=.github/workflows/config/${{ matrix.backend }} \
-            -e KERAS_BACKEND=tensorflow \
-            keras-tpu-test
+            --privileged \
+            --network host \
+            -e PYTHON=${{ env.PYTHON }} \
+            -e KERAS_HOME=${{ env.KERAS_HOME }} \
+            -e KERAS_BACKEND=${{ env.KERAS_BACKEND }} \
+            keras-tpu-test \
+            /bin/bash -c "\
+              echo 'Verifying JAX TPU backend inside container...' && \
+              python3 -c 'import jax; print(\"JAX Version:\", jax.__version__); print(\"Default Backend:\", jax.default_backend()); assert jax.default_backend().lower() == \"tpu\", \"TPU backend not found or not default\"; print(\"TPU verification successful!\")' \
+              # Add your actual pytest command here. Ensure pytest is installed inside your Docker image.
+            "
+          echo "Docker container finished running tests."
 
   build:
     strategy:
