@@ -114,6 +114,7 @@ def export_openvino(
         inputs = tree.map_structure(make_tf_tensor_spec, input_signature)
         decorated_fn = get_concrete_fn(model, inputs, **kwargs)
         ov_model = ov.convert_model(decorated_fn)
+        set_names(ov_model, inputs)
     elif backend.backend() == "torch":
         import torch
 
@@ -128,6 +129,7 @@ def export_openvino(
             warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
             traced = torch.jit.trace(model, sample_inputs)
             ov_model = ov.convert_model(traced)
+            set_names(ov_model, sample_inputs)
     else:
         raise NotImplementedError(
             "`export_openvino` is only compatible with OpenVINO, "
@@ -138,6 +140,28 @@ def export_openvino(
 
     if actual_verbose:
         io_utils.print_msg(f"Saved OpenVINO IR at '{filepath}'.")
+
+
+def collect_names(structure):
+    if isinstance(structure, dict):
+        for k, v in structure.items():
+            if isinstance(v, (dict, list, tuple)):
+                yield from collect_names(v)
+            else:
+                yield k
+    elif isinstance(structure, (list, tuple)):
+        for v in structure:
+            yield from collect_names(v)
+    else:
+        yield "input"
+
+
+def set_names(model, inputs):
+    names = []
+    names = list(collect_names(inputs))
+    for ov_input, name in zip(model.inputs, names):
+        ov_input.get_node().set_friendly_name(name)
+        ov_input.tensor.set_names({name})
 
 
 def _check_jax_kwargs(kwargs):
