@@ -889,6 +889,17 @@ def isfinite(x):
 def isin(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
+
+    if standardize_dtype(x1.dtype) == "bool":
+        x1 = cast(x1, x2.dtype)
+    if standardize_dtype(x2.dtype) == "bool":
+        x2 = cast(x2, x1.dtype)
+
     return torch.isin(x1, x2)
 
 

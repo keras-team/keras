@@ -3634,6 +3634,12 @@ def isin(x1, x2):
         A boolean tensor of the same shape as `x1` indicating element-wise
         membership in `x2`.
 
+    Example:
+    >>> from keras import ops
+    >>> x1 = ops.array([0, 1, 2, 5])
+    >>> x2 = ops.array([0, 2])
+    >>> result = ops.isin(x1, x2)
+    array([ True, False,  True, False])
     """
     if any_symbolic_tensors((x1, x2)):
         return IsIn().symbolic_call(x1, x2)
