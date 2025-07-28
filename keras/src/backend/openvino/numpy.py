@@ -654,11 +654,9 @@ def cumsum(x, axis=None, dtype=None):
 
 def deg2rad(x):
     x = get_ov_output(x)
-
-    pi = 3.14159265358979323846
-    pi_over_180 = pi / 180.0
-
     x_type = x.get_element_type()
+    pi_over_180 = np.pi / 180.0
+
     if x_type == Type.i64:
         output_type = Type.f64
     elif x_type.is_integral():
