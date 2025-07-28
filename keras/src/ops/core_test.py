@@ -56,17 +56,24 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
         def f(x):
             return x**2
 
-        xs = KerasTensor((None,))
-        self.assertEqual(core.map(f, xs).shape, (None,))
+        xs = KerasTensor((None, 5))
+        self.assertEqual(core.map(f, xs).shape, (None, 5))
 
         # Test nested output
         def f2(x):
             return {"a": x**2, "b": x * 10}
 
-        xs = KerasTensor((None,))
+        xs = KerasTensor((None, 5))
         ys = core.map(f2, xs)
-        self.assertEqual(ys["a"].shape, (None,))
-        self.assertEqual(ys["b"].shape, (None,))
+        self.assertEqual(ys["a"].shape, (None, 5))
+        self.assertEqual(ys["b"].shape, (None, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((None, 5)), KerasTensor((None, 5)))
+        self.assertEqual(core.map(f3, xs).shape, (None, 5))
 
     def test_saturate_cast(self):
         x = KerasTensor((3, 5, None), dtype="float32")
@@ -124,6 +131,29 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
         result = core.switch(index, [fn], x, y)
         self.assertEqual(result[0].shape, (None,))
         self.assertEqual(result[1].shape, (None,))
+
+    def test_vectorized_map(self):
+        def f(x):
+            return x**2
+
+        xs = KerasTensor((None, 5))
+        self.assertEqual(core.vectorized_map(f, xs).shape, (None, 5))
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = KerasTensor((None, 5))
+        ys = core.vectorized_map(f2, xs)
+        self.assertEqual(ys["a"].shape, (None, 5))
+        self.assertEqual(ys["b"].shape, (None, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((None, 5)), KerasTensor((None, 5)))
+        self.assertEqual(core.vectorized_map(f3, xs).shape, (None, 5))
 
     def test_while_loop(self):
         def cond(args):
@@ -203,18 +233,25 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         def f(x):
             return x**2
 
-        xs = KerasTensor((6,))
+        xs = KerasTensor((6, 5))
         ys = core.map(f, xs)
-        self.assertEqual(ys.shape, (6,))
+        self.assertEqual(ys.shape, (6, 5))
 
         # Test nested output
         def f2(x):
             return {"a": x**2, "b": x * 10}
 
-        xs = KerasTensor((6,))
+        xs = KerasTensor((6, 5))
         ys = core.map(f2, xs)
-        self.assertEqual(ys["a"].shape, (6,))
-        self.assertEqual(ys["b"].shape, (6,))
+        self.assertEqual(ys["a"].shape, (6, 5))
+        self.assertEqual(ys["b"].shape, (6, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((6, 5)), KerasTensor((6, 5)))
+        self.assertEqual(core.map(f3, xs).shape, (6, 5))
 
     def test_saturate_cast(self):
         x = KerasTensor((3, 5, 7), dtype="float32")
@@ -306,6 +343,30 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         y = KerasTensor((5, 2))
         self.assertEqual(core.switch(index, [fn], x, y)[0].shape, (5,))
         self.assertEqual(core.switch(index, [fn], x, y)[1].shape, (2,))
+
+    def test_vectorized_map(self):
+        def f(x):
+            return x**2
+
+        xs = KerasTensor((6, 5))
+        ys = core.vectorized_map(f, xs)
+        self.assertEqual(ys.shape, (6, 5))
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = KerasTensor((6, 5))
+        ys = core.vectorized_map(f2, xs)
+        self.assertEqual(ys["a"].shape, (6, 5))
+        self.assertEqual(ys["b"].shape, (6, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((6, 5)), KerasTensor((6, 5)))
+        self.assertEqual(core.vectorized_map(f3, xs).shape, (6, 5))
 
     def test_while_loop(self):
         def cond(args):
