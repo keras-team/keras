@@ -64,7 +64,7 @@ dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recomm
 backend to avoid CUDA version mismatches. As an example, here is how to create a JAX GPU environment with `conda`:
 
 ```shell
-conda create -y -n keras-jax python=3.11
+conda create -y -n keras-jax python=3.10
 conda activate keras-jax
 pip install -r requirements-jax-cuda.txt
 python pip_build.py --install

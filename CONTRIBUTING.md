@@ -83,7 +83,7 @@ To set up your local dev environment, you will need the following tools.
 2.  [python](https://www.python.org/) to build and code in Keras.
 
 The following commands check the tools above are successfully installed. Note
-that Keras requires at least Python 3.11 to run.
+that Keras requires at least Python 3.1 to run.
 
 ```shell
 git --version
