@@ -96,7 +96,7 @@ class Discretization(TFDataLayer):
         name=None,
     ):
         if dtype is None:
-            dtype = "int64" if output_mode == "int" else backend.floatx()
+            dtype = "float32"
         super().__init__(name=name, dtype=dtype)
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
@@ -232,11 +232,14 @@ class Discretization(TFDataLayer):
             )
 
         indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
+        output_dtype = (
+            "int64" if self.output_mode == "int" else self.compute_dtype
+        )
         return numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
-            dtype=self.compute_dtype,
+            dtype=output_dtype,
             sparse=self.sparse,
             backend_module=self.backend,
         )
