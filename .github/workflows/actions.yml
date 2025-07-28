@@ -27,7 +27,23 @@ jobs:
       - linux-x86-ct6e-44-1tpu
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-x4st4
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-45nmc
-    
+
+
+    container:
+      # Use an official Docker image that includes the Docker CLI.
+      # This allows you to run 'docker' commands from within this job's container.
+      # 'docker:latest' is a good choice. You could also specify a version like 'docker:24.0.5'.
+      image: docker:latest
+      # Mount the host's Docker socket into this container.
+      # This is CRUCIAL: It allows 'docker' commands executed *inside* this container
+      # to control the *host's* Docker daemon.
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+      # Running this "controlling" container in privileged mode is often necessary
+      # when it needs to manage other containers and access host resources like TPUs
+      # through the host's Docker daemon.
+      options: --privileged
+
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
