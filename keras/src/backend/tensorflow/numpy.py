@@ -1597,11 +1597,6 @@ def isin(x1, x2):
     x2 = convert_to_tensor(x2)
 
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype in ["int64"]:
-        dtype = "float64"
-
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
 
