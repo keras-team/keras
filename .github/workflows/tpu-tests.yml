@@ -1,0 +1,72 @@
+name: TPU Tests
+
+on:
+  workflow_dispatch: # Allows you to manually trigger this workflow
+
+permissions:
+  contents: read # Only read permission is needed for checkout
+
+env:
+  PROJECT_ID: gtech-rmi-dev                  # Replace with your GCP project ID
+  GAR_LOCATION: us-central1                  # Replace with your Artifact Registry location (e.g., us-central1)
+  GAR_REPO: keras-docker-images              # Replace with your Artifact Registry repository name
+  IMAGE_NAME: keras-jax-tpu-amd64            # Replace with the name of your Docker image
+  IMAGE_TAG: latest                          # Replace with the specific tag you want to pull (e.g., latest or a specific SHA)
+
+jobs:
+  pull-and-use-image:
+    name: Pull & Use Image from GAR
+    runs-on: 
+      # - linux-x86-ct5lp-112-4tpu
+      - linux-x86-ct6e-44-1tpu
+      # - keras-jax-tpu-runner
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # - name: Authenticate to Google Cloud with Service Account Key
+      #   id: 'auth'
+      #   uses: 'google-github-actions/auth@v2'
+      #   with:
+      #     # Pass the content of your GitHub Secret directly here.
+      #     credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Configure Docker to use Google Artifact Registry
+        run: |
+          echo "Configuring Docker to authenticate with Google Artifact Registry..."
+          # This command uses the credentials set by the 'auth' step to configure Docker.
+          gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
+          echo "Docker configured."
+
+      - name: Pull Docker Image from Artifact Registry
+        run: |
+          FULL_IMAGE_PATH="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          echo "Attempting to pull image: $FULL_IMAGE_PATH"
+          docker pull "$FULL_IMAGE_PATH"
+          echo "Successfully pulled image: $FULL_IMAGE_PATH"
+
+      - name: Verify Pulled Image (Optional)
+        run: |
+          echo "Listing local Docker images..."
+          docker images | grep "${{ env.IMAGE_NAME }}"
+          echo "Image verification complete."
+
+      - name: Run Docker Container (with TPU options if on TPU VM)
+        run: |
+          FULL_IMAGE_PATH="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          echo "Running Docker container: $FULL_IMAGE_PATH"
+          # IMPORTANT: Add --privileged and --network host ONLY IF this job is running
+          # on your TPU VM self-hosted runner AND it has the necessary permissions.
+          # If running on 'ubuntu-latest', these flags are not meaningful for TPU access.
+          docker run --rm \
+            --privileged \
+            --network host \
+            "$FULL_IMAGE_PATH" \
+            /bin/bash -c " \
+              echo 'Container is running...'; \
+              # Add your test or verification commands here, e.g.:
+              # python3 -c 'import jax; print(jax.default_backend())'; \
+              # pytest your_tests.py; \
+              echo 'Container execution finished.'; \
+            "

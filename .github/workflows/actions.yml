@@ -12,99 +12,99 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+  # id-token: write
 
-env:
-  PYTHON: ${{ matrix.python-version }}
-  KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
-  KERAS_BACKEND: jax
-  PROJECT_ID: gtech-rmi-dev  # Replace with your GCP project ID
-  GAR_LOCATION: us-central1        # Replace with your Artifact Registry location (e.g., us-central1)
-  IMAGE_REPO: keras-docker-images
-  IMAGE_NAME: keras-jax-tpu-amd64:latest          # Name of your Docker image
-  TPU_VM_NAME: kharshith-jax-tpu    # Replace with your TPU VM instance name
-  TPU_VM_ZONE: us-central1-b       # Replace with your TPU VM zone
+# env:
+#   PYTHON: ${{ matrix.python-version }}
+#   KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+#   KERAS_BACKEND: jax
+#   PROJECT_ID: gtech-rmi-dev  # Replace with your GCP project ID
+#   GAR_LOCATION: us-central1        # Replace with your Artifact Registry location (e.g., us-central1)
+#   IMAGE_REPO: keras-docker-images
+#   IMAGE_NAME: keras-jax-tpu-amd64:latest          # Name of your Docker image
+#   TPU_VM_NAME: kharshith-jax-tpu    # Replace with your TPU VM instance name
+#   TPU_VM_ZONE: us-central1-b       # Replace with your TPU VM zone
 
 jobs:
-  build-and-test-on-tpu:
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.10']
-        backend: [jax]
-    name: Run TPU tests
-    runs-on: 
-      # - keras-jax-tpu-runner
-      # - linux-x86-ct5lp-112-4tpu
-      # - linux-x86-ct5lp-112-4tpu-fvn6n-runner-6kb8n
-      - linux-x86-ct6e-44-1tpu
-      # - linux-x86-ct6e-44-1tpu-4khbn-runner-x4st4
-      # - linux-x86-ct6e-44-1tpu-4khbn-runner-45nmc
+  # build-and-test-on-tpu:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       python-version: ['3.10']
+  #       backend: [jax]
+  #   name: Run TPU tests
+  #   runs-on: 
+  #     # - keras-jax-tpu-runner
+  #     # - linux-x86-ct5lp-112-4tpu
+  #     # - linux-x86-ct5lp-112-4tpu-fvn6n-runner-6kb8n
+  #     - linux-x86-ct6e-44-1tpu
+  #     # - linux-x86-ct6e-44-1tpu-4khbn-runner-x4st4
+  #     # - linux-x86-ct6e-44-1tpu-4khbn-runner-45nmc
 
-    container: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
+  #   container: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
 
-    # container:
-    #   image: docker:latest # Provides the Docker CLI within the job container
-    #   volumes:
-    #     - /var/run/docker.sock:/var/run/docker.sock # Mounts host's Docker socket for control
-    #   options: --privileged
+  #   # container:
+  #   #   image: docker:latest # Provides the Docker CLI within the job container
+  #   #   volumes:
+  #   #     - /var/run/docker.sock:/var/run/docker.sock # Mounts host's Docker socket for control
+  #   #   options: --privileged
 
-    # steps:
-    #   - name: Checkout Repository
-    #     uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
 
-    #   - name: Set up Docker BuildX
-    #     uses: docker/setup-buildx-action@v3
+  #     - name: Set up Docker BuildX
+  #       uses: docker/setup-buildx-action@v3
 
-    #   - name: Authenticate to Google Cloud (Workload Identity Federation)
-    #     id: 'auth'
-    #     uses: 'google-github-actions/auth@v2'
-    #     with:
-    #       # Replace with your Workload Identity Federation provider details.
-    #       # This service account needs 'Artifact Registry Writer' role.
-    #       workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
-    #       service_account: 'your-github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
+  #     - name: Authenticate to Google Cloud (Workload Identity Federation)
+  #       id: 'auth'
+  #       uses: 'google-github-actions/auth@v2'
+  #       with:
+  #         # Replace with your Workload Identity Federation provider details.
+  #         # This service account needs 'Artifact Registry Writer' role.
+  #         workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
+  #         service_account: 'your-github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
 
-    #   - name: Configure Docker to use Google Artifact Registry
-    #     run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
+  #     - name: Configure Docker to use Google Artifact Registry
+  #       run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
 
-    #   - name: Build Docker Image
-    #     run: |
-    #       IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:${{ github.sha }}"
-    #       echo "Building Docker image: $IMAGE_TAG"
-    #       docker build \
-    #         --platform=linux/amd64 \
-    #         -f .github/workflows/tpu/Dockerfile \
-    #         -t "$IMAGE_TAG" \
-    #         -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest" \
-    #         .
-    #       echo "Built Docker image: $IMAGE_TAG"
-    #       echo "LOCAL_TEST_IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV # Store for immediate use in run step
+  #     - name: Build Docker Image
+  #       run: |
+  #         IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:${{ github.sha }}"
+  #         echo "Building Docker image: $IMAGE_TAG"
+  #         docker build \
+  #           --platform=linux/amd64 \
+  #           -f .github/workflows/tpu/Dockerfile \
+  #           -t "$IMAGE_TAG" \
+  #           -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest" \
+  #           .
+  #         echo "Built Docker image: $IMAGE_TAG"
+  #         echo "LOCAL_TEST_IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV # Store for immediate use in run step
 
-    #   - name: Push Docker Image to Artifact Registry
-    #     run: |
-    #       echo "Pushing Docker image to Artifact Registry: ${{ env.LOCAL_TEST_IMAGE_TAG }}"
-    #       docker push "${{ env.LOCAL_TEST_IMAGE_TAG }}"
-    #       docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest"
-    #       echo "Pushed Docker image."
+  #     - name: Push Docker Image to Artifact Registry
+  #       run: |
+  #         echo "Pushing Docker image to Artifact Registry: ${{ env.LOCAL_TEST_IMAGE_TAG }}"
+  #         docker push "${{ env.LOCAL_TEST_IMAGE_TAG }}"
+  #         docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest"
+  #         echo "Pushed Docker image."
 
-    #   - name: Run Docker container and execute tests on TPU
-    #     run: |
-    #       echo "Running Docker container with TPU access and executing tests..."
-    #       docker run --rm \
-    #         --privileged \
-    #         --network host \
-    #         -e PYTHON=3.10 \ # Use a specific version or derive from matrix
-    #         -e KERAS_HOME=.github/workflows/config/jax \
-    #         -e KERAS_BACKEND=jax \
-    #         ${{ env.LOCAL_TEST_IMAGE_TAG }} \
-    #         /bin/bash -c ' \
-    #           echo "Verifying JAX TPU backend inside container..." && \
-    #           python3 -c "import jax; print(\"JAX Version:\", jax.__version__); print(\"Default Backend:\", jax.default_backend()); assert jax.default_backend().lower() == \"tpu\", \"TPU backend not found or not default\"; print(\"TPU verification successful!\")" \
-    #           # Add your actual pytest command here. Ensure pytest is installed inside your Docker image.
-    #           # && pytest keras --ignore keras/src/applications --ignore keras/src/layers/merging/merging_test.py --cov=keras --cov-config=pyproject.toml
-    #         '
-    #       echo "Docker container finished running tests."
+  #     - name: Run Docker container and execute tests on TPU
+  #       run: |
+  #         echo "Running Docker container with TPU access and executing tests..."
+  #         docker run --rm \
+  #           --privileged \
+  #           --network host \
+  #           -e PYTHON=3.10 \ # Use a specific version or derive from matrix
+  #           -e KERAS_HOME=.github/workflows/config/jax \
+  #           -e KERAS_BACKEND=jax \
+  #           ${{ env.LOCAL_TEST_IMAGE_TAG }} \
+  #           /bin/bash -c ' \
+  #             echo "Verifying JAX TPU backend inside container..." && \
+  #             python3 -c "import jax; print(\"JAX Version:\", jax.__version__); print(\"Default Backend:\", jax.default_backend()); assert jax.default_backend().lower() == \"tpu\", \"TPU backend not found or not default\"; print(\"TPU verification successful!\")" \
+  #             # Add your actual pytest command here. Ensure pytest is installed inside your Docker image.
+  #             # && pytest keras --ignore keras/src/applications --ignore keras/src/layers/merging/merging_test.py --cov=keras --cov-config=pyproject.toml
+  #           '
+  #         echo "Docker container finished running tests."
 
 
   build:
