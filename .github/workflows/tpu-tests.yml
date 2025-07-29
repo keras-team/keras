@@ -30,21 +30,28 @@ jobs:
     # Note the corrected GAR path format: 'us-central1-docker.pkg.dev'
     container:
       # image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
-      image: docker:latest
-      options: --privileged --network host
+      image: ubuntu:22.04
+      # options: --privileged --network host
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
 
-      - name: Verify Environment inside Container
+      - name: Verify Container Environment
         run: |
-          echo "Current working directory: $(pwd)"
-          echo "Contents of current directory:"
-          ls -la
-          # Verify Python, JAX, etc., inside the container
-          echo "Verifying JAX installation..."
-          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
+          echo "Successfully started the public container! ✅"
+          echo "OS Details:"
+          cat /etc/os-release
+
+      # - name: Checkout Repository
+      #   uses: actions/checkout@v4
+
+      # - name: Verify Environment inside Container
+      #   run: |
+      #     echo "Current working directory: $(pwd)"
+      #     echo "Contents of current directory:"
+      #     ls -la
+      #     # Verify Python, JAX, etc., inside the container
+      #     echo "Verifying JAX installation..."
+      #     python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
 
 
 
