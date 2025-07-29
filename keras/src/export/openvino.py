@@ -153,7 +153,10 @@ def collect_names(structure):
         for v in structure:
             yield from collect_names(v)
     else:
-        yield "input"
+        if hasattr(structure, "name") and structure.name:
+            yield structure.name
+        else:
+            yield "input"
 
 
 def set_names(model, inputs):
