@@ -64,7 +64,7 @@ def kaiser(x, beta):
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
-    # Note: bincount is never tracable / jittable because the output shape
+    # Note: bincount is never traceable / jittable because the output shape
     # depends on the values in x.
     if sparse or isinstance(x, jax_sparse.BCOO):
         if isinstance(x, jax_sparse.BCOO):

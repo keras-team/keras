@@ -88,7 +88,7 @@ os.environ["KERAS_BACKEND"] = "jax"
 import keras
 ```
 
-**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
+**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after
 the package has been imported.
 
 **Note:** The OpenVINO backend is an inference-only backend, meaning it is designed only for running model

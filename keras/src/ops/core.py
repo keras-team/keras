@@ -16,13 +16,16 @@ class Map(Operation):
         return backend.core.map(f, xs)
 
     def compute_output_spec(self, f, xs):
-        x = xs[0]
-        n = xs.shape[0]
+        x = tree.map_structure(lambda t: t[0], xs)
+        n = tree.flatten(xs)[0].shape[0]
         y = backend.compute_output_spec(f, x)
 
-        def append_batch_axis(x):
+        def append_batch_axis(t):
             return KerasTensor(
-                shape=(n,) + x.shape, dtype=x.dtype, sparse=x.sparse
+                shape=(n,) + t.shape,
+                dtype=t.dtype,
+                sparse=t.sparse,
+                ragged=t.ragged,
             )
 
         y = tree.map_structure(append_batch_axis, y)
@@ -1078,7 +1081,31 @@ def cond(pred, true_fn, false_fn):
     return Cond()(pred, true_fn, false_fn)
 
 
-# TODO: also create an Op subclass VectorizedMap.
+class VectorizedMap(Operation):
+    def __init__(self, function, *, name=None):
+        super().__init__(name=name)
+        self.function = function
+
+    def call(self, elements):
+        return backend.core.vectorized_map(self.function, elements)
+
+    def compute_output_spec(self, elements):
+        x = tree.map_structure(lambda t: t[0], elements)
+        n = tree.flatten(elements)[0].shape[0]
+        y = backend.compute_output_spec(self.function, x)
+
+        def append_batch_axis(t):
+            return KerasTensor(
+                shape=(n,) + t.shape,
+                dtype=t.dtype,
+                sparse=t.sparse,
+                ragged=t.ragged,
+            )
+
+        y = tree.map_structure(append_batch_axis, y)
+        return y
+
+
 @keras_export("keras.ops.vectorized_map")
 def vectorized_map(function, elements):
     """Parallel map of `function` on axis 0 of tensor(s) `elements`.
@@ -1109,6 +1136,8 @@ def vectorized_map(function, elements):
     In this case, `function` is expected to take as input
     a single list of tensor arguments.
     """
+    if any_symbolic_tensors((elements,)):
+        return VectorizedMap(function)(elements)
     return backend.core.vectorized_map(function, elements)
 
 

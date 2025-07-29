@@ -115,7 +115,7 @@ jobs:
         backend: [tensorflow, jax, torch, numpy, openvino]
         nnx_enabled: [false]
         include:
-          - python-version: '3.10'
+          - python-version: '3.11'
             backend: jax
             nnx_enabled: true
     name: ${{ matrix.backend == 'jax' && format('Run tests ({0}, {1}, nnx_enabled = {2})', matrix.python-version, matrix.backend, matrix.nnx_enabled) || format('Run tests ({0}, {1})', matrix.python-version, matrix.backend) }}
