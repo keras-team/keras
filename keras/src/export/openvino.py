@@ -157,7 +157,6 @@ def collect_names(structure):
 
 
 def set_names(model, inputs):
-    names = []
     names = list(collect_names(inputs))
     for ov_input, name in zip(model.inputs, names):
         ov_input.get_node().set_friendly_name(name)
