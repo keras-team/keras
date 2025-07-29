@@ -1,7 +1,11 @@
 name: TPU Tests
 
 on:
-  workflow_dispatch: # Allows you to manually trigger this workflow
+  push:
+    branches: [ master ]
+  pull_request:
+  release:
+    types: [created]
 
 permissions:
   contents: read # Only read permission is needed for checkout
