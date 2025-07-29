@@ -11,6 +11,7 @@ permissions:
   contents: read # Only read permission is needed for checkout
 
 # Define base environment variables at the workflow level
+# These can still be used inside steps, just not for the container image definition
 env:
   PROJECT_ID: gtech-rmi-dev
   GAR_LOCATION: us-central1
@@ -22,15 +23,13 @@ jobs:
   pull-and-use-image:
     name: Pull & Use Image from GAR
 
-    runs-on:
-      # - linux-x86-ct5lp-112-4tpu
-      - linux-x86-ct6e-44-1tpu
-      # - keras-jax-tpu-runner
+    runs-on: linux-x86-ct6e-44-1tpu
 
-    # Construct the image string directly here using the env variables
-    # This is the most reliable way to get env variables into the container image definition.
+    # The container image path must be a complete string.
+    # The 'env' context is not available here.
+    # Note the corrected GAR path format: 'us-central1-docker.pkg.dev'
     container:
-      image: ${{ env.GAR_LOCATION }}/docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
       options: --privileged --network host
 
     steps:
@@ -43,8 +42,8 @@ jobs:
           echo "Contents of current directory:"
           ls -la
           # Verify Python, JAX, etc., inside the container
-          python3 -c "import jax; print(jax.default_backend()); print(jax.devices())"
-          # Add any other verification steps here
+          echo "Verifying JAX installation..."
+          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
 
 
 
