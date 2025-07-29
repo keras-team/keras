@@ -1,63 +1,71 @@
-name: TPU Tests
+name: TPU Tests (Build with Caching)
 
 on:
   push:
     branches: [ master ]
   pull_request:
+  workflow_dispatch:
   release:
     types: [created]
 
-permissions:
-  contents: read # Only read permission is needed for checkout
-  packages: write
-
 
 jobs:
-  # JOB 1: Build the image and save it as an artifact
+  # This job now intelligently builds OR restores the image from a cache
   build-and-save-image:
-    name: Build Image and Save as Artifact
-    runs-on: ubuntu-latest # A standard runner is fine for building
+    name: Build or Restore Cached Image
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Generate cache key from Dockerfile
+        id: hash_dockerfile
+        run: echo "hash=$(sha256sum Dockerfile | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
-      - name: Build Docker image
-        id: docker_build
+      - name: Cache Docker image
+        id: cache-docker-image
+        uses: actions/cache@v4
+        with:
+          # The path to the file we want to cache
+          path: tpu-image.tar
+          # The key to identify the cache. If the Dockerfile's content changes,
+          # the hash changes, and a new cache is created.
+          key: ${{ runner.os }}-docker-${{ steps.hash_dockerfile.outputs.hash }}
+          # A fallback key in case of a partial match
+          restore-keys: |
+            ${{ runner.os }}-docker-
+
+      - name: Build Docker image if cache not found
+        # This step only runs if the cache step above did not find a perfect match.
+        if: steps.cache-docker-image.outputs.cache-hit != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
-          # Do not push to a registry
           push: false
-          # Load the image into the local Docker daemon so we can save it
           load: true
-          # Tag the image for local use
           tags: local-tpu-image:latest
 
-      - name: Save Docker image as a tar file
+      - name: Save Docker image to tar if cache not found
+        if: steps.cache-docker-image.outputs.cache-hit != 'true'
         run: docker save --output tpu-image.tar local-tpu-image:latest
 
       - name: Upload Docker image artifact
+        # This step always runs, uploading either the restored cache or the newly built image
         uses: actions/upload-artifact@v4
         with:
           name: tpu-image-artifact
           path: tpu-image.tar
-          retention-days: 1 # Keep the artifact for only one day
+          retention-days: 1
 
-  # JOB 2: Load the image from the artifact and run tests
+  # This job does not need to change. It always consumes the artifact.
   load-and-test:
     name: Load and Test Image
-    needs: build-and-save-image # Must wait for Job 1 to finish
+    needs: build-and-save-image
     runs-on: linux-x86-ct6e-44-1tpu
-
-    # WORKAROUND: Use a minimal, public image simply to satisfy the runner's
-    # requirement that a container MUST be specified. The actual tests will
-    # not run in this container.
     container:
-      image: docker:24.0-cli
+      # Use the Ubuntu image that we know works on your runner
+      image: ubuntu:22.04
 
     steps:
       - name: Download Docker image artifact
@@ -65,18 +73,31 @@ jobs:
         with:
           name: tpu-image-artifact
 
+      # --- NEW STEP ---
+      # Install the Docker CLI inside the bootstrap container at runtime.
+      - name: Install Docker Client
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl gnupg
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          chmod a+r /etc/apt/keyrings/docker.gpg
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+            $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+            tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update
+          apt-get install -y docker-ce-cli
+
       - name: Load Docker image from tar file
+        # This will now succeed because we just installed the docker client
         run: docker load --input tpu-image.tar
 
       - name: Checkout repository code
         uses: actions/checkout@v4
-        # We need the source code available to mount into the container for testing.
 
       - name: Run Tests Inside the Loaded Container
         run: |
-          echo "Running tests inside the custom-loaded container..."
-          
-          # Manually run the container we loaded from the artifact.
           docker run --rm \
             --workdir /app \
             -v "$(pwd)":/app \
@@ -84,15 +105,8 @@ jobs:
             local-tpu-image:latest \
             bash -c "
               echo 'Successfully running inside the on-the-fly container!'
-              echo 'Current working directory inside container:'
-              pwd
-              echo 'Contents of current directory:'
-              ls -la
-              echo 'Verifying JAX installation...'
               python3 -c \"import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')\"
             "
-
-
 
 
 
