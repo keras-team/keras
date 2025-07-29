@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read # Only read permission is needed for checkout
+  packages: write
 
 # Define base environment variables at the workflow level
 # These can still be used inside steps, just not for the container image definition
@@ -20,26 +21,89 @@ env:
   IMAGE_TAG: latest
 
 jobs:
-  pull-and-use-image:
-    name: Pull & Use Image from GAR
 
-    runs-on: linux-x86-ct6e-44-1tpu
-
-    # The container image path must be a complete string.
-    # The 'env' context is not available here.
-    # Note the corrected GAR path format: 'us-central1-docker.pkg.dev'
-    container:
-      # image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
-      image: ubuntu:22.04
-      # options: --privileged --network host
+  build-and-push:
+    name: Build and Push to GHCR
+    runs-on: ubuntu-latest # This job doesn't need the special TPU runner
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Verify Container Environment
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          # GITHUB_TOKEN is automatically created by Actions and has permissions to push to your repo's package registry.
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Push the image to ghcr.io
+          push: true
+          # Create a unique tag using the commit SHA for this specific build
+          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+
+  test-in-container:
+    name: Test in Custom Container
+    # This job must run after the build-and-push job is complete
+    needs: build-and-push
+    
+    # Use the required TPU runner
+    runs-on: linux-x86-ct6e-44-1tpu
+
+    # CRITICAL: Use the container image we just pushed in the previous job.
+    # This satisfies the runner's requirement for a container to be specified.
+    container:
+      image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      options: --privileged --network host
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        # We need the code available inside the container's workspace to run tests.
+
+      - name: Run Verification and Tests
         run: |
-          echo "Successfully started the public container! ✅"
-          echo "OS Details:"
-          cat /etc/os-release
+          echo "Successfully running inside the custom container from GHCR!"
+          echo "Current working directory:"
+          pwd
+          echo "Contents of current directory:"
+          ls -la
+          echo "Verifying JAX installation..."
+          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
+
+
+
+
+  # pull-and-use-image:
+  #   name: Pull & Use Image from GAR
+
+  #   runs-on: linux-x86-ct6e-44-1tpu
+
+  #   # The container image path must be a complete string.
+  #   # The 'env' context is not available here.
+  #   # Note the corrected GAR path format: 'us-central1-docker.pkg.dev'
+  #   container:
+  #     # image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
+  #     image: ubuntu:22.04
+  #     # options: --privileged --network host
+
+  #   steps:
+
+  #     - name: Verify Container Environment
+  #       run: |
+  #         echo "Successfully started the public container! ✅"
+  #         echo "OS Details:"
+  #         cat /etc/os-release
+
+
+
+
 
       # - name: Checkout Repository
       #   uses: actions/checkout@v4
