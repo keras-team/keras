@@ -57,7 +57,7 @@ jobs:
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
           if [ "${{ matrix.nnx_enabled }}" == "true" ]; then
-            pip install --upgrade git+https://github.com/google/flax.git
+            pip install --upgrade flax>=0.11.0
           fi
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
