@@ -29,7 +29,8 @@ jobs:
     # The 'env' context is not available here.
     # Note the corrected GAR path format: 'us-central1-docker.pkg.dev'
     container:
-      image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
+      # image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
+      image: docker:latest
       options: --privileged --network host
 
     steps:
