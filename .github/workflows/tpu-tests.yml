@@ -11,71 +11,88 @@ permissions:
   contents: read # Only read permission is needed for checkout
   packages: write
 
-# Define base environment variables at the workflow level
-# These can still be used inside steps, just not for the container image definition
-env:
-  PROJECT_ID: gtech-rmi-dev
-  GAR_LOCATION: us-central1
-  GAR_REPO: keras-docker-images
-  IMAGE_NAME: keras-jax-tpu-amd64
-  IMAGE_TAG: latest
 
 jobs:
-
-  build-and-push:
-    name: Build and Push to GHCR
-    runs-on: ubuntu-latest # This job doesn't need the special TPU runner
+  # JOB 1: Build the image and save it as an artifact
+  build-and-save-image:
+    name: Build Image and Save as Artifact
+    runs-on: ubuntu-latest # A standard runner is fine for building
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          # GITHUB_TOKEN is automatically created by Actions and has permissions to push to your repo's package registry.
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build and Push Docker Image
+      - name: Build Docker image
+        id: docker_build
         uses: docker/build-push-action@v6
         with:
           context: .
-          # Push the image to ghcr.io
-          push: true
-          # Create a unique tag using the commit SHA for this specific build
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          # Do not push to a registry
+          push: false
+          # Load the image into the local Docker daemon so we can save it
+          load: true
+          # Tag the image for local use
+          tags: local-tpu-image:latest
 
+      - name: Save Docker image as a tar file
+        run: docker save --output tpu-image.tar local-tpu-image:latest
 
-  test-in-container:
-    name: Test in Custom Container
-    # This job must run after the build-and-push job is complete
-    needs: build-and-push
-    
-    # Use the required TPU runner
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tpu-image-artifact
+          path: tpu-image.tar
+          retention-days: 1 # Keep the artifact for only one day
+
+  # JOB 2: Load the image from the artifact and run tests
+  load-and-test:
+    name: Load and Test Image
+    needs: build-and-save-image # Must wait for Job 1 to finish
     runs-on: linux-x86-ct6e-44-1tpu
 
-    # CRITICAL: Use the container image we just pushed in the previous job.
-    # This satisfies the runner's requirement for a container to be specified.
+    # WORKAROUND: Use a minimal, public image simply to satisfy the runner's
+    # requirement that a container MUST be specified. The actual tests will
+    # not run in this container.
     container:
-      image: ghcr.io/${{ github.repository }}:${{ github.sha }}
-      options: --privileged --network host
+      image: ubuntu:22.04
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        # We need the code available inside the container's workspace to run tests.
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tpu-image-artifact
 
-      - name: Run Verification and Tests
+      - name: Load Docker image from tar file
+        run: docker load --input tpu-image.tar
+
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+        # We need the source code available to mount into the container for testing.
+
+      - name: Run Tests Inside the Loaded Container
         run: |
-          echo "Successfully running inside the custom container from GHCR!"
-          echo "Current working directory:"
-          pwd
-          echo "Contents of current directory:"
-          ls -la
-          echo "Verifying JAX installation..."
-          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
+          echo "Running tests inside the custom-loaded container..."
+          
+          # Manually run the container we loaded from the artifact.
+          docker run --rm \
+            --workdir /app \
+            -v "$(pwd)":/app \
+            --privileged --network host \
+            local-tpu-image:latest \
+            bash -c "
+              echo 'Successfully running inside the on-the-fly container!'
+              echo 'Current working directory inside container:'
+              pwd
+              echo 'Contents of current directory:'
+              ls -la
+              echo 'Verifying JAX installation...'
+              python3 -c \"import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')\"
+            "
+
+
 
 
 
