@@ -10,16 +10,17 @@ on:
 permissions:
   contents: read # Only read permission is needed for checkout
 
-env:
-  PROJECT_ID: gtech-rmi-dev                  # Replace with your GCP project ID
-  GAR_LOCATION: us-central1                  # Replace with your Artifact Registry location (e.g., us-central1)
-  GAR_REPO: keras-docker-images              # Replace with your Artifact Registry repository name
-  IMAGE_NAME: keras-jax-tpu-amd64            # Replace with the name of your Docker image
-  IMAGE_TAG: latest                          # Replace with the specific tag you want to pull (e.g., latest or a specific SHA)
-
 jobs:
   pull-and-use-image:
     name: Pull & Use Image from GAR
+
+    env:
+      PROJECT_ID: gtech-rmi-dev                  # Replace with your GCP project ID
+      GAR_LOCATION: us-central1                  # Replace with your Artifact Registry location (e.g., us-central1)
+      GAR_REPO: keras-docker-images              # Replace with your Artifact Registry repository name
+      IMAGE_NAME: keras-jax-tpu-amd64            # Replace with the name of your Docker image
+      IMAGE_TAG: latest                          # Replace with the specific tag you want to pull (e.g., latest or a specific SHA)
+
     runs-on: 
       # - linux-x86-ct5lp-112-4tpu
       - linux-x86-ct6e-44-1tpu
