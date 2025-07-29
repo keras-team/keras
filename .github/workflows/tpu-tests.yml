@@ -66,7 +66,8 @@ jobs:
     container:
       # Use the Ubuntu image that we know works on your runner
       image: ubuntu:22.04
-
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
     steps:
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
