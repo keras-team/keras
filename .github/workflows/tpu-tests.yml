@@ -10,17 +10,34 @@ on:
 permissions:
   contents: read # Only read permission is needed for checkout
 
-env:
-  PROJECT_ID: gtech-rmi-dev                  # Replace with your GCP project ID
-  GAR_LOCATION: us-central1                  # Replace with your Artifact Registry location (e.g., us-central1)
-  GAR_REPO: keras-docker-images              # Replace with your Artifact Registry repository name
-  IMAGE_NAME: keras-jax-tpu-amd64            # Replace with the name of your Docker image
-  IMAGE_TAG: latest                          # Replace with the specific tag you want to pull (e.g., latest or a specific SHA)
+# Remove these from 'env'
+# env:
+#   PROJECT_ID: gtech-rmi-dev
+#   GAR_LOCATION: us-central1
+#   GAR_REPO: keras-docker-images
+#   IMAGE_NAME: keras-jax-tpu-amd64
+#   IMAGE_TAG: latest
+#   FULL_TPU_IMAGE_PATH: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
+
+# --- Define the image path using 'vars' ---
+vars:
+  PROJECT_ID: gtech-rmi-dev                  # Define these if you want to use them for other purposes
+  GAR_LOCATION: us-central1
+  GAR_REPO: keras-docker-images
+  IMAGE_NAME: keras-jax-tpu-amd64
+  IMAGE_TAG: latest
   FULL_TPU_IMAGE_PATH: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
+# ------------------------------------------
 
 jobs:
   pull-and-use-image:
     name: Pull & Use Image from GAR
+
+    # You can still have an 'env' block here or at the workflow level for *other* variables
+    # that steps might need. Just not for the 'container.image' definition.
+    env:
+      # Example: an env variable that steps within the container might use
+      TF_CPP_MIN_LOG_LEVEL: 2
 
     runs-on:
       # - linux-x86-ct5lp-112-4tpu
@@ -28,8 +45,8 @@ jobs:
       # - keras-jax-tpu-runner
 
     container:
-      # Now env variables are recognized here
-      image: ${{ env.FULL_TPU_IMAGE_PATH }}
+      # *** THIS IS THE CRITICAL CHANGE: Use 'vars' instead of 'env' ***
+      image: ${{ vars.FULL_TPU_IMAGE_PATH }}
       options: --privileged --network host # Add any necessary options for the job container
 
     steps:
