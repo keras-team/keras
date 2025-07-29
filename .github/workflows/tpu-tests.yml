@@ -57,7 +57,7 @@ jobs:
     # requirement that a container MUST be specified. The actual tests will
     # not run in this container.
     container:
-      image: ubuntu:22.04
+      image: docker:24.0-cli
 
     steps:
       - name: Download Docker image artifact
