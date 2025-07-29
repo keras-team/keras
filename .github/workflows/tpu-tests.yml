@@ -1,199 +1,79 @@
-name: TPU Tests (Build with Caching)
+
+name: TPU Tests
 
 on:
   push:
     branches: [ master ]
   pull_request:
-  workflow_dispatch:
   release:
     types: [created]
 
+permissions:
+  contents: read # Only read permission is needed for checkout
+  packages: write
+
+# Define base environment variables at the workflow level
+# These can still be used inside steps, just not for the container image definition
+env:
+  PROJECT_ID: gtech-rmi-dev
+  GAR_LOCATION: us-central1
+  GAR_REPO: keras-docker-images
+  IMAGE_NAME: keras-jax-tpu-amd64
+  IMAGE_TAG: latest
 
 jobs:
-  # This job now intelligently builds OR restores the image from a cache
-  build-and-save-image:
-    name: Build or Restore Cached Image
-    runs-on: ubuntu-latest
+
+  build-and-push:
+    name: Build and Push to GHCR
+    runs-on: ubuntu-latest # This job doesn't need the special TPU runner
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Generate cache key from Dockerfile
-        id: hash_dockerfile
-        run: echo "hash=$(sha256sum Dockerfile | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
-
-      - name: Cache Docker image
-        id: cache-docker-image
-        uses: actions/cache@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          # The path to the file we want to cache
-          path: tpu-image.tar
-          # The key to identify the cache. If the Dockerfile's content changes,
-          # the hash changes, and a new cache is created.
-          key: ${{ runner.os }}-docker-${{ steps.hash_dockerfile.outputs.hash }}
-          # A fallback key in case of a partial match
-          restore-keys: |
-            ${{ runner.os }}-docker-
+          registry: ghcr.io
+          # GITHUB_TOKEN is automatically created by Actions and has permissions to push to your repo's package registry.
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker image if cache not found
-        # This step only runs if the cache step above did not find a perfect match.
-        if: steps.cache-docker-image.outputs.cache-hit != 'true'
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
-          load: true
-          tags: local-tpu-image:latest
+          # Push the image to ghcr.io
+          push: true
+          # Create a unique tag using the commit SHA for this specific build
+          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
 
-      - name: Save Docker image to tar if cache not found
-        if: steps.cache-docker-image.outputs.cache-hit != 'true'
-        run: docker save --output tpu-image.tar local-tpu-image:latest
 
-      - name: Upload Docker image artifact
-        # This step always runs, uploading either the restored cache or the newly built image
-        uses: actions/upload-artifact@v4
-        with:
-          name: tpu-image-artifact
-          path: tpu-image.tar
-          retention-days: 1
-
-  # This job does not need to change. It always consumes the artifact.
-  load-and-test:
-    name: Load and Test Image
-    needs: build-and-save-image
+  test-in-container:
+    name: Test in Custom Container
+    # This job must run after the build-and-push job is complete
+    needs: build-and-push
+    
+    # Use the required TPU runner
     runs-on: linux-x86-ct6e-44-1tpu
+
+    # CRITICAL: Use the container image we just pushed in the previous job.
+    # This satisfies the runner's requirement for a container to be specified.
     container:
-      # Use the Ubuntu image that we know works on your runner
-      image: ubuntu:22.04
-      volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
+      image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      options: --privileged --network host
+
     steps:
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tpu-image-artifact
-
-      # --- NEW STEP ---
-      # Install the Docker CLI inside the bootstrap container at runtime.
-      - name: Install Docker Client
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl gnupg
-          install -m 0755 -d /etc/apt/keyrings
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-          chmod a+r /etc/apt/keyrings/docker.gpg
-          echo \
-            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-            $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-            tee /etc/apt/sources.list.d/docker.list > /dev/null
-          apt-get update
-          apt-get install -y docker-ce-cli
-
-      - name: Load Docker image from tar file
-        # This will now succeed because we just installed the docker client
-        run: docker load --input tpu-image.tar
-
-      - name: Checkout repository code
+      - name: Checkout Repository
         uses: actions/checkout@v4
+        # We need the code available inside the container's workspace to run tests.
 
-      - name: Run Tests Inside the Loaded Container
+      - name: Run Verification and Tests
         run: |
-          docker run --rm \
-            --workdir /app \
-            -v "$(pwd)":/app \
-            --privileged --network host \
-            local-tpu-image:latest \
-            bash -c "
-              echo 'Successfully running inside the on-the-fly container!'
-              python3 -c \"import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')\"
-            "
-
-
-
-
-  # pull-and-use-image:
-  #   name: Pull & Use Image from GAR
-
-  #   runs-on: linux-x86-ct6e-44-1tpu
-
-  #   # The container image path must be a complete string.
-  #   # The 'env' context is not available here.
-  #   # Note the corrected GAR path format: 'us-central1-docker.pkg.dev'
-  #   container:
-  #     # image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
-  #     image: ubuntu:22.04
-  #     # options: --privileged --network host
-
-  #   steps:
-
-  #     - name: Verify Container Environment
-  #       run: |
-  #         echo "Successfully started the public container! ✅"
-  #         echo "OS Details:"
-  #         cat /etc/os-release
-
-
-
-
-
-      # - name: Checkout Repository
-      #   uses: actions/checkout@v4
-
-      # - name: Verify Environment inside Container
-      #   run: |
-      #     echo "Current working directory: $(pwd)"
-      #     echo "Contents of current directory:"
-      #     ls -la
-      #     # Verify Python, JAX, etc., inside the container
-      #     echo "Verifying JAX installation..."
-      #     python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
-
-
-
-
-      # - name: Authenticate to Google Cloud with Service Account Key
-      #   id: 'auth'
-      #   uses: 'google-github-actions/auth@v2'
-      #   with:
-      #     # Pass the content of your GitHub Secret directly here.
-      #     credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
-      # - name: Configure Docker to use Google Artifact Registry
-      #   run: |
-      #     echo "Configuring Docker to authenticate with Google Artifact Registry..."
-      #     # This command uses the credentials set by the 'auth' step to configure Docker.
-      #     gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
-      #     echo "Docker configured."
-
-      # - name: Pull Docker Image from Artifact Registry
-      #   run: |
-      #     FULL_IMAGE_PATH="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-      #     echo "Attempting to pull image: $FULL_IMAGE_PATH"
-      #     docker pull "$FULL_IMAGE_PATH"
-      #     echo "Successfully pulled image: $FULL_IMAGE_PATH"
-
-      # - name: Verify Pulled Image (Optional)
-      #   run: |
-      #     echo "Listing local Docker images..."
-      #     docker images | grep "${{ env.IMAGE_NAME }}"
-      #     echo "Image verification complete."
-
-      # - name: Run Docker Container (with TPU options if on TPU VM)
-      #   run: |
-      #     FULL_IMAGE_PATH="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-      #     echo "Running Docker container: $FULL_IMAGE_PATH"
-      #     # IMPORTANT: Add --privileged and --network host ONLY IF this job is running
-      #     # on your TPU VM self-hosted runner AND it has the necessary permissions.
-      #     # If running on 'ubuntu-latest', these flags are not meaningful for TPU access.
-      #     docker run --rm \
-      #       --privileged \
-      #       --network host \
-      #       "$FULL_IMAGE_PATH" \
-      #       /bin/bash -c " \
-      #         echo 'Container is running...'; \
-      #         # Add your test or verification commands here, e.g.:
-      #         # python3 -c 'import jax; print(jax.default_backend())'; \
-      #         # pytest your_tests.py; \
-      #         echo 'Container execution finished.'; \
-      #       "
+          echo "Successfully running inside the custom container from GHCR!"
+          echo "Current working directory:"
+          pwd
+          echo "Contents of current directory:"
+          ls -la
+          echo "Verifying JAX installation..."
+          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
