@@ -10,14 +10,13 @@ on:
 permissions:
   contents: read # Only read permission is needed for checkout
 
-# --- Move env variables to the workflow level ---
 env:
   PROJECT_ID: gtech-rmi-dev                  # Replace with your GCP project ID
   GAR_LOCATION: us-central1                  # Replace with your Artifact Registry location (e.g., us-central1)
   GAR_REPO: keras-docker-images              # Replace with your Artifact Registry repository name
   IMAGE_NAME: keras-jax-tpu-amd64            # Replace with the name of your Docker image
   IMAGE_TAG: latest                          # Replace with the specific tag you want to pull (e.g., latest or a specific SHA)
-# ------------------------------------------------
+  FULL_TPU_IMAGE_PATH: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
 
 jobs:
   pull-and-use-image:
@@ -30,7 +29,7 @@ jobs:
 
     container:
       # Now env variables are recognized here
-      image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      image: ${{ env.FULL_TPU_IMAGE_PATH }}
       options: --privileged --network host # Add any necessary options for the job container
 
     steps:
