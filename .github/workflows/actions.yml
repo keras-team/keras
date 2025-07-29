@@ -12,6 +12,18 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+
+env:
+  PYTHON: ${{ matrix.python-version }}
+  KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+  KERAS_BACKEND: jax
+  PROJECT_ID: gtech-rmi-dev  # Replace with your GCP project ID
+  GAR_LOCATION: us-central1        # Replace with your Artifact Registry location (e.g., us-central1)
+  IMAGE_REPO: keras-docker-images
+  IMAGE_NAME: keras-jax-tpu-amd64:latest          # Name of your Docker image
+  TPU_VM_NAME: kharshith-jax-tpu    # Replace with your TPU VM instance name
+  TPU_VM_ZONE: us-central1-b       # Replace with your TPU VM zone
 
 jobs:
   build-and-test-on-tpu:
@@ -22,105 +34,78 @@ jobs:
         backend: [jax]
     name: Run TPU tests
     runs-on: 
-      - linux-x86-ct5lp-112-4tpu
+      # - keras-jax-tpu-runner
+      # - linux-x86-ct5lp-112-4tpu
       # - linux-x86-ct5lp-112-4tpu-fvn6n-runner-6kb8n
-      # - linux-x86-ct6e-44-1tpu
+      - linux-x86-ct6e-44-1tpu
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-x4st4
       # - linux-x86-ct6e-44-1tpu-4khbn-runner-45nmc
 
+    container: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
 
-    container:
-      # Use an official Docker image that includes the Docker CLI.
-      # This allows you to run 'docker' commands from within this job's container.
-      # 'docker:latest' is a good choice. You could also specify a version like 'docker:24.0.5'.
-      image: docker:latest
-      # Mount the host's Docker socket into this container.
-      # This is CRUCIAL: It allows 'docker' commands executed *inside* this container
-      # to control the *host's* Docker daemon.
-      # volumes:
-      #   - /var/run/docker.sock:/var/run/docker.sock
-      # Running this "controlling" container in privileged mode is often necessary
-      # when it needs to manage other containers and access host resources like TPUs
-      # through the host's Docker daemon.
-      options: --privileged
+    # container:
+    #   image: docker:latest # Provides the Docker CLI within the job container
+    #   volumes:
+    #     - /var/run/docker.sock:/var/run/docker.sock # Mounts host's Docker socket for control
+    #   options: --privileged
 
-    env:
-      PYTHON: ${{ matrix.python-version }}
-      KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
-      KERAS_BACKEND: jax
-      PROJECT_ID: gtech-rmi-dev  # Replace with your GCP project ID
-      GAR_LOCATION: us-central1        # Replace with your Artifact Registry location (e.g., us-central1)
-      IMAGE_NAME: keras-jax-tpu-amd64:latest          # Name of your Docker image
-      TPU_VM_NAME: kharshith-jax-tpu    # Replace with your TPU VM instance name
-      TPU_VM_ZONE: us-central1-b       # Replace with your TPU VM zone
+    # steps:
+    #   - name: Checkout Repository
+    #     uses: actions/checkout@v4
 
-    steps:
+    #   - name: Set up Docker BuildX
+    #     uses: docker/setup-buildx-action@v3
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    #   - name: Authenticate to Google Cloud (Workload Identity Federation)
+    #     id: 'auth'
+    #     uses: 'google-github-actions/auth@v2'
+    #     with:
+    #       # Replace with your Workload Identity Federation provider details.
+    #       # This service account needs 'Artifact Registry Writer' role.
+    #       workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
+    #       service_account: 'your-github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
 
-      - name: Install Docker (if not present)
-        run: |
-          # Check if docker is already installed
-          if ! command -v docker &> /dev/null
-          then
-              echo "Docker not found. Installing Docker..."
-              # Update apt package index
-              sudo apt-get update
-              # Install packages to allow apt to use a repository over HTTPS
-              sudo apt-get install -y ca-certificates curl gnupg
-              # Add Docker's official GPG key
-              sudo install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              sudo chmod a+r /etc/apt/keyrings/docker.gpg
-              # Add the repository to Apt sources
-              echo \
-                "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-                \"$(. /etc/os-release && echo \"$VERSION_CODENAME\")\" stable" | \
-                sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              # Install Docker Engine, containerd, and Docker Compose
-              sudo apt-get update
-              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-              # Add the current user (runner user) to the docker group to run docker without sudo
-              sudo usermod -aG docker $USER
-              # You might need to log out and log back in for group changes to take effect,
-              # or restart the Docker daemon and the runner agent.
-              # For a CI environment, `newgrp docker` might work temporarily or a restart is implied.
-              sudo systemctl start docker
-              sudo systemctl enable docker
-              echo "Docker installed."
-          else
-              echo "Docker is already installed."
-          fi
+    #   - name: Configure Docker to use Google Artifact Registry
+    #     run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
 
-      - name: Set up Docker BuildX
-        uses: docker/setup-buildx-action@v3
+    #   - name: Build Docker Image
+    #     run: |
+    #       IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:${{ github.sha }}"
+    #       echo "Building Docker image: $IMAGE_TAG"
+    #       docker build \
+    #         --platform=linux/amd64 \
+    #         -f .github/workflows/tpu/Dockerfile \
+    #         -t "$IMAGE_TAG" \
+    #         -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest" \
+    #         .
+    #       echo "Built Docker image: $IMAGE_TAG"
+    #       echo "LOCAL_TEST_IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV # Store for immediate use in run step
 
+    #   - name: Push Docker Image to Artifact Registry
+    #     run: |
+    #       echo "Pushing Docker image to Artifact Registry: ${{ env.LOCAL_TEST_IMAGE_TAG }}"
+    #       docker push "${{ env.LOCAL_TEST_IMAGE_TAG }}"
+    #       docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest"
+    #       echo "Pushed Docker image."
 
-      - name: Build Docker image for TPU tests
-        run: |
-          echo "Building Docker image using Dockerfile at .github/workflows/tpu/Dockerfile..."
-          # Use 'sudo docker' if the 'docker' group membership hasn't fully applied yet.
-          docker build -f .github/workflows/tpu/Dockerfile -t keras-tpu-test .
-          echo "Docker image built successfully."
+    #   - name: Run Docker container and execute tests on TPU
+    #     run: |
+    #       echo "Running Docker container with TPU access and executing tests..."
+    #       docker run --rm \
+    #         --privileged \
+    #         --network host \
+    #         -e PYTHON=3.10 \ # Use a specific version or derive from matrix
+    #         -e KERAS_HOME=.github/workflows/config/jax \
+    #         -e KERAS_BACKEND=jax \
+    #         ${{ env.LOCAL_TEST_IMAGE_TAG }} \
+    #         /bin/bash -c ' \
+    #           echo "Verifying JAX TPU backend inside container..." && \
+    #           python3 -c "import jax; print(\"JAX Version:\", jax.__version__); print(\"Default Backend:\", jax.default_backend()); assert jax.default_backend().lower() == \"tpu\", \"TPU backend not found or not default\"; print(\"TPU verification successful!\")" \
+    #           # Add your actual pytest command here. Ensure pytest is installed inside your Docker image.
+    #           # && pytest keras --ignore keras/src/applications --ignore keras/src/layers/merging/merging_test.py --cov=keras --cov-config=pyproject.toml
+    #         '
+    #       echo "Docker container finished running tests."
 
-      - name: Run Docker container and execute tests on TPU
-        run: |
-          echo "Running Docker container with TPU access and executing tests..."
-          # Use 'sudo docker' if the 'docker' group membership hasn't fully applied yet.
-          docker run --rm \
-            --privileged \
-            --network host \
-            -e PYTHON=${{ env.PYTHON }} \
-            -e KERAS_HOME=${{ env.KERAS_HOME }} \
-            -e KERAS_BACKEND=${{ env.KERAS_BACKEND }} \
-            keras-tpu-test \
-            /bin/bash -c "\
-              echo 'Verifying JAX TPU backend inside container...' && \
-              python3 -c 'import jax; print(\"JAX Version:\", jax.__version__); print(\"Default Backend:\", jax.default_backend()); assert jax.default_backend().lower() == \"tpu\", \"TPU backend not found or not default\"; print(\"TPU verification successful!\")' \
-              # Add your actual pytest command here. Ensure pytest is installed inside your Docker image.
-            "
-          echo "Docker container finished running tests."
 
   build:
     strategy:
