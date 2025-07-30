@@ -1584,7 +1584,7 @@ def get_attr_skipset(obj_type):
 
         ref_obj = Operation()
         skipset.update(dir(ref_obj))
-    if obj_type == "Layer":
+    elif obj_type == "Layer":
         from keras.src.layers.layer import Layer
 
         ref_obj = Layer()
