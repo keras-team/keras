@@ -3700,6 +3700,29 @@ def isnan(x):
     return backend.numpy.isnan(x)
 
 
+class IsNegInf(Operation):
+    def call(self, x):
+        return backend.numpy.isneginf(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isneginf", "keras.ops.numpy.isneginf"])
+def isneginf(x):
+    """Test element-wise for negative infinity.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return IsNegInf().symbolic_call(x)
+    return backend.numpy.isneginf(x)
+
+
 class Less(Operation):
     def call(self, x1, x2):
         return backend.numpy.less(x1, x2)
