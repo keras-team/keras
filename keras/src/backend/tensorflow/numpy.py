@@ -1632,6 +1632,9 @@ def isnan(x):
 
 def isneginf(x):
     x = convert_to_tensor(x)
+    dtype_as_dtype = tf.as_dtype(x.dtype)
+    if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
+        return tf.zeros(x.shape, tf.bool)
     return tf.math.equal(x, -tf.constant(float("inf"), dtype=x.dtype))
 
 

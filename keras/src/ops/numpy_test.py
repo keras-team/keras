@@ -7519,6 +7519,22 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_isneginf(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.isneginf(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.isneginf(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.IsNegInf().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
