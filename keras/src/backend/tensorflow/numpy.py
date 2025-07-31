@@ -1630,6 +1630,11 @@ def isnan(x):
     return tf.math.is_nan(x)
 
 
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return tf.math.equal(x, -tf.constant(float("inf"), dtype=x.dtype))
+
+
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
