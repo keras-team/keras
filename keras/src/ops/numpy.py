@@ -3616,6 +3616,44 @@ def isfinite(x):
     return backend.numpy.isfinite(x)
 
 
+class IsIn(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.isin(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        return KerasTensor(x1.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isin", "keras.ops.numpy.isin"])
+def isin(x1, x2):
+    """Test whether each element of `x1` is present in `x2`.
+
+    This operation performs element-wise checks to determine if each value
+    in `x1` is contained within `x2`. The result is a boolean tensor with
+    the same shape as `x1`, where each entry is `True` if the corresponding
+    element in `x1` is in `x2`, and `False` otherwise.
+
+    Args:
+        x1: Input tensor or array-like structure to test.
+        x2: Values against which each element of `x1` is tested.
+            Can be a tensor, list, or scalar.
+
+    Returns:
+        A boolean tensor of the same shape as `x1` indicating element-wise
+        membership in `x2`.
+
+    Example:
+    >>> from keras import ops
+    >>> x1 = ops.array([0, 1, 2, 5])
+    >>> x2 = ops.array([0, 2])
+    >>> result = ops.isin(x1, x2)
+    array([ True, False,  True, False])
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return IsIn().symbolic_call(x1, x2)
+    return backend.numpy.isin(x1, x2)
+
+
 class Isinf(Operation):
     def call(self, x):
         return backend.numpy.isinf(x)

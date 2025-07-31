@@ -682,6 +682,12 @@ def isfinite(x):
     return np.isfinite(x)
 
 
+def isin(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return np.isin(x1, x2)
+
+
 def isinf(x):
     return np.isinf(x)
 

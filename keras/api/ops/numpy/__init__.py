@@ -88,6 +88,7 @@ from keras.src.ops.numpy import imag as imag
 from keras.src.ops.numpy import inner as inner
 from keras.src.ops.numpy import isclose as isclose
 from keras.src.ops.numpy import isfinite as isfinite
+from keras.src.ops.numpy import isin as isin
 from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
 from keras.src.ops.numpy import kaiser as kaiser

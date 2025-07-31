@@ -769,6 +769,12 @@ def isfinite(x):
     return jnp.isfinite(x)
 
 
+def isin(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.isin(x1, x2)
+
+
 @sparse.elementwise_unary(linear=False)
 def isinf(x):
     x = convert_to_tensor(x)
