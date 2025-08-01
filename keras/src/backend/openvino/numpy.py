@@ -1329,7 +1329,9 @@ def repeat(x, repeats, axis=None):
         and repeats.size == 1
     ):
         repeats_val = (
-            int(repeats) if isinstance(repeats, np.ndarray) else repeats
+            int(repeats)
+            if isinstance(repeats, (np.integer, np.ndarray))
+            else repeats
         )
         dim_len = ov_opset.gather(
             ov_opset.shape_of(x, Type.i32),
