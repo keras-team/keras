@@ -3700,7 +3700,7 @@ def isnan(x):
     return backend.numpy.isnan(x)
 
 
-class IsNegInf(Operation):
+class Isneginf(Operation):
     def call(self, x):
         return backend.numpy.isneginf(x)
 
@@ -3719,7 +3719,7 @@ def isneginf(x):
         Output boolean tensor.
     """
     if any_symbolic_tensors((x,)):
-        return IsNegInf().symbolic_call(x)
+        return Isneginf().symbolic_call(x)
     return backend.numpy.isneginf(x)
 
 
