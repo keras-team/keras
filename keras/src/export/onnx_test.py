@@ -245,3 +245,27 @@ class ExportONNXTest(testing.TestCase):
             )
         }
         ort_session.run(None, ort_inputs)
+
+    @parameterized.named_parameters(named_product(opset_version=[None, 18]))
+    def test_export_with_opset_version(self, opset_version):
+        import onnx as onnx_lib
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model("sequential")
+        batch_size = 3 if backend.backend() != "torch" else 1
+        ref_input = np.random.normal(size=(batch_size, 10))
+        ref_input = ref_input.astype("float32")
+        ref_output = model(ref_input)
+
+        onnx.export_onnx(
+            model, temp_filepath, opset_version=opset_version, verbose=True
+        )
+        ort_session = onnxruntime.InferenceSession(temp_filepath)
+        ort_inputs = {
+            k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
+        }
+        self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
+
+        if opset_version is not None:
+            onnx_model = onnx_lib.load(temp_filepath)
+            self.assertEqual(onnx_model.opset_import[0].version, opset_version)
