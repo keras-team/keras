@@ -1797,6 +1797,22 @@ class Layer(BackendLayer, Operation):
         )
 
 
+        def register_call_context_args(self, *names):
+            """Public wrapper for `_register_call_context_args`.
+            
+            This method registers call-context arguments for this layer. It simply
+            forwards the provided argument names to the private method
+            `_register_call_context_args`. See `_register_call_context_args` for
+            details.
+            
+            Args:
+                *names: Names of call-context arguments to register.
+            
+            Returns:
+                None
+            """
+            return self._register_call_context_args(*names)
+
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:
         return True
