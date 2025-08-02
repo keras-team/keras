@@ -654,20 +654,18 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype and dtype != x.dtype:
             x = cast(x, dtype)
         return x
+    original_type = type(x)
     try:
         if dtype is None:
-            dtype = getattr(x, "dtype", type(x))
-            if dtype == np.dtype("bfloat16"):
-                ov_type = OPENVINO_DTYPES["bfloat16"]
-            else:
-                ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+            dtype = getattr(x, "dtype", original_type)
+            ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
         else:
             ov_type = OPENVINO_DTYPES[dtype]
         x = np.array(x)
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
     except Exception as e:
         raise TypeError(
-            f"Cannot convert object of type {type(x)} "
+            f"Cannot convert object of type {original_type} "
             f"to OpenVINOKerasTensor: {e}"
         )
 
