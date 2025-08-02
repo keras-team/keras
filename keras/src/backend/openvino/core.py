@@ -661,6 +661,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                 ov_type = OPENVINO_DTYPES["bfloat16"]
             else:
                 ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        else:
+            ov_type = OPENVINO_DTYPES[dtype]
         x = np.array(x)
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
     except Exception as e:
