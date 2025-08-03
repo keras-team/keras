@@ -1,0 +1,41 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.0, pluggy-1.6.0 -- /home/mohamed-ashraf/Desktop/GSoC2025/env/bin/python
+cachedir: .pytest_cache
+rootdir: /home/mohamed-ashraf/Desktop/GSoC2025/keras-hub
+configfile: pytest.ini
+plugins: cov-6.1.1
+collecting ... collected 11 items
+
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::TestCase::test_session SKIPPED [  9%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_all_presets SKIPPED [ 18%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_causal_lm_basics SKIPPED [ 27%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_early_stopping PASSED [ 36%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_generate PASSED [ 45%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_generate_compilation PASSED [ 54%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_saved_model SKIPPED [ 63%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_score_layer_intercept_fn_exfiltration PASSED [ 72%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_score_logits PASSED [ 81%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_score_loss SKIPPED [ 90%]
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_session PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../usr/lib/python3.12/multiprocessing/popen_fork.py:66
+../../../../../usr/lib/python3.12/multiprocessing/popen_fork.py:66
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=10106) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+../openvino/build_python3.12/site-packages/python/openvino/runtime/__init__.py:10
+  /home/mohamed-ashraf/Desktop/GSoC2025/openvino/build_python3.12/site-packages/python/openvino/runtime/__init__.py:10: DeprecationWarning: The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. Please replace `openvino.runtime` with `openvino`.
+    warnings.warn(
+
+../env/lib/python3.12/site-packages/_pytest/config/__init__.py:1474
+  /home/mohamed-ashraf/Desktop/GSoC2025/env/lib/python3.12/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: env
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+keras_hub/src/models/gpt2/gpt2_causal_lm_test.py::GPT2CausalLMTest::test_session
+  /usr/lib/python3.12/unittest/case.py:690: DeprecationWarning: It is deprecated to return a value that is not None from a test case (<bound method TensorFlowTestCase.test_session of <keras_hub.src.models.gpt2.gpt2_causal_lm_test.GPT2CausalLMTest testMethod=test_session>>)
+    return self.run(*args, **kwds)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 6 passed, 5 skipped, 5 warnings in 13.25s ===================

@@ -1,0 +1,45 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.4.0, pluggy-1.6.0 -- /home/mohamed-ashraf/Desktop/GSoC2025/env/bin/python
+cachedir: .pytest_cache
+rootdir: /home/mohamed-ashraf/Desktop/GSoC2025/keras-hub
+configfile: pytest.ini
+plugins: cov-6.1.1
+collecting ... collected 15 items
+
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::TestCase::test_session SKIPPED [  6%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_all_presets SKIPPED [ 13%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_cache_correctness PASSED [ 20%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_causal_lm_basics SKIPPED [ 26%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_early_stopping PASSED [ 33%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_flash_attention_call SKIPPED [ 40%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_generate PASSED [ 46%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_generate_compilation PASSED [ 53%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_generate_with_bfloat16 PASSED [ 60%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_multitoken_stopping PASSED [ 66%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_saved_model SKIPPED [ 73%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_score_layer_intercept_fn_exfiltration PASSED [ 80%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_score_logits PASSED [ 86%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_score_loss SKIPPED [ 93%]
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_session PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../usr/lib/python3.12/multiprocessing/popen_fork.py:66
+../../../../../usr/lib/python3.12/multiprocessing/popen_fork.py:66
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=8846) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+../openvino/build_python3.12/site-packages/python/openvino/runtime/__init__.py:10
+  /home/mohamed-ashraf/Desktop/GSoC2025/openvino/build_python3.12/site-packages/python/openvino/runtime/__init__.py:10: DeprecationWarning: The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. Please replace `openvino.runtime` with `openvino`.
+    warnings.warn(
+
+../env/lib/python3.12/site-packages/_pytest/config/__init__.py:1474
+  /home/mohamed-ashraf/Desktop/GSoC2025/env/lib/python3.12/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: env
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+keras_hub/src/models/gemma/gemma_causal_lm_test.py::GemmaCausalLMTest::test_session
+  /usr/lib/python3.12/unittest/case.py:690: DeprecationWarning: It is deprecated to return a value that is not None from a test case (<bound method TensorFlowTestCase.test_session of <keras_hub.src.models.gemma.gemma_causal_lm_test.GemmaCausalLMTest testMethod=test_session>>)
+    return self.run(*args, **kwds)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 9 passed, 6 skipped, 5 warnings in 18.03s ===================
