@@ -95,8 +95,6 @@ class Discretization(TFDataLayer):
         dtype=None,
         name=None,
     ):
-        if dtype is None:
-            dtype = "float32"
         super().__init__(name=name, dtype=dtype)
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
@@ -153,6 +151,15 @@ class Discretization(TFDataLayer):
     @property
     def input_dtype(self):
         return backend.floatx()
+
+    @property
+    def compute_dtype(self):
+        # For "int" output mode, compute in float to avoid input truncation
+        # but output int64. For other modes, use the default float dtype.
+        if self.output_mode == "int":
+            return "float32"
+        else:
+            return backend.floatx()
 
     def adapt(self, data, steps=None):
         """Computes bin boundaries from quantiles in a input dataset.
