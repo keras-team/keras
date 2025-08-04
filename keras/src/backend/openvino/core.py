@@ -854,10 +854,11 @@ def slice_update(inputs, start_indices, updates):
 
     if isinstance(start_indices, (list, np.ndarray)):
         start_indices = tuple(start_indices)
-    assert isinstance(start_indices, tuple), (
-        "`slice_update` is not supported by openvino backend"
-        " for `start_indices` of type {}".format(type(start_indices))
-    )
+    if not isinstance(start_indices, tuple):
+        raise ValueError(
+            "`slice_update` is not supported by openvino backend"
+            " for `start_indices` of type {}".format(type(start_indices))
+        )
 
     zero_scalar = ov_opset.constant(0, Type.i32)
     one_scalar = ov_opset.constant(1, Type.i32)
