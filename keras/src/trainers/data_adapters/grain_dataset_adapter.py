@@ -80,7 +80,9 @@ class GrainDatasetAdapter(DataAdapter):
 
         class ConvertToNumpy(grain.transforms.Map):
             def map(self, x):
-                return tree.map_structure(convert_to_numpy, x)
+                return tree.map_structure(
+                    convert_to_numpy, x, none_is_leaf=False
+                )
 
         if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
             dataset = self._dataset.map(ConvertToNumpy())
@@ -109,7 +111,9 @@ class GrainDatasetAdapter(DataAdapter):
 
         class ConvertToJaxCompatible(grain.transforms.Map):
             def map(self, x):
-                return tree.map_structure(convert_to_jax_compatible, x)
+                return tree.map_structure(
+                    convert_to_jax_compatible, x, none_is_leaf=False
+                )
 
         if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
             dataset = self._dataset.map(ConvertToJaxCompatible())
@@ -139,7 +143,7 @@ class GrainDatasetAdapter(DataAdapter):
 
         class ConvertToTF(grain.transforms.Map):
             def map(self, x):
-                return tree.map_structure(convert_to_tf, x)
+                return tree.map_structure(convert_to_tf, x, none_is_leaf=False)
 
         # `tf.data.Dataset.from_generator` does not support lists as output.
         # We convert lists to tuples.

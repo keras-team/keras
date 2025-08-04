@@ -32,6 +32,8 @@ class GeneratorDataAdapter(DataAdapter):
         from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_tf(x, spec):
+            if isinstance(spec, tf.OptionalSpec):
+                return x
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_tf_sparse(x)
             elif data_adapter_utils.is_jax_sparse(x):
@@ -50,6 +52,14 @@ class GeneratorDataAdapter(DataAdapter):
 
         def get_tf_iterator():
             for batch in self.generator():
+                batch = tree.map_structure(
+                    (
+                        lambda i: tf.experimental.Optional.empty(None)
+                        if i is None
+                        else i
+                    ),
+                    batch,
+                )
                 batch = tree.map_structure(
                     convert_to_tf, batch, self._output_signature
                 )

@@ -52,6 +52,11 @@ class TensorFlowTrainer(base_trainer.Trainer):
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
+        # Convert TF Optional implementations to None
+        x = tree.map_structure(
+            lambda i: None if isinstance(i, tf.experimental.Optional) else i, x
+        )
+
         # Forward pass
         with tf.GradientTape() as tape:
             if self._call_has_training_arg:
