@@ -154,10 +154,8 @@ class Discretization(TFDataLayer):
 
     @property
     def compute_dtype(self):
-        # For "int" output mode, compute in float to avoid input truncation
-        # but output int64. For other modes, use the default float dtype.
         if self.output_mode == "int":
-            return "float32"
+            return "int64"
         else:
             return backend.floatx()
 
