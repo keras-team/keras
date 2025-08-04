@@ -3617,15 +3617,28 @@ def isfinite(x):
 
 
 class IsIn(Operation):
+    def __init__(
+        self,
+        assume_unique=False,
+        invert=False,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.assume_unique = assume_unique
+        self.invert = invert
+
     def call(self, x1, x2):
-        return backend.numpy.isin(x1, x2)
+        return backend.numpy.isin(
+            x1, x2, assume_unique=self.assume_unique, invert=self.invert
+        )
 
     def compute_output_spec(self, x1, x2):
         return KerasTensor(x1.shape, dtype="bool")
 
 
 @keras_export(["keras.ops.isin", "keras.ops.numpy.isin"])
-def isin(x1, x2):
+def isin(x1, x2, assume_unique=False, invert=False):
     """Test whether each element of `x1` is present in `x2`.
 
     This operation performs element-wise checks to determine if each value
@@ -3637,6 +3650,12 @@ def isin(x1, x2):
         x1: Input tensor or array-like structure to test.
         x2: Values against which each element of `x1` is tested.
             Can be a tensor, list, or scalar.
+        assume_unique: Boolean (default: False).
+            If True, assumes both `x1` and `x2` contain only unique elements.
+            This can speed up the computation. If False, duplicates will be
+            handled correctly but may impact performance.
+        invert: Boolean (default: False).
+            If True, the result is the logical negation of the membership test,
 
     Returns:
         A boolean tensor of the same shape as `x1` indicating element-wise
@@ -3650,8 +3669,12 @@ def isin(x1, x2):
     array([ True, False,  True, False])
     """
     if any_symbolic_tensors((x1, x2)):
-        return IsIn().symbolic_call(x1, x2)
-    return backend.numpy.isin(x1, x2)
+        return IsIn(assume_unique=assume_unique, invert=invert).symbolic_call(
+            x1, x2
+        )
+    return backend.numpy.isin(
+        x1, x2, assume_unique=assume_unique, invert=invert
+    )
 
 
 class Isinf(Operation):
