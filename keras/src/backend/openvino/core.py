@@ -368,7 +368,7 @@ class OpenVINOKerasTensor:
                 if not (0 <= actual_dim < rank):
                     raise IndexError(
                         f"Index {index} is out of bounds for "
-                        "axis {dim} with rank {rank}"
+                        f"axis {dim} with rank {rank}"
                     )
                 length = ov_opset.gather(
                     partial_shape,
@@ -403,7 +403,7 @@ class OpenVINOKerasTensor:
                 if index_type == Type.boolean or not index_type.is_integral():
                     raise ValueError(
                         "OpenVINO backend does not "
-                        "support {index_type} indexing"
+                        f"support {index_type} indexing"
                     )
                 axes.append(dim)
                 if len(index_shape) > 1:
@@ -654,13 +654,20 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype and dtype != x.dtype:
             x = cast(x, dtype)
         return x
-    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
-        return ov.Tensor(np.asarray(x).astype(dtype))
-    if dtype is None:
-        dtype = result_type(
-            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
+    original_type = type(x)
+    try:
+        if dtype is None:
+            dtype = getattr(x, "dtype", original_type)
+            ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        else:
+            ov_type = OPENVINO_DTYPES[dtype]
+        x = np.array(x)
+        return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
+    except Exception as e:
+        raise TypeError(
+            f"Cannot convert object of type {original_type} "
+            f"to OpenVINOKerasTensor: {e}"
         )
-    return ov.Tensor(np.array(x, dtype=dtype))
 
 
 def convert_to_numpy(x):
