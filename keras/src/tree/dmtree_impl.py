@@ -194,16 +194,28 @@ def flatten_with_path(structure):
     return flattened
 
 
-def map_structure(func, *structures):
+def map_structure(func, *structures, none_is_leaf=True):
     if not callable(func):
         raise TypeError(
             f"`func` must be callable, got {func} of type {type(func)}"
         )
 
+    map_func = func
+    if not none_is_leaf:
+        def func_skipping_none(*args):
+            # Check if the reference entry (first one) is None
+            if args[0] is None:
+                if not all(s is None for s in args):
+                    raise ValueError("Structure mismatch: some arguments are None, others are not.")
+                return None
+            return func(*args)
+        
+        map_func = func_skipping_none
+
     def func_traverse_wrapper(s):
         if is_nested(s):
             return None
-        ret = func(s)
+        ret = map_func(s)
         if ret is None:
             return dmtree.MAP_TO_NONE
         return ret
@@ -212,7 +224,7 @@ def map_structure(func, *structures):
         return traverse(func_traverse_wrapper, structures[0])
 
     with TypeErrorRemapping():
-        return dmtree.map_structure(func, *structures)
+        return dmtree.map_structure(map_func, *structures)
 
 
 def map_structure_up_to(shallow_structure, func, *structures):
