@@ -1512,6 +1512,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.isnan(x).shape, (None, 3))
 
+    def test_isneginf(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.isneginf(x).shape, (None, 3))
+
     def test_log(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.log(x).shape, (None, 3))
@@ -2104,6 +2108,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_isnan(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.isnan(x).shape, (2, 3))
+
+    def test_isneginf(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.isneginf(x).shape, (2, 3))
 
     def test_log(self):
         x = KerasTensor((2, 3))
@@ -4189,6 +4197,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
         self.assertAllClose(knp.isnan(x), np.isnan(x))
         self.assertAllClose(knp.Isnan()(x), np.isnan(x))
+
+    def test_isneginf(self):
+        x = np.array(
+            [[1, 2, np.inf, -np.inf], [np.nan, np.nan, np.nan, np.nan]]
+        )
+        self.assertAllClose(knp.isneginf(x), np.isneginf(x))
+        self.assertAllClose(knp.Isneginf()(x), np.isneginf(x))
 
     def test_log(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7516,6 +7531,22 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.isnan(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Isnan().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_isneginf(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.isneginf(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.isneginf(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Isneginf().symbolic_call(x).dtype),
             expected_dtype,
         )
 

@@ -696,6 +696,11 @@ def isnan(x):
     return np.isnan(x)
 
 
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return np.isneginf(x)
+
+
 def less(x1, x2):
     return np.less(x1, x2)
 
