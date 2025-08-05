@@ -51,11 +51,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
-
-        # Convert TF Optional implementations to None
-        x = tree.map_structure(
-            lambda i: None if isinstance(i, tf.experimental.Optional) else i, x
-        )
+        x = self._convert_optional_to_none(x)
 
         # Forward pass
         with tf.GradientTape() as tape:
@@ -91,6 +87,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def test_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        x = self._convert_optional_to_none(x)
         if self._call_has_training_arg:
             y_pred = self(x, training=False)
         else:
@@ -106,11 +103,18 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        x = self._convert_optional_to_none(x)
         if self._call_has_training_arg:
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
         return y_pred
+
+    def _convert_optional_to_none(self, x):
+        # Convert TF Optional implementations to None
+        return tree.map_structure(
+            lambda i: None if isinstance(i, tf.experimental.Optional) else i, x
+        )
 
     def _make_function(self, step_function):
         @tf.autograph.experimental.do_not_convert
