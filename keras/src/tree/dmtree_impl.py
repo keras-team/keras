@@ -202,6 +202,7 @@ def map_structure(func, *structures, none_is_leaf=True):
 
     map_func = func
     if not none_is_leaf:
+
         def func_skipping_none(*args):
             # Check if the reference entry (first one) is None
             if args[0] is None:
@@ -212,7 +213,7 @@ def map_structure(func, *structures, none_is_leaf=True):
                     )
                 return None
             return func(*args)
-        
+
         map_func = func_skipping_none
 
     def func_traverse_wrapper(s):
