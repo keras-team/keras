@@ -206,7 +206,10 @@ def map_structure(func, *structures, none_is_leaf=True):
             # Check if the reference entry (first one) is None
             if args[0] is None:
                 if not all(s is None for s in args):
-                    raise ValueError("Structure mismatch: some arguments are None, others are not.")
+                    raise ValueError(
+                        "Structure mismatch: some arguments are None, others "
+                        "are not."
+                    )
                 return None
             return func(*args)
         
