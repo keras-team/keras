@@ -9,6 +9,8 @@ from keras.src.callbacks.learning_rate_scheduler import LearningRateScheduler
 from keras.src.callbacks.model_checkpoint import ModelCheckpoint
 from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.callbacks.progbar_logger import ProgbarLogger
+from keras.src.callbacks.pruning import PostTrainingPruning
+from keras.src.callbacks.pruning import PruningCallback
 from keras.src.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 from keras.src.callbacks.remote_monitor import RemoteMonitor
 from keras.src.callbacks.swap_ema_weights import SwapEMAWeights
