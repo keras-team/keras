@@ -1,11 +1,10 @@
 import io
-import logging
 import random
 import tarfile
-import time
 
 import numpy as np
 import requests
+from absl import logging
 from datasets import load_dataset
 
 from keras.src import ops
@@ -22,6 +21,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
     Prepares and chunks the calibration dataloader, repeating short datasets.
     """
     all_tokens = []
+    rng = np.random.default_rng(seed=42)
 
     # --- Step 1: Unify all input types into a single list of tokens ---
     if isinstance(dataset, str):
@@ -64,8 +64,8 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
 
                 calibration_samples = []
                 for _ in range(nsamples):
-                    start_index = random.randint(
-                        0, len(all_tokens) - seqlen - 1
+                    start_index = rng.integers(
+                        low=0, high=len(all_tokens) - seqlen
                     )
                     end_index = start_index + seqlen
                     sample = all_tokens[start_index:end_index]
@@ -109,7 +109,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
                             )
                         continue
 
-                j = random.randint(0, len(tokenized_doc) - seqlen - 1)
+                j = rng.integers(low=0, high=len(tokenized_doc) - seqlen)
                 sample_slice = tokenized_doc[j : j + seqlen]
                 samples.append(np.reshape(sample_slice, (1, seqlen)))
 
@@ -167,7 +167,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
     calibration_samples = []
     for _ in range(nsamples):
         # Generate a random starting index
-        start_index = random.randint(0, len(all_tokens) - seqlen - 1)
+        start_index = rng.integers(low=0, high=len(all_tokens) - seqlen)
         end_index = start_index + seqlen
         sample = all_tokens[start_index:end_index]
         calibration_samples.append(ops.reshape(sample, (1, seqlen)))
@@ -212,9 +212,49 @@ def apply_gptq_layerwise(
     act_order,
     wbits,
 ):
-    """
-    Performs sequential, model-agnostic quantization by dynamically finding
-    layers and capturing their inputs via hooks.
+    """Applies GPTQ quantization layer-by-layer to a Keras model.
+
+    This function performs a sequential, model-agnostic quantization process. It
+    dynamically identifies quantizable layers (e.g., Dense, EinsumDense)
+    within larger "transformer blocks" of a model.
+
+    The core logic operates as follows:
+    1.  It automatically detects the model's structure, identifying the main
+        embedding layer and a sequence of transformer blocks.
+    2.  It processes the model sequentially, one block at a time. For each
+        block, it uses temporary hooks to capture the input activations of
+        each target layer during a forward pass with the calibration data.
+    3.  These captured activations are used to compute the Hessian matrix for
+        each layer's weights.
+    4.  The GPTQ algorithm is then applied to each layer to find the optimal
+        quantized weights that minimize the error introduced.
+    5.  The output activations from the current block are then used as the
+        input for the next block, ensuring that quantization errors are
+        accounted for throughout the model.
+
+    Args:
+        model: The Keras model instance to be quantized. The function will
+            attempt to automatically discover its structure.
+        dataloader: An iterable providing calibration data. Each item should
+            be a batch of token IDs suitable for the model's embedding layer.
+        nsamples (int): The number of samples from the dataloader to use for
+            calibration.
+        percdamp (float): The percentage of dampening to add to the Hessian
+            diagonal for stabilization during inverse calculation. A value of
+            0.01 is common.
+        groupsize (int): The size of the groups to use for quantization. A
+            value of 128 means that 128 weights will share the same scaling
+            factor. Use -1 for per-channel quantization.
+        symmetric (bool): If True, symmetric quantization is used. Otherwise,
+            asymmetric quantization is used.
+        act_order (bool): If True, reorders the weight columns based on
+            activation magnitude, which can improve quantization accuracy.
+        wbits (int): The number of bits to use for the quantized weights,
+            e.g., 4 for 4-bit quantization.
+
+    Raises:
+        ValueError: If the function cannot automatically find an embedding
+            layer or any transformer-like blocks to quantize within the model.
     """
     logging.info("Starting model quantization...")
     embedding_layer = None
@@ -370,7 +410,6 @@ def quantize_model(model, config):
     # is now a NumPy array, which can be sliced and reused.
     calibration_dataloader = full_dataloader[: config.nsamples]
 
-    tick = time.time()
     apply_gptq_layerwise(
         model,
         calibration_dataloader,  # Use the calibration slice
@@ -381,6 +420,5 @@ def quantize_model(model, config):
         config.act_order,
         config.wbits,
     )
-    logging.info(f"Total quantization time: {time.time() - tick:.2f} seconds")
 
     return
