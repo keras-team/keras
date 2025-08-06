@@ -2880,6 +2880,42 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.isin(x, 2), np.isin(x, 2))
         self.assertAllClose(knp.isin(2, x), np.isin(2, x))
 
+        self.assertAllClose(
+            knp.isin(x, y, assume_unique=True),
+            np.isin(x, y, assume_unique=True),
+        )
+        self.assertAllClose(
+            knp.isin(x, 2, assume_unique=True),
+            np.isin(x, 2, assume_unique=True),
+        )
+        self.assertAllClose(
+            knp.isin(2, x, assume_unique=True),
+            np.isin(2, x, assume_unique=True),
+        )
+
+        self.assertAllClose(
+            knp.isin(x, y, invert=True), np.isin(x, y, invert=True)
+        )
+        self.assertAllClose(
+            knp.isin(x, 2, invert=True), np.isin(x, 2, invert=True)
+        )
+        self.assertAllClose(
+            knp.isin(2, x, invert=True), np.isin(2, x, invert=True)
+        )
+
+        self.assertAllClose(
+            knp.isin(x, y, assume_unique=True, invert=True),
+            np.isin(x, y, assume_unique=True, invert=True),
+        )
+        self.assertAllClose(
+            knp.isin(x, 2, assume_unique=True, invert=True),
+            np.isin(x, 2, assume_unique=True, invert=True),
+        )
+        self.assertAllClose(
+            knp.isin(2, x, assume_unique=True, invert=True),
+            np.isin(2, x, assume_unique=True, invert=True),
+        )
+
         self.assertAllClose(knp.IsIn()(x, y), np.isin(x, y))
         self.assertAllClose(knp.IsIn()(x, 2), np.isin(x, 2))
         self.assertAllClose(knp.IsIn()(2, x), np.isin(2, x))
