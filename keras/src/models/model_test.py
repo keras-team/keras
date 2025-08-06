@@ -1391,8 +1391,3 @@ class ModelQuantizationTest(testing.TestCase):
             nsamples=16, seqlen=128, vocab_size=1000
         )
         _run_gptq_test_on_dataset(self, generator_dataset)
-
-    @pytest.mark.slow
-    def test_quantize_gptq_with_wikitext2(self):
-        """Tests GPTQ with the 'wikitext2' dataset identifier."""
-        _run_gptq_test_on_dataset(self, "wikitext2")

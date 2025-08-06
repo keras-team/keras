@@ -135,13 +135,10 @@ class GPTQ:
                     self.quantizer.maxq,
                 )[:, 0]
 
-                Q1 = ops.concatenate(
-                    [Q1[:, :i], ops.expand_dims(q, 1), Q1[:, i + 1 :]], axis=1
-                )
+                Q1 = ops.slice_update(Q1, (0, i), ops.expand_dims(q, axis=1))
                 err = (w - q) / d
-                Err1 = ops.concatenate(
-                    [Err1[:, :i], ops.expand_dims(err, 1), Err1[:, i + 1 :]],
-                    axis=1,
+                Err1 = ops.slice_update(
+                    Err1, (0, i), ops.expand_dims(err, axis=1)
                 )
 
                 if i < count - 1:
@@ -149,9 +146,12 @@ class GPTQ:
                         ops.expand_dims(err, 1),
                         ops.expand_dims(Hinv1[i, i + 1 :], 0),
                     )
-                    W1 = ops.concatenate(
-                        [W1[:, : i + 1], W1[:, i + 1 :] - update], axis=1
-                    )
+
+                    # Efficiently update the remaining part of the W1 tensor.
+                    # This is equivalent to W1[:, i + 1 :] -= update
+                    slice_to_update = W1[:, i + 1 :]
+                    updated_slice = slice_to_update - update
+                    W1 = ops.slice_update(W1, (0, i + 1), updated_slice)
 
             Q = ops.concatenate([Q[:, :i1], Q1, Q[:, i2:]], axis=1)
 
