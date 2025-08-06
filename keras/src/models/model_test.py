@@ -1,15 +1,11 @@
-import io
 import logging
 import os
 import pickle
-import tarfile
 from collections import namedtuple
 
 import numpy as np
 import pytest
-import requests
 from absl.testing import parameterized
-from datasets import load_dataset
 
 from keras.src import backend
 from keras.src import layers
@@ -25,93 +21,6 @@ from keras.src.quantizers.gptqconfig import GPTQConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-
-
-def get_dataset_text(dataset_identifier: str, nsamples=1000) -> str:
-    """
-    Loads a specified dataset and extracts its text content into a
-    single string.
-    """
-    DATASET_CONFIGS = {
-        "wikitext2": {
-            "name": "wikitext",
-            "config": "wikitext-2-raw-v1",
-            "split": "test",
-            "text_column": "text",
-        },
-        "ptb": {
-            "name": "ptb_text_only",
-            "config": "penn_treebank",
-            "split": "validation",
-            "text_column": "sentence",
-        },
-        "c4": {
-            "name": "allenai/c4",
-            "config": "en",
-            "split": "validation",  # Use validation for C4's test split
-            "text_column": "text",
-        },
-    }
-
-    if dataset_identifier not in DATASET_CONFIGS:
-        raise ValueError(
-            f"Unknown dataset identifier '{dataset_identifier}'. "
-            f"Available options are: {list(DATASET_CONFIGS.keys())}"
-        )
-
-    config = DATASET_CONFIGS[dataset_identifier]
-
-    if dataset_identifier == "ptb":
-        url = "http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz"
-        try:
-            # 1. Download the archive into memory
-            response = requests.get(url)
-            response.raise_for_status()
-
-            # 2. Extract only the test file from the in-memory archive
-            with tarfile.open(
-                fileobj=io.BytesIO(response.content), mode="r:gz"
-            ) as tar:
-                test_path = "./simple-examples/data/ptb.test.txt"
-                test_bytes = tar.extractfile(test_path).read()
-
-            # 3. Decode the bytes and join into a single string
-            test_lines = test_bytes.decode("utf-8").strip().split("\n")
-            all_text = "\n\n".join(test_lines)
-
-            print("✅ Successfully processed PTB test data.")
-            return all_text
-
-        except Exception as e:
-            print(f"Failed to download or process PTB data: {e!r}")
-            raise e
-
-    load_kwargs = {"name": config["config"]}
-
-    if dataset_identifier == "c4":
-        load_kwargs["streaming"] = True
-    # For PTB, force a redownload to bypass potential cache errors.
-    if dataset_identifier == "ptb":
-        load_kwargs["download_mode"] = "force_redownload"
-
-    print(f"Loading dataset '{config['name']}'...")
-
-    test_data = load_dataset(
-        config["name"], split=config["split"], **load_kwargs
-    )
-
-    if dataset_identifier == "c4":
-        print(f"   -> Limiting C4 to the first {nsamples} documents forspeed.")
-        test_data = test_data.take(nsamples)
-
-    all_text = "\n\n".join(
-        row[config["text_column"]]
-        for row in test_data
-        if row.get(config["text_column"])
-    )
-
-    print(f"Successfully loaded and processed {dataset_identifier}.")
-    return all_text
 
 
 def _get_model():
