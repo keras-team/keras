@@ -201,7 +201,11 @@ def process_id():
 def _to_backend_device(device_name):
     if isinstance(device_name, jax.Device):
         return device_name
-    device_type, device_id = device_name.split(":")
+    device_name = str(device_name)
+    if ":" not in device_name:
+        device_type, device_id = device_name, 0
+    else:
+        device_type, device_id = device_name.split(":")
 
     devices = jax.devices(backend=device_type)
     for device in devices:

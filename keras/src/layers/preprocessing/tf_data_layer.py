@@ -46,7 +46,16 @@ class TFDataLayer(Layer):
                 if switch_convert_input_args:
                     self._convert_input_args = True
             return outputs
-        return super().__call__(inputs, **kwargs)
+        elif (
+            not isinstance(sample_input, keras.KerasTensor)
+            and backend_utils.in_grain_data_pipeline()
+        ):
+            # We're in a Grain data pipeline. Force computation and data
+            # placement to CPU.
+            with keras.src.backend.device_scope("cpu"):
+                return super().__call__(inputs, **kwargs)
+        else:
+            return super().__call__(inputs, **kwargs)
 
     @tracking.no_automatic_dependency_tracking
     def _get_seed_generator(self, backend=None):
