@@ -4,7 +4,6 @@ import typing
 import warnings
 
 from keras.src import backend
-from keras.src import ops
 from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
@@ -463,20 +462,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     def prune(self, config=None, **kwargs):
         """Prune the model weights according to the specified configuration.
-        
+
         Args:
             config: PruningConfig instance, or None to use defaults.
             **kwargs: Configuration parameters if config is None.
-            
+
         Returns:
             Dictionary with pruning statistics.
-            
+
         Example:
             ```python
             # Using PruningConfig
             config = keras.pruning.PruningConfig(sparsity=0.5, method="magnitude")
             stats = model.prune(config)
-            
+
             # Using keyword arguments
             stats = model.prune(sparsity=0.7, method="structured")
             ```
@@ -490,21 +489,21 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 "You can build it by calling `model.build(input_shape)` or by "
                 "calling the model on some data."
             )
-        
+
         # Create config from kwargs if not provided
         if config is None:
             config = PruningConfig(**kwargs)
         elif kwargs:
             raise ValueError("Cannot specify both config and keyword arguments")
-        
+
         # Apply pruning
         stats = apply_pruning_to_model(self, config)
-        
+
         # Clear compiled functions to ensure they get rebuilt with pruned weights
         self.train_function = None
         self.test_function = None
         self.predict_function = None
-        
+
         return stats
 
     def build_from_config(self, config):
