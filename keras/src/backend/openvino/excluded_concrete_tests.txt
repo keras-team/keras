@@ -35,6 +35,7 @@ NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isin
 NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
+NumpyDtypeTest::test_isneginf
 NumpyDtypeTest::test_linspace
 NumpyDtypeTest::test_logaddexp
 NumpyDtypeTest::test_logspace
@@ -94,6 +95,7 @@ NumpyOneInputOpsCorrectnessTest::test_floor_divide
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
+NumpyOneInputOpsCorrectnessTest::test_isneginf
 NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
@@ -155,10 +157,12 @@ NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_deg2rad
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
+NumpyOneInputOpsDynamicShapeTest::test_isneginf
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_deg2rad
+NumpyOneInputOpsStaticShapeTest::test_isneginf
 NumpyTwoInputOpsDynamicShapeTest::test_heaviside
 NumpyTwoInputOpsDynamicShapeTest::test_isin
 NumpyTwoInputOpsStaticShapeTest::test_heaviside
@@ -171,17 +175,14 @@ CoreOpsCallsTests::test_map_basic_call
 CoreOpsCallsTests::test_scan_basic_call
 CoreOpsCallsTests::test_scatter_basic_call
 CoreOpsCallsTests::test_scatter_update_basic_call
-CoreOpsCallsTests::test_slice_update_basic_call
 CoreOpsCallsTests::test_switch_basic_call
 CoreOpsCallsTests::test_unstack_basic_functionality
 CoreOpsCorrectnessTest::test_associative_scan
 CoreOpsCorrectnessTest::test_cond
-CoreOpsCorrectnessTest::test_dynamic_slice
 CoreOpsCorrectnessTest::test_fori_loop
 CoreOpsCorrectnessTest::test_map
 CoreOpsCorrectnessTest::test_scan
 CoreOpsCorrectnessTest::test_scatter
-CoreOpsCorrectnessTest::test_slice_update
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
