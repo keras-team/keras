@@ -943,6 +943,12 @@ def isnan(x):
     return OpenVINOKerasTensor(ov_opset.is_nan(x).output(0))
 
 
+def isneginf(x):
+    raise NotImplementedError(
+        "`isneginf` is not supported with openvino backend"
+    )
+
+
 def less(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
