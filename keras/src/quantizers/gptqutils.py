@@ -29,7 +29,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
         if dataset == "wikitext2":
             d_name, d_config = "wikitext", "wikitext-2-raw-v1"
         elif dataset == "ptb":
-            url = "http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz"
+            url = "https://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz"
             try:
                 # 1. Download the archive into memory
                 response = requests.get(url)
