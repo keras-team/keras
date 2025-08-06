@@ -461,46 +461,28 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.test_function = None
             self.predict_function = None
 
-    def prune(self, sparsity=0.5, method="magnitude"):
-        """Prune the weights of the model.
-
-        This method applies magnitude-based or structured pruning to remove
-        weights based on their importance. The model must be built before
-        calling this method.
-
+    def prune(self, config=None, **kwargs):
+        """Prune the model weights according to the specified configuration.
+        
         Args:
-            sparsity: Float between 0 and 1. Fraction of weights to prune.
-                Defaults to 0.5 (50% sparsity).
-            method: String. Pruning method to use. Options are:
-                - "magnitude": Remove weights with smallest absolute values
-                - "structured": Remove entire channels/filters with smallest norms
-                Defaults to "magnitude".
-
+            config: PruningConfig instance, or None to use defaults.
+            **kwargs: Configuration parameters if config is None.
+            
         Returns:
-            Dictionary containing pruning statistics including:
-                - "initial_sparsity": Sparsity before pruning
-                - "final_sparsity": Sparsity after pruning
-                - "pruned_layers": Number of layers that were pruned
-
+            Dictionary with pruning statistics.
+            
         Example:
-        ```python
-        # Create and train a model
-        model = keras.Sequential([
-            keras.layers.Dense(128, activation="relu"),
-            keras.layers.Dense(10, activation="softmax")
-        ])
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy")
-        
-        # Apply 80% magnitude-based pruning
-        stats = model.prune(sparsity=0.8, method="magnitude")
-        print(f"Model sparsity: {stats['final_sparsity']:.2f}")
-        
-        # Apply structured pruning
-        model.prune(sparsity=0.5, method="structured")
-        ```
+            ```python
+            # Using PruningConfig
+            config = keras.pruning.PruningConfig(sparsity=0.5, method="magnitude")
+            stats = model.prune(config)
+            
+            # Using keyword arguments
+            stats = model.prune(sparsity=0.7, method="structured")
+            ```
         """
-        from keras.src.pruning import MagnitudePruning, StructuredPruning
-        from keras.src import ops
+        from keras.src.pruning.config import PruningConfig
+        from keras.src.pruning.core import apply_pruning_to_model
 
         if not self.built:
             raise ValueError(
@@ -508,94 +490,22 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 "You can build it by calling `model.build(input_shape)` or by "
                 "calling the model on some data."
             )
-
-        if not 0 <= sparsity <= 1:
-            raise ValueError(
-                f"sparsity must be between 0 and 1. Received: {sparsity}"
-            )
-
-        if method not in ["magnitude", "structured"]:
-            raise ValueError(
-                f"method must be either 'magnitude' or 'structured'. "
-                f"Received: {method}"
-            )
-
-        # Initialize pruning method
-        if method == "magnitude":
-            pruning_method = MagnitudePruning()
-        elif method == "structured":
-            pruning_method = StructuredPruning()
-        else:
-            raise ValueError(f"Unknown pruning method: {method}")
-
-        # Record initial sparsity
-        initial_sparsity = self._get_model_sparsity()
         
-        # Count prunable layers
-        pruned_layers = 0
+        # Create config from kwargs if not provided
+        if config is None:
+            config = PruningConfig(**kwargs)
+        elif kwargs:
+            raise ValueError("Cannot specify both config and keyword arguments")
         
-        # Apply pruning to eligible layers
-        for layer in self._flatten_layers():
-            if self._should_prune_layer(layer):
-                # Get current weights
-                weights = layer.kernel.value
-                
-                # Compute and apply pruning mask
-                mask = pruning_method.compute_mask(weights, sparsity)
-                pruned_weights = pruning_method.apply_mask(weights, mask)
-                
-                # Update layer weights
-                layer.kernel.assign(pruned_weights)
-                pruned_layers += 1
-
-        # Record final sparsity
-        final_sparsity = self._get_model_sparsity()
-
+        # Apply pruning
+        stats = apply_pruning_to_model(self, config)
+        
         # Clear compiled functions to ensure they get rebuilt with pruned weights
         self.train_function = None
         self.test_function = None
         self.predict_function = None
-
-        return {
-            "initial_sparsity": initial_sparsity,
-            "final_sparsity": final_sparsity,
-            "pruned_layers": pruned_layers,
-            "method": method,
-            "target_sparsity": sparsity
-        }
-
-    def _should_prune_layer(self, layer):
-        """Determine if a layer should be pruned."""
-        # Only prune layers with kernels (Dense, Conv layers)
-        pruneable_layers = (
-            'Dense', 'Conv1D', 'Conv2D', 'Conv3D', 
-            'DepthwiseConv2D', 'SeparableConv1D', 'SeparableConv2D'
-        )
-        return (
-            layer.__class__.__name__ in pruneable_layers and
-            hasattr(layer, 'kernel') and 
-            layer.kernel is not None
-        )
-
-    def _get_model_sparsity(self):
-        """Calculate the overall sparsity of the model."""
-        total_weights = 0
-        zero_weights = 0
         
-        for layer in self._flatten_layers():
-            if hasattr(layer, 'kernel') and layer.kernel is not None:
-                weights = layer.kernel.value
-                total_weights += ops.size(weights)
-                zero_weights += ops.sum(ops.cast(weights == 0, "int32"))
-            
-            if hasattr(layer, 'bias') and layer.bias is not None:
-                bias = layer.bias.value
-                total_weights += ops.size(bias)
-                zero_weights += ops.sum(ops.cast(bias == 0, "int32"))
-        
-        if total_weights == 0:
-            return 0.0
-        return float(zero_weights / total_weights)
+        return stats
 
     def build_from_config(self, config):
         if not config:

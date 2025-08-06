@@ -1,0 +1,146 @@
+"""Core pruning functionality."""
+
+import numpy as np
+from keras.src import ops
+from keras.src import backend
+
+
+def get_model_sparsity(model):
+    """Calculate the overall sparsity of a model."""
+    total_weights = 0
+    zero_weights = 0
+    
+    for layer in model.layers:
+        if hasattr(layer, 'kernel') and layer.kernel is not None:
+            weights = layer.kernel.value
+            total_weights += ops.size(weights)
+            zero_weights += ops.sum(ops.cast(weights == 0, "int32"))
+        
+        if hasattr(layer, 'bias') and layer.bias is not None:
+            bias = layer.bias.value
+            total_weights += ops.size(bias)
+            zero_weights += ops.sum(ops.cast(bias == 0, "int32"))
+    
+    if total_weights == 0:
+        return 0.0
+    return float(zero_weights / total_weights)
+
+
+def should_prune_layer(layer):
+    """Determine if a layer should be pruned."""
+    layer_types = ('Dense', 'Conv1D', 'Conv2D', 'Conv3D', 'DepthwiseConv2D')
+    return (
+        layer.__class__.__name__ in layer_types and
+        hasattr(layer, 'kernel') and 
+        layer.kernel is not None
+    )
+
+
+def compute_magnitude_mask(weights, sparsity):
+    """Compute pruning mask based on weight magnitudes."""
+    if sparsity <= 0:
+        return ops.ones_like(weights, dtype="bool")
+    if sparsity >= 1:
+        return ops.zeros_like(weights, dtype="bool")
+    
+    abs_weights = ops.abs(weights)
+    # Convert to numpy for percentile computation, then back
+    abs_weights_np = backend.convert_to_numpy(abs_weights)
+    threshold = np.percentile(abs_weights_np, sparsity * 100)
+    mask = abs_weights > threshold
+    return mask
+
+
+def compute_structured_mask(weights, sparsity):
+    """Compute structured pruning mask (prune entire channels/filters)."""
+    if sparsity <= 0:
+        return ops.ones_like(weights, dtype="bool")
+    if sparsity >= 1:
+        return ops.zeros_like(weights, dtype="bool")
+    
+    # For Conv layers: compute L2 norm across spatial dimensions
+    # For Dense layers: compute L2 norm across input dimension
+    if len(weights.shape) == 4:  # Conv2D
+        # weights shape: (height, width, in_channels, out_channels)
+        norms = ops.sqrt(ops.sum(ops.square(weights), axis=(0, 1, 2)))
+    elif len(weights.shape) == 2:  # Dense  
+        # weights shape: (in_features, out_features)
+        norms = ops.sqrt(ops.sum(ops.square(weights), axis=0))
+    else:
+        # Fallback to magnitude pruning for other shapes
+        return compute_magnitude_mask(weights, sparsity)
+    
+    # Convert to numpy for percentile computation
+    norms_np = backend.convert_to_numpy(norms)
+    threshold = np.percentile(norms_np, sparsity * 100)
+    
+    # Create mask that zeros out entire channels/filters
+    channel_mask = norms > threshold
+    
+    # Broadcast mask to full weight tensor shape
+    if len(weights.shape) == 4:  # Conv2D
+        mask = ops.broadcast_to(
+            ops.reshape(channel_mask, (1, 1, 1, -1)), 
+            weights.shape
+        )
+    elif len(weights.shape) == 2:  # Dense
+        mask = ops.broadcast_to(
+            ops.reshape(channel_mask, (1, -1)), 
+            weights.shape
+        )
+    
+    return mask
+
+
+def apply_pruning_to_layer(layer, sparsity, method="magnitude"):
+    """Apply pruning to a single layer."""
+    if not should_prune_layer(layer):
+        return False
+        
+    weights = layer.kernel.value
+    
+    if method == "magnitude":
+        mask = compute_magnitude_mask(weights, sparsity)
+    elif method == "structured":
+        mask = compute_structured_mask(weights, sparsity)
+    else:
+        raise ValueError(f"Unknown pruning method: {method}")
+    
+    # Apply mask to weights
+    pruned_weights = weights * ops.cast(mask, weights.dtype)
+    layer.kernel.assign(pruned_weights)
+    
+    return True
+
+
+def apply_pruning_to_model(model, config):
+    """Apply pruning to all eligible layers in a model.
+    
+    Args:
+        model: Keras model to prune.
+        config: PruningConfig instance.
+        
+    Returns:
+        Dictionary with pruning statistics.
+    """
+    from keras.src.pruning.config import PruningConfig
+    
+    if not isinstance(config, PruningConfig):
+        raise ValueError("config must be a PruningConfig instance")
+    
+    initial_sparsity = get_model_sparsity(model)
+    pruned_layers = 0
+    
+    for layer in model.layers:
+        if apply_pruning_to_layer(layer, config.sparsity, config.method):
+            pruned_layers += 1
+    
+    final_sparsity = get_model_sparsity(model)
+    
+    return {
+        "initial_sparsity": initial_sparsity,
+        "final_sparsity": final_sparsity,
+        "pruned_layers": pruned_layers,
+        "target_sparsity": config.sparsity,
+        "method": config.method
+    }
