@@ -10,11 +10,21 @@ class PruningConfig:
     Args:
         sparsity: Float between 0 and 1. Target sparsity level.
         method: String. Pruning method ('magnitude' or 'structured').
-        schedule: String. Pruning schedule ('constant' or 'polynomial').
-        start_step: Integer. Step to start pruning (for schedules).
-        end_step: Integer. Step to end pruning (for schedules).
-        frequency: Integer. How often to apply pruning in steps.
-        power: Float. Power for polynomial schedule.
+        schedule: PruningSchedule instance, or string for built-in schedules.
+        start_step: Integer. Step to start pruning (used if schedule is string).
+        end_step: Integer. Step to end pruning (used if schedule is string).
+        frequency: Integer. How often to apply pruning (used if schedule is string).
+        power: Float. Power for polynomial schedule (used if schedule is string).
+    
+    Example:
+        ```python
+        # Using built-in schedule
+        config = PruningConfig(sparsity=0.8, schedule="polynomial", start_step=100, end_step=1000)
+        
+        # Using custom schedule
+        custom_schedule = PolynomialDecay(start_step=50, end_step=500, power=2)
+        config = PruningConfig(sparsity=0.8, schedule=custom_schedule)
+        ```
     """
     
     def __init__(
@@ -32,33 +42,40 @@ class PruningConfig:
         
         if method not in ["magnitude", "structured"]:
             raise ValueError(f"method must be 'magnitude' or 'structured'. Got: {method}")
-            
-        if schedule not in ["constant", "polynomial"]:
-            raise ValueError(f"schedule must be 'constant' or 'polynomial'. Got: {schedule}")
         
         self.sparsity = sparsity
         self.method = method
-        self.schedule = schedule
-        self.start_step = start_step
-        self.end_step = end_step
-        self.frequency = frequency
-        self.power = power
+        
+        # Handle schedule - can be string or PruningSchedule instance
+        if isinstance(schedule, str):
+            from keras.src.pruning.pruning_schedule import ConstantSparsity, PolynomialDecay
+            
+            if schedule == "constant":
+                self.schedule = ConstantSparsity(
+                    sparsity=sparsity,
+                    start_step=start_step,
+                    end_step=end_step,
+                    frequency=frequency
+                )
+            elif schedule == "polynomial":
+                self.schedule = PolynomialDecay(
+                    initial_sparsity=0.0,
+                    target_sparsity=sparsity,
+                    power=power,
+                    start_step=start_step,
+                    end_step=end_step,
+                    frequency=frequency
+                )
+            else:
+                raise ValueError(f"schedule must be 'constant', 'polynomial', or a PruningSchedule instance. Got: {schedule}")
+        else:
+            # Assume it's a PruningSchedule instance
+            self.schedule = schedule
     
     def get_sparsity_for_step(self, step):
         """Get the target sparsity for a given step."""
-        if self.schedule == "constant":
-            return self.sparsity
-        elif self.schedule == "polynomial":
-            if step < self.start_step:
-                return 0.0
-            if step >= self.end_step:
-                return self.sparsity
-            
-            progress = (step - self.start_step) / (self.end_step - self.start_step)
-            return self.sparsity * (progress ** self.power)
+        return self.schedule.get_sparsity(step)
         
     def should_prune_at_step(self, step):
         """Determine if pruning should be applied at the given step."""
-        if step < self.start_step or step > self.end_step:
-            return False
-        return (step - self.start_step) % self.frequency == 0
+        return self.schedule.should_prune(step)

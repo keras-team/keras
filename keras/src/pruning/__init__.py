@@ -7,12 +7,17 @@ from keras.src.pruning.core import (
     apply_pruning_to_model,
     apply_pruning_to_layer,
 )
-from keras.src.pruning.pruning_schedule import PruningSchedule, PolynomialDecay
 from keras.src.pruning.pruning_method import (
     PruningMethod,
     MagnitudePruning,
     StructuredPruning,
     RandomPruning,
+)
+from keras.src.pruning.pruning_schedule import (
+    PruningSchedule,
+    ConstantSparsity,
+    PolynomialDecay,
+    LinearDecay,
 )
 
 # Public API
@@ -22,10 +27,12 @@ __all__ = [
     "should_prune_layer",
     "apply_pruning_to_model",
     "apply_pruning_to_layer",
-    "PruningSchedule", 
-    "PolynomialDecay",
     "PruningMethod",
     "MagnitudePruning",
     "StructuredPruning",
     "RandomPruning",
+    "PruningSchedule",
+    "ConstantSparsity", 
+    "PolynomialDecay",
+    "LinearDecay",
 ]
