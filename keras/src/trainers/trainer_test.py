@@ -23,6 +23,7 @@ from keras.src.trainers.data_adapters import py_dataset_adapter
 
 if backend.backend() == "jax":
     from keras.src.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.distribution import DeviceMesh, TensorLayout, distribution_lib
 elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "tensorflow":
@@ -2857,3 +2858,74 @@ class TestTrainer(testing.TestCase):
             verbose=0,
         )
         self.assertLessEqual(tracing_count[0], 2)
+
+class ExampleModelForJAXTrainerShardingTest(models.Model):
+    def __init__(self, units=3, **kwargs):
+        super().__init__(**kwargs)
+        self.dense1 = layers.Dense(4, activation="relu", kernel_initializer="ones")
+        self.dense2 = layers.Dense(units, activation="softmax", kernel_initializer="ones")
+
+    def call(self, x):
+        return self.dense2(self.dense1(x))
+
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="This is a JAX-specific distribution test.",
+)
+class JAXTrainerShardingTest(testing.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        import jax
+
+        if jax.device_count() < 2:
+            self.skipTest(
+                "Cannot test sharding with less than 2 devices. "
+                f"Found {jax.device_count()} devices."
+            )
+
+        devices = np.array(jax.devices())
+        device_mesh = DeviceMesh(
+            shape=(jax.device_count(),),
+            axis_names=("batch",),
+            devices=devices.flatten(),
+        )
+        data_layout_2d = TensorLayout(axes=("batch", None), device_mesh=device_mesh)
+        data_layout_1d = TensorLayout(axes=("batch",), device_mesh=device_mesh)
+        variable_layout = TensorLayout(axes=(None, None), device_mesh=device_mesh)
+
+        def get_layout_for_data(shape):
+            if not hasattr(shape, '__len__'):
+                return variable_layout
+            if len(shape) == 2:
+                return data_layout_2d
+            elif len(shape) == 1:
+                return data_layout_1d
+            return variable_layout
+
+        mock_dist = mock.MagicMock()
+        mock_dist.get_data_layout.side_effect = get_layout_for_data
+        mock_dist.get_tensor_layout.return_value = variable_layout
+        mock_dist.auto_shard_dataset = False
+        self.distribution_mock = mock_dist
+
+    @pytest.mark.requires_trainable_backend
+    def test_fit_with_sharding(self):
+        with mock.patch.object(
+            distribution_lib, "distribution", return_value=self.distribution_mock
+        ):
+            model = ExampleModelForJAXTrainerShardingTest(units=3)
+            model.compile(
+                optimizer="sgd",
+                loss="mse",
+                jit_compile=True 
+            )
+
+            x = np.ones((16, 5), dtype="float32")
+            y = np.zeros((16, 3), dtype="float32")
+            sw = np.ones((16,), dtype="float32")
+
+            history = model.fit(x, y, sample_weight=sw, batch_size=4, epochs=2)
+
+            self.assertIn("loss", history.history)
+            self.assertEqual(len(history.history["loss"]), 2)

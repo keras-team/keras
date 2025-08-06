@@ -260,7 +260,9 @@ class JAXTrainer(base_trainer.Trainer):
             return
         if not self.run_eagerly and self.jit_compile:
             out_shardings = None
-            if distribution_lib.distribution() is not None:
+            if distribution_lib.distribution() is not None and hasattr(
+                self, "_metrics_result_structure"
+            ):
                 out_shardings = (
                     tree.map_structure(lambda _: None, self._metrics_result_structure),
                     (
@@ -271,9 +273,7 @@ class JAXTrainer(base_trainer.Trainer):
                     ),
                 )
             train_step = jit(
-                self.train_step, 
-                donate_argnums=0,
-                out_shardings=out_shardings
+                self.train_step, donate_argnums=0, out_shardings=out_shardings
             )
         else:
             train_step = self.train_step
@@ -287,7 +287,9 @@ class JAXTrainer(base_trainer.Trainer):
             return
         if not self.run_eagerly and self.jit_compile:
             out_shardings = None
-            if distribution_lib.distribution() is not None:
+            if distribution_lib.distribution() is not None and hasattr(
+                self, "_metrics_result_structure"
+            ):
                 out_shardings = (
                     tree.map_structure(lambda _: None, self._metrics_result_structure),
                     (
@@ -297,15 +299,12 @@ class JAXTrainer(base_trainer.Trainer):
                     ),
                 )
             test_step = jit(
-                self.test_step, 
-                donate_argnums=0,
-                out_shardings=out_shardings
+                self.test_step, donate_argnums=0, out_shardings=out_shardings
             )
         else:
             test_step = self.test_step
 
         step_function = self._make_function(test_step)
-
         self.test_function = step_function
 
     def make_predict_function(self, force=False):
@@ -318,18 +317,19 @@ class JAXTrainer(base_trainer.Trainer):
 
         if not self.run_eagerly and self.jit_compile:
             out_shardings = None
-            if distribution_lib.distribution() is not None:
+            # FIX: Check if the model has been built before accessing sharding attrs
+            if distribution_lib.distribution() is not None and hasattr(
+                self, "_trainable_variable_shardings"
+            ):
                 out_shardings = (
                     None,
                     (
                         self._trainable_variable_shardings,
-                        self._non_trainable_variable_shardings
+                        self._non_trainable_variable_shardings,
                     ),
                 )
             predict_step = jit(
-                predict_step, 
-                donate_argnums=0,
-                out_shardings=out_shardings
+                predict_step, donate_argnums=0, out_shardings=out_shardings
             )
 
         _step_function = self._make_function(
