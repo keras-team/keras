@@ -15,6 +15,9 @@ class PruningConfig:
         end_step: Integer. Step to end pruning (used if schedule is string).
         frequency: Integer. How often to apply pruning (used if schedule is string).
         power: Float. Power for polynomial schedule (used if schedule is string).
+        dataset: Optional data for advanced pruning methods (saliency, taylor).
+        loss_fn: Optional loss function for gradient-based pruning methods.
+        n: Float. Order for Ln norm (used with ln method).
 
     Example:
         ```python
@@ -24,6 +27,9 @@ class PruningConfig:
         # Using custom schedule
         custom_schedule = PolynomialDecay(start_step=50, end_step=500, power=2)
         config = PruningConfig(sparsity=0.8, schedule=custom_schedule)
+
+        # Using saliency pruning with dataset
+        config = PruningConfig(sparsity=0.5, method="saliency", dataset=train_dataset)
         ```
     """
 
@@ -36,6 +42,9 @@ class PruningConfig:
         end_step=1000,
         frequency=100,
         power=3.0,
+        dataset=None,
+        loss_fn=None,
+        n=2.0,
     ):
         if not 0 <= sparsity <= 1:
             raise ValueError(
@@ -61,6 +70,9 @@ class PruningConfig:
 
         self.sparsity = sparsity
         self.method = method
+        self.dataset = dataset
+        self.loss_fn = loss_fn
+        self.n = n
 
         # Handle schedule - can be string or PruningSchedule instance
         if isinstance(schedule, str):

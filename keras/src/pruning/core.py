@@ -91,7 +91,7 @@ def compute_structured_mask(weights, sparsity):
     return mask
 
 
-def apply_pruning_to_layer(layer, sparsity, method="l1"):
+def apply_pruning_to_layer(layer, sparsity, method="l1", model=None, dataset=None, loss_fn=None, **kwargs):
     """Apply pruning to a single layer."""
     if not should_prune_layer(layer):
         return False
@@ -103,6 +103,8 @@ def apply_pruning_to_layer(layer, sparsity, method="l1"):
         from keras.src.pruning.pruning_method import L1Pruning
         from keras.src.pruning.pruning_method import LnPruning
         from keras.src.pruning.pruning_method import StructuredPruning
+        from keras.src.pruning.pruning_method import SaliencyPruning
+        from keras.src.pruning.pruning_method import TaylorPruning
 
         if method == "magnitude" or method == "l1":
             pruning_method = L1Pruning(structured=False)
@@ -114,14 +116,26 @@ def apply_pruning_to_layer(layer, sparsity, method="l1"):
             pruning_method = LnPruning(n=2, structured=False)
         elif method == "l2_structured":
             pruning_method = LnPruning(n=2, structured=True)
+        elif method == "saliency":
+            pruning_method = SaliencyPruning()
+        elif method == "taylor":
+            pruning_method = TaylorPruning()
         else:
             raise ValueError(f"Unknown pruning method: {method}")
     else:
         # Assume it's a PruningMethod instance
         pruning_method = method
 
+    # Prepare kwargs for compute_mask
+    mask_kwargs = {
+        "model": model,
+        "dataset": dataset, 
+        "loss_fn": loss_fn,
+        **kwargs
+    }
+
     # Compute and apply mask
-    mask = pruning_method.compute_mask(weights, sparsity)
+    mask = pruning_method.compute_mask(weights, sparsity, **mask_kwargs)
     pruned_weights = pruning_method.apply_mask(weights, mask)
     layer.kernel.assign(pruned_weights)
 
@@ -147,7 +161,15 @@ def apply_pruning_to_model(model, config):
     pruned_layers = 0
 
     for layer in model.layers:
-        if apply_pruning_to_layer(layer, config.sparsity, config.method):
+        if apply_pruning_to_layer(
+            layer=layer,
+            sparsity=config.sparsity,
+            method=config.method,
+            model=model,
+            dataset=config.dataset,
+            loss_fn=config.loss_fn,
+            n=config.n,
+        ):
             pruned_layers += 1
 
     final_sparsity = get_model_sparsity(model)

@@ -16,12 +16,13 @@ class PruningMethod(abc.ABC):
     """
 
     @abc.abstractmethod
-    def compute_mask(self, weights, sparsity_ratio):
+    def compute_mask(self, weights, sparsity_ratio, **kwargs):
         """Compute a binary mask indicating which weights to prune.
 
         Args:
             weights: Weight tensor to analyze.
             sparsity_ratio: Float between 0 and 1. Fraction of weights to prune.
+            **kwargs: Additional arguments like model, loss_fn, input_data, target_data.
 
         Returns:
             Binary mask tensor with same shape as weights.
@@ -59,7 +60,7 @@ class L1Pruning(PruningMethod):
         """
         self.structured = structured
 
-    def compute_mask(self, weights, sparsity_ratio):
+    def compute_mask(self, weights, sparsity_ratio, **kwargs):
         """Compute mask based on L1 norms."""
         if sparsity_ratio <= 0:
             return ops.ones_like(weights, dtype="bool")
@@ -136,7 +137,7 @@ class StructuredPruning(PruningMethod):
         """
         self.axis = axis
 
-    def compute_mask(self, weights, sparsity_ratio):
+    def compute_mask(self, weights, sparsity_ratio, **kwargs):
         """Compute mask based on channel/filter norms."""
         if sparsity_ratio <= 0:
             return ops.ones_like(weights, dtype="bool")
@@ -194,7 +195,7 @@ class RandomPruning(PruningMethod):
         """
         self.seed = seed
 
-    def compute_mask(self, weights, sparsity_ratio):
+    def compute_mask(self, weights, sparsity_ratio, **kwargs):
         """Compute random pruning mask."""
         if sparsity_ratio <= 0:
             return ops.ones_like(weights, dtype="bool")
@@ -235,7 +236,7 @@ class LnPruning(PruningMethod):
         self.n = n
         self.structured = structured
 
-    def compute_mask(self, weights, sparsity_ratio):
+    def compute_mask(self, weights, sparsity_ratio, **kwargs):
         """Compute mask based on Ln norms."""
         if sparsity_ratio <= 0:
             return ops.ones_like(weights, dtype="bool")
@@ -326,29 +327,36 @@ class SaliencyPruning(PruningMethod):
     Estimates weight importance using first-order gradients.
     """
 
-    def __init__(self, model, loss_fn, input_data, target_data):
-        """Initialize saliency pruning.
+    def __init__(self):
+        """Initialize saliency pruning."""
+        pass
 
-        Args:
-            model: Keras model to analyze.
-            loss_fn: Loss function for gradient computation.
-            input_data: Sample input data batch.
-            target_data: Sample target data batch.
-        """
-        self.model = model
-        self.loss_fn = loss_fn
-        self.input_data = input_data
-        self.target_data = target_data
-
-    def compute_mask(self, weights, sparsity_ratio):
+    def compute_mask(self, weights, sparsity_ratio, **kwargs):
         """Compute saliency-based mask using gradients."""
         if sparsity_ratio <= 0:
             return ops.ones_like(weights, dtype="bool")
         if sparsity_ratio >= 1:
             return ops.zeros_like(weights, dtype="bool")
 
+        # Get model and data from kwargs (passed by core.py)
+        model = kwargs.get('model')
+        loss_fn = kwargs.get('loss_fn')
+        dataset = kwargs.get('dataset')
+        
+        if model is None or dataset is None:
+            # Fall back to magnitude pruning if data not available
+            flat_weights = ops.reshape(ops.abs(weights), [-1])
+            total_size = int(backend.convert_to_numpy(ops.size(flat_weights)))
+            k = int(sparsity_ratio * total_size)
+            if k == 0:
+                return ops.ones_like(weights, dtype="bool")
+            sorted_weights = ops.sort(flat_weights)
+            threshold = sorted_weights[k]
+            mask = ops.abs(weights) > threshold
+            return mask
+
         # Compute saliency scores (|weight * gradient|)
-        saliency_scores = self._compute_saliency_scores(weights)
+        saliency_scores = self._compute_saliency_scores(weights, model, loss_fn, dataset)
 
         flat_scores = ops.reshape(saliency_scores, [-1])
         total_size = int(backend.convert_to_numpy(ops.size(flat_scores)))
@@ -362,7 +370,7 @@ class SaliencyPruning(PruningMethod):
         mask = saliency_scores > threshold
         return mask
 
-    def _compute_saliency_scores(self, weights):
+    def _compute_saliency_scores(self, weights, model, loss_fn, dataset):
         """Compute saliency scores using gradients."""
         # For now, use weight magnitude as approximation
         # TODO: Implement actual gradient computation with GradientTape
@@ -376,29 +384,36 @@ class TaylorPruning(PruningMethod):
     Estimates weight importance using second-order Taylor expansion.
     """
 
-    def __init__(self, model, loss_fn, input_data, target_data):
-        """Initialize Taylor pruning.
+    def __init__(self):
+        """Initialize Taylor pruning."""
+        pass
 
-        Args:
-            model: Keras model to analyze.
-            loss_fn: Loss function for gradient computation.
-            input_data: Sample input data batch.
-            target_data: Sample target data batch.
-        """
-        self.model = model
-        self.loss_fn = loss_fn
-        self.input_data = input_data
-        self.target_data = target_data
-
-    def compute_mask(self, weights, sparsity_ratio):
+    def compute_mask(self, weights, sparsity_ratio, **kwargs):
         """Compute Taylor expansion based mask."""
         if sparsity_ratio <= 0:
             return ops.ones_like(weights, dtype="bool")
         if sparsity_ratio >= 1:
             return ops.zeros_like(weights, dtype="bool")
 
+        # Get model and data from kwargs (passed by core.py)
+        model = kwargs.get('model')
+        loss_fn = kwargs.get('loss_fn')
+        dataset = kwargs.get('dataset')
+        
+        if model is None or dataset is None:
+            # Fall back to magnitude pruning if data not available
+            flat_weights = ops.reshape(ops.abs(weights), [-1])
+            total_size = int(backend.convert_to_numpy(ops.size(flat_weights)))
+            k = int(sparsity_ratio * total_size)
+            if k == 0:
+                return ops.ones_like(weights, dtype="bool")
+            sorted_weights = ops.sort(flat_weights)
+            threshold = sorted_weights[k]
+            mask = ops.abs(weights) > threshold
+            return mask
+
         # Compute Taylor scores
-        taylor_scores = self._compute_taylor_scores(weights)
+        taylor_scores = self._compute_taylor_scores(weights, model, loss_fn, dataset)
 
         flat_scores = ops.reshape(taylor_scores, [-1])
         total_size = int(backend.convert_to_numpy(ops.size(flat_scores)))
@@ -412,7 +427,7 @@ class TaylorPruning(PruningMethod):
         mask = taylor_scores > threshold
         return mask
 
-    def _compute_taylor_scores(self, weights):
+    def _compute_taylor_scores(self, weights, model, loss_fn, dataset):
         """Compute second-order Taylor expansion scores."""
         # For now, use weight magnitude as approximation
         # TODO: Implement actual second-order Taylor computation
