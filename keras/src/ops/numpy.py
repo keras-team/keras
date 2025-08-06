@@ -3654,8 +3654,9 @@ def isin(x1, x2, assume_unique=False, invert=False):
             If True, assumes both `x1` and `x2` contain only unique elements.
             This can speed up the computation. If False, duplicates will be
             handled correctly but may impact performance.
-        invert: Boolean (default: False).
-            If True, the result is the logical negation of the membership test,
+        invert: A boolean (default: False).
+            If True, inverts the result. Entries will be `True`
+            where `x1` elements are not in `x2`.
 
     Returns:
         A boolean tensor of the same shape as `x1` indicating element-wise
