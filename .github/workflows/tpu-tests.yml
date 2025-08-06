@@ -37,7 +37,7 @@ jobs:
           registry: ghcr.io
           # GITHUB_TOKEN is automatically created by Actions and has permissions to push to your repo's package registry.
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
