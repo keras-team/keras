@@ -1,4 +1,4 @@
-import logging
+from absl import logging
 
 from .gptqutils import quantize_model
 

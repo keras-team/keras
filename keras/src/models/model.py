@@ -434,14 +434,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
         if mode == "gptq":
-            try:
-                from keras.src.quantizers.gptqconfig import GPTQConfig
-            except ImportError:
-                raise ImportError(
-                    "To use 'gptq' mode, please ensure the necessary "
-                    "quantization modules are correctly placed in"
-                    "keras/src/quantizers."
-                )
+            from keras.src.quantizers.gptqconfig import GPTQConfig
 
             config = kwargs.get("quant_config")
             if not isinstance(config, GPTQConfig):

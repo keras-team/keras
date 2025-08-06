@@ -1,4 +1,3 @@
-import logging
 import os
 import pickle
 from collections import namedtuple
@@ -18,9 +17,6 @@ from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
 from keras.src.quantizers.gptqconfig import GPTQConfig
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 
 
 def _get_model():
@@ -1295,81 +1291,67 @@ def _get_model_with_dense_attention():
     return model
 
 
-def _run_gptq_test_on_dataset(test_case, dataset):
-    """Helper function to run a full GPTQ quantization
-    test on a given dataset."""
-    model = _get_model_with_dense_attention()
+@pytest.mark.requires_trainable_backend
+class ModelQuantizationTest(testing.TestCase):
+    def _run_gptq_test_on_dataset(self, dataset):
+        """Helper function to run a full GPTQ quantization
+        test on a given dataset."""
 
-    # --- 1. Common Setup ---
-    NUM_SAMPLES = 16
-    SEQUENCE_LENGTH = 128
-    VOCAB_SIZE = 1000
-    W_BITS = 4
-    GROUP_SIZE = 32
+        model = _get_model_with_dense_attention()
 
-    mock_tokenizer = lambda text: np.array([ord(c) % VOCAB_SIZE for c in text])
-    mock_tokenizer.tokenize = mock_tokenizer
+        # 1. Common setup
+        NUM_SAMPLES = 16
+        SEQUENCE_LENGTH = 128
+        VOCAB_SIZE = 1000
+        W_BITS = 4
+        GROUP_SIZE = 32
 
-    # --- 2. Find Target Layer and Get Original Weights ---
-    target_layer = None
-    for layer in model.layers:
-        if hasattr(layer, "ffn") and hasattr(layer.ffn, "layers"):
-            dense_layer_in_ffn = next(
-                (
-                    ffn_layer
-                    for ffn_layer in layer.ffn.layers
-                    if isinstance(ffn_layer, layers.Dense)
-                ),
-                None,
-            )
-            if dense_layer_in_ffn:
-                target_layer = dense_layer_in_ffn
-                break
+        mock_tokenizer = lambda text: np.array(
+            [ord(c) % VOCAB_SIZE for c in text]
+        )
+        mock_tokenizer.tokenize = mock_tokenizer
 
-    test_case.assertIsNotNone(
-        target_layer,
-        "Test setup failed: No Dense layer was found inside an 'ffn' block.",
-    )
-    original_weights = np.copy(target_layer.kernel.numpy())
+        # 2. Find target layer and get original weights
+        target_layer = model.layers[2].ffn.layers[0]
 
-    # --- 3. Configure and Run Quantization ---
-    gptq_config = GPTQConfig(
-        dataset=dataset,
-        tokenizer=mock_tokenizer,
-        wbits=W_BITS,
-        nsamples=NUM_SAMPLES,
-        seqlen=SEQUENCE_LENGTH,
-        groupsize=GROUP_SIZE,
-    )
-    model.quantize("gptq", quant_config=gptq_config)
+        self.assertIsNotNone(
+            target_layer,
+            "Test setup failed: No Dense layer was found inside "
+            "an 'ffn' block.",
+        )
+        original_weights = np.copy(target_layer.kernel.numpy())
 
-    # --- 4. Assertions and Verification ---
-    quantized_weights = target_layer.kernel.numpy()
+        # 3. Configure and run quantization
+        gptq_config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=mock_tokenizer,
+            wbits=W_BITS,
+            nsamples=NUM_SAMPLES,
+            seqlen=SEQUENCE_LENGTH,
+            groupsize=GROUP_SIZE,
+        )
+        model.quantize("gptq", quant_config=gptq_config)
 
-    # Assert that the weights have been changed
-    test_case.assertFalse(
-        np.allclose(original_weights, quantized_weights),
-        f"Weights were not changed by the GPTQ process for dataset: {dataset}",
-    )
+        #  4. Assertions and verification
+        quantized_weights = target_layer.kernel.numpy()
 
-    # Verify the quantized model can still make a prediction
-    try:
+        # Assert that the weights have been changed
+        self.assertFalse(
+            np.allclose(original_weights, quantized_weights),
+            "Weights were not changed by the GPTQ process for "
+            "dataset: {dataset}",
+        )
+
+        # Verify the quantized model can still make a prediction
         dummy_input = np.random.randint(
             0, VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
         )
         _ = model.predict(dummy_input)
-    except Exception as e:
-        test_case.fail(
-            "Prediction failed for the quantized model with dataset: "
-            f"{dataset}. Error: {e}"
-        )
 
+    def test_quantize_gptq_on_different_datasets(self):
+        """Tests GPTQ with various dataset types (string list, generator)."""
 
-@pytest.mark.requires_trainable_backend
-class ModelQuantizationTest(testing.TestCase):
-    def test_quantize_gptq_with_dense_attention(self):
-        """Tests GPTQ with an in-memory list of strings as the dataset."""
-
+        # Define the datasets to be tested
         long_text = """auto-gptq is an easy-to-use model quantization library
         with user-friendly apis, based on GPTQ algorithm. The goal is to
         quantize pre-trained models to 4-bit or even 3-bit precision with
@@ -1382,12 +1364,16 @@ class ModelQuantizationTest(testing.TestCase):
         models in resource-constrained environments where every bit of memory
         and every millisecond of latency counts."""
 
-        string_dataset = [long_text]
-        _run_gptq_test_on_dataset(self, string_dataset)
+        datasets_to_test = {
+            "string_dataset": [long_text],
+            "generator_dataset": dummy_dataset_generator(
+                nsamples=16, seqlen=128, vocab_size=1000
+            ),
+        }
 
-    def test_quantize_gptq_with_data_gen(self):
-        """Tests GPTQ with a Python generator as the dataset."""
-        generator_dataset = dummy_dataset_generator(
-            nsamples=16, seqlen=128, vocab_size=1000
-        )
-        _run_gptq_test_on_dataset(self, generator_dataset)
+        # Loop through the datasets and run each as a sub-test
+        for dataset_name, dataset in datasets_to_test.items():
+            # 'with self.subTest(...)' ensures that failures are reported
+            # for each specific dataset without stopping the whole test.
+            with self.subTest(dataset_type=dataset_name):
+                self._run_gptq_test_on_dataset(dataset)
