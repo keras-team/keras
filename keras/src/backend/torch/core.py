@@ -62,7 +62,7 @@ def device_scope(device_name):
     current_device = _parse_device_input(device_name)
     global_state.set_global_attribute("torch_device", current_device)
     try:
-        yield
+        yield torch.device(current_device)
     finally:
         global_state.set_global_attribute("torch_device", previous_device)
 
