@@ -387,7 +387,20 @@ class SaliencyPruning(PruningMethod):
         else:
             raise ValueError("Dataset must be a tuple (x_data, y_data) for saliency computation.")
         
-        # Convert to tensors if needed
+        # Process data in smaller batches to avoid OOM
+        # Limit batch size to avoid GPU memory issues
+        if hasattr(x_data, 'shape') and len(x_data.shape) > 0:
+            total_samples = x_data.shape[0]
+            max_batch_size = min(32, total_samples)  # Use small batches to avoid OOM
+            
+            # Take a representative sample if dataset is very large
+            if total_samples > max_batch_size:
+                # Use random sampling for better gradient estimation
+                indices = np.random.choice(total_samples, max_batch_size, replace=False)
+                x_data = x_data[indices]
+                y_data = y_data[indices]
+        
+        # Convert to tensors after sampling
         x_data = ops.convert_to_tensor(x_data)
         y_data = ops.convert_to_tensor(y_data)
         
@@ -567,7 +580,20 @@ class TaylorPruning(PruningMethod):
         else:
             raise ValueError("Dataset must be a tuple (x_data, y_data) for Taylor computation.")
         
-        # Convert to tensors if needed
+        # Process data in smaller batches to avoid OOM
+        # Limit batch size to avoid GPU memory issues
+        if hasattr(x_data, 'shape') and len(x_data.shape) > 0:
+            total_samples = x_data.shape[0]
+            max_batch_size = min(32, total_samples)  # Use small batches to avoid OOM
+            
+            # Take a representative sample if dataset is very large
+            if total_samples > max_batch_size:
+                # Use random sampling for better gradient estimation
+                indices = np.random.choice(total_samples, max_batch_size, replace=False)
+                x_data = x_data[indices]
+                y_data = y_data[indices]
+        
+        # Convert to tensors after sampling
         x_data = ops.convert_to_tensor(x_data)
         y_data = ops.convert_to_tensor(y_data)
         
@@ -608,10 +634,17 @@ class TaylorPruning(PruningMethod):
             
             # Compute first-order gradients
             with tf.GradientTape() as tape:
-                tape.watch(target_weight_var)
+                # For Keras variables, we need to watch the underlying tensor
+                if hasattr(target_weight_var, 'value'):
+                    # Keras Variable - watch the underlying tensor
+                    watch_var = target_weight_var.value
+                else:
+                    # Already a TensorFlow tensor/variable
+                    watch_var = target_weight_var
+                tape.watch(watch_var)
                 loss = compute_loss()
             
-            gradients = tape.gradient(loss, target_weight_var)
+            gradients = tape.gradient(loss, watch_var)
             
             if gradients is None:
                 raise ValueError(f"No gradients computed for layer {target_layer.name}")
@@ -653,8 +686,14 @@ class TaylorPruning(PruningMethod):
             # Use PyTorch's autograd
             import torch
             
+            # For Keras variables, get the underlying tensor
+            if hasattr(target_weight_var, 'value'):
+                torch_var = target_weight_var.value
+            else:
+                torch_var = target_weight_var
+                
             # Set requires_grad for the target weights
-            target_weight_var.requires_grad_(True)
+            torch_var.requires_grad_(True)
             
             def compute_loss():
                 predictions = model(x_data, training=False)
@@ -666,7 +705,7 @@ class TaylorPruning(PruningMethod):
                 return ops.mean(loss) if len(ops.shape(loss)) > 0 else loss
             
             loss = compute_loss()
-            gradients = torch.autograd.grad(loss, target_weight_var, create_graph=False)[0]
+            gradients = torch.autograd.grad(loss, torch_var, create_graph=False)[0]
             
             if gradients is None:
                 raise ValueError(f"No gradients computed for layer {target_layer.name}")
