@@ -29,14 +29,6 @@ def cholesky_inverse(a):
     identity = jnp.eye(a.shape[-1], dtype=a.dtype)
     a_inv = solve_triangular(a, identity, lower=True)
     out = jnp.matmul(jnp.transpose(a_inv), a_inv)
-    try:
-        if jnp.any(jnp.isnan(out)):
-            raise ValueError(
-                "Cholesky inverse failed. The input might not be a valid "
-                "positive definite matrix."
-            )
-    except jax.errors.TracerBoolConversionError:
-        pass
     return out
 
 def det(a):
