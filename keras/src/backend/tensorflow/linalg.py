@@ -13,11 +13,10 @@ def cholesky(a):
     return tf.debugging.check_numerics(out, "Cholesky")
 
 def cholesky_inverse(a):
-    L = cholesky(a)
     identity = tf.eye(num_rows=tf.shape(a)[-1], dtype=a.dtype)
-    L_inv = solve_triangular(L, identity, lower=True)
-    a_inv = tf.matmul(L_inv, L_inv, transpose_a=True)
-    return a_inv
+    a_inv = solve_triangular(a, identity, lower=True)
+    out = tf.matmul(a_inv, a_inv, transpose_a=True)
+    return out
 
 def det(a):
     return tf.linalg.det(a)

@@ -26,10 +26,9 @@ def cholesky(a):
     return out
 
 def cholesky_inverse(a):
-    L = cholesky(a)
-    identity = jnp.eye(a.shape[0], dtype=a.dtype)
-    L_inv = solve_triangular(L, identity, lower=True)
-    out = L_inv.T @ L_inv
+    identity = jnp.eye(a.shape[-1], dtype=a.dtype)
+    a_inv = solve_triangular(a, identity, lower=True)
+    out = jnp.matmul(jnp.transpose(a_inv), a_inv)
     try:
         if jnp.any(jnp.isnan(out)):
             raise ValueError(

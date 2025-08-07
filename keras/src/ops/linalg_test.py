@@ -209,6 +209,15 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.cholesky(x)
 
+    def test_cholesky_inverse(self):
+        x = KerasTensor([4, 3, 3])
+        out = linalg.cholesky_inverse(x)
+        self.assertEqual(out.shape, (4, 3, 3))
+
+        x = KerasTensor([10, 20, 15])
+        with self.assertRaises(ValueError):
+            linalg.cholesky_inverse(x)
+
     def test_det(self):
         x = KerasTensor([4, 3, 3])
         out = linalg.det(x)
@@ -350,6 +359,16 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         x_psd = x @ x.transpose((0, 2, 1)) + 1e-5 * np.eye(3)
         out = linalg.cholesky(x_psd)
         self.assertAllClose(out, np.linalg.cholesky(x_psd), atol=1e-4)
+
+    def test_cholesky_inverse(self):
+        x_np = np.random.rand(3, 3).astype("float32")
+        x_psd_np = x_np @ x_np.T + 1e-4 * np.eye(3, dtype="float32")
+        x = linalg.cholesky(x_psd_np)
+        result_from_op = linalg.cholesky_inverse(x)
+        ground_truth_np = np.linalg.inv(x_psd_np)
+        self.assertAllClose(
+            result_from_op, ground_truth_np, atol=1e-5, rtol=1e-5
+        )
 
     def test_det(self):
         x = np.random.rand(4, 3, 3)
