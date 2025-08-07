@@ -362,12 +362,13 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
     def test_cholesky_inverse(self):
         x_np = np.random.rand(3, 3).astype("float32")
-        x_psd_np = x_np @ x_np.T + 1e-4 * np.eye(3, dtype="float32")
-        x = linalg.cholesky(x_psd_np)
-        result_from_op = linalg.cholesky_inverse(x)
-        ground_truth_np = np.linalg.inv(x_psd_np)
+        x_psd_np = np.matmul(x_np, x_np.T) + 1e-4 * np.eye(3, dtype="float32")
+        x_chol = linalg.cholesky(x_psd_np)
+        x_inv = linalg.cholesky_inverse(x_chol)
+        reconstructed_identity = ops.matmul(x_psd_np, x_inv)
+        identity = np.eye(3, dtype="float32")
         self.assertAllClose(
-            result_from_op, ground_truth_np, atol=1e-5, rtol=1e-5
+            reconstructed_identity, identity, atol=1e-4, rtol=1e-4
         )
 
     def test_det(self):

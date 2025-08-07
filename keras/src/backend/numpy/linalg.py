@@ -9,11 +9,13 @@ from keras.src.backend.numpy.core import convert_to_tensor
 def cholesky(a):
     return np.linalg.cholesky(a)
 
+
 def cholesky_inverse(a):    
     identity = np.eye(a.shape[-1], dtype=a.dtype)
     a_inv = solve_triangular(a, identity, lower=True)
     out = solve_triangular(np.transpose(a), a_inv, lower=False)
     return out
+
 
 def det(a):
     return np.linalg.det(a)
