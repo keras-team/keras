@@ -10,6 +10,8 @@ from keras.src.backend.torch.core import convert_to_tensor
 def cholesky(x):
     return torch.linalg.cholesky(x)
 
+def cholesky_inverse(x):
+    return torch.cholesky_inverse(x)
 
 def det(x):
     return torch.det(x)

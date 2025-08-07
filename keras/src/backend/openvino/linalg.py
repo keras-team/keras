@@ -3,6 +3,11 @@ def cholesky(a):
         "`cholesky` is not supported with openvino backend"
     )
 
+def cholesky_inverse(a):
+    raise NotImplementedError(
+        "`cholesky inverse` is not supported with openvino backend"
+    )
+
 
 def det(a):
     raise NotImplementedError("`det` is not supported with openvino backend")

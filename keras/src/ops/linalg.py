@@ -43,6 +43,33 @@ def _cholesky(x):
         raise ValueError(f"Cholesky decomposition failed: {e}")
 
 
+class CholeskyInverse(Operation):
+    def call(self, x):
+        return _cholesky_inverse(x)
+
+    def compute_output_spec(self, x):
+        _assert_2d(x)
+        _assert_square(x)
+        return KerasTensor(x.shape, x.dtype)
+
+
+@keras_export(["keras.ops.cholesky_inverse", "keras.ops.linalg.cholesky_inverse"])
+def cholesky_inverse(x):
+    if any_symbolic_tensors((x,)):
+        return CholeskyInverse().symbolic_call(x)
+    return _cholesky_inverse(x)
+
+
+def _cholesky_inverse(x):
+    x = backend.convert_to_tensor(x)
+    _assert_2d(x)
+    _assert_square(x)
+    try:
+        return backend.linalg.cholesky_inverse(x)
+    except Exception as e:
+        raise ValueError(f"Cholesky inverse failed: {e}")
+
+
 class Det(Operation):
     def call(self, x):
         return _det(x)

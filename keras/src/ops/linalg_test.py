@@ -23,6 +23,19 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.cholesky(x)
 
+    def test_cholesky_inverse(self):
+        x = KerasTensor([None, 20, 20])
+        out = linalg.cholesky_inverse(x)
+        self.assertEqual(out.shape, (None, 20, 20))
+
+        x = KerasTensor([None, None, 20])
+        with self.assertRaises(ValueError):
+            linalg.cholesky_inverse(x)
+
+        x = KerasTensor([None, 20, 15])
+        with self.assertRaises(ValueError):
+            linalg.cholesky_inverse(x)
+
     def test_det(self):
         x = KerasTensor([None, 20, 20])
         out = linalg.det(x)

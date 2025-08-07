@@ -12,6 +12,12 @@ def cholesky(a):
     # tf.linalg.cholesky simply returns NaNs for non-positive definite matrices
     return tf.debugging.check_numerics(out, "Cholesky")
 
+def cholesky_inverse(a):
+    L = cholesky(a)
+    identity = tf.eye(num_rows=tf.shape(a)[-1], dtype=a.dtype)
+    L_inv = solve_triangular(L, identity, lower=True)
+    a_inv = tf.matmul(L_inv, L_inv, transpose_a=True)
+    return a_inv
 
 def det(a):
     return tf.linalg.det(a)
