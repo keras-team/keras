@@ -17,7 +17,7 @@ def quantize(x, scale, zero, maxq):
     return scale * (q - zero)
 
 
-class Quantizer:
+class GPTQQuant:
     """
     This version contains the definitive fix for the per-tensor shape mismatch,
     as identified by the unit test. It now correctly tiles the per-tensor
