@@ -13,7 +13,7 @@ from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 
 from .gptq import GPTQ
-from .quant import GPTQQuant
+from .gptqquant import GPTQQuant
 
 
 def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
