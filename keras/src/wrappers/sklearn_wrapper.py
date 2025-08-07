@@ -278,6 +278,14 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
     ```
     """
 
+    def predict_proba(self, X):
+        """Predict class probabilities of the input samples X."""
+        from sklearn.utils.validation import check_is_fitted
+
+        check_is_fitted(self)
+        X = _validate_data(self, X, reset=False)
+        return self.model_.predict(X)
+
     def _process_target(self, y, reset=False):
         """Classifiers do OHE."""
         target_type = type_of_target(y, raise_unknown=True)
