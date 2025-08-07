@@ -2,7 +2,7 @@ from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 
-from .quant import quantize
+from .gptqquant import quantize
 
 
 class GPTQ:
