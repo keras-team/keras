@@ -4,9 +4,9 @@ def cholesky(a):
     )
 
 def cholesky_inverse(a):
-    raise NotImplementedError(
-        "`cholesky inverse` is not supported with openvino backend"
-    )
+raise NotImplementedError(
+    "`Cholesky inverse` is not supported with the OpenVINO backend"
+)
 
 
 def det(a):
