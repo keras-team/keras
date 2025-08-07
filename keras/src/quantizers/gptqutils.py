@@ -23,7 +23,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
     all_tokens = []
     rng = np.random.default_rng(seed=42)
 
-    # --- Step 1: Unify all input types into a single list of tokens ---
+    # Unify all input types into a single list of tokens
     if isinstance(dataset, str):
         logging.info(f"Loading '{dataset}' dataset from Hub...")
         if dataset == "wikitext2":
@@ -31,18 +31,18 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
         elif dataset == "ptb":
             url = "https://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz"
             try:
-                # 1. Download the archive into memory
+                # Download the archive into memory
                 response = requests.get(url)
                 response.raise_for_status()
 
-                # 2. Extract only the test file from the in-memory archive
+                # Extract only the test file from the in-memory archive
                 with tarfile.open(
                     fileobj=io.BytesIO(response.content), mode="r:gz"
                 ) as tar:
                     train_path = "./simple-examples/data/ptb.train.txt"
                     test_bytes = tar.extractfile(train_path).read()
 
-                # 3. Decode the bytes and join into a single string
+                # Decode the bytes and join into a single string
                 test_lines = test_bytes.decode("utf-8").strip().split("\n")
                 full_text = "\n\n".join(test_lines)
                 all_tokens = tokenizer.tokenize(full_text)
@@ -51,7 +51,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
                     "calibration."
                 )
 
-                # 2. Perform sampling and chunking directly inside this block
+                # Perform sampling and chunking directly inside this block
                 all_tokens = np.array(all_tokens, dtype=np.int32)
                 required_tokens = nsamples * seqlen
                 if len(all_tokens) < required_tokens:
@@ -73,7 +73,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
 
                 final_array = ops.stack(calibration_samples, axis=0)
 
-                # 3. Return the correctly shaped array, isolating the logic
+                # Return the correctly shaped array, isolating the logic
                 return ops.convert_to_numpy(final_array)
 
             except Exception as e:
@@ -115,7 +115,6 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
 
             return np.array(samples, dtype=np.int32)
         else:
-            logging.info(f"Warning: No specific alias found for '{dataset}'.")
             logging.info(
                 f"Attempting to load '{dataset}' directly with its "
                 "default configuration."
@@ -132,7 +131,7 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
         all_tokens = tokenizer.tokenize(full_text)
 
     else:
-        logging.info("\n==> Using pre-made dataset/generator...")
+        logging.info("Using pre-made dataset/generator")
         dataset_list = list(dataset)
 
         if not dataset_list:
@@ -160,9 +159,6 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
         )
         repeats = -(-required_tokens // len(all_tokens))  # Ceiling division
         all_tokens = np.tile(all_tokens, repeats)
-
-    # --- Step 3: Chunk the token list into samples ---
-    # utils.set_random_seed(seed)
 
     calibration_samples = []
     for _ in range(nsamples):
@@ -260,7 +256,7 @@ def apply_gptq_layerwise(
     embedding_layer = None
     transformer_blocks = []
     if hasattr(model, "backbone"):
-        logging.info("   -> Detected KerasNLP model structure.")
+        logging.info("Detected KerasNLP model structure.")
         backbone = model.backbone
         transformer_blocks = backbone.transformer_layers
         # Find the embedding layer by checking for common names or by type.
@@ -311,7 +307,7 @@ def apply_gptq_layerwise(
                 "Skipping."
             )
         else:
-            logging.info(f"  Found layers: {list(sub_layers_map.keys())}")
+            logging.info(f"Found layers: {list(sub_layers_map.keys())}")
             gptq_objects = {
                 name: GPTQ(layer) for name, layer in sub_layers_map.items()
             }
@@ -397,7 +393,7 @@ def quantize_model(model, config):
     """
     logging.info("Starting GPTQ quantization process...")
 
-    # 1. Load ALL data needed from the generator/source in a single call.
+    # Load ALL data needed from the generator/source in a single call.
     total_samples_to_request = config.nsamples
     full_dataloader = get_dataloader(
         config.tokenizer,
@@ -406,7 +402,7 @@ def quantize_model(model, config):
         nsamples=total_samples_to_request,
     )
 
-    # 2. Split the materialized data. This works because full_dataloader
+    # Split the materialized data. This works because full_dataloader
     # is now a NumPy array, which can be sliced and reused.
     calibration_dataloader = full_dataloader[: config.nsamples]
 
