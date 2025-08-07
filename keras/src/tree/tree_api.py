@@ -179,7 +179,9 @@ def map_structure(func, *structures, none_is_leaf=True):
     Args:
         func: A callable that accepts as many arguments as there are structures.
         *structures: Arbitrarily nested structures of the same layout.
-        none_is_leaf: If True, None is treated as a leaf.
+        none_is_leaf: If True, `func` will be called on `None` leaves. If False,
+            `None` values are not passed to `func` and are returned in the
+            output directly.
 
     Returns:
         A new structure with the same layout as the given ones.
