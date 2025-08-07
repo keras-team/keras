@@ -949,6 +949,12 @@ def isneginf(x):
     )
 
 
+def isposinf(x):
+    raise NotImplementedError(
+        "`isposinf` is not supported with openvino backend"
+    )
+
+
 def less(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
