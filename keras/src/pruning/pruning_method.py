@@ -404,111 +404,74 @@ class SaliencyPruning(PruningMethod):
         x_data = ops.convert_to_tensor(x_data)
         y_data = ops.convert_to_tensor(y_data)
         
-        # Find which layer this weight tensor belongs to by comparing shapes and values
-        target_layer = None
-        target_weight_var = None
+        # Use backend-specific gradient computation for efficiency and accuracy
+        from keras.src import backend as keras_backend
+        backend_name = keras_backend.backend()
         
-        for layer in model.layers:
-            if hasattr(layer, 'kernel') and layer.kernel is not None:
-                # Check if this is the matching weight tensor by shape
-                if ops.shape(layer.kernel) == ops.shape(weights):
-                    # Additional check: see if values are close (in case of multiple layers with same shape)
-                    weight_diff = ops.mean(ops.abs(layer.kernel - weights))
-                    if backend.convert_to_numpy(weight_diff) < 1e-6:  # Very close values
-                        target_layer = layer
-                        target_weight_var = layer.kernel
-                        break
-        
-        if target_layer is None or target_weight_var is None:
-            raise ValueError(f"Could not find layer corresponding to weight tensor with shape {ops.shape(weights)}")
-        
-        # Use a simple numerical approximation for gradient computation
-        # This is backend-agnostic and works with any Keras backend
-        
-        # Small perturbation for numerical differentiation
-        epsilon = 1e-7
-        
-        # Forward pass to get baseline loss
-        def compute_loss_with_weights(layer_weights):
-            old_weights = target_layer.kernel
-            target_layer.kernel.assign(layer_weights)
+        if backend_name == "tensorflow":
+            # Use TensorFlow's GradientTape for automatic differentiation
+            import tensorflow as tf
             
-            predictions = model(x_data, training=False)
+            # Find all trainable weights to compute gradients for all at once
+            trainable_weights = [layer.kernel for layer in model.layers if hasattr(layer, 'kernel') and layer.kernel is not None]
             
-            if callable(loss_fn):
-                loss = loss_fn(y_data, predictions)
-            else:
-                loss_obj = keras.losses.get(loss_fn)
-                loss = loss_obj(y_data, predictions)
+            def compute_loss():
+                predictions = model(x_data, training=False)
+                if callable(loss_fn):
+                    loss = loss_fn(y_data, predictions)
+                else:
+                    loss_obj = keras.losses.get(loss_fn)
+                    loss = loss_obj(y_data, predictions)
+                return ops.mean(loss) if len(ops.shape(loss)) > 0 else loss
             
-            # Reduce loss to scalar if needed
-            if len(ops.shape(loss)) > 0:
-                loss = ops.mean(loss)
+            # Compute gradients for all weights at once (much more efficient)
+            with tf.GradientTape() as tape:
+                # Watch all trainable weights
+                watch_vars = []
+                for weight in trainable_weights:
+                    if hasattr(weight, 'value'):
+                        watch_vars.append(weight.value)
+                        tape.watch(weight.value)
+                    else:
+                        watch_vars.append(weight)
+                        tape.watch(weight)
                 
-            target_layer.kernel.assign(old_weights)
-            return loss
-        
-        # Get baseline loss
-        baseline_loss = compute_loss_with_weights(weights)
-        
-        # Compute numerical gradients
-        gradients = ops.zeros_like(weights)
-        flat_weights = ops.reshape(weights, [-1])
-        flat_gradients = ops.reshape(gradients, [-1])
-        
-        # For computational efficiency, we'll approximate the gradient using the saliency formula
-        # Instead of computing the full numerical gradient, we'll use a more efficient approach
-        
-        # Create perturbed versions of weights by setting each weight to zero
-        # and measuring the change in loss (this directly gives us saliency)
-        saliency_scores = ops.zeros_like(weights)
-        flat_saliency = ops.reshape(saliency_scores, [-1])
-        flat_weights_np = backend.convert_to_numpy(flat_weights)
-        
-        # Compute saliency for a sample of weights (for efficiency)
-        # For very large networks, we sample; for small networks, we compute all
-        total_weights = len(flat_weights_np)
-        sample_size = min(1000, total_weights)  # Sample at most 1000 weights
-        
-        if sample_size < total_weights:
-            # Sample random indices
-            indices = np.random.choice(total_weights, sample_size, replace=False)
+                loss = compute_loss()
+            
+            # Get gradients for all weights
+            all_gradients = tape.gradient(loss, watch_vars)
+            
+            # Find the gradient for our specific weight tensor
+            target_gradients = None
+            for i, weight in enumerate(trainable_weights):
+                if ops.shape(weight) == ops.shape(weights):
+                    # Check if values are close
+                    weight_diff = ops.mean(ops.abs(weight - weights))
+                    if backend.convert_to_numpy(weight_diff) < 1e-6:
+                        target_gradients = all_gradients[i]
+                        break
+                        
+            if target_gradients is None:
+                raise ValueError(f"Could not find gradients for weight tensor with shape {ops.shape(weights)}")
+                
+            gradients = target_gradients
+                
+        elif backend_name == "jax":
+            raise ValueError("SaliencyPruning with JAX backend is not yet implemented. "
+                           "Use TensorFlow backend or magnitude-based pruning methods like L1Pruning.")
+            
+        elif backend_name == "torch":
+            raise ValueError("SaliencyPruning with PyTorch backend is not yet implemented. "
+                           "Use TensorFlow backend or magnitude-based pruning methods like L1Pruning.")
+                
         else:
-            indices = np.arange(total_weights)
+            # No fallback - saliency pruning requires proper gradient computation
+            raise ValueError(f"SaliencyPruning is not supported for backend '{backend_name}'. "
+                           f"Currently only TensorFlow backend is supported. "
+                           f"Use L1Pruning or other magnitude-based methods instead.")
         
-        # For sampled weights, compute actual saliency
-        saliency_values = []
-        for i in indices:
-            # Create perturbed weights with one weight set to zero
-            perturbed_flat = ops.copy(flat_weights)
-            # Set weight to zero
-            mask = ops.ones_like(flat_weights)
-            mask = ops.slice_update(mask, [i], [0.0])
-            perturbed_flat = perturbed_flat * mask
-            
-            perturbed_weights = ops.reshape(perturbed_flat, ops.shape(weights))
-            
-            # Compute loss with perturbed weights
-            perturbed_loss = compute_loss_with_weights(perturbed_weights)
-            
-            # Saliency is the change in loss
-            saliency = ops.abs(perturbed_loss - baseline_loss)
-            saliency_values.append(backend.convert_to_numpy(saliency))
-        
-        # For efficiency, approximate saliency for non-sampled weights using weight magnitude
-        # This is a reasonable approximation since larger weights tend to have higher saliency
-        weight_magnitudes = ops.abs(flat_weights)
-        
-        # Create full saliency array
-        flat_saliency_np = backend.convert_to_numpy(weight_magnitudes)
-        
-        # Replace sampled positions with actual computed saliencies
-        for idx, i in enumerate(indices):
-            flat_saliency_np[i] = saliency_values[idx]
-        
-        # Convert back to tensor and reshape
-        saliency_scores = ops.convert_to_tensor(flat_saliency_np, dtype=weights.dtype)
-        saliency_scores = ops.reshape(saliency_scores, ops.shape(weights))
+        # Compute saliency scores: |gradient * weight|
+        saliency_scores = ops.abs(gradients * weights)
         
         return saliency_scores
 
