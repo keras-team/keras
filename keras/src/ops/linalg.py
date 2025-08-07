@@ -53,8 +53,23 @@ class CholeskyInverse(Operation):
         return KerasTensor(x.shape, x.dtype)
 
 
-@keras_export(["keras.ops.cholesky_inverse", "keras.ops.linalg.cholesky_inverse"])
 def cholesky_inverse(x):
+    """Computes the inverse of a symmetric positive-definite matrix using the
+    Cholesky decomposition.
+
+    This function is more efficient and numerically stable than `keras.ops.inv`
+    for symmetric positive-definite matrices.
+
+    Args:
+        x: Input tensor of shape `(..., M, M)`. The matrix must be symmetric and
+            positive-definite.
+
+    Returns:
+        A tensor of shape `(..., M, M)` representing the inverse of `x`.
+
+    Raises:
+        ValueError: If `x` is not a symmetric positive-definite matrix.
+    """
     if any_symbolic_tensors((x,)):
         return CholeskyInverse().symbolic_call(x)
     return _cholesky_inverse(x)
