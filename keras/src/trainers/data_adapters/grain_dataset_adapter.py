@@ -135,6 +135,8 @@ class GrainDatasetAdapter(DataAdapter):
 
     def get_tf_dataset(self):
         def convert_to_tf(x):
+            if x is None:
+                return tf.experimental.Optional.empty(None)
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_tf_sparse(x)
             elif data_adapter_utils.is_jax_sparse(x):
@@ -143,7 +145,7 @@ class GrainDatasetAdapter(DataAdapter):
 
         class ConvertToTF(grain.transforms.Map):
             def map(self, x):
-                return tree.map_structure(convert_to_tf, x, none_is_leaf=False)
+                return tree.map_structure(convert_to_tf, x)
 
         # `tf.data.Dataset.from_generator` does not support lists as output.
         # We convert lists to tuples.
