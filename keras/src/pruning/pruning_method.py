@@ -612,9 +612,15 @@ class TaylorPruning(PruningMethod):
             if gradients is None:
                 raise ValueError(f"No gradients computed for layer {target_layer.name}")
             
-            # For second-order term, we approximate Hessian diagonal
-            # Using the common approximation: H_ii ≈ (∂L/∂w_i)² / |w_i|
-            hessian_diag_approx = ops.square(gradients) / (ops.abs(weights) + 1e-8)
+            # For second-order term, we need proper Hessian diagonal computation
+            # This is computationally expensive, so we use a simpler first-order approximation
+            # In practice, most Taylor pruning methods fall back to first-order due to Hessian cost
+            # We'll use the Optimal Brain Damage (OBD) approximation: assume Hessian is identity-scaled
+            # This gives us: ∂²L/∂w² ≈ constant (typically estimated from gradients)
+            
+            # Simple approximation: use gradient magnitude as proxy for curvature
+            # This is a common heuristic in pruning literature when full Hessian is too expensive
+            hessian_diag_approx = ops.abs(gradients) + 1e-8
             
         elif backend_name == "jax":
             # Use JAX's automatic differentiation
@@ -642,8 +648,9 @@ class TaylorPruning(PruningMethod):
             grad_fn = jax.grad(compute_loss_fn)
             gradients = grad_fn(weights)
             
-            # Approximate Hessian diagonal
-            hessian_diag_approx = ops.square(gradients) / (ops.abs(weights) + 1e-8)
+            # Approximate Hessian diagonal using gradient magnitude
+            # This is a simplified approximation when full second-order computation is too expensive
+            hessian_diag_approx = ops.abs(gradients) + 1e-8
             
         elif backend_name == "torch":
             # Use PyTorch's autograd
@@ -673,8 +680,9 @@ class TaylorPruning(PruningMethod):
             if gradients is None:
                 raise ValueError(f"No gradients computed for layer {target_layer.name}")
             
-            # Approximate Hessian diagonal
-            hessian_diag_approx = ops.square(gradients) / (ops.abs(weights) + 1e-8)
+            # Approximate Hessian diagonal using gradient magnitude
+            # This is a simplified approximation when full second-order computation is too expensive
+            hessian_diag_approx = ops.abs(gradients) + 1e-8
             
         else:
             # Fallback: Use numerical differentiation (slower but backend-agnostic)
@@ -729,11 +737,15 @@ class TaylorPruning(PruningMethod):
                     flat_gradients_np[i] = backend.convert_to_numpy(ops.abs(flat_weights[i]))
             
             gradients = ops.convert_to_tensor(flat_gradients_np.reshape(backend.convert_to_numpy(ops.shape(weights))), dtype=weights.dtype)
-            hessian_diag_approx = ops.square(gradients) / (ops.abs(weights) + 1e-8)
+            # For numerical fallback, use simple gradient-based approximation
+            hessian_diag_approx = ops.abs(gradients) + 1e-8
         
         # Compute Taylor expansion terms
+        # Note: This is a simplified Taylor approximation since computing true Hessian diagonal
+        # is computationally expensive. The second-order term uses gradient magnitude as a proxy
+        # for curvature, which is a common heuristic in pruning literature.
         first_order_term = ops.abs(gradients * weights)  # |∂L/∂w * w|
-        second_order_term = 0.5 * ops.abs(hessian_diag_approx * ops.square(weights))  # (1/2) * |∂²L/∂w² * w²|
+        second_order_term = 0.5 * ops.abs(hessian_diag_approx * ops.square(weights))  # Approximated second-order term
         
         taylor_scores = first_order_term + second_order_term
         
