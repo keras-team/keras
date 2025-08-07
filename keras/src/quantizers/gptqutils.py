@@ -11,9 +11,8 @@ from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
-
-from .gptq import GPTQ
-from .gptqquant import GPTQQuant
+from keras.src.quantizers.gptq import GPTQ
+from keras.src.quantizers.gptqquant import GPTQQuant
 
 
 def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):

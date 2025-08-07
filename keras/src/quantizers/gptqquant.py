@@ -1,7 +1,7 @@
 from keras.src import ops
 
 
-def quantize(x, scale, zero, maxq):
+def dequantize(x, scale, zero, maxq):
     """The core quantization function with correct broadcasting."""
     # Ensure scale is broadcastable with the input tensor x
     if scale.shape != x.shape:
@@ -12,9 +12,12 @@ def quantize(x, scale, zero, maxq):
         zero = ops.broadcast_to(zero, x.shape)
 
     scale = ops.where(ops.equal(scale, 0), 1e-8, scale)
-    q = ops.round(x / scale) + zero
+    quantized_x = ops.divide(x, scale)
+    quantized_x = ops.round(quantized_x)
+    q = ops.add(quantized_x, zero)
     q = ops.clip(q, 0, maxq)
-    return scale * (q - zero)
+    dequantized_x = ops.subtract(q, zero)
+    return ops.multiply(scale, dequantized_x)
 
 
 class GPTQQuant:
