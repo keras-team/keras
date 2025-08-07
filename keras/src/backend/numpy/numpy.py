@@ -701,6 +701,11 @@ def isneginf(x):
     return np.isneginf(x)
 
 
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return np.isposinf(x)
+
+
 def less(x1, x2):
     return np.less(x1, x2)
 

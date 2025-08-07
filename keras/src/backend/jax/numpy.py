@@ -792,6 +792,11 @@ def isneginf(x):
     return jnp.isneginf(x)
 
 
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return jnp.isposinf(x)
+
+
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

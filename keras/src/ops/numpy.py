@@ -3723,6 +3723,29 @@ def isneginf(x):
     return backend.numpy.isneginf(x)
 
 
+class Isposinf(Operation):
+    def call(self, x):
+        return backend.numpy.isposinf(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isposinf", "keras.ops.numpy.isposinf"])
+def isposinf(x):
+    """Test element-wise for positive infinity.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return Isposinf().symbolic_call(x)
+    return backend.numpy.isposinf(x)
+
+
 class Less(Operation):
     def call(self, x1, x2):
         return backend.numpy.less(x1, x2)
