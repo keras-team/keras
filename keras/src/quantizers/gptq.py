@@ -1,8 +1,7 @@
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-
-from .gptqquant import quantize
+from keras.src.quantizers.gptqquant import dequantize
 
 
 class GPTQ:
@@ -201,7 +200,7 @@ class GPTQ:
                     )
 
                 # Quantize the current weight column
-                q = quantize(
+                q = dequantize(
                     ops.expand_dims(w, 1),
                     self.quantizer.scale,
                     self.quantizer.zero,

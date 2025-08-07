@@ -1,8 +1,10 @@
 from absl import logging
 
-from .gptqutils import quantize_model
+from keras.src.api_export import keras_export
+from keras.src.quantizers.gptqutils import quantize_model
 
 
+@keras_export(["keras.GPTQConfig", "keras.quantizers.GPTQConfig"])
 class GPTQConfig:
     """
     Configuration class for the GPTQ (Generative Pre-trained Transformer
