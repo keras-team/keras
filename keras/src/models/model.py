@@ -460,27 +460,55 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.test_function = None
             self.predict_function = None
 
-    def prune(self, config=None, **kwargs):
-        """Prune the model weights according to the specified configuration.
+    def prune(self, sparsity=0.5, method="l1", layers_to_prune=None, dataset=None, 
+              loss_fn=None, config=None, **kwargs):
+        """Prune the model weights according to the specified parameters.
 
         Args:
-            config: PruningConfig instance, or None to use defaults.
-            **kwargs: Configuration parameters if config is None.
+            sparsity: Float between 0 and 1. Fraction of weights to prune.
+            method: Pruning method - string name or PruningMethod instance.
+                Options: "l1", "l2", "structured", "saliency", "taylor", etc.
+            layers_to_prune: Optional specification of which layers to prune. Can be:
+                - None: Prune all eligible layers (default)
+                - List of layer names: Only prune layers with names in the list
+                - List of regex patterns: Prune layers whose names match any pattern
+                - Single string: Treated as a layer name or regex pattern
+            dataset: Dataset for gradient-based methods (tuple of (x, y)).
+            loss_fn: Loss function for gradient-based methods.
+            config: DEPRECATED. Use direct parameters instead.
+            **kwargs: Additional arguments passed to pruning methods.
 
         Returns:
             Dictionary with pruning statistics.
 
-        Example:
+        Examples:
             ```python
-            # Using PruningConfig
-            config = keras.pruning.PruningConfig(sparsity=0.5, method="magnitude")
-            stats = model.prune(config)
-
-            # Using keyword arguments
-            stats = model.prune(sparsity=0.7, method="structured")
+            # Basic L1 pruning on all layers
+            stats = model.prune(sparsity=0.5, method="l1")
+            
+            # Structured pruning on specific layers
+            stats = model.prune(
+                sparsity=0.3, 
+                method="structured", 
+                layers_to_prune=["dense_1", "dense_2"]
+            )
+            
+            # Saliency pruning with dataset
+            stats = model.prune(
+                sparsity=0.4,
+                method="saliency",
+                dataset=(x_sample, y_sample),
+                loss_fn="mse"
+            )
+            
+            # Prune layers matching regex pattern
+            stats = model.prune(
+                sparsity=0.6,
+                method="l1",
+                layers_to_prune=["conv.*", "dense_[0-9]"]  # Regex patterns
+            )
             ```
         """
-        from keras.src.pruning.config import PruningConfig
         from keras.src.pruning.core import apply_pruning_to_model
 
         if not self.built:
@@ -490,14 +518,34 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 "calling the model on some data."
             )
 
-        # Create config from kwargs if not provided
-        if config is None:
-            config = PruningConfig(**kwargs)
-        elif kwargs:
-            raise ValueError("Cannot specify both config and keyword arguments")
-
-        # Apply pruning
-        stats = apply_pruning_to_model(self, config)
+        # Handle legacy config parameter
+        if config is not None:
+            import warnings
+            warnings.warn(
+                "The 'config' parameter is deprecated. Use direct parameters instead: "
+                "model.prune(sparsity=0.5, method='l1', layers_to_prune=None, ...)",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            from keras.src.pruning.config import PruningConfig
+            from keras.src.pruning.core import apply_pruning_to_model_with_config
+            
+            if not isinstance(config, PruningConfig):
+                raise ValueError("config must be a PruningConfig instance")
+            
+            # Use legacy function for backwards compatibility
+            stats = apply_pruning_to_model_with_config(self, config)
+        else:
+            # Use new direct parameter approach
+            stats = apply_pruning_to_model(
+                model=self,
+                sparsity=sparsity,
+                method=method,
+                layers_to_prune=layers_to_prune,
+                dataset=dataset,
+                loss_fn=loss_fn,
+                **kwargs
+            )
 
         # Clear compiled functions to ensure they get rebuilt with pruned weights
         self.train_function = None
