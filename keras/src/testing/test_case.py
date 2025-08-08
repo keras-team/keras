@@ -525,7 +525,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 )
 
                 # Ensure that the subclass layer doesn't mark itself as built
-                # when `build` is overriden.
+                # when `build` is overridden.
 
                 class ModifiedBuildLayer(layer_cls):
                     def build(self, *args, **kwargs):

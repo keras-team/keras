@@ -230,6 +230,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.isclose(x, y).shape, (2, 3))
 
+    def test_isin(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.isin(x, y).shape, (None, 3))
+
     def test_less(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -768,6 +773,14 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.isclose(x, y)
+
+    def test_isin(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((3, 3))
+        self.assertEqual(knp.isin(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.isin(x, 2).shape, (2, 3))
 
     def test_less(self):
         x = KerasTensor((2, 3))
@@ -1499,6 +1512,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.isnan(x).shape, (None, 3))
 
+    def test_isneginf(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.isneginf(x).shape, (None, 3))
+
     def test_log(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.log(x).shape, (None, 3))
@@ -2091,6 +2108,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_isnan(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.isnan(x).shape, (2, 3))
+
+    def test_isneginf(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.isneginf(x).shape, (2, 3))
 
     def test_log(self):
         x = KerasTensor((2, 3))
@@ -2851,6 +2872,66 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Isclose()(x, y), np.isclose(x, y))
         self.assertAllClose(knp.Isclose()(x, 2), np.isclose(x, 2))
         self.assertAllClose(knp.Isclose()(2, x), np.isclose(2, x))
+
+    def test_isin(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.isin(x, y), np.isin(x, y))
+        self.assertAllClose(knp.isin(x, 2), np.isin(x, 2))
+        self.assertAllClose(knp.isin(2, x), np.isin(2, x))
+
+        self.assertAllClose(
+            knp.isin(x, y, assume_unique=True),
+            np.isin(x, y, assume_unique=True),
+        )
+        self.assertAllClose(
+            knp.isin(x, 2, assume_unique=True),
+            np.isin(x, 2, assume_unique=True),
+        )
+        self.assertAllClose(
+            knp.isin(2, x, assume_unique=True),
+            np.isin(2, x, assume_unique=True),
+        )
+
+        self.assertAllClose(
+            knp.isin(x, y, invert=True), np.isin(x, y, invert=True)
+        )
+        self.assertAllClose(
+            knp.isin(x, 2, invert=True), np.isin(x, 2, invert=True)
+        )
+        self.assertAllClose(
+            knp.isin(2, x, invert=True), np.isin(2, x, invert=True)
+        )
+
+        self.assertAllClose(
+            knp.isin(x, y, assume_unique=True, invert=True),
+            np.isin(x, y, assume_unique=True, invert=True),
+        )
+        self.assertAllClose(
+            knp.isin(x, 2, assume_unique=True, invert=True),
+            np.isin(x, 2, assume_unique=True, invert=True),
+        )
+        self.assertAllClose(
+            knp.isin(2, x, assume_unique=True, invert=True),
+            np.isin(2, x, assume_unique=True, invert=True),
+        )
+
+        self.assertAllClose(knp.IsIn()(x, y), np.isin(x, y))
+        self.assertAllClose(knp.IsIn()(x, 2), np.isin(x, 2))
+        self.assertAllClose(knp.IsIn()(2, x), np.isin(2, x))
+
+        self.assertAllClose(
+            knp.IsIn(assume_unique=True)(x, y),
+            np.isin(x, y, assume_unique=True),
+        )
+        self.assertAllClose(
+            knp.IsIn(invert=True)(x, y),
+            np.isin(x, y, invert=True),
+        )
+        self.assertAllClose(
+            knp.IsIn(assume_unique=True, invert=True)(x, y),
+            np.isin(x, y, assume_unique=True, invert=True),
+        )
 
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4165,6 +4246,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
         self.assertAllClose(knp.isnan(x), np.isnan(x))
         self.assertAllClose(knp.Isnan()(x), np.isnan(x))
+
+    def test_isneginf(self):
+        x = np.array(
+            [[1, 2, np.inf, -np.inf], [np.nan, np.nan, np.nan, np.nan]]
+        )
+        self.assertAllClose(knp.isneginf(x), np.isneginf(x))
+        self.assertAllClose(knp.Isneginf()(x), np.isneginf(x))
 
     def test_log(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7446,6 +7534,27 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_isin(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.isin(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.isin(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.IsIn().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_isinf(self, dtype):
         import jax.numpy as jnp
@@ -7471,6 +7580,22 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.isnan(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Isnan().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_isneginf(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((), dtype=dtype)
+        x_jax = jnp.ones((), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.isneginf(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.isneginf(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Isneginf().symbolic_call(x).dtype),
             expected_dtype,
         )
 

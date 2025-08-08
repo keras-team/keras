@@ -298,7 +298,7 @@ class Functional(Function, Model):
             self._inputs_struct, dict
         ):
             # This is to avoid warning
-            # when we have reconciable dict/list structs
+            # when we have reconcilable dict/list structs
             if hasattr(self._inputs_struct, "__len__") and all(
                 isinstance(i, backend.KerasTensor) for i in self._inputs_struct
             ):

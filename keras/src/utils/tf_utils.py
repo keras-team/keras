@@ -113,7 +113,7 @@ def tf_encode_categorical_inputs(
     # In all cases, we should uprank scalar input to a single sample.
     if inputs.shape.rank == 0:
         inputs = expand_dims(inputs, -1)
-    # One hot will unprank only if the final output dimension is not already 1.
+    # One hot will uprank only if the final output dimension is not already 1.
     if output_mode == "one_hot":
         if inputs.shape[-1] != 1:
             inputs = expand_dims(inputs, -1)

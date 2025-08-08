@@ -2340,6 +2340,14 @@ class Deg2rad(Operation):
     def call(self, x):
         return backend.numpy.deg2rad(x)
 
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype)
+
 
 @keras_export(["keras.ops.deg2rad", "keras.ops.numpy.deg2rad"])
 def deg2rad(x):
@@ -3608,6 +3616,68 @@ def isfinite(x):
     return backend.numpy.isfinite(x)
 
 
+class IsIn(Operation):
+    def __init__(
+        self,
+        assume_unique=False,
+        invert=False,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.assume_unique = assume_unique
+        self.invert = invert
+
+    def call(self, x1, x2):
+        return backend.numpy.isin(
+            x1, x2, assume_unique=self.assume_unique, invert=self.invert
+        )
+
+    def compute_output_spec(self, x1, x2):
+        return KerasTensor(x1.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isin", "keras.ops.numpy.isin"])
+def isin(x1, x2, assume_unique=False, invert=False):
+    """Test whether each element of `x1` is present in `x2`.
+
+    This operation performs element-wise checks to determine if each value
+    in `x1` is contained within `x2`. The result is a boolean tensor with
+    the same shape as `x1`, where each entry is `True` if the corresponding
+    element in `x1` is in `x2`, and `False` otherwise.
+
+    Args:
+        x1: Input tensor or array-like structure to test.
+        x2: Values against which each element of `x1` is tested.
+            Can be a tensor, list, or scalar.
+        assume_unique: Boolean (default: False).
+            If True, assumes both `x1` and `x2` contain only unique elements.
+            This can speed up the computation. If False, duplicates will be
+            handled correctly but may impact performance.
+        invert: A boolean (default: False).
+            If True, inverts the result. Entries will be `True`
+            where `x1` elements are not in `x2`.
+
+    Returns:
+        A boolean tensor of the same shape as `x1` indicating element-wise
+        membership in `x2`.
+
+    Example:
+    >>> from keras import ops
+    >>> x1 = ops.array([0, 1, 2, 5])
+    >>> x2 = ops.array([0, 2])
+    >>> result = ops.isin(x1, x2)
+    array([ True, False,  True, False])
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return IsIn(assume_unique=assume_unique, invert=invert).symbolic_call(
+            x1, x2
+        )
+    return backend.numpy.isin(
+        x1, x2, assume_unique=assume_unique, invert=invert
+    )
+
+
 class Isinf(Operation):
     def call(self, x):
         return backend.numpy.isinf(x)
@@ -3652,6 +3722,29 @@ def isnan(x):
     if any_symbolic_tensors((x,)):
         return Isnan().symbolic_call(x)
     return backend.numpy.isnan(x)
+
+
+class Isneginf(Operation):
+    def call(self, x):
+        return backend.numpy.isneginf(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isneginf", "keras.ops.numpy.isneginf"])
+def isneginf(x):
+    """Test element-wise for negative infinity.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return Isneginf().symbolic_call(x)
+    return backend.numpy.isneginf(x)
 
 
 class Less(Operation):
@@ -7256,15 +7349,12 @@ def histogram(x, bins=10, range=None):
         - A tensor representing the bin edges.
 
     Example:
-
-    ```
     >>> input_tensor = np.random.rand(8)
     >>> keras.ops.histogram(input_tensor)
     (array([1, 1, 1, 0, 0, 1, 2, 1, 0, 1], dtype=int32),
     array([0.0189519 , 0.10294958, 0.18694726, 0.27094494, 0.35494262,
         0.43894029, 0.52293797, 0.60693565, 0.69093333, 0.77493101,
         0.85892869]))
-    ```
     """
     if not isinstance(bins, int):
         raise TypeError(

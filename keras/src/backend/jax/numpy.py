@@ -64,7 +64,7 @@ def kaiser(x, beta):
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
-    # Note: bincount is never tracable / jittable because the output shape
+    # Note: bincount is never traceable / jittable because the output shape
     # depends on the values in x.
     if sparse or isinstance(x, jax_sparse.BCOO):
         if isinstance(x, jax_sparse.BCOO):
@@ -769,6 +769,12 @@ def isfinite(x):
     return jnp.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 @sparse.elementwise_unary(linear=False)
 def isinf(x):
     x = convert_to_tensor(x)
@@ -779,6 +785,11 @@ def isinf(x):
 def isnan(x):
     x = convert_to_tensor(x)
     return jnp.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return jnp.isneginf(x)
 
 
 def less(x1, x2):
