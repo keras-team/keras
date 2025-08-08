@@ -800,7 +800,7 @@ class Trainer:
         top-level names (e.g., 'loss', 'compile_metrics'), leading to a
         length mismatch. The order of the `evaluate()` output corresponds
         to the order of metrics specified during `model.compile()`. You can
-        use this order to map the evaluate() results to the intended
+        use this order to map the `evaluate()` results to the intended
         metric. `model.metrics_names` itself will still return only the
         top-level names.
         """
