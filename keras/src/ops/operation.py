@@ -123,10 +123,10 @@ class Operation(KerasSaveable):
         if backend.backend() == "jax" and is_nnx_enabled():
             from flax import nnx
 
-            if nnx.__version__ == "0.11.0":
-                vars(instance)["_object__state"] = nnx.object.ObjectState()
-            else:
+            try:
                 vars(instance)["_pytree__state"] = nnx.pytreelib.PytreeState()
+            except AttributeError:
+                vars(instance)["_object__state"] = nnx.object.ObjectState()
                 
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
@@ -210,10 +210,10 @@ class Operation(KerasSaveable):
 
             def get_config(self):
                 config = super().get_config()
-                config.update({{
+                config.update({
                     "arg1": self.arg1,
                     "arg2": self.arg2,
-                }})
+                })
                 return config"""
                 )
             )
