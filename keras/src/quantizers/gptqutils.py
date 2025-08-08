@@ -195,7 +195,7 @@ def apply_gptq_layerwise(
     progbar = keras_utils.Progbar(target=len(transformer_blocks))
 
     for i, block in enumerate(transformer_blocks):
-        logging.info(f"Quantizing Block {i} ---")
+        logging.info(f"Quantizing Block {i}")
         sub_layers_map = find_layers_in_block(block)
 
         if not sub_layers_map:
