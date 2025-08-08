@@ -2918,7 +2918,7 @@ class JAXTrainerShardingTest(testing.TestCase):
             model.compile(
                 optimizer="sgd",
                 loss="mse",
-                jit_compile=True 
+                jit_compile=True
             )
 
             x = np.ones((16, 5), dtype="float32")
