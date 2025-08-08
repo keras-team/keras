@@ -22,7 +22,6 @@ NumpyDtypeTest::test_correlate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_cumsum_bool
-NumpyDtypeTest::test_deg2rad
 NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
@@ -86,7 +85,6 @@ NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_corrcoef
 NumpyOneInputOpsCorrectnessTest::test_correlate
 NumpyOneInputOpsCorrectnessTest::test_cumprod
-NumpyOneInputOpsCorrectnessTest::test_deg2rad
 NumpyOneInputOpsCorrectnessTest::test_diag
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
@@ -154,14 +152,12 @@ NumpyOneInputOpsDynamicShapeTest::test_bartlett
 NumpyOneInputOpsDynamicShapeTest::test_blackman
 NumpyOneInputOpsDynamicShapeTest::test_cbrt
 NumpyOneInputOpsDynamicShapeTest::test_corrcoef
-NumpyOneInputOpsDynamicShapeTest::test_deg2rad
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_isneginf
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_cbrt
-NumpyOneInputOpsStaticShapeTest::test_deg2rad
 NumpyOneInputOpsStaticShapeTest::test_isneginf
 NumpyTwoInputOpsDynamicShapeTest::test_heaviside
 NumpyTwoInputOpsDynamicShapeTest::test_isin
