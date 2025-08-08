@@ -373,15 +373,15 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         x_psd_np = np.matmul(x_np, x_np.T) + 1e-4 * np.eye(3, dtype="float32")
         identity = np.eye(3, dtype="float32")
 
-        l_factor = linalg.cholesky(x_psd_np, upper=False)
-        x_inv_from_l = linalg.cholesky_inverse(l_factor, upper=False)
+        l_factor_np = np.linalg.cholesky(x_psd_np)
+        x_inv_from_l = linalg.cholesky_inverse(l_factor_np, upper=False)
         reconstructed_from_l = ops.matmul(x_psd_np, x_inv_from_l)
         self.assertAllClose(
             reconstructed_from_l, identity, atol=1e-4, rtol=1e-4
         )
 
-        u_factor = linalg.cholesky(x_psd_np, upper=True)
-        x_inv_from_u = linalg.cholesky_inverse(u_factor, upper=True)
+        u_factor_np = l_factor_np.T
+        x_inv_from_u = linalg.cholesky_inverse(u_factor_np, upper=True)
         reconstructed_from_u = ops.matmul(x_psd_np, x_inv_from_u)
         self.assertAllClose(
             reconstructed_from_u, identity, atol=1e-4, rtol=1e-4
