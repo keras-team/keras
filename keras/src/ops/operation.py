@@ -127,7 +127,7 @@ class Operation(KerasSaveable):
                 vars(instance)["_pytree__state"] = nnx.pytreelib.PytreeState()
             except AttributeError:
                 vars(instance)["_object__state"] = nnx.object.ObjectState()
-                
+
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
@@ -210,8 +210,7 @@ class Operation(KerasSaveable):
 
             def get_config(self):
                 config = super().get_config()
-                config.update({
-                    "arg1": self.arg1,
+                config.update({"arg1": self.arg1,
                     "arg2": self.arg2,
                 })
                 return config"""
