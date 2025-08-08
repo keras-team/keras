@@ -1298,7 +1298,7 @@ class ModelQuantizationTest(testing.TestCase):
         test on a given dataset."""
 
         model = _get_model_with_dense_attention()
-
+        rng = np.random.default_rng(seed=42)
         # 1. Common setup
         NUM_SAMPLES = 16
         SEQUENCE_LENGTH = 128
@@ -1328,7 +1328,7 @@ class ModelQuantizationTest(testing.TestCase):
             wbits=W_BITS,
             nsamples=NUM_SAMPLES,
             seqlen=SEQUENCE_LENGTH,
-            groupsize=GROUP_SIZE,
+            group_size=GROUP_SIZE,
         )
         model.quantize("gptq", quant_config=gptq_config)
 
@@ -1336,17 +1336,18 @@ class ModelQuantizationTest(testing.TestCase):
         quantized_weights = target_layer.kernel.numpy()
 
         # Assert that the weights have been changed
-        self.assertFalse(
-            np.allclose(original_weights, quantized_weights),
-            "Weights were not changed by the GPTQ process for "
+        self.assertNotAllClose(
+            original_weights,
+            quantized_weights,
+            msg="Weights were not changed by the GPTQ process for "
             "dataset: {dataset}",
         )
 
         # Verify the quantized model can still make a prediction
-        dummy_input = np.random.randint(
-            0, VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
+        dummy_sample = rng.integers(
+            low=0, high=VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
         )
-        _ = model.predict(dummy_input)
+        _ = model.predict(dummy_sample)
 
     def test_quantize_gptq_on_different_datasets(self):
         """Tests GPTQ with various dataset types (string list, generator)."""
