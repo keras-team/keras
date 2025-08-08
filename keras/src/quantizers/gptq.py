@@ -7,7 +7,6 @@ from keras.src.quantizers.gptqquant import dequantize
 class GPTQ:
     def __init__(self, layer):
         self.original_layer = layer
-        self.kernel_shape = layer.kernel.shape
         self.nsamples = 0
         self.quantizer = None
 
@@ -16,6 +15,7 @@ class GPTQ:
             isinstance(layer, EinsumDense) and layer.kernel.ndim == 2
         ):
             # For a standard Dense layer, the dimensions are straightforward.
+            self.kernel_shape = layer.kernel.shape
             self.rows = self.kernel_shape[0]  # Input features
             self.columns = self.kernel_shape[1]  # Output features
             self.layer = layer  # The layer itself can be used directly.
@@ -23,6 +23,7 @@ class GPTQ:
         # Handle 3D EinsumDense layers (typically from attention blocks).
         elif isinstance(layer, EinsumDense) and layer.kernel.ndim == 3:
             # For EinsumDense, we determine the effective 2D dimensions.
+            self.kernel_shape = layer.kernel.shape
             shape = list(self.kernel_shape)
             try:
                 d_model_dim_index = shape.index(max(shape))
@@ -53,10 +54,7 @@ class GPTQ:
 
         else:
             # Raise an error if the layer is not supported.
-            raise TypeError(
-                f"Unsupported layer type or kernel shape for GPTQ: "
-                f"{type(layer)} with kernel ndim {layer.kernel.ndim}"
-            )
+            raise TypeError(f"Unsupported layer type for GPTQ: {type(layer)}")
         self.H = ops.zeros((self.rows, self.rows), dtype="float32")
 
     def update_hessian_with_batch(self, inp):
@@ -81,6 +79,17 @@ class GPTQ:
                 not match the dimensions of the pre-initialized Hessian matrix
                 `self.H`.
         """
+        if inp is None:
+            raise ValueError("Input tensor 'inp' cannot be None.")
+
+        if len(inp.shape) < 2:
+            raise ValueError(
+                f"Input tensor 'inp' must have a rank of at least 2 "
+                f"(e.g., [batch, features]), but got rank {len(inp.shape)}."
+            )
+        if ops.size(inp) == 0:
+            raise ValueError("Input tensor 'inp' cannot be empty.")
+
         if len(inp.shape) > 2:
             inp = ops.reshape(inp, (-1, inp.shape[-1]))
         inp = ops.cast(inp, "float32")
@@ -103,7 +112,7 @@ class GPTQ:
         self.nsamples += inp.shape[0]
 
     def quantize_and_correct_block(
-        self, blocksize=128, percdamp=0.01, groupsize=-1, actorder=False
+        self, blocksize=128, percdamp=0.01, group_size=-1, actorder=False
     ):
         """
         Performs GPTQ quantization and correction on the layer's weights.
@@ -143,7 +152,7 @@ class GPTQ:
             percdamp (float, optional): The percentage of dampening to add the
                 Hessian's diagonal. A value of 0.01 is recommended.
                 Defaults to 0.01.
-            groupsize (int, optional): The number of weights that share the
+            group_size (int, optional): The number of weights that share the
                 same quantization parameters (scale and zero-point).
                 A value of -1 indicates per-channel quantization.
             actorder (bool, optional): If True, reorders weight columns based
@@ -189,10 +198,10 @@ class GPTQ:
                 w = W1[:, i]
                 d = Hinv1[i, i]
 
-                if groupsize != -1:
-                    if (i1 + i) % groupsize == 0:
+                if group_size != -1:
+                    if (i1 + i) % group_size == 0:
                         self.quantizer.find_params(
-                            W[:, (i1 + i) : (i1 + i + groupsize)], weight=True
+                            W[:, (i1 + i) : (i1 + i + group_size)], weight=True
                         )
                 else:
                     self.quantizer.find_params(

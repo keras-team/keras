@@ -4,6 +4,7 @@ import numpy as np
 from absl import logging
 
 from keras.src import ops
+from keras.src import utils as keras_utils
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
@@ -11,7 +12,7 @@ from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptqquant import GPTQQuant
 
 
-def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
+def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
     """
     Prepares and chunks the calibration dataloader, repeating short datasets.
     """
@@ -24,18 +25,18 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
             "datasets by name is no longer supported."
         )
 
-    logging.info("\n==> Using pre-made dataset/generator...")
+    logging.info("Using pre-made dataset/generator...")
     dataset_list = list(dataset)
 
     if not dataset_list:
         raise ValueError("Provided dataset is empty.")
 
     if isinstance(dataset_list[0], str):
-        logging.info("   (Dataset contains strings, tokenizing now...)")
+        logging.info("(Dataset contains strings, tokenizing now...)")
         full_text = "\n\n".join(dataset_list)
         all_tokens = tokenizer.tokenize(full_text)
     else:
-        logging.info("   (Dataset is pre-tokenized, concatenating...)")
+        logging.info("(Dataset is pre-tokenized, concatenating...)")
         concatenated_tokens = ops.concatenate(
             [ops.reshape(s, [-1]) for s in dataset_list], axis=0
         )
@@ -98,7 +99,7 @@ def apply_gptq_layerwise(
     dataloader,
     nsamples,
     percdamp,
-    groupsize,
+    group_size,
     symmetric,
     act_order,
     wbits,
@@ -133,7 +134,7 @@ def apply_gptq_layerwise(
         percdamp (float): The percentage of dampening to add to the Hessian
             diagonal for stabilization during inverse calculation. A value of
             0.01 is common.
-        groupsize (int): The size of the groups to use for quantization. A
+        group_size (int): The size of the groups to use for quantization. A
             value of 128 means that 128 weights will share the same scaling
             factor. Use -1 for per-channel quantization.
         symmetric (bool): If True, symmetric quantization is used. Otherwise,
@@ -165,7 +166,7 @@ def apply_gptq_layerwise(
             )
 
     else:
-        logging.info("   -> Detected custom model structure.")
+        logging.info("Detected custom model structure.")
         for layer in model.layers:
             # The first Embedding layer found is assumed to be the main one.
             if isinstance(layer, Embedding) and embedding_layer is None:
@@ -191,11 +192,12 @@ def apply_gptq_layerwise(
         embedding_layer(ops.convert_to_tensor(batch, dtype="int32"))
         for batch in dataloader
     ]
+    progbar = keras_utils.Progbar(target=len(transformer_blocks))
 
     for i, block in enumerate(transformer_blocks):
-        logging.info(f"\n--- Quantizing Block {i} ---")
-
+        logging.info(f"Quantizing Block {i} ---")
         sub_layers_map = find_layers_in_block(block)
+
         if not sub_layers_map:
             logging.info(
                 f"  No Dense or EinsumDense layers found in block {i}. "
@@ -256,13 +258,16 @@ def apply_gptq_layerwise(
 
             quantizer = GPTQQuant()
             quantizer.configure(
-                wbits, perchannel=True, sym=symmetric, groupsize=groupsize
+                wbits,
+                perchannel=True,
+                symmetric=symmetric,
+                group_size=group_size,
             )
             for name, gptq_object in gptq_objects.items():
-                logging.info(f"  Quantizing {name}...")
+                logging.info(f"Quantizing {name}...")
                 gptq_object.quantizer = quantizer
                 gptq_object.quantize_and_correct_block(
-                    percdamp=percdamp, groupsize=groupsize, actorder=act_order
+                    percdamp=percdamp, group_size=group_size, actorder=act_order
                 )
                 gptq_object.free()
 
@@ -278,8 +283,9 @@ def apply_gptq_layerwise(
                 output = block(current_input)[0]
                 next_block_inputs.append(output)
             inputs = next_block_inputs
+        progbar.update(current=i + 1)
 
-    logging.info("\nQuantization process complete.")
+    logging.info("Quantization process complete.")
 
 
 def quantize_model(model, config):
@@ -306,7 +312,7 @@ def quantize_model(model, config):
         calibration_dataloader,  # Use the calibration slice
         len(calibration_dataloader),  # Use the actual number of samples
         config.percdamp,
-        config.groupsize,
+        config.group_size,
         config.symmetric,
         config.act_order,
         config.wbits,
