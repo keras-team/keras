@@ -123,10 +123,10 @@ class Operation(KerasSaveable):
         if backend.backend() == "jax" and is_nnx_enabled():
             from flax import nnx
 
-            if hasattr(vars(instance), 'pytreelib'):
-                vars(instance)["_pytree__state"] = nnx.pytreelib.PytreeState()
-            else:
+            if nnx.__version__ == "0.11.0":
                 vars(instance)["_object__state"] = nnx.object.ObjectState()
+            else:
+                vars(instance)["_pytree__state"] = nnx.pytreelib.PytreeState()
                 
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
