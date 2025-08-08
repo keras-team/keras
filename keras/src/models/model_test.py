@@ -1245,8 +1245,9 @@ class ModelTest(testing.TestCase):
 def dummy_dataset_generator(nsamples, seqlen, vocab_size=1000):
     """A generator that yields random numpy arrays for fast,
     self-contained tests."""
+    rng = np.random.default_rng(seed=42)
     for _ in range(nsamples):
-        yield np.random.randint(0, vocab_size, size=(1, seqlen))
+        yield rng.integers(low=0, high=vocab_size, size=(1, seqlen))
 
 
 # Helper function to build a simple transformer model that uses standard
@@ -1327,7 +1328,7 @@ class ModelQuantizationTest(testing.TestCase):
             target_layer,
             "Test setup failed: No Dense layer found in 'ffn' block.",
         )
-        original_weights = np.copy(target_layer.kernel.numpy())
+        original_weights = np.copy(target_layer.kernel)
 
         # Configure and run quantization
         final_config = {**base_config, **config_kwargs}
@@ -1336,7 +1337,7 @@ class ModelQuantizationTest(testing.TestCase):
         model.quantize("gptq", quant_config=gptq_config)
 
         # Assertions and verification
-        quantized_weights = target_layer.kernel.numpy()
+        quantized_weights = target_layer.kernel
 
         self.assertNotAllClose(
             original_weights,
@@ -1353,7 +1354,7 @@ class ModelQuantizationTest(testing.TestCase):
         """Tests GPTQ with various dataset types (string list, generator)."""
 
         # Define the datasets to be tested
-        long_text = """auto-gptq is an easy-to-use model quantization library
+        long_text = """gptq is an easy-to-use model quantization library
         with user-friendly apis, based on GPTQ algorithm. The goal is to
         quantize pre-trained models to 4-bit or even 3-bit precision with
         minimal performance degradation.
@@ -1374,8 +1375,6 @@ class ModelQuantizationTest(testing.TestCase):
 
         # Loop through the datasets and run each as a sub-test
         for dataset_name, dataset in datasets_to_test.items():
-            # 'with self.subTest(...)' ensures that failures are reported
-            # for each specific dataset without stopping the whole test.
             with self.subTest(dataset_type=dataset_name):
                 self._run_gptq_test_on_dataset(dataset)
 
