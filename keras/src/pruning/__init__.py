@@ -1,6 +1,5 @@
 """Model pruning API for Keras."""
 
-from keras.src.pruning.config import PruningConfig
 from keras.src.pruning.core import apply_pruning_to_layer
 from keras.src.pruning.core import apply_pruning_to_model
 from keras.src.pruning.core import get_model_sparsity
@@ -27,7 +26,6 @@ from keras.src.pruning.pruning_utils import print_sparsity_report
 
 # Public API
 __all__ = [
-    "PruningConfig",
     "get_model_sparsity",
     "should_prune_layer",
     "apply_pruning_to_model",

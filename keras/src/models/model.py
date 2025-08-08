@@ -461,7 +461,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.predict_function = None
 
     def prune(self, sparsity=0.5, method="l1", layers_to_prune=None, dataset=None, 
-              loss_fn=None, config=None, **kwargs):
+              loss_fn=None, **kwargs):
         """Prune the model weights according to the specified parameters.
 
         Args:
@@ -475,7 +475,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 - Single string: Treated as a layer name or regex pattern
             dataset: Dataset for gradient-based methods (tuple of (x, y)).
             loss_fn: Loss function for gradient-based methods.
-            config: DEPRECATED. Use direct parameters instead.
             **kwargs: Additional arguments passed to pruning methods.
 
         Returns:
@@ -518,34 +517,16 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 "calling the model on some data."
             )
 
-        # Handle legacy config parameter
-        if config is not None:
-            import warnings
-            warnings.warn(
-                "The 'config' parameter is deprecated. Use direct parameters instead: "
-                "model.prune(sparsity=0.5, method='l1', layers_to_prune=None, ...)",
-                DeprecationWarning,
-                stacklevel=2
-            )
-            from keras.src.pruning.config import PruningConfig
-            from keras.src.pruning.core import apply_pruning_to_model_with_config
-            
-            if not isinstance(config, PruningConfig):
-                raise ValueError("config must be a PruningConfig instance")
-            
-            # Use legacy function for backwards compatibility
-            stats = apply_pruning_to_model_with_config(self, config)
-        else:
-            # Use new direct parameter approach
-            stats = apply_pruning_to_model(
-                model=self,
-                sparsity=sparsity,
-                method=method,
-                layers_to_prune=layers_to_prune,
-                dataset=dataset,
-                loss_fn=loss_fn,
-                **kwargs
-            )
+        # Use direct parameter approach
+        stats = apply_pruning_to_model(
+            model=self,
+            sparsity=sparsity,
+            method=method,
+            layers_to_prune=layers_to_prune,
+            dataset=dataset,
+            loss_fn=loss_fn,
+            **kwargs
+        )
 
         # Clear compiled functions to ensure they get rebuilt with pruned weights
         self.train_function = None

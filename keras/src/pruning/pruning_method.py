@@ -345,10 +345,10 @@ class SaliencyPruning(PruningMethod):
         
         # Saliency pruning requires model and dataset - no fallback
         if model is None:
-            raise ValueError("SaliencyPruning requires 'model' parameter. Pass model through PruningConfig or model.prune() kwargs.")
+            raise ValueError("SaliencyPruning requires 'model' parameter. Pass model through model.prune() kwargs.")
         
         if dataset is None:
-            raise ValueError("SaliencyPruning requires 'dataset' parameter. Pass dataset as tuple (x, y) through PruningConfig or model.prune() kwargs.")
+            raise ValueError("SaliencyPruning requires 'dataset' parameter. Pass dataset as tuple (x, y) through model.prune() kwargs.")
         
         # Get loss_fn from model if not provided
         if loss_fn is None:
@@ -501,10 +501,10 @@ class TaylorPruning(PruningMethod):
         
         # Taylor pruning requires model and dataset - no fallback
         if model is None:
-            raise ValueError("TaylorPruning requires 'model' parameter. Pass model through PruningConfig or model.prune() kwargs.")
+            raise ValueError("TaylorPruning requires 'model' parameter. Pass model through model.prune() kwargs.")
         
         if dataset is None:
-            raise ValueError("TaylorPruning requires 'dataset' parameter. Pass dataset as tuple (x, y) through PruningConfig or model.prune() kwargs.")
+            raise ValueError("TaylorPruning requires 'dataset' parameter. Pass dataset as tuple (x, y) through model.prune() kwargs.")
         
         # Get loss_fn from model if not provided
         if loss_fn is None:

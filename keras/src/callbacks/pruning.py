@@ -24,7 +24,6 @@ class PruningCallback(Callback):
         dataset: Dataset for gradient-based methods (tuple of (x, y)).
         loss_fn: Loss function for gradient-based methods.
         verbose: Boolean. Whether to print progress messages.
-        config: DEPRECATED. Use direct parameters instead.
 
     Examples:
         ```python
@@ -64,42 +63,19 @@ class PruningCallback(Callback):
 
     def __init__(self, sparsity=0.5, method="l1", start_step=100, end_step=1000,
                  frequency=50, schedule="polynomial", layers_to_prune=None,
-                 dataset=None, loss_fn=None, verbose=True, config=None, **kwargs):
+                 dataset=None, loss_fn=None, verbose=True, **kwargs):
         super().__init__()
         
-        # Handle legacy config parameter
-        if config is not None:
-            warnings.warn(
-                "The 'config' parameter is deprecated. Use direct parameters instead: "
-                "PruningCallback(sparsity=0.5, method='l1', start_step=100, ...)",
-                DeprecationWarning,
-                stacklevel=2
-            )
-            from keras.src.pruning.config import PruningConfig
-            if not isinstance(config, PruningConfig):
-                raise ValueError("config must be a PruningConfig instance")
-            
-            # Extract parameters from config
-            self.sparsity = config.sparsity
-            self.method = config.method
-            self.start_step = getattr(config, 'start_step', 100)
-            self.end_step = getattr(config, 'end_step', 1000)
-            self.frequency = getattr(config, 'frequency', 50)
-            self.schedule = getattr(config, 'schedule', 'polynomial')
-            self.layers_to_prune = None  # Config doesn't support layer selection
-            self.dataset = getattr(config, 'dataset', None)
-            self.loss_fn = getattr(config, 'loss_fn', None)
-        else:
-            # Use direct parameters
-            self.sparsity = sparsity
-            self.method = method
-            self.start_step = start_step
-            self.end_step = end_step
-            self.frequency = frequency
-            self.schedule = schedule
-            self.layers_to_prune = layers_to_prune
-            self.dataset = dataset
-            self.loss_fn = loss_fn
+        # Use direct parameters
+        self.sparsity = sparsity
+        self.method = method
+        self.start_step = start_step
+        self.end_step = end_step
+        self.frequency = frequency
+        self.schedule = schedule
+        self.layers_to_prune = layers_to_prune
+        self.dataset = dataset
+        self.loss_fn = loss_fn
         
         self.verbose = verbose
         self.current_step = 0
@@ -186,7 +162,6 @@ class PostTrainingPruning(Callback):
         dataset: Dataset for gradient-based methods (tuple of (x, y)).
         loss_fn: Loss function for gradient-based methods.
         verbose: Boolean. Whether to print progress messages.
-        config: DEPRECATED. Use direct parameters instead.
 
     Examples:
         ```python
@@ -210,34 +185,15 @@ class PostTrainingPruning(Callback):
     """
 
     def __init__(self, sparsity=0.5, method="l1", layers_to_prune=None,
-                 dataset=None, loss_fn=None, verbose=True, config=None, **kwargs):
+                 dataset=None, loss_fn=None, verbose=True, **kwargs):
         super().__init__()
         
-        # Handle legacy config parameter
-        if config is not None:
-            warnings.warn(
-                "The 'config' parameter is deprecated. Use direct parameters instead: "
-                "PostTrainingPruning(sparsity=0.5, method='l1', layers_to_prune=None, ...)",
-                DeprecationWarning,
-                stacklevel=2
-            )
-            from keras.src.pruning.config import PruningConfig
-            if not isinstance(config, PruningConfig):
-                raise ValueError("config must be a PruningConfig instance")
-            
-            # Extract parameters from config
-            self.sparsity = config.sparsity
-            self.method = config.method
-            self.layers_to_prune = None  # Config doesn't support layer selection
-            self.dataset = getattr(config, 'dataset', None)
-            self.loss_fn = getattr(config, 'loss_fn', None)
-        else:
-            # Use direct parameters
-            self.sparsity = sparsity
-            self.method = method
-            self.layers_to_prune = layers_to_prune
-            self.dataset = dataset
-            self.loss_fn = loss_fn
+        # Use direct parameters
+        self.sparsity = sparsity
+        self.method = method
+        self.layers_to_prune = layers_to_prune
+        self.dataset = dataset
+        self.loss_fn = loss_fn
         
         self.verbose = verbose
         self.kwargs = kwargs

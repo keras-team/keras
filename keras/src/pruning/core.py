@@ -286,31 +286,3 @@ def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None,
             "method": method,
             "layers_pruned": pruned_layer_names,
         }
-
-
-# Legacy function for backwards compatibility
-def apply_pruning_to_model_with_config(model, config):
-    """Apply pruning to all eligible layers in a model using PruningConfig.
-
-    Args:
-        model: Keras model to prune.
-        config: PruningConfig instance.
-
-    Returns:
-        Dictionary with pruning statistics.
-        
-    Note: This function is deprecated. Use apply_pruning_to_model() with direct parameters instead.
-    """
-    from keras.src.pruning.config import PruningConfig
-
-    if not isinstance(config, PruningConfig):
-        raise ValueError("config must be a PruningConfig instance")
-
-    return apply_pruning_to_model(
-        model=model,
-        sparsity=config.sparsity,
-        method=config.method,
-        dataset=config.dataset,
-        loss_fn=config.loss_fn,
-        n=config.n,
-    )
