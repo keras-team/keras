@@ -91,8 +91,8 @@ Args:
     alpha: controls the width of the network. This is known as the
         depth multiplier in the MobileNetV3 paper, but the name is kept for
         consistency with MobileNetV1 in Keras.
-        When `weights` is `"imagenet"`, `alpha` can be one of `0.75` or `1.0` for
-        non-minimalistic models, and `1.0` for minimalistic models.
+        When `weights` is `"imagenet"`, `alpha` can be one of `0.75` or `1.0`
+        for non-minimalistic models, and `1.0` for minimalistic models.
         - If `alpha < 1.0`, proportionally decreases the number
             of filters in each layer.
         - If `alpha > 1.0`, proportionally increases the number
