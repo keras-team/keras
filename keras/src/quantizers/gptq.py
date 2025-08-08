@@ -100,16 +100,21 @@ class GPTQ:
                 "match input features ({inp.shape[-1]})."
             )
 
-        current_H = 2 * ops.matmul(ops.transpose(inp), inp)
+        current_H = ops.multiply(2, ops.matmul(ops.transpose(inp), inp))
 
         if self.nsamples == 0:
             self.H = current_H
         else:
-            self.H = self.H * (self.nsamples / (self.nsamples + inp.shape[0]))
-            self.H += current_H * (
-                inp.shape[0] / (self.nsamples + inp.shape[0])
-            )
-        self.nsamples += inp.shape[0]
+            total_samples = ops.add(self.nsamples, inp.shape[0])
+            old_H_weight = ops.divide(self.nsamples, total_samples)
+            current_H_weight = ops.divide(inp.shape[0], total_samples)
+
+            # Update the accumulated Hessian
+            term1 = ops.multiply(self.H, old_H_weight)
+            term2 = ops.multiply(current_H, current_H_weight)
+            self.H = ops.add(term1, term2)
+
+        self.nsamples = ops.add(self.nsamples, inp.shape[0])
 
     def quantize_and_correct_block(
         self, blocksize=128, percdamp=0.01, group_size=-1, actorder=False
@@ -172,12 +177,14 @@ class GPTQ:
         diag_H = ops.diagonal(H)
         dead = ops.equal(diag_H, 0.0)
         diag_H = ops.where(dead, 1.0, diag_H)
-        H = H + ops.diag(ops.where(dead, 1.0, ops.zeros_like(diag_H)))
+        H = ops.add(H, ops.diag(ops.where(dead, 1.0, ops.zeros_like(diag_H))))
 
         # Add dampening factor to the Hessian diagonal
-        damp = percdamp * ops.mean(diag_H)
-        diag_H = diag_H + damp
-        H = (H - ops.diag(ops.diagonal(H))) + ops.diag(diag_H)
+        damp = ops.multiply(percdamp, ops.mean(diag_H))
+        diag_H = ops.add(diag_H, damp)
+        H = ops.add(
+            ops.subtract(H, ops.diag(ops.diagonal(H))), ops.diag(diag_H)
+        )
 
         # Compute the inverse Hessian, which is used for error correction
         Hinv = ops.linalg.inv(H)
@@ -217,7 +224,7 @@ class GPTQ:
                 )[:, 0]
 
                 Q1 = ops.slice_update(Q1, (0, i), ops.expand_dims(q, axis=1))
-                err = (w - q) / d
+                err = ops.divide(ops.subtract(w, q), d)
                 Err1 = ops.slice_update(
                     Err1, (0, i), ops.expand_dims(err, axis=1)
                 )
@@ -230,7 +237,7 @@ class GPTQ:
 
                     # Efficiently update the remaining part of the W1 tensor.
                     slice_to_update = W1[:, i + 1 :]
-                    updated_slice = slice_to_update - update
+                    updated_slice = ops.subtract(slice_to_update, update)
                     W1 = ops.slice_update(W1, (0, i + 1), updated_slice)
 
             # Update the full quantized matrix Q with the processed block
@@ -239,7 +246,7 @@ class GPTQ:
             if i2 < self.rows:
                 update_total = ops.matmul(Err1, Hinv[i1:i2, i2:])
                 W = ops.concatenate(
-                    [W[:, :i2], W[:, i2:] - update_total], axis=1
+                    [W[:, :i2], ops.subtract(W[:, i2:], update_total)], axis=1
                 )
 
         if actorder:
