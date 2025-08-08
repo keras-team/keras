@@ -3,8 +3,14 @@
 import numpy as np
 import re
 
+import keras
 from keras.src import backend
 from keras.src import ops
+
+
+def _has_kernel_weights(layer):
+    """Check if a layer has kernel weights."""
+    return hasattr(layer, "kernel") and layer.kernel is not None
 
 
 def get_model_sparsity(model):
@@ -13,7 +19,7 @@ def get_model_sparsity(model):
     zero_weights = 0
 
     for layer in model.layers:
-        if hasattr(layer, "kernel") and layer.kernel is not None:
+        if _has_kernel_weights(layer):
             weights = layer.kernel.value
             total_weights += ops.size(weights)
             zero_weights += ops.sum(ops.cast(weights == 0, "int32"))
@@ -46,8 +52,7 @@ def should_prune_layer(layer, layers_to_prune=None):
     layer_types = ("Dense", "Conv1D", "Conv2D", "Conv3D", "DepthwiseConv2D")
     if not (
         layer.__class__.__name__ in layer_types
-        and hasattr(layer, "kernel")
-        and layer.kernel is not None
+        and _has_kernel_weights(layer)
     ):
         return False
     
@@ -113,65 +118,61 @@ def match_layers_by_patterns(model, patterns):
     return matched_layers
 
 
-def compute_magnitude_mask(weights, sparsity):
-    """Compute pruning mask based on weight magnitudes."""
-    if sparsity <= 0:
-        return ops.ones_like(weights, dtype="bool")
-    if sparsity >= 1:
-        return ops.zeros_like(weights, dtype="bool")
+def _create_pruning_method(method):
+    """Factory function to create pruning method instances from strings."""
+    if not isinstance(method, str):
+        # Assume it's already a PruningMethod instance
+        return method
+    
+    from keras.src.pruning.pruning_method import (
+        L1Pruning, LnPruning, StructuredPruning, 
+        SaliencyPruning, TaylorPruning
+    )
+    
+    method_map = {
+        "magnitude": L1Pruning(structured=False),
+        "l1": L1Pruning(structured=False),
+        "structured": StructuredPruning(),
+        "l1_structured": L1Pruning(structured=True),
+        "l2": LnPruning(n=2, structured=False),
+        "l2_structured": LnPruning(n=2, structured=True),
+        "saliency": SaliencyPruning(),
+        "taylor": TaylorPruning(),
+    }
+    
+    if method not in method_map:
+        raise ValueError(f"Unknown pruning method: {method}")
+    
+    return method_map[method]
 
-    abs_weights = ops.abs(weights)
-    # Convert to numpy for percentile computation, then back
-    abs_weights_np = backend.convert_to_numpy(abs_weights)
-    threshold = np.percentile(abs_weights_np, sparsity * 100)
-    mask = abs_weights > threshold
-    return mask
+
+def _get_gradient_method_usage_message(method, missing_param):
+    """Generate consistent error messages for gradient methods."""
+    return (
+        f"Method '{method}' requires '{missing_param}' parameter for gradient computation. "
+        f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
+    )
 
 
-def compute_structured_mask(weights, sparsity):
-    """Compute structured pruning mask (prune entire channels/filters)."""
-    if sparsity <= 0:
-        return ops.ones_like(weights, dtype="bool")
-    if sparsity >= 1:
-        return ops.zeros_like(weights, dtype="bool")
-
-    # For Conv layers: compute L2 norm across spatial dimensions
-    # For Dense layers: compute L2 norm across input dimension
-    if len(weights.shape) == 4:  # Conv2D
-        # weights shape: (height, width, in_channels, out_channels)
-        norms = ops.sqrt(ops.sum(ops.square(weights), axis=(0, 1, 2)))
-    elif len(weights.shape) == 2:  # Dense
-        # weights shape: (in_features, out_features)
-        norms = ops.sqrt(ops.sum(ops.square(weights), axis=0))
-    else:
-        # Fallback to magnitude pruning for other shapes
-        return compute_magnitude_mask(weights, sparsity)
-
-    # Convert to numpy for percentile computation
-    norms_np = backend.convert_to_numpy(norms)
-    threshold = np.percentile(norms_np, sparsity * 100)
-
-    # Create mask that zeros out entire channels/filters
-    channel_mask = norms > threshold
-
-    # Broadcast mask to full weight tensor shape
-    if len(weights.shape) == 4:  # Conv2D
-        mask = ops.broadcast_to(
-            ops.reshape(channel_mask, (1, 1, 1, -1)), weights.shape
-        )
-    elif len(weights.shape) == 2:  # Dense
-        mask = ops.broadcast_to(
-            ops.reshape(channel_mask, (1, -1)), weights.shape
-        )
-
-    return mask
+def _validate_gradient_method_requirements(method, model, dataset, loss_fn):
+    """Validate that gradient-based methods have required parameters."""
+    gradient_methods = ["saliency", "taylor"]
+    method_name = method if isinstance(method, str) else method.__class__.__name__.lower()
+    
+    if any(gm in method_name for gm in gradient_methods):
+        if model is None:
+            raise ValueError(_get_gradient_method_usage_message(method, 'model'))
+        if dataset is None:
+            raise ValueError(_get_gradient_method_usage_message(method, 'dataset'))
+        if loss_fn is None and not hasattr(model, 'compiled_loss') and not hasattr(model, 'loss'):
+            raise ValueError(
+                f"Method '{method}' requires 'loss_fn' parameter when model is not compiled or has no default loss. "
+                f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
+            )
 
 
 def get_pruning_mask(layer, sparsity, method="l1", model=None, dataset=None, loss_fn=None, **kwargs):
     """Compute and return a pruning mask for a layer without applying it.
-    
-    This utility function extracts the mask computation logic to enable
-    advanced use cases like continual learning and selective weight freezing.
     
     Args:
         layer: Keras layer to compute mask for.
@@ -191,36 +192,11 @@ def get_pruning_mask(layer, sparsity, method="l1", model=None, dataset=None, los
         return ops.ones_like(weights, dtype="bool")
     
     weights = layer.kernel.value
-
-    # Handle method as string or instance
-    if isinstance(method, str):
-        from keras.src.pruning.pruning_method import L1Pruning
-        from keras.src.pruning.pruning_method import LnPruning
-        from keras.src.pruning.pruning_method import StructuredPruning
-        from keras.src.pruning.pruning_method import SaliencyPruning
-        from keras.src.pruning.pruning_method import TaylorPruning
-
-        if method == "magnitude" or method == "l1":
-            pruning_method = L1Pruning(structured=False)
-        elif method == "structured":
-            pruning_method = StructuredPruning()
-        elif method == "l1_structured":
-            pruning_method = L1Pruning(structured=True)
-        elif method == "l2":
-            pruning_method = LnPruning(n=2, structured=False)
-        elif method == "l2_structured":
-            pruning_method = LnPruning(n=2, structured=True)
-        elif method == "saliency":
-            pruning_method = SaliencyPruning()
-        elif method == "taylor":
-            pruning_method = TaylorPruning()
-        else:
-            raise ValueError(f"Unknown pruning method: {method}")
-    else:
-        # Assume it's a PruningMethod instance
-        pruning_method = method
-
-    # Prepare kwargs for compute_mask with enhanced loss function handling
+    pruning_method = _create_pruning_method(method)
+    
+    # Prepare kwargs for compute_mask with enhanced error handling
+    _validate_gradient_method_requirements(method, model, dataset, loss_fn)
+    
     mask_kwargs = {
         "model": model,
         "dataset": dataset, 
@@ -228,25 +204,6 @@ def get_pruning_mask(layer, sparsity, method="l1", model=None, dataset=None, los
         **kwargs
     }
     
-    # Enhanced error handling for gradient-based methods
-    if method in ["saliency", "taylor"] or (hasattr(pruning_method, '__class__') and 
-                                            pruning_method.__class__.__name__ in ["SaliencyPruning", "TaylorPruning"]):
-        if model is None:
-            raise ValueError(
-                f"Method '{method}' requires 'model' parameter for gradient computation. "
-                f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
-            )
-        if dataset is None:
-            raise ValueError(
-                f"Method '{method}' requires 'dataset' parameter for gradient computation. "
-                f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
-            )
-        if loss_fn is None and not hasattr(model, 'compiled_loss') and not hasattr(model, 'loss'):
-            raise ValueError(
-                f"Method '{method}' requires 'loss_fn' parameter when model is not compiled or has no default loss. "
-                f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
-            )
-
     # Compute mask
     mask = pruning_method.compute_mask(weights, sparsity, **mask_kwargs)
     return mask
@@ -303,7 +260,7 @@ def get_inverted_pruning_mask(layer, sparsity, method="l1", model=None, dataset=
     # Return logical NOT of pruning mask
     # pruning_mask: True = keep, False = prune
     # inverted_mask: True = important (was kept), False = unimportant (was pruned)
-    return pruning_mask
+    return ops.logical_not(pruning_mask)
 
 
 def apply_pruning_to_layer(layer, sparsity, method="l1", model=None, dataset=None, loss_fn=None, reinitialize=False, **kwargs):
@@ -342,7 +299,6 @@ def apply_pruning_to_layer(layer, sparsity, method="l1", model=None, dataset=Non
     if reinitialize:
         # Re-initialize pruned weights instead of zeroing them out
         # This implements the "Expanding" part of the Pruning-then-Expanding paradigm
-        import keras
         
         # Use He/Kaiming initialization which is good for ReLU activations
         # For other activations, Glorot/Xavier might be better
@@ -357,8 +313,30 @@ def apply_pruning_to_layer(layer, sparsity, method="l1", model=None, dataset=Non
         pruned_weights = weights * ops.cast(mask, weights.dtype)
         
     layer.kernel.assign(pruned_weights)
-
     return True
+
+
+def _build_pruning_stats(initial_sparsity, final_sparsity, pruned_layers, target_sparsity, 
+                        method, pruned_layer_names, layers_to_prune=None, 
+                        matched_layers=None, skipped_layer_names=None):
+    """Build pruning statistics dictionary."""
+    base_stats = {
+        "initial_sparsity": initial_sparsity,
+        "final_sparsity": final_sparsity,
+        "pruned_layers": pruned_layers,
+        "target_sparsity": target_sparsity,
+        "method": method,
+        "layers_pruned": pruned_layer_names,
+    }
+    
+    if layers_to_prune is not None:
+        base_stats.update({
+            "layers_specified": layers_to_prune,
+            "layers_matched": matched_layers or [],
+            "layers_skipped": skipped_layer_names or [],
+        })
+    
+    return base_stats
 
 
 def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None, 
@@ -402,33 +380,25 @@ def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None,
             ):
                 pruned_layers += 1
                 pruned_layer_names.append(layer.name)
-        elif hasattr(layer, "kernel") and layer.kernel is not None:
+        elif _has_kernel_weights(layer):
             # Layer has weights but was skipped due to selection criteria
             skipped_layer_names.append(layer.name)
 
     final_sparsity = get_model_sparsity(model)
     
-    # If layers_to_prune was specified, show which layers matched
+    # Build and return statistics
+    matched_layers = None
     if layers_to_prune is not None:
         matched_layers = match_layers_by_patterns(model, layers_to_prune)
-        
-        return {
-            "initial_sparsity": initial_sparsity,
-            "final_sparsity": final_sparsity,
-            "pruned_layers": pruned_layers,
-            "target_sparsity": sparsity,
-            "method": method,
-            "layers_specified": layers_to_prune,
-            "layers_matched": matched_layers,
-            "layers_pruned": pruned_layer_names,
-            "layers_skipped": skipped_layer_names,
-        }
-    else:
-        return {
-            "initial_sparsity": initial_sparsity,
-            "final_sparsity": final_sparsity,
-            "pruned_layers": pruned_layers,
-            "target_sparsity": sparsity,
-            "method": method,
-            "layers_pruned": pruned_layer_names,
-        }
+    
+    return _build_pruning_stats(
+        initial_sparsity=initial_sparsity,
+        final_sparsity=final_sparsity,
+        pruned_layers=pruned_layers,
+        target_sparsity=sparsity,
+        method=method,
+        pruned_layer_names=pruned_layer_names,
+        layers_to_prune=layers_to_prune,
+        matched_layers=matched_layers,
+        skipped_layer_names=skipped_layer_names
+    )

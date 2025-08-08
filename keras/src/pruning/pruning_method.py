@@ -7,6 +7,24 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 
 
+def _validate_gradient_method_requirements(method_name, model, dataset, loss_fn):
+    """Validate that gradient-based methods have required parameters."""
+    if model is None:
+        raise ValueError(f"{method_name} requires 'model' parameter. Pass model through model.prune() kwargs.")
+    
+    if dataset is None:
+        raise ValueError(f"{method_name} requires 'dataset' parameter. Pass dataset as tuple (x, y) through model.prune() kwargs.")
+    
+    # Get loss_fn from model if not provided
+    if loss_fn is None:
+        if hasattr(model, 'loss') and model.loss is not None:
+            return model.loss
+        else:
+            raise ValueError(f"{method_name} requires 'loss_fn' parameter or model must have a compiled loss function.")
+    
+    return loss_fn
+
+
 @keras_export("keras.pruning.PruningMethod")
 class PruningMethod(abc.ABC):
     """Abstract base class for pruning methods.
@@ -343,19 +361,8 @@ class SaliencyPruning(PruningMethod):
         loss_fn = kwargs.get('loss_fn')
         dataset = kwargs.get('dataset')
         
-        # Saliency pruning requires model and dataset - no fallback
-        if model is None:
-            raise ValueError("SaliencyPruning requires 'model' parameter. Pass model through model.prune() kwargs.")
-        
-        if dataset is None:
-            raise ValueError("SaliencyPruning requires 'dataset' parameter. Pass dataset as tuple (x, y) through model.prune() kwargs.")
-        
-        # Get loss_fn from model if not provided
-        if loss_fn is None:
-            if hasattr(model, 'loss') and model.loss is not None:
-                loss_fn = model.loss
-            else:
-                raise ValueError("SaliencyPruning requires 'loss_fn' parameter or model must have a compiled loss function.")
+        # Validate requirements and get loss_fn (may return model.loss if not provided)
+        loss_fn = _validate_gradient_method_requirements("SaliencyPruning", model, dataset, loss_fn)
 
         # Compute saliency scores (|weight * gradient|)
         saliency_scores = self._compute_saliency_scores(weights, model, loss_fn, dataset)
@@ -499,19 +506,8 @@ class TaylorPruning(PruningMethod):
         loss_fn = kwargs.get('loss_fn')
         dataset = kwargs.get('dataset')
         
-        # Taylor pruning requires model and dataset - no fallback
-        if model is None:
-            raise ValueError("TaylorPruning requires 'model' parameter. Pass model through model.prune() kwargs.")
-        
-        if dataset is None:
-            raise ValueError("TaylorPruning requires 'dataset' parameter. Pass dataset as tuple (x, y) through model.prune() kwargs.")
-        
-        # Get loss_fn from model if not provided
-        if loss_fn is None:
-            if hasattr(model, 'loss') and model.loss is not None:
-                loss_fn = model.loss
-            else:
-                raise ValueError("TaylorPruning requires 'loss_fn' parameter or model must have a compiled loss function.")
+        # Validate requirements and get loss_fn (may return model.loss if not provided)
+        loss_fn = _validate_gradient_method_requirements("TaylorPruning", model, dataset, loss_fn)
 
         # Compute Taylor scores
         taylor_scores = self._compute_taylor_scores(weights, model, loss_fn, dataset)

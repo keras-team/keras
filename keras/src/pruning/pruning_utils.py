@@ -27,6 +27,7 @@ def analyze_sparsity(model, layer_names=None, tolerance=1e-8):
         - 'zero_weights': Total number of zero weights
     """
     from keras.src.pruning.core import match_layers_by_patterns
+    from keras.src.pruning.core import _has_kernel_weights
     
     layer_stats = {}
     total_weights = 0
@@ -36,16 +37,16 @@ def analyze_sparsity(model, layer_names=None, tolerance=1e-8):
     if layer_names is None:
         # Analyze all layers with kernel weights
         layers_to_analyze = [layer for layer in model.layers 
-                           if hasattr(layer, 'kernel') and layer.kernel is not None]
+                           if _has_kernel_weights(layer)]
     else:
         # Use pattern matching to find layers
         matched_layer_names = match_layers_by_patterns(model, layer_names)
         layer_dict = {layer.name: layer for layer in model.layers}
         layers_to_analyze = [layer_dict[name] for name in matched_layer_names 
-                           if name in layer_dict and hasattr(layer_dict[name], 'kernel')]
+                           if name in layer_dict and _has_kernel_weights(layer_dict[name])]
     
     for layer in layers_to_analyze:
-        if hasattr(layer, 'kernel') and layer.kernel is not None:
+        if _has_kernel_weights(layer):
             weights = layer.kernel
             weights_np = backend.convert_to_numpy(weights)
             
