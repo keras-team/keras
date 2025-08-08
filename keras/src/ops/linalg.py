@@ -7,63 +7,60 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Cholesky(Operation):
-    def call(self, x):
-        return _cholesky(x)
+    def call(self, x, upper=False):
+        return _cholesky(x, upper)
 
-    def compute_output_spec(self, x):
+    def compute_output_spec(self, x, upper=False):
         _assert_2d(x)
         _assert_square(x)
         return KerasTensor(x.shape, x.dtype)
 
 
 @keras_export(["keras.ops.cholesky", "keras.ops.linalg.cholesky"])
-def cholesky(x):
+def cholesky(x, upper=False):
     """Computes the Cholesky decomposition of a positive semi-definite matrix.
 
     Args:
         x: Input tensor of shape `(..., M, M)`.
+        upper (bool): If True, returns the upper-triangular Cholesky factor.
+            If False (default), returns the lower-triangular Cholesky factor.
 
     Returns:
-        A tensor of shape `(..., M, M)` representing the lower triangular
-        Cholesky factor of `x`.
-
+        A tensor of shape `(..., M, M)` representing the Cholesky factor of `x`.
     """
     if any_symbolic_tensors((x,)):
-        return Cholesky().symbolic_call(x)
-    return _cholesky(x)
+        return Cholesky().symbolic_call(x, upper=upper)
+    return _cholesky(x, upper=upper)
 
 
-def _cholesky(x):
+def _cholesky(x, upper=False):
     x = backend.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
     try:
-        return backend.linalg.cholesky(x)
+        return backend.linalg.cholesky(x, upper=upper)
     except Exception as e:
         raise ValueError(f"Cholesky decomposition failed: {e}")
 
 
 class CholeskyInverse(Operation):
-    def call(self, x):
-        return _cholesky_inverse(x)
+    def call(self, x, upper=False):
+        return _cholesky_inverse(x, upper)
 
-    def compute_output_spec(self, x):
+    def compute_output_spec(self, x, upper=False):
         _assert_2d(x)
         _assert_square(x)
         return KerasTensor(x.shape, x.dtype)
 
 
 @keras_export(["keras.ops.cholesky_inverse", "keras.ops.linalg.cholesky_inverse"])
-def cholesky_inverse(x):
-    """Computes the inverse of a symmetric positive-definite matrix using the
-    Cholesky decomposition.
-
-    This function is more efficient and numerically stable than `keras.ops.inv`
-    for symmetric positive-definite matrices.
+def cholesky_inverse(x, upper=False):
+    """Computes the inverse of a symmetric positive-definite matrix.
 
     Args:
-        x: Input tensor of shape `(..., M, M)`. The matrix must be symmetric and
-            positive-definite.
+        x: Input tensor of shape `(..., M, M)`.
+        upper (bool): Determines whether to use the upper- or lower-triangular
+            factor for the internal computation. Defaults to False.
 
     Returns:
         A tensor of shape `(..., M, M)` representing the inverse of `x`.
@@ -72,16 +69,16 @@ def cholesky_inverse(x):
         ValueError: If `x` is not a symmetric positive-definite matrix.
     """
     if any_symbolic_tensors((x,)):
-        return CholeskyInverse().symbolic_call(x)
-    return _cholesky_inverse(x)
+        return CholeskyInverse().symbolic_call(x, upper=upper)
+    return _cholesky_inverse(x, upper=upper)
 
 
-def _cholesky_inverse(x):
+def _cholesky_inverse(x, upper=False):
     x = backend.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
     try:
-        return backend.linalg.cholesky_inverse(x)
+        return backend.linalg.cholesky_inverse(x, upper=upper)
     except Exception as e:
         raise ValueError(f"Cholesky inverse failed: {e}")
 

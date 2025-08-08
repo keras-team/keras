@@ -9,7 +9,7 @@ from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
 
 
-def cholesky(a):
+def cholesky(a, upper=False):
     out = jnp.linalg.cholesky(a)
     try:
         # In eager mode, raise for nan to
@@ -23,14 +23,20 @@ def cholesky(a):
     except jax.errors.TracerBoolConversionError:
         # Cannot raise for nan in tracing mode
         pass
+    if upper:
+        return jnp.swapaxes(out, -2, -1)
     return out
 
 
-def cholesky_inverse(a):
+def cholesky_inverse(a, upper=False):
     identity = jnp.eye(a.shape[-1], dtype=a.dtype)
-    a_inv = solve_triangular(a, identity, lower=True)
-    out = jnp.matmul(jnp.transpose(a_inv), a_inv)
-    return out
+    if upper:
+        u_inv = solve_triangular(a, identity, lower=False)
+        a_inv = jnp.matmul(u_inv, jnp.transpose(u_inv))
+    else:
+        l_inv = solve_triangular(a, identity, lower=True)
+        a_inv = jnp.matmul(jnp.transpose(l_inv), l_inv)
+    return a_inv
 
 
 def det(a):

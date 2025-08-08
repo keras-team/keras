@@ -353,22 +353,38 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
 
 class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
-        x = np.random.rand(4, 3, 3).astype("float32")
+        x_non_psd = np.random.rand(4, 3, 3).astype("float32")
         with self.assertRaises(ValueError):
-            linalg.cholesky(x)
-        x_psd = x @ x.transpose((0, 2, 1)) + 1e-5 * np.eye(3)
-        out = linalg.cholesky(x_psd)
-        self.assertAllClose(out, np.linalg.cholesky(x_psd), atol=1e-4)
+            linalg.cholesky(x_non_psd)
+        x = np.random.rand(4, 3, 3).astype("float32")
+        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(3)
+
+        l_out = linalg.cholesky(x_psd, upper=False)
+        l_expected = np.linalg.cholesky(x_psd)
+        self.assertAllClose(l_out, l_expected, atol=1e-4)
+
+        u_out = linalg.cholesky(x_psd, upper=True)
+        u_expected = l_expected.transpose((0, 2, 1))
+        self.assertAllClose(u_out, u_expected, atol=1e-4)
+
 
     def test_cholesky_inverse(self):
         x_np = np.random.rand(3, 3).astype("float32")
         x_psd_np = np.matmul(x_np, x_np.T) + 1e-4 * np.eye(3, dtype="float32")
-        x_chol = linalg.cholesky(x_psd_np)
-        x_inv = linalg.cholesky_inverse(x_chol)
-        reconstructed_identity = ops.matmul(x_psd_np, x_inv)
         identity = np.eye(3, dtype="float32")
+
+        l_factor = linalg.cholesky(x_psd_np, upper=False)
+        x_inv_from_l = linalg.cholesky_inverse(l_factor, upper=False)
+        reconstructed_from_l = ops.matmul(x_psd_np, x_inv_from_l)
         self.assertAllClose(
-            reconstructed_identity, identity, atol=1e-4, rtol=1e-4
+            reconstructed_from_l, identity, atol=1e-4, rtol=1e-4
+        )
+
+        u_factor = linalg.cholesky(x_psd_np, upper=True)
+        x_inv_from_u = linalg.cholesky_inverse(u_factor, upper=True)
+        reconstructed_from_u = ops.matmul(x_psd_np, x_inv_from_u)
+        self.assertAllClose(
+            reconstructed_from_u, identity, atol=1e-4, rtol=1e-4
         )
 
     def test_det(self):
