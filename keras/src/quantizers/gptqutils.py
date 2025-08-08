@@ -1,11 +1,7 @@
-import io
 import random
-import tarfile
 
 import numpy as np
-import requests
 from absl import logging
-from datasets import load_dataset
 
 from keras.src import ops
 from keras.src.layers import Dense
@@ -20,136 +16,34 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
     Prepares and chunks the calibration dataloader, repeating short datasets.
     """
     all_tokens = []
-    rng = np.random.default_rng(seed=42)
 
-    # Unify all input types into a single list of tokens
     if isinstance(dataset, str):
-        logging.info(f"Loading '{dataset}' dataset from Hub...")
-        if dataset == "wikitext2":
-            d_name, d_config = "wikitext", "wikitext-2-raw-v1"
-        elif dataset == "ptb":
-            url = "https://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz"
-            try:
-                # Download the archive into memory
-                response = requests.get(url)
-                response.raise_for_status()
+        raise TypeError(
+            "The `dataset` argument must be an iterable (e.g., a list or "
+            "generator) of strings or pre-tokenized tensors. Loading "
+            "datasets by name is no longer supported."
+        )
 
-                # Extract only the test file from the in-memory archive
-                with tarfile.open(
-                    fileobj=io.BytesIO(response.content), mode="r:gz"
-                ) as tar:
-                    train_path = "./simple-examples/data/ptb.train.txt"
-                    test_bytes = tar.extractfile(train_path).read()
+    logging.info("\n==> Using pre-made dataset/generator...")
+    dataset_list = list(dataset)
 
-                # Decode the bytes and join into a single string
-                test_lines = test_bytes.decode("utf-8").strip().split("\n")
-                full_text = "\n\n".join(test_lines)
-                all_tokens = tokenizer.tokenize(full_text)
-                logging.info(
-                    "✅ Successfully processed PTB training data for"
-                    "calibration."
-                )
+    if not dataset_list:
+        raise ValueError("Provided dataset is empty.")
 
-                # Perform sampling and chunking directly inside this block
-                all_tokens = np.array(all_tokens, dtype=np.int32)
-                required_tokens = nsamples * seqlen
-                if len(all_tokens) < required_tokens:
-                    logging.info(
-                        f"Warning: PTB dataset is too short ({len(all_tokens)}"
-                        "tokens). Repeating data."
-                    )
-                    repeats = -(-required_tokens // len(all_tokens))
-                    all_tokens = np.tile(all_tokens, repeats)
-
-                calibration_samples = []
-                for _ in range(nsamples):
-                    start_index = rng.integers(
-                        low=0, high=len(all_tokens) - seqlen
-                    )
-                    end_index = start_index + seqlen
-                    sample = all_tokens[start_index:end_index]
-                    calibration_samples.append(ops.reshape(sample, (1, seqlen)))
-
-                final_array = ops.stack(calibration_samples, axis=0)
-
-                # Return the correctly shaped array, isolating the logic
-                return ops.convert_to_numpy(final_array)
-
-            except Exception as e:
-                logging.info(f"Failed to download or process PTB data: {e!r}")
-                raise e
-        elif dataset == "c4":
-            logging.info(
-                "   -> Using memory-efficient streaming strategy for C4."
-            )
-            streaming_dataset = load_dataset(
-                "allenai/c4", "en", split="train", streaming=True
-            )
-            dataset_head = streaming_dataset.take(nsamples * 5)
-
-            samples = []
-            docs_for_sampling = list(dataset_head)
-
-            for _ in range(nsamples):
-                while True:
-                    doc = random.choice(docs_for_sampling)
-                    try:
-                        # Call the tokenizer layer directly (the KerasNLP way)
-                        # and squeeze the output to a 1D array.
-                        tokenized_doc = np.squeeze(tokenizer(doc["text"]))
-                        if len(tokenized_doc) >= seqlen:
-                            break
-                    except Exception:
-                        docs_for_sampling.remove(doc)
-                        if not docs_for_sampling:
-                            raise ValueError(
-                                "Could not find enough valid documents"
-                                "in the C4 sample."
-                            )
-                        continue
-
-                j = rng.integers(low=0, high=len(tokenized_doc) - seqlen)
-                sample_slice = tokenized_doc[j : j + seqlen]
-                samples.append(np.reshape(sample_slice, (1, seqlen)))
-
-            return np.array(samples, dtype=np.int32)
-        else:
-            logging.info(
-                f"Attempting to load '{dataset}' directly with its "
-                "default configuration."
-            )
-            d_name = dataset
-            d_config = None  # Use the default configuration for the dataset
-
-        # Default to "text" for wikitext2 and other datasets
-        text_column = "text"
-
-        raw_dataset = load_dataset(d_name, d_config, split="train")
-        text_list = [d[text_column] for d in raw_dataset]
-        full_text = "\n\n".join(text_list)
+    if isinstance(dataset_list[0], str):
+        logging.info("   (Dataset contains strings, tokenizing now...)")
+        full_text = "\n\n".join(dataset_list)
         all_tokens = tokenizer.tokenize(full_text)
-
     else:
-        logging.info("Using pre-made dataset/generator")
-        dataset_list = list(dataset)
-
-        if not dataset_list:
-            raise ValueError("Provided dataset is empty.")
-
-        if isinstance(dataset_list[0], str):
-            logging.info("   (Dataset contains strings, tokenizing now...)")
-            full_text = "\n\n".join(dataset_list)
-            all_tokens = tokenizer.tokenize(full_text)
-        else:
-            logging.info("   (Dataset is pre-tokenized, concatenating...)")
-            concatenated_tokens = ops.concatenate(
-                [ops.reshape(s, [-1]) for s in dataset_list], axis=0
-            )
-            all_tokens = ops.convert_to_numpy(concatenated_tokens)
+        logging.info("   (Dataset is pre-tokenized, concatenating...)")
+        concatenated_tokens = ops.concatenate(
+            [ops.reshape(s, [-1]) for s in dataset_list], axis=0
+        )
+        all_tokens = ops.convert_to_numpy(concatenated_tokens)
 
     all_tokens = np.array(all_tokens, dtype=np.int32)
 
-    # --- Step 2: Repeat data if it's too short ---
+    # Repeat data if it's too short
     required_tokens = nsamples * seqlen
     if len(all_tokens) < required_tokens:
         logging.info(
@@ -159,10 +53,12 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128, seed=0):
         repeats = -(-required_tokens // len(all_tokens))  # Ceiling division
         all_tokens = np.tile(all_tokens, repeats)
 
+    # Chunk the token list into samples
+
     calibration_samples = []
     for _ in range(nsamples):
         # Generate a random starting index
-        start_index = rng.integers(low=0, high=len(all_tokens) - seqlen)
+        start_index = random.randint(0, len(all_tokens) - seqlen - 1)
         end_index = start_index + seqlen
         sample = all_tokens[start_index:end_index]
         calibration_samples.append(ops.reshape(sample, (1, seqlen)))
