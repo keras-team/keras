@@ -460,6 +460,84 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.test_function = None
             self.predict_function = None
 
+    def prune(self, sparsity=0.5, method="l1", layers_to_prune=None, dataset=None, 
+              loss_fn=None, reinitialize=False, **kwargs):
+        """Prune the model weights according to the specified parameters.
+
+        Args:
+            sparsity: Float between 0 and 1. Fraction of weights to prune.
+            method: Pruning method - string name or PruningMethod instance.
+                Options: "l1", "l2", "structured", "saliency", "taylor", etc.
+            layers_to_prune: Optional specification of which layers to prune. Can be:
+                - None: Prune all eligible layers (default)
+                - List of layer names: Only prune layers with names in the list
+                - List of regex patterns: Prune layers whose names match any pattern
+                - Single string: Treated as a layer name or regex pattern
+            dataset: Dataset for gradient-based methods (tuple of (x, y)).
+            loss_fn: Loss function for gradient-based methods.
+            reinitialize: Boolean. If True, reinitialize pruned weights instead of zeroing them.
+                         This enables the "Pruning-then-Expanding" paradigm for continual learning.
+            **kwargs: Additional arguments passed to pruning methods.
+
+        Returns:
+            Dictionary with pruning statistics.
+
+        Examples:
+            ```python
+            # Basic L1 pruning on all layers
+            stats = model.prune(sparsity=0.5, method="l1")
+            
+            # Structured pruning on specific layers
+            stats = model.prune(
+                sparsity=0.3, 
+                method="structured", 
+                layers_to_prune=["dense_1", "dense_2"]
+            )
+            
+            # Saliency pruning with dataset
+            stats = model.prune(
+                sparsity=0.4,
+                method="saliency",
+                dataset=(x_sample, y_sample),
+                loss_fn="mse"
+            )
+            
+            # Prune layers matching regex pattern
+            stats = model.prune(
+                sparsity=0.6,
+                method="l1",
+                layers_to_prune=["conv.*", "dense_[0-9]"]  # Regex patterns
+            )
+            ```
+        """
+        from keras.src.pruning.core import apply_pruning_to_model
+
+        if not self.built:
+            raise ValueError(
+                "The model must be built before calling `prune()`. "
+                "You can build it by calling `model.build(input_shape)` or by "
+                "calling the model on some data."
+            )
+
+        # Use direct parameter approach
+        stats = apply_pruning_to_model(
+            model=self,
+            sparsity=sparsity,
+            method=method,
+            layers_to_prune=layers_to_prune,
+            dataset=dataset,
+            loss_fn=loss_fn,
+            reinitialize=reinitialize,
+            **kwargs
+        )
+
+        # Clear compiled functions to ensure they get rebuilt with pruned weights
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
+
+        return stats
+
     def build_from_config(self, config):
         if not config:
             return
