@@ -1,11 +1,10 @@
 import builtins
 import math
 
-from absl import logging
-
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
+from absl import logging
 from jax import lax
 from jax import nn as jnn
 from jax.experimental.pallas.ops.tpu.splash_attention import (
@@ -1359,7 +1358,6 @@ def dot_product_attention(
                     f"Failed to apply {impl} implementation of "
                     "jax.nn.dot_product_attention."
                 )
-
 
     if flash_attention:
         raise RuntimeError(
