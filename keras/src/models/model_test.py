@@ -1293,57 +1293,57 @@ def _get_model_with_dense_attention():
 
 @pytest.mark.requires_trainable_backend
 class ModelQuantizationTest(testing.TestCase):
-    def _run_gptq_test_on_dataset(self, dataset):
-        """Helper function to run a full GPTQ quantization
-        test on a given dataset."""
-
+    def _run_gptq_test_on_dataset(self, dataset, **config_kwargs):
+        """Helper function to run a full GPTQ quantization test."""
         model = _get_model_with_dense_attention()
         rng = np.random.default_rng(seed=42)
+
         # 1. Common setup
         NUM_SAMPLES = 16
         SEQUENCE_LENGTH = 128
         VOCAB_SIZE = 1000
         W_BITS = 4
-        GROUP_SIZE = 32
+
+        # Default config that can be overridden by config_kwargs
+        base_config = {
+            "dataset": dataset,
+            "wbits": W_BITS,
+            "nsamples": NUM_SAMPLES,
+            "seqlen": SEQUENCE_LENGTH,
+            "group_size": 32,
+            "symmetric": False,
+            "act_order": False,
+        }
 
         mock_tokenizer = lambda text: np.array(
             [ord(c) % VOCAB_SIZE for c in text]
         )
         mock_tokenizer.tokenize = mock_tokenizer
+        base_config["tokenizer"] = mock_tokenizer
 
-        # 2. Find target layer and get original weights
+        # Find target layer and get original weights
         target_layer = model.layers[2].ffn.layers[0]
-
         self.assertIsNotNone(
             target_layer,
-            "Test setup failed: No Dense layer was found inside "
-            "an 'ffn' block.",
+            "Test setup failed: No Dense layer found in 'ffn' block.",
         )
         original_weights = np.copy(target_layer.kernel.numpy())
 
-        # 3. Configure and run quantization
-        gptq_config = GPTQConfig(
-            dataset=dataset,
-            tokenizer=mock_tokenizer,
-            wbits=W_BITS,
-            nsamples=NUM_SAMPLES,
-            seqlen=SEQUENCE_LENGTH,
-            group_size=GROUP_SIZE,
-        )
+        # Configure and run quantization
+        final_config = {**base_config, **config_kwargs}
+        gptq_config = GPTQConfig(**final_config)
+
         model.quantize("gptq", quant_config=gptq_config)
 
-        #  4. Assertions and verification
+        # Assertions and verification
         quantized_weights = target_layer.kernel.numpy()
 
-        # Assert that the weights have been changed
         self.assertNotAllClose(
             original_weights,
             quantized_weights,
-            msg="Weights were not changed by the GPTQ process for "
-            "dataset: {dataset}",
+            msg=f"Weights not changed by GPTQ for config: {config_kwargs}",
         )
 
-        # Verify the quantized model can still make a prediction
         dummy_sample = rng.integers(
             low=0, high=VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
         )
@@ -1378,3 +1378,21 @@ class ModelQuantizationTest(testing.TestCase):
             # for each specific dataset without stopping the whole test.
             with self.subTest(dataset_type=dataset_name):
                 self._run_gptq_test_on_dataset(dataset)
+
+    def test_quantize_gptq_with_config_variations(self):
+        """Tests GPTQ with specific config variations."""
+        config_variations = {
+            "per_channel": {"group_size": -1},
+            "act_order": {"act_order": True},
+            "symmetric": {"symmetric": True},
+            "all_options_enabled": {
+                "group_size": -1,
+                "act_order": True,
+                "symmetric": True,
+            },
+        }
+
+        dataset = ["This is the calibration data for the test."]
+        for config_name, config_overrides in config_variations.items():
+            with self.subTest(config_type=config_name):
+                self._run_gptq_test_on_dataset(dataset, **config_overrides)
