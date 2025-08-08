@@ -3,6 +3,8 @@
 from keras.src.pruning.core import apply_pruning_to_layer
 from keras.src.pruning.core import apply_pruning_to_model
 from keras.src.pruning.core import get_model_sparsity
+from keras.src.pruning.core import get_pruning_mask
+from keras.src.pruning.core import get_inverted_pruning_mask
 from keras.src.pruning.core import match_layers_by_patterns
 from keras.src.pruning.core import should_prune_layer
 from keras.src.pruning.pruning_method import L1Pruning
@@ -30,6 +32,8 @@ __all__ = [
     "should_prune_layer",
     "apply_pruning_to_model",
     "apply_pruning_to_layer",
+    "get_pruning_mask",
+    "get_inverted_pruning_mask",
     "match_layers_by_patterns",
     "PruningMethod",
     "StructuredPruning",

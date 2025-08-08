@@ -167,11 +167,29 @@ def compute_structured_mask(weights, sparsity):
     return mask
 
 
-def apply_pruning_to_layer(layer, sparsity, method="l1", model=None, dataset=None, loss_fn=None, **kwargs):
-    """Apply pruning to a single layer."""
+def get_pruning_mask(layer, sparsity, method="l1", model=None, dataset=None, loss_fn=None, **kwargs):
+    """Compute and return a pruning mask for a layer without applying it.
+    
+    This utility function extracts the mask computation logic to enable
+    advanced use cases like continual learning and selective weight freezing.
+    
+    Args:
+        layer: Keras layer to compute mask for.
+        sparsity: Float between 0 and 1. Fraction of weights to prune.
+        method: Pruning method - string name or PruningMethod instance.
+        model: Model (required for gradient-based methods).
+        dataset: Dataset for gradient-based methods (tuple of (x, y)).
+        loss_fn: Loss function for gradient-based methods.
+        **kwargs: Additional arguments passed to pruning methods.
+    
+    Returns:
+        Boolean mask tensor. True = keep weight, False = prune weight.
+    """
     if not should_prune_layer(layer):
-        return False
-
+        # Return all-ones mask for non-prunable layers
+        weights = layer.kernel.value
+        return ops.ones_like(weights, dtype="bool")
+    
     weights = layer.kernel.value
 
     # Handle method as string or instance
@@ -202,24 +220,149 @@ def apply_pruning_to_layer(layer, sparsity, method="l1", model=None, dataset=Non
         # Assume it's a PruningMethod instance
         pruning_method = method
 
-    # Prepare kwargs for compute_mask
+    # Prepare kwargs for compute_mask with enhanced loss function handling
     mask_kwargs = {
         "model": model,
         "dataset": dataset, 
         "loss_fn": loss_fn,
         **kwargs
     }
+    
+    # Enhanced error handling for gradient-based methods
+    if method in ["saliency", "taylor"] or (hasattr(pruning_method, '__class__') and 
+                                            pruning_method.__class__.__name__ in ["SaliencyPruning", "TaylorPruning"]):
+        if model is None:
+            raise ValueError(
+                f"Method '{method}' requires 'model' parameter for gradient computation. "
+                f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
+            )
+        if dataset is None:
+            raise ValueError(
+                f"Method '{method}' requires 'dataset' parameter for gradient computation. "
+                f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
+            )
+        if loss_fn is None and not hasattr(model, 'compiled_loss') and not hasattr(model, 'loss'):
+            raise ValueError(
+                f"Method '{method}' requires 'loss_fn' parameter when model is not compiled or has no default loss. "
+                f"Usage: get_pruning_mask(layer, sparsity, method='{method}', model=your_model, dataset=(x, y), loss_fn='mse')"
+            )
 
-    # Compute and apply mask
+    # Compute mask
     mask = pruning_method.compute_mask(weights, sparsity, **mask_kwargs)
-    pruned_weights = pruning_method.apply_mask(weights, mask)
+    return mask
+
+
+def get_inverted_pruning_mask(layer, sparsity, method="l1", model=None, dataset=None, loss_fn=None, **kwargs):
+    """Return the inverse of the pruning mask.
+    
+    This function is useful for continual learning scenarios where you want to:
+    1. Identify important weights that should be preserved/frozen
+    2. Implement the "Pruning-then-Expanding" paradigm
+    3. Selectively update only certain weights during training
+    
+    The inverted mask indicates which weights are IMPORTANT (not pruned).
+    True = important weight (should be kept/frozen), False = unimportant weight (can be pruned/retrained).
+    
+    Args:
+        layer: Keras layer to compute inverted mask for.
+        sparsity: Float between 0 and 1. Fraction of weights to identify as unimportant.
+        method: Pruning method - string name or PruningMethod instance.
+        model: Model (required for gradient-based methods).
+        dataset: Dataset for gradient-based methods (tuple of (x, y)).
+        loss_fn: Loss function for gradient-based methods.
+        **kwargs: Additional arguments passed to pruning methods.
+    
+    Returns:
+        Boolean mask tensor. True = important weight (keep/freeze), False = unimportant weight (prune/retrain).
+        
+    Example:
+        ```python
+        # Get important weights for continual learning
+        important_mask = get_inverted_pruning_mask(
+            layer=model.layers[1], 
+            sparsity=0.3,
+            method="saliency",
+            model=model,
+            dataset=(x_old_tasks, y_old_tasks),
+            loss_fn="categorical_crossentropy"
+        )
+        
+        # Use mask to freeze important weights during new task training
+        # (This would require additional gradient masking functionality)
+        ```
+    """
+    pruning_mask = get_pruning_mask(
+        layer=layer,
+        sparsity=sparsity, 
+        method=method,
+        model=model,
+        dataset=dataset,
+        loss_fn=loss_fn,
+        **kwargs
+    )
+    # Return logical NOT of pruning mask
+    # pruning_mask: True = keep, False = prune
+    # inverted_mask: True = important (was kept), False = unimportant (was pruned)
+    return pruning_mask
+
+
+def apply_pruning_to_layer(layer, sparsity, method="l1", model=None, dataset=None, loss_fn=None, reinitialize=False, **kwargs):
+    """Apply pruning to a single layer.
+    
+    Args:
+        layer: Keras layer to prune.
+        sparsity: Float between 0 and 1. Fraction of weights to prune.
+        method: Pruning method - string name or PruningMethod instance.
+        model: Model (required for gradient-based methods).
+        dataset: Dataset for gradient-based methods (tuple of (x, y)).
+        loss_fn: Loss function for gradient-based methods.
+        reinitialize: Boolean. If True, reinitialize pruned weights instead of zeroing them.
+                     This enables the "Pruning-then-Expanding" paradigm for continual learning.
+        **kwargs: Additional arguments passed to pruning methods.
+    
+    Returns:
+        Boolean indicating if pruning was applied.
+    """
+    if not should_prune_layer(layer):
+        return False
+
+    weights = layer.kernel.value
+
+    # Use the new get_pruning_mask function for consistency
+    mask = get_pruning_mask(
+        layer=layer,
+        sparsity=sparsity,
+        method=method,
+        model=model,
+        dataset=dataset,
+        loss_fn=loss_fn,
+        **kwargs
+    )
+    
+    if reinitialize:
+        # Re-initialize pruned weights instead of zeroing them out
+        # This implements the "Expanding" part of the Pruning-then-Expanding paradigm
+        import keras
+        
+        # Use He/Kaiming initialization which is good for ReLU activations
+        # For other activations, Glorot/Xavier might be better
+        initializer = keras.initializers.get("he_uniform")
+        new_weights = initializer(shape=weights.shape, dtype=weights.dtype)
+        
+        # Keep the original weights where mask is True, use new weights where False
+        pruned_weights = ops.where(mask, weights, new_weights)
+    else:
+        # Default behavior: zero out pruned weights
+        # Apply mask directly
+        pruned_weights = weights * ops.cast(mask, weights.dtype)
+        
     layer.kernel.assign(pruned_weights)
 
     return True
 
 
 def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None, 
-                          dataset=None, loss_fn=None, **kwargs):
+                          dataset=None, loss_fn=None, reinitialize=False, **kwargs):
     """Apply pruning to specified layers in a model.
 
     Args:
@@ -233,6 +376,8 @@ def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None,
             - Single string: Treated as a layer name or regex pattern
         dataset: Dataset for gradient-based methods (tuple of (x, y)).
         loss_fn: Loss function for gradient-based methods.
+        reinitialize: Boolean. If True, reinitialize pruned weights instead of zeroing them.
+                     This enables the "Pruning-then-Expanding" paradigm for continual learning.
         **kwargs: Additional arguments passed to pruning methods.
 
     Returns:
@@ -252,6 +397,7 @@ def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None,
                 model=model,
                 dataset=dataset,
                 loss_fn=loss_fn,
+                reinitialize=reinitialize,
                 **kwargs
             ):
                 pruned_layers += 1

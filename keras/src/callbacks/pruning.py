@@ -142,14 +142,6 @@ class PruningCallback(Callback):
                 f"Training complete. Final model sparsity: {final_sparsity:.3f}"
             )
 
-    def on_train_end(self, logs=None):
-        """Print final sparsity when training ends."""
-        if self.verbose:
-            final_sparsity = get_model_sparsity(self.model)
-            print(
-                f"Training complete. Final model sparsity: {final_sparsity:.3f}"
-            )
-
 
 @keras_export("keras.callbacks.PostTrainingPruning")
 class PostTrainingPruning(Callback):

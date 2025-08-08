@@ -461,7 +461,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.predict_function = None
 
     def prune(self, sparsity=0.5, method="l1", layers_to_prune=None, dataset=None, 
-              loss_fn=None, **kwargs):
+              loss_fn=None, reinitialize=False, **kwargs):
         """Prune the model weights according to the specified parameters.
 
         Args:
@@ -475,6 +475,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 - Single string: Treated as a layer name or regex pattern
             dataset: Dataset for gradient-based methods (tuple of (x, y)).
             loss_fn: Loss function for gradient-based methods.
+            reinitialize: Boolean. If True, reinitialize pruned weights instead of zeroing them.
+                         This enables the "Pruning-then-Expanding" paradigm for continual learning.
             **kwargs: Additional arguments passed to pruning methods.
 
         Returns:
@@ -525,6 +527,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             layers_to_prune=layers_to_prune,
             dataset=dataset,
             loss_fn=loss_fn,
+            reinitialize=reinitialize,
             **kwargs
         )
 
