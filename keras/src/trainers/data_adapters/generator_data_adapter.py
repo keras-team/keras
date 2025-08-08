@@ -32,6 +32,8 @@ class GeneratorDataAdapter(DataAdapter):
         from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_tf(x, spec):
+            if x is None:
+                return tf.experimental.Optional.empty(None)
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_tf_sparse(x)
             elif data_adapter_utils.is_jax_sparse(x):
