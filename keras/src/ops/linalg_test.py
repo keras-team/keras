@@ -357,7 +357,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.cholesky(x_non_psd)
         x = np.random.rand(4, 3, 3).astype("float32")
-        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(3)
+        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(3, dtype="float32")
 
         l_out = linalg.cholesky(x_psd, upper=False)
         l_expected = np.linalg.cholesky(x_psd)

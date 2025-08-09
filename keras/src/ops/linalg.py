@@ -7,10 +7,14 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Cholesky(Operation):
-    def call(self, x, upper=False):
-        return _cholesky(x, upper)
+    def __init__(self, upper=False, name=None):
+        super().__init__(name=name)
+        self.upper = upper
 
-    def compute_output_spec(self, x, upper=False):
+    def call(self, x):
+        return _cholesky(x, self.upper)
+
+    def compute_output_spec(self, x):
         _assert_2d(x)
         _assert_square(x)
         return KerasTensor(x.shape, x.dtype)
@@ -29,7 +33,7 @@ def cholesky(x, upper=False):
         A tensor of shape `(..., M, M)` representing the Cholesky factor of `x`.
     """
     if any_symbolic_tensors((x,)):
-        return Cholesky().symbolic_call(x, upper=upper)
+        return Cholesky(upper=upper).symbolic_call(x)
     return _cholesky(x, upper=upper)
 
 
@@ -44,10 +48,14 @@ def _cholesky(x, upper=False):
 
 
 class CholeskyInverse(Operation):
-    def call(self, x, upper=False):
-        return _cholesky_inverse(x, upper)
+    def __init__(self, upper=False, name=None):
+        super().__init__(name=name)
+        self.upper = upper
 
-    def compute_output_spec(self, x, upper=False):
+    def call(self, x):
+        return _cholesky_inverse(x, self.upper)
+
+    def compute_output_spec(self, x):
         _assert_2d(x)
         _assert_square(x)
         return KerasTensor(x.shape, x.dtype)
@@ -69,7 +77,7 @@ def cholesky_inverse(x, upper=False):
         ValueError: If `x` is not a symmetric positive-definite matrix.
     """
     if any_symbolic_tensors((x,)):
-        return CholeskyInverse().symbolic_call(x, upper=upper)
+        return CholeskyInverse(upper=upper).symbolic_call(x)
     return _cholesky_inverse(x, upper=upper)
 
 
