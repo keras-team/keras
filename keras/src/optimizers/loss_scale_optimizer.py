@@ -307,6 +307,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         return cls(inner_optimizer, **config)
 
 
-LossScaleOptimizer.__doc__ = LossScaleOptimizer.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if LossScaleOptimizer.__doc__ is not None:
+    LossScaleOptimizer.__doc__ = LossScaleOptimizer.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )
