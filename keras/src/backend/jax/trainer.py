@@ -19,6 +19,7 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from jax.sharding import PartitionSpec, NamedSharding
 
 if is_nnx_enabled():
     from flax import nnx
@@ -255,82 +256,78 @@ class JAXTrainer(base_trainer.Trainer):
 
         return iterator_step
 
-    def _get_out_shardings_for_step(self, state_shardings):
-        """Helper to create the out_shardings for a jitted step function."""
-        if distribution_lib.distribution() is not None and hasattr(
-            self, "_metrics_result_structure"
-        ):
-            return (
-                tree.map_structure(lambda _: None, self._metrics_result_structure),
-                state_shardings,
-            )
-        return None
-
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
             return
-
-        state_shardings = (
-            self._trainable_variable_shardings,
-            self._non_trainable_variable_shardings,
-            self._optimizer_variable_shardings,
-            self._metrics_variable_shardings,
-        )
-        out_shardings = self._get_out_shardings_for_step(state_shardings)
-
         if not self.run_eagerly and self.jit_compile:
+            out_shardings = None
+            if distribution_lib.distribution() is not None:
+                state_shardings = (
+                    self._trainable_variable_shardings,
+                    self._non_trainable_variable_shardings,
+                    self._optimizer_variable_shardings,
+                    self._metrics_variable_shardings,
+                )
+                out_shardings = (None, state_shardings)
             train_step = jit(
-                self.train_step, donate_argnums=0, out_shardings=out_shardings
+                self.train_step,
+                donate_argnums=0,
+                out_shardings=out_shardings,
             )
         else:
             train_step = self.train_step
 
-        self.train_function = self._make_function(train_step)
+        step_function = self._make_function(train_step)
+
+        self.train_function = step_function
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
             return
-
-        state_shardings = (
-            self._trainable_variable_shardings,
-            self._non_trainable_variable_shardings,
-            self._metrics_variable_shardings,
-        )
-        out_shardings = self._get_out_shardings_for_step(state_shardings)
-
         if not self.run_eagerly and self.jit_compile:
+            out_shardings = None
+            if distribution_lib.distribution() is not None:
+                state_shardings = (
+                    self._trainable_variable_shardings,
+                    self._non_trainable_variable_shardings,
+                    self._metrics_variable_shardings,
+                )
+                out_shardings = (None, state_shardings)
             test_step = jit(
-                self.test_step, donate_argnums=0, out_shardings=out_shardings
+                self.test_step,
+                donate_argnums=0,
+                out_shardings=out_shardings,
             )
         else:
             test_step = self.test_step
 
-        self.test_function = self._make_function(test_step)
+        step_function = self._make_function(test_step)
+
+        self.test_function = step_function
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
             return self.predict_function
 
-        def predict_step(state, data):
+        def predict_step_wrapper(state, data):
             outputs, non_trainable_variables = self.predict_step(state, data)
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
             out_shardings = None
-            # FIX: Check if the model has been built before accessing sharding attrs
-            if distribution_lib.distribution() is not None and hasattr(
-                self, "_trainable_variable_shardings"
-            ):
-                out_shardings = (
-                    None,
-                    (
-                        self._trainable_variable_shardings,
-                        self._non_trainable_variable_shardings,
-                    ),
+            if distribution_lib.distribution() is not None:
+                state_shardings = (
+                    self._trainable_variable_shardings,
+                    self._non_trainable_variable_shardings,
                 )
+                out_shardings = (None, state_shardings)
             predict_step = jit(
-                predict_step, donate_argnums=0, out_shardings=out_shardings
+                predict_step_wrapper,
+                donate_argnums=0,
+                out_shardings=out_shardings
             )
+        else:
+            predict_step = predict_step_wrapper
 
         _step_function = self._make_function(
             predict_step, concatenate_outputs=True
@@ -896,21 +893,43 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state_synced = True
 
     def _record_training_state_sharding_spec(self):
-        self._trainable_variable_shardings = [
-            v.value.sharding for v in self.trainable_variables
-        ]
-        self._non_trainable_variable_shardings = [
-            v.value.sharding for v in self.non_trainable_variables
-        ]
-        if hasattr(self, "optimizer") and self.optimizer is not None:
-            self._optimizer_variable_shardings = [
-                v.value.sharding for v in self.optimizer.variables
-            ]
+        if not self.jit_compile:
+            return
+
+        distribution = distribution_lib.distribution()
+
+        def get_partition_spec(variable):
+            if distribution is None:
+                return PartitionSpec()
+            
+            if not hasattr(distribution, "layout_map"):
+                 return PartitionSpec()
+            tensor_layout = distribution.layout_map.get(variable.path)
+
+            if tensor_layout is None:
+                return PartitionSpec()
+            return PartitionSpec(*tensor_layout.axes)
+
+        self._trainable_variable_shardings = tuple(
+            get_partition_spec(v) for v in self.trainable_variables
+        )
+        self._non_trainable_variable_shardings = tuple(
+            get_partition_spec(v) for v in self.non_trainable_variables
+        )
+        
+        if hasattr(self, "optimizer") and self.optimizer:
+            self._optimizer_variable_shardings = tuple(
+                get_partition_spec(v) for v in self.optimizer.variables
+            )
         else:
-            self._optimizer_variable_shardings = []
-        self._metrics_variable_shardings = [
-            v.value.sharding for v in self.metrics_variables
-        ]
+            self._optimizer_variable_shardings = ()
+
+        if hasattr(self, "metrics_variables"):
+            self._metrics_variable_shardings = tuple(
+                get_partition_spec(v) for v in self.metrics_variables
+            )
+        else:
+            self._metrics_variable_shardings = ()
 
     def _clear_jax_state_sharding(self):
         self._trainable_variable_shardings = None
