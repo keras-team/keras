@@ -70,11 +70,7 @@ class Reshape(Layer):
         if self.need_explicit_shape_for_batch_size_None and (inputs.shape[0] is None):
             input_nonbatch_shape = tuple(inputs.shape[1:])
             if input_nonbatch_shape.count(None) == 0:
-                # If the input shape is fully defined, we can compute the desired target_shape
-                if True:
-                    inp_nonbatch_size = math.prod(inputs.shape[1:])
-                else:
-                    inp_nonbatch_size = ops.prod(ops.shape(inputs)[1:])
+                inp_nonbatch_size = math.prod(inputs.shape[1:])
                 target_shape = tuple(d if d != -1 else (inp_nonbatch_size // self.new_size_no_minus_one) for d in self.target_shape)
 
         return ops.reshape(
