@@ -9,12 +9,14 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
+from keras.src import models
 from keras.src import testing
 from keras.src import tree
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 def _get_model():
@@ -1237,3 +1239,159 @@ class ModelTest(testing.TestCase):
                 ),
             ):
                 model.export(temp_filepath, format="tf_saved_model")
+
+
+# Helper function to generate dummy data for quick testing.
+def dummy_dataset_generator(nsamples, seqlen, vocab_size=1000):
+    """A generator that yields random numpy arrays for fast,
+    self-contained tests."""
+    rng = np.random.default_rng(seed=42)
+    for _ in range(nsamples):
+        yield rng.integers(low=0, high=vocab_size, size=(1, seqlen))
+
+
+# Helper function to build a simple transformer model that uses standard
+# Keras `Dense` layers for its attention projections.
+def _get_model_with_dense_attention():
+    """Builds a simple transformer model using Dense for attention."""
+    vocab_size = 1000
+    embed_dim = 32
+    num_heads = 4
+    ff_dim = 32
+
+    class SimpleTransformerBlock(layers.Layer):
+        def __init__(self, embed_dim, num_heads, ff_dim, **kwargs):
+            super().__init__(**kwargs)
+            # The standard MultiHeadAttention layer uses Dense layers
+            # for its projections.
+            self.att = layers.MultiHeadAttention(
+                num_heads=num_heads, key_dim=embed_dim
+            )
+            self.ffn = models.Sequential(
+                [
+                    layers.Dense(ff_dim, activation="relu"),
+                    layers.Dense(embed_dim),
+                ]
+            )
+            self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+            self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+
+        def call(self, inputs):
+            attention_output = self.att(inputs, inputs)
+            out1 = self.layernorm1(inputs + attention_output)
+            ffn_output = self.ffn(out1)
+            return self.layernorm2(out1 + ffn_output)
+
+    inputs = layers.Input(shape=(None,), dtype="int32")
+    embedding_layer = layers.Embedding(vocab_size, embed_dim)
+    x = embedding_layer(inputs)
+    transformer_block = SimpleTransformerBlock(embed_dim, num_heads, ff_dim)
+    x = transformer_block(x)
+    outputs = layers.Dense(vocab_size)(x)
+    model = models.Model(inputs=inputs, outputs=outputs)
+    return model
+
+
+@pytest.mark.requires_trainable_backend
+class ModelQuantizationTest(testing.TestCase):
+    def _run_gptq_test_on_dataset(self, dataset, **config_kwargs):
+        """Helper function to run a full GPTQ quantization test."""
+        model = _get_model_with_dense_attention()
+        rng = np.random.default_rng(seed=42)
+
+        # 1. Common setup
+        NUM_SAMPLES = 16
+        SEQUENCE_LENGTH = 128
+        VOCAB_SIZE = 1000
+        W_BITS = 4
+
+        # Default config that can be overridden by config_kwargs
+        base_config = {
+            "dataset": dataset,
+            "wbits": W_BITS,
+            "nsamples": NUM_SAMPLES,
+            "seqlen": SEQUENCE_LENGTH,
+            "group_size": 32,
+            "symmetric": False,
+            "act_order": False,
+        }
+
+        mock_tokenizer = lambda text: np.array(
+            [ord(c) % VOCAB_SIZE for c in text]
+        )
+        mock_tokenizer.tokenize = mock_tokenizer
+        base_config["tokenizer"] = mock_tokenizer
+
+        # Find target layer and get original weights
+        target_layer = model.layers[2].ffn.layers[0]
+        self.assertIsNotNone(
+            target_layer,
+            "Test setup failed: No Dense layer found in 'ffn' block.",
+        )
+        original_weights = np.copy(target_layer.kernel)
+
+        # Configure and run quantization
+        final_config = {**base_config, **config_kwargs}
+        gptq_config = GPTQConfig(**final_config)
+
+        model.quantize("gptq", quant_config=gptq_config)
+
+        # Assertions and verification
+        quantized_weights = target_layer.kernel
+
+        self.assertNotAllClose(
+            original_weights,
+            quantized_weights,
+            msg=f"Weights not changed by GPTQ for config: {config_kwargs}",
+        )
+
+        dummy_sample = rng.integers(
+            low=0, high=VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
+        )
+        _ = model.predict(dummy_sample)
+
+    def test_quantize_gptq_on_different_datasets(self):
+        """Tests GPTQ with various dataset types (string list, generator)."""
+
+        # Define the datasets to be tested
+        long_text = """gptq is an easy-to-use model quantization library
+        with user-friendly apis, based on GPTQ algorithm. The goal is to
+        quantize pre-trained models to 4-bit or even 3-bit precision with
+        minimal performance degradation.
+        This allows for running larger models on less powerful hardware,
+        reducing memory footprint and increasing inference speed.
+        The process involves calibrating the model on a small dataset
+        to determine the quantization parameters.
+        This technique is particularly useful for deploying large language
+        models in resource-constrained environments where every bit of memory
+        and every millisecond of latency counts."""
+
+        datasets_to_test = {
+            "string_dataset": [long_text],
+            "generator_dataset": dummy_dataset_generator(
+                nsamples=16, seqlen=128, vocab_size=1000
+            ),
+        }
+
+        # Loop through the datasets and run each as a sub-test
+        for dataset_name, dataset in datasets_to_test.items():
+            with self.subTest(dataset_type=dataset_name):
+                self._run_gptq_test_on_dataset(dataset)
+
+    def test_quantize_gptq_with_config_variations(self):
+        """Tests GPTQ with specific config variations."""
+        config_variations = {
+            "per_channel": {"group_size": -1},
+            "act_order": {"act_order": True},
+            "symmetric": {"symmetric": True},
+            "all_options_enabled": {
+                "group_size": -1,
+                "act_order": True,
+                "symmetric": True,
+            },
+        }
+
+        dataset = ["This is the calibration data for the test."]
+        for config_name, config_overrides in config_variations.items():
+            with self.subTest(config_type=config_name):
+                self._run_gptq_test_on_dataset(dataset, **config_overrides)

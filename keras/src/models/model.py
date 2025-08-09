@@ -433,6 +433,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
+        if mode == "gptq":
+            from keras.src.quantizers.gptq_config import GPTQConfig
+
+            config = kwargs.get("quant_config")
+            if not isinstance(config, GPTQConfig):
+                raise TypeError(
+                    "When using 'gptq' mode, you must pass a `quant_config` "
+                    "keyword argument of type `keras.quantizers.GPTQConfig`."
+                )
+
+            # The config object's own quantize method drives the process.
+            config.quantize(self)
+            return
+
         type_check = kwargs.pop("type_check", True)
         if kwargs:
             raise ValueError(
