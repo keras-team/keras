@@ -3,7 +3,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.ops import operation_utils
-
+import math
 
 @keras_export("keras.layers.Reshape")
 class Reshape(Layer):
@@ -37,7 +37,19 @@ class Reshape(Layer):
 
     def __init__(self, target_shape, **kwargs):
         super().__init__(**kwargs)
-        self.target_shape = tuple(target_shape)
+        target_shape = tuple(target_shape)
+        # test validity of target_shape
+        if target_shape.count(-1) > 1:
+            raise ValueError(
+                "The `target_shape` argument must not contain more than one "
+                "`-1` value. Received: target_shape={}".format(target_shape)
+            )
+        self.target_shape = target_shape
+        # precalculate all values that might be required
+        self.need_explicit_shape_for_batch_size_None = (target_shape.count(-1) == 1)
+        self.new_size_no_minus_one = math.prod(
+            d for d in target_shape if d != -1
+        )
 
     def compute_output_shape(self, input_shape):
         return (
@@ -53,18 +65,22 @@ class Reshape(Layer):
             shape=output_shape, dtype=inputs.dtype, sparse=inputs.sparse
         )
 
-    def build(self, input_shape):
-        sample_output_shape = operation_utils.compute_reshape_output_shape(
-            input_shape[1:], self.target_shape, "target_shape"
-        )
-        self._resolved_target_shape = tuple(
-            -1 if d is None else d for d in sample_output_shape
+    def call(self, inputs):
+        target_shape = self.target_shape
+        if self.need_explicit_shape_for_batch_size_None and (inputs.shape[0] is None):
+            input_nonbatch_shape = tuple(inputs.shape[1:])
+            if input_nonbatch_shape.count(None) == 0:
+                # If the input shape is fully defined, we can compute the desired target_shape
+                if True:
+                    inp_nonbatch_size = math.prod(inputs.shape[1:])
+                else:
+                    inp_nonbatch_size = ops.prod(ops.shape(inputs)[1:])
+                target_shape = tuple(d if d != -1 else (inp_nonbatch_size // self.new_size_no_minus_one) for d in self.target_shape)
+
+        return ops.reshape(
+            inputs, (ops.shape(inputs)[0],) + target_shape
         )
 
-    def call(self, inputs):
-        return ops.reshape(
-            inputs, (ops.shape(inputs)[0],) + self._resolved_target_shape
-        )
 
     def get_config(self):
         config = {"target_shape": self.target_shape}
