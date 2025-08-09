@@ -1403,7 +1403,43 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    raise NotImplementedError("`prod` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    
+    # Convert to appropriate type for reduction
+    if x_type == Type.boolean:
+        # Convert boolean to int32 for reduction
+        x = ov_opset.convert(x, Type.i32).output(0)
+    
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+    
+    # Compute the product
+    result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
+    
+    # Convert to the specified dtype if provided
+    if dtype is not None:
+        ov_dtype = _convert_to_ov_type(dtype)
+        result = ov_opset.convert(result, ov_dtype).output(0)
+    else:
+        # Handle dtype promotion rules
+        if x_type == Type.boolean:
+            result = ov_opset.convert(result, Type.i32).output(0)
+        elif x_type == Type.i64:
+            result = ov_opset.convert(result, Type.i64).output(0)
+        elif x_type in (Type.u8, Type.u16, Type.u32):
+            result = ov_opset.convert(result, Type.u32).output(0)
+        elif x_type.is_integral():
+            result = ov_opset.convert(result, Type.i32).output(0)
+    
+    return OpenVINOKerasTensor(result)
+
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
