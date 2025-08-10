@@ -1,9 +1,11 @@
+import math
+
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.ops import operation_utils
-import math
+
 
 @keras_export("keras.layers.Reshape")
 class Reshape(Layer):
@@ -46,7 +48,9 @@ class Reshape(Layer):
             )
         self.target_shape = target_shape
         # precalculate all values that might be required
-        self.need_explicit_shape_for_batch_size_None = (target_shape.count(-1) == 1)
+        self.need_explicit_shape_for_batch_size_None = (
+            target_shape.count(-1) == 1
+        )
         self.new_size_no_minus_one = math.prod(
             d for d in target_shape if d != -1
         )
@@ -67,16 +71,20 @@ class Reshape(Layer):
 
     def call(self, inputs):
         target_shape = self.target_shape
-        if self.need_explicit_shape_for_batch_size_None and (inputs.shape[0] is None):
+        if self.need_explicit_shape_for_batch_size_None and (
+            inputs.shape[0] is None
+        ):
             input_nonbatch_shape = tuple(inputs.shape[1:])
             if input_nonbatch_shape.count(None) == 0:
                 inp_nonbatch_size = math.prod(inputs.shape[1:])
-                target_shape = tuple(d if d != -1 else (inp_nonbatch_size // self.new_size_no_minus_one) for d in self.target_shape)
+                target_shape = tuple(
+                    d
+                    if d != -1
+                    else (inp_nonbatch_size // self.new_size_no_minus_one)
+                    for d in self.target_shape
+                )
 
-        return ops.reshape(
-            inputs, (ops.shape(inputs)[0],) + target_shape
-        )
-
+        return ops.reshape(inputs, (ops.shape(inputs)[0],) + target_shape)
 
     def get_config(self):
         config = {"target_shape": self.target_shape}
