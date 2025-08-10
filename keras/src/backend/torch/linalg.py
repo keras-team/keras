@@ -8,15 +8,11 @@ from keras.src.backend.torch.core import convert_to_tensor
 
 
 def cholesky(x, upper=False):
-    if upper:
-        return torch.linalg.cholesky(x, upper=True)
-    return torch.linalg.cholesky(x)
+    return torch.linalg.cholesky(x, upper=upper)
 
 
 def cholesky_inverse(x, upper=False):
-    if upper:
-        return torch.cholesky_inverse(x, upper=True)
-    return torch.cholesky_inverse(x)
+    return torch.cholesky_inverse(x, upper=upper)
 
 
 def det(x):

@@ -7,9 +7,7 @@ from keras.src.backend.numpy.core import convert_to_tensor
 
 
 def cholesky(a, upper=False):
-    if upper:
-        return np.linalg.cholesky(a, upper=True)
-    return np.linalg.cholesky(a)
+    return np.linalg.cholesky(a, upper=upper)
 
 
 def cholesky_inverse(a, upper=False):

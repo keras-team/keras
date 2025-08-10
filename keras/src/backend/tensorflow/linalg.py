@@ -12,7 +12,7 @@ def cholesky(a, upper=True):
     # tf.linalg.cholesky simply returns NaNs for non-positive definite matrices
     out = tf.debugging.check_numerics(out, "Cholesky")
     if upper:
-        return tf.linalg.matrix_transpose(out)
+        return tf.linalg.adjoint(out)
     return out
 
 

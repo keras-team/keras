@@ -7,7 +7,7 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Cholesky(Operation):
-    def __init__(self, upper=False, name=None):
+    def __init__(self, upper=False, *, name=None):
         super().__init__(name=name)
         self.upper = upper
 
@@ -48,7 +48,7 @@ def _cholesky(x, upper=False):
 
 
 class CholeskyInverse(Operation):
-    def __init__(self, upper=False, name=None):
+    def __init__(self, upper=False, *, name=None):
         super().__init__(name=name)
         self.upper = upper
 

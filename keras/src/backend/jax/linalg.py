@@ -10,7 +10,7 @@ from keras.src.backend.jax.core import convert_to_tensor
 
 
 def cholesky(a, upper=False):
-    out = jnp.linalg.cholesky(a)
+    out = jnp.linalg.cholesky(a, lower=not upper)
     try:
         # In eager mode, raise for nan to
         # achieve behavior consistency with numpy
@@ -23,8 +23,6 @@ def cholesky(a, upper=False):
     except jax.errors.TracerBoolConversionError:
         # Cannot raise for nan in tracing mode
         pass
-    if upper:
-        return jnp.swapaxes(out, -2, -1)
     return out
 
 
