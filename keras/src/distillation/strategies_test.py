@@ -561,7 +561,10 @@ class TestMultiOutputDistillation(TestCase):
 
         distiller.compile(
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss=["sparse_categorical_crossentropy", "sparse_categorical_crossentropy"],
+            loss=[
+                "sparse_categorical_crossentropy",
+                "sparse_categorical_crossentropy",
+            ],
             steps_per_execution=1,
         )
 
@@ -569,8 +572,12 @@ class TestMultiOutputDistillation(TestCase):
         x = np.random.random((20, 5)).astype(np.float32)
         # Multi-output targets: [output1_targets, output2_targets]
         y = [
-            np.random.randint(0, 10, (20,)).astype(np.int32),  # For output1 (10 classes)
-            np.random.randint(0, 5, (20,)).astype(np.int32),   # For output2 (5 classes)
+            np.random.randint(0, 10, (20,)).astype(
+                np.int32
+            ),  # For output1 (10 classes)
+            np.random.randint(0, 5, (20,)).astype(
+                np.int32
+            ),  # For output2 (5 classes)
         ]
 
         # Test that training works

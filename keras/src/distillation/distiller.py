@@ -227,7 +227,8 @@ class Distiller(Model):
                 # Fallback to using student_loss_fn directly
                 # Handle multi-output case
                 if isinstance(y_pred, (list, tuple)):
-                    # For multi-output models, use the first output for student loss
+                    # For multi-output models, use the first output for student
+                    # loss
                     # This is a simplified approach for compatibility
                     if isinstance(y, (list, tuple)):
                         student_loss = self.student_loss_fn(y[0], y_pred[0])
