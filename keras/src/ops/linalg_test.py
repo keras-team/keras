@@ -387,7 +387,15 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         else:
             factor = np.linalg.cholesky(A)
 
-        expected_inverse = np.linalg.inv(A)
+        expected_inverse = np.array(
+            [
+                [49.36111, -13.555555, 2.111111],
+                [-13.555555, 3.777778, -0.555556],
+                [2.111111, -0.555556, 0.111111],
+            ],
+            dtype="float32",
+        )
+
         output_inverse = linalg.cholesky_inverse(factor, upper=upper)
         self.assertAllClose(output_inverse, expected_inverse, atol=1e-5)
 
