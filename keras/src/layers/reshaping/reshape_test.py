@@ -105,11 +105,10 @@ class ReshapeTest(testing.TestCase):
         input = KerasTensor((None, 6, 4))
         layer = layers.Reshape((-1, 8))
         layer.build(input.shape)
-        layer(ops.ones((1, 6, 4), dtype="float32"))
-        layer(ops.ones((1, 10, 4), dtype="float32"))
-        reshaped = backend.compute_output_spec(layer.__call__, input)
-        self.assertEqual(reshaped.shape, (None, 3, 8))
-
+        res = layer(ops.ones((1, 6, 4), dtype="float32"))
+        self.assertEqual(res.shape, (1, 3, 8))
+        res = layer(ops.ones((1, 10, 4), dtype="float32"))
+        self.assertEqual(res.shape, (1, 5, 8))
 
     def test_reshape_with_dynamic_dim_and_minus_one(self):
         input = KerasTensor((4, 6, None, 3))
