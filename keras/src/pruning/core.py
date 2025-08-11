@@ -18,20 +18,37 @@ def get_model_sparsity(model):
     total_weights = 0
     zero_weights = 0
 
-    for layer in model.layers:
-        if _has_kernel_weights(layer):
-            weights = layer.kernel.value
-            total_weights += ops.size(weights)
-            zero_weights += ops.sum(ops.cast(weights == 0, "int32"))
+    try:
+        all_layers = model._flatten_layers()
+    except AttributeError:
+        # Fallback for models that don't have _flatten_layers
+        all_layers = model.layers
 
-        if hasattr(layer, "bias") and layer.bias is not None:
-            bias = layer.bias.value
-            total_weights += ops.size(bias)
-            zero_weights += ops.sum(ops.cast(bias == 0, "int32"))
+    for layer in all_layers:
+        # We only want to count weights for leaf layers.
+        try:
+            list_of_sublayers = (
+                list(layer._flatten_layers())
+                if hasattr(layer, "_flatten_layers")
+                else [layer]
+            )
+        except:
+            list_of_sublayers = [layer]
+
+        if len(list_of_sublayers) == 1:
+            if _has_kernel_weights(layer):
+                weights = layer.kernel.value
+                total_weights += ops.size(weights)
+                zero_weights += ops.sum(ops.cast(weights == 0, "int32"))
+
+            if hasattr(layer, "bias") and layer.bias is not None:
+                bias = layer.bias.value
+                total_weights += ops.size(bias)
+                zero_weights += ops.sum(ops.cast(bias == 0, "int32"))
 
     if total_weights == 0:
         return 0.0
-    return float(zero_weights / total_weights)
+    return float(zero_weights) / float(total_weights)
 
 
 def should_prune_layer(layer, layers_to_prune=None):
@@ -49,29 +66,35 @@ def should_prune_layer(layer, layers_to_prune=None):
         bool: True if the layer should be pruned, False otherwise.
     """
     # First check if layer is prunable by type
-    layer_types = ("Dense", "Conv1D", "Conv2D", "Conv3D", "DepthwiseConv2D")
+    layer_types = (
+        "Dense",
+        "Conv1D",
+        "Conv2D",
+        "Conv3D",
+        "DepthwiseConv2D",
+        "EinsumDense",
+    )
     if not (
-        layer.__class__.__name__ in layer_types
-        and _has_kernel_weights(layer)
+        layer.__class__.__name__ in layer_types and _has_kernel_weights(layer)
     ):
         return False
-    
+
     # If no specific layers specified, prune all eligible layers
     if layers_to_prune is None:
         return True
-    
+
     layer_name = layer.name
-    
+
     # Handle single string (layer name or pattern)
     if isinstance(layers_to_prune, str):
         layers_to_prune = [layers_to_prune]
-    
+
     # Check against each specification
     for spec in layers_to_prune:
         # Try exact name match first
         if spec == layer_name:
             return True
-        
+
         # Try regex pattern match
         try:
             if re.match(spec, layer_name):
@@ -79,7 +102,7 @@ def should_prune_layer(layer, layers_to_prune=None):
         except re.error:
             # If regex fails, continue to next spec
             continue
-    
+
     return False
 
 
@@ -339,8 +362,16 @@ def _build_pruning_stats(initial_sparsity, final_sparsity, pruned_layers, target
     return base_stats
 
 
-def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None, 
-                          dataset=None, loss_fn=None, reinitialize=False, **kwargs):
+def apply_pruning_to_model(
+    model,
+    sparsity,
+    method="l1",
+    layers_to_prune=None,
+    dataset=None,
+    loss_fn=None,
+    reinitialize=False,
+    **kwargs,
+):
     """Apply pruning to specified layers in a model.
 
     Args:
@@ -366,31 +397,62 @@ def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None,
     pruned_layer_names = []
     skipped_layer_names = []
 
-    for layer in model.layers:
-        if should_prune_layer(layer, layers_to_prune):
-            if apply_pruning_to_layer(
-                layer=layer,
-                sparsity=sparsity,
-                method=method,
-                model=model,
-                dataset=dataset,
-                loss_fn=loss_fn,
-                reinitialize=reinitialize,
-                **kwargs
-            ):
-                pruned_layers += 1
-                pruned_layer_names.append(layer.name)
-        elif _has_kernel_weights(layer):
-            # Layer has weights but was skipped due to selection criteria
-            skipped_layer_names.append(layer.name)
+    # Use the same layer traversal pattern as model.quantize()
+    try:
+        all_layers = model._flatten_layers()
+    except AttributeError:
+        # Fallback for models without _flatten_layers method
+        all_layers = []
+
+        def collect_layers(layer):
+            all_layers.append(layer)
+            if hasattr(layer, "_layers"):
+                for sublayer in layer._layers:
+                    collect_layers(sublayer)
+
+        if hasattr(model, "layers"):
+            for layer in model.layers:
+                collect_layers(layer)
+        else:
+            all_layers = [model]
+
+    for layer in all_layers:
+        # Check if this is a leaf layer (like quantization does)
+        try:
+            list_of_sublayers = (
+                list(layer._flatten_layers())
+                if hasattr(layer, "_flatten_layers")
+                else [layer]
+            )
+        except:
+            list_of_sublayers = [layer]
+
+        # Only process leaf layers to avoid double-processing
+        if len(list_of_sublayers) == 1:
+            if should_prune_layer(layer, layers_to_prune):
+                if apply_pruning_to_layer(
+                    layer=layer,
+                    sparsity=sparsity,
+                    method=method,
+                    model=model,
+                    dataset=dataset,
+                    loss_fn=loss_fn,
+                    reinitialize=reinitialize,
+                    **kwargs,
+                ):
+                    pruned_layers += 1
+                    pruned_layer_names.append(layer.name)
+            elif _has_kernel_weights(layer):
+                # Layer has weights but was skipped due to selection criteria
+                skipped_layer_names.append(layer.name)
 
     final_sparsity = get_model_sparsity(model)
-    
+
     # Build and return statistics
     matched_layers = None
     if layers_to_prune is not None:
         matched_layers = match_layers_by_patterns(model, layers_to_prune)
-    
+
     return _build_pruning_stats(
         initial_sparsity=initial_sparsity,
         final_sparsity=final_sparsity,
@@ -400,5 +462,5 @@ def apply_pruning_to_model(model, sparsity, method="l1", layers_to_prune=None,
         pruned_layer_names=pruned_layer_names,
         layers_to_prune=layers_to_prune,
         matched_layers=matched_layers,
-        skipped_layer_names=skipped_layer_names
+        skipped_layer_names=skipped_layer_names,
     )
