@@ -32,6 +32,7 @@ from keras.src.ops.core import vectorized_map as vectorized_map
 from keras.src.ops.core import while_loop as while_loop
 from keras.src.ops.einops import rearrange as rearrange
 from keras.src.ops.linalg import cholesky as cholesky
+from keras.src.ops.linalg import cholesky_inverse as cholesky_inverse
 from keras.src.ops.linalg import det as det
 from keras.src.ops.linalg import eig as eig
 from keras.src.ops.linalg import eigh as eigh

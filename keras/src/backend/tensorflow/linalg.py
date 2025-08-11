@@ -7,7 +7,7 @@ from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
 
 
-def cholesky(a, upper=True):
+def cholesky(a, upper=False):
     out = tf.linalg.cholesky(a)
     # tf.linalg.cholesky simply returns NaNs for non-positive definite matrices
     out = tf.debugging.check_numerics(out, "Cholesky")
@@ -16,7 +16,7 @@ def cholesky(a, upper=True):
     return out
 
 
-def cholesky_inverse(a, upper=True):
+def cholesky_inverse(a, upper=False):
     identity = tf.eye(num_rows=tf.shape(a)[-1], dtype=a.dtype)
     if upper:
         u_inv = tf.linalg.triangular_solve(a, identity, lower=False)

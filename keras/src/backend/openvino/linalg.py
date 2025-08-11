@@ -1,12 +1,12 @@
 def cholesky(a, upper=False):
     raise NotImplementedError(
-        "`cholesky` is not supported with openvino backend"
+        "`cholesky` is not supported with openvino backend."
     )
 
 
 def cholesky_inverse(a, upper=False):
     raise NotImplementedError(
-        "`cholesky_inverse` is not supported with openvino backend"
+        "`cholesky_inverse` is not supported with openvino backend."
     )
 
 

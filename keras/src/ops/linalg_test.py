@@ -5,6 +5,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.numpy import linalg as numpy_linalg_backend
 from keras.src.ops import linalg
 from keras.src.testing.test_utils import named_product
 
@@ -357,7 +358,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.cholesky(x_non_psd)
         x = np.random.rand(4, 3, 3).astype("float32")
-        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(3, dtype="float32")
+        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
+            3, dtype="float32"
+        )
 
         l_out = linalg.cholesky(x_psd, upper=False)
         l_expected = np.linalg.cholesky(x_psd)
@@ -367,21 +370,30 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         u_expected = l_expected.transpose((0, 2, 1))
         self.assertAllClose(u_out, u_expected, atol=1e-4)
 
-
     def test_cholesky_inverse(self):
-        x_np = np.random.rand(3, 3).astype("float32")
-        A = np.matmul(x_np, x_np.T) + 1e-5 * np.eye(3, dtype="float32")
-        identity = np.eye(3, dtype="float32")
+        x = np.random.rand(4, 3, 3).astype("float32")
+        x_psd_batch = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
+            3, dtype="float32"
+        )
 
-        L = np.linalg.cholesky(A)
-        A_inv_from_l = ops.linalg.cholesky_inverse(L, upper=False)
-        reconstructed_from_l = ops.matmul(A, A_inv_from_l)
-        self.assertAllClose(reconstructed_from_l, identity, atol=1e-4)
+        for i in range(x_psd_batch.shape[0]):
+            x_psd = x_psd_batch[i]
 
-        U = np.linalg.cholesky(A, upper=True)
-        A_inv_from_u = ops.linalg.cholesky_inverse(U, upper=True)
-        reconstructed_from_u = ops.matmul(A, A_inv_from_u)
-        self.assertAllClose(reconstructed_from_u, identity, atol=1e-4)
+            l_out = linalg.cholesky_inverse(x_psd, upper=False)
+            l_expected = numpy_linalg_backend.cholesky_inverse(
+                x_psd, upper=False
+            )
+            self.assertAllClose(
+                l_out, l_expected, atol=1e-4, msg=f"Matrix {i} (lower) failed"
+            )
+
+            u_out = linalg.cholesky_inverse(x_psd, upper=True)
+            u_expected = numpy_linalg_backend.cholesky_inverse(
+                x_psd, upper=True
+            )
+            self.assertAllClose(
+                u_out, u_expected, atol=1e-4, msg=f"Matrix {i} (upper) failed"
+            )
 
     def test_det(self):
         x = np.random.rand(4, 3, 3)
