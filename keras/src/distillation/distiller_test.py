@@ -1,9 +1,8 @@
-import keras
 import numpy as np
-from keras import ops
 
+import keras
 from keras.src.distillation.distiller import Distiller
-from keras.src.distillation.strategies import LogitsDistillation, FeatureDistillation
+from keras.src.distillation.strategies import LogitsDistillation
 from keras.src.testing import TestCase
 
 
@@ -12,7 +11,7 @@ class SimpleTeacher(keras.Model):
 
     def __init__(self, vocab_size=10, hidden_dim=32):
         super().__init__()
-        self.dense1 = keras.layers.Dense(hidden_dim, activation='relu')
+        self.dense1 = keras.layers.Dense(hidden_dim, activation="relu")
         self.dense2 = keras.layers.Dense(vocab_size)
 
     def call(self, inputs, training=None):
@@ -25,7 +24,7 @@ class SimpleStudent(keras.Model):
 
     def __init__(self, vocab_size=10, hidden_dim=16):
         super().__init__()
-        self.dense1 = keras.layers.Dense(hidden_dim, activation='relu')
+        self.dense1 = keras.layers.Dense(hidden_dim, activation="relu")
         self.dense2 = keras.layers.Dense(vocab_size)
 
     def call(self, inputs, training=None):
@@ -56,11 +55,11 @@ class TestDistiller(TestCase):
             temperature=2.0,
         )
 
-        # Compile distiller (without additional metrics to avoid JAX sharding issues)
+        # Compile distiller (avoid additional metrics for JAX sharding issues)
         self.distiller.compile(
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss='sparse_categorical_crossentropy',
-            steps_per_execution=1
+            loss="sparse_categorical_crossentropy",
+            steps_per_execution=1,
         )
 
         # Create test data
@@ -107,9 +106,10 @@ class TestDistiller(TestCase):
         # Create a new teacher that is trainable and verify it gets frozen
         new_teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         self.assertTrue(new_teacher.trainable)  # Should be trainable initially
-        
+
         # Create distiller - should freeze the teacher
-        distiller = Distiller(
+        # Create distiller - should freeze the teacher
+        Distiller(
             teacher=new_teacher,
             student=self.student,
             strategies=[self.strategy],
@@ -149,8 +149,8 @@ class TestDistiller(TestCase):
         )
         distiller_0.compile(
             optimizer=keras.optimizers.Adam(),
-            loss='sparse_categorical_crossentropy',
-            steps_per_execution=1
+            loss="sparse_categorical_crossentropy",
+            steps_per_execution=1,
         )
 
         # Test with alpha = 1.0 (only student loss)
@@ -163,24 +163,24 @@ class TestDistiller(TestCase):
         )
         distiller_1.compile(
             optimizer=keras.optimizers.Adam(),
-            loss='sparse_categorical_crossentropy',
-            steps_per_execution=1
+            loss="sparse_categorical_crossentropy",
+            steps_per_execution=1,
         )
 
         # Test that they can be used for training without errors
         small_x = self.x[:5]
         small_y = self.y[:5]
-        
+
         # Both should train without errors
         history_0 = distiller_0.fit(small_x, small_y, epochs=1, verbose=0)
         history_1 = distiller_1.fit(small_x, small_y, epochs=1, verbose=0)
-        
+
         # Check that training completed
-        self.assertIn('total_loss', history_0.history)
-        self.assertIn('total_loss', history_1.history)
+        self.assertIn("total_loss", history_0.history)
+        self.assertIn("total_loss", history_1.history)
 
     def test_full_training_workflow(self):
-        """Test complete training workflow with model.fit() - MOST IMPORTANT TEST."""
+        """Test complete training workflow with model.fit() - MOST IMPORTANT."""
         # Create larger dataset for training
         np.random.seed(42)
         x_train = np.random.random((100, 5)).astype(np.float32)
@@ -204,27 +204,28 @@ class TestDistiller(TestCase):
         # Compile (avoid additional metrics to prevent JAX sharding issues)
         distiller.compile(
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss='sparse_categorical_crossentropy',
-            steps_per_execution=1
+            loss="sparse_categorical_crossentropy",
+            steps_per_execution=1,
         )
 
         # Train the model
         history = distiller.fit(
-            x_train, y_train,
+            x_train,
+            y_train,
             validation_data=(x_val, y_val),
             epochs=3,
             batch_size=16,
-            verbose=0
+            verbose=0,
         )
 
         # Check that training completed
-        self.assertIn('total_loss', history.history)
-        self.assertIn('val_total_loss', history.history)
-        self.assertIn('student_loss', history.history)
-        self.assertIn('distillation_loss', history.history)
+        self.assertIn("total_loss", history.history)
+        self.assertIn("val_total_loss", history.history)
+        self.assertIn("student_loss", history.history)
+        self.assertIn("distillation_loss", history.history)
 
         # Check that losses are finite
-        for loss_name in ['total_loss', 'student_loss', 'distillation_loss']:
+        for loss_name in ["total_loss", "student_loss", "distillation_loss"]:
             losses = history.history[loss_name]
             self.assertGreater(len(losses), 0)
             for loss in losses:
@@ -236,18 +237,20 @@ class TestDistiller(TestCase):
 
         # Check that student weights have changed (indicating learning)
         initial_weights = [w.numpy().copy() for w in student.trainable_weights]
-        
+
         # Train a bit more
         distiller.fit(x_train[:10], y_train[:10], epochs=1, verbose=0)
-        
+
         final_weights = [w.numpy() for w in student.trainable_weights]
-        
+
         # At least some weights should have changed
         weights_changed = any(
             not np.allclose(initial, final, atol=1e-6)
             for initial, final in zip(initial_weights, final_weights)
         )
-        self.assertTrue(weights_changed, "Student weights should change during training")
+        self.assertTrue(
+            weights_changed, "Student weights should change during training"
+        )
 
     def test_evaluation_workflow(self):
         """Test evaluation workflow with model.evaluate()."""
@@ -271,8 +274,8 @@ class TestDistiller(TestCase):
 
         distiller.compile(
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss='sparse_categorical_crossentropy',
-            steps_per_execution=1
+            loss="sparse_categorical_crossentropy",
+            steps_per_execution=1,
         )
 
         # Train briefly
@@ -284,7 +287,7 @@ class TestDistiller(TestCase):
         # Check that evaluation returns expected metrics
         self.assertIsInstance(results, list)
         self.assertGreater(len(results), 0)
-        
+
         # All results should be finite
         for result in results:
             self.assertTrue(np.isfinite(result))
@@ -310,8 +313,8 @@ class TestDistiller(TestCase):
 
         distiller.compile(
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss='sparse_categorical_crossentropy',
-            steps_per_execution=1
+            loss="sparse_categorical_crossentropy",
+            steps_per_execution=1,
         )
 
         # Make predictions
@@ -319,10 +322,10 @@ class TestDistiller(TestCase):
 
         # Check prediction shape
         self.assertEqual(predictions.shape, (20, 10))  # batch_size, vocab_size
-        
+
         # Check that predictions are finite
         self.assertTrue(np.all(np.isfinite(predictions)))
 
-        # Check that predictions sum to reasonable values (not all zeros or infinities)
+        # Check predictions sum to reasonable values (not zeros/infinities)
         prediction_sums = np.sum(predictions, axis=1)
         self.assertTrue(np.all(np.isfinite(prediction_sums)))

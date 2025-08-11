@@ -1,7 +1,6 @@
 """Distillation strategies for knowledge distillation."""
 
 import keras
-from keras import ops
 from keras.src.api_export import keras_export
 
 
@@ -17,10 +16,10 @@ class BaseDistillationStrategy:
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute distillation loss between teacher and student outputs.
         Args:
-            teacher_outputs: Outputs from the teacher model. Can be a single tensor
-                or a list/tuple of tensors for multi-output models.
-            student_outputs: Outputs from the student model. Can be a single tensor
-                or a list/tuple of tensors for multi-output models.
+            teacher_outputs: Outputs from the teacher model. Can be a single
+                tensor or a list/tuple of tensors for multi-output models.
+            student_outputs: Outputs from the student model. Can be a single
+                tensor or a list/tuple of tensors for multi-output models.
             **kwargs: Additional arguments for custom strategies.
         Returns:
             Distillation loss tensor.
@@ -28,7 +27,8 @@ class BaseDistillationStrategy:
         raise NotImplementedError("Subclasses must implement compute_loss")
 
     def validate_outputs(self, teacher_outputs, student_outputs):
-        """Validate that teacher and student outputs are compatible for distillation.
+        """Validate that teacher and student outputs are compatible.
+
         Args:
             teacher_outputs: Outputs from the teacher model.
             student_outputs: Outputs from the student model.
@@ -40,7 +40,7 @@ class BaseDistillationStrategy:
             teacher_outputs = [teacher_outputs]
         if not isinstance(student_outputs, (list, tuple)):
             student_outputs = [student_outputs]
-        
+
         if len(teacher_outputs) != len(student_outputs):
             raise ValueError(
                 f"Teacher and student must have the same number of outputs. "
@@ -62,11 +62,13 @@ class LogitsDistillation(BaseDistillationStrategy):
             - "mse": Mean squared error using keras.losses.mean_squared_error
             - "cross_entropy": Cross entropy using
               keras.losses.categorical_crossentropy
-        output_index: Index of the output to use for distillation in multi-output
-            models. Defaults to 0.
+        output_index: Index of the output to use for distillation in
+            multi-output models. Defaults to 0.
     """
 
-    def __init__(self, temperature=2.0, loss_type="kl_divergence", output_index=0):
+    def __init__(
+        self, temperature=2.0, loss_type="kl_divergence", output_index=0
+    ):
         self.temperature = temperature
         self.loss_type = loss_type
         self.output_index = output_index
@@ -79,13 +81,13 @@ class LogitsDistillation(BaseDistillationStrategy):
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for logits distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
-        
+
         # Ensure outputs are lists/tuples
         if not isinstance(teacher_outputs, (list, tuple)):
             teacher_outputs = [teacher_outputs]
         if not isinstance(student_outputs, (list, tuple)):
             student_outputs = [student_outputs]
-        
+
         # Check output index is valid
         if self.output_index >= len(teacher_outputs):
             raise ValueError(
@@ -97,14 +99,15 @@ class LogitsDistillation(BaseDistillationStrategy):
                 f"output_index {self.output_index} is out of range. "
                 f"Student has {len(student_outputs)} outputs."
             )
-        
+
         # Check that the selected outputs have compatible shapes
         teacher_output = teacher_outputs[self.output_index]
         student_output = student_outputs[self.output_index]
-        
+
         if teacher_output.shape[-1] != student_output.shape[-1]:
             raise ValueError(
-                f"Teacher and student outputs must have the same number of classes. "
+                f"Teacher and student outputs must have the same number of "
+                f"classes. "
                 f"Teacher output shape: {teacher_output.shape}, "
                 f"Student output shape: {student_output.shape}"
             )
@@ -120,12 +123,14 @@ class LogitsDistillation(BaseDistillationStrategy):
         Returns:
             Distillation loss tensor.
         """
+        from keras import ops
+
         # Normalize outputs to lists
         if not isinstance(teacher_outputs, (list, tuple)):
             teacher_outputs = [teacher_outputs]
         if not isinstance(student_outputs, (list, tuple)):
             student_outputs = [student_outputs]
-        
+
         # Get the outputs to distill
         teacher_logits = teacher_outputs[self.output_index]
         student_logits = student_outputs[self.output_index]
@@ -191,7 +196,9 @@ class FeatureDistillation(BaseDistillationStrategy):
             If None, uses the final output. Defaults to None.
     """
 
-    def __init__(self, loss_type="mse", teacher_layer_name=None, student_layer_name=None):
+    def __init__(
+        self, loss_type="mse", teacher_layer_name=None, student_layer_name=None
+    ):
         self.loss_type = loss_type
         self.teacher_layer_name = teacher_layer_name
         self.student_layer_name = student_layer_name
@@ -204,21 +211,22 @@ class FeatureDistillation(BaseDistillationStrategy):
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for feature distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
-        
+
         # For feature distillation, we need to ensure the features have
         # compatible shapes for the chosen loss function
         if not isinstance(teacher_outputs, (list, tuple)):
             teacher_outputs = [teacher_outputs]
         if not isinstance(student_outputs, (list, tuple)):
             student_outputs = [student_outputs]
-        
+
         # Basic shape compatibility check
         teacher_features = teacher_outputs[0]  # Use first output by default
         student_features = student_outputs[0]  # Use first output by default
-        
+
         if len(teacher_features.shape) != len(student_features.shape):
             raise ValueError(
-                f"Teacher and student features must have the same number of dimensions. "
+                f"Teacher and student features must have the same number of "
+                f"dimensions. "
                 f"Teacher shape: {teacher_features.shape}, "
                 f"Student shape: {student_features.shape}"
             )
@@ -235,12 +243,14 @@ class FeatureDistillation(BaseDistillationStrategy):
         Returns:
             Feature distillation loss tensor.
         """
+        from keras import ops
+
         # Normalize outputs to lists
         if not isinstance(teacher_features, (list, tuple)):
             teacher_features = [teacher_features]
         if not isinstance(student_features, (list, tuple)):
             student_features = [student_features]
-        
+
         # Use first output by default (can be extended to use specific outputs)
         teacher_features = teacher_features[0]
         student_features = student_features[0]
@@ -278,11 +288,12 @@ class FeatureDistillation(BaseDistillationStrategy):
 
 @keras_export("keras.distillation.MultiOutputDistillation")
 class MultiOutputDistillation(BaseDistillationStrategy):
-    """Multi-output distillation strategy that applies distillation to multiple outputs.
-    This strategy allows different distillation strategies to be applied to different
-    outputs of multi-output models.
+    """Multi-output distillation strategy that applies distillation to
+    multiple outputs. This strategy allows different distillation strategies
+    to be applied to different outputs of multi-output models.
     Args:
-        output_strategies: Dict mapping output indices to distillation strategies.
+        output_strategies: Dict mapping output indices to distillation
+            strategies.
             Each strategy will be applied to the corresponding output.
         weights: Dict mapping output indices to weights for combining losses.
             If None, all outputs are weighted equally. Defaults to None.
@@ -293,34 +304,35 @@ class MultiOutputDistillation(BaseDistillationStrategy):
         self.weights = weights or {idx: 1.0 for idx in output_strategies.keys()}
 
     def validate_outputs(self, teacher_outputs, student_outputs):
-        """Validate that outputs are compatible for multi-output distillation."""
+        """Validate outputs are compatible for multi-output distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
-        
+
         # Ensure outputs are lists/tuples
         if not isinstance(teacher_outputs, (list, tuple)):
             teacher_outputs = [teacher_outputs]
         if not isinstance(student_outputs, (list, tuple)):
             student_outputs = [student_outputs]
-        
+
         # Check that all required outputs exist
         max_output_index = max(self.output_strategies.keys())
         if max_output_index >= len(teacher_outputs):
             raise ValueError(
                 f"Teacher model doesn't have enough outputs. "
-                f"Required: {max_output_index + 1}, available: {len(teacher_outputs)}"
+                f"Required: {max_output_index + 1}, available: "
+                f"{len(teacher_outputs)}"
             )
         if max_output_index >= len(student_outputs):
             raise ValueError(
                 f"Student model doesn't have enough outputs. "
-                f"Required: {max_output_index + 1}, available: {len(student_outputs)}"
+                f"Required: {max_output_index + 1}, available: "
+                f"{len(student_outputs)}"
             )
-        
+
         # Validate each strategy with its corresponding outputs
         for output_idx, strategy in self.output_strategies.items():
-            if hasattr(strategy, 'validate_outputs'):
+            if hasattr(strategy, "validate_outputs"):
                 strategy.validate_outputs(
-                    [teacher_outputs[output_idx]], 
-                    [student_outputs[output_idx]]
+                    [teacher_outputs[output_idx]], [student_outputs[output_idx]]
                 )
 
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
@@ -337,22 +349,22 @@ class MultiOutputDistillation(BaseDistillationStrategy):
             teacher_outputs = [teacher_outputs]
         if not isinstance(student_outputs, (list, tuple)):
             student_outputs = [student_outputs]
-        
+
         total_loss = 0.0
-        
+
         for output_idx, strategy in self.output_strategies.items():
             teacher_output = teacher_outputs[output_idx]
             student_output = student_outputs[output_idx]
-            
+
             # Compute loss for this output
             output_loss = strategy.compute_loss(
                 [teacher_output], [student_output], **kwargs
             )
-            
+
             # Apply weight
             weight = self.weights.get(output_idx, 1.0)
             total_loss += weight * output_loss
-        
+
         return total_loss
 
     def get_config(self):
