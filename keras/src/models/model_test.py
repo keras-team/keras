@@ -1334,7 +1334,7 @@ class ModelQuantizationTest(testing.TestCase):
         final_config = {**base_config, **config_kwargs}
         gptq_config = GPTQConfig(**final_config)
 
-        model.quantize("gptq", quant_config=gptq_config)
+        model.quantize("gptq", config=gptq_config)
 
         # Assertions and verification
         quantized_weights = target_layer.kernel
