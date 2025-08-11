@@ -370,12 +370,11 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(u_out, u_expected, atol=1e-4)
 
     @parameterized.named_parameters(
-        ("lower", False),
-        ("upper", True),
+        {"testcase_name": "lower", "upper": False},
+        {"testcase_name": "upper", "upper": True},
     )
     def test_cholesky_inverse(self, upper):
-        """Tests cholesky_inverse for both lower and upper computations."""
-        input_matrix = np.array(
+        A = np.array(
             [
                 [4.0, 12.0, -16.0],
                 [12.0, 37.0, -43.0],
@@ -383,16 +382,14 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             ],
             dtype="float32",
         )
-        expected_output = np.array(
-            [
-                [6.910159e-02, -2.129242e-03, 5.346869e-05],
-                [-2.129242e-03, 8.710913e-04, 1.210081e-04],
-                [5.346869e-05, 1.210081e-04, 1.041233e-04],
-            ],
-            dtype="float32",
-        )
-        op_output = linalg.cholesky_inverse(input_matrix, upper=upper)
-        self.assertAllClose(op_output, expected_output, atol=1e-5)
+        if upper:
+            factor = np.linalg.cholesky(A, upper=True)
+        else:
+            factor = np.linalg.cholesky(A)
+
+        expected_inverse = np.linalg.inv(A)
+        output_inverse = linalg.cholesky_inverse(factor, upper=upper)
+        self.assertAllClose(output_inverse, expected_inverse, atol=1e-5)
 
     def test_det(self):
         x = np.random.rand(4, 3, 3)
