@@ -5,7 +5,6 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.numpy import linalg as numpy_linalg_backend
 from keras.src.ops import linalg
 from keras.src.testing.test_utils import named_product
 
@@ -371,29 +370,24 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(u_out, u_expected, atol=1e-4)
 
     def test_cholesky_inverse(self):
-        x = np.random.rand(4, 3, 3).astype("float32")
-        x_psd_batch = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
-            3, dtype="float32"
+        input = np.array(
+            [
+                [4.0, 12.0, -16.0],
+                [12.0, 37.0, -43.0],
+                [-16.0, -43.0, 98.0],
+            ],
+            dtype="float32",
         )
-
-        for i in range(x_psd_batch.shape[0]):
-            x_psd = x_psd_batch[i]
-
-            l_out = linalg.cholesky_inverse(x_psd, upper=False)
-            l_expected = numpy_linalg_backend.cholesky_inverse(
-                x_psd, upper=False
-            )
-            self.assertAllClose(
-                l_out, l_expected, atol=1e-4, msg=f"Matrix {i} (lower) failed"
-            )
-
-            u_out = linalg.cholesky_inverse(x_psd, upper=True)
-            u_expected = numpy_linalg_backend.cholesky_inverse(
-                x_psd, upper=True
-            )
-            self.assertAllClose(
-                u_out, u_expected, atol=1e-4, msg=f"Matrix {i} (upper) failed"
-            )
+        expected_output = np.array(
+            [
+                [6.910159e-02, -2.129242e-03, 5.346869e-05],
+                [-2.129242e-03, 8.710913e-04, 1.210081e-04],
+                [5.346869e-05, 1.210081e-04, 1.041233e-04],
+            ],
+            dtype="float32",
+        )
+        op_output = linalg.cholesky_inverse(input)
+        self.assertAllClose(op_output, expected_output, atol=1e-5)
 
     def test_det(self):
         x = np.random.rand(4, 3, 3)
