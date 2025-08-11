@@ -1,6 +1,7 @@
 import pytest
 from absl.testing import parameterized
 
+from keras.src import ops
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
@@ -99,6 +100,16 @@ class ReshapeTest(testing.TestCase):
         layer.build(input.shape)
         reshaped = backend.compute_output_spec(layer.__call__, input)
         self.assertEqual(reshaped.shape, (None, 3, 8))
+
+    def test_reshape_with_varying_static_batch_size_and_minus_one(self):
+        input = KerasTensor((None, 6, 4))
+        layer = layers.Reshape((-1, 8))
+        layer.build(input.shape)
+        layer(ops.ones((1, 6, 4), dtype="float32"))
+        layer(ops.ones((1, 10, 4), dtype="float32"))
+        reshaped = backend.compute_output_spec(layer.__call__, input)
+        self.assertEqual(reshaped.shape, (None, 3, 8))
+
 
     def test_reshape_with_dynamic_dim_and_minus_one(self):
         input = KerasTensor((4, 6, None, 3))
