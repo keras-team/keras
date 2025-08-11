@@ -369,8 +369,13 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         u_expected = l_expected.transpose((0, 2, 1))
         self.assertAllClose(u_out, u_expected, atol=1e-4)
 
-    def test_cholesky_inverse(self):
-        input = np.array(
+    @parameterized.named_parameters(
+        ("lower", False),
+        ("upper", True),
+    )
+    def test_cholesky_inverse(self, upper):
+        """Tests cholesky_inverse for both lower and upper computations."""
+        input_matrix = np.array(
             [
                 [4.0, 12.0, -16.0],
                 [12.0, 37.0, -43.0],
@@ -386,7 +391,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             ],
             dtype="float32",
         )
-        op_output = linalg.cholesky_inverse(input)
+        op_output = linalg.cholesky_inverse(input_matrix, upper=upper)
         self.assertAllClose(op_output, expected_output, atol=1e-5)
 
     def test_det(self):
