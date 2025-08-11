@@ -1,9 +1,3 @@
-"""Knowledge Distillation implementation for Keras.
-
-This module provides a Distiller class that enables knowledge distillation
-between teacher and student models using various distillation strategies.
-"""
-
 import keras
 from keras.src.api_export import keras_export
 from keras.src.models.model import Model

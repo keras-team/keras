@@ -1,5 +1,3 @@
-"""Distillation strategies for knowledge distillation."""
-
 import keras
 from keras.src.api_export import keras_export
 
@@ -7,6 +5,7 @@ from keras.src.api_export import keras_export
 @keras_export("keras.distillation.BaseDistillationStrategy")
 class BaseDistillationStrategy:
     """Base class for distillation strategies.
+
     Distillation strategies define how to compute the distillation loss
     between teacher and student outputs.
     To create custom distillation strategies, subclass this class and
@@ -52,6 +51,7 @@ class BaseDistillationStrategy:
 @keras_export("keras.distillation.LogitsDistillation")
 class LogitsDistillation(BaseDistillationStrategy):
     """Logits distillation with customizable loss functions.
+
     This strategy supports multiple loss functions for logits distillation,
     using Keras's built-in loss functions from the losses API.
     Args:
@@ -114,6 +114,7 @@ class LogitsDistillation(BaseDistillationStrategy):
 
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute distillation loss using Keras built-in loss functions.
+
         Args:
             teacher_outputs: Logits from teacher model. Can be a single tensor
                 or a list/tuple of tensors for multi-output models.
@@ -184,8 +185,10 @@ class LogitsDistillation(BaseDistillationStrategy):
 @keras_export("keras.distillation.FeatureDistillation")
 class FeatureDistillation(BaseDistillationStrategy):
     """Feature distillation strategy using Keras built-in loss functions.
+
     This strategy distills intermediate features from teacher to student,
     not just the final outputs.
+
     Args:
         loss_type: Type of loss function to use. Options:
             - "mse": Mean squared error using keras.losses.mean_squared_error
@@ -288,9 +291,12 @@ class FeatureDistillation(BaseDistillationStrategy):
 
 @keras_export("keras.distillation.MultiOutputDistillation")
 class MultiOutputDistillation(BaseDistillationStrategy):
-    """Multi-output distillation strategy that applies distillation to
-    multiple outputs. This strategy allows different distillation strategies
-    to be applied to different outputs of multi-output models.
+    """Multi-output distillation strategy.
+
+    Multi-output distillation strategy applies distillation to multiple
+    outputs. This strategy allows different distillation strategies to be
+    applied to different outputs of multi-output models.
+
     Args:
         output_strategies: Dict mapping output indices to distillation
             strategies.
@@ -337,10 +343,12 @@ class MultiOutputDistillation(BaseDistillationStrategy):
 
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute multi-output distillation loss.
+
         Args:
             teacher_outputs: Outputs from teacher model.
             student_outputs: Outputs from student model.
             **kwargs: Additional arguments passed to individual strategies.
+
         Returns:
             Combined distillation loss tensor.
         """
