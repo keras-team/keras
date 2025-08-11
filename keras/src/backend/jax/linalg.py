@@ -10,7 +10,7 @@ from keras.src.backend.jax.core import convert_to_tensor
 
 
 def cholesky(a, upper=False):
-    out = jnp.linalg.cholesky(a, lower=not upper)
+    out = jnp.linalg.cholesky(a, upper=upper)
     try:
         # In eager mode, raise for nan to
         # achieve behavior consistency with numpy

@@ -370,22 +370,18 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
     def test_cholesky_inverse(self):
         x_np = np.random.rand(3, 3).astype("float32")
-        x_psd_np = np.matmul(x_np, x_np.T) + 1e-4 * np.eye(3, dtype="float32")
+        A = np.matmul(x_np, x_np.T) + 1e-5 * np.eye(3, dtype="float32")
         identity = np.eye(3, dtype="float32")
 
-        l_factor_np = np.linalg.cholesky(x_psd_np)
-        x_inv_from_l = linalg.cholesky_inverse(l_factor_np, upper=False)
-        reconstructed_from_l = ops.matmul(x_psd_np, x_inv_from_l)
-        self.assertAllClose(
-            reconstructed_from_l, identity, atol=1e-4, rtol=1e-4
-        )
+        L = np.linalg.cholesky(A)
+        A_inv_from_l = ops.linalg.cholesky_inverse(L, upper=False)
+        reconstructed_from_l = ops.matmul(A, A_inv_from_l)
+        self.assertAllClose(reconstructed_from_l, identity, atol=1e-4)
 
-        u_factor_np = l_factor_np.T
-        x_inv_from_u = linalg.cholesky_inverse(u_factor_np, upper=True)
-        reconstructed_from_u = ops.matmul(x_psd_np, x_inv_from_u)
-        self.assertAllClose(
-            reconstructed_from_u, identity, atol=1e-4, rtol=1e-4
-        )
+        U = np.linalg.cholesky(A, upper=True)
+        A_inv_from_u = ops.linalg.cholesky_inverse(U, upper=True)
+        reconstructed_from_u = ops.matmul(A, A_inv_from_u)
+        self.assertAllClose(reconstructed_from_u, identity, atol=1e-4)
 
     def test_det(self):
         x = np.random.rand(4, 3, 3)
