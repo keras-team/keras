@@ -1,6 +1,7 @@
 import pytest
 from absl.testing import parameterized
 
+from keras.src import Model
 from keras.src import backend
 from keras.src import layers
 from keras.src import ops
@@ -111,7 +112,7 @@ class ReshapeTest(testing.TestCase):
         self.assertEqual(res.shape, (1, 5, 8))
 
     def test_custom_reshape_model_with_varying_input_size_and_minus_one(self):
-        class MM(layers.Layer):
+        class MM(Model):
             def __init__(self):
                 super().__init__()
                 self.conv = layers.Conv1D(4, 3, padding="same")
