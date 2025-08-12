@@ -886,26 +886,15 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state_synced = True
 
     def _get_training_state_shardings(self):
-        """Retrieves the sharding specifications for all training-related state.
-
-        This method reads the pre-computed sharding specification directly from
-        each variable's `.value.sharding` attribute. The returned structure is a
-        tuple of lists to exactly match the PyTree structure of the state data
-        itself.
-        """
         distribution = distribution_lib.distribution()
         if distribution is None:
             return None
-
-        # Change the inner comprehensions from tuple() to [] to match the
-        # data structure, which is a list of variables.
         trainable_shardings = [
             v.value.sharding for v in self.trainable_variables
         ]
         non_trainable_shardings = [
             v.value.sharding for v in self.non_trainable_variables
         ]
-
         if hasattr(self, "optimizer") and self.optimizer:
             optimizer_shardings = [
                 v.value.sharding for v in self.optimizer.variables
@@ -919,7 +908,6 @@ class JAXTrainer(base_trainer.Trainer):
             ]
         else:
             metrics_shardings = []
-
         return (
             trainable_shardings,
             non_trainable_shardings,
