@@ -28,12 +28,11 @@ def cholesky(a, upper=False):
 
 def cholesky_inverse(a, upper=False):
     identity = jnp.eye(a.shape[-1], dtype=a.dtype)
+    inv_chol = solve_triangular(a, identity, lower=not upper)
     if upper:
-        u_inv = solve_triangular(a, identity, lower=False)
-        a_inv = jnp.matmul(u_inv, jnp.transpose(u_inv))
+        a_inv = jnp.matmul(inv_chol, jnp.transpose(inv_chol))
     else:
-        l_inv = solve_triangular(a, identity, lower=True)
-        a_inv = jnp.matmul(jnp.transpose(l_inv), l_inv)
+        a_inv = jnp.matmul(jnp.transpose(inv_chol), inv_chol)
     return a_inv
 
 

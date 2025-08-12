@@ -12,12 +12,11 @@ def cholesky(a, upper=False):
 
 def cholesky_inverse(a, upper=False):
     identity = np.eye(a.shape[-1], dtype=a.dtype)
+    inv_chol = solve_triangular(a, identity, lower=not upper)
     if upper:
-        u_inv = solve_triangular(a, identity, lower=False)
-        a_inv = np.matmul(u_inv, u_inv.T)
+        a_inv = np.matmul(inv_chol, inv_chol.T)
     else:
-        l_inv = solve_triangular(a, identity, lower=True)
-        a_inv = np.matmul(l_inv.T, l_inv)
+        a_inv = np.matmul(inv_chol.T, inv_chol)
     return a_inv
 
 

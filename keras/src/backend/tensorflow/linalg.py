@@ -18,12 +18,11 @@ def cholesky(a, upper=False):
 
 def cholesky_inverse(a, upper=False):
     identity = tf.eye(num_rows=tf.shape(a)[-1], dtype=a.dtype)
+    inv_chol = tf.linalg.triangular_solve(a, identity, lower=not upper)
     if upper:
-        u_inv = tf.linalg.triangular_solve(a, identity, lower=False)
-        a_inv = tf.matmul(u_inv, u_inv, transpose_b=True)
+        a_inv = tf.matmul(inv_chol, inv_chol, transpose_b=True)
     else:
-        l_inv = tf.linalg.triangular_solve(a, identity, lower=True)
-        a_inv = tf.matmul(l_inv, l_inv, transpose_a=True)
+        a_inv = tf.matmul(inv_chol, inv_chol, transpose_a=True)
     return a_inv
 
 
