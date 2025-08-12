@@ -1,4 +1,3 @@
-
 name: TPU Tests
 
 on:
@@ -10,57 +9,20 @@ on:
 
 permissions:
   contents: read # Only read permission is needed for checkout
-  packages: write
-
-# Define base environment variables at the workflow level
-# These can still be used inside steps, just not for the container image definition
-env:
-  PROJECT_ID: gtech-rmi-dev
-  GAR_LOCATION: us-central1
-  GAR_REPO: keras-docker-images
-  IMAGE_NAME: keras-jax-tpu-amd64
-  IMAGE_TAG: latest
 
 jobs:
-
-  build-and-push:
-    name: Build and Push to GHCR
-    runs-on: ubuntu-latest # This job doesn't need the special TPU runner
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          # GITHUB_TOKEN is automatically created by Actions and has permissions to push to your repo's package registry.
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          # Push the image to ghcr.io
-          push: true
-          # Create a unique tag using the commit SHA for this specific build
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
-
-
-  test-in-container:
-    name: Test in Custom Container
-    # This job must run after the build-and-push job is complete
-    needs: build-and-push
-    
-    # Use the required TPU runner
+  test-on-tpu-runner:
+    name: Test on TPU Runner
+    # This job runs on the self-hosted TPU runner.
+    # It assumes the runner is already authenticated to Google Cloud's Artifact Registry.
+    # The associated service account 'workload-keras-sa@ml-velocity-actions-production.iam.gserviceaccount.com'
+    # must have the "Artifact Registry Reader" role for this to work.
     runs-on: linux-x86-ct6e-44-1tpu
 
-    # CRITICAL: Use the container image we just pushed in the previous job.
-    # This satisfies the runner's requirement for a container to be specified.
+    # CRITICAL: Use the pre-built container image from Google Artifact Registry.
+    # The runner's Docker daemon will pull this image before starting the job.
     container:
-      image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
       options: --privileged --network host
 
     steps:
@@ -70,7 +32,7 @@ jobs:
 
       - name: Run Verification and Tests
         run: |
-          echo "Successfully running inside the custom container from GHCR!"
+          echo "Successfully running inside the custom container from GAR!"
           echo "Current working directory:"
           pwd
           echo "Contents of current directory:"
