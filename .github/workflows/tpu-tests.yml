@@ -8,34 +8,45 @@ on:
     types: [created]
 
 permissions:
-  contents: read # Only read permission is needed for checkout
+  contents: read
+  # id-token: write is no longer needed when using a service account key
 
 jobs:
   test-on-tpu-runner:
     name: Test on TPU Runner
-    # This job runs on the self-hosted TPU runner.
-    # It assumes the runner is already authenticated to Google Cloud's Artifact Registry.
-    # The associated service account 'workload-keras-sa@ml-velocity-actions-production.iam.gserviceaccount.com'
-    # must have the "Artifact Registry Reader" role for this to work.
     runs-on: linux-x86-ct6e-44-1tpu
 
-    # CRITICAL: Use the pre-built container image from Google Artifact Registry.
-    # The runner's Docker daemon will pull this image before starting the job.
-    container:
-      image: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
-      options: --privileged --network host
-
     steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          # Use the JSON key you stored in the GitHub secret
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # The container block is removed from the job-level.
+      # We will run the commands inside the container manually in the next step.
+
       - name: Checkout Repository
         uses: actions/checkout@v4
-        # We need the code available inside the container's workspace to run tests.
 
-      - name: Run Verification and Tests
+      - name: Run Tests Inside Pre-Built Container
         run: |
-          echo "Successfully running inside the custom container from GAR!"
-          echo "Current working directory:"
-          pwd
-          echo "Contents of current directory:"
-          ls -la
-          echo "Verifying JAX installation..."
-          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
+          # Use the authenticated Docker to pull the image from Artifact Registry
+          docker pull us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
+
+          # Run the container, mounting the checked-out code into the container's workspace
+          # The --workdir flag ensures the commands run in the correct directory
+          docker run --rm --privileged --network host \
+            -v "${{ github.workspace }}":"/github/workspace" \
+            --workdir "/github/workspace" \
+            us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest \
+            bash -c '
+              echo "Successfully running inside the custom container from GAR!"
+              echo "Current working directory:"
+              pwd
+              echo "Contents of current directory:"
+              ls -la
+              echo "Verifying JAX installation..."
+              python3 -c "import jax; print(f\"JAX backend: {jax.default_backend()}\"); print(f\"JAX devices: {jax.devices()}\")"
+            '
+
