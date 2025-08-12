@@ -1,8 +1,5 @@
 name: Tests
 
-# TODO: Consider enabling all tests (pytest, applications, etc.) with NNX in the future
-# Currently only basic flow tests run with NNX enabled
-
 on:
   push:
     branches: [ master ]
@@ -12,113 +9,15 @@ on:
 
 permissions:
   contents: read
-  # id-token: write
-
-# env:
-#   PYTHON: ${{ matrix.python-version }}
-#   KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
-#   KERAS_BACKEND: jax
-#   PROJECT_ID: gtech-rmi-dev  # Replace with your GCP project ID
-#   GAR_LOCATION: us-central1        # Replace with your Artifact Registry location (e.g., us-central1)
-#   IMAGE_REPO: keras-docker-images
-#   IMAGE_NAME: keras-jax-tpu-amd64:latest          # Name of your Docker image
-#   TPU_VM_NAME: kharshith-jax-tpu    # Replace with your TPU VM instance name
-#   TPU_VM_ZONE: us-central1-b       # Replace with your TPU VM zone
 
 jobs:
-  # build-and-test-on-tpu:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       python-version: ['3.10']
-  #       backend: [jax]
-  #   name: Run TPU tests
-  #   runs-on: 
-  #     # - keras-jax-tpu-runner
-  #     # - linux-x86-ct5lp-112-4tpu
-  #     # - linux-x86-ct5lp-112-4tpu-fvn6n-runner-6kb8n
-  #     - linux-x86-ct6e-44-1tpu
-  #     # - linux-x86-ct6e-44-1tpu-4khbn-runner-x4st4
-  #     # - linux-x86-ct6e-44-1tpu-4khbn-runner-45nmc
-
-  #   container: us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
-
-  #   # container:
-  #   #   image: docker:latest # Provides the Docker CLI within the job container
-  #   #   volumes:
-  #   #     - /var/run/docker.sock:/var/run/docker.sock # Mounts host's Docker socket for control
-  #   #   options: --privileged
-
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Set up Docker BuildX
-  #       uses: docker/setup-buildx-action@v3
-
-  #     - name: Authenticate to Google Cloud (Workload Identity Federation)
-  #       id: 'auth'
-  #       uses: 'google-github-actions/auth@v2'
-  #       with:
-  #         # Replace with your Workload Identity Federation provider details.
-  #         # This service account needs 'Artifact Registry Writer' role.
-  #         workload_identity_provider: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
-  #         service_account: 'your-github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
-
-  #     - name: Configure Docker to use Google Artifact Registry
-  #       run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
-
-  #     - name: Build Docker Image
-  #       run: |
-  #         IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:${{ github.sha }}"
-  #         echo "Building Docker image: $IMAGE_TAG"
-  #         docker build \
-  #           --platform=linux/amd64 \
-  #           -f .github/workflows/tpu/Dockerfile \
-  #           -t "$IMAGE_TAG" \
-  #           -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest" \
-  #           .
-  #         echo "Built Docker image: $IMAGE_TAG"
-  #         echo "LOCAL_TEST_IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV # Store for immediate use in run step
-
-  #     - name: Push Docker Image to Artifact Registry
-  #       run: |
-  #         echo "Pushing Docker image to Artifact Registry: ${{ env.LOCAL_TEST_IMAGE_TAG }}"
-  #         docker push "${{ env.LOCAL_TEST_IMAGE_TAG }}"
-  #         docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME_BASE }}:latest"
-  #         echo "Pushed Docker image."
-
-  #     - name: Run Docker container and execute tests on TPU
-  #       run: |
-  #         echo "Running Docker container with TPU access and executing tests..."
-  #         docker run --rm \
-  #           --privileged \
-  #           --network host \
-  #           -e PYTHON=3.10 \ # Use a specific version or derive from matrix
-  #           -e KERAS_HOME=.github/workflows/config/jax \
-  #           -e KERAS_BACKEND=jax \
-  #           ${{ env.LOCAL_TEST_IMAGE_TAG }} \
-  #           /bin/bash -c ' \
-  #             echo "Verifying JAX TPU backend inside container..." && \
-  #             python3 -c "import jax; print(\"JAX Version:\", jax.__version__); print(\"Default Backend:\", jax.default_backend()); assert jax.default_backend().lower() == \"tpu\", \"TPU backend not found or not default\"; print(\"TPU verification successful!\")" \
-  #             # Add your actual pytest command here. Ensure pytest is installed inside your Docker image.
-  #             # && pytest keras --ignore keras/src/applications --ignore keras/src/layers/merging/merging_test.py --cov=keras --cov-config=pyproject.toml
-  #           '
-  #         echo "Docker container finished running tests."
-
-
   build:
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.10']
         backend: [tensorflow, jax, torch, numpy, openvino]
-        nnx_enabled: [false]
-        include:
-          - python-version: '3.11'
-            backend: jax
-            nnx_enabled: true
-    name: ${{ matrix.backend == 'jax' && format('Run tests ({0}, {1}, nnx_enabled = {2})', matrix.python-version, matrix.backend, matrix.nnx_enabled) || format('Run tests ({0}, {1})', matrix.python-version, matrix.backend) }}
+    name: Run tests
     runs-on: ubuntu-latest
     env:
       PYTHON: ${{ matrix.python-version }}
@@ -149,18 +48,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt --progress-bar off --upgrade
-          if [ "${{ matrix.nnx_enabled }}" == "true" ]; then
-            pip install --upgrade git+https://github.com/google/flax.git
-          fi
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Test applications with pytest
-        if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
+        if: ${{ steps.filter.outputs.applications == 'true' }}
         run: |
           pytest keras/src/applications --cov=keras/src/applications --cov-config=pyproject.toml
           coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
       - name: Codecov keras.applications
-        if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
+        if: ${{ steps.filter.outputs.applications == 'true' }}
         uses: codecov/codecov-action@v5
         with:
           env_vars: PYTHON,KERAS_HOME
@@ -169,21 +65,14 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
       - name: Test integrations
-        if: ${{ matrix.backend != 'numpy' && matrix.nnx_enabled == false }}
+        if: ${{ matrix.backend != 'numpy'}}
         run: |
           python integration_tests/import_test.py
           python integration_tests/numerical_test.py
       - name: Test JAX-specific integrations
-        if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled == false }}
+        if: ${{ matrix.backend == 'jax'}}
         run: |
           python integration_tests/jax_custom_fit_test.py
-      - name: Test basic flow with NNX
-        if: ${{ matrix.nnx_enabled == true }}
-        env:
-          KERAS_NNX_ENABLED: true
-        run: |
-          python integration_tests/import_test.py
-          python integration_tests/basic_full_flow.py
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |
@@ -195,7 +84,6 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
       - name: Test with pytest
-        if: ${{ matrix.nnx_enabled == false }}
         run: |
           if [ "${{ matrix.backend }}" == "openvino" ]; then
             IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
@@ -206,11 +94,10 @@ jobs:
           pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
-        if: ${{ matrix.nnx_enabled == false }}
         uses: codecov/codecov-action@v5
         with:
-          env_vars: PYTHON,KERAS_HOME,KERAS_NNX_ENABLED
-          flags: keras,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
+          env_vars: PYTHON,KERAS_HOME
+          flags: keras,keras-${{ matrix.backend }}
           files: core-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
