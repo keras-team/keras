@@ -1,14 +1,12 @@
+import types
 from unittest import mock
 
+import jax
 import numpy as np
 import pytest
 from absl.testing import parameterized
 
 import keras
-import contextlib
-import types
-import jax
-from jax.sharding import NamedSharding, PartitionSpec
 from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
@@ -20,17 +18,16 @@ from keras.src import optimizers
 from keras.src import testing
 from keras.src.backend import config
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
+from keras.src.backend.jax import trainer as jax_trainer_lib
 from keras.src.callbacks.callback import Callback
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
-from keras.src.optimizers import loss_scale_optimizer
-from keras.src.optimizers import optimizer
-from keras.src.backend.jax import trainer as jax_trainer_lib
 
 if backend.backend() == "jax":
     from keras.src.backend.jax.trainer import JAXTrainer as Trainer
-    from keras.src.distribution import DeviceMesh, TensorLayout, distribution_lib, DataParallel
+    from keras.src.distribution import DataParallel
+    from keras.src.distribution import DeviceMesh
 elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "tensorflow":
@@ -2866,106 +2863,68 @@ class TestTrainer(testing.TestCase):
         )
         self.assertLessEqual(tracing_count[0], 2)
 
-@pytest.mark.requires_trainable_backend
-@pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="This test is specific to the JAX backend trainer.",
-)
-class JAXTrainerCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("single_device", False),
         ("distributed", True),
     )
     def test_jit_fit_with_out_shardings_logic(self, distributed):
-        def patched_record_sharding_spec(self_model):
-            if not self_model.jit_compile:
-                return
-            distribution = distribution_lib.distribution()
-
-            def get_sharding_object(variable):
-                if distribution is None:
-                    return None
-                jax_mesh = distribution.device_mesh.backend_mesh
-                if hasattr(distribution, "layout_map"):
-                    tensor_layout = distribution.layout_map.get(variable.path)
-                    if tensor_layout is not None:
-                        return NamedSharding(
-                            jax_mesh, PartitionSpec(*tensor_layout.axes)
-                        )
-                return NamedSharding(jax_mesh, PartitionSpec())
-
-            self_model._trainable_variable_shardings = tuple(
-                get_sharding_object(v) for v in self_model.trainable_variables
-            )
-            self_model._non_trainable_variable_shardings = tuple(
-                get_sharding_object(v) for v in self_model.non_trainable_variables
-            )
-            if hasattr(self_model, "optimizer") and self_model.optimizer:
-                self_model._optimizer_variable_shardings = tuple(
-                    get_sharding_object(v) for v in self_model.optimizer.variables
-                )
-            else:
-                self_model._optimizer_variable_shardings = ()
-            if hasattr(self_model, "metrics_variables"):
-                self_model._metrics_variable_shardings = tuple(
-                    get_sharding_object(v) for v in self_model.metrics_variables
-                )
-            else:
-                self_model._metrics_variable_shardings = ()
-
         def patched_get_jax_state(
-            self_model, trainable_variables=False, non_trainable_variables=False,
-            optimizer_variables=False, metrics_variables=False,
-            purge_model_variables=False
+            self_model,
+            trainable_variables=False,
+            non_trainable_variables=False,
+            optimizer_variables=False,
+            metrics_variables=False,
+            purge_model_variables=False,
         ):
             state = []
             if trainable_variables:
-                state.append(tuple(v.value for v in self_model.trainable_variables))
+                state.append([v.value for v in self_model.trainable_variables])
             if non_trainable_variables:
-                state.append(tuple(v.value for v in self_model.non_trainable_variables))
+                state.append(
+                    [v.value for v in self_model.non_trainable_variables]
+                )
             if optimizer_variables:
-                state.append(tuple(v.value for v in self_model.optimizer.variables))
+                state.append([v.value for v in self_model.optimizer.variables])
             if metrics_variables:
-                state.append(tuple(v.value for v in self_model.metrics_variables))
+                state.append([v.value for v in self_model.metrics_variables])
             return tuple(state)
 
         original_train_step = jax_trainer_lib.JAXTrainer.train_step
 
         def patched_train_step_wrapper(self, state, data):
             logs, new_state = original_train_step(self, state, data)
+            return logs, new_state
 
-            fixed_new_state = tuple(
-                tuple(var_group) if isinstance(var_group, list) else var_group
-                for var_group in new_state
-            )
-
-            return logs, fixed_new_state
-        
         x = np.random.rand(64, 8).astype("float32")
         y = np.random.rand(64, 1).astype("float32")
 
         if distributed:
             if len(jax.local_devices()) < 2:
-                self.skipTest("Distributed test requires at least 2 JAX devices.")
-            
+                self.skipTest(
+                    "Distributed test requires at least 2 JAX devices."
+                )
+
             devices = jax.local_devices()
-            mesh = DeviceMesh(shape=(len(devices),), axis_names=("batch",), devices=devices)
+            mesh = DeviceMesh(
+                shape=(len(devices),), axis_names=("batch",), devices=devices
+            )
             distribution = DataParallel(mesh)
 
-            with mock.patch(
-                "keras.src.backend.jax.trainer.JAXTrainer.train_step",
-                new=patched_train_step_wrapper
-            ), distribution.scope():
-                
-                model = models.Sequential([layers.Dense(4, activation="relu", input_shape=(8,)), layers.Dense(1)])
-                model._record_training_state_sharding_spec = types.MethodType(patched_record_sharding_spec, model)
-                model._get_jax_state = types.MethodType(patched_get_jax_state, model)
-                model.compile(optimizer="adam", loss="mse", jit_compile=True)
-                model.fit(x, y, epochs=2, batch_size=32, verbose=0)
-        else:
-            with contextlib.nullcontext():
-                model = models.Sequential([layers.Dense(4, activation="relu", input_shape=(8,)), layers.Dense(1)])
-                model._record_training_state_sharding_spec = types.MethodType(patched_record_sharding_spec, model)
-                model._get_jax_state = types.MethodType(patched_get_jax_state, model)
+            with (
+                mock.patch(
+                    "keras.src.backend.jax.trainer.JAXTrainer.train_step",
+                    new=patched_train_step_wrapper,
+                ),
+                distribution.scope(),
+            ):
+                model = models.Sequential(
+                    [
+                        layers.Dense(4, activation="relu", input_shape=(8,)),
+                        layers.Dense(1),
+                    ]
+                )
+                model._get_jax_state = types.MethodType(
+                    patched_get_jax_state, model
+                )
                 model.compile(optimizer="adam", loss="mse", jit_compile=True)
                 model.fit(x, y, epochs=2, batch_size=32, verbose=0)

@@ -19,7 +19,6 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
-from jax.sharding import PartitionSpec, NamedSharding
 
 if is_nnx_enabled():
     from flax import nnx
@@ -887,37 +886,39 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state_synced = True
 
     def _get_training_state_shardings(self):
+        """Retrieves the sharding specifications for all training-related state.
+
+        This method reads the pre-computed sharding specification directly from
+        each variable's `.value.sharding` attribute. The returned structure is a
+        tuple of lists to exactly match the PyTree structure of the state data
+        itself.
+        """
         distribution = distribution_lib.distribution()
-        mesh = distribution.device_mesh.backend_mesh
+        if distribution is None:
+            return None
 
-        def get_sharding(variable):
-            partition_spec = PartitionSpec()
-            if hasattr(distribution, "layout_map"):
-                tensor_layout = distribution.layout_map.get(variable.path)
-                if tensor_layout is not None:
-                    partition_spec = PartitionSpec(*tensor_layout.axes)
-            return NamedSharding(mesh, partition_spec)
-
-        trainable_shardings = tuple(
-            get_sharding(v) for v in self.trainable_variables
-        )
-        non_trainable_shardings = tuple(
-            get_sharding(v) for v in self.non_trainable_variables
-        )
+        # Change the inner comprehensions from tuple() to [] to match the
+        # data structure, which is a list of variables.
+        trainable_shardings = [
+            v.value.sharding for v in self.trainable_variables
+        ]
+        non_trainable_shardings = [
+            v.value.sharding for v in self.non_trainable_variables
+        ]
 
         if hasattr(self, "optimizer") and self.optimizer:
-            optimizer_shardings = tuple(
-                get_sharding(v) for v in self.optimizer.variables
-            )
+            optimizer_shardings = [
+                v.value.sharding for v in self.optimizer.variables
+            ]
         else:
-            optimizer_shardings = ()
+            optimizer_shardings = []
 
         if hasattr(self, "metrics_variables"):
-            metrics_shardings = tuple(
-                get_sharding(v) for v in self.metrics_variables
-            )
+            metrics_shardings = [
+                v.value.sharding for v in self.metrics_variables
+            ]
         else:
-            metrics_shardings = ()
+            metrics_shardings = []
 
         return (
             trainable_shardings,
