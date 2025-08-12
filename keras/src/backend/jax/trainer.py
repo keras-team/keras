@@ -261,7 +261,7 @@ class JAXTrainer(base_trainer.Trainer):
         if not self.run_eagerly and self.jit_compile:
             out_shardings = None
             if distribution_lib.distribution() is not None:
-                state_shardings = self._get_training_state_shardings()
+                state_shardings = self._record_training_state_sharding_spec()
                 out_shardings = (None, state_shardings)
             train_step = jit(
                 self.train_step,
@@ -286,7 +286,7 @@ class JAXTrainer(base_trainer.Trainer):
                     non_trainable_shardings,
                     _,  # optimizer_shardings
                     metrics_shardings,
-                ) = self._get_training_state_shardings()
+                ) = self._record_training_state_sharding_spec()
                 state_shardings = (
                     trainable_shardings,
                     non_trainable_shardings,
@@ -321,7 +321,7 @@ class JAXTrainer(base_trainer.Trainer):
                     non_trainable_shardings,
                     _,  # optimizer_shardings
                     _,  # metrics_shardings
-                ) = self._get_training_state_shardings()
+                ) = self._record_training_state_sharding_spec()
                 state_shardings = (
                     trainable_shardings,
                     non_trainable_shardings,
@@ -885,7 +885,7 @@ class JAXTrainer(base_trainer.Trainer):
                 ref_v.assign(v)
         self._jax_state_synced = True
 
-    def _get_training_state_shardings(self):
+    def _record_training_state_sharding_spec(self):
         self._trainable_variable_shardings = [
             v.value.sharding for v in self.trainable_variables
         ]
