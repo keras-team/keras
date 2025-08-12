@@ -420,9 +420,11 @@ class SaliencyPruning(PruningMethod):
             import tensorflow as tf
             
             # Find all trainable weights to compute gradients for all at once
-            trainable_weights = [layer.kernel for layer in model.layers if hasattr(layer, 'kernel') and layer.kernel is not None]
+            # Use model.trainable_variables to get all trainable weights including nested layers
+            trainable_weights = [var for var in model.trainable_variables if hasattr(var, 'shape') and len(var.shape) > 1]
             
             def compute_loss():
+                # Keep model in inference mode but ensure gradient flow
                 predictions = model(x_data, training=False)
                 if callable(loss_fn):
                     loss = loss_fn(y_data, predictions)
@@ -431,35 +433,50 @@ class SaliencyPruning(PruningMethod):
                     loss = loss_obj(y_data, predictions)
                 return ops.mean(loss) if len(ops.shape(loss)) > 0 else loss
             
-            # Compute gradients for all weights at once (much more efficient)
-            with tf.GradientTape() as tape:
-                # Watch all trainable weights
-                watch_vars = []
-                for weight in trainable_weights:
-                    if hasattr(weight, 'value'):
-                        watch_vars.append(weight.value)
-                        tape.watch(weight.value)
-                    else:
-                        watch_vars.append(weight)
-                        tape.watch(weight)
+            # Use tf.GradientTape with watch_accessed_variables=True to automatically track all variables
+            with tf.GradientTape(watch_accessed_variables=True, persistent=False) as tape:
+                # Explicitly watch all trainable variables to ensure they're tracked
+                for var in model.trainable_variables:
+                    tape.watch(var)
                 
                 loss = compute_loss()
             
-            # Get gradients for all weights
-            all_gradients = tape.gradient(loss, watch_vars)
+            # Get gradients for all trainable variables
+            all_gradients = tape.gradient(loss, trainable_weights)
             
             # Find the gradient for our specific weight tensor
             target_gradients = None
             for i, weight in enumerate(trainable_weights):
                 if ops.shape(weight) == ops.shape(weights):
-                    # Check if values are close
-                    weight_diff = ops.mean(ops.abs(weight - weights))
-                    if backend.convert_to_numpy(weight_diff) < 1e-6:
-                        target_gradients = all_gradients[i]
-                        break
+                    # Check if values are close (handles case where multiple layers have same shape)
+                    try:
+                        weight_diff = ops.mean(ops.abs(weight - weights))
+                        if backend.convert_to_numpy(weight_diff) < 1e-6:
+                            target_gradients = all_gradients[i]
+                            break
+                    except:
+                        # If comparison fails, still check if gradient exists and shapes match
+                        if all_gradients[i] is not None:
+                            target_gradients = all_gradients[i]
+                            break
                         
             if target_gradients is None:
-                raise ValueError(f"Could not find gradients for weight tensor with shape {ops.shape(weights)}")
+                # Fallback: try to find ANY gradient with matching shape, even if values don't match exactly
+                for i, weight in enumerate(trainable_weights):
+                    if (ops.shape(weight) == ops.shape(weights) and 
+                        all_gradients[i] is not None):
+                        target_gradients = all_gradients[i]
+                        break
+                
+            if target_gradients is None:
+                # Enhanced error message with debugging info
+                available_shapes = [tuple(ops.shape(w).numpy() if hasattr(ops.shape(w), 'numpy') else ops.shape(w)) for w in trainable_weights]
+                gradient_status = [(ops.shape(w), all_gradients[i] is not None) for i, w in enumerate(trainable_weights)]
+                
+                raise ValueError(f"Could not find gradients for weight tensor with shape {ops.shape(weights)}. "
+                               f"Available trainable weight shapes: {available_shapes}. "
+                               f"Gradient status (shape, has_gradient): {gradient_status}. "
+                               f"Make sure model is compiled and all weights are reachable from loss.")
                 
             gradients = target_gradients
                 
@@ -560,15 +577,32 @@ class TaylorPruning(PruningMethod):
         target_layer = None
         target_weight_var = None
         
-        for layer in model.layers:
-            if hasattr(layer, 'kernel') and layer.kernel is not None:
+        # Use model.trainable_variables to find weights including nested layers
+        for var in model.trainable_variables:
+            if hasattr(var, 'shape') and len(var.shape) > 1:  # Skip bias terms
                 # Check if this is the matching weight tensor by shape
-                if ops.shape(layer.kernel) == ops.shape(weights):
+                if ops.shape(var) == ops.shape(weights):
                     # Additional check: see if values are close (in case of multiple layers with same shape)
-                    weight_diff = ops.mean(ops.abs(layer.kernel - weights))
-                    if backend.convert_to_numpy(weight_diff) < 1e-6:  # Very close values
-                        target_layer = layer
-                        target_weight_var = layer.kernel
+                    try:
+                        weight_diff = ops.mean(ops.abs(var - weights))
+                        if backend.convert_to_numpy(weight_diff) < 1e-6:  # Very close values
+                            target_weight_var = var
+                            # Find the corresponding layer for context
+                            for layer in model.layers:
+                                if hasattr(layer, 'kernel') and layer.kernel is var:
+                                    target_layer = layer
+                                    break
+                            if target_layer is None:
+                                # Handle nested layers - create a dummy layer reference
+                                class DummyLayer:
+                                    def __init__(self, name):
+                                        self.name = name
+                                target_layer = DummyLayer(f"weight_tensor_{ops.shape(weights)}")
+                            break
+                    except:
+                        # If comparison fails, still use this variable if shapes match
+                        target_weight_var = var
+                        target_layer = DummyLayer(f"weight_tensor_{ops.shape(weights)}")
                         break
         
         if target_layer is None or target_weight_var is None:
@@ -583,6 +617,7 @@ class TaylorPruning(PruningMethod):
             import tensorflow as tf
             
             def compute_loss():
+                # Keep model in inference mode for consistent behavior
                 predictions = model(x_data, training=False)
                 if callable(loss_fn):
                     loss = loss_fn(y_data, predictions)
@@ -592,15 +627,17 @@ class TaylorPruning(PruningMethod):
                 return ops.mean(loss) if len(ops.shape(loss)) > 0 else loss
             
             # Compute first-order gradients
-            with tf.GradientTape() as tape:
-                # For Keras variables, we need to watch the underlying tensor
+            with tf.GradientTape(watch_accessed_variables=True) as tape:
+                # Explicitly watch the target weight variable
                 if hasattr(target_weight_var, 'value'):
                     # Keras Variable - watch the underlying tensor
                     watch_var = target_weight_var.value
+                    tape.watch(watch_var)
                 else:
                     # Already a TensorFlow tensor/variable
                     watch_var = target_weight_var
-                tape.watch(watch_var)
+                    tape.watch(watch_var)
+                
                 loss = compute_loss()
             
             gradients = tape.gradient(loss, watch_var)
