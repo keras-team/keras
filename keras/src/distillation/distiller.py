@@ -142,6 +142,31 @@ class Distiller(Model):
         temperature=5.0
     )
     ```
+
+    **Accessing and Saving the Trained Student Model:**
+
+    ```python
+    # After training
+    distiller.fit(x_train, y_train, epochs=10)
+
+    # Method 1: Direct access
+    trained_student = distiller.student
+
+    # Method 2: Using convenience method (recommended)
+    trained_student = distiller.get_student_model()
+
+    # Save the student model independently
+    trained_student.save('trained_student.keras')
+
+    # Use student model for inference
+    predictions = trained_student.predict(x_test)
+
+    # Further train the student model independently
+    trained_student.compile(
+        optimizer='adam', loss='sparse_categorical_crossentropy'
+    )
+    trained_student.fit(x_new, y_new, epochs=5)
+    ```
     """
 
     def __init__(
@@ -218,6 +243,39 @@ class Distiller(Model):
             raise ValueError(
                 f"Student must be a keras.Model, got {type(student)}"
             )
+
+    def get_student_model(self):
+        """Get the trained student model for independent use.
+
+        This method returns the student model that has been trained through
+        the distillation process. The returned model can be used independently
+        for inference, further training, or saving.
+
+        Returns:
+            keras.Model: The trained student model.
+
+        Example:
+            ```python
+            # After training the distiller
+            distiller.fit(x_train, y_train, epochs=10)
+
+            # Get the trained student model
+            trained_student = distiller.get_student_model()
+
+            # Use the student model independently
+            predictions = trained_student.predict(x_test)
+
+            # Save the student model
+            trained_student.save('my_student_model.keras')
+
+            # Further train the student model
+            trained_student.compile(
+                optimizer='adam', loss='sparse_categorical_crossentropy'
+            )
+            trained_student.fit(x_new, y_new, epochs=5)
+            ```
+        """
+        return self.student
 
     def call(self, inputs, training=None, **kwargs):
         """Forward pass returns student predictions."""
@@ -333,28 +391,36 @@ class Distiller(Model):
     def get_config(self):
         """Get configuration for serialization."""
         from keras.src.saving import serialization_lib
+
         config = super().get_config()
-        config.update({
-            "teacher": serialization_lib.serialize_keras_object(self.teacher),
-            "student": serialization_lib.serialize_keras_object(self.student),
-            "strategies": [
-                serialization_lib.serialize_keras_object(s) 
-                for s in self.strategies
-            ],
-            "student_loss_fn": serialization_lib.serialize_keras_object(
-                self.student_loss_fn
-            ),
-            "alpha": self.alpha,
-            "temperature": self.temperature,
-            "input_mapping": self.input_mapping,
-            "output_mapping": self.output_mapping,
-        })
+        config.update(
+            {
+                "teacher": serialization_lib.serialize_keras_object(
+                    self.teacher
+                ),
+                "student": serialization_lib.serialize_keras_object(
+                    self.student
+                ),
+                "strategies": [
+                    serialization_lib.serialize_keras_object(s)
+                    for s in self.strategies
+                ],
+                "student_loss_fn": serialization_lib.serialize_keras_object(
+                    self.student_loss_fn
+                ),
+                "alpha": self.alpha,
+                "temperature": self.temperature,
+                "input_mapping": self.input_mapping,
+                "output_mapping": self.output_mapping,
+            }
+        )
         return config
 
     @classmethod
     def from_config(cls, config):
         """Create instance from configuration."""
         from keras.src.saving import serialization_lib
+
         config["teacher"] = serialization_lib.deserialize_keras_object(
             config["teacher"]
         )

@@ -332,74 +332,108 @@ class TestDistiller(TestCase):
         prediction_sums = np.sum(predictions, axis=1)
         self.assertTrue(np.all(np.isfinite(prediction_sums)))
 
+    def test_get_student_model_method(self):
+        """Test the get_student_model() convenience method."""
+        distiller = Distiller(
+            teacher=self.teacher,
+            student=self.student,
+            strategies=[LogitsDistillation()],
+            alpha=0.5,
+        )
+
+        # Test that get_student_model returns the same as direct access
+        student_direct = distiller.student
+        student_method = distiller.get_student_model()
+
+        self.assertIs(student_direct, student_method)
+        self.assertEqual(student_method.name, self.student.name)
+
     def test_distiller_serialization_and_saving(self):
         """Test Distiller serialization, saving, and loading."""
         import json
         import os
         import tempfile
-        
+
         # Use standard Sequential models for serialization testing
-        teacher = keras.Sequential([
-            keras.layers.Dense(32, activation='relu', name='teacher_dense_1'),
-            keras.layers.Dense(16, activation='relu', name='teacher_dense_2'),
-            keras.layers.Dense(10, name='teacher_output')
-        ])
-        
-        student = keras.Sequential([
-            keras.layers.Dense(16, activation='relu', name='student_dense_1'),
-            keras.layers.Dense(8, activation='relu', name='student_dense_2'),
-            keras.layers.Dense(10, name='student_output')
-        ])
-        
+        teacher = keras.Sequential(
+            [
+                keras.layers.Dense(
+                    32, activation="relu", name="teacher_dense_1"
+                ),
+                keras.layers.Dense(
+                    16, activation="relu", name="teacher_dense_2"
+                ),
+                keras.layers.Dense(10, name="teacher_output"),
+            ]
+        )
+
+        student = keras.Sequential(
+            [
+                keras.layers.Dense(
+                    16, activation="relu", name="student_dense_1"
+                ),
+                keras.layers.Dense(
+                    8, activation="relu", name="student_dense_2"
+                ),
+                keras.layers.Dense(10, name="student_output"),
+            ]
+        )
+
         # Create distiller with multiple strategies
         from keras.src.distillation.strategies import FeatureDistillation
         from keras.src.distillation.strategies import LogitsDistillation
-        
+
         strategies = [
             LogitsDistillation(temperature=3.0, loss_type="kl_divergence"),
             FeatureDistillation(
                 loss_type="mse",
-                teacher_layer_name="teacher_dense_1", 
-                student_layer_name="student_dense_1"
-            )
+                teacher_layer_name="teacher_dense_1",
+                student_layer_name="student_dense_1",
+            ),
         ]
-        
+
         original_distiller = Distiller(
             teacher=teacher,
             student=student,
             strategies=strategies,
             alpha=0.7,
             temperature=4.0,
-            student_loss_fn=keras.losses.SparseCategoricalCrossentropy()
+            student_loss_fn=keras.losses.SparseCategoricalCrossentropy(),
         )
-        
+
         # Build the models by calling them
         x_test = np.random.random((2, 20)).astype(np.float32)
         _ = original_distiller(x_test)
-        
+
         # Test get_config
         config = original_distiller.get_config()
-        
+
         # Verify all components are in config
         required_keys = [
-            "teacher", "student", "strategies", "student_loss_fn",
-            "alpha", "temperature", "input_mapping", "output_mapping"
+            "teacher",
+            "student",
+            "strategies",
+            "student_loss_fn",
+            "alpha",
+            "temperature",
+            "input_mapping",
+            "output_mapping",
         ]
         for key in required_keys:
             self.assertIn(key, config, f"Missing key: {key}")
-        
+
         # Test JSON serialization
         json_str = json.dumps(config)
         self.assertIsInstance(json_str, str)
-        
+
         # Test from_config reconstruction
         reconstructed_distiller = Distiller.from_config(config)
-        
+
         # Verify reconstruction
         self.assertEqual(reconstructed_distiller.alpha, 0.7)
         self.assertEqual(reconstructed_distiller.temperature, 4.0)
         self.assertEqual(len(reconstructed_distiller.strategies), 2)
-        
+
         # Verify strategy types
         self.assertIsInstance(
             reconstructed_distiller.strategies[0], LogitsDistillation
@@ -407,45 +441,45 @@ class TestDistiller(TestCase):
         self.assertIsInstance(
             reconstructed_distiller.strategies[1], FeatureDistillation
         )
-        
+
         # Verify strategy parameters
         self.assertEqual(reconstructed_distiller.strategies[0].temperature, 3.0)
         self.assertEqual(reconstructed_distiller.strategies[1].loss_type, "mse")
-        
+
         # Test that reconstructed distiller can be used for inference
         reconstructed_output = reconstructed_distiller(x_test)
         self.assertEqual(reconstructed_output.shape, (2, 10))
-        
+
         # Test model saving and loading (full integration test)
         with tempfile.TemporaryDirectory() as temp_dir:
             model_path = os.path.join(temp_dir, "distiller_model")
-            
+
             # Compile original distiller
             original_distiller.compile(
                 optimizer=keras.optimizers.Adam(),
-                loss="sparse_categorical_crossentropy"
+                loss="sparse_categorical_crossentropy",
             )
-            
+
             # Save the model
             try:
                 original_distiller.save(model_path)
-                
+
                 # Load the model
                 loaded_distiller = keras.models.load_model(model_path)
-                
+
                 # Verify loaded model works
                 loaded_output = loaded_distiller(x_test)
                 self.assertEqual(loaded_output.shape, (2, 10))
-                
+
                 # Verify parameters are preserved
                 self.assertEqual(loaded_distiller.alpha, 0.7)
                 self.assertEqual(loaded_distiller.temperature, 4.0)
-                
+
             except Exception:
                 # Some serialization features might not be fully supported
                 # in all Keras versions, so we'll note this but not fail
                 # The important thing is that get_config/from_config works
                 pass
-        
+
         # The core serialization functionality is working
         self.assertTrue(True, "Distiller serialization test passed")
