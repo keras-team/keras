@@ -476,6 +476,5 @@ class TestDistiller(TestCase):
             self.assertEqual(loaded_distiller.alpha, 0.7)
             self.assertEqual(loaded_distiller.temperature, 4.0)
 
-
         # The core serialization functionality is working
         self.assertTrue(True, "Distiller serialization test passed")
