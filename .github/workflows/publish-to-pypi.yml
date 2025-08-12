@@ -1,0 +1,41 @@
+name: Publish to PyPI
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install dependencies
+        run: |
+            pip install -r requirements.txt --progress-bar off
+      - name: Build a binary wheel and a source tarball
+        run: >-
+          python pip_build.py
+      - name: Publish Keras to PyPI
+        if: startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          verbose: true
