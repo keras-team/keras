@@ -12,7 +12,7 @@ jobs:
   discover_service_account:
     name: Discover Service Account
     # The runner name is now hardcoded since we removed the manual input
-    runs-on: linux-x86-ct5lp-112-4tpu
+    runs-on: linux-x86-ct6e-44-1tpu-nxgm7-runner-vb87c
 
     # Add a container block to satisfy the runner's security policy.
     # We use a standard Google Cloud SDK image which has gcloud pre-installed.
