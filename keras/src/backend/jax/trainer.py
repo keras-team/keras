@@ -886,34 +886,21 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state_synced = True
 
     def _get_training_state_shardings(self):
-        distribution = distribution_lib.distribution()
-        if distribution is None:
-            return None
-        trainable_shardings = [
+        self._trainable_variable_shardings = [
             v.value.sharding for v in self.trainable_variables
         ]
-        non_trainable_shardings = [
+        self._non_trainable_variable_shardings = [
             v.value.sharding for v in self.non_trainable_variables
         ]
-        if hasattr(self, "optimizer") and self.optimizer:
-            optimizer_shardings = [
+        if hasattr(self, "optimizer") and self.optimizer is not None:
+            self._optimizer_variable_shardings = [
                 v.value.sharding for v in self.optimizer.variables
             ]
         else:
-            optimizer_shardings = []
-
-        if hasattr(self, "metrics_variables"):
-            metrics_shardings = [
-                v.value.sharding for v in self.metrics_variables
-            ]
-        else:
-            metrics_shardings = []
-        return (
-            trainable_shardings,
-            non_trainable_shardings,
-            optimizer_shardings,
-            metrics_shardings,
-        )
+            self._optimizer_variable_shardings = []
+        self._metrics_variable_shardings = [
+            v.value.sharding for v in self.metrics_variables
+        ]
 
     def _purge_model_variables(
         self,
