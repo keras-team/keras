@@ -1,7 +1,7 @@
 from absl import logging
 
 from keras.src.api_export import keras_export
-from keras.src.quantizers.gptqutils import quantize_model
+from keras.src.quantizers.gptq_core import quantize_model
 
 
 @keras_export(["keras.GPTQConfig", "keras.quantizers.GPTQConfig"])

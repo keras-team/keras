@@ -2,21 +2,15 @@ from keras.src import ops
 
 
 def dequantize(x, scale, zero, maxq):
-    """The core quantization function with correct broadcasting."""
-    # Ensure scale is broadcastable with the input tensor x
-    if scale.shape != x.shape:
-        scale = ops.broadcast_to(scale, x.shape)
-
-    # Ensure zero-point is also broadcastable
-    if zero.shape != x.shape:
-        zero = ops.broadcast_to(zero, x.shape)
-
-    epsilon = 1e-8
+    """The core quantization function."""
+    epsilon = ops.cast(1e-8, dtype=scale.dtype)
     scale = ops.where(ops.equal(scale, 0), epsilon, scale)
+
     quantized_x = ops.divide(x, scale)
     quantized_x = ops.round(quantized_x)
     q = ops.add(quantized_x, zero)
     q = ops.clip(q, 0, maxq)
+
     dequantized_x = ops.subtract(q, zero)
     return ops.multiply(scale, dequantized_x)
 
@@ -48,22 +42,16 @@ class GPTQQuant:
             Defaults to -1.
     """
 
-    def __init__(self):
-        self.scale = None
-        self.zero = None
-        self.maxq = None
-        self.wbits = None
-        self.perchannel = False
-        self.symmetric = False
-        self.group_size = -1
-
-    def configure(self, wbits, perchannel=True, symmetric=False, group_size=-1):
-        """Configures the quantizer settings."""
+    def __init__(self, wbits, perchannel=True, symmetric=False, group_size=-1):
         self.wbits = wbits
         self.maxq = ops.cast((2**wbits) - 1, "float32")
         self.perchannel = perchannel
         self.symmetric = symmetric
         self.group_size = group_size
+
+        # These are now determined later by `find_params`
+        self.scale = None
+        self.zero = None
 
     def find_params(self, x, weight=False):
         """Finds quantization parameters (scale and zero) for a given tensor."""

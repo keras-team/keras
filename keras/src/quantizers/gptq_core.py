@@ -9,7 +9,7 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptqquant import GPTQQuant
+from keras.src.quantizers.gptq_quant import GPTQQuant
 
 
 def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
@@ -20,9 +20,9 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
 
     if isinstance(dataset, str):
         raise TypeError(
-            "The `dataset` argument must be an iterable (e.g., a list or "
-            "generator) of strings or pre-tokenized tensors. Loading "
-            "datasets by name is no longer supported."
+            "The `dataset` argument must be an iterable (e.g., a list of "
+            "strings or a generator). Providing a dataset name as a string "
+            "is not supported. Please pass the loaded dataset directly."
         )
 
     logging.info("Using pre-made dataset/generator...")
@@ -37,10 +37,9 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
         all_tokens = tokenizer.tokenize(full_text)
     else:
         logging.info("(Dataset is pre-tokenized, concatenating...)")
-        concatenated_tokens = ops.concatenate(
-            [ops.reshape(s, [-1]) for s in dataset_list], axis=0
+        all_tokens = np.concatenate(
+            [ops.convert_to_numpy(s).reshape(-1) for s in dataset_list], axis=0
         )
-        all_tokens = ops.convert_to_numpy(concatenated_tokens)
 
     all_tokens = np.array(all_tokens, dtype=np.int32)
 
@@ -62,10 +61,10 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
         start_index = random.randint(0, len(all_tokens) - seqlen - 1)
         end_index = start_index + seqlen
         sample = all_tokens[start_index:end_index]
-        calibration_samples.append(ops.reshape(sample, (1, seqlen)))
+        calibration_samples.append(np.reshape(sample, (1, seqlen)))
 
-    final_array = ops.stack(calibration_samples, axis=0)
-    return ops.convert_to_numpy(final_array)
+    final_array = np.stack(calibration_samples, axis=0)
+    return final_array
 
 
 def _find_layers_recursive(layer, prefix, found_layers):
@@ -106,9 +105,15 @@ def apply_gptq_layerwise(
 ):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
-    This function performs a sequential, model-agnostic quantization process. It
-    dynamically identifies quantizable layers (e.g., Dense, EinsumDense)
-    within larger "transformer blocks" of a model.
+    This function is designed to work with common transformer architectures,
+    like those provided by KerasNLP and KerasHub. It automatically discovers
+    the model's structure by first looking for the standard KerasNLP format:
+    a `model.backbone` attribute that contains a `transformer_layers` list.
+
+    If a standard backbone is not found, it falls back to a heuristic for
+    custom models, where it assumes the first `keras.layers.Embedding` layer
+    is the input embedding and any subsequent container layers are the
+    transformer blocks to be quantized.
 
     The core logic operates as follows:
     1.  It automatically detects the model's structure, identifying the main
@@ -154,7 +159,17 @@ def apply_gptq_layerwise(
     if hasattr(model, "backbone"):
         logging.info("Detected KerasNLP model structure.")
         backbone = model.backbone
-        transformer_blocks = backbone.transformer_layers
+
+        # Add the check for the 'transformer_layers' attribute.
+        if hasattr(backbone, "transformer_layers"):
+            transformer_blocks = backbone.transformer_layers
+        else:
+            # Raise a specific error if the attribute is missing.
+            raise ValueError(
+                "The model's backbone does not have a 'transformer_layers' "
+                "attribute. Please ensure you are using a standard KerasNLP "
+                "transformer model."
+            )
         # Find the embedding layer by checking for common names or by type.
         if hasattr(backbone, "token_embedding"):
             embedding_layer = backbone.token_embedding
@@ -256,13 +271,12 @@ def apply_gptq_layerwise(
                 inp_reshaped = ops.reshape(layer_inputs, (-1, num_features))
                 gptq_object.update_hessian_with_batch(inp_reshaped)
 
-            quantizer = GPTQQuant()
-            quantizer.configure(
-                wbits,
-                perchannel=True,
-                symmetric=symmetric,
-                group_size=group_size,
-            )
+                quantizer = GPTQQuant(
+                    wbits,
+                    perchannel=True,
+                    symmetric=symmetric,
+                    group_size=group_size,
+                )
             for name, gptq_object in gptq_objects.items():
                 logging.info(f"Quantizing {name}...")
                 gptq_object.quantizer = quantizer

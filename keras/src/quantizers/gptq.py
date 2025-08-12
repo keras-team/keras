@@ -1,7 +1,7 @@
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-from keras.src.quantizers.gptqquant import dequantize
+from keras.src.quantizers.gptq_quant import dequantize
 
 
 class GPTQ:
