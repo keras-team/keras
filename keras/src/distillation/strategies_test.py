@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import keras
 from keras import ops
@@ -40,6 +41,7 @@ class MultiOutputStudent(keras.Model):
         return [output1, output2]
 
 
+@pytest.mark.requires_trainable_backend
 class TestLogitsDistillation(TestCase):
     """Essential test cases for LogitsDistillation strategy."""
 
@@ -92,6 +94,7 @@ class TestLogitsDistillation(TestCase):
         self.assertNotEqual(losses[1], losses[2])
 
 
+@pytest.mark.requires_trainable_backend
 class TestLogitsDistillationComprehensive(TestCase):
     """Comprehensive test cases for LogitsDistillation strategy."""
 
@@ -301,6 +304,7 @@ class TestLogitsDistillationComprehensive(TestCase):
         self.assertEqual(reconstructed.output_index, 1)
 
 
+@pytest.mark.requires_trainable_backend
 class TestFeatureDistillation(TestCase):
     """Test cases for FeatureDistillation strategy."""
 
@@ -599,6 +603,7 @@ class TestFeatureDistillation(TestCase):
         self.assertEqual(reconstructed.student_layer_name, "student_layer")
 
 
+@pytest.mark.requires_trainable_backend
 class TestMultiOutputDistillation(TestCase):
     """Comprehensive test cases for MultiOutputDistillation strategy."""
 

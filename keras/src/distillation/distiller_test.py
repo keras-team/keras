@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import keras
 from keras.src.distillation.distiller import Distiller
@@ -32,6 +33,7 @@ class SimpleStudent(keras.Model):
         return self.dense2(x)
 
 
+@pytest.mark.requires_trainable_backend
 class TestDistiller(TestCase):
     """Essential test cases for the Distiller class."""
 
@@ -461,25 +463,19 @@ class TestDistiller(TestCase):
             )
 
             # Save the model
-            try:
-                original_distiller.save(model_path)
+            original_distiller.save(model_path)
 
-                # Load the model
-                loaded_distiller = keras.models.load_model(model_path)
+            # Load the model
+            loaded_distiller = keras.models.load_model(model_path)
 
-                # Verify loaded model works
-                loaded_output = loaded_distiller(x_test)
-                self.assertEqual(loaded_output.shape, (2, 10))
+            # Verify loaded model works
+            loaded_output = loaded_distiller(x_test)
+            self.assertEqual(loaded_output.shape, (2, 10))
 
-                # Verify parameters are preserved
-                self.assertEqual(loaded_distiller.alpha, 0.7)
-                self.assertEqual(loaded_distiller.temperature, 4.0)
+            # Verify parameters are preserved
+            self.assertEqual(loaded_distiller.alpha, 0.7)
+            self.assertEqual(loaded_distiller.temperature, 4.0)
 
-            except Exception:
-                # Some serialization features might not be fully supported
-                # in all Keras versions, so we'll note this but not fail
-                # The important thing is that get_config/from_config works
-                pass
 
         # The core serialization functionality is working
         self.assertTrue(True, "Distiller serialization test passed")
