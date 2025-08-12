@@ -82,6 +82,9 @@ class TestDistiller(TestCase):
         self.assertLen(self.distiller.strategies, 1)
         self.assertIsInstance(self.distiller.strategies[0], LogitsDistillation)
 
+        # Check that strategy received the default temperature
+        self.assertEqual(self.distiller.strategies[0].temperature, 2.0)
+
     def test_distiller_call(self):
         """Test Distiller call method (inference)."""
         # Call should return student outputs
@@ -107,7 +110,6 @@ class TestDistiller(TestCase):
         new_teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         self.assertTrue(new_teacher.trainable)  # Should be trainable initially
 
-        # Create distiller - should freeze the teacher
         # Create distiller - should freeze the teacher
         Distiller(
             teacher=new_teacher,

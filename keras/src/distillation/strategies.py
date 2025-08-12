@@ -50,33 +50,41 @@ class BaseDistillationStrategy:
 
 @keras_export("keras.distillation.LogitsDistillation")
 class LogitsDistillation(BaseDistillationStrategy):
-    """Logits distillation with customizable loss functions.
+    """Logits distillation strategy using Keras built-in loss functions.
 
-    This strategy supports multiple loss functions for logits distillation,
-    using Keras's built-in loss functions from the losses API.
+    This strategy distills knowledge using the logits (pre-softmax outputs)
+    from teacher and student models.
+
     Args:
-        temperature: Temperature for softening logits. Higher values
-            make the distribution softer. Defaults to 2.0.
+        temperature: Temperature for softmax scaling. Higher values produce
+            softer probability distributions. If None, will use the default
+            temperature from the Distiller. Defaults to None.
         loss_type: Type of loss function to use. Options:
             - "kl_divergence": KL divergence using keras.losses.kl_divergence
-            - "mse": Mean squared error using keras.losses.mean_squared_error
-            - "cross_entropy": Cross entropy using
+            - "categorical_crossentropy": Categorical crossentropy using
               keras.losses.categorical_crossentropy
-        output_index: Index of the output to use for distillation in
-            multi-output models. Defaults to 0.
+        output_index: Index of the output to use for multi-output models.
+            Defaults to 0.
     """
 
     def __init__(
-        self, temperature=2.0, loss_type="kl_divergence", output_index=0
+        self, temperature=None, loss_type="kl_divergence", output_index=0
     ):
-        self.temperature = temperature
+        # If no temperature provided, use sentinel value for Distiller detection
+        self.temperature = temperature if temperature is not None else 3.0
+        self._temperature_explicitly_set = temperature is not None
         self.loss_type = loss_type
         self.output_index = output_index
 
         # Validate loss_type
-        valid_loss_types = ["kl_divergence", "mse", "cross_entropy"]
+        valid_loss_types = ["kl_divergence", "categorical_crossentropy"]
         if loss_type not in valid_loss_types:
             raise ValueError(f"loss_type must be one of {valid_loss_types}")
+
+    def set_default_temperature(self, default_temperature):
+        """Set the default temperature if none was explicitly provided."""
+        if not self._temperature_explicitly_set:
+            self.temperature = default_temperature
 
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for logits distillation."""
@@ -150,13 +158,7 @@ class LogitsDistillation(BaseDistillationStrategy):
                 keras.losses.kl_divergence(teacher_probs, student_probs)
             )
 
-        elif self.loss_type == "mse":
-            # Use Keras MeanSquaredError directly and reduce to scalar
-            loss = ops.mean(
-                keras.losses.mean_squared_error(teacher_logits, student_logits)
-            )
-
-        elif self.loss_type == "cross_entropy":
+        elif self.loss_type == "categorical_crossentropy":
             # Convert teacher to probabilities, keep student as logits
             teacher_probs = ops.softmax(teacher_logits, axis=-1)
 
@@ -184,10 +186,15 @@ class LogitsDistillation(BaseDistillationStrategy):
 
 @keras_export("keras.distillation.FeatureDistillation")
 class FeatureDistillation(BaseDistillationStrategy):
-    """Feature distillation strategy using Keras built-in loss functions.
+    """Feature distillation strategy using intermediate layer features.
 
     This strategy distills intermediate features from teacher to student,
-    not just the final outputs.
+    not just the final outputs. It creates feature extraction models
+    to extract outputs from specified intermediate layers.
+
+    Note: If teacher and student features have different shapes, you may need
+    to add alignment layers or use models with compatible intermediate
+    feature dimensions.
 
     Args:
         loss_type: Type of loss function to use. Options:
@@ -206,10 +213,94 @@ class FeatureDistillation(BaseDistillationStrategy):
         self.teacher_layer_name = teacher_layer_name
         self.student_layer_name = student_layer_name
 
+        # Feature extraction models (created when needed)
+        self._teacher_feature_model = None
+        self._student_feature_model = None
+
         # Validate loss_type
         valid_loss_types = ["mse", "cosine"]
         if loss_type not in valid_loss_types:
             raise ValueError(f"loss_type must be one of {valid_loss_types}")
+
+    def _get_teacher_features(self, teacher_model, inputs):
+        """Extract features from teacher model."""
+        if self.teacher_layer_name is None:
+            # No specific layer, use the full model
+            return teacher_model(inputs, training=False)
+
+        # For intermediate layer extraction, we need to create a custom function
+        # that extracts the output at the specified layer
+        if self._teacher_feature_model is None:
+            self._teacher_feature_model = self._create_feature_extractor(
+                teacher_model, self.teacher_layer_name
+            )
+
+        return self._teacher_feature_model(inputs, training=False)
+
+    def _get_student_features(self, student_model, inputs):
+        """Extract features from student model."""
+        if self.student_layer_name is None:
+            # No specific layer, use the full model
+            return student_model(inputs, training=True)
+
+        # For intermediate layer extraction, we need to create a custom function
+        # that extracts the output at the specified layer
+        if self._student_feature_model is None:
+            self._student_feature_model = self._create_feature_extractor(
+                student_model, self.student_layer_name
+            )
+
+        return self._student_feature_model(inputs, training=True)
+
+    def _create_feature_extractor(self, model, layer_name):
+        """Create a feature extractor function for the specified layer.
+
+        Args:
+            model: The model to extract features from.
+            layer_name: Name of the layer to extract features from.
+                       If None, returns the original model.
+
+        Returns:
+            A callable that extracts features from the specified layer.
+        """
+        if layer_name is None:
+            # Return the original model if no layer specified
+            return model
+
+        # Find the layer by name
+        target_layer = None
+        layer_index = None
+        for i, layer in enumerate(model.layers):
+            if layer.name == layer_name:
+                target_layer = layer
+                layer_index = i
+                break
+
+        if target_layer is None:
+            raise ValueError(
+                f"Layer '{layer_name}' not found in model. "
+                f"Available layers: {[layer.name for layer in model.layers]}"
+            )
+
+        # Create a custom model class that extracts intermediate features
+        class FeatureExtractor(keras.Model):
+            def __init__(self, original_model, target_layer_index):
+                super().__init__(
+                    name=f"{original_model.name}_features_{layer_name}"
+                )
+                self.original_model = original_model
+                self.target_layer_index = target_layer_index
+
+            def call(self, inputs, training=None):
+                # Run through the model up to the target layer
+                x = inputs
+                for i, layer in enumerate(self.original_model.layers):
+                    x = layer(x, training=training)
+                    if i == self.target_layer_index:
+                        return x
+                return x  # Fallback, shouldn't reach here
+
+        return FeatureExtractor(model, layer_index)
 
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for feature distillation."""
@@ -234,13 +325,40 @@ class FeatureDistillation(BaseDistillationStrategy):
                 f"Student shape: {student_features.shape}"
             )
 
-    def compute_loss(self, teacher_features, student_features, **kwargs):
-        """Compute feature distillation loss using Keras built-in loss
-        functions.
+        # For MSE loss, shapes must match exactly
+        if self.loss_type == "mse":
+            if teacher_features.shape != student_features.shape:
+                raise ValueError(
+                    f"For MSE loss, teacher and student features must have "
+                    f"identical shapes. Got teacher: {teacher_features.shape}, "
+                    f"student: {student_features.shape}. "
+                    f"Consider using 'cosine' loss type for different sizes "
+                    f"or add alignment layers to make features compatible."
+                )
+
+        # For cosine loss, only last dimension needs to match (features)
+        elif self.loss_type == "cosine":
+            if teacher_features.shape[-1] != student_features.shape[-1]:
+                raise ValueError(
+                    f"For cosine similarity loss, teacher and student features "
+                    f"must have the same feature dimension (last axis). "
+                    f"Got teacher: {teacher_features.shape[-1]}, "
+                    f"student: {student_features.shape[-1]}. "
+                    f"Consider adding a projection layer to align dimensions."
+                )
+
+    def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
+        """Compute feature distillation loss using extracted features.
+
+        Note: This method expects the outputs to already be the extracted
+        features from the specified layers, not the final model outputs.
+        The Distiller class is responsible for extracting the features
+        using the methods provided by this strategy.
+
         Args:
-            teacher_features: Intermediate features from teacher model.
+            teacher_outputs: Intermediate features from teacher model.
                 Can be a single tensor or a list/tuple of tensors.
-            student_features: Intermediate features from student model.
+            student_outputs: Intermediate features from student model.
                 Can be a single tensor or a list/tuple of tensors.
             **kwargs: Additional arguments (ignored).
         Returns:
@@ -249,14 +367,14 @@ class FeatureDistillation(BaseDistillationStrategy):
         from keras import ops
 
         # Normalize outputs to lists
-        if not isinstance(teacher_features, (list, tuple)):
-            teacher_features = [teacher_features]
-        if not isinstance(student_features, (list, tuple)):
-            student_features = [student_features]
+        if not isinstance(teacher_outputs, (list, tuple)):
+            teacher_outputs = [teacher_outputs]
+        if not isinstance(student_outputs, (list, tuple)):
+            student_outputs = [student_outputs]
 
         # Use first output by default (can be extended to use specific outputs)
-        teacher_features = teacher_features[0]
-        student_features = student_features[0]
+        teacher_features = teacher_outputs[0]
+        student_features = student_outputs[0]
 
         if self.loss_type == "mse":
             # Use Keras MeanSquaredError directly and reduce to scalar

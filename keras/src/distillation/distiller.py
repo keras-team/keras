@@ -23,8 +23,9 @@ class Distiller(Model):
         alpha: Weight for combining student loss and distillation loss.
             alpha=1.0 means only student loss, alpha=0.0 means only
             distillation loss.
-        temperature: Temperature for softmax in distillation (used by
-            strategies).
+        temperature: Default temperature for distillation strategies that don't
+            specify their own temperature. Used for softmax temperature scaling
+            in knowledge distillation. Defaults to 3.0.
         name: Name of the distiller model.
 
     Examples:
@@ -47,16 +48,16 @@ class Distiller(Model):
         keras.layers.Dense(10, activation='softmax')
     ])
 
-    # Create distillation strategy
-    strategy = LogitsDistillation(temperature=3.0)
+    # Create distillation strategy (will use Distiller's default temperature)
+    strategy = LogitsDistillation()
 
-    # Create distiller
+    # Create distiller with default temperature
     distiller = Distiller(
         teacher=teacher,
         student=student,
         strategies=[strategy],
         alpha=0.7,  # 70% student loss, 30% distillation loss
-        temperature=3.0
+        temperature=4.0  # Default temperature for all strategies
     )
 
     # Compile and train
@@ -85,15 +86,21 @@ class Distiller(Model):
 
     # Multiple distillation strategies
     strategies = [
-        LogitsDistillation(temperature=4.0),
-        FeatureDistillation(loss_type="mse")
+        LogitsDistillation(),  # Will use Distiller's default temperature
+        LogitsDistillation(temperature=2.0),  # Override with specific temp
+        FeatureDistillation(
+            loss_type="mse",
+            teacher_layer_name="dense_1",
+            student_layer_name="dense_1"
+        )
     ]
 
     distiller = Distiller(
         teacher=teacher,
         student=student,
         strategies=strategies,
-        alpha=0.5
+        alpha=0.5,
+        temperature=4.0  # Default temperature for strategies without one
     )
     ```
 
@@ -105,8 +112,10 @@ class Distiller(Model):
     # For models with multiple outputs
     multi_strategy = MultiOutputDistillation(
         output_strategies={
-            0: LogitsDistillation(temperature=3.0, output_index=0),
-            1: LogitsDistillation(temperature=2.0, output_index=1)
+            0: LogitsDistillation(output_index=0),  # Uses default temperature
+            1: LogitsDistillation(
+                temperature=2.0, output_index=1
+            )  # Override temperature
         },
         weights={0: 1.0, 1: 0.5}
     )
@@ -114,19 +123,23 @@ class Distiller(Model):
     distiller = Distiller(
         teacher=multi_output_teacher,
         student=multi_output_student,
-        strategies=[multi_strategy]
+        strategies=[multi_strategy],
+        alpha=0.6,
+        temperature=3.0  # Default temperature
     )
     ```
 
     **Custom Loss Function:**
 
     ```python
+    # Using custom student loss function
     distiller = Distiller(
         teacher=teacher,
         student=student,
-        strategies=[LogitsDistillation()],
+        strategies=[LogitsDistillation()],  # Uses default temperature
         student_loss_fn=keras.losses.CategoricalCrossentropy(),
-        alpha=0.8
+        alpha=0.8,
+        temperature=5.0
     )
     ```
     """
@@ -142,6 +155,10 @@ class Distiller(Model):
         name="distiller",
         **kwargs,
     ):
+        # Extract input_mapping and output_mapping before super().__init__
+        self.input_mapping = kwargs.pop("input_mapping", None)
+        self.output_mapping = kwargs.pop("output_mapping", None)
+
         super().__init__(name=name, **kwargs)
 
         # Validate inputs
@@ -155,6 +172,9 @@ class Distiller(Model):
         )
         self.alpha = alpha
         self.temperature = temperature
+
+        # Apply default temperature to strategies that don't have one
+        self._apply_default_temperature()
 
         # Set up student loss function
         if student_loss_fn is None:
@@ -172,6 +192,22 @@ class Distiller(Model):
         )
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
 
+    def _apply_default_temperature(self):
+        """Apply default temperature to strategies that support it."""
+        from keras.src.distillation.strategies import LogitsDistillation
+
+        for strategy in self.strategies:
+            if isinstance(strategy, LogitsDistillation):
+                # Use the new method to set default temperature
+                strategy.set_default_temperature(self.temperature)
+            # Handle nested strategies in MultiOutputDistillation
+            elif hasattr(strategy, "output_strategies"):
+                for nested_strategy in strategy.output_strategies.values():
+                    if isinstance(nested_strategy, LogitsDistillation):
+                        nested_strategy.set_default_temperature(
+                            self.temperature
+                        )
+
     def _validate_models(self, teacher, student):
         """Validate that teacher and student are Keras models."""
         if not isinstance(teacher, keras.Model):
@@ -187,6 +223,29 @@ class Distiller(Model):
         """Forward pass returns student predictions."""
         return self.student(inputs, training=training, **kwargs)
 
+    def _get_strategy_outputs(self, strategy, inputs, training=None):
+        """Get the appropriate outputs for a specific strategy.
+
+        For FeatureDistillation, this extracts intermediate features.
+        For other strategies, this returns the final model outputs.
+        """
+        from keras.src.distillation.strategies import FeatureDistillation
+
+        if isinstance(strategy, FeatureDistillation):
+            # Extract features from specified intermediate layers
+            teacher_features = strategy._get_teacher_features(
+                self.teacher, inputs
+            )
+            student_features = strategy._get_student_features(
+                self.student, inputs
+            )
+            return teacher_features, student_features
+        else:
+            # Use final model outputs for other strategies
+            teacher_outputs = self.teacher(inputs, training=False)
+            student_outputs = self.student(inputs, training=training)
+            return teacher_outputs, student_outputs
+
     def _compute_loss(
         self, x=None, y=None, y_pred=None, sample_weight=None, training=None
     ):
@@ -199,133 +258,87 @@ class Distiller(Model):
         if y_pred is None:
             y_pred = self(x, training=training)
 
-        # Get teacher predictions (no gradients)
-        teacher_outputs = self.teacher(x, training=False)
-        teacher_outputs = keras.ops.stop_gradient(teacher_outputs)
-
-        # Normalize outputs for consistent handling
-        student_outputs = (
-            [y_pred] if not isinstance(y_pred, (list, tuple)) else list(y_pred)
-        )
-        teacher_outputs = (
-            [teacher_outputs]
-            if not isinstance(teacher_outputs, (list, tuple))
-            else list(teacher_outputs)
-        )
-
-        # Validate outputs with strategies
-        for strategy in self.strategies:
-            strategy.validate_outputs(teacher_outputs, student_outputs)
+        # Normalize y_pred and y to lists for consistent handling
+        if not isinstance(y_pred, (list, tuple)):
+            y_pred = [y_pred]
+        if y is not None and not isinstance(y, (list, tuple)):
+            y = [y]
 
         # Compute student loss
-        if self.alpha > 0:
-            if hasattr(self, "compiled_loss") and self.compiled_loss:
+        student_loss = 0.0
+        if self.alpha > 0.0 and y is not None:
+            # Try using compiled_loss first, fallback to student_loss_fn
+            if (
+                hasattr(self, "compiled_loss")
+                and self.compiled_loss is not None
+            ):
                 student_loss = self.compiled_loss(
-                    y, y_pred, sample_weight=sample_weight
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                    regularization_losses=[],
                 )
             else:
-                # Fallback to using student_loss_fn directly
-                # Handle multi-output case
-                if isinstance(y_pred, (list, tuple)):
-                    # For multi-output models, use the first output for student
-                    # loss
-                    # This is a simplified approach for compatibility
-                    if isinstance(y, (list, tuple)):
-                        student_loss = self.student_loss_fn(y[0], y_pred[0])
-                    else:
-                        student_loss = self.student_loss_fn(y, y_pred[0])
+                # Fallback: use student_loss_fn directly
+                if isinstance(y_pred, list) and len(y_pred) > 0:
+                    # For multi-output, use first output for student loss
+                    student_loss = self.student_loss_fn(y[0], y_pred[0])
                 else:
                     student_loss = self.student_loss_fn(y, y_pred)
-        else:
-            student_loss = 0.0
 
         # Compute distillation loss
         distillation_loss = 0.0
-        for strategy in self.strategies:
-            distillation_loss += strategy.compute_loss(
-                teacher_outputs, student_outputs
-            )
+        if self.alpha < 1.0:
+            for strategy in self.strategies:
+                # Get appropriate outputs for this strategy
+                teacher_outputs, student_outputs = self._get_strategy_outputs(
+                    strategy, x, training=training
+                )
+
+                # Validate and compute loss for this strategy
+                strategy.validate_outputs(teacher_outputs, student_outputs)
+                strategy_loss = strategy.compute_loss(
+                    teacher_outputs, student_outputs
+                )
+                distillation_loss += strategy_loss
 
         # Combine losses
         total_loss = (
-            self.alpha * student_loss + (1 - self.alpha) * distillation_loss
+            self.alpha * student_loss + (1.0 - self.alpha) * distillation_loss
         )
 
         # Update metrics
-        self.student_loss_tracker.update_state(
-            student_loss if self.alpha > 0 else 0.0
-        )
-        self.distillation_loss_tracker.update_state(
-            distillation_loss if self.alpha < 1 else 0.0
-        )
+        self.student_loss_tracker.update_state(student_loss)
+        self.distillation_loss_tracker.update_state(distillation_loss)
         self.total_loss_tracker.update_state(total_loss)
 
         return total_loss
 
-    @property
-    def metrics(self):
-        """Return metrics for monitoring."""
-        # Combine parent metrics with our loss trackers
-        parent_metrics = []
-        if hasattr(super(), "metrics"):
-            for metric in super().metrics:
-                if hasattr(metric, "variables") and hasattr(
-                    metric, "update_state"
-                ):
-                    parent_metrics.append(metric)
-
-        return parent_metrics + [
-            self.student_loss_tracker,
-            self.distillation_loss_tracker,
-            self.total_loss_tracker,
-        ]
-
     def reset_metrics(self):
         """Reset all metrics."""
-        try:
-            super().reset_metrics()
-        except AttributeError:
-            pass
-
+        super().reset_metrics()
         self.student_loss_tracker.reset_state()
         self.distillation_loss_tracker.reset_state()
         self.total_loss_tracker.reset_state()
 
+    @property
+    def metrics(self):
+        """Return list of metrics."""
+        return [
+            self.total_loss_tracker,
+            self.student_loss_tracker,
+            self.distillation_loss_tracker,
+        ]
+
     def get_config(self):
-        """Get model configuration for serialization."""
+        """Get configuration for serialization."""
         config = super().get_config()
         config.update(
             {
-                "teacher": keras.utils.serialize_keras_object(self.teacher),
-                "student": keras.utils.serialize_keras_object(self.student),
-                "strategies": [
-                    keras.utils.serialize_keras_object(s)
-                    for s in self.strategies
-                ],
-                "student_loss_fn": keras.utils.serialize_keras_object(
-                    self.student_loss_fn
-                ),
                 "alpha": self.alpha,
                 "temperature": self.temperature,
+                "input_mapping": self.input_mapping,
+                "output_mapping": self.output_mapping,
             }
         )
         return config
-
-    @classmethod
-    def from_config(cls, config):
-        """Create model from configuration."""
-        config = config.copy()
-        config["teacher"] = keras.utils.deserialize_keras_object(
-            config["teacher"]
-        )
-        config["student"] = keras.utils.deserialize_keras_object(
-            config["student"]
-        )
-        config["strategies"] = [
-            keras.utils.deserialize_keras_object(s)
-            for s in config["strategies"]
-        ]
-        config["student_loss_fn"] = keras.utils.deserialize_keras_object(
-            config["student_loss_fn"]
-        )
-        return cls(**config)

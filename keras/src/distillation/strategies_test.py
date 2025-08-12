@@ -102,28 +102,54 @@ class TestLogitsDistillationComprehensive(TestCase):
 
     def test_initialization(self):
         """Test LogitsDistillation initialization."""
-        # Test default initialization
+        # Test default initialization (no temperature specified)
         strategy = LogitsDistillation()
-        self.assertEqual(strategy.temperature, 2.0)
+        self.assertEqual(strategy.temperature, 3.0)  # Default fallback
         self.assertEqual(strategy.loss_type, "kl_divergence")
         self.assertEqual(strategy.output_index, 0)
+        self.assertFalse(strategy._temperature_explicitly_set)
 
         # Test custom initialization
         strategy = LogitsDistillation(
-            temperature=3.0, loss_type="mse", output_index=1
+            temperature=5.0,
+            loss_type="categorical_crossentropy",
+            output_index=1,
         )
-        self.assertEqual(strategy.temperature, 3.0)
-        self.assertEqual(strategy.loss_type, "mse")
+        self.assertEqual(strategy.temperature, 5.0)
+        self.assertEqual(strategy.loss_type, "categorical_crossentropy")
         self.assertEqual(strategy.output_index, 1)
+        self.assertTrue(strategy._temperature_explicitly_set)
 
     def test_invalid_loss_type(self):
         """Test that invalid loss types raise ValueError."""
         with self.assertRaises(ValueError):
             LogitsDistillation(loss_type="invalid_loss")
 
-    def test_logits_distillation_loss_mse(self):
-        """Test logits distillation loss computation with MSE."""
-        strategy = LogitsDistillation(temperature=2.0, loss_type="mse")
+    def test_default_temperature_mechanism(self):
+        """Test that default temperature can be set from Distiller."""
+        # Create strategy without explicit temperature
+        strategy = LogitsDistillation()
+        self.assertEqual(strategy.temperature, 3.0)
+        self.assertFalse(strategy._temperature_explicitly_set)
+
+        # Set default temperature
+        strategy.set_default_temperature(4.0)
+        self.assertEqual(strategy.temperature, 4.0)
+
+        # Create strategy with explicit temperature
+        strategy_explicit = LogitsDistillation(temperature=2.0)
+        self.assertEqual(strategy_explicit.temperature, 2.0)
+        self.assertTrue(strategy_explicit._temperature_explicitly_set)
+
+        # Try to set default - should not change
+        strategy_explicit.set_default_temperature(4.0)
+        self.assertEqual(strategy_explicit.temperature, 2.0)  # Unchanged
+
+    def test_logits_distillation_loss_kl_divergence(self):
+        """Test logits distillation loss computation with KL divergence."""
+        strategy = LogitsDistillation(
+            temperature=2.0, loss_type="kl_divergence"
+        )
 
         teacher_logits = ops.convert_to_tensor(
             np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]), dtype="float32"
@@ -142,10 +168,10 @@ class TestLogitsDistillationComprehensive(TestCase):
         self.assertTrue(ops.isfinite(loss))
         self.assertGreater(loss, 0.0)
 
-    def test_logits_distillation_loss_cross_entropy(self):
-        """Test logits distillation loss computation with cross entropy."""
+    def test_logits_distillation_loss_categorical_crossentropy(self):
+        """Test logits distillation loss with categorical crossentropy."""
         strategy = LogitsDistillation(
-            temperature=2.0, loss_type="cross_entropy"
+            temperature=2.0, loss_type="categorical_crossentropy"
         )
 
         teacher_logits = ops.convert_to_tensor(
@@ -232,26 +258,51 @@ class TestLogitsDistillationComprehensive(TestCase):
     def test_get_config(self):
         """Test get_config method."""
         strategy = LogitsDistillation(
-            temperature=3.0, loss_type="mse", output_index=1
+            temperature=3.0,
+            loss_type="categorical_crossentropy",
+            output_index=1,
         )
         config = strategy.get_config()
 
         expected_config = {
             "temperature": 3.0,
-            "loss_type": "mse",
+            "loss_type": "categorical_crossentropy",
             "output_index": 1,
         }
-
         self.assertEqual(config, expected_config)
 
 
 class TestFeatureDistillation(TestCase):
-    """Comprehensive test cases for FeatureDistillation strategy."""
+    """Test cases for FeatureDistillation strategy."""
 
     def setUp(self):
         """Set up test fixtures."""
         super().setUp()
-        self.strategy = FeatureDistillation()
+
+        # Create models with named layers for feature extraction
+        self.teacher = keras.Sequential(
+            [
+                keras.layers.Dense(
+                    64, activation="relu", name="teacher_dense_1"
+                ),
+                keras.layers.Dense(
+                    32, activation="relu", name="teacher_dense_2"
+                ),
+                keras.layers.Dense(10, name="teacher_output"),
+            ]
+        )
+
+        self.student = keras.Sequential(
+            [
+                keras.layers.Dense(
+                    32, activation="relu", name="student_dense_1"
+                ),
+                keras.layers.Dense(
+                    16, activation="relu", name="student_dense_2"
+                ),
+                keras.layers.Dense(10, name="student_output"),
+            ]
+        )
 
     def test_initialization(self):
         """Test FeatureDistillation initialization."""
@@ -260,32 +311,114 @@ class TestFeatureDistillation(TestCase):
         self.assertEqual(strategy.loss_type, "mse")
         self.assertIsNone(strategy.teacher_layer_name)
         self.assertIsNone(strategy.student_layer_name)
+        self.assertIsNone(strategy._teacher_feature_model)
+        self.assertIsNone(strategy._student_feature_model)
 
         # Test custom initialization
         strategy = FeatureDistillation(
             loss_type="cosine",
-            teacher_layer_name="layer1",
-            student_layer_name="layer2",
+            teacher_layer_name="dense_1",
+            student_layer_name="dense_1",
         )
         self.assertEqual(strategy.loss_type, "cosine")
-        self.assertEqual(strategy.teacher_layer_name, "layer1")
-        self.assertEqual(strategy.student_layer_name, "layer2")
+        self.assertEqual(strategy.teacher_layer_name, "dense_1")
+        self.assertEqual(strategy.student_layer_name, "dense_1")
 
     def test_invalid_loss_type(self):
         """Test that invalid loss types raise ValueError."""
         with self.assertRaises(ValueError):
             FeatureDistillation(loss_type="invalid_loss")
 
+    def test_create_feature_extractor_with_layer_name(self):
+        """Test feature extractor creation with specific layer name."""
+        strategy = FeatureDistillation(
+            teacher_layer_name="teacher_dense_1",
+            student_layer_name="student_dense_1",
+        )
+
+        # Test teacher feature extractor creation
+        teacher_feature_extractor = strategy._create_feature_extractor(
+            self.teacher, "teacher_dense_1"
+        )
+        self.assertIsInstance(teacher_feature_extractor, keras.Model)
+        self.assertEqual(
+            teacher_feature_extractor.name,
+            f"{self.teacher.name}_features_teacher_dense_1",
+        )
+
+        # Test student feature extractor creation
+        student_feature_extractor = strategy._create_feature_extractor(
+            self.student, "student_dense_1"
+        )
+        self.assertIsInstance(student_feature_extractor, keras.Model)
+        self.assertEqual(
+            student_feature_extractor.name,
+            f"{self.student.name}_features_student_dense_1",
+        )
+
+    def test_create_feature_extractor_without_layer_name(self):
+        """Test feature model creation without layer name (returns original)."""
+        strategy = FeatureDistillation()
+
+        # Should return original model when no layer name specified
+        feature_model = strategy._create_feature_extractor(self.teacher, None)
+        self.assertIs(feature_model, self.teacher)
+
+    def test_create_feature_extractor_invalid_layer_name(self):
+        """Test that invalid layer names raise ValueError."""
+        strategy = FeatureDistillation()
+
+        with self.assertRaises(ValueError) as cm:
+            strategy._create_feature_extractor(
+                self.teacher, "nonexistent_layer"
+            )
+
+        self.assertIn(
+            "Layer 'nonexistent_layer' not found in model", str(cm.exception)
+        )
+        self.assertIn("Available layers:", str(cm.exception))
+
+    def test_get_teacher_features(self):
+        """Test teacher feature extraction."""
+        strategy = FeatureDistillation(teacher_layer_name="teacher_dense_1")
+
+        # Create dummy input
+        x = np.random.random((2, 10)).astype(np.float32)
+
+        # Get features
+        features = strategy._get_teacher_features(self.teacher, x)
+
+        # Check that features have the expected shape (after first dense layer)
+        self.assertEqual(features.shape, (2, 64))  # batch_size, hidden_dim
+
+        # Check that feature model was created and cached
+        self.assertIsNotNone(strategy._teacher_feature_model)
+
+    def test_get_student_features(self):
+        """Test student feature extraction."""
+        strategy = FeatureDistillation(student_layer_name="student_dense_1")
+
+        # Create dummy input
+        x = np.random.random((2, 10)).astype(np.float32)
+
+        # Get features
+        features = strategy._get_student_features(self.student, x)
+
+        # Check that features have the expected shape (after first dense layer)
+        self.assertEqual(features.shape, (2, 32))  # batch_size, hidden_dim
+
+        # Check that feature model was created and cached
+        self.assertIsNotNone(strategy._student_feature_model)
+
     def test_feature_distillation_loss_mse(self):
         """Test feature distillation loss computation with MSE."""
         strategy = FeatureDistillation(loss_type="mse")
 
-        # Create dummy feature tensors
         teacher_features = ops.convert_to_tensor(
-            np.random.random((2, 16)).astype(np.float32)
+            np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]), dtype="float32"
         )
         student_features = ops.convert_to_tensor(
-            np.random.random((2, 16)).astype(np.float32)
+            np.array([[1.1, 2.1, 3.1], [4.1, 5.1, 6.1]]), dtype="float32"
         )
 
         # Compute loss
@@ -294,20 +427,19 @@ class TestFeatureDistillation(TestCase):
         # Check that loss is a scalar tensor
         self.assertEqual(len(loss.shape), 0)
 
-        # Check that loss is finite and non-negative
+        # Check that loss is finite and positive
         self.assertTrue(ops.isfinite(loss))
-        self.assertGreaterEqual(loss, 0.0)
+        self.assertGreater(loss, 0.0)
 
     def test_feature_distillation_loss_cosine(self):
         """Test feature distillation loss computation with cosine similarity."""
         strategy = FeatureDistillation(loss_type="cosine")
 
-        # Create dummy feature tensors
         teacher_features = ops.convert_to_tensor(
-            np.random.random((2, 16)).astype(np.float32)
+            np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]), dtype="float32"
         )
         student_features = ops.convert_to_tensor(
-            np.random.random((2, 16)).astype(np.float32)
+            np.array([[1.1, 2.1, 3.1], [4.1, 5.1, 6.1]]), dtype="float32"
         )
 
         # Compute loss
@@ -316,72 +448,24 @@ class TestFeatureDistillation(TestCase):
         # Check that loss is a scalar tensor
         self.assertEqual(len(loss.shape), 0)
 
-        # Check that loss is finite
+        # Check that loss is finite and non-negative (cosine distance)
         self.assertTrue(ops.isfinite(loss))
-
-    def test_feature_validation(self):
-        """Test feature validation."""
-        strategy = FeatureDistillation()
-
-        # Test with compatible features
-        teacher_features = [
-            ops.convert_to_tensor(np.random.random((2, 16)).astype(np.float32))
-        ]
-        student_features = [
-            ops.convert_to_tensor(np.random.random((2, 16)).astype(np.float32))
-        ]
-
-        # Should not raise an error
-        strategy.validate_outputs(teacher_features, student_features)
-
-        # Test with incompatible dimensions
-        teacher_features = [
-            ops.convert_to_tensor(
-                np.random.random((2, 16, 8)).astype(np.float32)
-            )  # 3D
-        ]
-        student_features = [
-            ops.convert_to_tensor(
-                np.random.random((2, 16)).astype(np.float32)
-            )  # 2D
-        ]
-
-        with self.assertRaises(ValueError):
-            strategy.validate_outputs(teacher_features, student_features)
-
-    def test_list_input_handling(self):
-        """Test that the strategy handles list inputs correctly."""
-        strategy = FeatureDistillation()
-
-        # Test with list inputs
-        teacher_features = [
-            ops.convert_to_tensor(np.random.random((2, 16)).astype(np.float32)),
-            ops.convert_to_tensor(np.random.random((2, 8)).astype(np.float32)),
-        ]
-        student_features = [
-            ops.convert_to_tensor(np.random.random((2, 16)).astype(np.float32)),
-            ops.convert_to_tensor(np.random.random((2, 8)).astype(np.float32)),
-        ]
-
-        # Should use first output by default
-        loss = strategy.compute_loss(teacher_features, student_features)
-        self.assertTrue(ops.isfinite(loss))
+        self.assertGreaterEqual(loss, 0.0)
 
     def test_get_config(self):
-        """Test get_config method."""
+        """Test configuration serialization."""
         strategy = FeatureDistillation(
             loss_type="cosine",
             teacher_layer_name="teacher_layer",
             student_layer_name="student_layer",
         )
-        config = strategy.get_config()
 
+        config = strategy.get_config()
         expected_config = {
             "loss_type": "cosine",
             "teacher_layer_name": "teacher_layer",
             "student_layer_name": "student_layer",
         }
-
         self.assertEqual(config, expected_config)
 
 
