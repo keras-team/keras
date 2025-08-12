@@ -332,13 +332,40 @@ class Distiller(Model):
 
     def get_config(self):
         """Get configuration for serialization."""
+        from keras.src.saving import serialization_lib
         config = super().get_config()
-        config.update(
-            {
-                "alpha": self.alpha,
-                "temperature": self.temperature,
-                "input_mapping": self.input_mapping,
-                "output_mapping": self.output_mapping,
-            }
-        )
+        config.update({
+            "teacher": serialization_lib.serialize_keras_object(self.teacher),
+            "student": serialization_lib.serialize_keras_object(self.student),
+            "strategies": [
+                serialization_lib.serialize_keras_object(s) 
+                for s in self.strategies
+            ],
+            "student_loss_fn": serialization_lib.serialize_keras_object(
+                self.student_loss_fn
+            ),
+            "alpha": self.alpha,
+            "temperature": self.temperature,
+            "input_mapping": self.input_mapping,
+            "output_mapping": self.output_mapping,
+        })
         return config
+
+    @classmethod
+    def from_config(cls, config):
+        """Create instance from configuration."""
+        from keras.src.saving import serialization_lib
+        config["teacher"] = serialization_lib.deserialize_keras_object(
+            config["teacher"]
+        )
+        config["student"] = serialization_lib.deserialize_keras_object(
+            config["student"]
+        )
+        config["strategies"] = [
+            serialization_lib.deserialize_keras_object(s)
+            for s in config["strategies"]
+        ]
+        config["student_loss_fn"] = serialization_lib.deserialize_keras_object(
+            config["student_loss_fn"]
+        )
+        return cls(**config)

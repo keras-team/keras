@@ -183,6 +183,11 @@ class LogitsDistillation(BaseDistillationStrategy):
             "output_index": self.output_index,
         }
 
+    @classmethod
+    def from_config(cls, config):
+        """Create instance from configuration."""
+        return cls(**config)
+
 
 @keras_export("keras.distillation.FeatureDistillation")
 class FeatureDistillation(BaseDistillationStrategy):
@@ -231,9 +236,23 @@ class FeatureDistillation(BaseDistillationStrategy):
         # For intermediate layer extraction, we need to create a custom function
         # that extracts the output at the specified layer
         if self._teacher_feature_model is None:
-            self._teacher_feature_model = self._create_feature_extractor(
-                teacher_model, self.teacher_layer_name
-            )
+            # Build the model first if needed (for Sequential models)
+            try:
+                self._teacher_feature_model = self._create_feature_extractor(
+                    teacher_model, self.teacher_layer_name
+                )
+            except ValueError as e:
+                if "no defined inputs" in str(e).lower():
+                    # Build the model by calling it with the inputs first
+                    _ = teacher_model(inputs, training=False)
+                    # Now try again
+                    self._teacher_feature_model = (
+                        self._create_feature_extractor(
+                            teacher_model, self.teacher_layer_name
+                        )
+                    )
+                else:
+                    raise
 
         return self._teacher_feature_model(inputs, training=False)
 
@@ -246,9 +265,23 @@ class FeatureDistillation(BaseDistillationStrategy):
         # For intermediate layer extraction, we need to create a custom function
         # that extracts the output at the specified layer
         if self._student_feature_model is None:
-            self._student_feature_model = self._create_feature_extractor(
-                student_model, self.student_layer_name
-            )
+            # Build the model first if needed (for Sequential models)
+            try:
+                self._student_feature_model = self._create_feature_extractor(
+                    student_model, self.student_layer_name
+                )
+            except ValueError as e:
+                if "no defined inputs" in str(e).lower():
+                    # Build the model by calling it with the inputs first
+                    _ = student_model(inputs, training=True)
+                    # Now try again
+                    self._student_feature_model = (
+                        self._create_feature_extractor(
+                            student_model, self.student_layer_name
+                        )
+                    )
+                else:
+                    raise
 
         return self._student_feature_model(inputs, training=True)
 
@@ -261,7 +294,7 @@ class FeatureDistillation(BaseDistillationStrategy):
                        If None, returns the original model.
 
         Returns:
-            A callable that extracts features from the specified layer.
+            A keras.Model that extracts features from the specified layer.
         """
         if layer_name is None:
             # Return the original model if no layer specified
@@ -269,11 +302,9 @@ class FeatureDistillation(BaseDistillationStrategy):
 
         # Find the layer by name
         target_layer = None
-        layer_index = None
-        for i, layer in enumerate(model.layers):
+        for layer in model.layers:
             if layer.name == layer_name:
                 target_layer = layer
-                layer_index = i
                 break
 
         if target_layer is None:
@@ -282,25 +313,37 @@ class FeatureDistillation(BaseDistillationStrategy):
                 f"Available layers: {[layer.name for layer in model.layers]}"
             )
 
-        # Create a custom model class that extracts intermediate features
-        class FeatureExtractor(keras.Model):
-            def __init__(self, original_model, target_layer_index):
-                super().__init__(
-                    name=f"{original_model.name}_features_{layer_name}"
+        # Create a new model that extracts features from the specified layer.
+        # This approach is robust for models created with the Functional API.
+        try:
+            return keras.Model(
+                inputs=model.inputs,
+                outputs=target_layer.output,
+                name=f"{model.name}_features_{layer_name}",
+            )
+        except (ValueError, AttributeError) as e:
+            # Handle the case where the model doesn't have defined inputs yet
+            # (common with Sequential models that haven't been built)
+            error_msg = str(e).lower()
+            if (
+                "no defined inputs" in error_msg
+                or "has no defined inputs" in error_msg
+            ):
+                raise ValueError(
+                    f"Model '{model.name}' has no defined inputs yet. "
+                    f"Please call the model with some input data first to "
+                    f"build it, or use the Functional API to create models "
+                    f"with explicit inputs. For Sequential models, you can "
+                    f"call model(dummy_input) or model.build(input_shape) "
+                    f"before using FeatureDistillation."
                 )
-                self.original_model = original_model
-                self.target_layer_index = target_layer_index
-
-            def call(self, inputs, training=None):
-                # Run through the model up to the target layer
-                x = inputs
-                for i, layer in enumerate(self.original_model.layers):
-                    x = layer(x, training=training)
-                    if i == self.target_layer_index:
-                        return x
-                return x  # Fallback, shouldn't reach here
-
-        return FeatureExtractor(model, layer_index)
+            else:
+                raise ValueError(
+                    f"Could not create a feature extraction model for layer "
+                    f"'{layer_name}'. This is likely because the model is a "
+                    f"subclassed model with a complex topology that cannot be "
+                    f"introspected. Error: {e}"
+                )
 
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for feature distillation."""
@@ -406,6 +449,11 @@ class FeatureDistillation(BaseDistillationStrategy):
             "student_layer_name": self.student_layer_name,
         }
 
+    @classmethod
+    def from_config(cls, config):
+        """Create instance from configuration."""
+        return cls(**config)
+
 
 @keras_export("keras.distillation.MultiOutputDistillation")
 class MultiOutputDistillation(BaseDistillationStrategy):
@@ -495,7 +543,24 @@ class MultiOutputDistillation(BaseDistillationStrategy):
 
     def get_config(self):
         """Get configuration for serialization."""
+        from keras.src.saving import serialization_lib
+
         return {
-            "output_strategies": self.output_strategies,
+            "output_strategies": {
+                k: serialization_lib.serialize_keras_object(v)
+                for k, v in self.output_strategies.items()
+            },
             "weights": self.weights,
         }
+
+    @classmethod
+    def from_config(cls, config):
+        """Create instance from configuration."""
+        from keras.src.saving import serialization_lib
+
+        # JSON keys must be strings, so we convert them back to int
+        config["output_strategies"] = {
+            int(k): serialization_lib.deserialize_keras_object(v)
+            for k, v in config["output_strategies"].items()
+        }
+        return cls(**config)

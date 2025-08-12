@@ -271,6 +271,35 @@ class TestLogitsDistillationComprehensive(TestCase):
         }
         self.assertEqual(config, expected_config)
 
+    def test_serialization(self):
+        """Test strategy serialization and deserialization."""
+        import json
+
+        strategy = LogitsDistillation(
+            temperature=4.0,
+            loss_type="categorical_crossentropy",
+            output_index=1,
+        )
+
+        # Test get_config
+        config = strategy.get_config()
+        expected_config = {
+            "temperature": 4.0,
+            "loss_type": "categorical_crossentropy",
+            "output_index": 1,
+        }
+        self.assertEqual(config, expected_config)
+
+        # Test JSON serialization
+        json_str = json.dumps(config)
+        self.assertIsInstance(json_str, str)
+
+        # Test from_config
+        reconstructed = LogitsDistillation.from_config(config)
+        self.assertEqual(reconstructed.temperature, 4.0)
+        self.assertEqual(reconstructed.loss_type, "categorical_crossentropy")
+        self.assertEqual(reconstructed.output_index, 1)
+
 
 class TestFeatureDistillation(TestCase):
     """Test cases for FeatureDistillation strategy."""
@@ -304,6 +333,18 @@ class TestFeatureDistillation(TestCase):
             ]
         )
 
+        # Create a complex model with residual connections for testing
+        inputs = keras.layers.Input(shape=(20,), name="input")
+        x = keras.layers.Dense(64, activation="relu", name="dense_1")(inputs)
+        residual = keras.layers.Dense(64, name="residual_projection")(inputs)
+        x = keras.layers.Add(name="residual_add")([x, residual])
+        x = keras.layers.Dense(32, activation="relu", name="dense_2")(x)
+        outputs = keras.layers.Dense(10, name="output")(x)
+
+        self.complex_model = keras.Model(
+            inputs=inputs, outputs=outputs, name="complex_model"
+        )
+
     def test_initialization(self):
         """Test FeatureDistillation initialization."""
         # Test default initialization
@@ -335,6 +376,11 @@ class TestFeatureDistillation(TestCase):
             teacher_layer_name="teacher_dense_1",
             student_layer_name="student_dense_1",
         )
+
+        # Build the models first (needed for Sequential models)
+        dummy_input = np.random.random((1, 10)).astype(np.float32)
+        _ = self.teacher(dummy_input)
+        _ = self.student(dummy_input)
 
         # Test teacher feature extractor creation
         teacher_feature_extractor = strategy._create_feature_extractor(
@@ -377,6 +423,61 @@ class TestFeatureDistillation(TestCase):
             "Layer 'nonexistent_layer' not found in model", str(cm.exception)
         )
         self.assertIn("Available layers:", str(cm.exception))
+
+    def test_complex_model_feature_extraction(self):
+        """Test feature extraction with complex model topologies."""
+        strategy = FeatureDistillation(
+            teacher_layer_name="dense_1", student_layer_name="dense_1"
+        )
+
+        # Test with complex model with residual connections
+        x = np.random.random((2, 20)).astype(np.float32)
+
+        # This should work with the robust implementation
+        feature_extractor = strategy._create_feature_extractor(
+            self.complex_model, "dense_1"
+        )
+        self.assertIsInstance(feature_extractor, keras.Model)
+
+        # Test that it actually extracts features correctly
+        features = feature_extractor(x)
+        self.assertEqual(features.shape, (2, 64))  # dense_1 output size
+
+        # Verify it's different from final output
+        full_output = self.complex_model(x)
+        self.assertEqual(full_output.shape, (2, 10))  # final output size
+        self.assertNotEqual(features.shape, full_output.shape)
+
+    def test_residual_connection_feature_extraction(self):
+        """Test feature extraction from residual add layer."""
+        from keras import ops
+
+        strategy = FeatureDistillation()
+
+        x = np.random.random((2, 20)).astype(np.float32)
+
+        # Extract features from the residual add layer
+        residual_extractor = strategy._create_feature_extractor(
+            self.complex_model, "residual_add"
+        )
+
+        residual_features = residual_extractor(x)
+        self.assertEqual(residual_features.shape, (2, 64))  # After residual add
+
+        # Verify it's working correctly by comparing with manual computation
+        dense_1_extractor = strategy._create_feature_extractor(
+            self.complex_model, "dense_1"
+        )
+        dense_1_features = dense_1_extractor(x)
+
+        # The residual features should be different from just dense_1
+        # (since they include the residual connection)
+        self.assertEqual(dense_1_features.shape, residual_features.shape)
+        # They should be different values due to the residual connection
+        # Use keras.ops for JAX compatibility
+        dense_1_array = ops.convert_to_numpy(dense_1_features)
+        residual_array = ops.convert_to_numpy(residual_features)
+        self.assertFalse(np.allclose(dense_1_array, residual_array))
 
     def test_get_teacher_features(self):
         """Test teacher feature extraction."""
@@ -467,6 +568,35 @@ class TestFeatureDistillation(TestCase):
             "student_layer_name": "student_layer",
         }
         self.assertEqual(config, expected_config)
+
+    def test_serialization(self):
+        """Test strategy serialization and deserialization."""
+        import json
+
+        strategy = FeatureDistillation(
+            loss_type="cosine",
+            teacher_layer_name="teacher_layer",
+            student_layer_name="student_layer",
+        )
+
+        # Test get_config
+        config = strategy.get_config()
+        expected_config = {
+            "loss_type": "cosine",
+            "teacher_layer_name": "teacher_layer",
+            "student_layer_name": "student_layer",
+        }
+        self.assertEqual(config, expected_config)
+
+        # Test JSON serialization
+        json_str = json.dumps(config)
+        self.assertIsInstance(json_str, str)
+
+        # Test from_config
+        reconstructed = FeatureDistillation.from_config(config)
+        self.assertEqual(reconstructed.loss_type, "cosine")
+        self.assertEqual(reconstructed.teacher_layer_name, "teacher_layer")
+        self.assertEqual(reconstructed.student_layer_name, "student_layer")
 
 
 class TestMultiOutputDistillation(TestCase):
@@ -677,3 +807,45 @@ class TestMultiOutputDistillation(TestCase):
         self.assertEqual(
             predictions[0].shape, (5, 10)
         )  # Should return first output
+
+    def test_serialization(self):
+        """Test MultiOutputDistillation serialization and deserialization."""
+        import json
+
+        # Create nested strategies
+        strategy1 = LogitsDistillation(temperature=3.0, output_index=0)
+        strategy2 = FeatureDistillation(loss_type="mse")
+
+        multi_strategy = MultiOutputDistillation(
+            output_strategies={0: strategy1, 1: strategy2},
+            weights={0: 1.0, 1: 0.5},
+        )
+
+        # Test get_config (this was the critical bug)
+        config = multi_strategy.get_config()
+
+        # Verify structure
+        self.assertIn("output_strategies", config)
+        self.assertIn("weights", config)
+        self.assertEqual(config["weights"], {0: 1.0, 1: 0.5})
+
+        # Test JSON serialization (this was failing before the fix)
+        json_str = json.dumps(config)
+        self.assertIsInstance(json_str, str)
+
+        # Test from_config
+        reconstructed = MultiOutputDistillation.from_config(config)
+
+        # Verify reconstruction
+        self.assertEqual(len(reconstructed.output_strategies), 2)
+        self.assertEqual(reconstructed.weights, {0: 1.0, 1: 0.5})
+
+        # Verify nested strategies
+        self.assertIsInstance(
+            reconstructed.output_strategies[0], LogitsDistillation
+        )
+        self.assertIsInstance(
+            reconstructed.output_strategies[1], FeatureDistillation
+        )
+        self.assertEqual(reconstructed.output_strategies[0].temperature, 3.0)
+        self.assertEqual(reconstructed.output_strategies[1].loss_type, "mse")
