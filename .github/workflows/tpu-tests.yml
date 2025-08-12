@@ -9,33 +9,39 @@ on:
 
 permissions:
   contents: read
-  # id-token: write is no longer needed when using a service account key
 
 jobs:
   test-on-tpu-runner:
     name: Test on TPU Runner
     runs-on: linux-x86-ct6e-44-1tpu
 
+    # STAGE 1: Use a public Google Cloud SDK image for the main job container.
+    # This satisfies the runner's "container required" rule without needing prior authentication.
+    container:
+      image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+      # Mount the host's Docker socket into this container. This allows steps inside
+      # to use the host's Docker daemon, which is critical.
+      # Privileged and network host are needed for the final test container to access TPU hardware.
+      options: --privileged --network host -v /var/run/docker.sock:/var/run/docker.sock
+
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          # Use the JSON key you stored in the GitHub secret
+          # This authenticates the environment inside the gcloud-sdk container.
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-
-      # The container block is removed from the job-level.
-      # We will run the commands inside the container manually in the next step.
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Run Tests Inside Pre-Built Container
+        # STAGE 2: Now that we are authenticated, we can use the Docker CLI
+        # (talking to the host's daemon via the mounted socket) to run our private container.
         run: |
-          # Use the authenticated Docker to pull the image from Artifact Registry
+          echo "Pulling the private test container from GAR..."
           docker pull us-central1-docker.pkg.dev/gtech-rmi-dev/keras-docker-images/keras-jax-tpu-amd64:latest
 
-          # Run the container, mounting the checked-out code into the container's workspace
-          # The --workdir flag ensures the commands run in the correct directory
+          echo "Running the test container..."
           docker run --rm --privileged --network host \
             -v "${{ github.workspace }}":"/github/workspace" \
             --workdir "/github/workspace" \
