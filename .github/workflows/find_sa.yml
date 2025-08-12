@@ -1,0 +1,22 @@
+name: Find Runner Service Account
+
+# This allows you to run the workflow manually from the Actions tab
+on:
+  workflow_dispatch:
+    inputs:
+      runner_name:
+        description: 'The exact name of the self-hosted runner'
+        required: true
+        type: string
+
+jobs:
+  discover_service_account:
+    name: Discover Service Account
+    # This line tells the job to run on the specific runner you provide
+    runs-on: ${{ github.event.inputs.runner_name }}
+
+    steps:
+      - name: Print the configured GCP Service Account
+        run: |
+          echo "Querying the GCP metadata server to find the active Service Account..."
+          gcloud auth list
