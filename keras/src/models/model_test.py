@@ -1306,6 +1306,38 @@ CONFIGS = {
 }
 
 
+def _get_simple_model():
+    """Builds a simple sequential model for testing."""
+    return models.Sequential([layers.Dense(10, input_shape=(5,))])
+
+
+quantize_test_cases = [
+    # --- Error Scenarios ---
+    (
+        "gptq",
+        {"wbits": 4},  # Invalid config (dict, not GPTQConfig)
+        TypeError,
+        "must pass a `config` argument of type",
+        "gptq_with_invalid_config",
+    ),
+    (
+        "int8",
+        GPTQConfig(dataset=["test"], tokenizer=lambda x: x),
+        ValueError,
+        "is only supported for 'gptq' mode",
+        "non_gptq_with_unsupported_config",
+    ),
+    # --- Valid Scenario ---
+    (
+        "int8",
+        None,  # No config, which is correct
+        None,  # No exception expected
+        None,
+        "non_gptq_runs_without_error",
+    ),
+]
+
+
 @pytest.mark.requires_trainable_backend
 class TestModelQuantization:
     def _run_gptq_test_on_dataset(self, dataset, **config_kwargs):
@@ -1359,3 +1391,28 @@ class TestModelQuantization:
     def test_quantize_gptq_combinations(self, dataset, config):
         """Runs GPTQ tests across different datasets and config variations."""
         self._run_gptq_test_on_dataset(dataset, **config)
+
+    @pytest.mark.parametrize(
+        "mode, config, expected_exception, match_message, test_id",
+        quantize_test_cases,
+        ids=[case[-1] for case in quantize_test_cases],
+    )
+    def test_quantize_scenarios(
+        self, mode, config, expected_exception, match_message, test_id
+    ):
+        """
+        Tests various scenarios for the model.quantize() method, including
+        error handling and valid calls.
+        """
+        model = _get_simple_model()
+
+        if expected_exception:
+            # Test for cases where an error is expected
+            with pytest.raises(expected_exception, match=match_message):
+                model.quantize(mode, config=config)
+        else:
+            # Test for valid cases where no error should occur
+            try:
+                model.quantize(mode, config=config)
+            except (ValueError, TypeError) as e:
+                pytest.fail(f"Test case '{test_id}' failed unexpectedly: {e}")
