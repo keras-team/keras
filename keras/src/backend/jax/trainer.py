@@ -261,7 +261,7 @@ class JAXTrainer(base_trainer.Trainer):
         if not self.run_eagerly and self.jit_compile:
             out_shardings = None
             if distribution_lib.distribution() is not None:
-                state_shardings = self._record_training_state_sharding_spec()
+                state_shardings = self._get_state_sharding_spec()
                 out_shardings = (None, state_shardings)
             train_step = jit(
                 self.train_step,
@@ -286,7 +286,7 @@ class JAXTrainer(base_trainer.Trainer):
                     non_trainable_shardings,
                     _,  # optimizer_shardings
                     metrics_shardings,
-                ) = self._record_training_state_sharding_spec()
+                ) = self._get_state_sharding_spec()
                 state_shardings = (
                     trainable_shardings,
                     non_trainable_shardings,
@@ -321,7 +321,7 @@ class JAXTrainer(base_trainer.Trainer):
                     non_trainable_shardings,
                     _,  # optimizer_shardings
                     _,  # metrics_shardings
-                ) = self._record_training_state_sharding_spec()
+                ) = self._get_state_sharding_spec()
                 state_shardings = (
                     trainable_shardings,
                     non_trainable_shardings,
@@ -885,22 +885,26 @@ class JAXTrainer(base_trainer.Trainer):
                 ref_v.assign(v)
         self._jax_state_synced = True
 
-    def _record_training_state_sharding_spec(self):
-        self._trainable_variable_shardings = [
+    def _get_state_sharding_spec(self):
+        trainable_shardings = [
             v.value.sharding for v in self.trainable_variables
         ]
-        self._non_trainable_variable_shardings = [
+        non_trainable_shardings = [
             v.value.sharding for v in self.non_trainable_variables
         ]
         if hasattr(self, "optimizer") and self.optimizer is not None:
-            self._optimizer_variable_shardings = [
+            optimizer_shardings = [
                 v.value.sharding for v in self.optimizer.variables
             ]
         else:
-            self._optimizer_variable_shardings = []
-        self._metrics_variable_shardings = [
-            v.value.sharding for v in self.metrics_variables
-        ]
+            optimizer_shardings = []
+        metrics_shardings = [v.value.sharding for v in self.metrics_variables]
+        return (
+            trainable_shardings,
+            non_trainable_shardings,
+            optimizer_shardings,
+            metrics_shardings,
+        )
 
     def _purge_model_variables(
         self,

@@ -1,4 +1,3 @@
-import types
 from unittest import mock
 
 import jax
@@ -18,9 +17,11 @@ from keras.src import optimizers
 from keras.src import testing
 from keras.src.backend import config
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
-from keras.src.backend.jax import trainer as jax_trainer_lib
 from keras.src.callbacks.callback import Callback
+from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.optimizers.rmsprop import RMSprop
+from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
@@ -2863,41 +2864,17 @@ class TestTrainer(testing.TestCase):
         )
         self.assertLessEqual(tracing_count[0], 2)
 
+
+class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("single_device", False),
         ("distributed", True),
     )
     def test_jit_fit_with_out_shardings_logic(self, distributed):
-        def patched_get_jax_state(
-            self_model,
-            trainable_variables=False,
-            non_trainable_variables=False,
-            optimizer_variables=False,
-            metrics_variables=False,
-            purge_model_variables=False,
-        ):
-            state = []
-            if trainable_variables:
-                state.append([v.value for v in self_model.trainable_variables])
-            if non_trainable_variables:
-                state.append(
-                    [v.value for v in self_model.non_trainable_variables]
-                )
-            if optimizer_variables:
-                state.append([v.value for v in self_model.optimizer.variables])
-            if metrics_variables:
-                state.append([v.value for v in self_model.metrics_variables])
-            return tuple(state)
-
-        original_train_step = jax_trainer_lib.JAXTrainer.train_step
-
-        def patched_train_step_wrapper(self, state, data):
-            logs, new_state = original_train_step(self, state, data)
-            return logs, new_state
-
         x = np.random.rand(64, 8).astype("float32")
         y = np.random.rand(64, 1).astype("float32")
 
+        distribution = None
         if distributed:
             if len(jax.local_devices()) < 2:
                 self.skipTest(
@@ -2910,21 +2887,27 @@ class TestTrainer(testing.TestCase):
             )
             distribution = DataParallel(mesh)
 
-            with (
-                mock.patch(
-                    "keras.src.backend.jax.trainer.JAXTrainer.train_step",
-                    new=patched_train_step_wrapper,
-                ),
-                distribution.scope(),
-            ):
-                model = models.Sequential(
-                    [
-                        layers.Dense(4, activation="relu", input_shape=(8,)),
-                        layers.Dense(1),
-                    ]
-                )
-                model._get_jax_state = types.MethodType(
-                    patched_get_jax_state, model
-                )
-                model.compile(optimizer="adam", loss="mse", jit_compile=True)
-                model.fit(x, y, epochs=2, batch_size=32, verbose=0)
+        scope = distribution.scope() if distribution else mock.MagicMock()
+
+        with scope:
+            model = models.Sequential(
+                [
+                    layers.Dense(4, activation="relu", input_shape=(8,)),
+                    layers.Dense(1),
+                ]
+            )
+            model.compile(optimizer="adam", loss="mse", jit_compile=True)
+
+            if distribution:
+                expected_shardings = [
+                    v.value.sharding for v in model.trainable_variables
+                ]
+                self.assertNotEqual(len(set(expected_shardings)), 1)
+
+            model.fit(x, y, epochs=2, batch_size=32, verbose=0)
+
+            if distribution:
+                actual_shardings = [
+                    v.value.sharding for v in model.trainable_variables
+                ]
+                self.assertListEqual(actual_shardings, expected_shardings)
