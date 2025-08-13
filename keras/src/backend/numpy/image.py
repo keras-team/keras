@@ -500,7 +500,9 @@ def _fill_lanczos_kernel(radius, x):
 
 _kernels = {
     "linear": _fill_triangle_kernel,
+    "bilinear": _fill_triangle_kernel,  # For `resize`.
     "cubic": _fill_keys_cubic_kernel,
+    "bicubic": _fill_keys_cubic_kernel,  # For `resize`.
     "lanczos3": lambda x: _fill_lanczos_kernel(3.0, x),
     "lanczos5": lambda x: _fill_lanczos_kernel(5.0, x),
 }
