@@ -2871,6 +2871,8 @@ class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
         ("distributed", True),
     )
     def test_jit_fit_with_out_shardings_logic(self, distributed):
+        if keras.backend.backend() != "jax":
+            self.skipTest("This test requires the JAX backend.")
         x = np.random.rand(64, 8).astype("float32")
         y = np.random.rand(64, 1).astype("float32")
 
