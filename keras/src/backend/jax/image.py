@@ -552,7 +552,7 @@ def perspective_transform(
         images = jnp.transpose(images, (0, 2, 3, 1))
 
     _, height, width, _ = images.shape
-    transforms = _compute_homography_matrix(
+    transforms = compute_homography_matrix(
         jnp.asarray(start_points, dtype="float32"),
         jnp.asarray(end_points, dtype="float32"),
     )
@@ -599,7 +599,7 @@ def perspective_transform(
     return output
 
 
-def _compute_homography_matrix(start_points, end_points):
+def compute_homography_matrix(start_points, end_points):
     start_x, start_y = start_points[..., 0], start_points[..., 1]
     end_x, end_y = end_points[..., 0], end_points[..., 1]
 
@@ -868,7 +868,13 @@ def elastic_transform(
 
 
 def scale_and_translate(
-    images, shape, spatial_dims, scale, translation, method, antialias=True
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
 ):
     if method not in SCALE_AND_TRANSLATE_METHODS:
         raise ValueError(
@@ -879,5 +885,11 @@ def scale_and_translate(
     scale = convert_to_tensor(scale)
     translation = convert_to_tensor(translation)
     return jax.image.scale_and_translate(
-        images, shape, spatial_dims, scale, translation, method, antialias
+        images,
+        output_shape,
+        spatial_dims,
+        scale,
+        translation,
+        method,
+        antialias,
     )

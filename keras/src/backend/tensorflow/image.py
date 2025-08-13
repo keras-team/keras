@@ -1040,7 +1040,13 @@ def _scale_and_translate(
 
 
 def scale_and_translate(
-    images, shape, spatial_dims, scale, translation, method, antialias=True
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
 ):
     if method not in SCALE_AND_TRANSLATE_METHODS:
         raise ValueError(
@@ -1060,5 +1066,11 @@ def scale_and_translate(
     scale = tf.cast(scale, dtype)
     translation = tf.cast(translation, dtype)
     return _scale_and_translate(
-        images, shape, spatial_dims, scale, translation, kernel, antialias
+        images,
+        output_shape,
+        spatial_dims,
+        scale,
+        translation,
+        kernel,
+        antialias,
     )

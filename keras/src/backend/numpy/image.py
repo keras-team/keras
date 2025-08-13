@@ -708,7 +708,7 @@ def perspective_transform(
 
     batch_size, height, width, channels = images.shape
 
-    transforms = _compute_homography_matrix(start_points, end_points)
+    transforms = compute_homography_matrix(start_points, end_points)
 
     if len(transforms.shape) == 1:
         transforms = np.expand_dims(transforms, axis=0)
@@ -755,7 +755,7 @@ def perspective_transform(
     return output
 
 
-def _compute_homography_matrix(start_points, end_points):
+def compute_homography_matrix(start_points, end_points):
     start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
     start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
     start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
@@ -1149,7 +1149,13 @@ def elastic_transform(
 
 
 def scale_and_translate(
-    images, shape, spatial_dims, scale, translation, method, antialias=True
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
 ):
     if method not in SCALE_AND_TRANSLATE_METHODS:
         raise ValueError(
@@ -1169,5 +1175,11 @@ def scale_and_translate(
     scale = scale.astype(dtype)
     translation = translation.astype(dtype)
     return _scale_and_translate(
-        images, shape, spatial_dims, scale, translation, kernel, antialias
+        images,
+        output_shape,
+        spatial_dims,
+        scale,
+        translation,
+        kernel,
+        antialias,
     )

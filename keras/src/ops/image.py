@@ -1612,28 +1612,34 @@ class ScaleAndTranslate(Operation):
         self.method = method
         self.antialias = antialias
 
-    def call(self, images, shape, scale, translation):
+    def call(self, images, output_shape, scale, translation):
         return backend.image.scale_and_translate(
             images,
-            shape=shape,
-            spatial_dims=self.spatial_dims,
+            output_shape=output_shape,
             scale=scale,
             translation=translation,
+            spatial_dims=self.spatial_dims,
             method=self.method,
             antialias=self.antialias,
         )
 
-    def compute_output_spec(self, images, shape, scale, translation):
-        return KerasTensor(shape, dtype=images.dtype)
+    def compute_output_spec(self, images, output_shape, scale, translation):
+        return KerasTensor(output_shape, dtype=images.dtype)
 
 
 @keras_export("keras.ops.image.scale_and_translate")
 def scale_and_translate(
-    images, shape, spatial_dims, scale, translation, method, antialias=True
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
 ):
     """Apply a scale and translation to the images.
 
-    Generates a new image of shape `shape` by resampling from the input image
+    Generates a new image of `output_shape` by resampling from the input image
     using the sampling method corresponding to method. For 2D images, this
     operation transforms a location in the input images, (x, y), to a location
     in the output image according to:
@@ -1661,14 +1667,14 @@ def scale_and_translate(
 
     Args:
         images: The input array.
-        shape: The output shape, as a sequence of integers with length equal to
-            the number of dimensions of image.
-        spatial_dims: A length K tuple specifying the spatial dimensions that
-            the passed `scale` and `translation` should be applied to.
+        output_shape: The output shape, as a sequence of integers with length
+            equal to the number of dimensions of image.
         scale: A [K] array with the same number of dimensions as `images`,
             containing the scale to apply in each dimension.
         translation: A [K] array with the same number of dimensions as `images`,
             containing the translation to apply in each dimension.
+        spatial_dims: A length K tuple specifying the spatial dimensions that
+            the passed `scale` and `translation` should be applied to.
         method: A string specifying the resizing method to use. Available
             methods are `"linear"`, `"bilinear"`, `"trilinear"`, `"triangle"`,
             `"cubic"`, `"bicubic"`, `"tricubic"`, `"lanczos3"` and `"lanczos5"`.
@@ -1684,7 +1690,7 @@ def scale_and_translate(
     >>> scale = np.array([2.0, 2.0]).astype("float32")
     >>> translation = -(scale / 2.0 - 0.5)
     >>> resized_images = keras.image.scale_and_translate(
-    ...     images, (5, 5), (0, 1), scale, translation, "linear"
+    ...     images, (5, 5), scale, translation, (0, 1), "linear"
     ... )
     >>> resized_images
     array([[0.0 0.5 1.0 1.5 2.0]
@@ -1695,8 +1701,14 @@ def scale_and_translate(
     """
     if any_symbolic_tensors((images, scale, translation)):
         return ScaleAndTranslate(spatial_dims, method, antialias).symbolic_call(
-            images, shape, scale, translation
+            images, output_shape, scale, translation
         )
     return backend.image.scale_and_translate(
-        images, shape, spatial_dims, scale, translation, method, antialias
+        images,
+        output_shape,
+        scale,
+        translation,
+        spatial_dims,
+        method,
+        antialias,
     )

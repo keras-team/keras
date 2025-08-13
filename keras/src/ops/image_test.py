@@ -206,18 +206,18 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
 
     def test_scale_and_translate(self):
         images = KerasTensor([None, 20, 20, 3])
-        shape = (None, 25, 25, 3)
+        output_shape = (None, 25, 25, 3)
         scale = KerasTensor([2])
         translation = KerasTensor([2])
         out = kimage.scale_and_translate(
             images,
-            shape=shape,
-            spatial_dims=(1, 2),
+            output_shape=output_shape,
             scale=scale,
             translation=translation,
+            spatial_dims=(1, 2),
             method="linear",
         )
-        self.assertEqual(out.shape, shape)
+        self.assertEqual(out.shape, output_shape)
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
@@ -480,18 +480,18 @@ class ImageOpsStaticShapeTest(testing.TestCase):
 
     def test_scale_and_translate(self):
         images = KerasTensor([20, 20, 3])
-        shape = (25, 25, 3)
+        output_shape = (25, 25, 3)
         scale = KerasTensor([2])
         translation = KerasTensor([2])
         out = kimage.scale_and_translate(
             images,
-            shape=shape,
-            spatial_dims=(0, 1),
+            output_shape=output_shape,
             scale=scale,
             translation=translation,
+            spatial_dims=(0, 1),
             method="linear",
         )
-        self.assertEqual(out.shape, shape)
+        self.assertEqual(out.shape, output_shape)
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -1932,10 +1932,10 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         translation = -(scale / 2.0 - 0.5)
         out = kimage.scale_and_translate(
             images,
-            shape=(15, 15, 3),
-            spatial_dims=(0, 1),
+            output_shape=(15, 15, 3),
             scale=scale,
             translation=translation,
+            spatial_dims=(0, 1),
             method=method,
             antialias=antialias,
         )
