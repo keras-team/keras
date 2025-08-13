@@ -13,6 +13,34 @@ RESIZE_INTERPOLATIONS = (
     "lanczos5",
     "bicubic",
 )
+AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
+    "nearest": 0,
+    "bilinear": 1,
+}
+AFFINE_TRANSFORM_FILL_MODES = {
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
+}
+MAP_COORDINATES_FILL_MODES = {
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
+}
+SCALE_AND_TRANSLATE_METHODS = {
+    "linear",
+    "bilinear",
+    "trilinear",
+    "cubic",
+    "bicubic",
+    "tricubic",
+    "lanczos3",
+    "lanczos5",
+}
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -367,7 +395,7 @@ def resize(
     return _resize(images, size, method=interpolation, antialias=antialias)
 
 
-def compute_weight_mat(
+def _compute_weight_mat(
     input_size, output_size, scale, translation, kernel, antialias
 ):
     dtype = np.result_type(scale, translation)
@@ -410,32 +438,11 @@ def compute_weight_mat(
 
 
 def _resize(image, shape, method, antialias):
-    def _fill_triangle_kernel(x):
-        return np.maximum(0, 1 - np.abs(x))
-
-    def _fill_keys_cubic_kernel(x):
-        out = ((1.5 * x - 2.5) * x) * x + 1.0
-        out = np.where(x >= 1.0, ((-0.5 * x + 2.5) * x - 4.0) * x + 2.0, out)
-        return np.where(x >= 2.0, 0.0, out)
-
-    def _fill_lanczos_kernel(radius, x):
-        y = radius * np.sin(np.pi * x) * np.sin(np.pi * x / radius)
-        out = np.where(
-            x > 1e-3, np.divide(y, np.where(x != 0, np.pi**2 * x**2, 1)), 1
-        )
-        return np.where(x > radius, 0.0, out)
-
     if method == "nearest":
         return _resize_nearest(image, shape)
-    elif method == "bilinear":
-        kernel = _fill_triangle_kernel
-    elif method == "lanczos3":
-        kernel = lambda x: _fill_lanczos_kernel(3.0, x)
-    elif method == "lanczos5":
-        kernel = lambda x: _fill_lanczos_kernel(5.0, x)
-    elif method == "bicubic":
-        kernel = _fill_keys_cubic_kernel
     else:
+        kernel = _kernels.get(method, None)
+    if kernel is None:
         raise ValueError("Unknown resize method")
 
     spatial_dims = tuple(
@@ -473,6 +480,32 @@ def _resize_nearest(x, output_shape):
     return x
 
 
+def _fill_triangle_kernel(x):
+    return np.maximum(0, 1 - np.abs(x))
+
+
+def _fill_keys_cubic_kernel(x):
+    out = ((1.5 * x - 2.5) * x) * x + 1.0
+    out = np.where(x >= 1.0, ((-0.5 * x + 2.5) * x - 4.0) * x + 2.0, out)
+    return np.where(x >= 2.0, 0.0, out)
+
+
+def _fill_lanczos_kernel(radius, x):
+    y = radius * np.sin(np.pi * x) * np.sin(np.pi * x / radius)
+    out = np.where(
+        x > 1e-3, np.divide(y, np.where(x != 0, np.pi**2 * x**2, 1)), 1
+    )
+    return np.where(x > radius, 0.0, out)
+
+
+_kernels = {
+    "linear": _fill_triangle_kernel,
+    "cubic": _fill_keys_cubic_kernel,
+    "lanczos3": lambda x: _fill_lanczos_kernel(3.0, x),
+    "lanczos5": lambda x: _fill_lanczos_kernel(5.0, x),
+}
+
+
 def _scale_and_translate(
     x, output_shape, spatial_dims, scale, translation, kernel, antialias
 ):
@@ -492,9 +525,9 @@ def _scale_and_translate(
         d = d % x.ndim
         m, n = input_shape[d], output_shape[d]
 
-        w = compute_weight_mat(
+        w = _compute_weight_mat(
             m, n, scale[i], translation[i], kernel, antialias
-        ).astype(np.float32)
+        ).astype(output.dtype)
         output = np.tensordot(output, w, axes=(d, 0))
         output = np.moveaxis(output, -1, d)
 
@@ -502,19 +535,6 @@ def _scale_and_translate(
         output = np.clip(np.round(output), x.min(), x.max())
         output = output.astype(x.dtype)
     return output
-
-
-AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
-    "nearest": 0,
-    "bilinear": 1,
-}
-AFFINE_TRANSFORM_FILL_MODES = {
-    "constant",
-    "nearest",
-    "wrap",
-    "mirror",
-    "reflect",
-}
 
 
 def affine_transform(
@@ -688,7 +708,7 @@ def perspective_transform(
 
     batch_size, height, width, channels = images.shape
 
-    transforms = compute_homography_matrix(start_points, end_points)
+    transforms = _compute_homography_matrix(start_points, end_points)
 
     if len(transforms.shape) == 1:
         transforms = np.expand_dims(transforms, axis=0)
@@ -735,7 +755,7 @@ def perspective_transform(
     return output
 
 
-def compute_homography_matrix(start_points, end_points):
+def _compute_homography_matrix(start_points, end_points):
     start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
     start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
     start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
@@ -875,15 +895,6 @@ def compute_homography_matrix(start_points, end_points):
     homography_matrix = np.reshape(homography_matrix, [-1, 8])
 
     return homography_matrix
-
-
-MAP_COORDINATES_FILL_MODES = {
-    "constant",
-    "nearest",
-    "wrap",
-    "mirror",
-    "reflect",
-}
 
 
 def map_coordinates(
@@ -1135,3 +1146,28 @@ def elastic_transform(
     transformed_images = transformed_images.astype(input_dtype)
 
     return transformed_images
+
+
+def scale_and_translate(
+    images, shape, spatial_dims, scale, translation, method, antialias=True
+):
+    if method not in SCALE_AND_TRANSLATE_METHODS:
+        raise ValueError(
+            "Invalid value for argument `method`. Expected of one "
+            f"{SCALE_AND_TRANSLATE_METHODS}. Received: method={method}"
+        )
+    if method in ("linear", "bilinear", "trilinear", "triangle"):
+        method = "linear"
+    elif method in ("cubic", "bicubic", "tricubic"):
+        method = "cubic"
+
+    images = convert_to_tensor(images)
+    scale = convert_to_tensor(scale)
+    translation = convert_to_tensor(translation)
+    kernel = _kernels[method]
+    dtype = backend.result_type(scale.dtype, translation.dtype)
+    scale = scale.astype(dtype)
+    translation = translation.astype(dtype)
+    return _scale_and_translate(
+        images, shape, spatial_dims, scale, translation, kernel, antialias
+    )

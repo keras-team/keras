@@ -37,3 +37,11 @@ def map_coordinates(
     raise NotImplementedError(
         "`map_coordinates` is not supported with openvino backend"
     )
+
+
+def scale_and_translate(
+    images, shape, spatial_dims, scale, translation, method, antialias=True
+):
+    raise NotImplementedError(
+        "`scale_and_translate` is not supported with openvino backend"
+    )
