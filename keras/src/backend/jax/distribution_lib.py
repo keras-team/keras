@@ -5,11 +5,7 @@ import itertools
 
 import jax
 import numpy as np
-
-from keras.src.backend.common import global_state
-from keras.src.random import seed_generator
-from keras.src.utils import jax_utils
-from keras.src.utils import rng_utils
+from jax import tree_util
 
 
 def list_devices(device_type=None):
@@ -66,6 +62,7 @@ def distribute_tensor(tensor, layout):
     """
     # Avoid circular imports.
     from keras.src.distribution import TensorLayout
+    from keras.src.utils import jax_utils
 
     if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
@@ -123,6 +120,10 @@ def initialize_rng():
 
     This is required for consistent initialization in multi-host settings.
     """
+    from keras.src.backend.common import global_state
+    from keras.src.random import seed_generator
+    from keras.src.utils import rng_utils
+
     global_seed = rng_utils.get_random_seed()
     # Only set a random seed if not already set
     # via keras.config.set_random_seed()
@@ -292,8 +293,7 @@ def _define_and_register_jax_classes():
 
         def parse_reshape(eqn):
             invar, out = eqn.invars[0], eqn.outvars[0]
-            in_idx, out_idx = 0, 0
-            in_prod, out_prod = 1, 1
+            in_idx, out_idx, in_prod, out_prod = 0, 0, 1, 1
             while in_idx < invar.aval.ndim and out_idx < out.aval.ndim:
                 if (
                     in_prod == out_prod
@@ -351,23 +351,42 @@ def _define_and_register_jax_classes():
         return graph
 
     def shard_model(
-        fn,
-        params,
-        *inputs,
+        jaxpr,
+        out_avals,
+        trainable_params,
+        non_trainable_params,
+        args,
+        kwargs,
         min_shard_size=1,
         data_axis_name="data",
         model_axis_name="model",
     ):
-        """Analyzes a function via jaxpr and returns sharding assignments."""
-        jaxpr, abs_ret = jax.make_jaxpr(fn, return_shape=True)(params, *inputs)
         graph = parse_jaxpr(jaxpr)
 
-        params_flat, params_treedef = jax.tree.flatten(params)
-        _, inputs_treedef = jax.tree.flatten(inputs)
-        _, outputs_treedef = jax.tree.flatten(abs_ret)
+        t_params_flat, t_params_treedef = tree_util.tree_flatten(
+            trainable_params
+        )
+        nt_params_flat, nt_params_treedef = tree_util.tree_flatten(
+            non_trainable_params
+        )
+        args_flat, args_treedef = tree_util.tree_flatten(args)
+        kwargs_flat, kwargs_treedef = tree_util.tree_flatten(kwargs)
+        _, outputs_treedef = tree_util.tree_flatten(out_avals)
+
+        pos = 0
+        t_param_invars = jaxpr.jaxpr.invars[pos : pos + len(t_params_flat)]
+        pos += len(t_params_flat)
+        nt_param_invars = jaxpr.jaxpr.invars[pos : pos + len(nt_params_flat)]
+        pos += len(nt_params_flat)
+        arg_invars = jaxpr.jaxpr.invars[pos : pos + len(args_flat)]
+        pos += len(args_flat)
+        kwarg_invars = jaxpr.jaxpr.invars[pos:]
+
+        all_param_invars = t_param_invars + nt_param_invars
+        data_invars = arg_invars + kwarg_invars
 
         seen = collections.Counter()
-        for var in jaxpr.jaxpr.invars[: len(params_flat)]:
+        for var in all_param_invars:
             for i in range(var.aval.ndim):
                 if var.aval.shape[i] >= min_shard_size:
                     seen.update([graph.get_root((var, i))])
@@ -375,7 +394,7 @@ def _define_and_register_jax_classes():
         model_axis_root = max(seen, key=seen.get) if seen else None
 
         data_axes_roots = []
-        for var in jaxpr.jaxpr.invars[len(params_flat) :]:
+        for var in data_invars:
             for i in range(var.aval.ndim):
                 root = graph.get_root((var, i))
                 if root not in seen and root not in data_axes_roots:
@@ -403,39 +422,28 @@ def _define_and_register_jax_classes():
                 assignments.append(layout)
             return assignments
 
-        params_assignments = params_treedef.unflatten(
-            assign_layouts(
-                jaxpr.jaxpr.invars[: len(params_flat)], is_params=True
-            )
+        params_assignments = tree_util.tree_unflatten(
+            t_params_treedef, assign_layouts(t_param_invars, is_params=True)
         )
-        inputs_assignments = inputs_treedef.unflatten(
-            assign_layouts(jaxpr.jaxpr.invars[len(params_flat) :])
-        )
-        output_assignments = outputs_treedef.unflatten(
-            assign_layouts(jaxpr.jaxpr.outvars)
-        )
-
-        return (params_assignments, *inputs_assignments), output_assignments
+        return params_assignments
 
     class _JaxGraph:
-        """A wrapper for a JAX computation graph (jaxpr) of a Keras model."""
-
         def __init__(
             self,
             jaxpr,
             trainable_variables,
             non_trainable_variables,
             in_treedefs,
+            out_avals,
         ):
             self.jaxpr = jaxpr
             self.trainable_variables = trainable_variables
             self.non_trainable_variables = non_trainable_variables
             self.in_treedefs = in_treedefs
+            self.out_avals = out_avals
 
         @classmethod
         def from_model(cls, model, *args, **kwargs):
-            """Creates a _JaxGraph instance by tracing the model."""
-
             def stateless_fn(
                 trainable_vars, non_trainable_vars, f_args, f_kwargs
             ):
@@ -445,76 +453,50 @@ def _define_and_register_jax_classes():
 
             trainable_vars = model.trainable_variables
             non_trainable_vars = model.non_trainable_variables
-
-            _, t_vars_treedef = jax.tree.flatten(trainable_vars)
-            _, nt_vars_treedef = jax.tree.flatten(non_trainable_vars)
-            _, args_treedef = jax.tree.flatten(args)
-            _, kwargs_treedef = jax.tree.flatten(kwargs)
-            in_treedefs = (
-                t_vars_treedef,
-                nt_vars_treedef,
-                args_treedef,
-                kwargs_treedef,
+            in_treedefs = tree_util.tree_structure(
+                (trainable_vars, non_trainable_vars, args, kwargs)
             )
 
-            closed_jaxpr, _ = jax.make_jaxpr(stateless_fn, return_shape=True)(
-                trainable_vars, non_trainable_vars, args, kwargs
-            )
+            closed_jaxpr, out_avals = jax.make_jaxpr(
+                stateless_fn, return_shape=True
+            )(trainable_vars, non_trainable_vars, args, kwargs)
+
             return cls(
-                closed_jaxpr, trainable_vars, non_trainable_vars, in_treedefs
+                closed_jaxpr,
+                trainable_vars,
+                non_trainable_vars,
+                in_treedefs,
+                out_avals,
             )
 
     class _JaxShardingPlanner:
-        """
-        Determines the optimal sharding layout for model variables using
-        the embedded graph-parsing engine.
-        """
-
         def plan(self, graph, device_mesh):
-            t_vars = graph.trainable_variables
-            nt_vars = graph.non_trainable_variables
-
             all_in_avals = [var.aval for var in graph.jaxpr.jaxpr.invars]
-            t_vars_leaves, _ = jax.tree.flatten(t_vars)
-            nt_vars_leaves, _ = jax.tree.flatten(nt_vars)
+            all_in_leaves = tree_util.tree_unflatten(
+                graph.in_treedefs, all_in_avals
+            )
+            _, _, args_aval_tree, kwargs_aval_tree = all_in_leaves
 
-            pos = len(t_vars_leaves) + len(nt_vars_leaves)
-
-            args_treedef = graph.in_treedefs[2]
-            kwargs_treedef = graph.in_treedefs[3]
-
-            num_args_leaves = args_treedef.num_leaves
-            args_avals = all_in_avals[pos : pos + num_args_leaves]
-            kwargs_avals = all_in_avals[pos + num_args_leaves :]
-
-            args_aval_tree = jax.tree.unflatten(args_treedef, args_avals)
-            kwargs_aval_tree = jax.tree.unflatten(kwargs_treedef, kwargs_avals)
-
-            dummy_args = jax.tree.map(
+            dummy_args = tree_util.tree_map(
                 lambda x: np.zeros(x.shape, x.dtype), args_aval_tree
             )
-            dummy_kwargs = jax.tree.map(
+            dummy_kwargs = tree_util.tree_map(
                 lambda x: np.zeros(x.shape, x.dtype), kwargs_aval_tree
             )
 
-            def fn_to_trace(trainable_params, *fn_args, **fn_kwargs):
-                """A function that executes the original jaxpr computation."""
-                all_leaves = (
-                    jax.tree.leaves(trainable_params)
-                    + jax.tree.leaves(nt_vars)
-                    + jax.tree.leaves(fn_args)
-                    + jax.tree.leaves(fn_kwargs)
-                )
-                return jax.core.eval_jaxpr(
-                    graph.jaxpr.jaxpr, graph.jaxpr.consts, *all_leaves
-                )
-
-            (param_assignments, *_) = shard_model(
-                fn_to_trace, t_vars, dummy_args, **dummy_kwargs
+            param_assignments = shard_model(
+                jaxpr=graph.jaxpr,
+                out_avals=graph.out_avals,
+                trainable_params=graph.trainable_variables,
+                non_trainable_params=graph.non_trainable_variables,
+                args=dummy_args,
+                kwargs=dummy_kwargs,
             )
 
-            param_vars_flat, _ = jax.tree.flatten(t_vars)
-            param_layouts_flat, _ = jax.tree.flatten(param_assignments)
+            param_vars_flat, _ = tree_util.tree_flatten(
+                graph.trainable_variables
+            )
+            param_layouts_flat, _ = tree_util.tree_flatten(param_assignments)
 
             parameter_layout_dict = {
                 var.path: tuple(layout) if layout else None
@@ -523,8 +505,6 @@ def _define_and_register_jax_classes():
             return parameter_layout_dict
 
     class _JaxShardApplier:
-        """Applies a sharding plan to a model's variables."""
-
         def apply(self, model, plan):
             for var in model.variables:
                 layout = plan.get(var.path)
