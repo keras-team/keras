@@ -67,3 +67,56 @@ class AutoShardDistributionTest(test_case.TestCase):
                     "under the current test mock setup. "
                     f"Spec: {sharding.spec}",
                 )
+
+    def test_tensor_is_shared_and_accessible(self):
+        num_devices = jax.device_count()
+        if num_devices < 2:
+            self.skipTest("This test requires at least 2 devices for sharding.")
+
+        mesh_shape = (1, num_devices)
+        axis_names = ("batch", "model")
+        mesh = distribution_lib.DeviceMesh(
+            shape=mesh_shape, axis_names=axis_names
+        )
+        distribution = distribution_lib.AutoShardDistribution(mesh)
+
+        with distribution.scope():
+            model = models.Sequential(
+                [layers.Dense(4, use_bias=False, input_shape=(8,))]
+            )
+            model.build(input_shape=(None, 8))
+
+        kernel_var = model.variables[0]
+        self.assertIn("kernel", kernel_var.path)
+
+        kernel_layout = distribution.get_variable_layout(kernel_var)
+        self.assertEqual(
+            kernel_layout.spec,
+            jax.sharding.PartitionSpec(None, None),
+            "Kernel variable should be replicated across all devices.",
+        )
+
+        def access_on_device(dummy_arg):
+            tensor_sum = jnp.sum(kernel_var.value)
+            device_id = jax.lax.axis_index("model")
+
+            return tensor_sum + device_id.astype(kernel_var.dtype)
+
+        with distribution.scope():
+            pmapped_access_fn = jax.pmap(
+                access_on_device,
+                axis_name="model",
+            )
+
+            dummy_input = jnp.zeros(num_devices)
+            results = pmapped_access_fn(dummy_input)
+
+        expected_sum = jnp.sum(kernel_var.value)
+        for i in range(num_devices):
+            self.assertAllClose(
+                results[i],
+                expected_sum + i,
+                msg=f"Device {i} did not compute the correct value.",
+            )
+
+        self.assertEqual(len(results.devices()), num_devices)
