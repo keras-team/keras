@@ -91,9 +91,12 @@ jobs:
       - name: Run Verification and Tests
         run: |
           echo "Successfully running inside the private container from GAR!"
-          echo "Current working directory:"
-          pwd
-          echo "Contents of current directory:"
-          ls -la
           echo "Verifying JAX installation..."
           python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
+          pytest keras --ignore keras/src/applications \
+                      --ignore keras/src/layers/merging/merging_test.py \
+                      --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
+                      --ignore keras/src/backend/jax/distribution_lib_test.py \
+                      --ignore keras/src/distribution/distribution_lib_test.py \
+                      --cov=keras \
+                      --cov-config=pyproject.toml
