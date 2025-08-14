@@ -420,6 +420,8 @@ class AutoShardDistribution(Distribution):
         self._shard_applier = None
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
+        self._num_process = distribution_lib.num_processes()
+        self._process_id = distribution_lib.process_id()
 
     def _get_backend_components(self):
         if self._sharding_planner and self._shard_applier:
