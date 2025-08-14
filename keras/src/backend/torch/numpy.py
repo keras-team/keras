@@ -886,7 +886,7 @@ def isfinite(x):
     return torch.isfinite(x)
 
 
-def isin(x1, x2):
+def isin(x1, x2, assume_unique=False, invert=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
@@ -900,7 +900,7 @@ def isin(x1, x2):
     if standardize_dtype(x2.dtype) == "bool":
         x2 = cast(x2, x1.dtype)
 
-    return torch.isin(x1, x2)
+    return torch.isin(x1, x2, assume_unique=assume_unique, invert=invert)
 
 
 def isinf(x):

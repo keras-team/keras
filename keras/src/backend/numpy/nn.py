@@ -1163,6 +1163,13 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
+    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    query = cast(query, compute_dtype)
+    key = cast(key, compute_dtype)
+    value = cast(value, compute_dtype)
+    if bias is not None:
+        bias = convert_to_tensor(bias, dtype=compute_dtype)
+
     _, _, _, H = key.shape
     scale = (1.0 / np.sqrt(H)) if scale is None else scale
     return _dot_product_attention_xla(
