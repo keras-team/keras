@@ -398,6 +398,91 @@ class Distribution:
         return self.__repr__()
 
 
+@keras_export("keras.distribution.AutoShardDistribution")
+class AutoShardDistribution(Distribution):
+    def __init__(
+        self,
+        device_mesh=None,
+    ):
+        if device_mesh is None:
+            devices = np.array(list_devices())
+            axis_names = [DEFAULT_BATCH_DIM_NAME] + [
+                f"model_{i}" for i in range(devices.ndim - 1)
+            ]
+            device_mesh = DeviceMesh(
+                shape=devices.shape,
+                axis_names=axis_names,
+                devices=devices,
+            )
+        super().__init__(device_mesh, device_mesh.axis_names[0])
+        self._sharding_plan = None
+        self._sharding_planner = None
+        self._shard_applier = None
+
+    def _get_backend_components(self):
+        if self._sharding_planner and self._shard_applier:
+            return
+        self._sharding_planner = distribution_lib.get_sharding_planner()
+        self._shard_applier = distribution_lib.get_shard_applier()
+
+    def shard(self, model, *args, **kwargs):
+        self._get_backend_components()
+        graph = distribution_lib.create_graph_from_model(model, *args, **kwargs)
+
+        plan = self._sharding_planner.plan(graph, self.device_mesh)
+        self._sharding_plan = plan
+        self._shard_applier.apply(model, self._sharding_plan)
+
+    def get_data_layout(self, data_shape):
+        data_shard_spec = [None] * len(data_shape)
+        data_shard_spec[0] = self.batch_dim_name
+        return TensorLayout(data_shard_spec, self.device_mesh)
+
+    def get_variable_layout(self, variable):
+        if getattr(variable, "_layout", None) is not None:
+            return variable._layout
+        variable_shard_spec = [None] * len(variable.shape)
+        return TensorLayout(variable_shard_spec, self.device_mesh)
+
+    def get_tensor_layout(self, path):
+        return None
+
+    def distribute_dataset(self, dataset):
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        if not tf.available or not isinstance(dataset, tf.data.Dataset):
+            raise ValueError(
+                "Only `tf.data.Dataset` is supported for auto-sharding, "
+                f"got {type(dataset)}"
+            )
+
+        from tensorflow.python.data.experimental.ops import (
+            distribute as tf_data_distribute,
+        )
+
+        batch_size = tf_data_distribute.compute_batch_size(dataset)
+        if batch_size.numpy() < 0:
+            raise ValueError(
+                "The batch size of the input dataset is "
+                "unknown. Please config the batch size for "
+                "the input dataset, e.g via `dataset.batch(batch_size)`"
+            )
+        per_worker_batch_size = tf_data_distribute.batch_sizes_for_worker(
+            global_batch_size=batch_size,
+            num_workers=self._num_process,
+            num_replicas_per_worker=1,  # We hard code this for now.
+            worker_index=self._process_id,
+        )
+        distributed_dataset = dataset.rebatch(per_worker_batch_size)
+        distributed_dataset = tf_data_distribute._AutoShardDataset(
+            distributed_dataset,
+            num_workers=self._num_process,
+            index=self._process_id,
+            num_replicas=self._num_process,
+        )
+        return distributed_dataset.prefetch(tf.data.AUTOTUNE)
+
+
 @keras_export("keras.distribution.DataParallel")
 class DataParallel(Distribution):
     """Distribution for data parallelism.
