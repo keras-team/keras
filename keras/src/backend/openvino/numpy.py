@@ -1,6 +1,7 @@
 import numpy as np
 import openvino.opset14 as ov_opset
 from openvino import Type
+from openvino.runtime import opset13 as ov
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
@@ -15,13 +16,9 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
-import numpy as np
-from openvino.runtime import opset13 as ov
-
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    """OpenVINO backend decomposition for keras.ops.diagonal."""
     x_node = ov.constant(x)  # -> ov.Node
     offset_const = ov_opset.constant(int(offset), dtype="i64")
 
@@ -30,15 +27,18 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     rank = ov_opset.shape_of(shape)  # scalar i64 (len of shape)
     rank_val = ov_opset.squeeze(rank)  # [] -> scalar
     axis1_node = ov_opset.floor_mod(
-        ov_opset.add(ov_opset.constant(int(axis1), dtype="i64"), rank_val), rank_val
+        ov_opset.add(ov_opset.constant(int(axis1), dtype="i64"), rank_val),
+        rank_val,
     )
     axis2_node = ov_opset.floor_mod(
-        ov_opset.add(ov_opset.constant(int(axis2), dtype="i64"), rank_val), rank_val
+        ov_opset.add(ov_opset.constant(int(axis2), dtype="i64"), rank_val),
+        rank_val,
     )
 
-
     arange = ov_opset.range(
-        ov_opset.constant(0, dtype="i64"), rank_val, ov_opset.constant(1, dtype="i64")
+        ov_opset.constant(0, dtype="i64"),
+        rank_val,
+        ov_opset.constant(1, dtype="i64"),
     )
     mask1 = ov_opset.equal(arange, axis1_node)
     mask2 = ov_opset.equal(arange, axis2_node)
@@ -47,7 +47,12 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         ov_opset.non_zero(not12), [1]
     )  # gather positions != axis1, axis2
     perm = ov_opset.concat(
-        [others, ov_opset.reshape(axis1_node, [1]), ov_opset.reshape(axis2_node, [1])], 0
+        [
+            others,
+            ov_opset.reshape(axis1_node, [1]),
+            ov_opset.reshape(axis2_node, [1]),
+        ],
+        0,
     )
 
     x_perm = ov_opset.transpose(x_node, perm)
@@ -101,7 +106,12 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         end_mask=[0],
     )
     target_shape = ov_opset.concat(
-        [batch_shape, ov_opset.reshape(L, [1]), ov_opset.constant([2], dtype="i64")], 0
+        [
+            batch_shape,
+            ov_opset.reshape(L, [1]),
+            ov_opset.constant([2], dtype="i64"),
+        ],
+        0,
     )
     bcast_idx = ov_opset.broadcast(diag_idx, target_shape)
 
@@ -109,7 +119,6 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     gathered = ov_opset.gather_nd(x_perm, bcast_idx, batch_rank)
 
     return OpenVINOKerasTensor(gathered)
-
 
 
 def add(x1, x2):
@@ -770,7 +779,6 @@ def deg2rad(x):
 
 def diag(x, k=0):
     raise NotImplementedError("`diag` is not supported with openvino backend")
-
 
 
 def diff(a, n=1, axis=-1):
