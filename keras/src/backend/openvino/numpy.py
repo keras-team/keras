@@ -15,75 +15,99 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
-# --- Chnage for issue 29115 ---
-import openvino.runtime.opset14 as ov
-
-from .core import OpenVINOKerasTensor  # already present in file
-from .core import _convert_to_node, _wrap_node  # adapt if your file names differ
+from .core import _convert_to_node
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
     """OpenVINO backend decomposition for keras.ops.diagonal."""
     x_node = _convert_to_node(x)  # -> ov.Node
-    offset_const = ov.constant(int(offset), dtype="i64")
+    offset_const = ov_opset.constant(int(offset), dtype="i64")
 
     # rank & normalize axes
-    shape = ov.shape_of(x_node)                       # i64 vector
-    rank = ov.shape_of(shape)                         # scalar i64 (len of shape)
-    rank_val = ov.squeeze(rank)                       # [] -> scalar
-    axis1_node = ov.mod(ov.add(ov.constant(int(axis1), dtype="i64"), rank_val), rank_val)
-    axis2_node = ov.mod(ov.add(ov.constant(int(axis2), dtype="i64"), rank_val), rank_val)
+    shape = ov_opset.shape_of(x_node)  # i64 vector
+    rank = ov_opset.shape_of(shape)  # scalar i64 (len of shape)
+    rank_val = ov_opset.squeeze(rank)  # [] -> scalar
+    axis1_node = ov_opset.floor_mod(
+        ov_opset.add(ov_opset.constant(int(axis1), dtype="i64"), rank_val), rank_val
+    )
+    axis2_node = ov_opset.floor_mod(
+        ov_opset.add(ov_opset.constant(int(axis2), dtype="i64"), rank_val), rank_val
+    )
 
     # If axis1 == axis2, behavior should match numpy error; Keras tests don't hit this,
     # so we skip explicit assert to keep graph-friendly.
 
     # Build permutation to move axis1, axis2 to the end
     # perm = [all axes except axis1/axis2 in order] + [axis1, axis2]
-    arange = ov.range(ov.constant(0, dtype="i64"), rank_val, ov.constant(1, dtype="i64"))
-    mask1 = ov.equal(arange, axis1_node)
-    mask2 = ov.equal(arange, axis2_node)
-    not12 = ov.logical_not(ov.logical_or(mask1, mask2))
-    others = ov.squeeze(ov.non_zero(not12), [1])  # gather positions != axis1, axis2
-    perm = ov.concat([others, ov.reshape(axis1_node, [1]), ov.reshape(axis2_node, [1])], 0)
+    arange = ov_opset.range(
+        ov_opset.constant(0, dtype="i64"), rank_val, ov_opset.constant(1, dtype="i64")
+    )
+    mask1 = ov_opset.equal(arange, axis1_node)
+    mask2 = ov_opset.equal(arange, axis2_node)
+    not12 = ov_opset.logical_not(ov_opset.logical_or(mask1, mask2))
+    others = ov_opset.squeeze(
+        ov_opset.non_zero(not12), [1]
+    )  # gather positions != axis1, axis2
+    perm = ov_opset.concat(
+        [others, ov_opset.reshape(axis1_node, [1]), ov_opset.reshape(axis2_node, [1])], 0
+    )
 
-    x_perm = ov.transpose(x_node, perm)
-    permuted_shape = ov.shape_of(x_perm)
-    # last two dims
-    last2 = ov.gather(permuted_shape, ov.constant([-2, -1], dtype="i64"), ov.constant(0, dtype="i64"))
-    d1 = ov.gather(permuted_shape, ov.constant([-2], dtype="i64"), ov.constant(0, dtype="i64"))
-    d2 = ov.gather(permuted_shape, ov.constant([-1], dtype="i64"), ov.constant(0, dtype="i64"))
-    d1 = ov.squeeze(d1)  # scalar
-    d2 = ov.squeeze(d2)  # scalar
+    x_perm = ov_opset.transpose(x_node, perm)
+    permuted_shape = ov_opset.shape_of(x_perm)
+    d1 = ov_opset.gather(
+        permuted_shape,
+        ov_opset.constant([-2], dtype="i64"),
+        ov_opset.constant(0, dtype="i64"),
+    )
+    d2 = ov_opset.gather(
+        permuted_shape,
+        ov_opset.constant([-1], dtype="i64"),
+        ov_opset.constant(0, dtype="i64"),
+    )
+    d1 = ov_opset.squeeze(d1)  # scalar
+    d2 = ov_opset.squeeze(d2)  # scalar
 
     # start1 = max(0, offset), start2 = max(0, -offset)
-    zero = ov.constant(0, dtype="i64")
-    start1 = ov.maximum(zero, offset_const)
-    start2 = ov.maximum(zero, ov.negative(offset_const))
+    zero = ov_opset.constant(0, dtype="i64")
+    start1 = ov_opset.maximum(zero, offset_const)
+    start2 = ov_opset.maximum(zero, ov_opset.negative(offset_const))
 
     # L = min(d1 - start1, d2 - start2)
-    l1 = ov.subtract(d1, start1)
-    l2 = ov.subtract(d2, start2)
-    L = ov.minimum(l1, l2)
+    l1 = ov_opset.subtract(d1, start1)
+    l2 = ov_opset.subtract(d2, start2)
+    L = ov_opset.minimum(l1, l2)
 
     # r = range(0, L, 1)  -> shape [L]
-    r = ov.range(zero, L, ov.constant(1, dtype="i64"))
-    idx_row = ov.add(r, start1)
-    idx_col = ov.add(r, start2)
-    idx_row = ov.unsqueeze(idx_row, ov.constant(1, dtype="i64"))  # [L,1]
-    idx_col = ov.unsqueeze(idx_col, ov.constant(1, dtype="i64"))  # [L,1]
-    diag_idx = ov.concat([idx_row, idx_col], 1)  # [L,2]
+    r = ov_opset.range(zero, L, ov_opset.constant(1, dtype="i64"))
+    idx_row = ov_opset.add(r, start1)
+    idx_col = ov_opset.add(r, start2)
+    idx_row = ov_opset.unsqueeze(
+        idx_row, ov_opset.constant(1, dtype="i64")
+    )  # [L,1]
+    idx_col = ov_opset.unsqueeze(
+        idx_col, ov_opset.constant(1, dtype="i64")
+    )  # [L,1]
+    diag_idx = ov_opset.concat([idx_row, idx_col], 1)  # [L,2]
 
     # Broadcast indices to batch dims: target shape = (*batch, L, 2)
     # batch_rank = rank(x) - 2
-    two = ov.constant(2, dtype="i64")
-    batch_rank = ov.subtract(rank_val, two)
+    two = ov_opset.constant(2, dtype="i64")
+    batch_rank = ov_opset.subtract(rank_val, two)
     # build target shape: concat(permuted_shape[:batch_rank], [L, 2])
-    batch_shape = ov.slice(permuted_shape, ov.constant([0], dtype="i64"),
-                           ov.reshape(batch_rank, [1]), ov.constant([1], dtype="i64"))
-    target_shape = ov.concat([batch_shape, ov.reshape(L, [1]), ov.constant([2], dtype="i64")], 0)
-    bcast_idx = ov.broadcast(diag_idx, target_shape)
+    batch_shape = ov_opset.strided_slice(
+        permuted_shape,
+        begin=ov_opset.constant([0], dtype="i64"),
+        end=ov_opset.reshape(batch_rank, [1]),
+        strides=ov_opset.constant([1], dtype="i64"),
+        begin_mask=[0],
+        end_mask=[0],
+    )
+    target_shape = ov_opset.concat(
+        [batch_shape, ov_opset.reshape(L, [1]), ov_opset.constant([2], dtype="i64")], 0
+    )
+    bcast_idx = ov_opset.broadcast(diag_idx, target_shape)
 
     # GatherND with batch_dims = batch_rank
-    gathered = ov.gather_nd(x_perm, bcast_idx, batch_rank)
+    gathered = ov_opset.gather_nd(x_perm, bcast_idx, batch_rank)
 
     return OpenVINOKerasTensor(gathered)
 
