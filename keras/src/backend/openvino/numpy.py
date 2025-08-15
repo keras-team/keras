@@ -33,11 +33,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         ov_opset.add(ov_opset.constant(int(axis2), dtype="i64"), rank_val), rank_val
     )
 
-    # If axis1 == axis2, behavior should match numpy error; Keras tests don't hit this,
-    # so we skip explicit assert to keep graph-friendly.
 
-    # Build permutation to move axis1, axis2 to the end
-    # perm = [all axes except axis1/axis2 in order] + [axis1, axis2]
     arange = ov_opset.range(
         ov_opset.constant(0, dtype="i64"), rank_val, ov_opset.constant(1, dtype="i64")
     )
@@ -772,11 +768,6 @@ def deg2rad(x):
 def diag(x, k=0):
     raise NotImplementedError("`diag` is not supported with openvino backend")
 
-
-def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError(
-        "`diagonal` is not supported with openvino backend"
-    )
 
 
 def diff(a, n=1, axis=-1):
