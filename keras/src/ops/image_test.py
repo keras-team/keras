@@ -1,5 +1,6 @@
 import math
 
+import jax
 import numpy as np
 import pytest
 import scipy.ndimage
@@ -202,6 +203,21 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
+
+    def test_scale_and_translate(self):
+        images = KerasTensor([None, 20, 20, 3])
+        output_shape = (None, 25, 25, 3)
+        scale = KerasTensor([2])
+        translation = KerasTensor([2])
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(1, 2),
+            method="linear",
+        )
+        self.assertEqual(out.shape, output_shape)
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
@@ -461,6 +477,21 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([3, 20, 20])
         out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_scale_and_translate(self):
+        images = KerasTensor([20, 20, 3])
+        output_shape = (25, 25, 3)
+        scale = KerasTensor([2])
+        translation = KerasTensor([2])
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method="linear",
+        )
+        self.assertEqual(out.shape, output_shape)
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -1888,6 +1919,37 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(out[:, :1] == 0))
         self.assertTrue(np.all(out[:, -1:] == 0))
         self.assertTrue(np.all(out[1:3, 1:3] == 1))
+
+    @parameterized.named_parameters(
+        named_product(
+            method=["linear", "cubic", "lanczos3", "lanczos5"],
+            antialias=[True, False],
+        )
+    )
+    def test_scale_and_translate(self, method, antialias):
+        images = np.random.random((30, 30, 3)).astype("float32") * 255
+        scale = np.array([2.0, 2.0]).astype("float32")
+        translation = -(scale / 2.0 - 0.5)
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=(15, 15, 3),
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method=method,
+            antialias=antialias,
+        )
+        ref_out = jax.image.scale_and_translate(
+            images,
+            shape=(15, 15, 3),
+            spatial_dims=(0, 1),
+            scale=scale,
+            translation=translation,
+            method=method,
+            antialias=antialias,
+        )
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-4)
 
 
 class ImageOpsBehaviorTests(testing.TestCase):

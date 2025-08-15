@@ -653,9 +653,24 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def deg2rad(x):
-    raise NotImplementedError(
-        "`deg2rad` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    pi_over_180 = np.pi / 180.0
+
+    if x_type == Type.i64:
+        output_type = Type.f64
+    elif x_type.is_integral():
+        output_type = OPENVINO_DTYPES[config.floatx()]
+    else:
+        output_type = x_type
+
+    if x_type != output_type:
+        x = ov_opset.convert(x, output_type)
+
+    const_pi_over_180 = ov_opset.constant(pi_over_180, output_type).output(0)
+    result = ov_opset.multiply(x, const_pi_over_180).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def diag(x, k=0):
