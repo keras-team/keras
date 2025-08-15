@@ -1141,7 +1141,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() != "openvino",
-        reason=f"{backend.backend()} backend doesn't support dynamic slicing.",
+        reason="OpenVINO-specific test for slice operation shape preservation",
     )
     def test_slice_with_dynamic_indices_shape_preservation(self):
         from openvino import Type
