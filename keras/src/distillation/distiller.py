@@ -7,8 +7,8 @@ from keras.src.models.model import Model
 class Distiller(Model):
     """Knowledge Distillation model for transferring knowledge from teacher to student.
 
-    Knowledge distillation transfers knowledge from a large, complex model (teacher)
-    to a smaller, simpler model (student). The student learns from both ground truth
+    Knowledge distillation transfers knowledge from a large, complex model (`teacher`)
+    to a smaller, simpler model (`student`). The student learns from both ground truth
     labels and the teacher's predictions, often achieving better performance than
     training on labels alone.
 
@@ -22,10 +22,10 @@ class Distiller(Model):
 
     3. Distillation Process: The student learns from two sources:
        - Hard targets: Traditional supervised learning with ground truth labels
-       - Soft targets: The teacher's predictions, which contain rich information
+       - Soft targets: The teacher's predictions, which contain information
          about class relationships and confidence levels
 
-    4. Temperature Scaling: The teacher's logits are divided by a temperature
+    4. Temperature Scaling: The teacher's logits are divided by a `temperature`
        parameter before applying softmax, creating "softer" probability distributions
        that are easier for the student to learn from.
 
@@ -38,36 +38,36 @@ class Distiller(Model):
 
     Strategy Selection Guide:
 
-    - LogitsDistillation: Most common approach. Transfers final output knowledge.
-      Best for classification tasks where you want the student to learn the teacher's
+    - `LogitsDistillation`: Most common approach. Transfers final output knowledge.
+      Use for classification tasks where you want the student to learn the teacher's
       decision boundaries and confidence patterns.
 
-    - FeatureDistillation: Transfers intermediate representations. Best when teacher
+    - `FeatureDistillation`: Transfers intermediate representations. Use when teacher
       and student have similar architectures, as it helps the student learn better
       internal representations. Often leads to better performance than logits-only.
 
-    - MultiOutputDistillation: For complex models with multiple outputs (e.g.,
+    - `MultiOutputDistillation`: For models with multiple outputs (e.g.,
       object detection with classification and regression heads). Allows different
       distillation strategies for different outputs.
 
     Args:
-        teacher: A trained keras.Model that serves as the knowledge source.
+        teacher: A trained `keras.Model` that serves as the knowledge source.
             The teacher model is frozen during distillation.
-        student: A keras.Model to be trained through distillation. This model
+        student: A `keras.Model` to be trained through distillation. This model
             will learn from both ground truth labels and the teacher's predictions.
         strategy: Distillation strategy or list of strategies. Can be a single
-            strategy (e.g., LogitsDistillation) or a list of strategies for
+            strategy (e.g., `LogitsDistillation`) or a list of strategies for
             multi-strategy distillation.
         student_loss_weight: Weight for the student's supervised loss component.
             Must be between 0 and 1. Higher values emphasize ground truth labels,
             lower values emphasize teacher predictions. Defaults to 0.5.
         optimizer: Optimizer for training the student model. Can be a string
-            identifier (e.g., 'adam') or an optimizer instance.
+            identifier (e.g., `'adam'`) or an optimizer instance.
         student_loss: Loss function for the student's supervised learning component.
             Can be a string identifier or a loss function instance.
         metrics: List of metrics to track during training.
-        name: Name for the distiller model. Defaults to "distiller".
-        **kwargs: Additional keyword arguments passed to the parent Model class.
+        name: Name for the distiller model. Defaults to `"distiller"`.
+        **kwargs: Additional keyword arguments passed to the parent `Model` class.
 
     Example:
 
@@ -147,6 +147,15 @@ class Distiller(Model):
         self.teacher = teacher
         self.student = student
         self.student_loss_weight = student_loss_weight
+        
+        # Convert string loss to function if needed
+        if isinstance(student_loss, str):
+            self._student_loss = keras.losses.get(student_loss)
+        elif isinstance(student_loss, list):
+            # Handle multi-output loss functions
+            self._student_loss = [keras.losses.get(loss) if isinstance(loss, str) else loss for loss in student_loss]
+        else:
+            self._student_loss = student_loss
 
         # Handle strategy input - can be single strategy or list
         if isinstance(strategy, list):
@@ -217,65 +226,83 @@ class Distiller(Model):
         """Forward pass returns student predictions."""
         return self.student(inputs, training=training, **kwargs)
 
-    def _get_strategy_outputs(self, strategy, inputs, training=None):
-        """Get the appropriate outputs for a specific strategy.
-
-        For FeatureDistillation, this extracts intermediate features.
-        For other strategies, this returns the final model outputs.
-        """
-        from keras.src.distillation.strategies import FeatureDistillation
-
-        if isinstance(strategy, FeatureDistillation):
-            # Extract features from specified intermediate layers
-            teacher_features = strategy._get_teacher_features(
-                self.teacher, inputs
-            )
-            student_features = strategy._get_student_features(
-                self.student, inputs
-            )
-            return teacher_features, student_features
-        else:
-            # Use final model outputs for other strategies
-            teacher_outputs = self.teacher(inputs, training=False)
-            student_outputs = self.student(inputs, training=training)
-            return teacher_outputs, student_outputs
-
-    def _compute_loss(
+    def compute_loss(
         self, x=None, y=None, y_pred=None, sample_weight=None, training=None
     ):
         """Compute combined distillation loss.
 
         This method integrates distillation into Keras's standard training
-        workflow.
-        """
-        # Get student predictions
-        if y_pred is None:
-            y_pred = self(x, training=training)
+        workflow. Users can override this method to implement custom distillation
+        loss computation.
 
+        Args:
+            x: Input data.
+            y: Target data.
+            y_pred: Model predictions.
+            sample_weight: Sample weights.
+            training: Whether the model is in training mode.
+
+        Returns:
+            Combined loss tensor.
+
+        Example:
+            ```python
+            # Custom distillation loss by overriding compute_loss
+            class CustomDistiller(Distiller):
+                def compute_loss(self, x=None, y=None, y_pred=None, sample_weight=None, training=None):
+                    # Custom student loss computation
+                    student_loss = keras.losses.sparse_categorical_crossentropy(y, y_pred)
+                    
+                    # Custom distillation loss computation
+                    teacher_outputs = self.teacher(x, training=False)
+                    student_outputs = self.student(x, training=training)
+                    
+                    # Custom loss logic here
+                    distillation_loss = self._custom_distillation_loss(teacher_outputs, student_outputs)
+                    
+                    # Combine losses with custom weighting
+                    total_loss = 0.7 * student_loss + 0.3 * distillation_loss
+                    
+                    return total_loss
+                
+                def _custom_distillation_loss(self, teacher_outputs, student_outputs):
+                    # Implement custom distillation loss logic
+                    from keras import ops
+                    return ops.mean(ops.square(teacher_outputs - student_outputs))
+            ```
+        """
         # Normalize y_pred and y to lists for consistent handling
         if not isinstance(y_pred, (list, tuple)):
             y_pred = [y_pred]
         if y is not None and not isinstance(y, (list, tuple)):
             y = [y]
 
-        # Compute student loss
+        # Compute student loss using basic loss function
         student_loss = 0.0
         if self.student_loss_weight > 0.0 and y is not None:
-            # Try using compiled_loss first, fallback to default loss
-            if (
-                hasattr(self, "compiled_loss")
-                and self.compiled_loss is not None
-            ):
-                student_loss = self.compiled_loss(
-                    y,
-                    y_pred,
-                    sample_weight=sample_weight,
-                    regularization_losses=[],
-                )
+            # Use the configured loss function
+            if hasattr(self, '_student_loss'):
+                if isinstance(self._student_loss, list):
+                    # Multi-output loss
+                    if isinstance(y_pred, list) and len(y_pred) > 0:
+                        student_loss = sum(
+                            loss_fn(y[i], y_pred[i]) 
+                            for i, loss_fn in enumerate(self._student_loss)
+                            if i < len(y_pred)
+                        )
+                    else:
+                        # Single output with multi-output loss list
+                        student_loss = self._student_loss[0](y[0], y_pred[0])
+                else:
+                    # Single loss function
+                    if isinstance(y_pred, list) and len(y_pred) > 0:
+                        # For multi-output, use first output for student loss
+                        student_loss = self._student_loss(y[0], y_pred[0])
+                    else:
+                        student_loss = self._student_loss(y, y_pred)
             else:
-                # Fallback: use default loss function
+                # Fallback to default
                 if isinstance(y_pred, list) and len(y_pred) > 0:
-                    # For multi-output, use first output for student loss
                     student_loss = keras.losses.sparse_categorical_crossentropy(
                         y[0], y_pred[0]
                     )
@@ -287,16 +314,14 @@ class Distiller(Model):
         # Compute distillation loss
         distillation_loss = 0.0
         if self.student_loss_weight < 1.0:
+            # Get teacher outputs
+            teacher_outputs = self.teacher(x, training=False)
+            
             for strategy in self.strategies:
-                # Get appropriate outputs for this strategy
-                teacher_outputs, student_outputs = self._get_strategy_outputs(
-                    strategy, x, training=training
-                )
-
                 # Validate and compute loss for this strategy
-                strategy.validate_outputs(teacher_outputs, student_outputs)
+                strategy.validate_outputs(teacher_outputs, y_pred)
                 strategy_loss = strategy.compute_loss(
-                    teacher_outputs, student_outputs
+                    teacher_outputs, y_pred
                 )
                 distillation_loss += strategy_loss
 
@@ -312,6 +337,8 @@ class Distiller(Model):
         self.total_loss_tracker.update_state(total_loss)
 
         return total_loss
+
+
 
     def reset_metrics(self):
         """Reset all metrics."""

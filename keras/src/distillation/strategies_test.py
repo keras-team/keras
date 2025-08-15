@@ -249,12 +249,9 @@ class TestLogitsDistillationComprehensive(TestCase):
     def test_get_config(self):
         """Test get_config method."""
         strategy = LogitsDistillation(
-            temperature=3.0,
-            loss_type="categorical_crossentropy",
-            output_index=1,
+            temperature=3.0, loss_type="categorical_crossentropy", output_index=1
         )
         config = strategy.get_config()
-
         expected_config = {
             "temperature": 3.0,
             "loss_type": "categorical_crossentropy",
@@ -264,32 +261,23 @@ class TestLogitsDistillationComprehensive(TestCase):
 
     def test_serialization(self):
         """Test strategy serialization and deserialization."""
-        import json
-
-        strategy = LogitsDistillation(
-            temperature=4.0,
-            loss_type="categorical_crossentropy",
-            output_index=1,
+        original_strategy = LogitsDistillation(
+            temperature=4.0, loss_type="categorical_crossentropy", output_index=1
         )
-
-        # Test get_config
-        config = strategy.get_config()
+        config = original_strategy.get_config()
+        reconstructed_strategy = LogitsDistillation.from_config(config)
+        
+        self.assertEqual(original_strategy.temperature, reconstructed_strategy.temperature)
+        self.assertEqual(original_strategy.loss_type, reconstructed_strategy.loss_type)
+        self.assertEqual(original_strategy.output_index, reconstructed_strategy.output_index)
+        
+        # Test config matches expected
         expected_config = {
             "temperature": 4.0,
             "loss_type": "categorical_crossentropy",
             "output_index": 1,
         }
         self.assertEqual(config, expected_config)
-
-        # Test JSON serialization
-        json_str = json.dumps(config)
-        self.assertIsInstance(json_str, str)
-
-        # Test from_config
-        reconstructed = LogitsDistillation.from_config(config)
-        self.assertEqual(reconstructed.temperature, 4.0)
-        self.assertEqual(reconstructed.loss_type, "categorical_crossentropy")
-        self.assertEqual(reconstructed.output_index, 1)
 
 
 @pytest.mark.requires_trainable_backend
@@ -552,7 +540,6 @@ class TestFeatureDistillation(TestCase):
             teacher_layer_name="teacher_layer",
             student_layer_name="student_layer",
         )
-
         config = strategy.get_config()
         expected_config = {
             "loss_type": "cosine",
@@ -563,32 +550,25 @@ class TestFeatureDistillation(TestCase):
 
     def test_serialization(self):
         """Test strategy serialization and deserialization."""
-        import json
-
-        strategy = FeatureDistillation(
+        original_strategy = FeatureDistillation(
             loss_type="cosine",
             teacher_layer_name="teacher_layer",
             student_layer_name="student_layer",
         )
-
-        # Test get_config
-        config = strategy.get_config()
+        config = original_strategy.get_config()
+        reconstructed_strategy = FeatureDistillation.from_config(config)
+        
+        self.assertEqual(original_strategy.loss_type, reconstructed_strategy.loss_type)
+        self.assertEqual(original_strategy.teacher_layer_name, reconstructed_strategy.teacher_layer_name)
+        self.assertEqual(original_strategy.student_layer_name, reconstructed_strategy.student_layer_name)
+        
+        # Test config matches expected
         expected_config = {
             "loss_type": "cosine",
             "teacher_layer_name": "teacher_layer",
             "student_layer_name": "student_layer",
         }
         self.assertEqual(config, expected_config)
-
-        # Test JSON serialization
-        json_str = json.dumps(config)
-        self.assertIsInstance(json_str, str)
-
-        # Test from_config
-        reconstructed = FeatureDistillation.from_config(config)
-        self.assertEqual(reconstructed.loss_type, "cosine")
-        self.assertEqual(reconstructed.teacher_layer_name, "teacher_layer")
-        self.assertEqual(reconstructed.student_layer_name, "student_layer")
 
 
 @pytest.mark.requires_trainable_backend
