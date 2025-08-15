@@ -15,11 +15,14 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
-from .core import _convert_to_node
+import numpy as np
+from openvino.runtime import opset13 as ov
+
+
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
     """OpenVINO backend decomposition for keras.ops.diagonal."""
-    x_node = _convert_to_node(x)  # -> ov.Node
+    x_node = ov.constant(x)  # -> ov.Node
     offset_const = ov_opset.constant(int(offset), dtype="i64")
 
     # rank & normalize axes
