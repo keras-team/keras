@@ -834,8 +834,9 @@ def _retrieve_class_or_fn(
                 )
 
     raise TypeError(
-        f"Could not locate {obj_type} '{name}'. "
-        "Make sure custom classes are decorated with "
-        "`@keras.saving.register_keras_serializable()`. "
-        f"Full object config: {full_config}"
+        f"Could not locate {obj_type} '{name}'. Make sure custom classes and "
+        "functions are decorated with "
+        "`@keras.saving.register_keras_serializable()`. If they are already "
+        "decorated, make sure they are all imported so that the decorator is "
+        f"run before trying to load them. Full object config: {full_config}"
     )
