@@ -7,13 +7,20 @@ class BaseDistillationStrategy:
     """Base class for distillation strategies.
 
     Distillation strategies define how to compute the distillation loss
-    between teacher and student outputs.
+    between teacher and student outputs. Each strategy implements a specific
+    approach to knowledge transfer, from simple logits matching to complex
+    multi-output distillation.
+
     To create custom distillation strategies, subclass this class and
     override the compute_loss method.
     """
 
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute distillation loss between teacher and student outputs.
+
+        This method should implement the specific distillation logic for
+        transferring knowledge from teacher to student.
+
         Args:
             teacher_outputs: Outputs from the teacher model. Can be a single
                 tensor or a list/tuple of tensors for multi-output models.
@@ -27,6 +34,10 @@ class BaseDistillationStrategy:
 
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that teacher and student outputs are compatible.
+
+        This method ensures that the outputs from teacher and student models
+        are compatible for the specific distillation strategy. It should check
+        shapes, dimensions, and other requirements.
 
         Args:
             teacher_outputs: Outputs from the teacher model.
@@ -50,29 +61,69 @@ class BaseDistillationStrategy:
 
 @keras_export("keras.distillation.LogitsDistillation")
 class LogitsDistillation(BaseDistillationStrategy):
-    """Logits distillation strategy using Keras built-in loss functions.
+    """Distillation strategy that transfers knowledge from final model outputs (logits).
 
-    This strategy distills knowledge using the logits (pre-softmax outputs)
-    from teacher and student models.
+    This strategy applies temperature scaling to the teacher's logits before computing
+    the loss between teacher and student predictions. It's the most common approach
+    for knowledge distillation.
+
+    How Logits Distillation Works:
+
+    1. Temperature Scaling: The teacher's logits are divided by a temperature
+       parameter (typically 3-5) before applying softmax. This creates "softer"
+       probability distributions that reveal relationships between classes.
+
+    2. Loss Computation: The loss is computed between the temperature-scaled
+       teacher logits and student logits using either KL divergence or categorical
+       crossentropy.
+
+    When to Use Logits Distillation:
+
+    - General Classification: Works well for most classification tasks
+    - Model Compression: Effective for reducing model size while maintaining accuracy
+    - Transfer Learning: Good for leveraging knowledge from pre-trained models
+    - Ensemble Distillation: Can combine multiple teacher models
+
+    Temperature Guidelines:
+
+    - Low Temperature (1-2): Sharp distributions, similar to hard labels
+    - Medium Temperature (3-5): Balanced softness, most commonly used
+    - High Temperature (6-10): Very soft distributions, reveals subtle relationships
 
     Args:
         temperature: Temperature for softmax scaling. Higher values produce
-            softer probability distributions. If None, will use the default
-            temperature from the Distiller. Defaults to None.
+            softer probability distributions that are easier for the student to learn.
+            Typical values range from 3-5. Defaults to 3.0.
         loss_type: Type of loss function to use. Options:
-            - "kl_divergence": KL divergence using keras.losses.kl_divergence
-            - "categorical_crossentropy": Categorical crossentropy using
-              keras.losses.categorical_crossentropy
+            - "kl_divergence": KL divergence between teacher and student distributions
+            - "categorical_crossentropy": Crossentropy with teacher as target
         output_index: Index of the output to use for multi-output models.
             Defaults to 0.
+
+    Example:
+
+    ```python
+    # Basic logits distillation
+    strategy = LogitsDistillation(temperature=3.0)
+
+    # With categorical crossentropy loss
+    strategy = LogitsDistillation(
+        temperature=4.0,
+        loss_type="categorical_crossentropy"
+    )
+
+    # For multi-output models
+    strategy = LogitsDistillation(
+        temperature=3.0,
+        output_index=1  # Use second output
+    )
+    ```
     """
 
     def __init__(
-        self, temperature=None, loss_type="kl_divergence", output_index=0
+        self, temperature=3.0, loss_type="kl_divergence", output_index=0
     ):
-        # If no temperature provided, use sentinel value for Distiller detection
-        self.temperature = temperature if temperature is not None else 3.0
-        self._temperature_explicitly_set = temperature is not None
+        self.temperature = temperature
         self.loss_type = loss_type
         self.output_index = output_index
 
@@ -80,11 +131,6 @@ class LogitsDistillation(BaseDistillationStrategy):
         valid_loss_types = ["kl_divergence", "categorical_crossentropy"]
         if loss_type not in valid_loss_types:
             raise ValueError(f"loss_type must be one of {valid_loss_types}")
-
-    def set_default_temperature(self, default_temperature):
-        """Set the default temperature if none was explicitly provided."""
-        if not self._temperature_explicitly_set:
-            self.temperature = default_temperature
 
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for logits distillation."""
@@ -191,24 +237,89 @@ class LogitsDistillation(BaseDistillationStrategy):
 
 @keras_export("keras.distillation.FeatureDistillation")
 class FeatureDistillation(BaseDistillationStrategy):
-    """Feature distillation strategy using intermediate layer features.
+    """Feature distillation strategy using intermediate layer representations.
 
-    This strategy distills intermediate features from teacher to student,
-    not just the final outputs. It creates feature extraction models
-    to extract outputs from specified intermediate layers.
+    Feature distillation transfers knowledge from intermediate layers of the
+    teacher model to corresponding layers of the student model. This approach
+    helps the student learn better internal representations and often leads
+    to superior performance compared to logits-only distillation.
 
-    Note: If teacher and student features have different shapes, you may need
-    to add alignment layers or use models with compatible intermediate
-    feature dimensions.
+    How Feature Distillation Works:
+
+    1. Layer Selection: Specify which intermediate layers from teacher and
+       student models to use for distillation. These layers should have
+       compatible architectures or similar semantic meaning.
+
+    2. Feature Extraction: Extract activations from the specified layers
+       during forward pass. The teacher features are computed with training=False
+       (frozen), while student features are computed with training=True.
+
+    3. Loss Computation: Compute loss between teacher and student features
+       using either MSE (for identical shapes) or cosine similarity (for
+       different shapes).
+
+    When to Use Feature Distillation:
+
+    - Similar Architectures: When teacher and student have similar layer
+      structures (e.g., both are CNNs with similar depths)
+    - Performance Improvement: Often leads to better student performance
+      than logits-only distillation
+    - Representation Learning: Helps student learn better internal features
+    - Multi-Scale Distillation: Can distill features from multiple layers
+      simultaneously
+
+    Layer Selection Guidelines:
+
+    - Early Layers: Capture low-level features (edges, textures)
+    - Middle Layers: Capture mid-level features (shapes, patterns)
+    - Late Layers: Capture high-level features (semantic concepts)
+    - Compatible Sizes: Choose layers with similar output dimensions
+    - Semantic Alignment: Match layers that serve similar functions
+
+    Loss Type Selection:
+
+    - MSE: Use when teacher and student features have identical shapes.
+      Provides direct feature matching.
+    - Cosine Similarity: Use when features have different shapes but
+      same feature dimension (last axis). Focuses on feature direction
+      rather than magnitude.
 
     Args:
         loss_type: Type of loss function to use. Options:
-            - "mse": Mean squared error using keras.losses.mean_squared_error
-            - "cosine": Cosine similarity using keras.losses.cosine_similarity
+            - "mse": Mean squared error between teacher and student features
+            - "cosine": Cosine similarity between feature vectors
         teacher_layer_name: Name of the teacher layer to extract features from.
             If None, uses the final output. Defaults to None.
         student_layer_name: Name of the student layer to extract features from.
             If None, uses the final output. Defaults to None.
+
+    Examples:
+
+    ```python
+    # Basic feature distillation from final outputs
+    strategy = FeatureDistillation(loss_type="mse")
+
+    # Distill from specific layers with compatible shapes
+    strategy = FeatureDistillation(
+        loss_type="mse",
+        teacher_layer_name="dense_1",
+        student_layer_name="dense_1"
+    )
+
+    # Use cosine similarity for different feature sizes
+    strategy = FeatureDistillation(
+        loss_type="cosine",
+        teacher_layer_name="conv2d_2",
+        student_layer_name="conv2d_1"
+    )
+
+    # Distill from final outputs (equivalent to logits distillation)
+    strategy = FeatureDistillation(
+        loss_type="mse",
+        teacher_layer_name=None,  # Final output
+        student_layer_name=None   # Final output
+    )
+    ```
     """
 
     def __init__(
@@ -457,18 +568,90 @@ class FeatureDistillation(BaseDistillationStrategy):
 
 @keras_export("keras.distillation.MultiOutputDistillation")
 class MultiOutputDistillation(BaseDistillationStrategy):
-    """Multi-output distillation strategy.
+    """Multi-output distillation strategy for complex models.
 
-    Multi-output distillation strategy applies distillation to multiple
-    outputs. This strategy allows different distillation strategies to be
-    applied to different outputs of multi-output models.
+    Multi-output distillation handles models with multiple outputs, such as
+    object detection models (classification + regression), multi-task learning
+    models, or any model with multiple prediction heads. This strategy allows
+    different distillation approaches for different outputs.
+
+    How Multi-Output Distillation Works:
+
+    1. Output Mapping: Map each output index to a specific distillation
+       strategy. Different outputs can use different strategies based on their
+       nature (classification vs regression, different loss functions, etc.).
+
+    2. Strategy Application: Apply the appropriate strategy to each output
+       pair (teacher output i → student output i).
+
+    3. Loss Combination: Combine the losses from all outputs using
+       configurable weights. This allows prioritizing certain outputs over others.
+
+    When to Use Multi-Output Distillation:
+
+    - Object Detection: Models with classification and bounding box regression
+    - Multi-Task Learning: Models that predict multiple related tasks
+    - Complex Architectures: Models with multiple prediction heads
+    - Different Output Types: When outputs have different characteristics
+      (e.g., categorical vs continuous)
+
+    Output Strategy Selection:
+
+    - Classification Outputs: Use LogitsDistillation with appropriate temperature
+    - Regression Outputs: Use LogitsDistillation with lower temperature or
+      FeatureDistillation with MSE loss
+    - Feature Outputs: Use FeatureDistillation to transfer intermediate representations
+    - Mixed Types: Combine different strategies for different outputs
+
+    Weight Configuration:
+
+    - Equal Weights: All outputs contribute equally to the total loss
+    - Task-Specific Weights: Weight outputs based on task importance
+    - Loss-Scale Weights: Adjust weights to balance different loss scales
+    - Performance-Based: Weight outputs based on their impact on final performance
 
     Args:
         output_strategies: Dict mapping output indices to distillation
-            strategies.
-            Each strategy will be applied to the corresponding output.
+            strategies. Each strategy will be applied to the corresponding output.
+            Example: {0: LogitsDistillation(), 1: FeatureDistillation()}
         weights: Dict mapping output indices to weights for combining losses.
             If None, all outputs are weighted equally. Defaults to None.
+            Example: {0: 1.0, 1: 0.5}  # First output twice as important
+
+    Examples:
+
+    ```python
+    # Object detection distillation (classification + regression)
+    strategy = MultiOutputDistillation(
+        output_strategies={
+            0: LogitsDistillation(temperature=3.0, output_index=0),  # Classification
+            1: LogitsDistillation(temperature=1.0, output_index=1)   # Regression
+        },
+        weights={0: 1.0, 1: 0.5}  # Weight classification more heavily
+    )
+
+    # Multi-task learning with different strategies
+    strategy = MultiOutputDistillation(
+        output_strategies={
+            0: LogitsDistillation(temperature=4.0, output_index=0),  # Task 1
+            1: FeatureDistillation(
+                loss_type="mse",
+                teacher_layer_name="dense_1",
+                student_layer_name="dense_1"
+            )  # Task 2
+        }
+    )
+
+    # Equal weighting for all outputs
+    strategy = MultiOutputDistillation(
+        output_strategies={
+            0: LogitsDistillation(temperature=3.0, output_index=0),
+            1: LogitsDistillation(temperature=3.0, output_index=1),
+            2: LogitsDistillation(temperature=3.0, output_index=2)
+        }
+        # weights=None (defaults to equal weights)
+    )
+    ```
     """
 
     def __init__(self, output_strategies, weights=None):

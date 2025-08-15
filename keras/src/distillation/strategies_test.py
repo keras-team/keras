@@ -110,7 +110,6 @@ class TestLogitsDistillationComprehensive(TestCase):
         self.assertEqual(strategy.temperature, 3.0)  # Default fallback
         self.assertEqual(strategy.loss_type, "kl_divergence")
         self.assertEqual(strategy.output_index, 0)
-        self.assertFalse(strategy._temperature_explicitly_set)
 
         # Test custom initialization
         strategy = LogitsDistillation(
@@ -121,32 +120,21 @@ class TestLogitsDistillationComprehensive(TestCase):
         self.assertEqual(strategy.temperature, 5.0)
         self.assertEqual(strategy.loss_type, "categorical_crossentropy")
         self.assertEqual(strategy.output_index, 1)
-        self.assertTrue(strategy._temperature_explicitly_set)
 
     def test_invalid_loss_type(self):
         """Test that invalid loss types raise ValueError."""
         with self.assertRaises(ValueError):
             LogitsDistillation(loss_type="invalid_loss")
 
-    def test_default_temperature_mechanism(self):
-        """Test that default temperature can be set from Distiller."""
-        # Create strategy without explicit temperature
-        strategy = LogitsDistillation()
-        self.assertEqual(strategy.temperature, 3.0)
-        self.assertFalse(strategy._temperature_explicitly_set)
-
-        # Set default temperature
-        strategy.set_default_temperature(4.0)
+    def test_temperature_configuration(self):
+        """Test that temperature is properly configured."""
+        # Create strategy with explicit temperature
+        strategy = LogitsDistillation(temperature=4.0)
         self.assertEqual(strategy.temperature, 4.0)
 
-        # Create strategy with explicit temperature
-        strategy_explicit = LogitsDistillation(temperature=2.0)
-        self.assertEqual(strategy_explicit.temperature, 2.0)
-        self.assertTrue(strategy_explicit._temperature_explicitly_set)
-
-        # Try to set default - should not change
-        strategy_explicit.set_default_temperature(4.0)
-        self.assertEqual(strategy_explicit.temperature, 2.0)  # Unchanged
+        # Create strategy with default temperature
+        strategy_default = LogitsDistillation()
+        self.assertEqual(strategy_default.temperature, 3.0)
 
     def test_logits_distillation_loss_kl_divergence(self):
         """Test logits distillation loss computation with KL divergence."""
@@ -773,19 +761,20 @@ class TestMultiOutputDistillation(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=[multi_strategy],
-            alpha=0.5,
-            temperature=2.0,
-        )
-
-        distiller.compile(
+            strategy=[multi_strategy],
+            student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss=[
+            student_loss=[
                 "sparse_categorical_crossentropy",
                 "sparse_categorical_crossentropy",
             ],
-            steps_per_execution=1,
+            metrics=[
+                ["accuracy"],  # Metrics for output 0
+                ["accuracy"]   # Metrics for output 1
+            ]
         )
+
+
 
         # Create test data for multi-output model
         x = np.random.random((20, 5)).astype(np.float32)

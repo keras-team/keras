@@ -45,23 +45,18 @@ class TestDistiller(TestCase):
         self.teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         self.student = SimpleStudent(vocab_size=10, hidden_dim=16)
 
-        # Create distillation strategy
-        self.strategy = LogitsDistillation()
+        # Create distillation strategy with explicit temperature
+        self.strategy = LogitsDistillation(temperature=2.0)
 
         # Create distiller
         self.distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=[self.strategy],
-            alpha=0.5,
-            temperature=2.0,
-        )
-
-        # Compile distiller (avoid additional metrics for JAX sharding issues)
-        self.distiller.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss="sparse_categorical_crossentropy",
-            steps_per_execution=1,
+            strategy=self.strategy,
+            student_loss_weight=0.5,
+            optimizer="adam",
+            student_loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
         )
 
         # Create test data
@@ -76,16 +71,19 @@ class TestDistiller(TestCase):
         # Check that student is trainable
         self.assertTrue(self.student.trainable)
 
-        # Check alpha and temperature
-        self.assertEqual(self.distiller.alpha, 0.5)
-        self.assertEqual(self.distiller.temperature, 2.0)
+        # Check student_loss_weight
+        self.assertEqual(self.distiller.student_loss_weight, 0.5)
 
         # Check strategies
         self.assertLen(self.distiller.strategies, 1)
         self.assertIsInstance(self.distiller.strategies[0], LogitsDistillation)
 
-        # Check that strategy received the default temperature
+        # Check that strategy has the correct temperature
         self.assertEqual(self.distiller.strategies[0].temperature, 2.0)
+
+        # Check that model is compiled
+        self.assertIsNotNone(self.distiller.optimizer)
+        self.assertIsNotNone(self.distiller.compiled_loss)
 
     def test_distiller_call(self):
         """Test Distiller call method (inference)."""
@@ -116,9 +114,10 @@ class TestDistiller(TestCase):
         Distiller(
             teacher=new_teacher,
             student=self.student,
-            strategies=[self.strategy],
-            alpha=0.5,
-            temperature=2.0,
+            strategy=self.strategy,
+            student_loss_weight=0.5,
+            optimizer=keras.optimizers.Adam(),
+            student_loss="sparse_categorical_crossentropy",
         )
 
         # Teacher should now be frozen
@@ -131,44 +130,36 @@ class TestDistiller(TestCase):
             Distiller(
                 teacher="not_a_model",
                 student=self.student,
-                strategies=[self.strategy],
+                strategy=self.strategy,
             )
 
         with self.assertRaises(ValueError):
             Distiller(
                 teacher=self.teacher,
                 student="not_a_model",
-                strategies=[self.strategy],
+                strategy=self.strategy,
             )
 
-    def test_alpha_weighting(self):
-        """Test that alpha correctly weights student vs distillation loss."""
-        # Test with alpha = 0.0 (only distillation loss)
+    def test_student_loss_weighting(self):
+        """Test that student_loss_weight correctly weights student vs distillation loss."""
+        # Test with student_loss_weight = 0.0 (only distillation loss)
         distiller_0 = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=[self.strategy],
-            alpha=0.0,
-            temperature=2.0,
-        )
-        distiller_0.compile(
+            strategy=self.strategy,
+            student_loss_weight=0.0,
             optimizer=keras.optimizers.Adam(),
-            loss="sparse_categorical_crossentropy",
-            steps_per_execution=1,
+            student_loss="sparse_categorical_crossentropy",
         )
 
-        # Test with alpha = 1.0 (only student loss)
+        # Test with student_loss_weight = 1.0 (only student loss)
         distiller_1 = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=[self.strategy],
-            alpha=1.0,
-            temperature=2.0,
-        )
-        distiller_1.compile(
+            strategy=self.strategy,
+            student_loss_weight=1.0,
             optimizer=keras.optimizers.Adam(),
-            loss="sparse_categorical_crossentropy",
-            steps_per_execution=1,
+            student_loss="sparse_categorical_crossentropy",
         )
 
         # Test that they can be used for training without errors
@@ -200,16 +191,11 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=[LogitsDistillation(temperature=2.0)],
-            alpha=0.5,
-            temperature=2.0,
-        )
-
-        # Compile (avoid additional metrics to prevent JAX sharding issues)
-        distiller.compile(
+            strategy=self.strategy,
+            student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss="sparse_categorical_crossentropy",
-            steps_per_execution=1,
+            student_loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
         )
 
         # Train the model
@@ -267,19 +253,14 @@ class TestDistiller(TestCase):
         teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         student = SimpleStudent(vocab_size=10, hidden_dim=16)
 
-        # Create and compile distiller
+        # Create distiller
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=[LogitsDistillation(temperature=2.0)],
-            alpha=0.5,
-            temperature=2.0,
-        )
-
-        distiller.compile(
+            strategy=self.strategy,
+            student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss="sparse_categorical_crossentropy",
-            steps_per_execution=1,
+            student_loss="sparse_categorical_crossentropy",
         )
 
         # Train briefly
@@ -306,19 +287,14 @@ class TestDistiller(TestCase):
         teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         student = SimpleStudent(vocab_size=10, hidden_dim=16)
 
-        # Create and compile distiller
+        # Create distiller
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=[LogitsDistillation(temperature=2.0)],
-            alpha=0.5,
-            temperature=2.0,
-        )
-
-        distiller.compile(
+            strategy=self.strategy,
+            student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            loss="sparse_categorical_crossentropy",
-            steps_per_execution=1,
+            student_loss="sparse_categorical_crossentropy",
         )
 
         # Make predictions
@@ -339,8 +315,10 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=[LogitsDistillation()],
-            alpha=0.5,
+            strategy=self.strategy,
+            student_loss_weight=0.5,
+            optimizer=keras.optimizers.Adam(),
+            student_loss="sparse_categorical_crossentropy",
         )
 
         # Test that get_student_model returns the same as direct access
@@ -397,10 +375,10 @@ class TestDistiller(TestCase):
         original_distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=strategies,
-            alpha=0.7,
-            temperature=4.0,
-            student_loss_fn=keras.losses.SparseCategoricalCrossentropy(),
+            strategy=strategies,
+            student_loss_weight=0.7,
+            optimizer=keras.optimizers.Adam(),
+            student_loss="sparse_categorical_crossentropy",
         )
 
         # Build the models by calling them
@@ -414,10 +392,8 @@ class TestDistiller(TestCase):
         required_keys = [
             "teacher",
             "student",
-            "strategies",
-            "student_loss_fn",
-            "alpha",
-            "temperature",
+            "strategy",
+            "student_loss_weight",
             "input_mapping",
             "output_mapping",
         ]
@@ -432,8 +408,7 @@ class TestDistiller(TestCase):
         reconstructed_distiller = Distiller.from_config(config)
 
         # Verify reconstruction
-        self.assertEqual(reconstructed_distiller.alpha, 0.7)
-        self.assertEqual(reconstructed_distiller.temperature, 4.0)
+        self.assertEqual(reconstructed_distiller.student_loss_weight, 0.7)
         self.assertEqual(len(reconstructed_distiller.strategies), 2)
 
         # Verify strategy types
@@ -454,7 +429,7 @@ class TestDistiller(TestCase):
 
         # Test model saving and loading (full integration test)
         with tempfile.TemporaryDirectory() as temp_dir:
-            model_path = os.path.join(temp_dir, "distiller_model")
+            model_path = os.path.join(temp_dir, "distiller_model.keras")
 
             # Compile original distiller
             original_distiller.compile(
@@ -473,8 +448,7 @@ class TestDistiller(TestCase):
             self.assertEqual(loaded_output.shape, (2, 10))
 
             # Verify parameters are preserved
-            self.assertEqual(loaded_distiller.alpha, 0.7)
-            self.assertEqual(loaded_distiller.temperature, 4.0)
+            self.assertEqual(loaded_distiller.student_loss_weight, 0.7)
 
         # The core serialization functionality is working
         self.assertTrue(True, "Distiller serialization test passed")
