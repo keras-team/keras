@@ -61,11 +61,11 @@ class BaseDistillationStrategy:
 
 @keras_export("keras.distillation.LogitsDistillation")
 class LogitsDistillation(BaseDistillationStrategy):
-    """Distillation strategy that transfers knowledge from final model outputs (logits).
+    """Distillation strategy that transfers knowledge from final model outputs.
 
-    This strategy applies temperature scaling to the teacher's logits before computing
-    the loss between teacher and student predictions. It's the most common approach
-    for knowledge distillation.
+    This strategy applies temperature scaling to the teacher's logits before
+    computing the loss between teacher and student predictions. It's the most
+    common approach for knowledge distillation.
 
     How Logits Distillation Works:
 
@@ -74,13 +74,14 @@ class LogitsDistillation(BaseDistillationStrategy):
        probability distributions that reveal relationships between classes.
 
     2. Loss Computation: The loss is computed between the temperature-scaled
-       teacher logits and student logits using either KL divergence or categorical
-       crossentropy.
+       teacher logits and student logits using either KL divergence or
+       categorical crossentropy.
 
     When to Use Logits Distillation:
 
     - General Classification: Works well for most classification tasks
-    - Model Compression: Effective for reducing model size while maintaining accuracy
+    - Model Compression: Effective for reducing model size while maintaining
+      accuracy
     - Transfer Learning: Good for leveraging knowledge from pre-trained models
     - Ensemble Distillation: Can combine multiple teacher models
 
@@ -88,14 +89,16 @@ class LogitsDistillation(BaseDistillationStrategy):
 
     - Low Temperature (1-2): Sharp distributions, similar to hard labels
     - Medium Temperature (3-5): Balanced softness, most commonly used
-    - High Temperature (6-10): Very soft distributions, reveals subtle relationships
+    - High Temperature (6-10): Very soft distributions, reveals subtle
+      relationships
 
     Args:
         temperature: Temperature for softmax scaling. Higher values produce
-            softer probability distributions that are easier for the student to learn.
-            Typical values range from 3-5. Defaults to 3.0.
+            softer probability distributions that are easier for the student to
+            learn. Typical values range from 3-5. Defaults to 3.0.
         loss_type: Type of loss function to use. Options:
-            - `"kl_divergence"`: KL divergence between teacher and student distributions
+            - `"kl_divergence"`: KL divergence between teacher and student
+              distributions
             - `"categorical_crossentropy"`: Crossentropy with teacher as target
         output_index: Index of the output to use for multi-output models.
             Defaults to 0.
@@ -119,16 +122,18 @@ class LogitsDistillation(BaseDistillationStrategy):
             # Get the outputs to distill
             teacher_logits = teacher_outputs[self.output_index]
             student_logits = student_outputs[self.output_index]
-            
+
             # Apply temperature scaling
             teacher_logits = teacher_logits / self.temperature
             student_logits = student_logits / self.temperature
-            
+
             # Custom loss computation
             teacher_probs = ops.softmax(teacher_logits, axis=-1)
             student_probs = ops.softmax(student_logits, axis=-1)
-            return ops.mean(keras.losses.kl_divergence(teacher_probs, student_probs))
-    
+            return ops.mean(
+                keras.losses.kl_divergence(teacher_probs, student_probs)
+            )
+
     strategy = CustomLogitsDistillation(temperature=3.0)
 
     # For multi-output models
@@ -153,8 +158,8 @@ class LogitsDistillation(BaseDistillationStrategy):
         # Validate loss_type
         if loss_type not in ["kl_divergence", "categorical_crossentropy"]:
             raise ValueError(
-                f"loss_type must be one of ['kl_divergence', 'categorical_crossentropy'], "
-                f"got {loss_type}"
+                f"loss_type must be one of ['kl_divergence', "
+                f"'categorical_crossentropy'], got {loss_type}"
             )
 
     def validate_outputs(self, teacher_outputs, student_outputs):
@@ -276,8 +281,9 @@ class FeatureDistillation(BaseDistillationStrategy):
        compatible architectures or similar semantic meaning.
 
     2. Feature Extraction: Extract activations from the specified layers
-       during forward pass. The teacher features are computed with `training=False`
-       (frozen), while student features are computed with `training=True`.
+       during forward pass. The teacher features are computed with
+       `training=False` (frozen), while student features are computed with
+       `training=True`.
 
     3. Loss Computation: Compute loss between teacher and student features
        using either MSE (for identical shapes) or cosine similarity (for
@@ -331,10 +337,10 @@ class FeatureDistillation(BaseDistillationStrategy):
             # Use first output by default
             teacher_features = teacher_outputs[0]
             student_features = student_outputs[0]
-            
+
             # Custom L1 loss for feature distillation
             return ops.mean(ops.abs(teacher_features - student_features))
-    
+
     strategy = CustomFeatureDistillation(
         teacher_layer_name="dense_1",
         student_layer_name="dense_1"
@@ -630,71 +636,84 @@ class MultiOutputDistillation(BaseDistillationStrategy):
        pair (teacher output i → student output i).
 
     3. Loss Combination: Combine the losses from all outputs using
-       configurable weights. This allows prioritizing certain outputs over others.
+       configurable weights. This allows prioritizing certain outputs over
+       others.
 
     When to Use Multi-Output Distillation:
 
-    - Object Detection: Models with classification and bounding box regression
-    - Multi-Task Learning: Models that predict multiple related tasks
-    - Multiple Prediction Heads: Models with multiple outputs
-    - Different Output Types: When outputs have different characteristics
-      (e.g., categorical vs continuous)
+    - Multi-Task Models: Models with multiple outputs (classification +
+      regression)
+    - Object Detection: Models with classification and bounding box outputs
+    - Segmentation: Models with classification and mask outputs
+    - Custom Architectures: Any model with multiple distinct outputs
 
     Output Strategy Selection:
 
-    - Classification Outputs: Use `LogitsDistillation` with appropriate temperature
+    - Classification Outputs: Use `LogitsDistillation` with appropriate
+      temperature
     - Regression Outputs: Use `LogitsDistillation` with lower temperature or
       `FeatureDistillation` with MSE loss
-    - Feature Outputs: Use `FeatureDistillation` to transfer intermediate representations
+    - Feature Outputs: Use `FeatureDistillation` to transfer intermediate
+      representations
     - Mixed Types: Combine different strategies for different outputs
-    - Custom Losses: Each strategy can be subclassed to override `compute_loss` method
+    - Custom Losses: Each strategy can be subclassed to override
+      `compute_loss` method
 
     Weight Configuration:
 
-    - Equal Weights: All outputs contribute equally to the total loss
+    - Equal Weights: Default behavior, all outputs weighted equally
     - Task-Specific Weights: Weight outputs based on task importance
     - Loss-Scale Weights: Adjust weights to balance different loss scales
-    - Performance-Based: Weight outputs based on their impact on final performance
+    - Performance-Based: Weight outputs based on their impact on final
+      performance
 
     Args:
         output_strategies: Dict mapping output indices to distillation
-            strategies. Each strategy will be applied to the corresponding output.
-            Example: `{0: LogitsDistillation(), 1: FeatureDistillation()}`
+            strategies. Each strategy will be applied to the corresponding
+            output. Example: `{0: LogitsDistillation(), 1:
+            FeatureDistillation()}`
         weights: Dict mapping output indices to weights for combining losses.
-            If None, all outputs are weighted equally. Defaults to None.
-            Example: `{0: 1.0, 1: 0.5}`  # First output twice as important
+            Defaults to equal weights for all outputs. Example:
+            `{0: 1.0, 1: 0.5}`
 
-    Examples:
+    Example:
 
     ```python
-    # Object detection distillation (classification + regression)
+    # Multi-output distillation for object detection
     strategy = MultiOutputDistillation(
         output_strategies={
-            0: LogitsDistillation(temperature=3.0, output_index=0),  # Classification
-            1: LogitsDistillation(temperature=1.0, output_index=1)   # Regression
+            0: LogitsDistillation(temperature=3.0, output_index=0),
+            1: LogitsDistillation(temperature=1.0, output_index=1)
         },
         weights={0: 1.0, 1: 0.5}  # Weight classification more heavily
     )
 
-    # Multi-task learning with custom strategies
-    class CustomLogitsDistillation(LogitsDistillation):
+    # Custom multi-output strategy
+    class CustomMultiOutputDistillation(MultiOutputDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
             from keras import ops
-            teacher_logits = teacher_outputs[self.output_index]
-            student_logits = student_outputs[self.output_index]
-            teacher_logits = teacher_logits / self.temperature
-            student_logits = student_logits / self.temperature
+            # Get the outputs to distill
+            teacher_logits = teacher_outputs[0]
+            student_logits = student_outputs[0]
+
+            # Apply temperature scaling
+            teacher_logits = teacher_logits / 3.0
+            student_logits = student_logits / 3.0
+
+            # Custom loss computation
             teacher_probs = ops.softmax(teacher_logits, axis=-1)
             student_probs = ops.softmax(student_logits, axis=-1)
-            return ops.mean(keras.losses.kl_divergence(teacher_probs, student_probs))
-    
+            return ops.mean(
+                keras.losses.kl_divergence(teacher_probs, student_probs)
+            )
+
     class CustomFeatureDistillation(FeatureDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
             from keras import ops
             teacher_features = teacher_outputs[0]
             student_features = student_outputs[0]
             return ops.mean(ops.abs(teacher_features - student_features))
-    
+
     strategy = MultiOutputDistillation(
         output_strategies={
             0: CustomLogitsDistillation(temperature=4.0, output_index=0),

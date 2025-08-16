@@ -249,7 +249,9 @@ class TestLogitsDistillationComprehensive(TestCase):
     def test_get_config(self):
         """Test get_config method."""
         strategy = LogitsDistillation(
-            temperature=3.0, loss_type="categorical_crossentropy", output_index=1
+            temperature=3.0,
+            loss_type="categorical_crossentropy",
+            output_index=1,
         )
         config = strategy.get_config()
         expected_config = {
@@ -262,15 +264,23 @@ class TestLogitsDistillationComprehensive(TestCase):
     def test_serialization(self):
         """Test strategy serialization and deserialization."""
         original_strategy = LogitsDistillation(
-            temperature=4.0, loss_type="categorical_crossentropy", output_index=1
+            temperature=4.0,
+            loss_type="categorical_crossentropy",
+            output_index=1,
         )
         config = original_strategy.get_config()
         reconstructed_strategy = LogitsDistillation.from_config(config)
-        
-        self.assertEqual(original_strategy.temperature, reconstructed_strategy.temperature)
-        self.assertEqual(original_strategy.loss_type, reconstructed_strategy.loss_type)
-        self.assertEqual(original_strategy.output_index, reconstructed_strategy.output_index)
-        
+
+        self.assertEqual(
+            original_strategy.temperature, reconstructed_strategy.temperature
+        )
+        self.assertEqual(
+            original_strategy.loss_type, reconstructed_strategy.loss_type
+        )
+        self.assertEqual(
+            original_strategy.output_index, reconstructed_strategy.output_index
+        )
+
         # Test config matches expected
         expected_config = {
             "temperature": 4.0,
@@ -557,11 +567,19 @@ class TestFeatureDistillation(TestCase):
         )
         config = original_strategy.get_config()
         reconstructed_strategy = FeatureDistillation.from_config(config)
-        
-        self.assertEqual(original_strategy.loss_type, reconstructed_strategy.loss_type)
-        self.assertEqual(original_strategy.teacher_layer_name, reconstructed_strategy.teacher_layer_name)
-        self.assertEqual(original_strategy.student_layer_name, reconstructed_strategy.student_layer_name)
-        
+
+        self.assertEqual(
+            original_strategy.loss_type, reconstructed_strategy.loss_type
+        )
+        self.assertEqual(
+            original_strategy.teacher_layer_name,
+            reconstructed_strategy.teacher_layer_name,
+        )
+        self.assertEqual(
+            original_strategy.student_layer_name,
+            reconstructed_strategy.student_layer_name,
+        )
+
         # Test config matches expected
         expected_config = {
             "loss_type": "cosine",
@@ -750,11 +768,9 @@ class TestMultiOutputDistillation(TestCase):
             ],
             metrics=[
                 ["accuracy"],  # Metrics for output 0
-                ["accuracy"]   # Metrics for output 1
-            ]
+                ["accuracy"],  # Metrics for output 1
+            ],
         )
-
-
 
         # Create test data for multi-output model
         x = np.random.random((20, 5)).astype(np.float32)

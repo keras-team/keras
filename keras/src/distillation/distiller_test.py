@@ -141,7 +141,6 @@ class TestDistiller(TestCase):
             )
 
     def test_student_loss_weighting(self):
-        """Test that student_loss_weight correctly weights student vs distillation loss."""
         # Test with student_loss_weight = 0.0 (only distillation loss)
         distiller_0 = Distiller(
             teacher=self.teacher,
