@@ -918,6 +918,11 @@ def isneginf(x):
     return torch.isneginf(x)
 
 
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return torch.isposinf(x)
+
+
 def less(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.less(x1, x2)
