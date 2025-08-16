@@ -1245,7 +1245,7 @@ class ModelTest(testing.TestCase):
         x2 = None if is_optional_none else np.ones((2, 2))
         y_true = np.ones((2, 2))
 
-        model.compile(loss=losses.MeanSquaredError)
+        model.compile(loss="mse", optimizer="adam")
         model.fit(x={"x1": x1, "x2": x2}, y=y_true)
         model.evaluate(x={"x1": x1, "x2": x2}, y=y_true)
         model.predict(x={"x1": x1, "x2": x2})
@@ -1263,7 +1263,7 @@ class ModelTest(testing.TestCase):
             for _ in range(4):
                 yield ({"x1": x1, "x2": x2},) + ((y_true,) if with_y else ())
 
-        model.compile(loss=losses.MeanSquaredError)
+        model.compile(loss="mse", optimizer="adam")
         model.fit(data_generator())
         model.evaluate(data_generator())
         model.predict(data_generator(with_y=False))
