@@ -843,9 +843,16 @@ def slice(inputs, start_indices, shape):
     start = ov_opset.concat(start, axis=0).output(0)
     stop = ov_opset.concat(stop, axis=0).output(0)
     axes = ov_opset.constant(axes, Type.i32).output(0)
-    return OpenVINOKerasTensor(
-        ov_opset.slice(inputs, start, stop, step, axes).output(0)
-    )
+    result = ov_opset.slice(inputs, start, stop, step, axes).output(0)
+
+    # Apply reshape to ensure output matches expected shape
+    # Convert None (dynamic) dimensions to -1 for OpenVINO compatibility
+    if all(dim is None or (isinstance(dim, int) and dim >= 0) for dim in shape):
+        reshape_pattern = [(-1 if dim is None else dim) for dim in shape]
+        target_shape = ov_opset.constant(reshape_pattern, Type.i32).output(0)
+        result = ov_opset.reshape(result, target_shape, False).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def slice_update(inputs, start_indices, updates):
