@@ -95,9 +95,6 @@ class Discretization(TFDataLayer):
         dtype=None,
         name=None,
     ):
-        if dtype is None:
-            dtype = "int64" if output_mode == "int" else backend.floatx()
-
         super().__init__(name=name, dtype=dtype)
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
@@ -154,6 +151,13 @@ class Discretization(TFDataLayer):
     @property
     def input_dtype(self):
         return backend.floatx()
+
+    @property
+    def compute_dtype(self):
+        if self.output_mode == "int":
+            return "int64"
+        else:
+            return backend.floatx()
 
     def adapt(self, data, steps=None):
         """Computes bin boundaries from quantiles in a input dataset.
@@ -213,7 +217,10 @@ class Discretization(TFDataLayer):
         self.summary = np.array([[], []], dtype="float32")
 
     def compute_output_spec(self, inputs):
-        return backend.KerasTensor(shape=inputs.shape, dtype=self.compute_dtype)
+        output_dtype = (
+            "int64" if self.output_mode == "int" else self.compute_dtype
+        )
+        return backend.KerasTensor(shape=inputs.shape, dtype=output_dtype)
 
     def load_own_variables(self, store):
         if len(store) == 1:
@@ -230,11 +237,14 @@ class Discretization(TFDataLayer):
             )
 
         indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
+        output_dtype = (
+            "int64" if self.output_mode == "int" else self.compute_dtype
+        )
         return numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
-            dtype=self.compute_dtype,
+            dtype=output_dtype,
             sparse=self.sparse,
             backend_module=self.backend,
         )
