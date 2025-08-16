@@ -5750,11 +5750,8 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_bartlett(self, dtype):
-        import jax.numpy as jnp
-
         x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.bartlett(x_jax).dtype)
+        expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.bartlett(x).dtype), expected_dtype
@@ -5766,11 +5763,8 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_blackman(self, dtype):
-        import jax.numpy as jnp
-
         x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.blackman(x_jax).dtype)
+        expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.blackman(x).dtype), expected_dtype
@@ -5782,11 +5776,8 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_hamming(self, dtype):
-        import jax.numpy as jnp
-
         x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.hamming(x_jax).dtype)
+        expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.hamming(x).dtype), expected_dtype
@@ -5798,11 +5789,8 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_hanning(self, dtype):
-        import jax.numpy as jnp
-
         x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.hanning(x_jax).dtype)
+        expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.hanning(x).dtype), expected_dtype
@@ -5814,13 +5802,9 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_kaiser(self, dtype):
-        import jax.numpy as jnp
-
         x = knp.ones((), dtype=dtype)
         beta = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        beta_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.kaiser(x_jax, beta_jax).dtype)
+        expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.kaiser(x, beta).dtype), expected_dtype
@@ -7253,6 +7237,8 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         expected_dtype = standardize_dtype(jnp.eye(3, dtype=dtype).dtype)
+        if dtype is None:
+            expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.eye(3, dtype=dtype).dtype),
@@ -7260,6 +7246,8 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
         expected_dtype = standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype)
+        if dtype is None:
+            expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.eye(3, 4, k=1, dtype=dtype).dtype),
@@ -7491,6 +7479,8 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         expected_dtype = standardize_dtype(jnp.identity(3, dtype=dtype).dtype)
+        if dtype is None:
+            expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.identity(3, dtype=dtype).dtype),
@@ -9110,7 +9100,7 @@ class NumpyDtypeTest(testing.TestCase):
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
-        if dtype == "int64":
+        if dtype == "bool" or is_int_dtype(dtype):
             expected_dtype = backend.floatx()
 
         self.assertEqual(standardize_dtype(knp.angle(x).dtype), expected_dtype)
