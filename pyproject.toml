@@ -99,13 +99,12 @@ exclude_lines = [
 ]
 omit = [
     "*/*_test.py",
-    "keras/src/legacy/*",
+    "keras/src/applications/*",
 ]
 
 [tool.coverage.run]
 branch = true
 omit = [
     "*/*_test.py",
-    "keras/src/legacy/*",
+    "keras/src/applications/*",
 ]
-
