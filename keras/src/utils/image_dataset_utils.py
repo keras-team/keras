@@ -654,14 +654,13 @@ def _load_image_grain(
         )
 
     with backend.device_scope("cpu"):
-        img = np.array(img)
-        if img.ndim == 2:
+        img = ops.convert_to_tensor(np.array(img), dtype="float32")
+        if len(img.shape) == 2:
             # If the image is grayscale, expand dims to add channel axis.
             # The reason is that `ops.image.resize` expects 3D or 4D tensors.
-            img = np.expand_dims(
-                img, axis=-1 if data_format == "channels_last" else 0
-            )
-        img = ops.convert_to_tensor(img, dtype="float32")
+            img = ops.expand_dims(img, axis=-1)
+        if data_format == "channels_first":
+            img = ops.transpose(img, (2, 0, 1))
         img = ops.image.resize(
             img,
             size=image_size,
