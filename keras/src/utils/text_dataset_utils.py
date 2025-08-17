@@ -28,7 +28,7 @@ def text_dataset_from_directory(
     format="tf",
     verbose=True,
 ):
-    """Generates a `tf.data.Dataset` from text files in a directory.
+    """Generates a dataset from text files in a directory.
 
     If your directory structure is:
 
@@ -43,11 +43,15 @@ def text_dataset_from_directory(
     ```
 
     Then calling `text_dataset_from_directory(main_directory,
-    labels='inferred')` will return a `tf.data.Dataset` that yields batches of
+    labels='inferred')` will return a dataset that yields batches of
     texts from the subdirectories `class_a` and `class_b`, together with labels
     0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
 
     Only `.txt` files are supported at this time.
+
+    By default, this function will return a `tf.data.Dataset` object. You can
+    set `format="grain"` to return a `grain.IterDataset` object instead, which
+    removes the TensorFlow dependency.
 
     Args:
         directory: Directory where the data is located.

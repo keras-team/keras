@@ -51,7 +51,7 @@ def image_dataset_from_directory(
     format="tf",
     verbose=True,
 ):
-    """Generates a `tf.data.Dataset` from image files in a directory.
+    """Generates a dataset from image files in a directory.
 
     If your directory structure is:
 
@@ -66,12 +66,16 @@ def image_dataset_from_directory(
     ```
 
     Then calling `image_dataset_from_directory(main_directory,
-    labels='inferred')` will return a `tf.data.Dataset` that yields batches of
+    labels='inferred')` will return a dataset that yields batches of
     images from the subdirectories `class_a` and `class_b`, together with labels
     0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
 
     Supported image formats: `.jpeg`, `.jpg`, `.png`, `.bmp`, `.gif`.
     Animated gifs are truncated to the first frame.
+
+    By default, this function will return a `tf.data.Dataset` object. You can
+    set `format="grain"` to return a `grain.IterDataset` object instead, which
+    removes the TensorFlow dependency.
 
     Args:
         directory: Directory where the data is located.
