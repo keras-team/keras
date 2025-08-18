@@ -172,7 +172,7 @@ class LogitsDistillation(BaseDistillationStrategy):
             raise ValueError(
                 "temperature must be > 0. Set a positive value (e.g., 1-10)."
             )
- 
+
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for logits distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
