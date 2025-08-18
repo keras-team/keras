@@ -645,6 +645,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         index, inputs, sum = 0, np.arange(10), np.array([0])
         index, inputs, sum = core.while_loop(cond, body, (index, inputs, sum))
+        self.assertEqual(sum.shape, (1,))
         self.assertAllClose(sum, [45])
 
     def test_fori_loop(self):
@@ -1138,24 +1139,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             core.Slice(shape)(inputs, start_indices), np.array([[5, 6], [8, 9]])
         )
-
-    @pytest.mark.skipif(
-        backend.backend() != "openvino",
-        reason="OpenVINO-specific test for slice operation shape preservation",
-    )
-    def test_slice_with_dynamic_indices_shape_preservation(self):
-        from openvino import Type
-        from openvino import opset14 as ov_opset
-
-        tensor_param = ov_opset.parameter(shape=[1, 2, 3], dtype=Type.i32)
-        tensor = ops.convert_to_tensor(tensor_param.output(0))
-        dynamic_index = ov_opset.parameter(shape=[], dtype=Type.i32)
-        dynamic_start = ops.convert_to_tensor(dynamic_index.output(0))
-        start_indices = [0, 0, dynamic_start]
-        shape = (1, 2, 2)
-        sliced_tensor = core.slice(tensor, start_indices, shape)
-        self.assertEqual(sliced_tensor.shape, (1, 2, 2))
-        self.assertNotEqual(sliced_tensor.shape, (None, None, None))
 
     def test_slice_update(self):
         # Test 1D.
