@@ -55,15 +55,18 @@ class Distiller(Model):
       object detection with classification and regression heads). Allows
       different distillation strategies for different outputs.
 
+    - Custom Strategies: Create custom strategies by subclassing
+      `BaseDistillationStrategy` and overriding the `compute_loss` method.
+
     Args:
         teacher: A trained `keras.Model` that serves as the knowledge source.
             The teacher model is frozen during distillation.
         student: A `keras.Model` to be trained through distillation. This model
             will learn from both ground truth labels and the teacher's
             predictions.
-        strategy: Distillation strategy or list of strategies. Can be a single
-            strategy (e.g., `LogitsDistillation`) or a list of strategies for
-            multi-strategy distillation.
+        strategy: Distillation strategy to apply. Can be `LogitsDistillation`,
+            `FeatureDistillation`, `MultiOutputDistillation`, or a custom
+            strategy.
         student_loss_weight: Weight for the student's supervised loss component.
             Must be between 0 and 1. Higher values emphasize ground truth
             labels, lower values emphasize teacher predictions. Defaults to 0.5.
@@ -153,25 +156,73 @@ class Distiller(Model):
         # Store configuration
         self.teacher = teacher
         self.student = student
+
+        # Validate student_loss_weight
+        if not isinstance(student_loss_weight, (int, float)):
+            raise ValueError(
+                f"student_loss_weight must be a number, got "
+                f"{type(student_loss_weight)}"
+            )
+        if student_loss_weight < 0.0 or student_loss_weight > 1.0:
+            raise ValueError(
+                f"student_loss_weight must be between 0.0 and 1.0, "
+                f"got {student_loss_weight}"
+            )
         self.student_loss_weight = student_loss_weight
+
+        # Validate metrics parameter
+        if metrics is not None and not isinstance(metrics, (list, tuple)):
+            raise ValueError(
+                f"metrics must be a list or tuple, got {type(metrics)}"
+            )
 
         # Convert string loss to function if needed
         if isinstance(student_loss, str):
             self._student_loss = keras.losses.get(student_loss)
+            if self._student_loss is None:
+                raise ValueError(
+                    f"Unknown loss function: '{student_loss}'. "
+                    "Please provide a valid loss function name or instance."
+                )
         elif isinstance(student_loss, list):
             # Handle multi-output loss functions
-            self._student_loss = [
-                keras.losses.get(loss) if isinstance(loss, str) else loss
-                for loss in student_loss
-            ]
+            self._student_loss = []
+            for i, loss in enumerate(student_loss):
+                if isinstance(loss, str):
+                    loss_fn = keras.losses.get(loss)
+                    if loss_fn is None:
+                        raise ValueError(
+                            f"Unknown loss function at index {i}: '{loss}'. "
+                            "Please provide valid loss function names or "
+                            "instances."
+                        )
+                    self._student_loss.append(loss_fn)
+                else:
+                    self._student_loss.append(loss)
         else:
             self._student_loss = student_loss
 
-        # Handle strategy input - can be single strategy or list
-        if isinstance(strategy, list):
-            self.strategies = strategy
-        else:
-            self.strategies = [strategy]
+        # Validate that we have a valid loss function
+        if self._student_loss is None:
+            raise ValueError(
+                "Student loss function cannot be None. "
+                "Please provide a valid 'student_loss' parameter."
+            )
+
+        # Validate architecture compatibility for feature distillation
+        self._validate_architecture_compatibility(teacher, student)
+
+        # Store strategy (single strategy only)
+        if strategy is None:
+            raise ValueError(
+                "Distillation strategy cannot be None. "
+                "Please provide a valid strategy such as LogitsDistillation, "
+                "FeatureDistillation, or MultiOutputDistillation."
+            )
+        self.strategy = strategy
+
+        # Validate strategy-specific compatibility
+        self._validate_strategy_compatibility(teacher, student)
 
         # Freeze teacher model
         self.teacher.trainable = False
@@ -184,12 +235,20 @@ class Distiller(Model):
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
 
         # Compile the model with provided parameters
-        self.compile(
-            optimizer=optimizer, loss=student_loss, metrics=metrics or []
-        )
+        self.compile(optimizer=optimizer, loss=student_loss, metrics=metrics)
 
     def _validate_models(self, teacher, student):
-        """Validate that teacher and student are Keras models."""
+        """Validate that teacher and student models are compatible for
+        distillation.
+
+        This method performs comprehensive validation including:
+        - Model type validation
+        - Input shape compatibility
+        - Output shape compatibility
+        - Architecture compatibility for feature distillation
+        - Data type compatibility
+        """
+        # Basic model type validation
         if not isinstance(teacher, keras.Model):
             raise ValueError(
                 f"Teacher must be a keras.Model, got {type(teacher)}"
@@ -198,6 +257,178 @@ class Distiller(Model):
             raise ValueError(
                 f"Student must be a keras.Model, got {type(student)}"
             )
+
+        # Check if models are built
+        # Subclassed models may not be built at this point and may not expose
+        # symbolic `inputs`/`outputs`. We avoid hard failures here and rely on
+        # runtime checks during the first call/fit. When symbolic tensors are
+        # available, we perform full compatibility validation below.
+
+        # Validate input compatibility
+        self._validate_input_compatibility(teacher, student)
+
+        # Validate output compatibility
+        self._validate_output_compatibility(teacher, student)
+
+        # Validate data type compatibility
+        self._validate_dtype_compatibility(teacher, student)
+
+    def _validate_input_compatibility(self, teacher, student):
+        """Validate that teacher and student have compatible input shapes."""
+        # If symbolic tensors are not available (subclassed models), skip.
+        if not hasattr(teacher, "inputs") or not hasattr(student, "inputs"):
+            return
+        teacher_inputs = getattr(teacher, "inputs")
+        student_inputs = getattr(student, "inputs")
+        if teacher_inputs is None or student_inputs is None:
+            return
+
+        # Handle single input case
+        if not isinstance(teacher_inputs, (list, tuple)):
+            teacher_inputs = [teacher_inputs]
+        if not isinstance(student_inputs, (list, tuple)):
+            student_inputs = [student_inputs]
+
+        # Check number of inputs
+        if len(teacher_inputs) != len(student_inputs):
+            raise ValueError(
+                f"Teacher and student must have the same number of inputs. "
+                f"Teacher has {len(teacher_inputs)} inputs, "
+                f"student has {len(student_inputs)} inputs."
+            )
+
+        # Check input shapes
+        for i, (teacher_input, student_input) in enumerate(
+            zip(teacher_inputs, student_inputs)
+        ):
+            teacher_shape = teacher_input.shape
+            student_shape = student_input.shape
+
+            # Check if shapes are compatible (allowing for batch dimension
+            # flexibility)
+            if not self._shapes_are_compatible(teacher_shape, student_shape):
+                raise ValueError(
+                    f"Input {i} shapes are incompatible. "
+                    f"Teacher input shape: {teacher_shape}, "
+                    f"Student input shape: {student_shape}. "
+                    f"All dimensions except batch size must match."
+                )
+
+    def _validate_output_compatibility(self, teacher, student):
+        """Validate that teacher and student have compatible output shapes."""
+        # If symbolic tensors are not available (subclassed models), skip.
+        if not hasattr(teacher, "outputs") or not hasattr(student, "outputs"):
+            return
+        teacher_outputs = getattr(teacher, "outputs")
+        student_outputs = getattr(student, "outputs")
+        if teacher_outputs is None or student_outputs is None:
+            return
+
+        # Handle single output case
+        if not isinstance(teacher_outputs, (list, tuple)):
+            teacher_outputs = [teacher_outputs]
+        if not isinstance(student_outputs, (list, tuple)):
+            student_outputs = [student_outputs]
+
+        # Check number of outputs
+        if len(teacher_outputs) != len(student_outputs):
+            raise ValueError(
+                f"Teacher and student must have the same number of outputs. "
+                f"Teacher has {len(teacher_outputs)} outputs, "
+                f"student has {len(student_outputs)} outputs."
+            )
+
+        # Check output shapes
+        for i, (teacher_output, student_output) in enumerate(
+            zip(teacher_outputs, student_outputs)
+        ):
+            teacher_shape = teacher_output.shape
+            student_shape = student_output.shape
+
+            # For distillation, output shapes should be compatible
+            if not self._shapes_are_compatible(teacher_shape, student_shape):
+                raise ValueError(
+                    f"Output {i} shapes are incompatible. "
+                    f"Teacher output shape: {teacher_shape}, "
+                    f"Student output shape: {student_shape}. "
+                    f"All dimensions except batch size must match."
+                )
+
+    def _validate_dtype_compatibility(self, teacher, student):
+        """Validate that teacher and student have compatible data types."""
+        # If symbolic tensors are not available (subclassed models), skip.
+        if not hasattr(teacher, "inputs") or not hasattr(student, "inputs"):
+            return
+        if teacher.inputs is None or student.inputs is None:
+            return
+        teacher_dtypes = [input.dtype for input in teacher.inputs]
+        student_dtypes = [input.dtype for input in student.inputs]
+
+        # Check input dtypes
+        for i, (teacher_dtype, student_dtype) in enumerate(
+            zip(teacher_dtypes, student_dtypes)
+        ):
+            if teacher_dtype != student_dtype:
+                raise ValueError(
+                    f"Input {i} data types are incompatible. "
+                    f"Teacher dtype: {teacher_dtype}, "
+                    f"Student dtype: {student_dtype}."
+                )
+
+        # Check output dtypes
+        teacher_output_dtypes = [output.dtype for output in teacher.outputs]
+        student_output_dtypes = [output.dtype for output in student.outputs]
+
+        for i, (teacher_dtype, student_dtype) in enumerate(
+            zip(teacher_output_dtypes, student_output_dtypes)
+        ):
+            if teacher_dtype != student_dtype:
+                raise ValueError(
+                    f"Output {i} data types are incompatible. "
+                    f"Teacher output dtype: {teacher_dtype}, "
+                    f"Student output dtype: {student_dtype}. "
+                    f"Both models must use the same data type."
+                )
+
+    def _validate_architecture_compatibility(self, teacher, student):
+        """Validate architecture compatibility for feature distillation."""
+        # This validation is strategy-specific and will be called by strategies
+        # that require specific architectural compatibility
+        pass
+
+    def _validate_strategy_compatibility(self, teacher, student):
+        """Validate that the strategy is compatible with the teacher and student
+        models."""
+        if hasattr(self.strategy, "validate_model_compatibility"):
+            self.strategy.validate_model_compatibility(teacher, student)
+
+    def _shapes_are_compatible(self, shape1, shape2):
+        """Check if two shapes are compatible (allowing for batch dimension
+        flexibility)."""
+        # Convert to lists for easier handling
+        if hasattr(shape1, "as_list"):
+            shape1 = shape1.as_list()
+        elif hasattr(shape1, "__iter__"):
+            shape1 = list(shape1)
+        else:
+            shape1 = [shape1]
+
+        if hasattr(shape2, "as_list"):
+            shape2 = shape2.as_list()
+        elif hasattr(shape2, "__iter__"):
+            shape2 = list(shape2)
+        else:
+            shape2 = [shape2]
+
+        # Check if they have the same number of dimensions
+        if len(shape1) != len(shape2):
+            return False
+
+        # Check all dimensions except the first (batch dimension)
+        for dim1, dim2 in zip(shape1[1:], shape2[1:]):
+            if dim1 is not None and dim2 is not None and dim1 != dim2:
+                return False
+        return True
 
     def get_student_model(self):
         """Get the trained student model for independent use.
@@ -295,39 +526,78 @@ class Distiller(Model):
         if y is not None and not isinstance(y, (list, tuple)):
             y = [y]
 
-        # Compute student loss using basic loss function
+        # Compute student loss
         student_loss = 0.0
         if self.student_loss_weight > 0.0 and y is not None:
             # Use the configured loss function
-            if hasattr(self, "_student_loss"):
+            if (
+                hasattr(self, "_student_loss")
+                and self._student_loss is not None
+            ):
                 if isinstance(self._student_loss, list):
                     # Multi-output loss
                     if isinstance(y_pred, list) and len(y_pred) > 0:
+                        # Validate lengths match
+                        if len(y) != len(y_pred):
+                            raise ValueError(
+                                f"Number of targets ({len(y)}) must match "
+                                f"number of predictions ({len(y_pred)}) for "
+                                f"multi-output loss computation."
+                            )
+                        if len(self._student_loss) != len(y):
+                            raise ValueError(
+                                f"Number of loss functions "
+                                f"({len(self._student_loss)}) must match "
+                                f"number of outputs ({len(y)}) for "
+                                f"multi-output loss computation."
+                            )
+
+                        # Compute loss for each output
                         student_loss = sum(
                             loss_fn(y[i], y_pred[i])
                             for i, loss_fn in enumerate(self._student_loss)
-                            if i < len(y_pred)
                         )
                     else:
                         # Single output with multi-output loss list
+                        if len(self._student_loss) != 1:
+                            raise ValueError(
+                                f"Single output provided but "
+                                f"{len(self._student_loss)} loss functions "
+                                f"configured. Use a single loss function or "
+                                f"provide multiple outputs."
+                            )
                         student_loss = self._student_loss[0](y[0], y_pred[0])
                 else:
                     # Single loss function
                     if isinstance(y_pred, list) and len(y_pred) > 0:
-                        # For multi-output, use first output for student loss
+                        # Multi-output with single loss function
+                        if len(y) != len(y_pred):
+                            raise ValueError(
+                                f"Number of targets ({len(y)}) must match "
+                                f"number of predictions ({len(y_pred)}) for "
+                                f"multi-output loss computation."
+                            )
+                        # Use first output for student loss (consistent
+                        # behavior)
                         student_loss = self._student_loss(y[0], y_pred[0])
                     else:
+                        # Single output with single loss function
                         student_loss = self._student_loss(y, y_pred)
             else:
-                # Fallback to default
-                if isinstance(y_pred, list) and len(y_pred) > 0:
-                    student_loss = keras.losses.sparse_categorical_crossentropy(
-                        y[0], y_pred[0]
-                    )
-                else:
-                    student_loss = keras.losses.sparse_categorical_crossentropy(
-                        y, y_pred
-                    )
+                # No loss function configured - this is an error
+                raise ValueError(
+                    "Student loss function is not configured. "
+                    "Please provide a valid 'student_loss' parameter to the "
+                    "Distiller constructor. "
+                    "Examples: 'sparse_categorical_crossentropy', "
+                    "'categorical_crossentropy', or a custom loss function."
+                )
+
+            # Ensure student_loss is a scalar
+            from keras import ops
+
+            if hasattr(student_loss, "shape") and len(student_loss.shape) > 0:
+                student_loss = ops.mean(student_loss)
 
         # Compute distillation loss
         distillation_loss = 0.0
@@ -335,11 +605,19 @@ class Distiller(Model):
             # Get teacher outputs
             teacher_outputs = self.teacher(x, training=False)
 
-            for strategy in self.strategies:
-                # Compute loss for this strategy (validation happens inside
-                # strategy)
-                strategy_loss = strategy.compute_loss(teacher_outputs, y_pred)
-                distillation_loss += strategy_loss
+            # Apply the single strategy
+            distillation_loss = self.strategy.compute_loss(
+                teacher_outputs, y_pred
+            )
+
+            # Ensure distillation_loss is a scalar
+            from keras import ops
+
+            if (
+                hasattr(distillation_loss, "shape")
+                and len(distillation_loss.shape) > 0
+            ):
+                distillation_loss = ops.mean(distillation_loss)
 
         # Combine losses
         total_loss = (
@@ -383,10 +661,9 @@ class Distiller(Model):
                 "student": serialization_lib.serialize_keras_object(
                     self.student
                 ),
-                "strategy": [
-                    serialization_lib.serialize_keras_object(s)
-                    for s in self.strategies
-                ],
+                "strategy": serialization_lib.serialize_keras_object(
+                    self.strategy
+                ),
                 "student_loss_weight": self.student_loss_weight,
                 "input_mapping": self.input_mapping,
                 "output_mapping": self.output_mapping,
@@ -405,8 +682,7 @@ class Distiller(Model):
         config["student"] = serialization_lib.deserialize_keras_object(
             config["student"]
         )
-        config["strategy"] = [
-            serialization_lib.deserialize_keras_object(s)
-            for s in config["strategy"]
-        ]
+        config["strategy"] = serialization_lib.deserialize_keras_object(
+            config["strategy"]
+        )
         return cls(**config)

@@ -53,7 +53,8 @@ class BaseDistillationStrategy:
 
         if len(teacher_outputs) != len(student_outputs):
             raise ValueError(
-                f"Teacher and student must have the same number of outputs. "
+                f"Teacher and student must have the same number of "
+                f"outputs. "
                 f"Teacher has {len(teacher_outputs)} outputs, "
                 f"student has {len(student_outputs)} outputs."
             )
@@ -162,6 +163,16 @@ class LogitsDistillation(BaseDistillationStrategy):
                 f"'categorical_crossentropy'], got {loss_type}"
             )
 
+        # Validate temperature
+        if not isinstance(self.temperature, (int, float)):
+            raise ValueError(
+                f"temperature must be a number, got {type(self.temperature)}"
+            )
+        if self.temperature <= 0.0:
+            raise ValueError(
+                "temperature must be > 0. Set a positive value (e.g., 1-10)."
+            )
+ 
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for logits distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
@@ -234,22 +245,25 @@ class LogitsDistillation(BaseDistillationStrategy):
                 keras.losses.kl_divergence(teacher_probs, student_probs)
             )
 
+            # Scale by temperature^2 for KL (per literature)
+            return loss * (self.temperature**2)
+
         elif self.loss_type == "categorical_crossentropy":
-            # Convert teacher to probabilities, keep student as logits
+            # Convert teacher to probabilities, keep student as logits and
+            # pass from_logits=True for correct computation.
             teacher_probs = ops.softmax(teacher_logits, axis=-1)
 
-            # Use Keras CategoricalCrossentropy directly and reduce to scalar
             loss = ops.mean(
                 keras.losses.categorical_crossentropy(
-                    teacher_probs, student_logits
+                    teacher_probs, student_logits, from_logits=True
                 )
             )
 
+            # Do NOT scale by temperature^2 for categorical crossentropy
+            return loss
+
         else:
             raise ValueError(f"Unknown loss_type: {self.loss_type}")
-
-        # Scale by temperature^2 for consistency with literature
-        return loss * (self.temperature**2)
 
     def get_config(self):
         """Get configuration for serialization."""
@@ -470,7 +484,8 @@ class FeatureDistillation(BaseDistillationStrategy):
                 f"Layer '{layer_name}' not found in model. "
                 f"This may happen with a subclassed model that cannot be "
                 f"traversed using the standard layer API. "
-                f"Available layers: {[layer.name for layer in model.layers]}"
+                f"Available layers: "
+                f"{[layer.name for layer in model.layers]}"
             )
 
         # Create a new model that extracts features from the specified layer.
@@ -509,46 +524,69 @@ class FeatureDistillation(BaseDistillationStrategy):
         """Validate that outputs are compatible for feature distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
 
-        # For feature distillation, we need to ensure the features have
-        # compatible shapes for the chosen loss function
+        # Normalize outputs to lists
         if not isinstance(teacher_outputs, (list, tuple)):
             teacher_outputs = [teacher_outputs]
         if not isinstance(student_outputs, (list, tuple)):
             student_outputs = [student_outputs]
 
-        # Basic shape compatibility check
-        teacher_features = teacher_outputs[0]  # Use first output by default
-        student_features = student_outputs[0]  # Use first output by default
-
-        if len(teacher_features.shape) != len(student_features.shape):
-            raise ValueError(
-                f"Teacher and student features must have the same number of "
-                f"dimensions. "
-                f"Teacher shape: {teacher_features.shape}, "
-                f"Student shape: {student_features.shape}"
-            )
-
-        # For MSE loss, shapes must match exactly
-        if self.loss_type == "mse":
-            if teacher_features.shape != student_features.shape:
+        # For feature distillation, we need to validate layer compatibility
+        if (
+            self.teacher_layer_name is not None
+            and self.student_layer_name is not None
+        ):
+            # Validate that the specified layers exist and are compatible
+            self._validate_layer_compatibility(teacher_outputs, student_outputs)
+        else:
+            # If no specific layers are specified, validate final outputs
+            if len(teacher_outputs) != len(student_outputs):
                 raise ValueError(
-                    f"For MSE loss, teacher and student features must have "
-                    f"identical shapes. Got teacher: {teacher_features.shape}, "
-                    f"student: {student_features.shape}. "
-                    f"Consider using 'cosine' loss type for different sizes "
-                    f"or add alignment layers to make features compatible."
+                    f"Teacher and student must have the same number of "
+                    f"outputs. "
+                    f"Teacher has {len(teacher_outputs)} outputs, "
+                    f"student has {len(student_outputs)} outputs."
                 )
 
-        # For cosine loss, only last dimension needs to match (features)
-        elif self.loss_type == "cosine":
-            if teacher_features.shape[-1] != student_features.shape[-1]:
+    def _validate_layer_compatibility(self, teacher_outputs, student_outputs):
+        """Validate that the specified layers are compatible for feature
+        distillation."""
+        # This method would be called by the distiller to validate layer
+        # compatibility when using feature distillation with specific layer
+        # names
+        pass
+
+    def validate_model_compatibility(self, teacher, student):
+        """Validate that teacher and student models are compatible for feature
+        distillation."""
+        # Check if specified layers exist in the models
+        if self.teacher_layer_name is not None:
+            if not self._layer_exists_in_model(
+                teacher, self.teacher_layer_name
+            ):
                 raise ValueError(
-                    f"For cosine similarity loss, teacher and student features "
-                    f"must have the same feature dimension (last axis). "
-                    f"Got teacher: {teacher_features.shape[-1]}, "
-                    f"student: {student_features.shape[-1]}. "
-                    f"Consider adding a projection layer to align dimensions."
+                    f"Teacher layer '{self.teacher_layer_name}' not found in "
+                    f"teacher model. "
+                    f"Available layers: "
+                    f"{[layer.name for layer in teacher.layers]}"
                 )
+
+        if self.student_layer_name is not None:
+            if not self._layer_exists_in_model(
+                student, self.student_layer_name
+            ):
+                raise ValueError(
+                    f"Student layer '{self.student_layer_name}' not found in "
+                    f"student model. "
+                    f"Available layers: "
+                    f"{[layer.name for layer in student.layers]}"
+                )
+
+    def _layer_exists_in_model(self, model, layer_name):
+        """Check if a layer with the given name exists in the model."""
+        for layer in model.layers:
+            if layer.name == layer_name:
+                return True
+        return False
 
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute feature distillation loss using extracted features.

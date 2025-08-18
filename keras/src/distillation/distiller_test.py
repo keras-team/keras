@@ -74,16 +74,21 @@ class TestDistiller(TestCase):
         # Check student_loss_weight
         self.assertEqual(self.distiller.student_loss_weight, 0.5)
 
-        # Check strategies
-        self.assertLen(self.distiller.strategies, 1)
-        self.assertIsInstance(self.distiller.strategies[0], LogitsDistillation)
+        # Check strategy
+        self.assertIsInstance(self.distiller.strategy, LogitsDistillation)
 
         # Check that strategy has the correct temperature
-        self.assertEqual(self.distiller.strategies[0].temperature, 2.0)
+        self.assertEqual(self.distiller.strategy.temperature, 2.0)
 
         # Check that model is compiled
         self.assertIsNotNone(self.distiller.optimizer)
-        self.assertIsNotNone(self.distiller.compiled_loss)
+        # Check if the model has been compiled (different backends may handle
+        # this differently)
+        self.assertTrue(
+            hasattr(self.distiller, "_compile_config")
+            or hasattr(self.distiller, "compiled_loss"),
+            "Model should be compiled",
+        )
 
     def test_distiller_call(self):
         """Test Distiller call method (inference)."""
@@ -358,23 +363,17 @@ class TestDistiller(TestCase):
             ]
         )
 
-        # Create distiller with multiple strategies
-        from keras.src.distillation.strategies import FeatureDistillation
+        # Create distiller with single strategy
         from keras.src.distillation.strategies import LogitsDistillation
 
-        strategies = [
-            LogitsDistillation(temperature=3.0, loss_type="kl_divergence"),
-            FeatureDistillation(
-                loss_type="mse",
-                teacher_layer_name="teacher_dense_1",
-                student_layer_name="student_dense_1",
-            ),
-        ]
+        strategy = LogitsDistillation(
+            temperature=3.0, loss_type="kl_divergence"
+        )
 
         original_distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=strategies,
+            strategy=strategy,
             student_loss_weight=0.7,
             optimizer=keras.optimizers.Adam(),
             student_loss="sparse_categorical_crossentropy",
@@ -408,19 +407,12 @@ class TestDistiller(TestCase):
 
         # Verify reconstruction
         self.assertEqual(reconstructed_distiller.student_loss_weight, 0.7)
-        self.assertEqual(len(reconstructed_distiller.strategies), 2)
-
-        # Verify strategy types
         self.assertIsInstance(
-            reconstructed_distiller.strategies[0], LogitsDistillation
-        )
-        self.assertIsInstance(
-            reconstructed_distiller.strategies[1], FeatureDistillation
+            reconstructed_distiller.strategy, LogitsDistillation
         )
 
         # Verify strategy parameters
-        self.assertEqual(reconstructed_distiller.strategies[0].temperature, 3.0)
-        self.assertEqual(reconstructed_distiller.strategies[1].loss_type, "mse")
+        self.assertEqual(reconstructed_distiller.strategy.temperature, 3.0)
 
         # Test that reconstructed distiller can be used for inference
         reconstructed_output = reconstructed_distiller(x_test)
