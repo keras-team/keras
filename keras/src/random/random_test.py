@@ -326,10 +326,10 @@ class RandomBehaviorTest(testing.TestCase):
     def test_beta_tf_data_compatibility(self):
         import tensorflow as tf
 
-        from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+        from keras.src.layers.preprocessing.data_layer import DataLayer
         from keras.src.random.seed_generator import SeedGenerator
 
-        class BetaLayer(TFDataLayer):
+        class BetaLayer(DataLayer):
             def __init__(self, seed=None, **kwargs):
                 super().__init__(**kwargs)
                 self.seed = seed
