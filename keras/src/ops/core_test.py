@@ -645,6 +645,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         index, inputs, sum = 0, np.arange(10), np.array([0])
         index, inputs, sum = core.while_loop(cond, body, (index, inputs, sum))
+        self.assertEqual(sum.shape, (1,))
         self.assertAllClose(sum, [45])
 
     def test_fori_loop(self):
