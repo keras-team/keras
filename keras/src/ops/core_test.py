@@ -16,7 +16,9 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.layers.core import input_layer
 from keras.src.ops import core
+from keras.src.saving import object_registration
 from keras.src.testing.test_utils import named_product
 
 
@@ -1620,6 +1622,18 @@ class CoreOpsBehaviorTests(testing.TestCase):
         output_spec = stop_gradient.compute_output_spec(variable)
         self.assertEqual(output_spec.shape, variable.shape)
         self.assertEqual(output_spec.dtype, variable.dtype)
+
+    def test_vectorized_map_serialization(self):
+        @object_registration.register_keras_serializable()
+        def f(x):
+            return x + x
+
+        inputs = input_layer.Input((10,), dtype="float32")
+        outputs = core.vectorized_map(f, inputs)
+        model = models.Functional(inputs, outputs)
+        reloaded_model = model.from_config(model.get_config())
+        x = np.random.rand(5, 10).astype("float32")
+        self.assertAllClose(model(x), reloaded_model(x))
 
     def test_while_loop_output_spec(self):
         # Define dummy cond and body functions
