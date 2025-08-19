@@ -72,7 +72,10 @@ class TestGPTQCore:
         """Tests error cases for get_dataloader."""
         with pytest.raises(ValueError, match="Provided dataset is empty"):
             gptq_core.get_dataloader(
-                tokenizer=MockTokenizer(), seqlen=10, dataset=[], nsamples=10
+                tokenizer=MockTokenizer(),
+                sequence_length=10,
+                dataset=[],
+                num_samples=10,
             )
         with pytest.raises(
             TypeError,
@@ -82,9 +85,9 @@ class TestGPTQCore:
         ):
             gptq_core.get_dataloader(
                 tokenizer=MockTokenizer(),
-                seqlen=10,
+                sequence_length=10,
                 dataset="wikitext2",
-                nsamples=10,
+                num_samples=10,
             )
 
     def test_apply_gptq_on_multi_block_model(self):

@@ -1243,12 +1243,12 @@ class ModelTest(testing.TestCase):
 
 
 # Helper function to generate dummy data for quick testing.
-def dummy_dataset_generator(nsamples, seqlen, vocab_size=1000):
+def dummy_dataset_generator(num_samples, sequence_length, vocab_size=1000):
     """A generator that yields random numpy arrays for fast,
     self-contained tests."""
     rng = np.random.default_rng(seed=42)
-    for _ in range(nsamples):
-        yield rng.integers(low=0, high=vocab_size, size=(1, seqlen))
+    for _ in range(num_samples):
+        yield rng.integers(low=0, high=vocab_size, size=(1, sequence_length))
 
 
 # Helper function to build a simple transformer model.
@@ -1295,13 +1295,13 @@ long_text = """gptq is an easy-to-use model quantization library..."""
 DATASETS = {
     "string_dataset": [long_text],
     "generator_dataset": lambda: dummy_dataset_generator(
-        nsamples=16, seqlen=128
+        num_samples=16, sequence_length=128
     ),
 }
 CONFIGS = {
     "default": {},
     "per_channel": {"group_size": -1},
-    "act_order": {"act_order": True},
+    "act_order": {"activation_order": True},
     "symmetric": {"symmetric": True},
 }
 
@@ -1315,9 +1315,9 @@ quantize_test_cases = [
     # --- Error Scenarios ---
     (
         "gptq",
-        {"wbits": 4},  # Invalid config (dict, not GPTQConfig)
-        TypeError,
-        "must pass a `config` argument of type",
+        {"weight_bits": 4},  # Invalid config (dict, not GPTQConfig)
+        ValueError,
+        "The `config` argument must be of type",
         "gptq_with_invalid_config",
     ),
     (
@@ -1360,12 +1360,12 @@ class TestModelQuantization:
         base_config = {
             "dataset": dataset,
             "tokenizer": mock_tokenizer,
-            "wbits": W_BITS,
-            "nsamples": NUM_SAMPLES,
-            "seqlen": SEQUENCE_LENGTH,
+            "weight_bits": W_BITS,
+            "num_samples": NUM_SAMPLES,
+            "sequence_length": SEQUENCE_LENGTH,
             "group_size": 32,
             "symmetric": False,
-            "act_order": False,
+            "activation_order": False,
         }
 
         target_layer = model.layers[2].ffn.layers[0]

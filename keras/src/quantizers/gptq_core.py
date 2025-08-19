@@ -12,7 +12,7 @@ from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_quant import GPTQQuantization
 
 
-def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
+def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
     """
     Prepares and chunks the calibration dataloader, repeating short datasets.
     """
@@ -44,11 +44,11 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
     all_tokens = np.array(all_tokens, dtype=np.int32)
 
     # Repeat data if it's too short
-    required_tokens = nsamples * seqlen
+    required_tokens = num_samples * sequence_length
     if len(all_tokens) < required_tokens:
         logging.info(
             f"Warning: Dataset is too short ({len(all_tokens)} tokens)."
-            " Repeating data to generate {nsamples} samples."
+            " Repeating data to generate {num_samples} samples."
         )
         repeats = -(-required_tokens // len(all_tokens))  # Ceiling division
         all_tokens = np.tile(all_tokens, repeats)
@@ -56,12 +56,12 @@ def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
     # Chunk the token list into samples
 
     calibration_samples = []
-    for _ in range(nsamples):
+    for _ in range(num_samples):
         # Generate a random starting index
-        start_index = random.randint(0, len(all_tokens) - seqlen - 1)
-        end_index = start_index + seqlen
+        start_index = random.randint(0, len(all_tokens) - sequence_length - 1)
+        end_index = start_index + sequence_length
         sample = all_tokens[start_index:end_index]
-        calibration_samples.append(np.reshape(sample, (1, seqlen)))
+        calibration_samples.append(np.reshape(sample, (1, sequence_length)))
 
     final_array = np.stack(calibration_samples, axis=0)
     return final_array
@@ -96,12 +96,12 @@ def find_layers_in_block(block):
 def apply_gptq_layerwise(
     model,
     dataloader,
-    nsamples,
-    percdamp,
+    num_samples,
+    hessian_damping,
     group_size,
     symmetric,
-    act_order,
-    wbits,
+    activation_order,
+    weight_bits,
 ):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
@@ -134,19 +134,19 @@ def apply_gptq_layerwise(
             attempt to automatically discover its structure.
         dataloader: An iterable providing calibration data. Each item should
             be a batch of token IDs suitable for the model's embedding layer.
-        nsamples (int): The number of samples from the dataloader to use for
+        num_samples (int): The number of samples from the dataloader to use for
             calibration.
-        percdamp (float): The percentage of dampening to add to the Hessian
-            diagonal for stabilization during inverse calculation. A value of
-            0.01 is common.
+        hessian_damping (float): The percentage of dampening to add to the
+            Hessian diagonal for stabilization during inverse calculation.
+            A value of 0.01 is common.
         group_size (int): The size of the groups to use for quantization. A
             value of 128 means that 128 weights will share the same scaling
             factor. Use -1 for per-channel quantization.
         symmetric (bool): If True, symmetric quantization is used. Otherwise,
             asymmetric quantization is used.
-        act_order (bool): If True, reorders the weight columns based on
+        activation_order (bool): If True, reorders the weight columns based on
             activation magnitude, which can improve quantization accuracy.
-        wbits (int): The number of bits to use for the quantized weights,
+        weight_bits (int): The number of bits to use for the quantized weights,
             e.g., 4 for 4-bit quantization.
 
     Raises:
@@ -209,13 +209,13 @@ def apply_gptq_layerwise(
     ]
     progbar = keras_utils.Progbar(target=len(transformer_blocks))
 
-    for i, block in enumerate(transformer_blocks):
-        logging.info(f"Quantizing Block {i}")
+    for block_idx, block in enumerate(transformer_blocks):
+        logging.info(f"Quantizing Block {block_idx}")
         sub_layers_map = find_layers_in_block(block)
 
         if not sub_layers_map:
             logging.info(
-                f"  No Dense or EinsumDense layers found in block {i}. "
+                f"  No Dense or EinsumDense layers found in block {block_idx}. "
                 "Skipping."
             )
         else:
@@ -246,9 +246,9 @@ def apply_gptq_layerwise(
                     original_calls[name] = original_call
                     layer.call = create_hook(name, original_call)
 
-                logging.info(f"Capturing activations for block {i}...")
-                for j in range(nsamples):
-                    current_input = inputs[j]
+                logging.info(f"Capturing activations for block {block_idx}...")
+                for sample_idx in range(num_samples):
+                    current_input = inputs[sample_idx]
                     if len(current_input.shape) == 2:
                         current_input = ops.expand_dims(current_input, axis=0)
                     _ = block(current_input)
@@ -258,7 +258,7 @@ def apply_gptq_layerwise(
                     if name in original_calls:
                         layer.call = original_calls[name]
 
-            logging.info(f"Building Hessians for block {i}...")
+            logging.info(f"Building Hessians for block {block_idx}...")
             for name, gptq_object in gptq_objects.items():
                 layer_inputs = ops.concatenate(captured_inputs[name], axis=0)
 
@@ -268,12 +268,12 @@ def apply_gptq_layerwise(
                 # This correctly handles inputs of any dimensionality
                 # (e.g., 3D or 4D).
                 num_features = gptq_object.rows
-                inp_reshaped = ops.reshape(layer_inputs, (-1, num_features))
-                gptq_object.update_hessian_with_batch(inp_reshaped)
+                input_reshaped = ops.reshape(layer_inputs, (-1, num_features))
+                gptq_object.update_hessian_with_batch(input_reshaped)
 
                 quantizer = GPTQQuantization(
-                    wbits,
-                    perchannel=True,
+                    weight_bits,
+                    per_channel=True,
                     symmetric=symmetric,
                     group_size=group_size,
                 )
@@ -281,23 +281,25 @@ def apply_gptq_layerwise(
                 logging.info(f"Quantizing {name}...")
                 gptq_object.quantizer = quantizer
                 gptq_object.quantize_and_correct_block(
-                    percdamp=percdamp, group_size=group_size, actorder=act_order
+                    hessian_damping=hessian_damping,
+                    group_size=group_size,
+                    activation_order=activation_order,
                 )
                 gptq_object.free()
 
             del gptq_objects, captured_inputs, original_calls
 
-        if i < len(transformer_blocks) - 1:
-            logging.info(f"Generating inputs for block {i + 1}...")
+        if block_idx < len(transformer_blocks) - 1:
+            logging.info(f"Generating inputs for block {block_idx + 1}...")
             next_block_inputs = []
-            for j in range(nsamples):
-                current_input = inputs[j]
+            for sample_idx in range(num_samples):
+                current_input = inputs[sample_idx]
                 if len(current_input.shape) == 2:
                     current_input = ops.expand_dims(current_input, axis=0)
                 output = block(current_input)[0]
                 next_block_inputs.append(output)
             inputs = next_block_inputs
-        progbar.update(current=i + 1)
+        progbar.update(current=block_idx + 1)
 
     logging.info("Quantization process complete.")
 
@@ -309,25 +311,25 @@ def quantize_model(model, config):
     logging.info("Starting GPTQ quantization process...")
 
     # Load ALL data needed from the generator/source in a single call.
-    total_samples_to_request = config.nsamples
+    total_samples_to_request = config.num_samples
     full_dataloader = get_dataloader(
         config.tokenizer,
-        config.seqlen,
+        config.sequence_length,
         config.dataset,
-        nsamples=total_samples_to_request,
+        num_samples=total_samples_to_request,
     )
 
     # Split the materialized data. This works because full_dataloader
     # is now a NumPy array, which can be sliced and reused.
-    calibration_dataloader = full_dataloader[: config.nsamples]
+    calibration_dataloader = full_dataloader[: config.num_samples]
 
     apply_gptq_layerwise(
         model,
         calibration_dataloader,  # Use the calibration slice
         len(calibration_dataloader),  # Use the actual number of samples
-        config.percdamp,
+        config.hessian_damping,
         config.group_size,
         config.symmetric,
-        config.act_order,
-        config.wbits,
+        config.activation_order,
+        config.weight_bits,
     )

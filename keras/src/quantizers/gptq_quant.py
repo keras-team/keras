@@ -1,38 +1,25 @@
 from keras.src import ops
 
 
-def dequantize(x, scale, zero, maxq):
-    """The core quantization function."""
-    epsilon = ops.cast(1e-8, dtype=scale.dtype)
-    scale = ops.where(ops.equal(scale, 0), epsilon, scale)
-
-    quantized_x = ops.divide(x, scale)
-    quantized_x = ops.round(quantized_x)
-    q = ops.add(quantized_x, zero)
-    q = ops.clip(q, 0, maxq)
-
-    dequantized_x = ops.subtract(q, zero)
-    return ops.multiply(scale, dequantized_x)
+def dequantize(input_tensor, scale, zero, maxq):
+    """Dequantizes a quantized tensor back to float32."""
+    quantized_tensor = ops.divide(input_tensor, scale)
+    quantized_tensor = ops.clip(quantized_tensor, 0, maxq)
+    quantized_tensor = ops.add(quantized_tensor, zero)
+    quantized_tensor = ops.cast(quantized_tensor, "int32")
+    dequantized_tensor = ops.subtract(quantized_tensor, zero)
+    return ops.multiply(dequantized_tensor, scale)
 
 
 class GPTQQuantization:
-    """Initializes the GPTQQuantization state.
+    """A class that handles the quantization of weights using GPTQ method.
+
+    This class provides methods to find quantization parameters (scale and zero)
+    for a given tensor and can be used to quantize weights in a GPTQ context.
 
     Args:
-        shape (int, optional): This argument is currently unused.
-            Defaults to 1.
-
-    Attributes:
-        scale (tensor, optional): The quantization scaling factor(s). This
-            is computed during the calibration process. Defaults to `None`.
-        zero (tensor, optional): The quantization zero-point(s). This is
-            computed during the calibration process. Defaults to `None`.
-        maxq (tensor, optional): The maximum integer value for the
-            quantized weights (e.g., 15 for 4-bit quantization).
-            Defaults to `None`.
-        wbits (int, optional): The number of bits to quantize to (e.g., 4).
-            Defaults to `None`.
-        perchannel (bool): A flag indicating whether quantization is
+        weight_bits (int): The number of bits to quantize to (e.g., 4).
+        per_channel (bool): A flag indicating whether quantization is
             applied per-channel (`True`) or per-tensor (`False`).
             Defaults to `False`.
         symmetric (bool): A flag indicating whether symmetric (`True`) or
@@ -42,10 +29,12 @@ class GPTQQuantization:
             Defaults to -1.
     """
 
-    def __init__(self, wbits, perchannel=True, symmetric=False, group_size=-1):
-        self.wbits = wbits
-        self.maxq = ops.cast((2**wbits) - 1, "float32")
-        self.perchannel = perchannel
+    def __init__(
+        self, weight_bits, per_channel=True, symmetric=False, group_size=-1
+    ):
+        self.weight_bits = weight_bits
+        self.maxq = ops.cast((2**weight_bits) - 1, "float32")
+        self.per_channel = per_channel
         self.symmetric = symmetric
         self.group_size = group_size
 
@@ -53,63 +42,69 @@ class GPTQQuantization:
         self.scale = None
         self.zero = None
 
-    def find_params(self, x, weight=False):
+    def find_params(self, input_tensor, weight=False):
         """Finds quantization parameters (scale and zero) for a given tensor."""
 
-        if x is None:
-            raise ValueError("Input tensor 'x' cannot be None.")
+        if input_tensor is None:
+            raise ValueError("Input tensor 'input_tensor' cannot be None.")
 
         # For weights, we typically expect at least a 2D tensor.
-        if weight and len(x.shape) < 2:
+        if weight and len(input_tensor.shape) < 2:
             raise ValueError(
-                f"Input weight tensor 'x' must have a rank of at least 2, "
-                f"but got rank {len(x.shape)}."
+                f"Input weight tensor 'input_tensor' must have a rank of at "
+                f"least 2, but got rank {len(input_tensor.shape)}."
             )
 
-        if ops.size(x) == 0:
-            raise ValueError("Input tensor 'x' cannot be empty.")
+        if ops.size(input_tensor) == 0:
+            raise ValueError("Input tensor 'input_tensor' cannot be empty.")
 
-        original_shape = x.shape
+        original_shape = input_tensor.shape
 
-        if self.perchannel:
+        if self.per_channel:
             if weight:
                 if self.group_size != -1:
-                    x_reshaped = ops.reshape(x, [-1, self.group_size])
+                    input_reshaped = ops.reshape(
+                        input_tensor, [-1, self.group_size]
+                    )
                 else:
-                    x_reshaped = ops.reshape(x, [original_shape[0], -1])
+                    input_reshaped = ops.reshape(
+                        input_tensor, [original_shape[0], -1]
+                    )
         else:  # per-tensor
-            x_reshaped = ops.reshape(x, [1, -1])
+            input_reshaped = ops.reshape(input_tensor, [1, -1])
 
         # Find min/max values
-        xmin = ops.min(x_reshaped, axis=1)
-        xmax = ops.max(x_reshaped, axis=1)
+        min_values = ops.min(input_reshaped, axis=1)
+        max_values = ops.max(input_reshaped, axis=1)
 
         # Apply symmetric quantization logic if enabled
         if self.symmetric:
-            xmax = ops.maximum(ops.abs(xmin), xmax)
-            xmin = ops.where(ops.less(xmin, 0), -xmax, xmin)
+            max_values = ops.maximum(ops.abs(min_values), max_values)
+            min_values = ops.where(
+                ops.less(min_values, 0), -max_values, min_values
+            )
 
         # Ensure range is not zero to avoid division errors
-        tmp = ops.equal(xmin, xmax)
-        xmin = ops.where(tmp, xmin - 1, xmin)
-        xmax = ops.where(tmp, xmax + 1, xmax)
+        zero_range = ops.equal(min_values, max_values)
+        min_values = ops.where(zero_range, min_values - 1, min_values)
+        max_values = ops.where(zero_range, max_values + 1, max_values)
 
         # Calculate scale and zero-point
-        self.scale = (xmax - xmin) / self.maxq
+        self.scale = (max_values - min_values) / self.maxq
         if self.symmetric:
             self.zero = ops.full_like(self.scale, (self.maxq + 1) / 2)
         else:
-            self.zero = ops.round(-xmin / self.scale)
+            self.zero = ops.round(-min_values / self.scale)
 
         # Ensure scale is non-zero
         self.scale = ops.where(ops.less_equal(self.scale, 0), 1e-8, self.scale)
 
         if weight:
             # Per-channel, non-grouped case: simple reshape is correct.
-            if self.perchannel and self.group_size == -1:
+            if self.per_channel and self.group_size == -1:
                 self.scale = ops.reshape(self.scale, [-1, 1])
                 self.zero = ops.reshape(self.zero, [-1, 1])
-            elif not self.perchannel:
+            elif not self.per_channel:
                 num_rows = original_shape[0]
                 self.scale = ops.tile(
                     ops.reshape(self.scale, (1, 1)), (num_rows, 1)
@@ -117,10 +112,6 @@ class GPTQQuantization:
                 self.zero = ops.tile(
                     ops.reshape(self.zero, (1, 1)), (num_rows, 1)
                 )
-        if self.perchannel:
+        if self.per_channel:
             self.scale = ops.reshape(self.scale, [-1, 1])
             self.zero = ops.reshape(self.zero, [-1, 1])
-
-    def ready(self):
-        """Checks if the quantization parameters have been computed."""
-        return self.scale is not None and self.zero is not None

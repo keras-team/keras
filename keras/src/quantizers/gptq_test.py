@@ -55,11 +55,11 @@ class GPTQTest(testing.TestCase):
         gptq_instance = GPTQ(mock_layer)
         batch1 = rng.standard_normal(size=(8, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(batch1)
-        self.assertEqual(gptq_instance.nsamples, 8)
+        self.assertEqual(gptq_instance.num_samples, 8)
         H1 = np.copy(ops.convert_to_numpy(gptq_instance.H))
         batch2 = rng.standard_normal(size=(4, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(batch2)
-        self.assertEqual(gptq_instance.nsamples, 12)
+        self.assertEqual(gptq_instance.num_samples, 12)
         H2 = np.copy(ops.convert_to_numpy(gptq_instance.H))
         self.assertFalse(np.allclose(H1, H2))
 
@@ -69,7 +69,9 @@ class GPTQTest(testing.TestCase):
         original_weights = np.copy(ops.convert_to_numpy(mock_layer.kernel))
 
         gptq_instance = GPTQ(mock_layer)
-        gptq_instance.quantizer = GPTQQuantization(wbits=4, symmetric=False)
+        gptq_instance.quantizer = GPTQQuantization(
+            weight_bits=4, symmetric=False
+        )
         calibration_data = rng.standard_normal(size=(128, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(calibration_data)
         gptq_instance.quantize_and_correct_block()

@@ -436,10 +436,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         if mode == "gptq":
             if not isinstance(config, GPTQConfig):
-                raise TypeError(
-                    "When using 'gptq' mode, you must pass a `config` "
-                    "argument of type "
-                    "`keras.quantizers.gptq_config.GPTQConfig`."
+                raise ValueError(
+                    "The `config` argument must be of type "
+                    "`keras.quantizers.GPTQConfig`."
                 )
             # The config object's own quantize method drives the process
             config.quantize(self)
