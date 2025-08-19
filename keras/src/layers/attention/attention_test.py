@@ -94,10 +94,10 @@ class AttentionTest(testing.TestCase):
         query_mask = np.array([[True, False, True], [True, False, True]])
         value_mask = np.array([[True, False, True], [True, False, True]])
         output, scores = layer(
-                [query, value],
-                mask=[query_mask, value_mask],
-                return_attention_scores=True,
-            )
+            [query, value],
+            mask=[query_mask, value_mask],
+            return_attention_scores=True,
+        )
         self.assertEqual(output.shape, (batch_size, Tq, dim))
         self.assertEqual(scores.shape, (batch_size, Tq, Tv))
 
