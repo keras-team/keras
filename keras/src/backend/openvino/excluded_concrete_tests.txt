@@ -186,6 +186,7 @@ CoreOpsCorrectnessTest::test_scatter
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
+CoreOpsBehaviorTests::test_vectorized_map_serialization
 ExtractSequencesOpTest::test_extract_sequences_call
 InTopKTest::test_in_top_k_call
 MathOpsCorrectnessTest::test_erfinv_operation_basic
