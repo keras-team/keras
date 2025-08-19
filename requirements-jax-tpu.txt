@@ -11,4 +11,4 @@ torch==2.6.0
 jax[tpu]
 flax
 
--r requirements-common.txt
+-r requirements-common-jax-tpu.txt

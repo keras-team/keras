@@ -1,0 +1,31 @@
+pre-commit
+#namex>=0.0.8
+ruff
+pytest
+#numpy
+scipy
+scikit-learn
+pillow
+pandas
+#absl-py
+#requests
+#h5py
+#ml-dtypes
+#protobuf
+tensorboard-plugin-profile
+#rich
+build
+#optree
+pytest-cov
+#packaging
+# for tree_test.py
+dm_tree
+coverage
+# for onnx_test.py
+onnxruntime
+# TODO(https://github.com/keras-team/keras/issues/21390)
+# > 0.3.1 breaks LSTM model export in torch backend.
+onnxscript<=0.3.1
+openvino
+# for grain_dataset_adapter_test.py
+grain
