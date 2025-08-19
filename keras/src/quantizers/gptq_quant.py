@@ -15,8 +15,8 @@ def dequantize(x, scale, zero, maxq):
     return ops.multiply(scale, dequantized_x)
 
 
-class GPTQQuant:
-    """Initializes the GPTQQuant state.
+class GPTQQuantization:
+    """Initializes the GPTQQuantization state.
 
     Args:
         shape (int, optional): This argument is currently unused.

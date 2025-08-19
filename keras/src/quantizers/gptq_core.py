@@ -9,7 +9,7 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptq_quant import GPTQQuant
+from keras.src.quantizers.gptq_quant import GPTQQuantization
 
 
 def get_dataloader(tokenizer, seqlen, dataset, nsamples=128):
@@ -271,7 +271,7 @@ def apply_gptq_layerwise(
                 inp_reshaped = ops.reshape(layer_inputs, (-1, num_features))
                 gptq_object.update_hessian_with_batch(inp_reshaped)
 
-                quantizer = GPTQQuant(
+                quantizer = GPTQQuantization(
                     wbits,
                     perchannel=True,
                     symmetric=symmetric,
@@ -331,5 +331,3 @@ def quantize_model(model, config):
         config.act_order,
         config.wbits,
     )
-
-    return

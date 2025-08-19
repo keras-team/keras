@@ -5,7 +5,7 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptq_quant import GPTQQuant
+from keras.src.quantizers.gptq_quant import GPTQQuantization
 
 
 def _get_mock_layer(layer_type, kernel_shape, rng):
@@ -69,7 +69,7 @@ class GPTQTest(testing.TestCase):
         original_weights = np.copy(ops.convert_to_numpy(mock_layer.kernel))
 
         gptq_instance = GPTQ(mock_layer)
-        gptq_instance.quantizer = GPTQQuant(wbits=4, symmetric=False)
+        gptq_instance.quantizer = GPTQQuantization(wbits=4, symmetric=False)
         calibration_data = rng.standard_normal(size=(128, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(calibration_data)
         gptq_instance.quantize_and_correct_block()

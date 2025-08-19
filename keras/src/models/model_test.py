@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.quantizers import GPTQConfig
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
@@ -17,7 +18,6 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
-from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 def _get_model():

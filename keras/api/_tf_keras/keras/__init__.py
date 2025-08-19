@@ -58,7 +58,6 @@ from keras.src.models.sequential import Sequential as Sequential
 from keras.src.ops.function import Function as Function
 from keras.src.ops.operation import Operation as Operation
 from keras.src.optimizers.optimizer import Optimizer as Optimizer
-from keras.src.quantizers.gptq_config import GPTQConfig as GPTQConfig
 from keras.src.quantizers.quantizers import Quantizer as Quantizer
 from keras.src.regularizers.regularizers import Regularizer as Regularizer
 from keras.src.version import __version__ as __version__

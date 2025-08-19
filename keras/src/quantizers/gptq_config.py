@@ -1,10 +1,8 @@
 from absl import logging
 
-from keras.src.api_export import keras_export
 from keras.src.quantizers.gptq_core import quantize_model
 
 
-@keras_export(["keras.GPTQConfig", "keras.quantizers.GPTQConfig"])
 class GPTQConfig:
     """Configuration class for the GPTQ algorithm.
 
@@ -57,7 +55,6 @@ class GPTQConfig:
         self.group_size = group_size
         self.symmetric = symmetric
         self.act_order = act_order
-        self.quantization_method = "gptq"
 
     def quantize(self, model):
         """
