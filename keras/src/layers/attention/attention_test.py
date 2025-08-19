@@ -86,6 +86,21 @@ class AttentionTest(testing.TestCase):
         self.assertAllClose(output, [[[1.0, 1.0], [0.0, 0.0]]])
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
 
+    def test_attention_2D_mask_shape_mismatch(self):
+        layer = layers.Attention()
+        batch_size, Tq, Tv, dim = 2, 3, 3, 4
+        query = np.random.random((batch_size, Tq, dim)).astype(np.float32)
+        value = np.random.random((batch_size, Tv, dim)).astype(np.float32)
+        query_mask = np.array([[True, False, True], [True, False, True]])
+        value_mask = np.array([[True, False, True], [True, False, True]])
+        output, scores = layer(
+                [query, value],
+                mask=[query_mask, value_mask],
+                return_attention_scores=True,
+            )
+        self.assertEqual(output.shape, (batch_size, Tq, dim))
+        self.assertEqual(scores.shape, (batch_size, Tq, Tv))
+
     def test_attention_errors(self):
         layer = layers.Attention()
         tensor = np.array([[[1.0, 1.0], [1.0, 1.0]]])
