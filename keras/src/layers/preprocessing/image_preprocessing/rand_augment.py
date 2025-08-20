@@ -1,5 +1,3 @@
-import random
-
 import keras.src.layers as layers
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
@@ -169,9 +167,15 @@ class RandAugment(BaseImagePreprocessingLayer):
                 augmentation_layer = getattr(self, layer_name)
                 augmentation_layer.backend.set_backend("tensorflow")
 
+        layer_idxes = self.backend.random.randint(
+            (self.num_ops,),
+            0,
+            len(self._AUGMENT_LAYERS),
+            seed=self._get_seed_generator(self.backend._backend),
+        )
+
         transformation = {}
-        random.shuffle(self._AUGMENT_LAYERS)
-        for layer_name in self._AUGMENT_LAYERS[: self.num_ops]:
+        for layer_name in self._AUGMENT_LAYERS:
             augmentation_layer = getattr(self, layer_name)
             transformation[layer_name] = (
                 augmentation_layer.get_random_transformation(
@@ -181,17 +185,25 @@ class RandAugment(BaseImagePreprocessingLayer):
                 )
             )
 
-        return transformation
+        return {
+            "transforms": transformation,
+            "layer_idxes": layer_idxes,
+        }
 
     def transform_images(self, images, transformation, training=True):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
 
-            for layer_name, transformation_value in transformation.items():
-                augmentation_layer = getattr(self, layer_name)
-                images = augmentation_layer.transform_images(
-                    images, transformation_value
-                )
+            layer_idxes = transformation["layer_idxes"]
+            transforms = transformation["transforms"]
+            for i in range(self.num_ops):
+                for idx, (key, value) in enumerate(transforms.items()):
+                    augmentation_layer = getattr(self, key)
+                    images = self.backend.numpy.where(
+                        layer_idxes[i] == idx,
+                        augmentation_layer.transform_images(images, value),
+                        images,
+                    )
 
         images = self.backend.cast(images, self.compute_dtype)
         return images
@@ -206,11 +218,29 @@ class RandAugment(BaseImagePreprocessingLayer):
         training=True,
     ):
         if training:
-            for layer_name, transformation_value in transformation.items():
-                augmentation_layer = getattr(self, layer_name)
-                bounding_boxes = augmentation_layer.transform_bounding_boxes(
-                    bounding_boxes, transformation_value, training=training
+            layer_idxes = transformation["layer_idxes"]
+            transforms = transformation["transforms"]
+            for idx, (key, value) in enumerate(transforms.items()):
+                augmentation_layer = getattr(self, key)
+
+                transformed_bounding_box = (
+                    augmentation_layer.transform_bounding_boxes(
+                        bounding_boxes.copy(), value
+                    )
                 )
+                for i in range(self.num_ops):
+                    bounding_boxes["boxes"] = self.backend.numpy.where(
+                        layer_idxes[i] == idx,
+                        transformed_bounding_box["boxes"],
+                        bounding_boxes["boxes"],
+                    )
+
+                    bounding_boxes["labels"] = self.backend.numpy.where(
+                        layer_idxes[i] == idx,
+                        transformed_bounding_box["labels"],
+                        bounding_boxes["labels"],
+                    )
+
         return bounding_boxes
 
     def transform_segmentation_masks(

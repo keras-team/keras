@@ -35,7 +35,7 @@ if backend() == "tensorflow":
             namespace="keras",
         )
     except ValueError:
-        pass  # We may have already registered if we are reiporting keras.
+        pass  # We may have already registered if we are reimporting keras.
 
 
 def is_nested(structure):

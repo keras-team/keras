@@ -16,7 +16,9 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.layers.core import input_layer
 from keras.src.ops import core
+from keras.src.saving import object_registration
 from keras.src.testing.test_utils import named_product
 
 
@@ -56,17 +58,24 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
         def f(x):
             return x**2
 
-        xs = KerasTensor((None,))
-        self.assertEqual(core.map(f, xs).shape, (None,))
+        xs = KerasTensor((None, 5))
+        self.assertEqual(core.map(f, xs).shape, (None, 5))
 
         # Test nested output
         def f2(x):
             return {"a": x**2, "b": x * 10}
 
-        xs = KerasTensor((None,))
+        xs = KerasTensor((None, 5))
         ys = core.map(f2, xs)
-        self.assertEqual(ys["a"].shape, (None,))
-        self.assertEqual(ys["b"].shape, (None,))
+        self.assertEqual(ys["a"].shape, (None, 5))
+        self.assertEqual(ys["b"].shape, (None, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((None, 5)), KerasTensor((None, 5)))
+        self.assertEqual(core.map(f3, xs).shape, (None, 5))
 
     def test_saturate_cast(self):
         x = KerasTensor((3, 5, None), dtype="float32")
@@ -124,6 +133,29 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
         result = core.switch(index, [fn], x, y)
         self.assertEqual(result[0].shape, (None,))
         self.assertEqual(result[1].shape, (None,))
+
+    def test_vectorized_map(self):
+        def f(x):
+            return x**2
+
+        xs = KerasTensor((None, 5))
+        self.assertEqual(core.vectorized_map(f, xs).shape, (None, 5))
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = KerasTensor((None, 5))
+        ys = core.vectorized_map(f2, xs)
+        self.assertEqual(ys["a"].shape, (None, 5))
+        self.assertEqual(ys["b"].shape, (None, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((None, 5)), KerasTensor((None, 5)))
+        self.assertEqual(core.vectorized_map(f3, xs).shape, (None, 5))
 
     def test_while_loop(self):
         def cond(args):
@@ -203,18 +235,25 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         def f(x):
             return x**2
 
-        xs = KerasTensor((6,))
+        xs = KerasTensor((6, 5))
         ys = core.map(f, xs)
-        self.assertEqual(ys.shape, (6,))
+        self.assertEqual(ys.shape, (6, 5))
 
         # Test nested output
         def f2(x):
             return {"a": x**2, "b": x * 10}
 
-        xs = KerasTensor((6,))
+        xs = KerasTensor((6, 5))
         ys = core.map(f2, xs)
-        self.assertEqual(ys["a"].shape, (6,))
-        self.assertEqual(ys["b"].shape, (6,))
+        self.assertEqual(ys["a"].shape, (6, 5))
+        self.assertEqual(ys["b"].shape, (6, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((6, 5)), KerasTensor((6, 5)))
+        self.assertEqual(core.map(f3, xs).shape, (6, 5))
 
     def test_saturate_cast(self):
         x = KerasTensor((3, 5, 7), dtype="float32")
@@ -265,6 +304,19 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         shape = (2, 2)
         self.assertEqual(core.slice(inputs, start_indices, shape).shape, (2, 2))
 
+    def test_slice_negative_one_shape(self):
+        inputs = KerasTensor(shape=(3, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (-1, -1)
+        self.assertEqual(core.slice(inputs, start_indices, shape).shape, (2, 2))
+
+    def test_slice_negative_one_shape_raises(self):
+        inputs = KerasTensor(shape=(3, 3), dtype="float32")
+        start_indices = KerasTensor(shape=(2,), dtype="int32")
+        shape = (-1, -1)
+        with self.assertRaises(ValueError):
+            core.slice(inputs, start_indices, shape)
+
     def test_slice_update(self):
         inputs = KerasTensor((4, 4))
         start_indices = KerasTensor((2,))
@@ -293,6 +345,30 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         y = KerasTensor((5, 2))
         self.assertEqual(core.switch(index, [fn], x, y)[0].shape, (5,))
         self.assertEqual(core.switch(index, [fn], x, y)[1].shape, (2,))
+
+    def test_vectorized_map(self):
+        def f(x):
+            return x**2
+
+        xs = KerasTensor((6, 5))
+        ys = core.vectorized_map(f, xs)
+        self.assertEqual(ys.shape, (6, 5))
+
+        # Test nested output
+        def f2(x):
+            return {"a": x**2, "b": x * 10}
+
+        xs = KerasTensor((6, 5))
+        ys = core.vectorized_map(f2, xs)
+        self.assertEqual(ys["a"].shape, (6, 5))
+        self.assertEqual(ys["b"].shape, (6, 5))
+
+        # Test nested input
+        def f3(x):
+            return x[0] + x[1]
+
+        xs = (KerasTensor((6, 5)), KerasTensor((6, 5)))
+        self.assertEqual(core.vectorized_map(f3, xs).shape, (6, 5))
 
     def test_while_loop(self):
         def cond(args):
@@ -571,6 +647,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         index, inputs, sum = 0, np.arange(10), np.array([0])
         index, inputs, sum = core.while_loop(cond, body, (index, inputs, sum))
+        self.assertEqual(sum.shape, (1,))
         self.assertAllClose(sum, [45])
 
     def test_fori_loop(self):
@@ -1546,6 +1623,18 @@ class CoreOpsBehaviorTests(testing.TestCase):
         output_spec = stop_gradient.compute_output_spec(variable)
         self.assertEqual(output_spec.shape, variable.shape)
         self.assertEqual(output_spec.dtype, variable.dtype)
+
+    def test_vectorized_map_serialization(self):
+        @object_registration.register_keras_serializable()
+        def f(x):
+            return x + x
+
+        inputs = input_layer.Input((10,), dtype="float32")
+        outputs = core.vectorized_map(f, inputs)
+        model = models.Functional(inputs, outputs)
+        reloaded_model = model.from_config(model.get_config())
+        x = np.random.rand(5, 10).astype("float32")
+        self.assertAllClose(model(x), reloaded_model(x))
 
     def test_while_loop_output_spec(self):
         # Define dummy cond and body functions

@@ -1,5 +1,6 @@
 import copy
 import importlib
+import inspect
 import os
 import sys
 
@@ -38,6 +39,26 @@ class TFGraphScope:
         global_state.set_global_attribute(
             "in_tf_graph_scope", self._original_value
         )
+
+
+def in_grain_data_pipeline():
+    if "grain" not in sys.modules:
+        # Fast path to check if grain is not imported.
+        return False
+
+    # We use a lightweight version of `inspect.stack` to detect execution within
+    # grain.
+    current_frame = inspect.currentframe()
+    while current_frame:
+        if (
+            os.path.join("grain", "_src", "python", "dataset")
+            in current_frame.f_code.co_filename
+            or os.path.join("grain", "_src", "python", "data_loader")
+            in current_frame.f_code.co_filename
+        ):
+            return True
+        current_frame = current_frame.f_back
+    return False
 
 
 class DynamicBackend:

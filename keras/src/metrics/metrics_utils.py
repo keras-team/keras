@@ -318,7 +318,7 @@ def is_evenly_distributed_thresholds(thresholds):
     """Check if the thresholds list is evenly distributed.
 
     We could leverage evenly distributed thresholds to use less memory when
-    calculate metrcis like AUC where each individual threshold need to be
+    calculate metrics like AUC where each individual threshold need to be
     evaluated.
 
     Args:
