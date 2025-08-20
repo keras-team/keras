@@ -176,6 +176,17 @@ def heaviside(x1, x2):
     )
 
 
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    ret = tf.math.sqrt(
+        tf.cast(tf.math.square(x1), config.floatx())
+        + tf.cast(tf.math.square(x2), config.floatx())
+    )
+    return ret
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x, dtype=tf.int32)
     return tf.signal.kaiser_window(x, beta=beta)
