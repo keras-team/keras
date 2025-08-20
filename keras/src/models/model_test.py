@@ -1045,7 +1045,7 @@ class ModelTest(testing.TestCase):
 
         if _type is other_type:
             with self.assertRaisesRegex(
-                ValueError, "[Ee]xpected.*" + _type.__name__
+                ValueError, f"[Ee]xpected.*{_type.__name__}"
             ):
                 model.fit(x, y, batch_size=2, epochs=1, verbose=0)
         else:

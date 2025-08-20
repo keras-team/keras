@@ -212,7 +212,7 @@ def Xception(
 
     for i in range(8):
         residual = x
-        prefix = "block" + str(i + 5)
+        prefix = f"block{i + 5}"
 
         x = layers.Activation("relu", name=f"{prefix}_sepconv1_act")(x)
         x = layers.SeparableConv2D(

@@ -44,7 +44,7 @@ def dense_block(x, blocks, name):
         Output tensor for the block.
     """
     for i in range(blocks):
-        x = conv_block(x, 32, name=f"{name}_block" + str(i + 1))
+        x = conv_block(x, 32, name=f"{name}_block{i + 1}")
     return x
 
 

@@ -664,7 +664,7 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 def _name_key(name):
     """Make sure that private attributes are visited last."""
     if name.startswith("_"):
-        return "~" + name
+        return f"~{name}"
     return name
 
 

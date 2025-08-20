@@ -353,7 +353,7 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
         raise ValueError(
             "Unknown Inception-ResNet block type. "
             'Expects "block35", "block17" or "block8", '
-            "but got: " + str(block_type)
+            f"but got: {block_type}"
         )
 
     block_name = f"{block_type}_{block_idx}"

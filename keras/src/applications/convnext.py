@@ -244,7 +244,7 @@ def ConvNeXtBlock(
         A function representing a ConvNeXtBlock block.
     """
     if name is None:
-        name = "prestem" + str(backend.get_uid("prestem"))
+        name = f"prestem{str(backend.get_uid('prestem'))}"
 
     def apply(inputs):
         x = inputs
@@ -282,7 +282,7 @@ def ConvNeXtBlock(
 def PreStem(name=None):
     """Normalizes inputs with ImageNet-1k mean and std."""
     if name is None:
-        name = "prestem" + str(backend.get_uid("prestem"))
+        name = "prestem{0}".format(str(backend.get_uid("prestem")))
 
     def apply(x):
         x = layers.Normalization(

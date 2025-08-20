@@ -191,7 +191,7 @@ class Progbar:
                 numdigits = int(math.log10(self.target)) + 1
                 count = f"%{numdigits}d/%d" % (current, self.target)
                 info = f"{count} - {now - self._start:.0f}s"
-                info += " -" + self._format_time(time_per_unit, self.unit_name)
+                info += f" -{self._format_time(time_per_unit, self.unit_name)}"
                 for k in self._values_order:
                     info += f" - {k}:"
                     avg = backend.convert_to_numpy(

@@ -460,7 +460,7 @@ class TensorBoard(Callback):
         if isinstance(logs, dict):
             for name, value in logs.items():
                 self.summary.scalar(
-                    "batch_" + name, value, step=self._global_train_batch
+                    f"batch_{name}", value, step=self._global_train_batch
                 )
 
         if not self._should_trace:
@@ -548,12 +548,12 @@ class TensorBoard(Callback):
         if train_logs:
             with self._train_writer.as_default():
                 for name, value in train_logs.items():
-                    self.summary.scalar("epoch_" + name, value, step=epoch)
+                    self.summary.scalar(f"epoch_{name}", value, step=epoch)
         if val_logs:
             with self._val_writer.as_default():
                 for name, value in val_logs.items():
                     name = name[4:]  # Remove 'val_' prefix.
-                    self.summary.scalar("epoch_" + name, value, step=epoch)
+                    self.summary.scalar(f"epoch_{name}", value, step=epoch)
 
     def _log_weights(self, epoch):
         """Logs the weights of the Model to TensorBoard."""

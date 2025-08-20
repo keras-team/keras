@@ -263,7 +263,7 @@ def InceptionV3(
         x = layers.concatenate(
             [branch1x1, branch7x7, branch7x7dbl, branch_pool],
             axis=channel_axis,
-            name="mixed" + str(5 + i),
+            name="mixed{0}".format(5 + i),
         )
 
     # mixed 7: 17 x 17 x 768
@@ -315,7 +315,7 @@ def InceptionV3(
         branch3x3 = layers.concatenate(
             [branch3x3_1, branch3x3_2],
             axis=channel_axis,
-            name="mixed9_" + str(i),
+            name=f"mixed9_{i}",
         )
 
         branch3x3dbl = conv2d_bn(x, 448, 1, 1)
@@ -333,7 +333,7 @@ def InceptionV3(
         x = layers.concatenate(
             [branch1x1, branch3x3, branch3x3dbl, branch_pool],
             axis=channel_axis,
-            name="mixed" + str(9 + i),
+            name=f"mixed{9 + i}",
         )
     if include_top:
         # Classification block

@@ -42,9 +42,11 @@ def create_virtualenv():
         # Create virtual environment
         "python3 -m venv test_env",
     ]
-    os.environ["PATH"] = (
-        "/test_env/bin/" + os.pathsep + os.environ.get("PATH", "")
-    )
+    os.environ["PATH"] = os.pathsep.join((os.path.join(os.getcwd(), "test_env", "bin"),
+                                          os.environ.get("PATH", "")))
+    if os.name == "nt":
+        os.environ["PATH"] = os.pathsep.join((os.path.join(os.getcwd(), "test_env", "Scripts"),
+                                              os.environ["PATH"]))
     run_commands_local(env_setup)
 
 
@@ -101,7 +103,8 @@ def run_commands_venv(commands):
     for command in commands:
         print(f"Running command: {command}")
         cmd_with_args = command.split(" ")
-        cmd_with_args[0] = "test_env/bin/" + cmd_with_args[0]
+        cmd_with_args[0] = os.path.join("test_env", "Scripts" if os.name == "nt" else "bin",
+                                        cmd_with_args[0])
         p = subprocess.Popen(cmd_with_args)
         assert p.wait() == 0
 

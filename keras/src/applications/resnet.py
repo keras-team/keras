@@ -290,7 +290,7 @@ def stack_residual_blocks_v1(x, filters, blocks, stride1=2, name=None):
     x = residual_block_v1(x, filters, stride=stride1, name=f"{name}_block1")
     for i in range(2, blocks + 1):
         x = residual_block_v1(
-            x, filters, conv_shortcut=False, name=f"{name}_block" + str(i)
+            x, filters, conv_shortcut=False, name=f"{name}_block{i}"
         )
     return x
 
@@ -374,9 +374,9 @@ def stack_residual_blocks_v2(x, filters, blocks, stride1=2, name=None):
 
     x = residual_block_v2(x, filters, conv_shortcut=True, name=f"{name}_block1")
     for i in range(2, blocks):
-        x = residual_block_v2(x, filters, name=f"{name}_block" + str(i))
+        x = residual_block_v2(x, filters, name=f"{name}_block{i}")
     x = residual_block_v2(
-        x, filters, stride=stride1, name=f"{name}_block" + str(blocks)
+        x, filters, stride=stride1, name=f"{name}_block{str(blocks)}"
     )
     return x
 

@@ -1117,7 +1117,7 @@ def pool2d(
             x, pool_size, strides, padding=padding, data_format=tf_data_format
         )
     else:
-        raise ValueError("Invalid pooling mode: " + str(pool_mode))
+        raise ValueError(f"Invalid pooling mode: {str(pool_mode)}")
 
     if data_format == "channels_first" and tf_data_format == "NHWC":
         x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
@@ -1157,7 +1157,7 @@ def pool3d(
             x, pool_size, strides, padding=padding, data_format=tf_data_format
         )
     else:
-        raise ValueError("Invalid pooling mode: " + str(pool_mode))
+        raise ValueError(f"Invalid pooling mode: {str(pool_mode)}")
 
     if data_format == "channels_first" and tf_data_format == "NDHWC":
         x = tf.transpose(x, (0, 4, 1, 2, 3))

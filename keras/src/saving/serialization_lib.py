@@ -805,7 +805,7 @@ def _retrieve_class_or_fn(
             # i.e. "name" instead of "package>name". This allows recent versions
             # of Keras to reload models saved with 3.6 and lower.
             if ">" not in name:
-                separated_name = ">" + name
+                separated_name = f">{name}"
                 for custom_name, custom_object in custom_objects.items():
                     if custom_name.endswith(separated_name):
                         return custom_object
