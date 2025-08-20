@@ -79,9 +79,10 @@ class TestGPTQCore:
             )
         with pytest.raises(
             TypeError,
-            match="Providing a dataset name as a "
-            "string is not supported. Please pass the "
-            "loaded dataset directly.",
+            match=(
+                "The `dataset` argument must be an iterable.*Got type: str.*"
+                "Please pass the loaded dataset directly."
+            ),
         ):
             gptq_core.get_dataloader(
                 tokenizer=MockTokenizer(),

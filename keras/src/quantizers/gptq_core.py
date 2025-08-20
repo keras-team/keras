@@ -22,7 +22,7 @@ def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
         raise TypeError(
             "The `dataset` argument must be an iterable (e.g., a list of "
             "strings, a generator, or a NumPy array). Got type: "
-            f"{type(dataset).__name__}. Please pass the loaded dataset"
+            f"{type(dataset).__name__}. Please pass the loaded dataset "
             "directly."
         )
 
