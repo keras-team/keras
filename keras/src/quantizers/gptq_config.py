@@ -118,20 +118,20 @@ class GPTQConfig:
             analyze the model's activations.
         tokenizer: A `keras_nlp.Tokenizer` instance (or a similar callable)
             that is used to process the `dataset` if it contains strings.
-        weight_bits (int, optional): The number of bits to quantize weights to.
+        weight_bits: (int, optional) The number of bits to quantize weights to.
             Defaults to 4.
-        num_samples (int, optional): The number of calibration data samples to
+        num_samples: (int, optional) The number of calibration data samples to
             use from the dataset. Defaults to 128.
-        sequence_length (int, optional): The sequence length to use for each
+        sequence_length: (int, optional) The sequence length to use for each
             calibration sample. Defaults to 512.
-        hessian_damping (float, optional): The % of Hessian damping to use for
+        hessian_damping: (float, optional) The % of Hessian damping to use for
             stabilization during inverse calculation. Defaults to 0.01.
-        group_size (int, optional): The size of weight groups to quantize
+        group_size: (int, optional) The size of weight groups to quantize
             together. A `group_size` of -1 indicates per-channel quantization.
             Defaults to 128.
-        symmetric (bool, optional): If `True`, uses symmetric quantization.
+        symmetric: (bool, optional) If `True`, uses symmetric quantization.
             If `False`, uses asymmetric quantization. Defaults to `False`.
-        activation_order (bool, optional): If `True`, reorders weight columns
+        activation_order: (bool, optional) If `True`, reorders weight columns
             based on activation magnitude, which can improve quantization
             accuracy. Defaults to `False`.
     """

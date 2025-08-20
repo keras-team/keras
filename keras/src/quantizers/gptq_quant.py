@@ -22,13 +22,13 @@ class GPTQQuantization:
     for a given tensor and can be used to quantize weights in a GPTQ context.
 
     Args:
-        weight_bits (int): The number of bits to quantize to (e.g., 4).
-        per_channel (bool): A flag indicating whether quantization is
+        weight_bits: (int) The number of bits to quantize to (e.g., 4).
+        per_channel: (bool) A flag indicating whether quantization is
             applied per-channel (`True`) or per-tensor (`False`).
             Defaults to `False`.
-        symmetric (bool): A flag indicating whether symmetric (`True`) or
+        symmetric: (bool) A flag indicating whether symmetric (`True`) or
             asymmetric (`False`) quantization is used. Defaults to `False`.
-        group_size (int): The size of weight groups for quantization. A
+        group_size: (int) The size of weight groups for quantization. A
             value of -1 indicates that grouping is not used.
             Defaults to -1.
     """
@@ -37,7 +37,9 @@ class GPTQQuantization:
         self, weight_bits, per_channel=True, symmetric=False, group_size=-1
     ):
         self.weight_bits = weight_bits
-        self.maxq = ops.cast((2**weight_bits) - 1, "float32")
+        self.maxq = ops.cast(
+            ops.subtract(ops.power(2, weight_bits), 1), "float32"
+        )
         self.per_channel = per_channel
         self.symmetric = symmetric
         self.group_size = group_size
@@ -85,20 +87,26 @@ class GPTQQuantization:
         if self.symmetric:
             max_values = ops.maximum(ops.abs(min_values), max_values)
             min_values = ops.where(
-                ops.less(min_values, 0), -max_values, min_values
+                ops.less(min_values, 0), ops.negative(max_values), min_values
             )
 
         # Ensure range is not zero to avoid division errors
         zero_range = ops.equal(min_values, max_values)
-        min_values = ops.where(zero_range, min_values - 1, min_values)
-        max_values = ops.where(zero_range, max_values + 1, max_values)
+        min_values = ops.where(
+            zero_range, ops.subtract(min_values, 1), min_values
+        )
+        max_values = ops.where(zero_range, ops.add(max_values, 1), max_values)
 
         # Calculate scale and zero-point
-        self.scale = (max_values - min_values) / self.maxq
+        self.scale = ops.divide(ops.subtract(max_values, min_values), self.maxq)
         if self.symmetric:
-            self.zero = ops.full_like(self.scale, (self.maxq + 1) / 2)
+            self.zero = ops.full_like(
+                self.scale, ops.divide(ops.add(self.maxq, 1), 2)
+            )
         else:
-            self.zero = ops.round(-min_values / self.scale)
+            self.zero = ops.round(
+                ops.divide(ops.negative(min_values), self.scale)
+            )
 
         # Ensure scale is non-zero
         self.scale = ops.where(ops.less_equal(self.scale, 0), 1e-8, self.scale)

@@ -18,14 +18,14 @@ def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
     """
     all_tokens = []
 
-    if isinstance(dataset, str):
+    if not hasattr(dataset, "__iter__") or isinstance(dataset, (str, bytes)):
         raise TypeError(
             "The `dataset` argument must be an iterable (e.g., a list of "
-            "strings or a generator). Providing a dataset name as a string "
-            "is not supported. Please pass the loaded dataset directly."
+            "strings, a generator, or a NumPy array). Got type: "
+            f"{type(dataset).__name__}. Please pass the loaded dataset"
+            "directly."
         )
 
-    logging.info("Using pre-made dataset/generator...")
     dataset_list = list(dataset)
 
     if not dataset_list:
@@ -134,19 +134,19 @@ def apply_gptq_layerwise(
             attempt to automatically discover its structure.
         dataloader: An iterable providing calibration data. Each item should
             be a batch of token IDs suitable for the model's embedding layer.
-        num_samples (int): The number of samples from the dataloader to use for
+        num_samples: (int) The number of samples from the dataloader to use for
             calibration.
-        hessian_damping (float): The percentage of dampening to add to the
+        hessian_damping: (float) The percentage of dampening to add to the
             Hessian diagonal for stabilization during inverse calculation.
             A value of 0.01 is common.
-        group_size (int): The size of the groups to use for quantization. A
+        group_size: (int) The size of the groups to use for quantization. A
             value of 128 means that 128 weights will share the same scaling
             factor. Use -1 for per-channel quantization.
-        symmetric (bool): If True, symmetric quantization is used. Otherwise,
+        symmetric: (bool) If True, symmetric quantization is used. Otherwise,
             asymmetric quantization is used.
-        activation_order (bool): If True, reorders the weight columns based on
+        activation_order: (bool) If True, reorders the weight columns based on
             activation magnitude, which can improve quantization accuracy.
-        weight_bits (int): The number of bits to use for the quantized weights,
+        weight_bits: (int) The number of bits to use for the quantized weights,
             e.g., 4 for 4-bit quantization.
 
     Raises:
@@ -326,7 +326,7 @@ def quantize_model(model, config):
     apply_gptq_layerwise(
         model,
         calibration_dataloader,  # Use the calibration slice
-        len(calibration_dataloader),  # Use the actual number of samples
+        config.num_samples,  # Use the configured number of samples
         config.hessian_damping,
         config.group_size,
         config.symmetric,

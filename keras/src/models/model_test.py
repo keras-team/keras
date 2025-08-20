@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.quantizers import GPTQConfig
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
@@ -18,6 +17,7 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 def _get_model():
@@ -1242,7 +1242,6 @@ class ModelTest(testing.TestCase):
                 model.export(temp_filepath, format="tf_saved_model")
 
 
-# Helper function to generate dummy data for quick testing.
 def dummy_dataset_generator(num_samples, sequence_length, vocab_size=1000):
     """A generator that yields random numpy arrays for fast,
     self-contained tests."""
@@ -1251,7 +1250,6 @@ def dummy_dataset_generator(num_samples, sequence_length, vocab_size=1000):
         yield rng.integers(low=0, high=vocab_size, size=(1, sequence_length))
 
 
-# Helper function to build a simple transformer model.
 def get_model_with_dense_attention():
     """Builds a simple transformer model using Dense for attention."""
     vocab_size = 1000

@@ -37,7 +37,7 @@ class GPTQTest(testing.TestCase):
         gptq_instance = GPTQ(mock_layer)
         self.assertEqual(gptq_instance.rows, 64)
         self.assertEqual(gptq_instance.columns, 128)
-        self.assertEqual(gptq_instance.H.shape, (64, 64))
+        self.assertEqual(gptq_instance.hessian.shape, (64, 64))
 
     def test_initialization_with_einsumdense_3d(self):
         rng = np.random.default_rng(seed=42)
@@ -47,7 +47,7 @@ class GPTQTest(testing.TestCase):
         gptq_instance = GPTQ(mock_layer)
         self.assertEqual(gptq_instance.rows, 64)
         self.assertEqual(gptq_instance.columns, 4 * 32)
-        self.assertEqual(gptq_instance.H.shape, (64, 64))
+        self.assertEqual(gptq_instance.hessian.shape, (64, 64))
 
     def test_update_hessian(self):
         rng = np.random.default_rng(seed=42)
@@ -56,11 +56,11 @@ class GPTQTest(testing.TestCase):
         batch1 = rng.standard_normal(size=(8, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(batch1)
         self.assertEqual(gptq_instance.num_samples, 8)
-        H1 = np.copy(ops.convert_to_numpy(gptq_instance.H))
+        H1 = np.copy(ops.convert_to_numpy(gptq_instance.hessian))
         batch2 = rng.standard_normal(size=(4, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(batch2)
         self.assertEqual(gptq_instance.num_samples, 12)
-        H2 = np.copy(ops.convert_to_numpy(gptq_instance.H))
+        H2 = np.copy(ops.convert_to_numpy(gptq_instance.hessian))
         self.assertFalse(np.allclose(H1, H2))
 
     def test_full_quantization_process(self):
@@ -80,7 +80,7 @@ class GPTQTest(testing.TestCase):
         self.assertFalse(np.allclose(original_weights, quantized_weights))
 
         gptq_instance.free()
-        self.assertIsNone(gptq_instance.H)
+        self.assertIsNone(gptq_instance.hessian)
 
     def test_unsupported_layer_error(self):
         rng = np.random.default_rng(seed=42)

@@ -34,10 +34,16 @@ class GPTQ:
 
             if d_model_dim_index == 0:  # QKV projection case
                 in_features, heads, head_dim = shape
-                self.rows, self.columns = in_features, heads * head_dim
+                self.rows, self.columns = (
+                    in_features,
+                    ops.multiply(heads, head_dim),
+                )
             elif d_model_dim_index in [1, 2]:  # Attention Output case
                 heads, head_dim, out_features = shape
-                self.rows, self.columns = heads * head_dim, out_features
+                self.rows, self.columns = (
+                    ops.multiply(heads, head_dim),
+                    out_features,
+                )
 
             # Create a temporary object that holds a reshaped
             # 2D version of the kernel.
@@ -55,14 +61,14 @@ class GPTQ:
         else:
             # Raise an error if the layer is not supported.
             raise TypeError(f"Unsupported layer type for GPTQ: {type(layer)}")
-        self.H = ops.zeros((self.rows, self.rows), dtype="float32")
+        self.hessian = ops.zeros((self.rows, self.rows), dtype="float32")
 
     def update_hessian_with_batch(self, input_batch):
         """
         Updates the running average of the Hessian matrix with a new batch.
 
         This method computes the Hessian matrix for a given batch of input
-        activations and updates the accumulated Hessian (`self.H`) using a
+        activations and updates the accumulated Hessian (`self.hessian`) using a
         numerically stable running average. This allows the Hessian to be
         computed over a large dataset without loading all samples into memory
         at once.
@@ -77,7 +83,7 @@ class GPTQ:
         Raises:
             ValueError: If the feature dimension of the input tensor
                 `input_batch` does not match the dimensions of the
-                pre-initialized Hessian matrix `self.H`.
+                pre-initialized Hessian matrix `self.hessian`.
         """
         if input_batch is None:
             raise ValueError("Input tensor 'input_batch' cannot be None.")
@@ -95,9 +101,9 @@ class GPTQ:
             input_batch = ops.reshape(input_batch, (-1, input_batch.shape[-1]))
         input_batch = ops.cast(input_batch, "float32")
 
-        if self.H.shape[0] != input_batch.shape[-1]:
+        if self.hessian.shape[0] != input_batch.shape[-1]:
             raise ValueError(
-                f"Hessian dimensions ({self.H.shape[0]}) do not"
+                f"Hessian dimensions ({self.hessian.shape[0]}) do not"
                 "match input features ({input_batch.shape[-1]})."
             )
 
@@ -106,7 +112,7 @@ class GPTQ:
         )
 
         if self.num_samples == 0:
-            self.H = current_hessian
+            self.hessian = current_hessian
         else:
             total_samples = ops.add(self.num_samples, input_batch.shape[0])
             old_hessian_weight = ops.divide(self.num_samples, total_samples)
@@ -115,9 +121,9 @@ class GPTQ:
             )
 
             # Update the accumulated Hessian
-            old_term = ops.multiply(self.H, old_hessian_weight)
+            old_term = ops.multiply(self.hessian, old_hessian_weight)
             current_term = ops.multiply(current_hessian, current_hessian_weight)
-            self.H = ops.add(old_term, current_term)
+            self.hessian = ops.add(old_term, current_term)
 
         self.num_samples = ops.add(self.num_samples, input_batch.shape[0])
 
@@ -162,25 +168,27 @@ class GPTQ:
         - Original Code: https://github.com/IST-DASLab/gptq
 
         Args:
-            blocksize (int, optional): The size of the weight block to process
+            blocksize: (int, optional) The size of the weight block to process
              at a time. Defaults to 128.
-            hessian_damping (float, optional): The percentage of dampening to
+            hessian_damping: (float, optional) The percentage of dampening to
                 add the
                 Hessian's diagonal. A value of 0.01 is recommended.
                 Defaults to 0.01.
-            group_size (int, optional): The number of weights that share the
+            group_size: (int, optional) The number of weights that share the
                 same quantization parameters (scale and zero-point).
                 A value of -1 indicates per-channel quantization.
-            activation_order (bool, optional): If True, reorders weight columns
+            activation_order: (bool, optional) If True, reorders weight columns
                 based
                 on their activation's second-order information.
         """
 
         weights_matrix = ops.transpose(ops.cast(self.layer.kernel, "float32"))
-        hessian_matrix = ops.cast(self.H, "float32")
+        hessian_matrix = ops.cast(self.hessian, "float32")
 
         if activation_order:
-            permutation = ops.argsort(-ops.diagonal(hessian_matrix))
+            permutation = ops.argsort(
+                ops.negative(ops.diagonal(hessian_matrix))
+            )
             weights_matrix = ops.take(weights_matrix, permutation, axis=1)
             hessian_matrix = ops.take(
                 ops.take(hessian_matrix, permutation, axis=0),
@@ -217,8 +225,8 @@ class GPTQ:
         quantized_weights = ops.zeros_like(weights_matrix)
 
         for block_start in range(0, self.rows, blocksize):
-            block_end = min(block_start + blocksize, self.rows)
-            block_size = block_end - block_start
+            block_end = min(ops.add(block_start, blocksize), self.rows)
+            block_size = ops.subtract(block_end, block_start)
             # Extract the current block of weights and its corresponding
             # Hessian
             block_weights = weights_matrix[:, block_start:block_end]
@@ -234,12 +242,15 @@ class GPTQ:
                 diagonal_element = block_inverse_hessian[col_idx, col_idx]
 
                 if group_size != -1:
-                    if (block_start + col_idx) % group_size == 0:
+                    if ops.mod(ops.add(block_start, col_idx), group_size) == 0:
                         self.quantizer.find_params(
                             weights_matrix[
                                 :,
-                                (block_start + col_idx) : (
-                                    block_start + col_idx + group_size
+                                (ops.add(block_start, col_idx)) : (
+                                    ops.add(
+                                        ops.add(block_start, col_idx),
+                                        group_size,
+                                    )
                                 ),
                             ],
                             weight=True,
@@ -272,20 +283,23 @@ class GPTQ:
                     ops.expand_dims(quantization_error, axis=1),
                 )
 
-                if col_idx < block_size - 1:
+                if ops.less(col_idx, ops.subtract(block_size, 1)):
                     error_update = ops.matmul(
                         ops.expand_dims(quantization_error, 1),
                         ops.expand_dims(
-                            block_inverse_hessian[col_idx, col_idx + 1 :], 0
+                            block_inverse_hessian[
+                                col_idx, ops.add(col_idx, 1) :
+                            ],
+                            0,
                         ),
                     )
 
                     # Efficiently update the remaining part of the
                     # block_weights tensor.
-                    slice_to_update = block_weights[:, col_idx + 1 :]
+                    slice_to_update = block_weights[:, ops.add(col_idx, 1) :]
                     updated_slice = ops.subtract(slice_to_update, error_update)
                     block_weights = ops.slice_update(
-                        block_weights, (0, col_idx + 1), updated_slice
+                        block_weights, (0, ops.add(col_idx, 1)), updated_slice
                     )
 
             # Update the full quantized matrix with the processed block
@@ -333,4 +347,4 @@ class GPTQ:
         self.original_layer.set_weights(new_weights)
 
     def free(self):
-        self.H = None
+        self.hessian = None
