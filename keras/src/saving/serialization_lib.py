@@ -656,12 +656,12 @@ def deserialize_keras_object(
     if config["class_name"] == "__lambda__":
         if safe_mode:
             raise ValueError(
-                "Requested the deserialization of a `lambda` object. "
-                "This carries a potential risk of arbitrary code execution "
-                "and thus it is disallowed by default. If you trust the "
-                "source of the saved model, you can pass `safe_mode=False` to "
-                "the loading function in order to allow `lambda` loading, "
-                "or call `keras.config.enable_unsafe_deserialization()`."
+                "Requested the deserialization of a Python lambda. This "
+                "carries a potential risk of arbitrary code execution and thus "
+                "it is disallowed by default. If you trust the source of the "
+                "artifact, you can override this error by passing "
+                "`safe_mode=False` to the loading function, or calling "
+                "`keras.config.enable_unsafe_deserialization()."
             )
         return python_utils.func_load(inner_config["value"])
     if tf is not None and config["class_name"] == "__typespec__":

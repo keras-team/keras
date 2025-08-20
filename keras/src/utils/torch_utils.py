@@ -172,10 +172,10 @@ class TorchModuleWrapper(Layer):
                     "Requested the deserialization of a `torch.nn.Module` "
                     "object via `torch.load()`. This carries a potential risk "
                     "of arbitrary code execution and thus it is disallowed by "
-                    "default. If you trust the source of the saved model, you "
-                    "can pass `safe_mode=False` to the loading function in "
-                    "order to allow `torch.nn.Module` loading, or call "
-                    "`keras.config.enable_unsafe_deserialization()`."
+                    "default. If you trust the source of the artifact, you can "
+                    "override this error by passing `safe_mode=False` to the "
+                    "loading function, or calling "
+                    "`keras.config.enable_unsafe_deserialization()."
                 )
 
             # Decode the base64 string back to bytes
