@@ -20,7 +20,12 @@ pytest-cov
 packaging
 # for tree_test.py
 dm_tree
-coverage!=7.6.5  # 7.6.5 breaks CI
+coverage
 # for onnx_test.py
 onnxruntime
+# TODO(https://github.com/keras-team/keras/issues/21390)
+# > 0.3.1 breaks LSTM model export in torch backend.
+onnxscript<=0.3.1
 openvino
+# for grain_dataset_adapter_test.py
+grain

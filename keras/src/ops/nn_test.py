@@ -775,6 +775,19 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         out = knn.dot_product_attention(query, key, value)
         self.assertEqual(out.shape, query.shape)
 
+    def test_rms_normalization(self):
+        x = KerasTensor([None, 8, 16])
+        scale = KerasTensor([None, 8, 16])
+        out = knn.rms_normalization(x, scale)
+        self.assertEqual(out.shape, x.shape)
+
+    def test_layer_normalization(self):
+        x = KerasTensor([None, 8, 16])
+        gamma = KerasTensor([None, 16])
+        beta = KerasTensor([None, 16])
+        out = knn.layer_normalization(x, gamma, beta)
+        self.assertEqual(out.shape, x.shape)
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -1291,6 +1304,17 @@ class NNOpsStaticShapeTest(testing.TestCase):
         value = KerasTensor([2, 4, 6, 16])
         out = knn.dot_product_attention(query, key, value)
         self.assertEqual(out.shape, query.shape)
+
+    def test_rms_normalization(self):
+        x = KerasTensor([2, 8, 16])
+        scale = KerasTensor([2, 8, 16])
+        self.assertEqual(knn.rms_normalization(x, scale).shape, x.shape)
+
+    def test_layer_normalization(self):
+        x = KerasTensor([2, 8, 16])
+        gamma = KerasTensor([2, 16])
+        beta = KerasTensor([2, 16])
+        self.assertEqual(knn.layer_normalization(x, gamma, beta).shape, x.shape)
 
     def test_polar(self):
         abs_ = KerasTensor([1, 2])
@@ -2499,6 +2523,31 @@ class NNOpsCorrectnessTest(testing.TestCase):
             outputs, expected, atol=1e-3 if flash_attention else 1e-6
         )
 
+    @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
+    def test_rms_normalization(self, scale):
+        x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype="float32")
+        scale = np.array([scale] * x.shape[-1], dtype="float32")
+        expected_output = (
+            np.array([[0.46291, 0.92582, 1.38873], [0.78954, 0.98693, 1.18431]])
+            * scale
+        )
+
+        self.assertAllClose(
+            knn.rms_normalization(x, scale), expected_output, atol=1e-3
+        )
+        self.assertAllClose(knn.RMSNorm()(x, scale), expected_output, atol=1e-3)
+
+    def test_layer_normalization(self):
+        x = np.arange(5, dtype="float32")
+        expected_output = np.array(
+            [-1.4142135, -0.70710677, 0.0, 0.7071067, 1.4142135]
+        )
+
+        self.assertAllClose(
+            knn.layer_normalization(x), expected_output, atol=1e-3
+        )
+        self.assertAllClose(knn.LayerNorm()(x), expected_output, atol=1e-3)
+
 
 class NNOpsDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
@@ -3065,14 +3114,20 @@ class NNOpsDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(decoded.dtype), "int32")
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_dot_product_attention(self, dtype):
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(combinations(FLOAT_DTYPES, 2))
+            + [(dtype, dtype) for dtype in FLOAT_DTYPES]
+        )
+    )
+    def test_dot_product_attention(self, dtypes):
         # TODO: Get expected output from jax if `jax.nn.dot_product_attention`
         # is available.
-        query = knp.ones((2, 3, 3, 8), dtype=dtype)
-        key = knp.ones((2, 3, 3, 8), dtype=dtype)
-        value = knp.ones((2, 3, 3, 8), dtype=dtype)
-        expected_dtype = dtype
+        query_dtype, key_value_dtype = dtypes
+        query = knp.ones((2, 3, 3, 8), dtype=query_dtype)
+        key = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
+        value = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
+        expected_dtype = backend.result_type(*dtypes)
 
         self.assertDType(
             knn.dot_product_attention(query, key, value), expected_dtype
@@ -3080,6 +3135,37 @@ class NNOpsDtypeTest(testing.TestCase):
         self.assertDType(
             knn.DotProductAttention().symbolic_call(query, key, value),
             expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=combinations(FLOAT_DTYPES, 2))
+    )
+    def test_rms_normalization(self, dtypes):
+        input_dtype, weight_dtype = dtypes
+        inputs = knp.ones((2, 8), dtype=input_dtype)
+        scale = backend.Variable(knp.ones((8,), dtype=weight_dtype))
+        expected_dtype = input_dtype
+
+        self.assertDType(knn.rms_normalization(inputs, scale), expected_dtype)
+        self.assertDType(
+            knn.RMSNorm().symbolic_call(inputs, scale), expected_dtype
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=combinations(FLOAT_DTYPES, 2))
+    )
+    def test_layer_normalization(self, dtypes):
+        input_dtype, weight_dtype = dtypes
+        inputs = knp.ones((2, 8), dtype=input_dtype)
+        gamma = backend.Variable(knp.ones((8,), dtype=weight_dtype))
+        beta = backend.Variable(knp.ones((8,), dtype=weight_dtype))
+        expected_dtype = input_dtype
+
+        self.assertDType(
+            knn.layer_normalization(inputs, gamma, beta), expected_dtype
+        )
+        self.assertDType(
+            knn.LayerNorm().symbolic_call(inputs, gamma, beta), expected_dtype
         )
 
 
@@ -3173,14 +3259,9 @@ class NNOpsBehaviorTest(testing.TestCase):
                 top_paths=top_paths,
             )
 
-    def test_rms_normalization(self):
-        x = KerasTensor([None, 2, 3])
-        self.assertEqual(
-            knn.rms_normalization(x, (None, 2, 3)).shape, (None, 2, 3)
-        )
-
-    def test_layer_normalization(self):
-        x = KerasTensor([None, 2, 3])
-        self.assertEqual(
-            knn.layer_normalization(x, (None, 2, 3)).shape, (None, 2, 3)
-        )
+    def test_layer_normalization_rms_scaling_warning(self):
+        x = np.arange(5, dtype="float32")
+        with self.assertWarnsRegex(
+            UserWarning, r"You passed `rms_scaling=True`, which is deprecated"
+        ):
+            knn.layer_normalization(x, rms_scaling=True)

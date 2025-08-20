@@ -445,6 +445,22 @@ def hanning(x):
     return torch.signal.windows.hann(x)
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+
+    return torch.heaviside(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return torch.signal.windows.kaiser(x, beta=beta)
@@ -538,6 +554,18 @@ def blackman(x):
 def broadcast_to(x, shape):
     x = convert_to_tensor(x)
     return torch.broadcast_to(x, shape)
+
+
+def cbrt(x):
+    x = convert_to_tensor(x)
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool":
+        x = cast(x, "int32")
+    elif dtype == "int64":
+        x = cast(x, "float64")
+
+    return torch.sign(x) * torch.abs(x) ** (1.0 / 3.0)
 
 
 def ceil(x):
@@ -668,6 +696,15 @@ def cumsum(x, axis=None, dtype=None):
             "float16",
         )
     return torch.cumsum(x, dim=axis, dtype=to_torch_dtype(dtype))
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.deg2rad(x), "float64")
+
+    return torch.deg2rad(x)
 
 
 def diag(x, k=0):
@@ -849,6 +886,23 @@ def isfinite(x):
     return torch.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
+
+    if standardize_dtype(x1.dtype) == "bool":
+        x1 = cast(x1, x2.dtype)
+    if standardize_dtype(x2.dtype) == "bool":
+        x2 = cast(x2, x1.dtype)
+
+    return torch.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 def isinf(x):
     x = convert_to_tensor(x)
     return torch.isinf(x)
@@ -857,6 +911,16 @@ def isinf(x):
 def isnan(x):
     x = convert_to_tensor(x)
     return torch.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return torch.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return torch.isposinf(x)
 
 
 def less(x1, x2):
@@ -1740,6 +1804,17 @@ def floor_divide(x1, x2):
 def logical_xor(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_xor(x1, x2)
+
+
+def corrcoef(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, config.floatx())
+    elif standardize_dtype(x.dtype) == "int64":
+        x = cast(x, "float64")
+
+    return torch.corrcoef(x)
 
 
 def correlate(x1, x2, mode="valid"):

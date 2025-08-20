@@ -43,6 +43,7 @@ class AUCCurve(Enum):
 
     ROC = "ROC"
     PR = "PR"
+    PRGAIN = "PRGAIN"
 
     @staticmethod
     def from_str(key):
@@ -50,10 +51,12 @@ class AUCCurve(Enum):
             return AUCCurve.PR
         elif key in ("roc", "ROC"):
             return AUCCurve.ROC
+        elif key in ("prgain", "PRGAIN"):
+            return AUCCurve.PRGAIN
         else:
             raise ValueError(
                 f'Invalid AUC curve value: "{key}". '
-                'Expected values are ["PR", "ROC"]'
+                'Expected values are ["PR", "ROC", "PRGAIN"]'
             )
 
 
@@ -315,7 +318,7 @@ def is_evenly_distributed_thresholds(thresholds):
     """Check if the thresholds list is evenly distributed.
 
     We could leverage evenly distributed thresholds to use less memory when
-    calculate metrcis like AUC where each individual threshold need to be
+    calculate metrics like AUC where each individual threshold need to be
     evaluated.
 
     Args:

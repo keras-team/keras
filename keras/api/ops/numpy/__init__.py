@@ -38,12 +38,14 @@ from keras.src.ops.numpy import bitwise_right_shift as bitwise_right_shift
 from keras.src.ops.numpy import bitwise_xor as bitwise_xor
 from keras.src.ops.numpy import blackman as blackman
 from keras.src.ops.numpy import broadcast_to as broadcast_to
+from keras.src.ops.numpy import cbrt as cbrt
 from keras.src.ops.numpy import ceil as ceil
 from keras.src.ops.numpy import clip as clip
 from keras.src.ops.numpy import concatenate as concatenate
 from keras.src.ops.numpy import conj as conj
 from keras.src.ops.numpy import conjugate as conjugate
 from keras.src.ops.numpy import copy as copy
+from keras.src.ops.numpy import corrcoef as corrcoef
 from keras.src.ops.numpy import correlate as correlate
 from keras.src.ops.numpy import cos as cos
 from keras.src.ops.numpy import cosh as cosh
@@ -51,6 +53,7 @@ from keras.src.ops.numpy import count_nonzero as count_nonzero
 from keras.src.ops.numpy import cross as cross
 from keras.src.ops.numpy import cumprod as cumprod
 from keras.src.ops.numpy import cumsum as cumsum
+from keras.src.ops.numpy import deg2rad as deg2rad
 from keras.src.ops.numpy import diag as diag
 from keras.src.ops.numpy import diagflat as diagflat
 from keras.src.ops.numpy import diagonal as diagonal
@@ -77,6 +80,7 @@ from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
 from keras.src.ops.numpy import hamming as hamming
 from keras.src.ops.numpy import hanning as hanning
+from keras.src.ops.numpy import heaviside as heaviside
 from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import identity as identity
@@ -84,8 +88,11 @@ from keras.src.ops.numpy import imag as imag
 from keras.src.ops.numpy import inner as inner
 from keras.src.ops.numpy import isclose as isclose
 from keras.src.ops.numpy import isfinite as isfinite
+from keras.src.ops.numpy import isin as isin
 from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
+from keras.src.ops.numpy import isneginf as isneginf
+from keras.src.ops.numpy import isposinf as isposinf
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import left_shift as left_shift
 from keras.src.ops.numpy import less as less

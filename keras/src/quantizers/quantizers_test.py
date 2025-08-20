@@ -108,6 +108,60 @@ class QuantizersTest(testing.TestCase):
         self.assertAllClose(qdq_values, values, atol=5e-1)
 
     @parameterized.named_parameters(
+        ("even_rows", (4, 5), 0),
+        ("odd_rows", (5, 5), 0),
+        ("even_rows_axis_0_negative", (4, 5), -1),
+        ("odd_rows_axis_0_negative", (5, 5), -1),
+        ("even_rows_axis_1", (4, 6), 1),
+        ("odd_rows_axis_1", (4, 7), 1),
+        ("3d_even_rows_axis_0", (4, 5, 3), 0),
+        ("3d_odd_rows_axis_0", (5, 5, 3), 0),
+        ("3d_even_rows_axis_1", (4, 6, 3), 1),
+        ("3d_odd_rows_axis_1", (4, 7, 3), 1),
+        ("3d_even_rows_axis_2", (4, 5, 6), 2),
+        ("3d_odd_rows_axis_2", (4, 5, 7), 2),
+        ("4d_odd_rows_axis_0", (2, 3, 5, 4), 0),
+        ("4d_odd_rows_axis_1", (2, 3, 5, 4), 1),
+        ("4d_odd_rows_axis_2", (2, 3, 5, 4), 2),
+        ("4d_odd_rows_axis_3", (2, 3, 5, 4), 3),
+        ("4d_even_rows_axis_0", (2, 4, 5, 4), 0),
+        ("4d_even_rows_axis_1", (2, 4, 5, 4), 1),
+        ("4d_even_rows_axis_2", (2, 4, 5, 4), 2),
+        ("4d_even_rows_axis_3", (2, 4, 5, 4), 3),
+        ("4d_even_rows_axis_0_negative", (2, 4, 5, 4), -1),
+        ("4d_even_rows_axis_1_negative", (2, 4, 5, 4), -2),
+        ("4d_even_rows_axis_2_negative", (2, 4, 5, 4), -3),
+        ("4d_even_rows_axis_3_negative", (2, 4, 5, 4), -4),
+    )
+    def test_pack_unpack_int4(self, shape, axis):
+        # Create a random tensor with int4 values [-8, 7]
+        arr = ops.cast(
+            ops.floor(random.uniform(shape, minval=-8, maxval=8)), "int8"
+        )
+
+        # Pack the tensor
+        packed, packed_shape, orig_len = quantizers.pack_int4(arr, axis=axis)
+
+        # Unpack the tensor
+        unpacked = quantizers.unpack_int4(packed, orig_len, axis=axis)
+
+        # Verify that the packed tensor is int8
+        self.assertDType(packed, "int8")
+
+        # Verify that the unpacked tensor is int8
+        self.assertDType(unpacked, "int8")
+
+        # The unpacked tensor should be the same as the original tensor
+        self.assertAllClose(unpacked, arr)
+
+        # Test the packed shape
+        expected_packed_shape = list(shape)
+        expected_packed_shape[axis] = (expected_packed_shape[axis] + 1) // 2
+        self.assertEqual(
+            list(ops.convert_to_numpy(packed_shape)), expected_packed_shape
+        )
+
+    @parameterized.named_parameters(
         ("per_tensor", None),
         ("per_channel", -1),
     )

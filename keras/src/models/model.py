@@ -548,17 +548,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
                 not provided, it will be automatically computed. Defaults to
                 `None`.
-            **kwargs: Additional keyword arguments:
-                - Specific to the JAX backend and `format="tf_saved_model"`:
-                    - `is_static`: Optional `bool`. Indicates whether `fn` is
-                        static. Set to `False` if `fn` involves state updates
-                        (e.g., RNG seeds and counters).
-                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
-                        `jax2tf.convert`. See the documentation for
-                        [`jax2tf.convert`](
-                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
-                        If `native_serialization` and `polymorphic_shapes` are
-                        not provided, they will be automatically computed.
+            **kwargs: Additional keyword arguments.
+                - `is_static`: Optional `bool`. Specific to the JAX backend and
+                    `format="tf_saved_model"`. Indicates whether `fn` is static.
+                    Set to `False` if `fn` involves state updates (e.g., RNG
+                    seeds and counters).
+                - `jax2tf_kwargs`: Optional `dict`. Specific to the JAX backend
+                    and `format="tf_saved_model"`. Arguments for
+                    `jax2tf.convert`. See the documentation for
+                    [`jax2tf.convert`](
+                        https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                    If `native_serialization` and `polymorphic_shapes` are not
+                    provided, they will be automatically computed.
+                - `opset_version`: Optional `int`. Specific to `format="onnx"`.
+                    An integer value that specifies the ONNX opset version.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -595,9 +598,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         ```
         """
         from keras.src.export import export_onnx
+        from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx")
+        available_formats = ("tf_saved_model", "onnx", "openvino")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
@@ -614,6 +618,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             )
         elif format == "onnx":
             export_onnx(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "openvino":
+            export_openvino(
                 self,
                 filepath,
                 verbose,

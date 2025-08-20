@@ -8,8 +8,8 @@ from keras.src.ops.operation_utils import compute_conv_output_shape
 
 
 class RGBToGrayscale(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -77,8 +77,8 @@ def rgb_to_grayscale(images, data_format=None):
 
 
 class RGBToHSV(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -149,8 +149,8 @@ def rgb_to_hsv(images, data_format=None):
 
 
 class HSVToRGB(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -228,8 +228,10 @@ class Resize(Operation):
         fill_mode="constant",
         fill_value=0.0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.size = tuple(size)
         self.interpolation = interpolation
         self.antialias = antialias
@@ -413,8 +415,10 @@ class AffineTransform(Operation):
         fill_mode="constant",
         fill_value=0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_mode = fill_mode
         self.fill_value = fill_value
@@ -554,8 +558,10 @@ class ExtractPatches(Operation):
         dilation_rate=1,
         padding="valid",
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         if isinstance(size, int):
             size = (size, size)
         self.size = size
@@ -707,8 +713,8 @@ def _extract_patches(
 
 
 class MapCoordinates(Operation):
-    def __init__(self, order, fill_mode="constant", fill_value=0):
-        super().__init__()
+    def __init__(self, order, fill_mode="constant", fill_value=0, *, name=None):
+        super().__init__(name=name)
         self.order = order
         self.fill_mode = fill_mode
         self.fill_value = fill_value
@@ -803,8 +809,10 @@ class PadImages(Operation):
         target_height=None,
         target_width=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.top_padding = top_padding
         self.left_padding = left_padding
         self.bottom_padding = bottom_padding
@@ -1014,8 +1022,10 @@ class CropImages(Operation):
         target_height=None,
         target_width=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.top_cropping = top_cropping
         self.bottom_cropping = bottom_cropping
         self.left_cropping = left_cropping
@@ -1238,8 +1248,10 @@ class PerspectiveTransform(Operation):
         interpolation="bilinear",
         fill_value=0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_value = fill_value
         self.data_format = backend.standardize_data_format(data_format)
@@ -1381,8 +1393,10 @@ class GaussianBlur(Operation):
         kernel_size=(3, 3),
         sigma=(1.0, 1.0),
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.kernel_size = kernel_size
         self.sigma = sigma
         self.data_format = backend.standardize_data_format(data_format)
@@ -1470,8 +1484,10 @@ class ElasticTransform(Operation):
         fill_value=0.0,
         seed=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.alpha = alpha
         self.sigma = sigma
         self.interpolation = interpolation
@@ -1586,4 +1602,113 @@ def elastic_transform(
         fill_value=fill_value,
         seed=seed,
         data_format=data_format,
+    )
+
+
+class ScaleAndTranslate(Operation):
+    def __init__(self, spatial_dims, method, antialias=True, *, name=None):
+        super().__init__(name=name)
+        self.spatial_dims = spatial_dims
+        self.method = method
+        self.antialias = antialias
+
+    def call(self, images, output_shape, scale, translation):
+        return backend.image.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=self.spatial_dims,
+            method=self.method,
+            antialias=self.antialias,
+        )
+
+    def compute_output_spec(self, images, output_shape, scale, translation):
+        return KerasTensor(output_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.scale_and_translate")
+def scale_and_translate(
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
+):
+    """Apply a scale and translation to the images.
+
+    Generates a new image of `output_shape` by resampling from the input image
+    using the sampling method corresponding to method. For 2D images, this
+    operation transforms a location in the input images, (x, y), to a location
+    in the output image according to:
+
+    `(x * scale[1] + translation[1], y * scale[0] + translation[0])`.
+
+    (Note the inverse warp is used to generate the sample locations.) Assumes
+    half-centered pixels, i.e the pixel at integer location row, col has
+    coordinates y, x = row + 0.5, col + 0.5, and similarly for other input image
+    dimensions.
+
+    If an output location(pixel) maps to an input sample location that is
+    outside the input boundaries then the value for the output location will be
+    set to zero.
+
+    The `method` argument expects one of the following resize methods:
+
+    - `"linear"`, `"bilinear"`, `"trilinear"`, `"triangle"`: Linear
+        interpolation. If `antialias` is True, uses a triangular filter when
+        downsampling.
+    - `"cubic"`, `"bicubic"`, `"tricubic"`: Cubic interpolation, using the Keys
+        cubic kernel.
+    - `"lanczos3"`: Lanczos resampling, using a kernel of radius 3.
+    - `"lanczos5"`: Lanczos resampling, using a kernel of radius 5.
+
+    Args:
+        images: The input array.
+        output_shape: The output shape, as a sequence of integers with length
+            equal to the number of dimensions of image.
+        scale: A [K] array with the same number of dimensions as `images`,
+            containing the scale to apply in each dimension.
+        translation: A [K] array with the same number of dimensions as `images`,
+            containing the translation to apply in each dimension.
+        spatial_dims: A length K tuple specifying the spatial dimensions that
+            the passed `scale` and `translation` should be applied to.
+        method: A string specifying the resizing method to use. Available
+            methods are `"linear"`, `"bilinear"`, `"trilinear"`, `"triangle"`,
+            `"cubic"`, `"bicubic"`, `"tricubic"`, `"lanczos3"` and `"lanczos5"`.
+        antialias: Whether an antialiasing filter should be applied when
+            downsampling. Has no effect when upsampling. Defaults to `True`.
+
+    Returns:
+        The scale and translated images.
+
+    Example:
+
+    >>> images = np.arange(9, dtype="float32").reshape((3, 3))
+    >>> scale = np.array([2.0, 2.0]).astype("float32")
+    >>> translation = -(scale / 2.0 - 0.5)
+    >>> resized_images = keras.image.scale_and_translate(
+    ...     images, (5, 5), scale, translation, (0, 1), "linear"
+    ... )
+    >>> resized_images
+    array([[0.0 0.5 1.0 1.5 2.0]
+           [1.5 2.0 2.5 3.0 3.5]
+           [3.0 3.5 4.0 4.5 5.0]
+           [4.5 5.0 5.5 6.0 6.5]
+           [6.0 6.5 7.0 7.5 8.0]], dtype=float32)
+    """
+    if any_symbolic_tensors((images, scale, translation)):
+        return ScaleAndTranslate(spatial_dims, method, antialias).symbolic_call(
+            images, output_shape, scale, translation
+        )
+    return backend.image.scale_and_translate(
+        images,
+        output_shape,
+        scale,
+        translation,
+        spatial_dims,
+        method,
+        antialias,
     )

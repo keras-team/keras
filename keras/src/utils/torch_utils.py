@@ -1,3 +1,4 @@
+import base64
 import io
 
 from packaging.version import parse
@@ -7,6 +8,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers import Layer
 from keras.src.ops import convert_to_numpy
 from keras.src.ops import convert_to_tensor
+from keras.src.saving.serialization_lib import in_safe_mode
 
 
 @keras_export("keras.layers.TorchModuleWrapper")
@@ -152,8 +154,10 @@ class TorchModuleWrapper(Layer):
 
         buffer = io.BytesIO()
         torch.save(self.module, buffer)
+        # Encode the buffer using base64 to ensure safe serialization
+        buffer_b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
         config = {
-            "module": buffer.getvalue(),
+            "module": buffer_b64,
             "output_shape": self.output_shape,
         }
         return {**base_config, **config}
@@ -163,7 +167,20 @@ class TorchModuleWrapper(Layer):
         import torch
 
         if "module" in config:
-            buffer = io.BytesIO(config["module"])
+            if in_safe_mode():
+                raise ValueError(
+                    "Requested the deserialization of a `torch.nn.Module` "
+                    "object via `torch.load()`. This carries a potential risk "
+                    "of arbitrary code execution and thus it is disallowed by "
+                    "default. If you trust the source of the saved model, you "
+                    "can pass `safe_mode=False` to the loading function in "
+                    "order to allow `torch.nn.Module` loading, or call "
+                    "`keras.config.enable_unsafe_deserialization()`."
+                )
+
+            # Decode the base64 string back to bytes
+            buffer_bytes = base64.b64decode(config["module"].encode("ascii"))
+            buffer = io.BytesIO(buffer_bytes)
             config["module"] = torch.load(buffer, weights_only=False)
         return cls(**config)
 

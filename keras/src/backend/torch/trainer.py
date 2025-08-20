@@ -256,14 +256,14 @@ class TorchTrainer(base_trainer.Trainer):
             self.train()
 
             logs = {}
-            for step, data in epoch_iterator:
+            for begin_step, end_step, data in epoch_iterator:
                 # Callbacks
-                callbacks.on_train_batch_begin(step)
+                callbacks.on_train_batch_begin(begin_step)
 
                 logs = self.train_function(data)
 
                 # Callbacks
-                callbacks.on_train_batch_end(step, logs)
+                callbacks.on_train_batch_end(end_step, logs)
                 if self.stop_training:
                     break
 
@@ -374,10 +374,10 @@ class TorchTrainer(base_trainer.Trainer):
         callbacks.on_test_begin()
         logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator:
-            callbacks.on_test_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_test_batch_begin(begin_step)
             logs = self.test_function(data)
-            callbacks.on_test_batch_end(step, logs)
+            callbacks.on_test_batch_end(end_step, logs)
             if self.stop_evaluating:
                 break
         logs = self._get_metrics_result_or_logs(logs)
@@ -433,11 +433,11 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator:
-            callbacks.on_predict_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_predict_batch_begin(begin_step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
-            callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()

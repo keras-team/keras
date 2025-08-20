@@ -64,6 +64,14 @@ class TorchDataLoaderAdapter(DataAdapter):
         return self._dataloader
 
     @property
+    def builtin_prefetch(self):
+        prefetch_factor = self._dataloader.prefetch_factor
+        if prefetch_factor is not None and prefetch_factor > 0:
+            return True
+        else:
+            return False
+
+    @property
     def num_batches(self):
         return self._num_batches
 

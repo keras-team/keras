@@ -7,15 +7,17 @@ from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils.naming import auto_name
 
 
 @keras_export("keras.Operation")
-class Operation:
-    def __init__(self, dtype=None, name=None):
+class Operation(KerasSaveable):
+    def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
         if not isinstance(name, str) or os.path.sep in name:
@@ -24,7 +26,6 @@ class Operation:
                 f"cannot contain character `{os.path.sep}`. "
                 f"Received: name={name} (of type {type(name)})"
             )
-        self._dtype_policy = dtype_policies.get(dtype)
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
@@ -120,21 +121,17 @@ class Operation:
         to manually implement `get_config()`.
         """
         instance = super(Operation, cls).__new__(cls)
+        if backend.backend() == "jax" and is_nnx_enabled():
+            from flax import nnx
+
+            try:
+                vars(instance)["_pytree__state"] = nnx.pytreelib.PytreeState()
+            except AttributeError:
+                vars(instance)["_object__state"] = nnx.object.ObjectState()
 
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args
         kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
-
-        # Explicitly serialize `dtype` to support auto_config
-        dtype = kwargs.get("dtype", None)
-        if dtype is not None and isinstance(dtype, dtype_policies.DTypePolicy):
-            # For backward compatibility, we use a str (`name`) for
-            # `DTypePolicy`
-            if dtype.quantization_mode is None:
-                kwargs["dtype"] = dtype.name
-            # Otherwise, use `dtype_policies.serialize`
-            else:
-                kwargs["dtype"] = dtype_policies.serialize(dtype)
 
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
@@ -184,13 +181,16 @@ class Operation:
         # In this case the subclass doesn't implement get_config():
         # Let's see if we can autogenerate it.
         if getattr(self, "_auto_config", None) is not None:
-            xtra_args = set(config.keys())
             config.update(self._auto_config.config)
-            # Remove args non explicitly supported
-            argspec = inspect.getfullargspec(self.__init__)
-            if argspec.varkw != "kwargs":
-                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
-                    config.pop(key, None)
+            init_params = inspect.signature(self.__init__).parameters
+            init_has_name = "name" in init_params
+            init_has_kwargs = (
+                "kwargs" in init_params
+                and init_params["kwargs"].kind == inspect.Parameter.VAR_KEYWORD
+            )
+            if not init_has_name and not init_has_kwargs:
+                # We can't pass `name` back to `__init__`, remove it.
+                config.pop("name", None)
             return config
         else:
             raise NotImplementedError(
@@ -211,10 +211,9 @@ class Operation:
 
             def get_config(self):
                 config = super().get_config()
-                config.update({{
-                    "arg1": self.arg1,
+                config.update({"arg1": self.arg1,
                     "arg2": self.arg2,
-                }})
+                })
                 return config"""
                 )
             )
@@ -320,6 +319,9 @@ class Operation:
             return values[0]
         else:
             return values
+
+    def _obj_type(self):
+        return "Operation"
 
     # Hooks for backend layer classes
     def _post_build(self):

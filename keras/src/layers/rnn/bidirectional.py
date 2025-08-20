@@ -125,6 +125,10 @@ class Bidirectional(Layer):
             )
         else:
             self.backward_layer = backward_layer
+        # Keep the use_cudnn attribute if defined (not serialized).
+        if hasattr(layer, "use_cudnn"):
+            self.forward_layer.use_cudnn = layer.use_cudnn
+            self.backward_layer.use_cudnn = layer.use_cudnn
         self._verify_layer_config()
 
         def force_zero_output_for_mask(layer):

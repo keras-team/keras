@@ -35,7 +35,7 @@ as well as `tf.data` pipelines.
 
 #### Minimal installation
 
-Keras 3 is compatible with Linux and MacOS systems. For Windows users, we recommend using WSL2 to run Keras.
+Keras 3 is compatible with Linux and macOS systems. For Windows users, we recommend using WSL2 to run Keras.
 To install a local development version:
 
 1. Install dependencies:
@@ -60,8 +60,8 @@ python pip_build.py --install
 
 The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX, and PyTorch. For GPU support, we also
 provide a separate `requirements-{backend}-cuda.txt` for TensorFlow, JAX, and PyTorch. These install all CUDA
-dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recommend a clean python environment for each
-backend to avoid CUDA version mismatches. As an example, here is how to create a Jax GPU environment with `conda`:
+dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recommend a clean Python environment for each
+backend to avoid CUDA version mismatches. As an example, here is how to create a JAX GPU environment with `conda`:
 
 ```shell
 conda create -y -n keras-jax python=3.10
@@ -88,7 +88,7 @@ os.environ["KERAS_BACKEND"] = "jax"
 import keras
 ```
 
-**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
+**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after
 the package has been imported.
 
 **Note:** The OpenVINO backend is an inference-only backend, meaning it is designed only for running model

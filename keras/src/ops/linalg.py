@@ -7,11 +7,12 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Cholesky(Operation):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, upper=False, *, name=None):
+        super().__init__(name=name)
+        self.upper = upper
 
     def call(self, x):
-        return _cholesky(x)
+        return _cholesky(x, self.upper)
 
     def compute_output_spec(self, x):
         _assert_2d(x)
@@ -20,36 +21,79 @@ class Cholesky(Operation):
 
 
 @keras_export(["keras.ops.cholesky", "keras.ops.linalg.cholesky"])
-def cholesky(x):
+def cholesky(x, upper=False):
     """Computes the Cholesky decomposition of a positive semi-definite matrix.
 
     Args:
         x: Input tensor of shape `(..., M, M)`.
+        upper (bool): If True, returns the upper-triangular Cholesky factor.
+            If False (default), returns the lower-triangular Cholesky factor.
 
     Returns:
-        A tensor of shape `(..., M, M)` representing the lower triangular
-        Cholesky factor of `x`.
-
+        A tensor of shape `(..., M, M)` representing the Cholesky factor of `x`.
     """
     if any_symbolic_tensors((x,)):
-        return Cholesky().symbolic_call(x)
-    return _cholesky(x)
+        return Cholesky(upper=upper).symbolic_call(x)
+    return _cholesky(x, upper=upper)
 
 
-def _cholesky(x):
+def _cholesky(x, upper=False):
     x = backend.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
     try:
-        return backend.linalg.cholesky(x)
+        return backend.linalg.cholesky(x, upper=upper)
     except Exception as e:
         raise ValueError(f"Cholesky decomposition failed: {e}")
 
 
-class Det(Operation):
-    def __init__(self):
-        super().__init__()
+class CholeskyInverse(Operation):
+    def __init__(self, upper=False, *, name=None):
+        super().__init__(name=name)
+        self.upper = upper
 
+    def call(self, x):
+        return _cholesky_inverse(x, self.upper)
+
+    def compute_output_spec(self, x):
+        _assert_2d(x)
+        _assert_square(x)
+        return KerasTensor(x.shape, x.dtype)
+
+
+@keras_export(
+    ["keras.ops.cholesky_inverse", "keras.ops.linalg.cholesky_inverse"]
+)
+def cholesky_inverse(x, upper=False):
+    """Computes the inverse of a symmetric positive-definite matrix.
+
+    Args:
+        x: Input tensor of shape `(..., M, M)`.
+        upper (bool): Determines whether to use the upper- or lower-triangular
+            factor for the internal computation. Defaults to False.
+
+    Returns:
+        A tensor of shape `(..., M, M)` representing the inverse of `x`.
+
+    Raises:
+        ValueError: If `x` is not a symmetric positive-definite matrix.
+    """
+    if any_symbolic_tensors((x,)):
+        return CholeskyInverse(upper=upper).symbolic_call(x)
+    return _cholesky_inverse(x, upper=upper)
+
+
+def _cholesky_inverse(x, upper=False):
+    x = backend.convert_to_tensor(x)
+    _assert_2d(x)
+    _assert_square(x)
+    try:
+        return backend.linalg.cholesky_inverse(x, upper=upper)
+    except Exception as e:
+        raise ValueError(f"Cholesky inverse failed: {e}")
+
+
+class Det(Operation):
     def call(self, x):
         return _det(x)
 
@@ -83,9 +127,6 @@ def _det(x):
 
 
 class Eig(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eig(x)
 
@@ -122,9 +163,6 @@ def _eig(x):
 
 
 class Eigh(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eigh(x)
 
@@ -162,9 +200,6 @@ def _eigh(x):
 
 
 class Inv(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _inv(x)
 
@@ -198,9 +233,6 @@ def _inv(x):
 
 
 class LuFactor(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _lu_factor(x)
 
@@ -248,8 +280,8 @@ def _lu_factor(x):
 
 
 class Norm(Operation):
-    def __init__(self, ord=None, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, ord=None, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(ord, str):
             if ord not in ("fro", "nuc"):
                 raise ValueError(
@@ -367,8 +399,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
 
 
 class Qr(Operation):
-    def __init__(self, mode="reduced"):
-        super().__init__()
+    def __init__(self, mode="reduced", *, name=None):
+        super().__init__(name=name)
         if mode not in {"reduced", "complete"}:
             raise ValueError(
                 "`mode` argument value not supported. "
@@ -440,9 +472,6 @@ def qr(x, mode="reduced"):
 
 
 class Solve(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, a, b):
         return _solve(a, b)
 
@@ -484,8 +513,8 @@ def _solve(a, b):
 
 
 class SolveTriangular(Operation):
-    def __init__(self, lower=False):
-        super().__init__()
+    def __init__(self, lower=False, *, name=None):
+        super().__init__(name=name)
         self.lower = lower
 
     def call(self, a, b):
@@ -531,8 +560,8 @@ def _solve_triangular(a, b, lower=False):
 
 
 class SVD(Operation):
-    def __init__(self, full_matrices=True, compute_uv=True):
-        super().__init__()
+    def __init__(self, full_matrices=True, compute_uv=True, *, name=None):
+        super().__init__(name=name)
         self.full_matrices = full_matrices
         self.compute_uv = compute_uv
 
@@ -586,8 +615,8 @@ def _svd(x, full_matrices=True, compute_uv=True):
 
 
 class Lstsq(Operation):
-    def __init__(self, rcond=None):
-        super().__init__()
+    def __init__(self, rcond=None, *, name=None):
+        super().__init__(name=name)
         self.rcond = rcond
 
     def call(self, a, b):

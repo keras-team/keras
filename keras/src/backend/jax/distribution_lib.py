@@ -2,7 +2,6 @@
 
 import jax
 import numpy as np
-from jax.experimental import layout as jax_layout
 
 from keras.src.backend.common import global_state
 from keras.src.random import seed_generator
@@ -40,8 +39,7 @@ def distribute_variable(value, layout):
     Args:
         value: the initial value of the variable.
         layout: `TensorLayout` for the created variable, or a
-            JAX-supported layout instance
-            (e.g. `jax.experimental.layout.Layout`, `jax.sharding.Sharding`).
+            JAX-supported layout instance (e.g. `jax.sharding.Sharding`).
 
     Returns:
         jax.Array which is the distributed variable.
@@ -58,8 +56,7 @@ def distribute_tensor(tensor, layout):
     Args:
         tensor: `jax.Array` that need to be distributed.
         layout: `TensorLayout` for the created variable, or a
-            JAX-supported layout instance
-            (e.g. `jax.experimental.layout.Layout`, `jax.sharding.Sharding`).
+            JAX-supported layout instance (e.g. `jax.sharding.Sharding`).
 
     Returns:
         Distributed value.
@@ -81,8 +78,14 @@ def distribute_tensor(tensor, layout):
             layout, jax.sharding.Sharding
         ) and tensor.sharding.is_equivalent_to(layout, ndim=len(tensor.shape)):
             return tensor
-        elif isinstance(layout, jax_layout.Layout):
+        # JAX explicit "layout" support.
+        elif hasattr(layout, "layout"):
             current_layout = getattr(tensor, "layout", None)
+            if current_layout == layout:
+                return tensor
+        # JAX explicit "format" support.
+        elif hasattr(layout, "format"):
+            current_layout = getattr(tensor, "format", None)
             if current_layout == layout:
                 return tensor
 
@@ -198,7 +201,11 @@ def process_id():
 def _to_backend_device(device_name):
     if isinstance(device_name, jax.Device):
         return device_name
-    device_type, device_id = device_name.split(":")
+    device_name = str(device_name)
+    if ":" not in device_name:
+        device_type, device_id = device_name, 0
+    else:
+        device_type, device_id = device_name.split(":")
 
     devices = jax.devices(backend=device_type)
     for device in devices:

@@ -320,6 +320,19 @@ def hanning(x):
     return np.hanning(x).astype(config.floatx())
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    return np.heaviside(x1, x2).astype(dtype)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return np.kaiser(x, beta).astype(config.floatx())
@@ -412,6 +425,18 @@ def blackman(x):
 
 def broadcast_to(x, shape):
     return np.broadcast_to(x, shape)
+
+
+def cbrt(x):
+    x = convert_to_tensor(x)
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+
+    return np.cbrt(x).astype(dtype)
 
 
 def ceil(x):
@@ -513,6 +538,19 @@ def cumsum(x, axis=None, dtype=None):
     if dtype == "bool":
         dtype = "int32"
     return np.cumsum(x, axis=axis, dtype=dtype)
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.deg2rad(x).astype(dtype)
 
 
 def diag(x, k=0):
@@ -644,12 +682,28 @@ def isfinite(x):
     return np.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return np.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 def isinf(x):
     return np.isinf(x)
 
 
 def isnan(x):
     return np.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return np.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return np.isposinf(x)
 
 
 def less(x1, x2):
@@ -1254,6 +1308,19 @@ def floor_divide(x1, x2):
 
 def logical_xor(x1, x2):
     return np.logical_xor(x1, x2)
+
+
+def corrcoef(x):
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    x = convert_to_tensor(x)
+
+    return np.corrcoef(x).astype(dtype)
 
 
 def correlate(x1, x2, mode="valid"):

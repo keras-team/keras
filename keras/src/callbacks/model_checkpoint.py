@@ -237,12 +237,12 @@ class ModelCheckpoint(MonitorCallback):
                 )
                 return True
             else:
+                best_str = "None" if self.best is None else f"{self.best:.5f}"
                 if self._is_improvement(current, self.best):
                     if self.verbose > 0:
                         io_utils.print_msg(
                             f"\nEpoch {epoch + 1}: {self.monitor} "
-                            "improved "
-                            f"from {self.best:.5f} to {current:.5f}, "
+                            f"improved from {best_str} to {current:.5f}, "
                             f"saving model to {filepath}"
                         )
                     self.best = current
@@ -251,8 +251,7 @@ class ModelCheckpoint(MonitorCallback):
                     if self.verbose > 0:
                         io_utils.print_msg(
                             f"\nEpoch {epoch + 1}: "
-                            f"{self.monitor} did not improve "
-                            f"from {self.best:.5f}"
+                            f"{self.monitor} did not improve from {best_str}"
                         )
                     return False
         else:

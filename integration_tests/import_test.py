@@ -3,6 +3,7 @@ import re
 import subprocess
 
 from keras.src import backend
+from keras.src.backend import config
 
 # For torch, use index url to avoid installing nvidia drivers for the test.
 BACKEND_REQ = {
@@ -64,6 +65,9 @@ def manage_venv_installs(whl_path):
         # Install `.whl` package
         f"pip install {whl_path}",
     ]
+    # Install flax for JAX when NNX is enabled
+    if backend.backend() == "jax" and config.is_nnx_enabled():
+        install_setup.append("pip install flax>=0.10.1")
     run_commands_venv(install_setup)
 
 
