@@ -1317,6 +1317,44 @@ def hanning(x):
     return backend.numpy.hanning(x)
 
 
+class Heaviside(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.heaviside(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+            dtype = backend.floatx()
+        elif dtype == "int64":
+            dtype = "float64"
+        return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
+
+
+@keras_export(["keras.ops.heaviside", "keras.ops.numpy.heaviside"])
+def heaviside(x1, x2):
+    """Heaviside step function.
+
+    The Heaviside step function is defined as:
+    `heaviside(x1, x2) = 0 if x1 < 0, 1 if x1 > 0, x2 if x1 == 0`
+
+    Args:
+        x1: A tensor input.
+        x2: A scalar or tensor, the value to return when `x1 == 0`.
+
+    Returns:
+        A tensor with a shape determined by broadcasting `x1` and `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([-2.0, 0.0, 3.0])
+    >>> x2 = 0.5
+    >>> keras.ops.heaviside(x1, x2)
+    array([0. , 0.5, 1. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Heaviside().symbolic_call(x1, x2)
+    return backend.numpy.heaviside(x1, x2)
+
+
 class Kaiser(Operation):
     def __init__(self, beta, *, name=None):
         super().__init__(name=name)
@@ -1782,6 +1820,23 @@ def broadcast_to(x, shape):
 class Cbrt(Operation):
     def call(self, x):
         return backend.numpy.cbrt(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in [
+            "bool",
+            "int8",
+            "int16",
+            "int32",
+            "uint8",
+            "uint16",
+            "uint32",
+        ]:
+            dtype = backend.floatx()
+        elif dtype == "int64":
+            dtype = "float64"
+
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.cbrt", "keras.ops.numpy.cbrt"])
@@ -2284,6 +2339,14 @@ def cumsum(x, axis=None, dtype=None):
 class Deg2rad(Operation):
     def call(self, x):
         return backend.numpy.deg2rad(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype)
 
 
 @keras_export(["keras.ops.deg2rad", "keras.ops.numpy.deg2rad"])
@@ -3553,6 +3616,68 @@ def isfinite(x):
     return backend.numpy.isfinite(x)
 
 
+class IsIn(Operation):
+    def __init__(
+        self,
+        assume_unique=False,
+        invert=False,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.assume_unique = assume_unique
+        self.invert = invert
+
+    def call(self, x1, x2):
+        return backend.numpy.isin(
+            x1, x2, assume_unique=self.assume_unique, invert=self.invert
+        )
+
+    def compute_output_spec(self, x1, x2):
+        return KerasTensor(x1.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isin", "keras.ops.numpy.isin"])
+def isin(x1, x2, assume_unique=False, invert=False):
+    """Test whether each element of `x1` is present in `x2`.
+
+    This operation performs element-wise checks to determine if each value
+    in `x1` is contained within `x2`. The result is a boolean tensor with
+    the same shape as `x1`, where each entry is `True` if the corresponding
+    element in `x1` is in `x2`, and `False` otherwise.
+
+    Args:
+        x1: Input tensor or array-like structure to test.
+        x2: Values against which each element of `x1` is tested.
+            Can be a tensor, list, or scalar.
+        assume_unique: Boolean (default: False).
+            If True, assumes both `x1` and `x2` contain only unique elements.
+            This can speed up the computation. If False, duplicates will be
+            handled correctly but may impact performance.
+        invert: A boolean (default: False).
+            If True, inverts the result. Entries will be `True`
+            where `x1` elements are not in `x2`.
+
+    Returns:
+        A boolean tensor of the same shape as `x1` indicating element-wise
+        membership in `x2`.
+
+    Example:
+    >>> from keras import ops
+    >>> x1 = ops.array([0, 1, 2, 5])
+    >>> x2 = ops.array([0, 2])
+    >>> result = ops.isin(x1, x2)
+    array([ True, False,  True, False])
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return IsIn(assume_unique=assume_unique, invert=invert).symbolic_call(
+            x1, x2
+        )
+    return backend.numpy.isin(
+        x1, x2, assume_unique=assume_unique, invert=invert
+    )
+
+
 class Isinf(Operation):
     def call(self, x):
         return backend.numpy.isinf(x)
@@ -3597,6 +3722,52 @@ def isnan(x):
     if any_symbolic_tensors((x,)):
         return Isnan().symbolic_call(x)
     return backend.numpy.isnan(x)
+
+
+class Isneginf(Operation):
+    def call(self, x):
+        return backend.numpy.isneginf(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isneginf", "keras.ops.numpy.isneginf"])
+def isneginf(x):
+    """Test element-wise for negative infinity.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return Isneginf().symbolic_call(x)
+    return backend.numpy.isneginf(x)
+
+
+class Isposinf(Operation):
+    def call(self, x):
+        return backend.numpy.isposinf(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isposinf", "keras.ops.numpy.isposinf"])
+def isposinf(x):
+    """Test element-wise for positive infinity.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return Isposinf().symbolic_call(x)
+    return backend.numpy.isposinf(x)
 
 
 class Less(Operation):
@@ -7201,15 +7372,12 @@ def histogram(x, bins=10, range=None):
         - A tensor representing the bin edges.
 
     Example:
-
-    ```
     >>> input_tensor = np.random.rand(8)
     >>> keras.ops.histogram(input_tensor)
     (array([1, 1, 1, 0, 0, 1, 2, 1, 0, 1], dtype=int32),
     array([0.0189519 , 0.10294958, 0.18694726, 0.27094494, 0.35494262,
         0.43894029, 0.52293797, 0.60693565, 0.69093333, 0.77493101,
         0.85892869]))
-    ```
     """
     if not isinstance(bins, int):
         raise TypeError(

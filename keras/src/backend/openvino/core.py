@@ -4,11 +4,11 @@ import warnings
 
 import numpy as np
 import openvino as ov
-import openvino.runtime.opset14 as ov_opset
+import openvino.opset14 as ov_opset
 from openvino import Model
 from openvino import Tensor
+from openvino import Type
 from openvino import compile_model
-from openvino.runtime import Type
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
@@ -110,6 +110,13 @@ def get_ov_output(x, ov_type=None):
             x = ov_opset.constant(x, OPENVINO_DTYPES["bfloat16"]).output(0)
         else:
             x = ov_opset.constant(x).output(0)
+    elif isinstance(x, (list, tuple)):
+        if isinstance(x, tuple):
+            x = list(x)
+        if ov_type is None:
+            x = ov_opset.constant(x).output(0)
+        else:
+            x = ov_opset.constant(x, ov_type).output(0)
     elif np.isscalar(x):
         x = ov_opset.constant(x).output(0)
     elif isinstance(x, KerasVariable):
@@ -361,7 +368,7 @@ class OpenVINOKerasTensor:
                 if not (0 <= actual_dim < rank):
                     raise IndexError(
                         f"Index {index} is out of bounds for "
-                        "axis {dim} with rank {rank}"
+                        f"axis {dim} with rank {rank}"
                     )
                 length = ov_opset.gather(
                     partial_shape,
@@ -396,7 +403,7 @@ class OpenVINOKerasTensor:
                 if index_type == Type.boolean or not index_type.is_integral():
                     raise ValueError(
                         "OpenVINO backend does not "
-                        "support {index_type} indexing"
+                        f"support {index_type} indexing"
                     )
                 axes.append(dim)
                 if len(index_shape) > 1:
@@ -491,6 +498,21 @@ class OpenVINOKerasTensor:
             first, other, "OpenVINOKerasTensor::__mod__"
         )
         return OpenVINOKerasTensor(ov_opset.mod(first, other).output(0))
+
+    def __array__(self, dtype=None):
+        try:
+            tensor = cast(self, dtype=dtype) if dtype is not None else self
+            return convert_to_numpy(tensor)
+        except Exception as e:
+            raise RuntimeError(
+                "An OpenVINOKerasTensor is symbolic: it's a placeholder "
+                "for a shape and a dtype.\n"
+                "It doesn't have any actual numerical value.\n"
+                "You cannot convert it to a NumPy array."
+            ) from e
+
+    def numpy(self):
+        return self.__array__()
 
 
 def ov_to_keras_type(ov_type):
@@ -625,18 +647,27 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             dtype = standardize_dtype(type(x))
         ov_type = OPENVINO_DTYPES[dtype]
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
+    elif isinstance(x, ov.Output):
+        return OpenVINOKerasTensor(x)
     if isinstance(x, Variable):
         x = x.value
         if dtype and dtype != x.dtype:
             x = cast(x, dtype)
         return x
-    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
-        return ov.Tensor(np.asarray(x).astype(dtype))
-    if dtype is None:
-        dtype = result_type(
-            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
+    original_type = type(x)
+    try:
+        if dtype is None:
+            dtype = getattr(x, "dtype", original_type)
+            ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        else:
+            ov_type = OPENVINO_DTYPES[dtype]
+        x = np.array(x)
+        return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0))
+    except Exception as e:
+        raise TypeError(
+            f"Cannot convert object of type {original_type} "
+            f"to OpenVINOKerasTensor: {e}"
         )
-    return ov.Tensor(np.array(x, dtype=dtype))
 
 
 def convert_to_numpy(x):
@@ -670,8 +701,10 @@ def convert_to_numpy(x):
         ov_model = Model(results=[ov_result], parameters=[])
         ov_compiled_model = compile_model(ov_model, get_device())
         result = ov_compiled_model({})[0]
-    except:
-        raise "`convert_to_numpy` cannot convert to numpy"
+    except Exception as inner_exception:
+        raise RuntimeError(
+            "`convert_to_numpy` failed to convert the tensor."
+        ) from inner_exception
     return result
 
 
@@ -688,6 +721,7 @@ def shape(x):
 
 
 def cast(x, dtype):
+    dtype = standardize_dtype(dtype)
     ov_type = OPENVINO_DTYPES[dtype]
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.convert(x, ov_type).output(0))
@@ -809,15 +843,181 @@ def slice(inputs, start_indices, shape):
     start = ov_opset.concat(start, axis=0).output(0)
     stop = ov_opset.concat(stop, axis=0).output(0)
     axes = ov_opset.constant(axes, Type.i32).output(0)
-    return OpenVINOKerasTensor(
-        ov_opset.slice(inputs, start, stop, step, axes).output(0)
-    )
+    result = ov_opset.slice(inputs, start, stop, step, axes).output(0)
+
+    # Apply reshape to ensure output matches expected shape
+    # Convert None (dynamic) dimensions to -1 for OpenVINO compatibility
+    if all(dim is None or (isinstance(dim, int) and dim >= 0) for dim in shape):
+        reshape_pattern = [(-1 if dim is None else dim) for dim in shape]
+        target_shape = ov_opset.constant(reshape_pattern, Type.i32).output(0)
+        result = ov_opset.reshape(result, target_shape, False).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def slice_update(inputs, start_indices, updates):
-    raise NotImplementedError(
-        "`slice_update` is not supported with openvino backend"
-    )
+    inputs = get_ov_output(inputs)
+    updates_tensor = get_ov_output(updates)
+
+    if isinstance(start_indices, (list, np.ndarray)):
+        start_indices = tuple(start_indices)
+    if not isinstance(start_indices, tuple):
+        raise ValueError(
+            "`slice_update` is not supported by openvino backend"
+            " for `start_indices` of type {}".format(type(start_indices))
+        )
+
+    zero_scalar = ov_opset.constant(0, Type.i32)
+    one_scalar = ov_opset.constant(1, Type.i32)
+    zero_tensor = ov_opset.constant([0], Type.i32)
+    one_tensor = ov_opset.constant([1], Type.i32)
+
+    processed_start_indices = []
+    for idx in start_indices:
+        val = get_ov_output(idx)
+        if not val.get_element_type().is_integral():
+            raise ValueError("`slice_update` requires integral start_indices")
+        if val.get_element_type() != Type.i32:
+            val = ov_opset.convert(val, Type.i32).output(0)
+        if val.get_partial_shape().rank.get_length() == 0:
+            val = ov_opset.unsqueeze(val, zero_scalar).output(0)
+        processed_start_indices.append(val)
+
+    updates_shape = ov_opset.shape_of(updates_tensor, Type.i32).output(0)
+    rank = updates_tensor.get_partial_shape().rank.get_length()
+    if rank == 0:
+        # Handle scalar update
+        start_tensor = ov_opset.concat(processed_start_indices, axis=0).output(
+            0
+        )
+        # For scatter_nd_update,
+        # indices should be of shape [num_updates, rank_of_inputs]
+        # and updates should be of shape [num_updates]. Here num_updates is 1.
+        absolute_indices = ov_opset.unsqueeze(start_tensor, zero_scalar).output(
+            0
+        )
+        updates_flat = ov_opset.unsqueeze(updates_tensor, zero_scalar).output(0)
+        result = ov_opset.scatter_nd_update(
+            inputs, absolute_indices, updates_flat
+        ).output(0)
+        return OpenVINOKerasTensor(result)
+
+    # Compute the total number of elements in the updates tensor.
+    # Example:
+    # if updates.shape = [2, 3], total_elements = 6.
+    total_elements = ov_opset.reduce_prod(
+        updates_shape, zero_tensor, keep_dims=False
+    ).output(0)
+
+    # Generate a flat range [0, 1, ..., total_elements-1].
+    # This will be used to enumerate all positions in the updates tensor.
+    flat_indices = ov_opset.range(
+        zero_scalar, total_elements, one_scalar, output_type=Type.i32
+    ).output(0)
+
+    dim_sizes = []
+    strides = []
+
+    # For each dimension, compute its size and the stride.
+    # (number of elements to skip to move to the next index in this dimension).
+    # Example:
+    # for shape [2, 3], strides = [3, 1].
+    for dim in range(rank):
+        dim_size = ov_opset.gather(
+            updates_shape, ov_opset.constant([dim], Type.i32), zero_scalar
+        ).output(0)
+        dim_size_scalar = ov_opset.squeeze(dim_size, zero_tensor).output(0)
+        dim_sizes.append(dim_size_scalar)
+
+        # Strides to convert a flat index into a multi-dimensional index.
+        # This allows us to map each element in the flattened updates tensor
+        # to its correct N-dimensional position, so we can compute the absolute
+        # index in the input tensor for the scatter update.
+        # Stride for a dimension is the product of all dimensions after it.
+        # For the last dimension, stride is 1.
+        # Example:
+        # For a 3D tensor with shape [2, 3, 4]:
+        #   - stride for dim=0 (first axis) is 3*4=12
+        #     (to move to the next "block" along axis 0)
+        #   - stride for dim=1 is 4 (to move to the next row along axis 1)
+        #   - stride for dim=2 is 1 (to move to the next element along axis 2)
+        # This is equivalent to how numpy flattens multi-dimensional arrays.
+        if dim < rank - 1:
+            remaining_dims = ov_opset.slice(
+                updates_shape,
+                ov_opset.constant([dim + 1], Type.i32),
+                ov_opset.constant([rank], Type.i32),
+                one_tensor,
+                zero_tensor,
+            ).output(0)
+            stride = ov_opset.reduce_prod(
+                remaining_dims, zero_tensor, keep_dims=False
+            ).output(0)
+        else:
+            stride = one_scalar
+        strides.append(stride)
+
+    coord_tensors = []
+    # For each dimension, compute the coordinate for every flat index.
+    # Example:
+    # for shape [2, 3], flat index 4 -> coordinates [1, 1] (row 1, col 1).
+    for dim in range(rank):
+        coords = ov_opset.mod(
+            ov_opset.divide(flat_indices, strides[dim]).output(0),
+            dim_sizes[dim],
+        ).output(0)
+        coord_tensors.append(coords)
+
+    coord_tensors_unsqueezed = []
+    for coord in coord_tensors:
+        # Unsqueeze to make each coordinate a column vector for concatenation.
+        coord_unsqueezed = ov_opset.unsqueeze(coord, one_tensor).output(0)
+        coord_tensors_unsqueezed.append(coord_unsqueezed)
+
+    # Concatenate all coordinate columns to form [total_elements, rank] matrix.
+    # Each row is a multi-dimensional index into the updates tensor.
+    # Example:
+    # for shape [2, 3], row 4 = [1, 1].
+    indices_matrix = ov_opset.concat(coord_tensors_unsqueezed, axis=1).output(0)
+
+    # Broadcast start indices to match the number of updates.
+    # Example:
+    # start_indices = (2, 3), indices_matrix = [[0,0],[0,1],...],
+    # start_broadcast = [[2,3],[2,3],...]
+    start_tensor = ov_opset.concat(processed_start_indices, axis=0).output(0)
+    start_reshaped = ov_opset.reshape(
+        start_tensor, ov_opset.constant([1, rank], Type.i32), special_zero=False
+    ).output(0)
+
+    broadcast_shape = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(total_elements, zero_tensor).output(0),
+            one_tensor,
+        ],
+        axis=0,
+    ).output(0)
+
+    start_broadcast = ov_opset.tile(start_reshaped, broadcast_shape).output(0)
+
+    # Add the broadcasted start indices to the relative indices
+    # to get absolute indices in the input tensor.
+    # Example:
+    # if start=(2,3), update index [1,1] -> absolute index [3,4].
+    absolute_indices = ov_opset.add(indices_matrix, start_broadcast).output(0)
+
+    # Flatten the updates tensor to match the flat indices.
+    updates_flat = ov_opset.reshape(
+        updates_tensor,
+        ov_opset.unsqueeze(total_elements, zero_tensor).output(0),
+        special_zero=False,
+    ).output(0)
+
+    # Perform the scatter update: for each absolute index,
+    # set the corresponding value from updates_flat.
+    result = ov_opset.scatter_nd_update(
+        inputs, absolute_indices, updates_flat
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def while_loop(

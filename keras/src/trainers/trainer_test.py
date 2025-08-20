@@ -1,5 +1,6 @@
 from unittest import mock
 
+import jax
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -17,12 +18,17 @@ from keras.src import testing
 from keras.src.backend import config
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
+from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.optimizers.rmsprop import RMSprop
+from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
 if backend.backend() == "jax":
     from keras.src.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.distribution import DataParallel
+    from keras.src.distribution import DeviceMesh
 elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "tensorflow":
@@ -217,6 +223,35 @@ def create_dataset(dataset_type, dataset_kwargs):
             return generate_infinite(), None
         else:
             return generate_finite(), None
+    elif dataset_type == "grain_datast":
+        import grain
+
+        class TestIterableDataset(grain.sources.RandomAccessDataSource):
+            def __init__(self):
+                super().__init__()
+                self.x = np.ones((100, 4)).astype("float32")
+                self.y = np.zeros((100, 3)).astype("float32")
+
+            def __len__(self):
+                return len(self.x)
+
+            def __getitem__(self, idx):
+                return self.x[idx], self.y[idx]
+
+        if dataset_kwargs.get("use_dataloader", False):
+            source = TestIterableDataset()
+            dataloader = grain.DataLoader(
+                data_source=source,
+                sampler=grain.samplers.IndexSampler(len(source), num_epochs=1),
+                operations=[grain.transforms.Batch(batch_size=5)],
+            )
+            return dataloader, None
+        else:
+            dataset = grain.MapDataset.source(TestIterableDataset())
+            if dataset_kwargs.get("has_len", False):
+                dataset = dataset.to_iter_dataset()
+            dataset = dataset.batch(5)
+            return dataset, None
     else:
         raise ValueError(f"Invalid dataset type {dataset_type}")
 
@@ -615,17 +650,36 @@ class TestTrainer(testing.TestCase):
                 "dataset_kwargs": {"infinite": True},
                 "fit_kwargs": {"steps_per_epoch": 20},
             },
+            {
+                "testcase_name": "grain_datast",
+                "dataset_type": "grain_datast",
+                "dataset_kwargs": {"has_len": False},
+            },
+            {
+                "testcase_name": "grain_datast_with_len",
+                "dataset_type": "grain_datast",
+                "dataset_kwargs": {"has_len": True},
+            },
+            {
+                "testcase_name": "grain_dataloader",
+                "dataset_type": "grain_datast",
+                "dataset_kwargs": {"use_dataloader": True},
+            },
         ]
     )
     @pytest.mark.requires_trainable_backend
     def test_fit_with_data_adapter(
         self, dataset_type, dataset_kwargs={}, fit_kwargs={}
     ):
+        jit_compile = True
         if (
             dataset_kwargs.get("use_multiprocessing", False)
             and backend.backend() == "jax"
         ):
             pytest.skip("Multiprocessing not supported with JAX backend")
+        if dataset_type == "grain_datast" and backend.backend() == "torch":
+            # Grain datasets are not supported with torch + jit_compile.
+            jit_compile = False
 
         model = ExampleModel(units=3)
         optimizer = optimizers.Adagrad()
@@ -633,7 +687,7 @@ class TestTrainer(testing.TestCase):
             optimizer=optimizer,
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            jit_compile=True,
+            jit_compile=jit_compile,
         )
         x, y = create_dataset(dataset_type, dataset_kwargs)
         model.fit(x, y, epochs=3, **fit_kwargs)
@@ -2809,3 +2863,53 @@ class TestTrainer(testing.TestCase):
             verbose=0,
         )
         self.assertLessEqual(tracing_count[0], 2)
+
+
+class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
+    @parameterized.named_parameters(
+        ("single_device", False),
+        ("distributed", True),
+    )
+    def test_jit_fit_with_out_shardings_logic(self, distributed):
+        if keras.backend.backend() != "jax":
+            self.skipTest("This test requires the JAX backend.")
+        x = np.random.rand(64, 8).astype("float32")
+        y = np.random.rand(64, 1).astype("float32")
+
+        distribution = None
+        if distributed:
+            if len(jax.local_devices()) < 2:
+                self.skipTest(
+                    "Distributed test requires at least 2 JAX devices."
+                )
+
+            devices = jax.local_devices()
+            mesh = DeviceMesh(
+                shape=(len(devices),), axis_names=("batch",), devices=devices
+            )
+            distribution = DataParallel(mesh)
+
+        scope = distribution.scope() if distribution else mock.MagicMock()
+
+        with scope:
+            model = models.Sequential(
+                [
+                    layers.Dense(4, activation="relu", input_shape=(8,)),
+                    layers.Dense(1),
+                ]
+            )
+            model.compile(optimizer="adam", loss="mse", jit_compile=True)
+
+            if distribution:
+                expected_shardings = [
+                    v.value.sharding for v in model.trainable_variables
+                ]
+                self.assertNotEqual(len(set(expected_shardings)), 1)
+
+            model.fit(x, y, epochs=2, batch_size=32, verbose=0)
+
+            if distribution:
+                actual_shardings = [
+                    v.value.sharding for v in model.trainable_variables
+                ]
+                self.assertListEqual(actual_shardings, expected_shardings)

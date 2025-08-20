@@ -320,6 +320,19 @@ def hanning(x):
     return np.hanning(x).astype(config.floatx())
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    return np.heaviside(x1, x2).astype(dtype)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return np.kaiser(x, beta).astype(config.floatx())
@@ -669,12 +682,28 @@ def isfinite(x):
     return np.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return np.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 def isinf(x):
     return np.isinf(x)
 
 
 def isnan(x):
     return np.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return np.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return np.isposinf(x)
 
 
 def less(x1, x2):

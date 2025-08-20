@@ -1584,7 +1584,7 @@ def get_attr_skipset(obj_type):
 
         ref_obj = Operation()
         skipset.update(dir(ref_obj))
-    if obj_type == "Layer":
+    elif obj_type == "Layer":
         from keras.src.layers.layer import Layer
 
         ref_obj = Layer()
@@ -1631,7 +1631,7 @@ def get_attr_skipset(obj_type):
         raise ValueError(
             f"get_attr_skipset got invalid {obj_type=}. "
             "Accepted values for `obj_type` are "
-            "['Layer', 'Functional', 'Sequential', 'Metric', "
+            "['Operation', 'Layer', 'Functional', 'Sequential', 'Metric', "
             "'Optimizer', 'Loss', 'Cross', 'Feature']"
         )
 

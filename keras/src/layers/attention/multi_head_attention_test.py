@@ -395,7 +395,7 @@ class MultiHeadAttentionTest(testing.TestCase):
     )
     def test_correctness(self, flash_attention):
         if flash_attention:
-            # Let the backend decide whether to use flase attention
+            # Let the backend decide whether to use flash attention
             enable_flash_attention()
         dtype = "float16"  # Flash attention only accepts float16/bfloat16
 

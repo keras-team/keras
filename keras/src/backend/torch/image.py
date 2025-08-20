@@ -2,13 +2,16 @@ import functools
 import itertools
 import operator
 
+import numpy as np
 import torch
 import torch._dynamo as dynamo
 import torch.nn.functional as F
 
 from keras.src import backend
+from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.core import to_torch_dtype
 from keras.src.random.seed_generator import draw_seed
 
 RESIZE_INTERPOLATIONS = {
@@ -16,11 +19,31 @@ RESIZE_INTERPOLATIONS = {
     "nearest": "nearest-exact",
     "bicubic": "bicubic",
 }
-
 UNSUPPORTED_INTERPOLATIONS = (
     "lanczos3",
     "lanczos5",
 )
+AFFINE_TRANSFORM_INTERPOLATIONS = {
+    "nearest": 0,
+    "bilinear": 1,
+}
+AFFINE_TRANSFORM_FILL_MODES = {
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
+}
+SCALE_AND_TRANSLATE_METHODS = {
+    "linear",
+    "bilinear",
+    "trilinear",
+    "cubic",
+    "bicubic",
+    "tricubic",
+    "lanczos3",
+    "lanczos5",
+}
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -324,19 +347,6 @@ def resize(
         out_dtype=out_dtype,
     )
     return resized
-
-
-AFFINE_TRANSFORM_INTERPOLATIONS = {
-    "nearest": 0,
-    "bilinear": 1,
-}
-AFFINE_TRANSFORM_FILL_MODES = {
-    "constant",
-    "nearest",
-    "wrap",
-    "mirror",
-    "reflect",
-}
 
 
 def affine_transform(
@@ -888,7 +898,7 @@ def gaussian_blur(
 
 
 @dynamo.disable()
-def torch_seed_generator(seed):
+def _torch_seed_generator(seed):
     first_seed, second_seed = draw_seed(seed)
     device = get_device()
     if device == "meta":
@@ -945,7 +955,7 @@ def elastic_transform(
         batch_size, channels, height, width = images.shape
         channel_axis = 1
 
-    generator = torch_seed_generator(seed) if get_device() == "meta" else None
+    generator = _torch_seed_generator(seed) if get_device() == "meta" else None
     dx = (
         torch.normal(
             0.0,
@@ -1030,3 +1040,143 @@ def elastic_transform(
     transformed_images = transformed_images.to(input_dtype)
 
     return transformed_images
+
+
+def _fill_triangle_kernel(x):
+    return torch.maximum(torch.tensor(0, dtype=x.dtype), 1 - torch.abs(x))
+
+
+def _fill_keys_cubic_kernel(x):
+    out = ((1.5 * x - 2.5) * x) * x + 1.0
+    out = torch.where(x >= 1.0, ((-0.5 * x + 2.5) * x - 4.0) * x + 2.0, out)
+    return torch.where(x >= 2.0, 0.0, out)
+
+
+def _fill_lanczos_kernel(radius, x):
+    y = radius * torch.sin(np.pi * x) * torch.sin(np.pi * x / radius)
+    out = torch.where(
+        x > 1e-3, torch.divide(y, torch.where(x != 0, np.pi**2 * x**2, 1)), 1
+    )
+    return torch.where(x > radius, 0.0, out)
+
+
+_kernels = {
+    "linear": _fill_triangle_kernel,
+    "cubic": _fill_keys_cubic_kernel,
+    "lanczos3": lambda x: _fill_lanczos_kernel(3.0, x),
+    "lanczos5": lambda x: _fill_lanczos_kernel(5.0, x),
+}
+
+
+def _compute_weight_mat(
+    input_size, output_size, scale, translation, kernel, antialias
+):
+    dtype = to_torch_dtype(backend.result_type(scale.dtype, translation.dtype))
+    inv_scale = 1.0 / scale
+    kernel_scale = (
+        torch.maximum(
+            inv_scale,
+            torch.tensor(1.0, dtype=inv_scale.dtype, device=inv_scale.device),
+        )
+        if antialias
+        else 1.0
+    )
+    sample_f = (
+        (torch.arange(output_size, dtype=dtype, device=inv_scale.device) + 0.5)
+        * inv_scale
+        - translation * inv_scale
+        - 0.5
+    )
+    x = (
+        torch.abs(
+            sample_f[torch.newaxis, :]
+            - torch.arange(input_size, dtype=dtype, device=sample_f.device)[
+                :, torch.newaxis
+            ]
+        )
+        / kernel_scale
+    )
+    weights = kernel(x)
+    total_weight_sum = torch.sum(weights, dim=0, keepdims=True)
+    weights = torch.where(
+        torch.abs(total_weight_sum) > 1000.0 * float(np.finfo(np.float32).eps),
+        torch.divide(
+            weights, torch.where(total_weight_sum != 0, total_weight_sum, 1)
+        ),
+        0,
+    )
+    input_size_minus_0_5 = input_size - 0.5
+    return torch.where(
+        torch.logical_and(sample_f >= -0.5, sample_f <= input_size_minus_0_5)[
+            torch.newaxis, :
+        ],
+        weights,
+        0,
+    )
+
+
+def _scale_and_translate(
+    x, output_shape, spatial_dims, scale, translation, kernel, antialias
+):
+    x = convert_to_tensor(x)
+    input_shape = x.shape
+    if len(spatial_dims) == 0:
+        return x
+    if backend.is_int_dtype(x.dtype):
+        output = cast(x, "float32")
+        use_rounding = True
+    else:
+        output = torch.clone(x)
+        use_rounding = False
+    for i, d in enumerate(spatial_dims):
+        d = d % x.ndim
+        m, n = input_shape[d], output_shape[d]
+        w = cast(
+            _compute_weight_mat(
+                m, n, scale[i], translation[i], kernel, antialias
+            ),
+            output.dtype,
+        )
+        output = torch.tensordot(output, w, dims=((d,), (0,)))
+        output = torch.moveaxis(output, -1, d)
+    if use_rounding:
+        output = torch.clip(torch.round(output), torch.min(x), torch.max(x))
+        output = cast(output, x.dtype)
+    return output
+
+
+def scale_and_translate(
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
+):
+    if method not in SCALE_AND_TRANSLATE_METHODS:
+        raise ValueError(
+            "Invalid value for argument `method`. Expected of one "
+            f"{SCALE_AND_TRANSLATE_METHODS}. Received: method={method}"
+        )
+    if method in ("linear", "bilinear", "trilinear", "triangle"):
+        method = "linear"
+    elif method in ("cubic", "bicubic", "tricubic"):
+        method = "cubic"
+
+    images = convert_to_tensor(images)
+    scale = convert_to_tensor(scale)
+    translation = convert_to_tensor(translation)
+    kernel = _kernels[method]
+    dtype = backend.result_type(scale.dtype, translation.dtype)
+    scale = cast(scale, dtype)
+    translation = cast(translation, dtype)
+    return _scale_and_translate(
+        images,
+        output_shape,
+        spatial_dims,
+        scale,
+        translation,
+        kernel,
+        antialias,
+    )

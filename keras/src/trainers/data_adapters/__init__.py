@@ -8,6 +8,9 @@ from keras.src.trainers.data_adapters.array_data_adapter import ArrayDataAdapter
 from keras.src.trainers.data_adapters.generator_data_adapter import (
     GeneratorDataAdapter,
 )
+from keras.src.trainers.data_adapters.grain_dataset_adapter import (
+    GrainDatasetAdapter,
+)
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDatasetAdapter
 from keras.src.trainers.data_adapters.tf_dataset_adapter import TFDatasetAdapter
 from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
@@ -111,6 +114,32 @@ def get_data_adapter(
         #     "data `x` was provided as a torch DataLoader. The DataLoader "
         #     "is expected to already be shuffled."
         # )
+    elif is_grain_dataset(x):
+        if y is not None:
+            raise_unsupported_arg(
+                "y", "the targets", "grain.Dataset and grain.DataLoader"
+            )
+        if sample_weight is not None:
+            raise_unsupported_arg(
+                "sample_weights",
+                "the sample weights",
+                "grain.Dataset and grain.DataLoader",
+            )
+        if class_weight is not None:
+            raise ValueError(
+                "Argument `class_weight` is not supported for grain.Dataset "
+                f"and grain.DataLoader inputs. You can modify your "
+                "`__getitem__ ` method to return input tensor, label and "
+                "class_weight. "
+                f"Received: class_weight={class_weight}"
+            )
+        return GrainDatasetAdapter(x)
+        # TODO: should we warn or not?
+        # warnings.warn(
+        #     "`shuffle=True` was passed, but will be ignored since the "
+        #     "data `x` was provided as a grain dataset. The grain dataset "
+        #     "is expected to already be shuffled."
+        # )
     elif isinstance(x, types.GeneratorType):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "PyDataset")
@@ -160,5 +189,17 @@ def is_torch_dataloader(x):
             if parent.__name__ == "DataLoader" and "torch.utils.data" in str(
                 parent.__module__
             ):
+                return True
+    return False
+
+
+def is_grain_dataset(x):
+    if hasattr(x, "__class__"):
+        for parent in x.__class__.__mro__:
+            if parent.__name__ in (
+                "MapDataset",
+                "IterDataset",
+                "DataLoader",
+            ) and "grain" in str(parent.__module__):
                 return True
     return False
