@@ -88,7 +88,7 @@ class AttentionTest(testing.TestCase):
 
     def test_attention_2D_mask_shape_mismatch(self):
         layer = layers.Attention()
-        batch_size, Tq, Tv, dim = 2, 3, 4, 4
+        batch_size, Tq, Tv, dim = 2, 3, 4, 5
         query = np.random.random((batch_size, Tq, dim)).astype(np.float32)
         value = np.random.random((batch_size, Tv, dim)).astype(np.float32)
         query_mask = np.array([[True, False, True], [True, False, True]])
