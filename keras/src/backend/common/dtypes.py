@@ -244,6 +244,7 @@ BIT64_TO_BIT32_DTYPE = {
     "int64": "int32",
     "uint64": "uint32",
     "float64": "float32",
+    "complex128": "complex64",
 }
 
 
@@ -275,6 +276,10 @@ def _lattice_result_type(*args):
     precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+
+    # Force to be 32-bit dtype when encountering 64-bit dtype.
+    # TODO(hongyu): Add a config to enable 64-bit dtypes.
+    out_dtype = BIT64_TO_BIT32_DTYPE.get(out_dtype, out_dtype)
     return out_dtype
 
 

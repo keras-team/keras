@@ -5666,38 +5666,27 @@ class SparseTest(testing.TestCase):
 class NumpyDtypeTest(testing.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
-    # TODO: Using uint64 will lead to weak type promotion (`float`),
-    # resulting in different behavior between JAX and Keras. Currently, we
-    # are skipping the test for uint64
     ALL_DTYPES = [
         x
         for x in dtypes.ALLOWED_DTYPES
-        if x not in ["string", "uint64", "complex64", "complex128"]
+        if x
+        not in (
+            "string",
+            "complex64",
+            "complex128",
+            # Remove 64-bit dtypes.
+            "float64",
+            "uint64",
+            "int64",
+        )
+        + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
     ] + [None]
-    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint16, uint32 and uint64
-        ALL_DTYPES = [
-            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-        INT_DTYPES = [
-            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-    # Remove float8 dtypes for the following tests
-    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
-
-    def setUp(self):
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
@@ -7671,7 +7660,7 @@ class NumpyDtypeTest(testing.TestCase):
                 [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
             ],
             num=[0, 1, 5],
-            dtype=FLOAT_DTYPES + (None,),
+            dtype=FLOAT_DTYPES + [None],
         )
     )
     def test_linspace(self, start_and_stop, num, dtype):
@@ -7795,7 +7784,7 @@ class NumpyDtypeTest(testing.TestCase):
                 [np.array([0, 1], "float32"), np.array([10, 20], "float32")],
             ],
             num=[0, 1, 5],
-            dtype=FLOAT_DTYPES + (None,),
+            dtype=FLOAT_DTYPES + [None],
         )
     )
     def test_logspace(self, start_and_stop, num, dtype):
