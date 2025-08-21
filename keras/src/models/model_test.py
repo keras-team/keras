@@ -1,6 +1,7 @@
 import os
 import pickle
 from collections import namedtuple
+from collections.abc import Callable
 
 import numpy as np
 import pytest
@@ -9,12 +10,14 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
+from keras.src import models
 from keras.src import testing
 from keras.src import tree
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 def _get_model():
@@ -1237,3 +1240,177 @@ class ModelTest(testing.TestCase):
                 ),
             ):
                 model.export(temp_filepath, format="tf_saved_model")
+
+
+def dummy_dataset_generator(num_samples, sequence_length, vocab_size=1000):
+    """A generator that yields random numpy arrays for fast,
+    self-contained tests."""
+    rng = np.random.default_rng(seed=42)
+    for _ in range(num_samples):
+        yield rng.integers(low=0, high=vocab_size, size=(1, sequence_length))
+
+
+def get_model_with_dense_attention():
+    """Builds a simple transformer model using Dense for attention."""
+    vocab_size = 1000
+    embed_dim = 32
+    num_heads = 4
+    ff_dim = 32
+
+    class SimpleTransformerBlock(layers.Layer):
+        def __init__(self, embed_dim, num_heads, ff_dim, **kwargs):
+            super().__init__(**kwargs)
+            self.att = layers.MultiHeadAttention(
+                num_heads=num_heads, key_dim=embed_dim
+            )
+            self.ffn = models.Sequential(
+                [
+                    layers.Dense(ff_dim, activation="relu"),
+                    layers.Dense(embed_dim),
+                ]
+            )
+            self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+            self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+
+        def call(self, inputs):
+            attention_output = self.att(inputs, inputs)
+            out1 = self.layernorm1(inputs + attention_output)
+            ffn_output = self.ffn(out1)
+            return self.layernorm2(out1 + ffn_output)
+
+    inputs = layers.Input(shape=(None,), dtype="int32")
+    embedding_layer = layers.Embedding(vocab_size, embed_dim)
+    x = embedding_layer(inputs)
+    transformer_block = SimpleTransformerBlock(embed_dim, num_heads, ff_dim)
+    x = transformer_block(x)
+    outputs = layers.Dense(vocab_size)(x)
+    model = models.Model(inputs=inputs, outputs=outputs)
+    return model
+
+
+# Define parameters for the tests
+long_text = """gptq is an easy-to-use model quantization library..."""
+DATASETS = {
+    "string_dataset": [long_text],
+    "generator_dataset": lambda: dummy_dataset_generator(
+        num_samples=16, sequence_length=128
+    ),
+}
+CONFIGS = {
+    "default": {},
+    "per_channel": {"group_size": -1},
+    "act_order": {"activation_order": True},
+    "symmetric": {"symmetric": True},
+}
+
+
+def _get_simple_model():
+    """Builds a simple sequential model for testing."""
+    return models.Sequential([layers.Dense(10, input_shape=(5,))])
+
+
+quantize_test_cases = [
+    # --- Error Scenarios ---
+    (
+        "gptq",
+        {"weight_bits": 4},  # Invalid config (dict, not GPTQConfig)
+        ValueError,
+        "The `config` argument must be of type",
+        "gptq_with_invalid_config",
+    ),
+    (
+        "int8",
+        GPTQConfig(dataset=["test"], tokenizer=lambda x: x),
+        ValueError,
+        "is only supported for 'gptq' mode",
+        "non_gptq_with_unsupported_config",
+    ),
+    # --- Valid Scenario ---
+    (
+        "int8",
+        None,  # No config, which is correct
+        None,  # No exception expected
+        None,
+        "non_gptq_runs_without_error",
+    ),
+]
+
+
+@pytest.mark.requires_trainable_backend
+class TestModelQuantization:
+    def _run_gptq_test_on_dataset(self, dataset, **config_kwargs):
+        """Helper function to run a full GPTQ quantization test."""
+        if isinstance(dataset, Callable):
+            dataset = dataset()
+        model = get_model_with_dense_attention()
+        rng = np.random.default_rng(seed=42)
+
+        NUM_SAMPLES = 16
+        SEQUENCE_LENGTH = 128
+        VOCAB_SIZE = 1000
+        W_BITS = 4
+
+        mock_tokenizer = lambda text: np.array(
+            [ord(c) % VOCAB_SIZE for c in text]
+        )
+        mock_tokenizer.tokenize = mock_tokenizer
+
+        base_config = {
+            "dataset": dataset,
+            "tokenizer": mock_tokenizer,
+            "weight_bits": W_BITS,
+            "num_samples": NUM_SAMPLES,
+            "sequence_length": SEQUENCE_LENGTH,
+            "group_size": 32,
+            "symmetric": False,
+            "activation_order": False,
+        }
+
+        target_layer = model.layers[2].ffn.layers[0]
+        assert target_layer is not None
+        original_weights = np.copy(target_layer.kernel)
+
+        final_config = {**base_config, **config_kwargs}
+        gptq_config = GPTQConfig(**final_config)
+
+        model.quantize("gptq", config=gptq_config)
+
+        quantized_weights = target_layer.kernel
+
+        assert not np.allclose(original_weights, quantized_weights)
+
+        dummy_sample = rng.integers(
+            low=0, high=VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
+        )
+        _ = model.predict(dummy_sample)
+
+    @pytest.mark.parametrize("dataset", DATASETS.values(), ids=DATASETS.keys())
+    @pytest.mark.parametrize("config", CONFIGS.values(), ids=CONFIGS.keys())
+    def test_quantize_gptq_combinations(self, dataset, config):
+        """Runs GPTQ tests across different datasets and config variations."""
+        self._run_gptq_test_on_dataset(dataset, **config)
+
+    @pytest.mark.parametrize(
+        "mode, config, expected_exception, match_message, test_id",
+        quantize_test_cases,
+        ids=[case[-1] for case in quantize_test_cases],
+    )
+    def test_quantize_scenarios(
+        self, mode, config, expected_exception, match_message, test_id
+    ):
+        """
+        Tests various scenarios for the model.quantize() method, including
+        error handling and valid calls.
+        """
+        model = _get_simple_model()
+
+        if expected_exception:
+            # Test for cases where an error is expected
+            with pytest.raises(expected_exception, match=match_message):
+                model.quantize(mode, config=config)
+        else:
+            # Test for valid cases where no error should occur
+            try:
+                model.quantize(mode, config=config)
+            except (ValueError, TypeError) as e:
+                pytest.fail(f"Test case '{test_id}' failed unexpectedly: {e}")

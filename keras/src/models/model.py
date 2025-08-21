@@ -8,6 +8,7 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
@@ -420,7 +421,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def quantize(self, mode, **kwargs):
+    def quantize(self, mode, config=None, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -432,6 +433,23 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 time.
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
+
+        if mode == "gptq":
+            if not isinstance(config, GPTQConfig):
+                raise ValueError(
+                    "The `config` argument must be of type "
+                    "`keras.quantizers.GPTQConfig`."
+                )
+            # The config object's own quantize method drives the process
+            config.quantize(self)
+            return
+
+        # For all other modes, verify that a config object was not passed.
+        if config is not None:
+            raise ValueError(
+                f"The `config` argument is only supported for 'gptq' mode, "
+                f"but received mode='{mode}'."
+            )
 
         type_check = kwargs.pop("type_check", True)
         if kwargs:
