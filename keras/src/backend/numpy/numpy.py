@@ -333,12 +333,6 @@ def heaviside(x1, x2):
     return np.heaviside(x1, x2).astype(dtype)
 
 
-def hypot(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    return np.hypot(x1, x2)
-
-
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return np.kaiser(x, beta).astype(config.floatx())
@@ -669,6 +663,19 @@ def hstack(xs):
             lambda x: convert_to_tensor(x).astype(dtype), xs
         )
     return np.hstack(xs)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    return np.hypot(x1, x2).astype(dtype)
 
 
 def identity(n, dtype=None):

@@ -1355,48 +1355,6 @@ def heaviside(x1, x2):
     return backend.numpy.heaviside(x1, x2)
 
 
-class Hypot(Operation):
-    def call(self, x1, x2):
-        return backend.numpy.hypot(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        dtype = dtypes.result_type(x1.dtype, x2.dtype)
-        if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-            dtype = backend.floatx()
-        elif dtype == "int64":
-            dtype = "float64"
-        return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
-
-
-@keras_export(["keras.ops.hypot", "keras.ops.numpy.hypot"])
-def hypot(x1, x2):
-    """Return element-wise hypotenuse for the given legs
-    of a right angle triangle.
-
-    Args:
-        x1: A tensor, representing the first leg of the right triangle.
-        x2: A tensor, representing the second leg of the right triangle.
-
-    Returns:
-        A tensor with a shape determined by broadcasting `x1` and `x2`.
-
-    Example:
-    >>> x1 = keras.ops.convert_to_tensor([3.0, 4.0, 5.0])
-    >>> x2 = keras.ops.convert_to_tensor([4.0, 3.0, 12.0])
-    >>> keras.ops.hypot(x1, x2)
-    array([5., 5., 13.], dtype=float32)
-
-    >>> x1 = keras.ops.convert_to_tensor([[1, 2], [3, 4]])
-    >>> x2 = keras.ops.convert_to_tensor([1, 1])
-    >>> keras.ops.hypot(x1, x2)
-    array([[1.41421356 2.23606798],
-          [3.16227766 4.12310563]], dtype=float32)
-    """
-    if any_symbolic_tensors((x1, x2)):
-        return Hypot().symbolic_call(x1, x2)
-    return backend.numpy.hypot(x1, x2)
-
-
 class Kaiser(Operation):
     def __init__(self, beta, *, name=None):
         super().__init__(name=name)
@@ -3554,6 +3512,51 @@ def hstack(xs):
     if any_symbolic_tensors((xs,)):
         return Hstack().symbolic_call(xs)
     return backend.numpy.hstack(xs)
+
+
+class Hypot(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.hypot(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+            dtype = backend.floatx()
+        elif dtype == "int64":
+            dtype = "float64"
+        return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
+
+
+@keras_export(["keras.ops.hypot", "keras.ops.numpy.hypot"])
+def hypot(x1, x2):
+    """Compute the element-wise hypotenuse of
+    right triangles with legs `x1` and `x2`.
+
+    This is equivalent to computing `sqrt(x1**2 + x2**2)` element-wise,
+    with shape determined by broadcasting.
+
+    Args:
+        x1: A tensor, representing the first leg of the right triangle.
+        x2: A tensor, representing the second leg of the right triangle.
+
+    Returns:
+        A tensor with a shape determined by broadcasting `x1` and `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([3.0, 4.0, 5.0])
+    >>> x2 = keras.ops.convert_to_tensor([4.0, 3.0, 12.0])
+    >>> keras.ops.hypot(x1, x2)
+    array([5., 5., 13.], dtype=float32)
+
+    >>> x1 = keras.ops.convert_to_tensor([[1, 2], [3, 4]])
+    >>> x2 = keras.ops.convert_to_tensor([1, 1])
+    >>> keras.ops.hypot(x1, x2)
+    array([[1.41421356 2.23606798],
+          [3.16227766 4.12310563]], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Hypot().symbolic_call(x1, x2)
+    return backend.numpy.hypot(x1, x2)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])

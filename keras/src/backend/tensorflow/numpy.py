@@ -176,17 +176,6 @@ def heaviside(x1, x2):
     )
 
 
-def hypot(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
-    ret = tf.math.sqrt(
-        tf.cast(tf.math.square(x1), config.floatx())
-        + tf.cast(tf.math.square(x2), config.floatx())
-    )
-    return ret
-
-
 def kaiser(x, beta):
     x = convert_to_tensor(x, dtype=tf.int32)
     return tf.signal.kaiser_window(x, beta=beta)
@@ -1568,6 +1557,22 @@ def hstack(xs):
     if len(xs[0].shape) == 1:
         return tf.concat(xs, axis=0)
     return tf.concat(xs, axis=1)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    return tf.math.sqrt(tf.math.square(x1) + tf.math.square(x2))
 
 
 def identity(n, dtype=None):

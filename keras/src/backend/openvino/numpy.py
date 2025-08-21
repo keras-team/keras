@@ -487,10 +487,6 @@ def heaviside(x1, x2):
     )
 
 
-def hypot(x1, x2):
-    raise NotImplementedError("`hypot` is not supported with openvino backend")
-
-
 def kaiser(x, beta):
     raise NotImplementedError("`kaiser` is not supported with openvino backend")
 
@@ -904,6 +900,10 @@ def hstack(xs):
             elems[0], elems[i], "hstack()"
         )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
+
+
+def hypot(x1, x2):
+    raise NotImplementedError("`hypot` is not supported with openvino backend")
 
 
 def identity(n, dtype=None):
