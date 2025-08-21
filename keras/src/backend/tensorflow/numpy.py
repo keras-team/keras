@@ -1572,7 +1572,13 @@ def hypot(x1, x2):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
 
-    return tf.math.sqrt(tf.math.square(x1) + tf.math.square(x2))
+    x1_abs = tf.abs(x1)
+    x2_abs = tf.abs(x2)
+    max_val = tf.maximum(x1_abs, x2_abs)
+    min_val = tf.minimum(x1_abs, x2_abs)
+
+    ratio = tf.math.divide_no_nan(min_val, max_val)
+    return max_val * tf.sqrt(1.0 + tf.square(ratio))
 
 
 def identity(n, dtype=None):
