@@ -211,8 +211,7 @@ class Operation(KerasSaveable):
 
             def get_config(self):
                 config = super().get_config()
-                config.update({
-                        "arg1": self.arg1,
+                config.update({"arg1": self.arg1,
                     "arg2": self.arg2,
                 })
                 return config"""
