@@ -106,9 +106,9 @@ def apply_gptq_layerwise(
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
     This function is designed to work with common transformer architectures,
-    like those provided by KerasNLP and KerasHub. It automatically discovers
-    the model's structure by first looking for the standard KerasNLP format:
-    a `model.backbone` attribute that contains a `transformer_layers` list.
+    like those provided by KerasHub. It automatically discovers the model's
+    structure by first looking for the standard format: a `model.backbone`
+    attribute that contains a `transformer_layers` list.
 
     If a standard backbone is not found, it falls back to a heuristic for
     custom models, where it assumes the first `keras.layers.Embedding` layer
@@ -157,7 +157,7 @@ def apply_gptq_layerwise(
     embedding_layer = None
     transformer_blocks = []
     if hasattr(model, "backbone"):
-        logging.info("Detected KerasNLP model structure.")
+        logging.info("Detected KerasHub model structure.")
         backbone = model.backbone
 
         # Add the check for the 'transformer_layers' attribute.
@@ -167,7 +167,7 @@ def apply_gptq_layerwise(
             # Raise a specific error if the attribute is missing.
             raise ValueError(
                 "The model's backbone does not have a 'transformer_layers' "
-                "attribute. Please ensure you are using a standard KerasNLP "
+                "attribute. Please ensure you are using a standard KerasHub "
                 "transformer model."
             )
         # Find the embedding layer by checking for common names or by type.
