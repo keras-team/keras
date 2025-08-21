@@ -16,6 +16,9 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
     and hue image processing operation sequentially and randomly on the
     input.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         value_range: the range of values the incoming images will have.
             Represented as a two number tuple written [low, high].

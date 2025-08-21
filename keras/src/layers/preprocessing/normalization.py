@@ -5,12 +5,12 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.utils.module_utils import tensorflow as tf
 
 
 @keras_export("keras.layers.Normalization")
-class Normalization(TFDataLayer):
+class Normalization(DataLayer):
     """A preprocessing layer that normalizes continuous features.
 
     This layer will shift and scale inputs into a distribution centered around
@@ -22,6 +22,9 @@ class Normalization(TFDataLayer):
     construction or learned via `adapt()`. `adapt()` will compute the mean and
     variance of the data and store them as the layer's weights. `adapt()` should
     be called before `fit()`, `evaluate()`, or `predict()`.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         axis: Integer, tuple of integers, or None. The axis or axes that should
