@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import warnings
 
 import numpy as np
@@ -51,7 +52,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
-        x = self._convert_optional_to_none(x)
 
         # Forward pass
         with tf.GradientTape() as tape:
@@ -87,7 +87,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def test_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
-        x = self._convert_optional_to_none(x)
         if self._call_has_training_arg:
             y_pred = self(x, training=False)
         else:
@@ -103,18 +102,26 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
-        x = self._convert_optional_to_none(x)
         if self._call_has_training_arg:
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
         return y_pred
 
-    def _convert_optional_to_none(self, x):
-        # Convert TF Optional implementations to None
-        return tree.map_structure(
-            lambda i: None if isinstance(i, tf.experimental.Optional) else i, x
-        )
+    def _autoconvert_optionals(self, step_func):
+        # Wrapper converting (nested) TF Optional in input data to None
+        @functools.wraps(step_func)
+        def wrapper(data):
+            converted_data = tree.map_structure(
+                lambda i: (
+                    None if isinstance(i, tf.experimental.Optional) else i
+                ),
+                data,
+            )
+            result = step_func(converted_data)
+            return result
+
+        return wrapper
 
     def _make_function(self, step_function):
         @tf.autograph.experimental.do_not_convert
@@ -134,6 +141,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 reduce_retracing=True,
                 jit_compile=self.jit_compile,
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def multi_step_on_iterator(iterator):
@@ -262,6 +270,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             one_step_on_data = tf.function(
                 one_step_on_data, reduce_retracing=True, jit_compile=True
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data_distributed(data):
