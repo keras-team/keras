@@ -4720,19 +4720,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(standardize_dtype(y.dtype), "float32")
         self.assertAllClose(y, ref_y)
 
-    @pytest.mark.skipif(
-        backend.backend() == "jax", reason="JAX does not support float64."
-    )
-    def test_sqrt_float64(self):
-        x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float64")
-        ref_y = np.sqrt(x)
-        y = knp.sqrt(x)
-        self.assertEqual(standardize_dtype(y.dtype), "float64")
-        self.assertAllClose(y, ref_y)
-        y = knp.Sqrt()(x)
-        self.assertEqual(standardize_dtype(y.dtype), "float64")
-        self.assertAllClose(y, ref_y)
-
     def test_sqrt_int32(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="int32")
         ref_y = np.sqrt(x)

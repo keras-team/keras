@@ -63,7 +63,7 @@ class NadamTest(testing.TestCase):
             epsilon=1e-5,
         )
 
-        x = backend.Variable(np.ones([10]))
+        x = backend.Variable(np.ones([10], dtype="float32"))
         grads = ops.arange(0.1, 1.1, 0.1)
         first_grads = ops.full((10,), 0.01)
 
