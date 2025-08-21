@@ -42,9 +42,19 @@ def create_virtualenv():
         # Create virtual environment
         "python3 -m venv test_env",
     ]
-    os.environ["PATH"] = (
-        "/test_env/bin/" + os.pathsep + os.environ.get("PATH", "")
+    os.environ["PATH"] = os.pathsep.join(
+        (
+            os.path.join(os.getcwd(), "test_env", "bin"),
+            os.environ.get("PATH", ""),
+        )
     )
+    if os.name == "nt":
+        os.environ["PATH"] = os.pathsep.join(
+            (
+                os.path.join(os.getcwd(), "test_env", "Scripts"),
+                os.environ["PATH"],
+            )
+        )
     run_commands_local(env_setup)
 
 
@@ -53,18 +63,17 @@ def manage_venv_installs(whl_path):
     backend_pkg, backend_extra_url = BACKEND_REQ[backend.backend()]
     install_setup = [
         # Installs the backend's package and common requirements
-        "pip install " + backend_extra_url + backend_pkg,
+        f"pip install {backend_extra_url}{backend_pkg}",
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
-        "pip uninstall -y "
-        + BACKEND_REQ[other_backends[0]][0]
-        + " "
-        + BACKEND_REQ[other_backends[1]][0]
-        + " "
-        + BACKEND_REQ[other_backends[2]][0],
+        "pip uninstall -y {0} {1} {2}".format(
+            BACKEND_REQ[other_backends[0]][0],
+            BACKEND_REQ[other_backends[1]][0],
+            BACKEND_REQ[other_backends[2]][0],
+        ),
         # Install `.whl` package
-        "pip install " + whl_path,
+        f"pip install {whl_path}",
     ]
     # Install flax for JAX when NNX is enabled
     if backend.backend() == "jax" and config.is_nnx_enabled():
@@ -102,7 +111,11 @@ def run_commands_venv(commands):
     for command in commands:
         print(f"Running command: {command}")
         cmd_with_args = command.split(" ")
-        cmd_with_args[0] = "test_env/bin/" + cmd_with_args[0]
+        cmd_with_args[0] = os.path.join(
+            "test_env",
+            "Scripts" if os.name == "nt" else "bin",
+            cmd_with_args[0],
+        )
         p = subprocess.Popen(cmd_with_args)
         assert p.wait() == 0
 

@@ -2872,7 +2872,7 @@ class Einsum(Operation):
         kept_dims = sorted(kept_dims)
 
         if output_spec is None:
-            target_broadcast_spec = "..." + "".join(kept_dims)
+            target_broadcast_spec = f"...{''.join(kept_dims)}"
         else:
             target_broadcast_spec = output_spec
 
@@ -2894,18 +2894,18 @@ class Einsum(Operation):
                     )
                 for size, s in zip(x_shape, split_spec[0]):
                     # Replace the letter with the right shape.
-                    expanded_shape = expanded_shape.replace(s, str(size) + " ")
+                    expanded_shape = expanded_shape.replace(s, f"{str(size)} ")
                 expanded_shape = expanded_shape.replace("...", "")
             else:
                 # In this case, the input spec has "...", e.g., "i...j", "i...",
                 # or "...j".
                 for i in range(len(split_spec[0])):
                     expanded_shape = expanded_shape.replace(
-                        split_spec[0][i], str(x_shape[i]) + " "
+                        split_spec[0][i], f"{x_shape[i]} "
                     )
                 for i in range(len(split_spec[1])):
                     expanded_shape = expanded_shape.replace(
-                        split_spec[1][-i - 1], str(x_shape[-i - 1]) + " "
+                        split_spec[1][-i - 1], f"{x_shape[-i - 1]} "
                     )
                 # Shape matched by "..." will be inserted to the position of
                 # "...".
@@ -2919,7 +2919,7 @@ class Einsum(Operation):
                     wildcard_shape_start_index:wildcard_shape_end_index
                 ]
                 wildcard_shape_str = (
-                    " ".join([str(size) for size in wildcard_shape]) + " "
+                    f"{' '.join([str(size) for size in wildcard_shape])} "
                 )
                 expanded_shape = expanded_shape.replace(
                     "...", wildcard_shape_str

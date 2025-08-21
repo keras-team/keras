@@ -225,11 +225,11 @@ def _resolve_weak_type(dtype, precision="32"):
     if dtype_indicator == "b":
         return "bool"
     elif dtype_indicator == "i":
-        return "int" + precision
+        return f"int{precision}"
     elif dtype_indicator == "u":
-        return "uint" + precision
+        return f"uint{precision}"
     else:
-        return "float" + precision
+        return f"float{precision}"
 
 
 BIT64_TO_BIT16_DTYPE = {
