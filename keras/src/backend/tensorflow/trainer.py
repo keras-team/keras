@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import warnings
 
 import numpy as np
@@ -107,6 +108,21 @@ class TensorFlowTrainer(base_trainer.Trainer):
             y_pred = self(x)
         return y_pred
 
+    def _autoconvert_optionals(self, step_func):
+        # Wrapper converting (nested) TF Optional in input data to None
+        @functools.wraps(step_func)
+        def wrapper(data):
+            converted_data = tree.map_structure(
+                lambda i: (
+                    None if isinstance(i, tf.experimental.Optional) else i
+                ),
+                data,
+            )
+            result = step_func(converted_data)
+            return result
+
+        return wrapper
+
     def _make_function(self, step_function):
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data(data):
@@ -125,6 +141,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 reduce_retracing=True,
                 jit_compile=self.jit_compile,
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def multi_step_on_iterator(iterator):
@@ -253,6 +270,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             one_step_on_data = tf.function(
                 one_step_on_data, reduce_retracing=True, jit_compile=True
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data_distributed(data):
