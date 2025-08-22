@@ -44,7 +44,7 @@
 
 
 
-name: Keras Tests on TPU Runner
+name: Keras Tests on TPU Runner using JAX Backend
 
 on:
   push:
@@ -59,7 +59,7 @@ permissions:
 
 jobs:
   test-in-container:
-    name: Run Keras tests on TPU runner
+    name: Run Keras tests on TPU runner using JAX Backend
     runs-on: linux-x86-ct6e-44-1tpu
 
     container:
@@ -93,4 +93,12 @@ jobs:
         run: |
           echo "Successfully running inside the public python container!"
           echo "Verifying JAX installation..."
-          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()}')"
+          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()[0].device_kind}')"
+
+          # pytest keras --ignore keras/src/applications \
+          #             --ignore keras/src/layers/merging/merging_test.py \
+          #             --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
+          #             --ignore keras/src/backend/jax/distribution_lib_test.py \
+          #             --ignore keras/src/distribution/distribution_lib_test.py \
+          #             --cov=keras \
+          #             --cov-config=pyproject.toml
