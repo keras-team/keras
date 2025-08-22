@@ -902,6 +902,10 @@ def hstack(xs):
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
+def hypot(x1, x2):
+    raise NotImplementedError("`hypot` is not supported with openvino backend")
+
+
 def identity(n, dtype=None):
     n = get_ov_output(n)
     dtype = Type.f32 if dtype is None else dtype

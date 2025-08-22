@@ -1559,6 +1559,28 @@ def hstack(xs):
     return tf.concat(xs, axis=1)
 
 
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    x1_abs = tf.abs(x1)
+    x2_abs = tf.abs(x2)
+    max_val = tf.maximum(x1_abs, x2_abs)
+    min_val = tf.minimum(x1_abs, x2_abs)
+
+    ratio = tf.math.divide_no_nan(min_val, max_val)
+    return max_val * tf.sqrt(1.0 + tf.square(ratio))
+
+
 def identity(n, dtype=None):
     return eye(N=n, M=n, dtype=dtype)
 

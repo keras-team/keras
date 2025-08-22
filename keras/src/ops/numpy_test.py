@@ -95,6 +95,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, 3))
         self.assertEqual(knp.heaviside(x, y).shape, (None, 3))
 
+    def test_hypot(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.hypot(x, y).shape, (None, 3))
+
     def test_subtract(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -519,6 +524,11 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((1, 3))
         self.assertEqual(knp.heaviside(x, y).shape, (2, 3))
+
+    def test_hypot(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.hypot(x, y).shape, (2, 3))
 
     def test_subtract(self):
         x = KerasTensor((2, 3))
@@ -2399,6 +2409,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array(4)
         self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
         self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
+
+    def test_hypot(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
+        self.assertAllClose(knp.Hypot()(x, y), np.hypot(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array(4)
+        self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
+        self.assertAllClose(knp.Hypot()(x, y), np.hypot(x, y))
 
     def test_subtract(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7486,6 +7507,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Hstack().symbolic_call([x1, x2]).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_hypot(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.hypot(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.hypot(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hypot().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 
