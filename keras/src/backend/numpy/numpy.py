@@ -372,6 +372,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 def bitwise_and(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_and(x, y)
 
 
@@ -387,12 +390,18 @@ def bitwise_not(x):
 def bitwise_or(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_or(x, y)
 
 
 def bitwise_xor(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_xor(x, y)
 
 
@@ -400,6 +409,9 @@ def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
     if not isinstance(y, int):
         y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = x.astype(dtype)
+        y = y.astype(dtype)
     return np.left_shift(x, y)
 
 
@@ -411,6 +423,9 @@ def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
     if not isinstance(y, int):
         y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = x.astype(dtype)
+        y = y.astype(dtype)
     return np.right_shift(x, y)
 
 

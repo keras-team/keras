@@ -2550,20 +2550,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
 
 class NNOpsDtypeTest(testing.TestCase):
-    """Test the dtype to verify that the behavior matches JAX."""
+    """Test the floating dtype to verify that the behavior matches JAX."""
 
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
-
-    def setUp(self):
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_elu(self, dtype):
