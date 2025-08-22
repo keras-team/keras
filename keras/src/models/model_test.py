@@ -1261,14 +1261,14 @@ class ModelTest(testing.TestCase):
     def test_functional_optional_inputs_generator(self, is_optional_none):
         model = _get_model_optional_inputs()
         x1 = np.ones((2, 2))
-        if is_optional_none != "sometimes":
-            x2 = None if is_optional_none else np.ones((2, 2))
         y_true = np.ones((2, 2))
 
         def data_generator(with_y=True):
             for i in range(4):
                 if is_optional_none == "sometimes":
                     x2 = None if i % 2 == 0 else np.ones((2, 2))
+                else:
+                    x2 = None if is_optional_none else np.ones((2, 2))
                 yield ({"x1": x1, "x2": x2},) + ((y_true,) if with_y else ())
 
         model.compile(loss="mse", optimizer="adam")
