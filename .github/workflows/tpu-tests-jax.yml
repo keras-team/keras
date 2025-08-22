@@ -78,6 +78,10 @@ jobs:
             git \
             sudo \
             && rm -rf /var/lib/apt/lists/*
+      
+      - name: Check Gloud installation
+        run: |
+          gcloud
 
       - name: Install Dependencies
         run: |
