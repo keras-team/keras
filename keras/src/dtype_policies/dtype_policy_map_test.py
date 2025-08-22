@@ -169,6 +169,30 @@ class DTypePolicyMapTest(testing.TestCase):
         ):
             dtype_policy_map["dense_10"]
 
+    def test_get_with_regex_non_quantized(self):
+        """Test regex fallback successfully returns a non-quantized policy."""
+        dtype_policy_map = DTypePolicyMap(default_policy="float32")
+        regex_policy = dtype_policies.DTypePolicy("bfloat16")
+        dtype_policy_map["layer/dense_1"] = regex_policy
+
+        # Query a key that doesn't have an exact match but matches the regex.
+        # It should return the policy associated with the regex.
+        retrieved_policy = dtype_policy_map["layer/dense_1/kernel_0"]
+        self.assertEqual(retrieved_policy, regex_policy)
+        self.assertNotEqual(retrieved_policy, dtype_policy_map.default_policy)
+
+    def test_get_with_regex_quantized(self):
+        """Test regex fallback ignores matches with quantized policies."""
+        dtype_policy_map = DTypePolicyMap(default_policy="float32")
+        quantized_policy = dtype_policies.QuantizedDTypePolicy("int8")
+        dtype_policy_map["layer/dense_1"] = quantized_policy
+
+        # Query a key that matches the regex for the quantized policy.
+        # The match should be ignored, and the default policy returned.
+        retrieved_policy = dtype_policy_map["layer/dense_1/kernel_0"]
+        self.assertEqual(retrieved_policy, dtype_policy_map.default_policy)
+        self.assertNotEqual(retrieved_policy, quantized_policy)
+
     def test_delete(self):
         dtype_policy_map = DTypePolicyMap()
         dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(

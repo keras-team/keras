@@ -98,26 +98,37 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         return self.default_policy.quantization_mode
 
     def __getitem__(self, key):
-        """Retrieves the corresponding `DTypePolicy` by the string key.
+        """Retrieves a `DTypePolicy` by its key, with regex fallback logic.
 
-        When there isn't an exact match, all the existing keys in the map
-        will be treated as a regex and map against the input key again. When
-        there are multiple matches for the regex, an `ValueError` will be
-        raised. Returns `self.default_policy` if there isn't any match found.
+        This method first attempts an exact key match. If no exact match is
+        found, it treats the keys stored in the map as regular expression
+        patterns and searches for a match against the input `key`.
+
+        A regex match is only considered valid if it meets two conditions:
+        - It must match exactly one pattern in the policy map.
+        - The policy associated with that pattern must not be for quantization.
 
         Args:
-            key: String key to query a `DTypePolicy`.
+            key: The string key to query for a `DTypePolicy`.
 
         Returns:
-            Corresponding `DTypePolicy` based on the query.
+            The corresponding `DTypePolicy`. If no valid match is found
+            (either exact or regex), this method returns `self.default_policy`.
+
+        Raises:
+            ValueError: If the `key` matches more than one regex pattern.
         """
+        # 1. Check for an exact match.
         if key in self._policy_map:
             return self._policy_map[key]
 
-        matching_keys = []
-        for k in self._policy_map:
-            if re.search(k, key):
-                matching_keys.append(k)
+        # 2. If no exact match is found, treat the keys in the map as regular
+        # expression patterns and search for a match against the input `key`.
+        matching_keys = [
+            pattern for pattern in self._policy_map if re.search(pattern, key)
+        ]
+
+        # 3. Handle cases based on the number of matches found.
         if len(matching_keys) > 1:
             raise ValueError(
                 f"Path '{key}' matches multiple dtype policy "
@@ -125,8 +136,26 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
                 "sure each path only matches at most "
                 "one dtype policy specification key in the DTypePolicyMap."
             )
-        elif len(matching_keys) == 1:
-            return self._policy_map[matching_keys[0]]
+
+        if len(matching_keys) == 1:
+            policy = self._policy_map[matching_keys[0]]
+
+            # A single regex match is only considered valid if the resulting
+            # policy is non-quantized.
+            # This logic specifically handles how KerasHub serializes quantized
+            # models. In that workflow, every quantized layer is stored in the
+            # policy map with its exact path, ensuring it's found by the direct
+            # lookup at the start of this method.
+            #
+            #  For example, it stops a general key like "attention/query" which
+            # represents a quantization-compatible layer from incorrectly
+            # matching a different, incompatible layer like
+            # "attention/query_norm"
+            if not policy.quantization_mode:
+                return policy
+
+        # 4. If there were no matches, or the single match was a quantized
+        # policy, return the default.
         return self.default_policy
 
     def __setitem__(self, key, policy):
