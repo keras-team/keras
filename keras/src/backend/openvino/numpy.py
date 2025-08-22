@@ -1098,7 +1098,10 @@ def median(x, axis=None, keepdims=False):
 
 def meshgrid(*x, indexing="xy"):
     if len(x) < 2:
-        raise ValueError("meshgrid requires at least 2 input arrays")
+        raise ValueError(
+            "meshgrid requires at least 2 input arrays. "
+            f"Received: {len(x)} input array(s)."
+        )
     if indexing not in ("xy", "ij"):
         raise ValueError("indexing must be either 'xy' or 'ij'")
 
