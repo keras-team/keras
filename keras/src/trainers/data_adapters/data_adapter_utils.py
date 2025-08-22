@@ -149,7 +149,15 @@ def get_keras_tensor_spec(batches):
         A nested structure of `KerasTensor`.
     """
 
-    def get_single_tensor_spec(*tensors):
+    def get_single_tensor_spec(*tensors_or_none):
+        # Filter out None values (possible for optional inputs)
+        tensors = [t for t in tensors_or_none if t is not None]
+        if len(tensors) == 0:
+            return None
+
+        # Detect optional input when some tensors are None
+        is_optional = len(tensors_or_none) > len(tensors)
+
         x = tensors[0]
         if not hasattr(x, "shape"):
             # Try to convert to a numpy array.
@@ -176,21 +184,26 @@ def get_keras_tensor_spec(batches):
 
         dtype = backend.standardize_dtype(x.dtype)
         if is_tensorflow_ragged(x):
-            return backend.KerasTensor(
+            tensor_spec = backend.KerasTensor(
                 shape=shape,
                 dtype=dtype,
                 ragged=True,
                 ragged_rank=x.ragged_rank,
                 row_splits_dtype=x.row_splits.dtype,
             )
-        if is_tensorflow_sparse(x) or is_scipy_sparse(x) or is_jax_sparse(x):
-            return backend.KerasTensor(shape=shape, dtype=dtype, sparse=True)
+        elif is_tensorflow_sparse(x) or is_scipy_sparse(x) or is_jax_sparse(x):
+            tensor_spec = backend.KerasTensor(
+                shape=shape, dtype=dtype, sparse=True
+            )
         else:
-            return backend.KerasTensor(shape=shape, dtype=dtype)
+            tensor_spec = backend.KerasTensor(shape=shape, dtype=dtype)
 
-    return tree.map_structure(
-        get_single_tensor_spec, *batches, none_is_leaf=False
-    )
+        backend.common.tensor_attributes.set_tensor_attr(
+            tensor_spec, "_keras_optional", is_optional
+        )
+        return tensor_spec
+
+    return tree.map_structure(get_single_tensor_spec, *batches)
 
 
 def convert_to_tf_tensor_spec(keras_tensor, batch_axis_to_none=True):
@@ -214,16 +227,23 @@ def convert_to_tf_tensor_spec(keras_tensor, batch_axis_to_none=True):
     if batch_axis_to_none:
         shape[0] = None
     if keras_tensor.ragged:
-        return tf.RaggedTensorSpec(
+        tf_tensor_spec = tf.RaggedTensorSpec(
             shape=shape,
             dtype=keras_tensor.dtype,
             ragged_rank=keras_tensor.ragged_rank,
             row_splits_dtype=keras_tensor.row_splits_dtype,
         )
     elif keras_tensor.sparse:
-        return tf.SparseTensorSpec(shape=shape, dtype=keras_tensor.dtype)
+        tf_tensor_spec = tf.SparseTensorSpec(
+            shape=shape, dtype=keras_tensor.dtype
+        )
     else:
-        return tf.TensorSpec(shape=shape, dtype=keras_tensor.dtype)
+        tf_tensor_spec = tf.TensorSpec(shape=shape, dtype=keras_tensor.dtype)
+    if backend.common.tensor_attributes.get_tensor_attr(
+        keras_tensor, "_keras_optional"
+    ):
+        tf_tensor_spec = tf.OptionalSpec(tf_tensor_spec)
+    return tf_tensor_spec
 
 
 def get_tensor_spec(batches):

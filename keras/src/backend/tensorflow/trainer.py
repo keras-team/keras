@@ -109,17 +109,57 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return y_pred
 
     def _autoconvert_optionals(self, step_func):
-        # Wrapper converting (nested) TF Optional in input data to None
+        # Wrapper converting (nested) TF Optional in input data to tensor/None
         @functools.wraps(step_func)
         def wrapper(data):
-            converted_data = tree.map_structure(
-                lambda i: (
-                    None if isinstance(i, tf.experimental.Optional) else i
-                ),
-                data,
-            )
-            result = step_func(converted_data)
-            return result
+            # Flatten inputs
+            flat = tree.flatten(data)
+
+            # List positions of optional inputs
+            opt_pos = [
+                i
+                for i, x in enumerate(flat)
+                if isinstance(x, tf.experimental.Optional)
+            ]
+            if not opt_pos:  # if nothing optional, just call on data (shortcut)
+                return step_func(data)
+
+            # Build bitmask for optionals (1=present, 0=empty)
+            opts = [flat[i] for i in opt_pos]
+            flags = [o.has_value() for o in opts]  # 1 Tensor[bool] per optional
+            flag_vec = tf.cast(tf.stack(flags), tf.int32)  # shape [n]
+
+            # Compute bitmask index via TF ops (traceable with symbolic tensors)
+            n = len(flags)  # number of optional inputs
+            shifts = tf.range(n, dtype=tf.int32)  # [0, 1, 2, ..., n-1]
+            terms = tf.bitwise.left_shift(flag_vec, shifts)  # shape [n]
+            index = tf.reduce_sum(terms)  # scalar int32 in [0, 2^(n-1)]
+            ncases = 1 << n  # = 2^n total cases (efficiently computed)
+
+            # Create a branch function for each possible bitmask combination
+            def make_branch(mask: int):
+                def branch():
+                    # Unwrap optional inputs to tensor/None in flat inputs
+                    inputs = list(flat)
+                    for j, i in enumerate(opt_pos):
+                        if inputs[i].element_spec is None:
+                            inputs[i] = None  # special case: always None
+                        else:
+                            present = ((mask >> j) & 1) == 1
+                            inputs[i] = opts[j].get_value() if present else None
+
+                    # Pack rebuilt inputs like original data
+                    struct_inputs = tree.pack_sequence_as(data, inputs)
+
+                    # Call step_func (same output shapes for all branches)
+                    return step_func(struct_inputs)
+
+                return branch
+
+            branches = [make_branch(m) for m in range(ncases)]
+
+            # Compute result with switch case
+            return tf.switch_case(index, branch_fns=branches)
 
         return wrapper
 
