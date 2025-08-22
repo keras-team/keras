@@ -3529,8 +3529,7 @@ class Hypot(Operation):
 
 @keras_export(["keras.ops.hypot", "keras.ops.numpy.hypot"])
 def hypot(x1, x2):
-    """Compute the element-wise hypotenuse of
-    right triangles with legs `x1` and `x2`.
+    """Element-wise hypotenuse of right triangles with legs `x1` and `x2`.
 
     This is equivalent to computing `sqrt(x1**2 + x2**2)` element-wise,
     with shape determined by broadcasting.
