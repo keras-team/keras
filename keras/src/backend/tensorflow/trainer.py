@@ -139,6 +139,12 @@ class TensorFlowTrainer(base_trainer.Trainer):
             terms = tf.bitwise.left_shift(flag_vec, shifts)  # shape [n]
             index = tf.reduce_sum(terms)  # scalar int32 in [0, 2^(n-1)]
             ncases = 1 << n  # = 2^n total cases (efficiently computed)
+            if n > 10:
+                warnings.warn(
+                    f"Model has {n} optional inputs. This will create 2^{n} "
+                    "branches in the computational graph, which may be slow to "
+                    "compile and consume a lot of memory."
+                )
 
             # Create a branch function for each possible bitmask combination
             def make_branch(mask: int):
