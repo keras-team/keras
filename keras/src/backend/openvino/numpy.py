@@ -34,6 +34,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         ov_opset.add(ov_opset.constant(int(axis2), dtype="i64"), rank_val),
         rank_val,
     )
+ 
     arange = ov_opset.range(
         ov_opset.constant(0, dtype="i64"),
         rank_val,
@@ -777,6 +778,7 @@ def deg2rad(x):
 
 def diag(x, k=0):
     raise NotImplementedError("`diag` is not supported with openvino backend")
+
 
 def diff(a, n=1, axis=-1):
     if n == 0:
