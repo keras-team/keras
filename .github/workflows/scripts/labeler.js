@@ -21,6 +21,7 @@ You may obtain a copy of the License at
  */
 
 module.exports = async ({ github, context }) => {
+
     // Determine if the event is an issue or a pull request.
     const isIssue = !!context.payload.issue;
 
@@ -34,7 +35,6 @@ module.exports = async ({ github, context }) => {
     const keyword_label =  {
          gemma: 'Gemma'
     };
-    
     // Array to hold labels that need to be added.
     const labelsToAdd = [];
 
