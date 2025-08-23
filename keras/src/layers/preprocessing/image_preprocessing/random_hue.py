@@ -14,6 +14,9 @@ class RandomHue(BaseImagePreprocessingLayer):
     The image hue is adjusted by converting the image(s) to HSV and rotating the
     hue channel (H) by delta. The image is then converted back to RGB.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A single float or a tuple of two floats.
             `factor` controls the extent to which the

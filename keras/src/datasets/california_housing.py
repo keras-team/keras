@@ -73,7 +73,7 @@ def load_data(
     )
     path = get_file(
         path,
-        origin=origin_folder + "california_housing.npz",
+        origin=f"{origin_folder}california_housing.npz",
         file_hash=(  # noqa: E501
             "1a2e3a52e0398de6463aebe6f4a8da34fb21fbb6b934cf88c3425e766f2a1a6f"
         ),

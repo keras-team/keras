@@ -708,7 +708,9 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     logprobs_phi = logprobs[:, :, mask_index : mask_index + 1]  # [B, T, 1]
     logprobs_phi = jnp.transpose(logprobs_phi, (1, 0, 2))  # [T, B, 1]
 
-    _one_hot = jax.nn.one_hot(target, num_classes=num_classes)  # [B, N, K]
+    _one_hot = jax.nn.one_hot(
+        target, num_classes=num_classes, dtype=logprobs.dtype
+    )  # [B, N, K]
     logprobs_emit = jnp.einsum("btk,bnk->btn", logprobs, _one_hot)
     logprobs_emit = jnp.transpose(logprobs_emit, (1, 0, 2))  # [T, B, N]
 
@@ -765,7 +767,11 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
     # extract per_seq_loss
     # [B, N+1]
-    _one_hot = jax.nn.one_hot(label_lengths, num_classes=max_label_length + 1)
+    _one_hot = jax.nn.one_hot(
+        label_lengths,
+        num_classes=max_label_length + 1,
+        dtype=logalpha_phi_last.dtype,
+    )
     per_seq_loss = -jnp.einsum("bn,bn->b", logalpha_phi_last, _one_hot)
     return per_seq_loss
 

@@ -74,7 +74,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
 
     @property
     def name(self):
-        return "map_" + self.default_policy._name
+        return f"map_{self.default_policy._name}"
 
     @property
     def default_policy(self):

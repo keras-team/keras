@@ -13,6 +13,9 @@ class RandomSharpness(BaseImagePreprocessingLayer):
     original image and the processed image. This operation adjusts the clarity
     of the edges in an image, ranging from blurred to enhanced sharpness.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A tuple of two floats or a single float.
             `factor` controls the extent to which the image sharpness
