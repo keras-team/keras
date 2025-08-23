@@ -11,6 +11,7 @@ from keras.src.legacy.saving import json_utils
 from keras.src.legacy.saving import saving_options
 from keras.src.legacy.saving import saving_utils
 from keras.src.saving import object_registration
+from keras.src.saving import serialization_lib
 from keras.src.utils import io_utils
 
 try:
@@ -72,7 +73,9 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
             f.close()
 
 
-def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
+def load_model_from_hdf5(
+    filepath, custom_objects=None, compile=True, safe_mode=True
+):
     """Loads a model saved via `save_model_to_hdf5`.
 
     Args:
@@ -128,7 +131,9 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
             model_config = model_config.decode("utf-8")
         model_config = json_utils.decode(model_config)
 
-        with saving_options.keras_option_scope(use_legacy_config=True):
+        legacy_scope = saving_options.keras_option_scope(use_legacy_config=True)
+        safe_mode_scope = serialization_lib.SafeModeScope(safe_mode)
+        with legacy_scope, safe_mode_scope:
             model = saving_utils.model_from_config(
                 model_config, custom_objects=custom_objects
             )

@@ -14,6 +14,9 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
     distortion is controlled by the `scale` parameter, while the `factor`
     determines the probability of applying the transformation.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A single float or a tuple of two floats.
             `factor` controls the probability of applying the transformation.

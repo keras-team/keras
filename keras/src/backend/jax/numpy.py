@@ -39,17 +39,17 @@ def add(x1, x2):
 
 def bartlett(x):
     x = convert_to_tensor(x)
-    return jnp.bartlett(x)
+    return cast(jnp.bartlett(x), config.floatx())
 
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return jnp.hamming(x)
+    return cast(jnp.hamming(x), config.floatx())
 
 
 def hanning(x):
     x = convert_to_tensor(x)
-    return jnp.hanning(x)
+    return cast(jnp.hanning(x), config.floatx())
 
 
 def heaviside(x1, x2):
@@ -58,9 +58,15 @@ def heaviside(x1, x2):
     return jnp.heaviside(x1, x2)
 
 
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.hypot(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
-    return jnp.kaiser(x, beta)
+    return cast(jnp.kaiser(x, beta), config.floatx())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -497,7 +503,7 @@ def right_shift(x, y):
 
 def blackman(x):
     x = convert_to_tensor(x)
-    return jnp.blackman(x)
+    return cast(jnp.blackman(x), config.floatx())
 
 
 def broadcast_to(x, shape):
@@ -790,6 +796,11 @@ def isnan(x):
 def isneginf(x):
     x = convert_to_tensor(x)
     return jnp.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return jnp.isposinf(x)
 
 
 def less(x1, x2):

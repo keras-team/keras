@@ -1,4 +1,3 @@
-import contextlib
 import operator
 from unittest.mock import Mock
 
@@ -16,7 +15,9 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.layers.core import input_layer
 from keras.src.ops import core
+from keras.src.saving import object_registration
 from keras.src.testing.test_utils import named_product
 
 
@@ -645,6 +646,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         index, inputs, sum = 0, np.arange(10), np.array([0])
         index, inputs, sum = core.while_loop(cond, body, (index, inputs, sum))
+        self.assertEqual(sum.shape, (1,))
         self.assertAllClose(sum, [45])
 
     def test_fori_loop(self):
@@ -1367,43 +1369,29 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
 
 class CoreOpsDtypeTest(testing.TestCase):
-    # TODO: Using uint64 will lead to weak type promotion (`float`),
-    # resulting in different behavior between JAX and Keras. Currently, we
-    # are skipping the test for uint64
+    """Test the dtype to verify that the behavior matches JAX."""
+
     ALL_DTYPES = [
         x
         for x in dtypes.ALLOWED_DTYPES
-        if x not in ["string", "uint64", "complex64", "complex128"]
+        if x
+        not in (
+            "string",
+            "complex64",
+            "complex128",
+            # Remove 64-bit dtypes.
+            "float64",
+            "uint64",
+            "int64",
+        )
+        + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
     ] + [None]
-    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint16, uint32 and uint64
-        ALL_DTYPES = [
-            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-        INT_DTYPES = [
-            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-    # Remove float8 dtypes for the following tests
-    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
-
-    def setUp(self):
-        from jax.experimental import disable_x64
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        if backend.backend() == "jax":
-            self.jax_disable_x64 = disable_x64()
-        else:
-            self.jax_disable_x64 = contextlib.nullcontext()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     @parameterized.named_parameters(
         named_product(
@@ -1444,16 +1432,7 @@ class CoreOpsDtypeTest(testing.TestCase):
         ],
     )
     def test_convert_to_tensor(self, x, dtype, expected_dtype):
-        # We have to disable x64 for jax backend since jnp.array doesn't respect
-        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
-        # the expected dtype from 64 bit to 32 bit.
-        if backend.backend() == "jax":
-            expected_dtype = expected_dtype.replace("64", "32")
-
-        with self.jax_disable_x64:
-            self.assertDType(
-                ops.convert_to_tensor(x, dtype=dtype), expected_dtype
-            )
+        self.assertDType(ops.convert_to_tensor(x, dtype=dtype), expected_dtype)
 
     @parameterized.named_parameters(
         named_product(
@@ -1620,6 +1599,18 @@ class CoreOpsBehaviorTests(testing.TestCase):
         output_spec = stop_gradient.compute_output_spec(variable)
         self.assertEqual(output_spec.shape, variable.shape)
         self.assertEqual(output_spec.dtype, variable.dtype)
+
+    def test_vectorized_map_serialization(self):
+        @object_registration.register_keras_serializable()
+        def f(x):
+            return x + x
+
+        inputs = input_layer.Input((10,), dtype="float32")
+        outputs = core.vectorized_map(f, inputs)
+        model = models.Functional(inputs, outputs)
+        reloaded_model = model.from_config(model.get_config())
+        x = np.random.rand(5, 10).astype("float32")
+        self.assertAllClose(model(x), reloaded_model(x))
 
     def test_while_loop_output_spec(self):
         # Define dummy cond and body functions

@@ -34,7 +34,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         ov_opset.add(ov_opset.constant(int(axis2), dtype="i64"), rank_val),
         rank_val,
     )
-
+ 
     arange = ov_opset.range(
         ov_opset.constant(0, dtype="i64"),
         rank_val,
@@ -54,7 +54,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         ],
         0,
     )
-
+    
     x_perm = ov_opset.transpose(x_node, perm)
     permuted_shape = ov_opset.shape_of(x_perm)
     d1 = ov_opset.gather(
@@ -119,7 +119,6 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     gathered = ov_opset.gather_nd(x_perm, bcast_idx, batch_rank)
 
     return OpenVINOKerasTensor(gathered)
-
 
 def add(x1, x2):
     element_type = None
@@ -785,7 +784,7 @@ def diff(a, n=1, axis=-1):
     if n == 0:
         return OpenVINOKerasTensor(get_ov_output(a))
     if n < 0:
-        raise ValueError("order must be non-negative but got " + repr(n))
+        raise ValueError(f"order must be non-negative but got {repr(n)}")
     a = get_ov_output(a)
     a_type = a.get_element_type()
     if isinstance(a, np.ndarray):
@@ -1000,6 +999,10 @@ def hstack(xs):
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
+def hypot(x1, x2):
+    raise NotImplementedError("`hypot` is not supported with openvino backend")
+
+
 def identity(n, dtype=None):
     n = get_ov_output(n)
     dtype = Type.f32 if dtype is None else dtype
@@ -1059,6 +1062,12 @@ def isnan(x):
 def isneginf(x):
     raise NotImplementedError(
         "`isneginf` is not supported with openvino backend"
+    )
+
+
+def isposinf(x):
+    raise NotImplementedError(
+        "`isposinf` is not supported with openvino backend"
     )
 
 
