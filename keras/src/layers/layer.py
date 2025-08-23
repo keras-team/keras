@@ -1318,6 +1318,8 @@ class Layer(BackendLayer, Operation):
             return self._float8_call(*args, **kwargs)
         elif self.quantization_mode == "int4":
             return self._int4_call(*args, **kwargs)
+        elif self.quantization_mode == "gptq":
+            return self._gptq_call(*args, **kwargs)
         else:
             raise self._quantization_mode_error(self.quantization_mode)
 
@@ -1329,6 +1331,9 @@ class Layer(BackendLayer, Operation):
 
     def _float8_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._float8_call)
+
+    def _gptq_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._gptq_call)
 
     def _not_implemented_error(self, attr, msg=None):
         if callable(attr):

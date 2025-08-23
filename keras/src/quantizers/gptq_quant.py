@@ -1,20 +1,6 @@
 from keras.src import ops
 
 
-def dequantize(input_tensor, scale, zero, maxq):
-    """The core quantization function."""
-    epsilon = ops.cast(1e-8, dtype=scale.dtype)
-    scale = ops.where(ops.equal(scale, 0), epsilon, scale)
-
-    quantized_tensor = ops.divide(input_tensor, scale)
-    quantized_tensor = ops.round(quantized_tensor)
-    q = ops.add(quantized_tensor, zero)
-    q = ops.clip(q, 0, maxq)
-
-    dequantized_tensor = ops.subtract(q, zero)
-    return ops.multiply(scale, dequantized_tensor)
-
-
 class GPTQQuantization:
     """A class that handles the quantization of weights using GPTQ method.
 
@@ -131,3 +117,12 @@ class GPTQQuantization:
     def ready(self):
         """Checks if the quantization parameters have been computed."""
         return self.scale is not None and self.zero is not None
+
+    def quantize(self, x, scale, zero, maxq):
+        q = ops.round(ops.add(ops.divide(x, scale), zero))
+        return ops.clip(q, 0, maxq)
+
+    def dequantize(self, input_tensor, scale, zero, maxq):
+        """The core quantization function."""
+        dequantized_tensor = ops.subtract(input_tensor, zero)
+        return ops.multiply(scale, dequantized_tensor)

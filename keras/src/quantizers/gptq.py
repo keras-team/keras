@@ -1,7 +1,8 @@
+import types
+
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-from keras.src.quantizers.gptq_quant import dequantize
 
 
 class GPTQ:
@@ -47,20 +48,24 @@ class GPTQ:
 
             # Create a temporary object that holds a reshaped
             # 2D version of the kernel.
-            self.layer = type(
-                "temp",
-                (object,),
-                {
-                    "kernel": ops.reshape(
-                        layer.kernel, (self.rows, self.columns)
-                    ),
-                    "bias": layer.bias,
-                },
-            )()
+            self.layer = types.SimpleNamespace(
+                kernel=ops.reshape(layer.kernel, (self.rows, self.columns)),
+                bias=layer.bias,
+            )
 
         else:
             # Raise an error if the layer is not supported.
             raise TypeError(f"Unsupported layer type for GPTQ: {type(layer)}")
+
+        # Make this cleaner
+        if isinstance(layer, EinsumDense) and layer.kernel.ndim >= 2:
+            if not layer.built:
+                raise ValueError(
+                    "The EinsumDense layer must be built before applying GPTQ. "
+                )
+            # This populates self.original_layer with attributes like
+            # `_kernel_reduced_axes`, `_kernel_transpose_axes`, etc.
+            layer._set_quantization_info()
         self.hessian = ops.zeros((self.rows, self.rows), dtype="float32")
 
     def update_hessian_with_batch(self, input_batch):
@@ -181,56 +186,68 @@ class GPTQ:
                 based
                 on their activation's second-order information.
         """
+        self.original_layer.quantize("gptq")
 
         weights_matrix = ops.transpose(ops.cast(self.layer.kernel, "float32"))
         hessian_matrix = ops.cast(self.hessian, "float32")
 
         if activation_order:
+            # Sort indices by negative Hessian diagonal (descending importance)
             permutation = ops.argsort(
                 ops.negative(ops.diagonal(hessian_matrix))
             )
+
+            # Apply permutation to weights and Hessian
             weights_matrix = ops.take(weights_matrix, permutation, axis=1)
-            hessian_matrix = ops.take(
-                ops.take(hessian_matrix, permutation, axis=0),
-                permutation,
-                axis=1,
-            )
+            hessian_matrix = ops.take(hessian_matrix, permutation, axis=0)
+            hessian_matrix = ops.take(hessian_matrix, permutation, axis=1)
+
+            # Store inverse permutation for later restoration
             inverse_permutation = ops.argsort(permutation)
 
         # Dampen the Hessian for Stability
         hessian_diagonal = ops.diagonal(hessian_matrix)
-        dead_diagonal = ops.equal(hessian_diagonal, 0.0)
-        hessian_diagonal = ops.where(dead_diagonal, 1.0, hessian_diagonal)
-        hessian_matrix = ops.add(
-            hessian_matrix,
-            ops.diag(
-                ops.where(dead_diagonal, 1.0, ops.zeros_like(hessian_diagonal))
-            ),
-        )
 
-        # Add dampening factor to the Hessian diagonal
+        # Detect zero entries on the diagonal
+        dead_diagonal = ops.equal(hessian_diagonal, 0.0)
+
+        # Replace zeros in the diagonal with ones
+        hessian_diagonal = ops.where(dead_diagonal, 1.0, hessian_diagonal)
+
+        # Update Hessian diagonal in-place by adding stabilizing values
+        stabilizer = ops.where(
+            dead_diagonal, 1.0, ops.zeros_like(hessian_diagonal)
+        )
+        hessian_matrix = ops.add(hessian_matrix, ops.diag(stabilizer))
+
+        # Scale damping by the average diagonal value
         damping_factor = ops.multiply(
             hessian_damping, ops.mean(hessian_diagonal)
         )
+
+        # Add damping to the diagonal
         hessian_diagonal = ops.add(hessian_diagonal, damping_factor)
-        hessian_matrix = ops.add(
-            ops.subtract(
-                hessian_matrix, ops.diag(ops.diagonal(hessian_matrix))
-            ),
-            ops.diag(hessian_diagonal),
+
+        # Replace the old diagonal in the Hessian with the damped version
+        hessian_off_diag = ops.subtract(
+            hessian_matrix, ops.diag(ops.diagonal(hessian_matrix))
         )
+        hessian_matrix = ops.add(hessian_off_diag, ops.diag(hessian_diagonal))
 
         # Compute the inverse Hessian, which is used for error correction
         inverse_hessian = ops.linalg.inv(hessian_matrix)
-        quantized_weights = ops.zeros_like(weights_matrix)
+
+        # Initialize tensors for integer weights and parameters
+        quantized_weights_int = ops.zeros_like(weights_matrix, dtype="int8")
+        scales = ops.zeros_like(weights_matrix)
+        zeros = ops.zeros_like(weights_matrix)
 
         for block_start in range(0, self.rows, blocksize):
             block_end = min(ops.add(block_start, blocksize), self.rows)
             block_size = ops.subtract(block_end, block_start)
-            # Extract the current block of weights and its corresponding
-            # Hessian
+
+            # Extract current weight block and its inverse-Hessian submatrix
             block_weights = weights_matrix[:, block_start:block_end]
-            block_quantized = ops.zeros_like(block_weights)
             block_errors = ops.zeros_like(block_weights)
             block_inverse_hessian = inverse_hessian[
                 block_start:block_end, block_start:block_end
@@ -238,44 +255,68 @@ class GPTQ:
 
             # Process one column at a time within the block
             for col_idx in range(block_size):
-                weight_column = block_weights[:, col_idx]
-                diagonal_element = block_inverse_hessian[col_idx, col_idx]
+                # Absolute/relative indices
+                abs_col = ops.add(block_start, col_idx)
 
+                # Current column and the corresponding (i,i) of inv(H)
+                weight_column = block_weights[:, col_idx]
+                invH_ii = block_inverse_hessian[col_idx, col_idx]
+
+                # Find quantization params (scale and zero-point)
                 if group_size != -1:
-                    if ops.mod(ops.add(block_start, col_idx), group_size) == 0:
-                        self.quantizer.find_params(
-                            weights_matrix[
-                                :,
-                                (ops.add(block_start, col_idx)) : (
-                                    ops.add(
-                                        ops.add(block_start, col_idx),
-                                        group_size,
-                                    )
-                                ),
-                            ],
-                            weight=True,
-                        )
+                    # Start a new group when we're at a group boundary
+                    if ops.mod(abs_col, group_size) == 0:
+                        group_start = abs_col
+                        group_end = ops.add(group_start, group_size)
+                        group_slice = weights_matrix[:, group_start:group_end]
+                        self.quantizer.find_params(group_slice, weight=True)
                 else:
+                    # Per-column params
                     self.quantizer.find_params(
                         ops.expand_dims(weight_column, 1), weight=True
                     )
 
-                # Quantize the current weight column
-                quantized_column = dequantize(
+                # Quantize the current column and store the results
+                quantized_column = self.quantizer.quantize(
                     ops.expand_dims(weight_column, 1),
                     self.quantizer.scale,
                     self.quantizer.zero,
                     self.quantizer.maxq,
                 )[:, 0]
 
-                block_quantized = ops.slice_update(
-                    block_quantized,
-                    (0, col_idx),
-                    ops.expand_dims(quantized_column, axis=1),
+                # Write integer weights
+                quantized_weights_int = ops.slice_update(
+                    quantized_weights_int,
+                    (0, abs_col),
+                    ops.expand_dims(
+                        # TODO: use the appropriate dtype.
+                        ops.cast(quantized_column, "int8"),
+                        axis=1,
+                    ),
                 )
+
+                # Store scales and zeros
+                scale_col = ops.expand_dims(
+                    ops.cast(self.quantizer.scale, "float32")[0, :], 1
+                )
+                zero_col = ops.expand_dims(
+                    ops.cast(self.quantizer.zero, "float32")[0, :], 1
+                )
+
+                scales = ops.slice_update(scales, (0, abs_col), scale_col)
+                zeros = ops.slice_update(zeros, (0, abs_col), zero_col)
+
+                # Dequantize back to float32 for error correction.
+                dequantized_column = self.quantizer.dequantize(
+                    ops.expand_dims(weight_column, 1),
+                    self.quantizer.scale,
+                    self.quantizer.zero,
+                    self.quantizer.maxq,
+                )[:, 0]
+
                 quantization_error = ops.divide(
-                    ops.subtract(weight_column, quantized_column),
-                    diagonal_element,
+                    ops.subtract(weight_column, dequantized_column),
+                    invH_ii,
                 )
                 block_errors = ops.slice_update(
                     block_errors,
@@ -283,68 +324,94 @@ class GPTQ:
                     ops.expand_dims(quantization_error, axis=1),
                 )
 
-                if ops.less(col_idx, ops.subtract(block_size, 1)):
+                # Propagate error within the block to future columns
+                has_future = ops.less(col_idx, ops.subtract(block_size, 1))
+                if has_future:
+                    next_start = ops.add(col_idx, 1)
+
+                    # rank-1 update: q_error * invH[i, i+1:]
+                    invH_row_future = block_inverse_hessian[
+                        col_idx, next_start:
+                    ]
+
                     error_update = ops.matmul(
-                        ops.expand_dims(quantization_error, 1),
-                        ops.expand_dims(
-                            block_inverse_hessian[
-                                col_idx, ops.add(col_idx, 1) :
-                            ],
-                            0,
-                        ),
-                    )
+                        ops.expand_dims(quantization_error, 1),  # (M, 1)
+                        ops.expand_dims(invH_row_future, 0),  # (1, K)
+                    )  # -> (M, K)
 
                     # Efficiently update the remaining part of the
                     # block_weights tensor.
-                    slice_to_update = block_weights[:, ops.add(col_idx, 1) :]
+                    # block_weights[:, i+1:] -= error_update
+                    slice_to_update = block_weights[:, next_start:]
                     updated_slice = ops.subtract(slice_to_update, error_update)
                     block_weights = ops.slice_update(
-                        block_weights, (0, ops.add(col_idx, 1)), updated_slice
+                        block_weights, (0, next_start), updated_slice
                     )
 
-            # Update the full quantized matrix with the processed block
-            quantized_weights = ops.concatenate(
-                [
-                    quantized_weights[:, :block_start],
-                    block_quantized,
-                    quantized_weights[:, block_end:],
-                ],
-                axis=1,
-            )
-
+            # Propagate accumulated block errors to the remaining columns
+            # (to the right of the block)
             if block_end < self.rows:
-                total_error_update = ops.matmul(
-                    block_errors,
-                    inverse_hessian[block_start:block_end, block_end:],
+                # (B, R)
+                right_invH = inverse_hessian[block_start:block_end, block_end:]
+                # (M, R)
+                total_error_update = ops.matmul(block_errors, right_invH)
+
+                # weights_matrix[:, block_end:] -= total_error_update
+                left = weights_matrix[:, :block_end]
+                right = ops.subtract(
+                    weights_matrix[:, block_end:], total_error_update
                 )
-                weights_matrix = ops.concatenate(
-                    [
-                        weights_matrix[:, :block_end],
-                        ops.subtract(
-                            weights_matrix[:, block_end:], total_error_update
-                        ),
-                    ],
-                    axis=1,
-                )
+                weights_matrix = ops.concatenate([left, right], axis=1)
 
         if activation_order:
-            quantized_weights = ops.take(
-                quantized_weights, inverse_permutation, axis=1
+            quantized_weights_int = ops.take(
+                quantized_weights_int, inverse_permutation, axis=1
             )
+            scales = ops.take(scales, inverse_permutation, axis=1)
+            zeros = ops.take(zeros, inverse_permutation, axis=1)
 
-        quantized_weights = ops.transpose(quantized_weights)
+        # Transpose back to original layout [in_features, out_features]
+        quantized_kernel = ops.transpose(quantized_weights_int)
+        scale = ops.transpose(scales)
+        zero_point = ops.transpose(zeros)
 
         if isinstance(self.original_layer, EinsumDense):
-            quantized_weights = ops.reshape(
-                quantized_weights, self.kernel_shape
+            # 1. Reshape the quantized kernel and dense params back to the
+            #    original N-D shape
+            quantized_kernel = ops.reshape(quantized_kernel, self.kernel_shape)
+            scale = ops.reshape(scale, self.kernel_shape)
+            zero_point = ops.reshape(zero_point, self.kernel_shape)
+
+            # 2. CRUCIAL STEP: Reduce the dense scale/zero_point tensors to
+            #    get the per-channel/per-group values. We use the
+            #    `_kernel_reduced_axes` identified by `_set_quantization_info`.
+            #    Using mean is appropriate since values are repeated for
+            #    group-wise.
+            scale = ops.mean(
+                scale,
+                axis=self.original_layer._kernel_reduced_axes,
+                keepdims=True,
+            )
+            zero_point = ops.mean(
+                zero_point,
+                axis=self.original_layer._kernel_reduced_axes,
+                keepdims=True,
             )
 
-        # Set the new quantized weights in the original layer
-        new_weights = [ops.convert_to_numpy(quantized_weights)]
-        if self.original_layer.bias is not None:
-            new_weights.append(ops.convert_to_numpy(self.original_layer.bias))
+            # 3. Now the shape of `scale` matches the layer's `kernel_scale`
+            #    variable. We can use the layer's own helper to apply final
+            #    transforms (transpose, etc.). This makes it robust for all
+            #    einsum equations.
+            scale = self.original_layer._adjust_scale_for_quant(scale, "kernel")
+            zero_point = self.original_layer._adjust_scale_for_quant(
+                zero_point, "kernel"
+            )
 
-        self.original_layer.set_weights(new_weights)
+        self.original_layer.kernel_scale.assign(scale)
+
+        self.original_layer.zero_point.assign(zero_point)
+
+        self.original_layer._kernel.assign(quantized_kernel)
 
     def free(self):
         self.hessian = None

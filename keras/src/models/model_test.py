@@ -1386,9 +1386,8 @@ quantize_test_cases = [
 
 
 @pytest.mark.requires_trainable_backend
-class TestModelQuantization:
+class TestModelQuantization(testing.TestCase):
     def _run_gptq_test_on_dataset(self, dataset, **config_kwargs):
-        """Helper function to run a full GPTQ quantization test."""
         if isinstance(dataset, Callable):
             dataset = dataset()
         model = get_model_with_dense_attention()
@@ -1416,7 +1415,7 @@ class TestModelQuantization:
         }
 
         target_layer = model.layers[2].ffn.layers[0]
-        assert target_layer is not None
+        self.assertIsNotNone(target_layer)
         original_weights = np.copy(target_layer.kernel)
 
         final_config = {**base_config, **config_kwargs}
@@ -1426,40 +1425,51 @@ class TestModelQuantization:
 
         quantized_weights = target_layer.kernel
 
-        assert not np.allclose(original_weights, quantized_weights)
+        self.assertNotAllClose(original_weights, quantized_weights)
 
         dummy_sample = rng.integers(
             low=0, high=VOCAB_SIZE, size=(1, SEQUENCE_LENGTH)
         )
         _ = model.predict(dummy_sample)
 
-    @pytest.mark.parametrize("dataset", DATASETS.values(), ids=DATASETS.keys())
-    @pytest.mark.parametrize("config", CONFIGS.values(), ids=CONFIGS.keys())
+    @parameterized.named_parameters(
+        *[
+            dict(
+                testcase_name=f"{dname}_{cname}",
+                dataset=dataset,
+                config=config,
+            )
+            for dname, dataset in DATASETS.items()
+            for cname, config in CONFIGS.items()
+        ]
+    )
     def test_quantize_gptq_combinations(self, dataset, config):
-        """Runs GPTQ tests across different datasets and config variations."""
         self._run_gptq_test_on_dataset(dataset, **config)
 
-    @pytest.mark.parametrize(
-        "mode, config, expected_exception, match_message, test_id",
-        quantize_test_cases,
-        ids=[case[-1] for case in quantize_test_cases],
+    @parameterized.named_parameters(
+        *[
+            dict(
+                testcase_name=test_id,
+                mode=mode,
+                config=config,
+                expected_exception=expected_exception,
+                match_message=match_message,
+            )
+            for (
+                mode,
+                config,
+                expected_exception,
+                match_message,
+                test_id,
+            ) in quantize_test_cases
+        ]
     )
     def test_quantize_scenarios(
-        self, mode, config, expected_exception, match_message, test_id
+        self, mode, config, expected_exception, match_message
     ):
-        """
-        Tests various scenarios for the model.quantize() method, including
-        error handling and valid calls.
-        """
         model = _get_simple_model()
-
         if expected_exception:
-            # Test for cases where an error is expected
-            with pytest.raises(expected_exception, match=match_message):
+            with self.assertRaisesRegex(expected_exception, match_message):
                 model.quantize(mode, config=config)
         else:
-            # Test for valid cases where no error should occur
-            try:
-                model.quantize(mode, config=config)
-            except (ValueError, TypeError) as e:
-                pytest.fail(f"Test case '{test_id}' failed unexpectedly: {e}")
+            model.quantize(mode, config=config)
