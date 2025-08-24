@@ -147,8 +147,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         elif len(matching_keys) == 1:
             return self._policy_map[matching_keys[0]]
 
-        # 4. If there were no matches, or the single match was a quantized
-        # policy, return the default.
+        # 4. If there were no matches, return the default.
         return self.default_policy
 
     def __setitem__(self, key, policy):
