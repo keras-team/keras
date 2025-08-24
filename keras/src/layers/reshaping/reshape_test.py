@@ -120,6 +120,7 @@ class ReshapeTest(testing.TestCase):
         # Also make sure the batch dim is not lost after reshape.
         self.assertEqual(reshaped.shape, (2, 3, 5))
 
+    @pytest.mark.requires_trainable_backend
     def test_reshape_model_fit_with_varying_input_size_and_minus_one(self):
         def generator():
             yield (
