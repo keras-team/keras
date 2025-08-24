@@ -682,7 +682,9 @@ def gaussian_blur(
 ):
     def _create_gaussian_kernel(kernel_size, sigma, dtype):
         def _get_gaussian_kernel1d(size, sigma):
-            x = jnp.arange(size, dtype=dtype) - (size - 1) / 2
+            x = jnp.arange(size, dtype=dtype) - jnp.array(
+                (size - 1) / 2, dtype=dtype
+            )
             kernel1d = jnp.exp(-0.5 * (x / sigma) ** 2)
             return kernel1d / jnp.sum(kernel1d)
 
@@ -697,8 +699,8 @@ def gaussian_blur(
         return kernel
 
     images = convert_to_tensor(images)
-    sigma = convert_to_tensor(sigma)
-    dtype = images.dtype
+    dtype = backend.standardize_dtype(images.dtype)
+    sigma = convert_to_tensor(sigma, dtype=dtype)
 
     if len(images.shape) not in (3, 4):
         raise ValueError(

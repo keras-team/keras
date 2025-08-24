@@ -761,9 +761,9 @@ def gaussian_blur(
         return kernel
 
     images = convert_to_tensor(images)
-    kernel_size = convert_to_tensor(kernel_size)
-    sigma = convert_to_tensor(sigma)
-    dtype = images.dtype
+    dtype = backend.standardize_dtype(images.dtype)
+    kernel_size = convert_to_tensor(kernel_size, dtype=dtype)
+    sigma = convert_to_tensor(sigma, dtype=dtype)
 
     if len(images.shape) not in (3, 4):
         raise ValueError(

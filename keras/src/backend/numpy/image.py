@@ -560,6 +560,7 @@ def affine_transform(
             f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
         )
 
+    images = convert_to_tensor(images)
     transform = convert_to_tensor(transform)
 
     if len(images.shape) not in (3, 4):
@@ -575,10 +576,11 @@ def affine_transform(
             f"transform.shape={transform.shape}"
         )
 
-    # scipy.ndimage.map_coordinates lacks support for half precision.
-    input_dtype = images.dtype
-    if input_dtype == "float16":
-        images = images.astype("float32")
+    # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
+    input_dtype = backend.standardize_dtype(images.dtype)
+    compute_dtype = backend.result_type(input_dtype, "float32")
+    images = images.astype(compute_dtype)
+    transform = transform.astype(compute_dtype)
 
     # unbatched case
     need_squeeze = False
@@ -622,7 +624,7 @@ def affine_transform(
     # transform the indices
     coordinates = np.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = np.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += np.reshape(offset, newshape=(*offset.shape, 1, 1, 1))
+    coordinates += np.reshape(offset, (*offset.shape, 1, 1, 1))
 
     # apply affine transformation
     affined = np.stack(
@@ -643,9 +645,7 @@ def affine_transform(
         affined = np.transpose(affined, (0, 3, 1, 2))
     if need_squeeze:
         affined = np.squeeze(affined, axis=0)
-    if input_dtype == "float16":
-        affined = affined.astype(input_dtype)
-    return affined
+    return affined.astype(input_dtype)
 
 
 def perspective_transform(
@@ -758,6 +758,14 @@ def perspective_transform(
 
 
 def compute_homography_matrix(start_points, end_points):
+    start_points = convert_to_tensor(start_points)
+    end_points = convert_to_tensor(end_points)
+    dtype = backend.result_type(start_points.dtype, end_points.dtype, float)
+    # `np.linalg.solve` lacks support for float16 and bfloat16.
+    compute_dtype = backend.result_type(dtype, "float32")
+    start_points = start_points.astype(dtype)
+    end_points = end_points.astype(dtype)
+
     start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
     start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
     start_x3, start_y3 = start_points[:, 2, 0], start_points[:, 2, 1]
@@ -892,11 +900,11 @@ def compute_homography_matrix(start_points, end_points):
         axis=-1,
     )
     target_vector = np.expand_dims(target_vector, axis=-1)
-
+    coefficient_matrix = coefficient_matrix.astype(compute_dtype)
+    target_vector = target_vector.astype(compute_dtype)
     homography_matrix = np.linalg.solve(coefficient_matrix, target_vector)
     homography_matrix = np.reshape(homography_matrix, [-1, 8])
-
-    return homography_matrix
+    return homography_matrix.astype(dtype)
 
 
 def map_coordinates(
@@ -950,10 +958,14 @@ def map_coordinates(
         )
     else:
         padded = np.pad(inputs, padding, mode=pad_mode)
+
+    # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
+    if backend.is_float_dtype(padded.dtype):
+        padded = padded.astype("float32")
     result = scipy.ndimage.map_coordinates(
         padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
     )
-    return result
+    return result.astype(inputs.dtype)
 
 
 def gaussian_blur(
@@ -979,7 +991,11 @@ def gaussian_blur(
     images = convert_to_tensor(images)
     kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)
-    input_dtype = images.dtype
+    input_dtype = backend.standardize_dtype(images.dtype)
+    # `scipy.signal.convolve2d` lacks support for float16 and bfloat16.
+    compute_dtype = backend.result_type(input_dtype, "float32")
+    images = images.astype(compute_dtype)
+    sigma = sigma.astype(compute_dtype)
 
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -1022,8 +1038,7 @@ def gaussian_blur(
         blurred_images = np.transpose(blurred_images, (0, 3, 1, 2))
     if need_squeeze:
         blurred_images = np.squeeze(blurred_images, axis=0)
-
-    return blurred_images
+    return blurred_images.astype(input_dtype)
 
 
 def elastic_transform(
