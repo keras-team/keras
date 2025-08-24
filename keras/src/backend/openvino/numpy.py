@@ -678,9 +678,149 @@ def diag(x, k=0):
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError(
-        "`diagonal` is not supported with openvino backend"
+    ov_input_node = get_ov_output(x)
+    node_partial_shape = ov_input_node.get_partial_shape()
+
+    if not node_partial_shape.rank.is_static:
+        raise ValueError("Input rank must be static for diagonal operation.")
+    node_rank = node_partial_shape.rank.get_length()
+
+    if node_rank < 2:
+        raise ValueError(
+            "Input tensor must have at least rank 2 for diagonal extraction."
+            f"but received shape {node_partial_shape} with rank {node_rank}."
+        )
+
+    primary_axis_norm = axis1 % node_rank
+    secondary_axis_norm = axis2 % node_rank
+
+    if primary_axis_norm == secondary_axis_norm:
+        raise ValueError(
+            "Primary (axis1) and secondary (axis2) axes must be distinct."
+        )
+
+    dimension_at_axis1 = node_partial_shape[primary_axis_norm]
+    dimension_at_axis2 = node_partial_shape[secondary_axis_norm]
+
+    if not dimension_at_axis1.is_static or not dimension_at_axis2.is_static:
+        raise ValueError(
+            "Static shapes are required for the diagonal axes (axis1, axis2)."
+        )
+
+    size_dim1 = dimension_at_axis1.get_length()
+    size_dim2 = dimension_at_axis2.get_length()
+
+    diag_len = 0
+    coord_list = []
+
+    if offset >= 0:
+        potential_len = size_dim2 - offset
+        if potential_len > 0:
+            diag_len = np.minimum(size_dim1, potential_len)
+            coord_list = [[idx, idx + offset] for idx in range(diag_len)]
+    else:
+        potential_len = size_dim1 + offset
+        if potential_len > 0:
+            diag_len = np.minimum(potential_len, size_dim2)
+            coord_list = [[idx - offset, idx] for idx in range(diag_len)]
+
+    if diag_len <= 0:
+        result_keras_dtype = ov_to_keras_type(ov_input_node.get_element_type())
+        result_numpy_dtype = np.dtype(result_keras_dtype)
+        empty_np_repr = np.empty((0,), dtype=result_numpy_dtype)
+        empty_ov_const = get_ov_output(
+            empty_np_repr, ov_input_node.get_element_type()
+        )
+
+        original_shape_node = ov_opset.shape_of(ov_input_node, Type.i64)
+        batch_dims_indices = [
+            i
+            for i in range(node_rank)
+            if i != primary_axis_norm and i != secondary_axis_norm
+        ]
+        if not batch_dims_indices:
+            final_empty_shape = ov_opset.constant([0], dtype=Type.i64).output(0)
+        else:
+            batch_dims_indices_node = ov_opset.constant(
+                batch_dims_indices, dtype=Type.i64
+            ).output(0)
+            batch_shape_vals = ov_opset.gather(
+                original_shape_node, batch_dims_indices_node, axis=0
+            )
+            zero_dim = ov_opset.constant([0], dtype=Type.i64).output(0)
+            final_empty_shape = ov_opset.concat(
+                [batch_shape_vals, zero_dim], axis=0
+            )
+        reshaped_empty = ov_opset.reshape(
+            empty_ov_const, final_empty_shape, special_zero=False
+        )
+        return OpenVINOKerasTensor(reshaped_empty.output(0))
+
+    indices_as_np = np.array(coord_list, dtype=np.int64)
+    gather_indices_constant_2d = get_ov_output(indices_as_np, Type.i64)
+
+    batch_dims_indices = [
+        i
+        for i in range(node_rank)
+        if i != primary_axis_norm and i != secondary_axis_norm
+    ]
+    perm_order = batch_dims_indices + [primary_axis_norm, secondary_axis_norm]
+    perm_node = ov_opset.constant(perm_order, dtype=Type.i64).output(0)
+    transposed_node = ov_opset.transpose(ov_input_node, perm_node)
+
+    reshape_target_shape_list = [-1, size_dim1, size_dim2]
+    reshape_target_shape_node = ov_opset.constant(
+        reshape_target_shape_list, dtype=Type.i64
+    ).output(0)
+    reshaped_for_gather = ov_opset.reshape(
+        transposed_node, reshape_target_shape_node, special_zero=True
     )
+
+    shape_of_reshaped = ov_opset.shape_of(reshaped_for_gather, Type.i64)
+    gather_index_node_1d = ov_opset.constant([0], dtype=Type.i64).output(0)
+    flat_batch_size_node = ov_opset.gather(
+        shape_of_reshaped, indices=gather_index_node_1d, axis=0
+    )
+
+    unsqueeze_axes_node = ov_opset.constant([0], dtype=Type.i64).output(0)
+    indices_unsqueezed = ov_opset.unsqueeze(
+        gather_indices_constant_2d, axes=unsqueeze_axes_node
+    )
+
+    diag_len_node = ov_opset.constant([diag_len], dtype=Type.i64).output(0)
+    two_node = ov_opset.constant([2], dtype=Type.i64).output(0)
+
+    broadcast_indices_shape = ov_opset.concat(
+        [flat_batch_size_node, diag_len_node, two_node], axis=0
+    )
+
+    final_gather_indices = ov_opset.broadcast(
+        indices_unsqueezed, broadcast_indices_shape
+    )
+
+    gathered_diagonals = ov_opset.gather_nd(
+        reshaped_for_gather, final_gather_indices, batch_dims=1
+    )
+
+    original_shape_node = ov_opset.shape_of(ov_input_node, Type.i64)
+    if not batch_dims_indices:
+        final_target_shape = diag_len_node  # Reuse the node
+    else:
+        batch_dims_indices_node = ov_opset.constant(
+            batch_dims_indices, dtype=Type.i64
+        ).output(0)
+        original_batch_shape_vals = ov_opset.gather(
+            original_shape_node, batch_dims_indices_node, axis=0
+        )
+        final_target_shape = ov_opset.concat(
+            [original_batch_shape_vals, diag_len_node], axis=0
+        )
+
+    final_result = ov_opset.reshape(
+        gathered_diagonals, final_target_shape, special_zero=False
+    )
+
+    return OpenVINOKerasTensor(final_result.output(0))
 
 
 def diff(a, n=1, axis=-1):
