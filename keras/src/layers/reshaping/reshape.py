@@ -1,5 +1,3 @@
-import math
-
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import KerasTensor
@@ -13,11 +11,13 @@ class Reshape(Layer):
 
     Args:
         target_shape: Target shape. Tuple of integers, does not include the
-            samples dimension (batch size).
+            samples dimension (batch size). One element of the target_shape can be -1
+            in which case the missing value is inferred from the length of the array
+            and remaining dimensions.
 
     Input shape:
-        Arbitrary, although all dimensions in the input shape must be
-        known/fixed. Use the keyword argument `input_shape` (tuple of integers,
+        Arbitrary, but required to be compatible with target shape.
+        Use the keyword argument `input_shape` (tuple of integers,
         does not include the samples/batch size axis) when using this layer as
         the first layer in a model.
 
@@ -31,7 +31,7 @@ class Reshape(Layer):
     >>> y.shape
     (None, 3, 4)
 
-    >>> # also supports shape inference using `-1` as dimension
+    >>> # another example with shape inference using `-1` as dimension
     >>> y = keras.layers.Reshape((-1, 2, 2))(x)
     >>> y.shape
     (None, 3, 2, 2)
@@ -44,16 +44,10 @@ class Reshape(Layer):
         if target_shape.count(-1) > 1:
             raise ValueError(
                 "The `target_shape` argument must not contain more than one "
-                "`-1` value. Received: target_shape={}".format(target_shape)
+                f"`-1` value. Received: target_shape={target_shape}"
             )
         self.target_shape = target_shape
-        # precalculate all values that might be required
-        self.need_explicit_shape_for_batch_size_None = (
-            target_shape.count(-1) == 1
-        )
-        self.new_size_no_minus_one = math.prod(
-            d for d in target_shape if d != -1
-        )
+        self.built = True
 
     def compute_output_shape(self, input_shape):
         return (
@@ -70,21 +64,17 @@ class Reshape(Layer):
         )
 
     def call(self, inputs):
-        target_shape = self.target_shape
-        if self.need_explicit_shape_for_batch_size_None and (
-            inputs.shape[0] is None
-        ):
-            input_nonbatch_shape = tuple(inputs.shape[1:])
-            if input_nonbatch_shape.count(None) == 0:
-                inp_nonbatch_size = math.prod(inputs.shape[1:])
-                target_shape = tuple(
-                    d
-                    if d != -1
-                    else (inp_nonbatch_size // self.new_size_no_minus_one)
-                    for d in self.target_shape
-                )
-
-        return ops.reshape(inputs, (ops.shape(inputs)[0],) + target_shape)
+        potentially_resolved_target_shape = (
+            operation_utils.compute_reshape_output_shape(
+                tuple(inputs.shape)[1:], self.target_shape, "target_shape"
+            )
+        )
+        potentially_resolved_target_shape = tuple(
+            -1 if d is None else d for d in potentially_resolved_target_shape
+        )
+        return ops.reshape(
+            inputs, (ops.shape(inputs)[0],) + potentially_resolved_target_shape
+        )
 
     def get_config(self):
         config = {"target_shape": self.target_shape}
