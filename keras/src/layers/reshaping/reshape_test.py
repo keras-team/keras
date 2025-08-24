@@ -102,7 +102,6 @@ class ReshapeTest(testing.TestCase):
         self.assertEqual(reshaped.shape, (None, 3, 8))
 
     def test_reshape_layer_with_varying_input_size_and_minus_one(self):
-        input = KerasTensor((None, 6, 4))
         layer = layers.Reshape((-1, 8))
         res = layer(ops.ones((1, 6, 4), dtype="float32"))
         self.assertEqual(res.shape, (1, 3, 8))
