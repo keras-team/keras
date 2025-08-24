@@ -124,74 +124,62 @@ class DTypePolicyMapTest(testing.TestCase):
             dtype_policy_map["layer/dense_3"] = 123
 
     def test_get(self):
-        dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
-            "bfloat16"
-        )
-        dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
+        # 1. Setup
+        bfloat16_policy = dtype_policies.DTypePolicy("bfloat16")
+        int8_policy = dtype_policies.QuantizedDTypePolicy(
             "int8", "mixed_bfloat16"
         )
-        dtype_policy_map["layer/dense_2"] = (
-            dtype_policies.QuantizedFloat8DTypePolicy("float8", "mixed_float16")
+        float32_policy = dtype_policies.DTypePolicy("float32")
+        float16_policy = dtype_policies.DTypePolicy("float16")
+
+        policy_map = DTypePolicyMap()
+        # Policy for an exact layer path
+        policy_map["model/encoder/layer_0/dense"] = bfloat16_policy
+        # Policy that could be partially matched
+        policy_map["model/encoder/attention/query"] = int8_policy
+        # Regex policies for entire scopes
+        policy_map["model/decoder"] = float32_policy
+        policy_map["model/decoder/attention"] = float16_policy
+
+        # 2. Test exact match
+        # An exact key should always return the correct policy.
+        self.assertEqual(
+            policy_map["model/encoder/layer_0/dense"], bfloat16_policy
+        )
+        self.assertEqual(
+            policy_map["model/encoder/attention/query"], int8_policy
         )
 
+        # 3. Test successful regex fallback (component-wise match)
+        # "model/decoder" should match "model/decoder/layer_0" because
+        # it's a full component prefix.
+        self.assertEqual(policy_map["model/decoder/layer_0"], float32_policy)
+
+        # 4. Test prevention of partial regex match
+        # "model/encoder/attention/query" should NOT match
+        # "model/encoder/attention/query_norm"
+        # as it's not followed by a '/' or the end of the string.
         self.assertEqual(
-            dtype_policy_map["layer/dense_0"],
-            dtype_policies.DTypePolicy("bfloat16"),
-        )
-        self.assertEqual(
-            dtype_policy_map["layer/dense_1"],
-            dtype_policies.QuantizedDTypePolicy("int8", "mixed_bfloat16"),
-        )
-        self.assertEqual(
-            dtype_policy_map["layer/dense_2"],
-            dtype_policies.QuantizedFloat8DTypePolicy(
-                "float8", "mixed_float16"
-            ),
+            policy_map["model/encoder/attention/query_norm"],
+            policy_map.default_policy,
         )
 
-        self.assertNotEqual(
-            dtype_policy_map["layer/dense_2"],
-            dtype_policies.QuantizedFloat8DTypePolicy("float8", "bfloat16"),
-        )
-
-        # No hit
+        # 5. Test no match
+        # A key with no exact or valid regex match should return the default.
         self.assertEqual(
-            dtype_policy_map["layer/batch_normalization"],
-            dtype_policy_map.default_policy,
+            policy_map["model/embedding"], policy_map.default_policy
         )
 
-        # It will cause a ValueError in the case of one-to-many.
-        dtype_policy_map["dense"] = dtype_policies.DTypePolicy("float32")
-        dtype_policy_map["dense_1"] = dtype_policies.DTypePolicy("float32")
+        # 6. Test multiple regex matches causing a ValueError
+        # The path "model/decoder/attention/output" matches two regex keys:
+        # - "model/decoder"
+        # - "model/decoder/attention"
         with self.assertRaisesRegex(
-            ValueError, "Path 'dense_10' matches multiple dtype policy"
+            ValueError,
+            "Path 'model/decoder/attention/output' matches multiple "
+            "dtype policy",
         ):
-            dtype_policy_map["dense_10"]
-
-    def test_get_with_regex_non_quantized(self):
-        """Test regex fallback successfully returns a non-quantized policy."""
-        dtype_policy_map = DTypePolicyMap(default_policy="float32")
-        regex_policy = dtype_policies.DTypePolicy("bfloat16")
-        dtype_policy_map["layer/dense_1"] = regex_policy
-
-        # Query a key that doesn't have an exact match but matches the regex.
-        # It should return the policy associated with the regex.
-        retrieved_policy = dtype_policy_map["layer/dense_1/kernel_0"]
-        self.assertEqual(retrieved_policy, regex_policy)
-        self.assertNotEqual(retrieved_policy, dtype_policy_map.default_policy)
-
-    def test_get_with_regex_quantized(self):
-        """Test regex fallback ignores matches with quantized policies."""
-        dtype_policy_map = DTypePolicyMap(default_policy="float32")
-        quantized_policy = dtype_policies.QuantizedDTypePolicy("int8")
-        dtype_policy_map["layer/dense_1"] = quantized_policy
-
-        # Query a key that matches the regex for the quantized policy.
-        # The match should be ignored, and the default policy returned.
-        retrieved_policy = dtype_policy_map["layer/dense_1/kernel_0"]
-        self.assertEqual(retrieved_policy, dtype_policy_map.default_policy)
-        self.assertNotEqual(retrieved_policy, quantized_policy)
+            _ = policy_map["model/decoder/attention/output"]
 
     def test_delete(self):
         dtype_policy_map = DTypePolicyMap()

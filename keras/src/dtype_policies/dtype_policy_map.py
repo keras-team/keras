@@ -125,7 +125,9 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         # 2. If no exact match is found, treat the keys in the map as regular
         # expression patterns and search for a match against the input `key`.
         matching_keys = [
-            pattern for pattern in self._policy_map if re.search(pattern, key)
+            pattern
+            for pattern in self._policy_map
+            if re.search(f"^{pattern}(/|$)", key)
         ]
 
         # 3. Handle cases based on the number of matches found.
@@ -138,21 +140,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             )
 
         if len(matching_keys) == 1:
-            policy = self._policy_map[matching_keys[0]]
-
-            # A single regex match is only considered valid if the resulting
-            # policy is non-quantized.
-            # This logic specifically handles how KerasHub serializes quantized
-            # models. In that workflow, every quantized layer is stored in the
-            # policy map with its exact path, ensuring it's found by the direct
-            # lookup at the start of this method.
-            #
-            #  For example, it stops a general key like "attention/query" which
-            # represents a quantization-compatible layer from incorrectly
-            # matching a different, incompatible layer like
-            # "attention/query_norm"
-            if not policy.quantization_mode:
-                return policy
+            return self._policy_map[matching_keys[0]]
 
         # 4. If there were no matches, or the single match was a quantized
         # policy, return the default.
