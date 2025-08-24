@@ -98,26 +98,45 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         return self.default_policy.quantization_mode
 
     def __getitem__(self, key):
-        """Retrieves the corresponding `DTypePolicy` by the string key.
+        """Retrieves a `DTypePolicy` by its key, with a regex fallback.
 
-        When there isn't an exact match, all the existing keys in the map
-        will be treated as a regex and map against the input key again. When
-        there are multiple matches for the regex, an `ValueError` will be
-        raised. Returns `self.default_policy` if there isn't any match found.
+        This method first attempts an exact key match.
+        If no exact match is found, it treats the keys in the map as regular
+        expression patterns. A pattern is considered a match only if it aligns
+        with the start of the input `key` and covers a complete path component
+        (i.e., it is followed by a `/` or the end of the string).
+
+        For example, a map key "encoder" will match the path
+        "encoder/attention", but it will not match "encoder_v2". This
+        component-wise matching prevents incorrect policy assignments to
+        similarly named layers.
 
         Args:
-            key: String key to query a `DTypePolicy`.
+            key: The string key to query for a `DTypePolicy`.
 
         Returns:
-            Corresponding `DTypePolicy` based on the query.
+            The corresponding `DTypePolicy`. If no valid match is found
+            (either exact or regex), this method returns `self.default_policy`.
+
+        Raises:
+            ValueError: If the `key` matches more than one regex pattern in the
+            map.
         """
+        # 1. Check for an exact match.
         if key in self._policy_map:
             return self._policy_map[key]
 
-        matching_keys = []
-        for k in self._policy_map:
-            if re.search(k, key):
-                matching_keys.append(k)
+        # 2. If no exact match is found, fallback to a regex match.
+        # Check for a match that covers a full path component.
+        # The pattern must match from the start of the `key` and be
+        # followed by either a '/' or the end of the string.
+        matching_keys = [
+            pattern
+            for pattern in self._policy_map
+            if re.search(f"^{pattern}(/|$)", key)
+        ]
+
+        # 3. Handle cases based on the number of matches found.
         if len(matching_keys) > 1:
             raise ValueError(
                 f"Path '{key}' matches multiple dtype policy "
@@ -127,6 +146,8 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             )
         elif len(matching_keys) == 1:
             return self._policy_map[matching_keys[0]]
+
+        # 4. If there were no matches, return the default.
         return self.default_policy
 
     def __setitem__(self, key, policy):
