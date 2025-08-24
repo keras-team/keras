@@ -5,7 +5,8 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptq_quant import GPTQQuantization
+from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_quant import GPTQQuantizer
 
 
 def _get_mock_layer(layer_type, kernel_shape, rng):
@@ -34,7 +35,9 @@ class GPTQTest(testing.TestCase):
 
         mock_layer = _get_mock_layer("Dense", kernel_shape=(64, 128), rng=rng)
 
-        gptq_instance = GPTQ(mock_layer)
+        gptq_instance = GPTQ(
+            mock_layer, GPTQConfig(dataset=None, tokenizer=None)
+        )
         self.assertEqual(gptq_instance.rows, 64)
         self.assertEqual(gptq_instance.columns, 128)
         self.assertEqual(gptq_instance.hessian.shape, (64, 64))
@@ -44,7 +47,9 @@ class GPTQTest(testing.TestCase):
         mock_layer = _get_mock_layer(
             "EinsumDense", kernel_shape=(64, 4, 32), rng=rng
         )
-        gptq_instance = GPTQ(mock_layer)
+        gptq_instance = GPTQ(
+            mock_layer, config=GPTQConfig(dataset=None, tokenizer=None)
+        )
         self.assertEqual(gptq_instance.rows, 64)
         self.assertEqual(gptq_instance.columns, 4 * 32)
         self.assertEqual(gptq_instance.hessian.shape, (64, 64))
@@ -52,7 +57,9 @@ class GPTQTest(testing.TestCase):
     def test_update_hessian(self):
         rng = np.random.default_rng(seed=42)
         mock_layer = _get_mock_layer("Dense", kernel_shape=(16, 32), rng=rng)
-        gptq_instance = GPTQ(mock_layer)
+        gptq_instance = GPTQ(
+            mock_layer, GPTQConfig(dataset=None, tokenizer=None)
+        )
         batch1 = rng.standard_normal(size=(8, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(batch1)
         self.assertEqual(gptq_instance.num_samples, 8)
@@ -68,16 +75,16 @@ class GPTQTest(testing.TestCase):
         mock_layer = _get_mock_layer("Dense", kernel_shape=(16, 32), rng=rng)
         original_weights = np.copy(ops.convert_to_numpy(mock_layer.kernel))
 
-        gptq_instance = GPTQ(mock_layer)
-        gptq_instance.quantizer = GPTQQuantization(
-            weight_bits=4, symmetric=False
+        gptq_instance = GPTQ(
+            mock_layer, GPTQConfig(dataset=None, tokenizer=None)
         )
+        gptq_instance.quantizer = GPTQQuantizer(weight_bits=4, symmetric=False)
         calibration_data = rng.standard_normal(size=(128, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(calibration_data)
         gptq_instance.quantize_and_correct_block()
 
         quantized_weights = ops.convert_to_numpy(mock_layer.kernel)
-        self.assertFalse(np.allclose(original_weights, quantized_weights))
+        self.assertNotAllClose(original_weights, quantized_weights)
 
         gptq_instance.free()
         self.assertIsNone(gptq_instance.hessian)
@@ -88,12 +95,14 @@ class GPTQTest(testing.TestCase):
             "Unsupported", kernel_shape=None, rng=rng
         )
         with self.assertRaisesRegex(TypeError, "Unsupported layer type"):
-            GPTQ(unsupported_layer)
+            GPTQ(unsupported_layer, GPTQConfig(dataset=None, tokenizer=None))
 
     def test_update_hessian_invalid_input(self):
         rng = np.random.default_rng(seed=42)
         mock_layer = _get_mock_layer("Dense", kernel_shape=(16, 32), rng=rng)
-        gptq_instance = GPTQ(mock_layer)
+        gptq_instance = GPTQ(
+            mock_layer, GPTQConfig(dataset=None, tokenizer=None)
+        )
         with self.assertRaisesRegex(ValueError, "cannot be None"):
             gptq_instance.update_hessian_with_batch(None)
         with self.assertRaisesRegex(ValueError, "cannot be empty"):

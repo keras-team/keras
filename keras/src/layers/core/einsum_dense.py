@@ -12,6 +12,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.config import backend
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
@@ -608,11 +609,20 @@ class EinsumDense(Layer):
         return x
 
     def _gptq_call(self, inputs, training=None):
-        zero_point = self._adjust_scale_for_dequant(self.zero_point)
+        zero_point = self.zero_point
+        if self.gptq_config.symmetric:
+            # Constant zero-point (symmetric): integer 0
+            zero_point = ops.zeros_like(zero_point, dtype="int8")
 
-        dequantized_kernel = ops.subtract(self._kernel, zero_point)
+        zero_point = self._adjust_scale_for_dequant(zero_point)
 
-        x = ops.einsum(self.equation, inputs, dequantized_kernel)
+        # handle zero point with kernel
+        kernel = ops.subtract(self._kernel, zero_point)
+
+        # if backend is torch, do a cast
+        if backend() == "torch":
+            kernel = ops.cast(kernel, self.compute_dtype)
+        x = ops.einsum(self.equation, inputs, kernel)
         x = ops.cast(x, self.compute_dtype)
         x = ops.multiply(x, self.kernel_scale)
 
@@ -798,7 +808,7 @@ class EinsumDense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not EinsumDense):
             raise self._not_implemented_error(self.quantize)
@@ -834,6 +844,7 @@ class EinsumDense(Layer):
             del self._kernel
         elif mode == "gptq":
             del self._kernel
+            self.gptq_config = config
         self.quantized_build(kernel_shape, mode)
 
         # Assign values to the newly created variables.

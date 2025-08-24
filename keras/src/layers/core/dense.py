@@ -323,8 +323,6 @@ class Dense(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    # Quantization-related (int8 and float8) methods
-
     def quantized_build(self, kernel_shape, mode):
         if mode == "int8":
             self._int8_build(kernel_shape)
@@ -553,10 +551,24 @@ class Dense(Layer):
         return x
 
     def _gptq_call(self, inputs, training=None):
-        del training
-        x = ops.matmul(inputs, ops.subtract(self._kernel, self.zero_point))
-        x = ops.cast(x, self.compute_dtype)
-        x = ops.matmul(x, self.kernel_scale)
+        zero_point = self.zero_point
+        if self.gptq_config.symmetric:
+            zero_point = ops.zeros_like(self.zero_point, dtype="int8")
+
+        # Elementwise dequantization (works for per-weight or 
+        # broadcastable S/ZP)
+        dequant_kernel = ops.multiply(
+            ops.subtract(self._kernel, zero_point), self.kernel_scale
+        )
+
+        # Standard Dense matmul
+        x = ops.matmul(inputs, dequant_kernel)
+
+        # Add bias/activation to mirror Dense.call behavior
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
         return x
 
     def _float8_call(self, inputs, training=None):
@@ -650,7 +662,7 @@ class Dense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not Dense):
             raise self._not_implemented_error(self.quantize)
@@ -689,6 +701,7 @@ class Dense(Layer):
             self.quantized_build(kernel_shape, mode)
         elif mode == "gptq":
             del self._kernel
+            self.gptq_config = config
             self.quantized_build(kernel_shape, mode)
         else:
             raise self._quantization_mode_error(mode)

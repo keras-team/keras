@@ -1268,7 +1268,7 @@ class Layer(BackendLayer, Operation):
     def quantized_build(self, input_shape, mode):
         raise self._not_implemented_error(self.quantized_build)
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         raise self._not_implemented_error(self.quantize)
 
     def _check_quantize_args(self, mode, compute_dtype):

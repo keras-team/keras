@@ -3,13 +3,15 @@ import types
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
+from keras.src.quantizers.gptq_quant import GPTQQuantizer
 
 
 class GPTQ:
-    def __init__(self, layer):
+    def __init__(self, layer, config):
         self.original_layer = layer
+        self.config = config
         self.num_samples = 0
-        self.quantizer = None
+        self.quantizer = GPTQQuantizer()
 
         # Explicitly handle each supported layer type
         if isinstance(layer, Dense) or (
@@ -63,9 +65,7 @@ class GPTQ:
                 raise ValueError(
                     "The EinsumDense layer must be built before applying GPTQ. "
                 )
-            # This populates self.original_layer with attributes like
-            # `_kernel_reduced_axes`, `_kernel_transpose_axes`, etc.
-            layer._set_quantization_info()
+
         self.hessian = ops.zeros((self.rows, self.rows), dtype="float32")
 
     def update_hessian_with_batch(self, input_batch):
@@ -186,7 +186,8 @@ class GPTQ:
                 based
                 on their activation's second-order information.
         """
-        self.original_layer.quantize("gptq")
+
+        self.original_layer.quantize("gptq", config=self.config)
 
         weights_matrix = ops.transpose(ops.cast(self.layer.kernel, "float32"))
         hessian_matrix = ops.cast(self.hessian, "float32")
@@ -271,17 +272,13 @@ class GPTQ:
                         group_slice = weights_matrix[:, group_start:group_end]
                         self.quantizer.find_params(group_slice, weight=True)
                 else:
-                    # Per-column params
                     self.quantizer.find_params(
                         ops.expand_dims(weight_column, 1), weight=True
                     )
 
                 # Quantize the current column and store the results
                 quantized_column = self.quantizer.quantize(
-                    ops.expand_dims(weight_column, 1),
-                    self.quantizer.scale,
-                    self.quantizer.zero,
-                    self.quantizer.maxq,
+                    ops.expand_dims(weight_column, 1)
                 )[:, 0]
 
                 # Write integer weights
@@ -302,16 +299,12 @@ class GPTQ:
                 zero_col = ops.expand_dims(
                     ops.cast(self.quantizer.zero, "float32")[0, :], 1
                 )
-
                 scales = ops.slice_update(scales, (0, abs_col), scale_col)
                 zeros = ops.slice_update(zeros, (0, abs_col), zero_col)
 
                 # Dequantize back to float32 for error correction.
                 dequantized_column = self.quantizer.dequantize(
-                    ops.expand_dims(weight_column, 1),
-                    self.quantizer.scale,
-                    self.quantizer.zero,
-                    self.quantizer.maxq,
+                    ops.expand_dims(quantized_column, 1),
                 )[:, 0]
 
                 quantization_error = ops.divide(
@@ -408,9 +401,7 @@ class GPTQ:
             )
 
         self.original_layer.kernel_scale.assign(scale)
-
         self.original_layer.zero_point.assign(zero_point)
-
         self.original_layer._kernel.assign(quantized_kernel)
 
     def free(self):
