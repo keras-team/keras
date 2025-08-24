@@ -144,8 +144,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
                 "sure each path only matches at most "
                 "one dtype policy specification key in the DTypePolicyMap."
             )
-
-        if len(matching_keys) == 1:
+        elif len(matching_keys) == 1:
             return self._policy_map[matching_keys[0]]
 
         # 4. If there were no matches, or the single match was a quantized
