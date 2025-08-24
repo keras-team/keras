@@ -997,6 +997,12 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
+    """
+    ...
+    axis : int, optional
+        Currently only supports axis=0 (prepend) and axis=-1 (append).
+        Intermediate axis values are treated as axis=-1.
+    """
     start = get_ov_output(start)
     stop = get_ov_output(stop)
 
@@ -1010,43 +1016,43 @@ def linspace(
                 raise NotImplementedError(
                     "Dynamic num values not fully supported"
                 )
-        except:
-            raise NotImplementedError("Could not extract num value from tensor")
+        except Exception as e:
+            raise NotImplementedError(
+                "Could not extract num value from tensor"
+            ) from e
     else:
         num = int(num)
     if dtype is None:
         start_type = start.get_element_type()
         stop_type = stop.get_element_type()
-        if start_type.is_real() or stop_type.is_real():
-            output_type = OPENVINO_DTYPES[config.floatx()]
-        else:
-            output_type = OPENVINO_DTYPES[config.floatx()]
+        output_type = OPENVINO_DTYPES[config.floatx()]
     else:
         output_type = OPENVINO_DTYPES[dtype]
 
     start = ov_opset.convert(start, output_type).output(0)
     stop = ov_opset.convert(stop, output_type).output(0)
-    if num <= 0:
+    if num < 0:
+        raise ValueError("Number of samples, `num`, must be non-negative.")
+    if num == 0:
         empty_shape = ov_opset.constant([0], Type.i32).output(0)
         result = ov_opset.broadcast(
             ov_opset.constant(0.0, output_type).output(0), empty_shape
         ).output(0)
         if retstep:
-            return OpenVINOKerasTensor(result), None
+            nan_step = ov_opset.constant(np.nan, output_type).output(0)
+            return OpenVINOKerasTensor(result), OpenVINOKerasTensor(nan_step)
         return OpenVINOKerasTensor(result)
 
     if num == 1:
-        if endpoint:
-            result_val = start
-        else:
-            result_val = start
-
+        result_val = start
         axis_const = ov_opset.constant([axis], Type.i32).output(0)
         result = ov_opset.unsqueeze(result_val, axis_const).output(0)
         if retstep:
-            step = ov_opset.subtract(stop, start).output(0)
+            if endpoint:
+                step = ov_opset.constant(np.nan, output_type).output(0)
+            else:
+                step = ov_opset.subtract(stop, start).output(0)
             return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)
-        return OpenVINOKerasTensor(result)
 
     num_const = ov_opset.constant(num, output_type).output(0)
 
@@ -1240,36 +1246,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         output_type = OPENVINO_DTYPES[dtype]
 
     linear_output = get_ov_output(linear_samples)
-
-    use_base10_optimization = False
-
-    if base == 10 or base == 10.0:
-        use_base10_optimization = True
-    elif hasattr(base, "item"):
-        try:
-            base_val = base.item()
-            if base_val == 10 or base_val == 10.0:
-                use_base10_optimization = True
-        except:
-            pass
-
     base_tensor = get_ov_output(base)
+
     base_tensor = ov_opset.convert(base_tensor, output_type).output(0)
 
-    if use_base10_optimization:
-        ten_const = ov_opset.constant(10.0, output_type).output(0)
-        result = ov_opset.power(ten_const, linear_output).output(0)
-        return OpenVINOKerasTensor(result)
-
-    ln_base = ov_opset.log(base_tensor).output(0)
-
-    ln_base_broadcasted = ov_opset.broadcast(
-        ln_base, ov_opset.shape_of(linear_output).output(0)
-    ).output(0)
-
-    exponent = ov_opset.multiply(linear_output, ln_base_broadcasted).output(0)
-
-    result = ov_opset.exp(exponent).output(0)
+    result = ov_opset.power(base_tensor, linear_output).output(0)
 
     return OpenVINOKerasTensor(result)
 
