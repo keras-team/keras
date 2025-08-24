@@ -1023,8 +1023,6 @@ def linspace(
     else:
         num = int(num)
     if dtype is None:
-        start_type = start.get_element_type()
-        stop_type = stop.get_element_type()
         output_type = OPENVINO_DTYPES[config.floatx()]
     else:
         output_type = OPENVINO_DTYPES[dtype]
