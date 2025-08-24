@@ -98,15 +98,18 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         return self.default_policy.quantization_mode
 
     def __getitem__(self, key):
-        """Retrieves a `DTypePolicy` by its key, with regex fallback logic.
+        """Retrieves a `DTypePolicy` by its key, with a regex fallback.
 
-        This method first attempts an exact key match. If no exact match is
-        found, it treats the keys stored in the map as regular expression
-        patterns and searches for a match against the input `key`.
+        This method first attempts an exact key match.
+        If no exact match is found, it treats the keys in the map as regular
+        expression patterns. A pattern is considered a match only if it aligns
+        with the start of the input `key` and covers a complete path component
+        (i.e., it is followed by a `/` or the end of the string).
 
-        A regex match is only considered valid if it meets two conditions:
-        - It must match exactly one pattern in the policy map.
-        - The policy associated with that pattern must not be for quantization.
+        For example, a map key "encoder" will match the path
+        "encoder/attention", but it will not match "encoder_v2". This
+        component-wise matching prevents incorrect policy assignments to
+        similarly named layers.
 
         Args:
             key: The string key to query for a `DTypePolicy`.
@@ -116,14 +119,17 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             (either exact or regex), this method returns `self.default_policy`.
 
         Raises:
-            ValueError: If the `key` matches more than one regex pattern.
+            ValueError: If the `key` matches more than one regex pattern in the
+            map.
         """
         # 1. Check for an exact match.
         if key in self._policy_map:
             return self._policy_map[key]
 
-        # 2. If no exact match is found, treat the keys in the map as regular
-        # expression patterns and search for a match against the input `key`.
+        # 2. If no exact match is found, fallback to a regex match.
+        # Check for a match that covers a full path component.
+        # The pattern must match from the start of the `key` and be
+        # followed by either a '/' or the end of the string.
         matching_keys = [
             pattern
             for pattern in self._policy_map
