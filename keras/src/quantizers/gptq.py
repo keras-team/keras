@@ -368,6 +368,11 @@ class GPTQ:
         scale = ops.transpose(scales)
         zero_point = ops.transpose(zeros)
 
+        if isinstance(self.original_layer, Dense):
+            # The values are identical along axis 0, so mean is appropriate.
+            scale = ops.mean(scale, axis=0, keepdims=True)
+            zero_point = ops.mean(zero_point, axis=0, keepdims=True)
+
         if isinstance(self.original_layer, EinsumDense):
             # 1. Reshape the quantized kernel and dense params back to the
             #    original N-D shape

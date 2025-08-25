@@ -345,16 +345,19 @@ class Dense(Layer):
             initializer="zeros",
             trainable=False,
         )
+
+        scale_shape = (1, kernel_shape[1])
+
         self.kernel_scale = self.add_weight(
             name="scale",
-            shape=(kernel_shape),
+            shape=scale_shape,
             dtype="float32",
             initializer="zeros",
             trainable=False,
         )
         self.zero_point = self.add_weight(
             name="zero_point",
-            shape=(kernel_shape),
+            shape=scale_shape,
             dtype="float32",
             initializer="zeros",
             trainable=False,
@@ -555,7 +558,7 @@ class Dense(Layer):
         if self.gptq_config.symmetric:
             zero_point = ops.zeros_like(self.zero_point, dtype="int8")
 
-        # Elementwise dequantization (works for per-weight or 
+        # Elementwise dequantization (works for per-weight or
         # broadcastable S/ZP)
         dequant_kernel = ops.multiply(
             ops.subtract(self._kernel, zero_point), self.kernel_scale
