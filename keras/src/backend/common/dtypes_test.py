@@ -12,40 +12,23 @@ from keras.src.testing.test_utils import named_product
 class DtypesTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
+    ALL_DTYPES = [
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x
+        not in (
+            "string",
+            "complex128",
+            "float64",
+            "uint64",
+            "int64",
+        )
+        + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
+    ] + [None]
     if backend.backend() == "torch":
-        from keras.src.backend.torch.core import to_torch_dtype
-
-        # TODO: torch doesn't support uint64.
-        ALL_DTYPES = []
-        for x in dtypes.ALLOWED_DTYPES:
-            if x not in ["string", "uint64"]:
-                x = str(to_torch_dtype(x)).split(".")[-1]
-                if x not in ALL_DTYPES:  # skip duplicates created by remapping
-                    ALL_DTYPES.append(x)
-        ALL_DTYPES += [None]
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
     elif backend.backend() == "openvino":
-        ALL_DTYPES = [
-            x
-            for x in dtypes.ALLOWED_DTYPES
-            if x not in ["string", "complex64", "complex128"]
-        ] + [None]
-    else:
-        ALL_DTYPES = [x for x in dtypes.ALLOWED_DTYPES if x != "string"] + [
-            None
-        ]
-    # Remove float8 dtypes for the following tests
-    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
-
-    def setUp(self):
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
 
     @parameterized.named_parameters(
         named_product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])

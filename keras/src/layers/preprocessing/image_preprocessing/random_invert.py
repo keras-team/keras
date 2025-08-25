@@ -14,6 +14,9 @@ class RandomInvert(BaseImagePreprocessingLayer):
     complementary values. Images that are not selected for inversion
     remain unchanged.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A single float or a tuple of two floats.
             `factor` controls the probability of inverting the image colors.

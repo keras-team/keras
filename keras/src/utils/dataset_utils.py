@@ -8,7 +8,9 @@ import numpy as np
 
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.utils import file_utils
 from keras.src.utils import io_utils
+from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -299,6 +301,17 @@ def is_torch_dataset(dataset):
     return False
 
 
+def is_grain_dataset(dataset):
+    if hasattr(dataset, "__class__"):
+        for parent in dataset.__class__.__mro__:
+            if parent.__name__ in (
+                "MapDataset",
+                "IterDataset",
+            ) and str(parent.__module__).startswith("grain._src.python"):
+                return True
+    return False
+
+
 def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     """Rescale the dataset split sizes.
 
@@ -476,6 +489,10 @@ def _get_type_spec(dataset):
         from torch.utils.data import Dataset as TorchDataset
 
         return TorchDataset
+    elif is_grain_dataset(dataset):
+        from grain import MapDataset
+
+        return MapDataset
     else:
         return None
 
@@ -525,10 +542,17 @@ def index_directory(
         - class_names: names of the classes corresponding to these labels, in
         order.
     """
+    if file_utils.is_remote_path(directory):
+        os_module = tf.io.gfile
+        path_module = tf.io.gfile
+    else:
+        os_module = os
+        path_module = os.path
+
     if labels == "inferred":
         subdirs = []
-        for subdir in sorted(tf.io.gfile.listdir(directory)):
-            if tf.io.gfile.isdir(tf.io.gfile.join(directory, subdir)):
+        for subdir in sorted(os_module.listdir(directory)):
+            if path_module.isdir(path_module.join(directory, subdir)):
                 if not subdir.startswith("."):
                     if subdir.endswith("/"):
                         subdir = subdir[:-1]
@@ -566,7 +590,7 @@ def index_directory(
     results = []
     filenames = []
 
-    for dirpath in (tf.io.gfile.join(directory, subdir) for subdir in subdirs):
+    for dirpath in (path_module.join(directory, subdir) for subdir in subdirs):
         results.append(
             pool.apply_async(
                 index_subdirectory,
@@ -608,7 +632,7 @@ def index_directory(
             )
     pool.close()
     pool.join()
-    file_paths = [tf.io.gfile.join(directory, fname) for fname in filenames]
+    file_paths = [path_module.join(directory, fname) for fname in filenames]
 
     if shuffle:
         # Shuffle globally to erase macro-structure
@@ -623,8 +647,10 @@ def index_directory(
 
 
 def iter_valid_files(directory, follow_links, formats):
+    io_module = tf.io.gfile if file_utils.is_remote_path(directory) else os
+
     if not follow_links:
-        walk = tf.io.gfile.walk(directory)
+        walk = io_module.walk(directory)
     else:
         walk = os.walk(directory, followlinks=follow_links)
     for root, _, files in sorted(walk, key=lambda x: x[0]):
@@ -648,14 +674,18 @@ def index_subdirectory(directory, class_indices, follow_links, formats):
             paths, and `labels` is a list of integer labels corresponding
             to these files.
     """
+    path_module = (
+        tf.io.gfile if file_utils.is_remote_path(directory) else os.path
+    )
+
     dirname = os.path.basename(directory)
     valid_files = iter_valid_files(directory, follow_links, formats)
     labels = []
     filenames = []
     for root, fname in valid_files:
         labels.append(class_indices[dirname])
-        absolute_path = tf.io.gfile.join(root, fname)
-        relative_path = tf.io.gfile.join(
+        absolute_path = path_module.join(root, fname)
+        relative_path = path_module.join(
             dirname, os.path.relpath(absolute_path, directory)
         )
         filenames.append(relative_path)
@@ -700,7 +730,7 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
     return samples, labels
 
 
-def labels_to_dataset(labels, label_mode, num_classes):
+def labels_to_dataset_tf(labels, label_mode, num_classes):
     """Create a `tf.data.Dataset` from the list/tuple of labels.
 
     Args:
@@ -727,6 +757,51 @@ def labels_to_dataset(labels, label_mode, num_classes):
             lambda x: tf.one_hot(x, num_classes),
             num_parallel_calls=tf.data.AUTOTUNE,
         )
+    return label_ds
+
+
+def labels_to_dataset_grain(labels, label_mode, num_classes):
+    """Create a `grain.MapDataset` from the list/tuple of labels.
+
+    Args:
+        labels: list/tuple of labels to be converted into a `grain.MapDataset`.
+        label_mode: String describing the encoding of `labels`. Options are:
+        - `"binary"` indicates that the labels (there can be only 2) are encoded
+            as `float32` scalars with values 0 or 1
+            (e.g. for `binary_crossentropy`).
+        - `"categorical"` means that the labels are mapped into a categorical
+            vector.  (e.g. for `categorical_crossentropy` loss).
+        num_classes: number of classes of labels.
+
+    Returns:
+        A `grain.MapDataset` instance.
+    """
+    from keras.src import backend
+    from keras.src import ops
+
+    if label_mode not in ("binary", "categorical", "int"):
+        raise ValueError(
+            f"Invalid `label_mode`: {label_mode}. "
+            "Expected one of: 'binary', 'categorical', 'int'."
+        )
+
+    def preprocess_labels_in_cpu(label_mode, x, num_classes):
+        with backend.device_scope("cpu"):
+            if label_mode == "binary":
+                return ops.expand_dims(
+                    ops.convert_to_tensor(x, dtype="float32"), axis=-1
+                )
+            elif label_mode == "categorical":
+                return ops.one_hot(
+                    ops.convert_to_tensor(x, dtype="int32"), num_classes
+                )
+            else:
+                return ops.convert_to_tensor(x, dtype="int32")
+
+    label_ds = grain.MapDataset.source(labels)
+    label_ds = label_ds.map(
+        lambda x: preprocess_labels_in_cpu(label_mode, x, num_classes),
+    )
     return label_ds
 
 

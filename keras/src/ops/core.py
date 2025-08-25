@@ -8,6 +8,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
+from keras.src.saving import serialization_lib
 from keras.src.utils import traceback_utils
 
 
@@ -1104,6 +1105,19 @@ class VectorizedMap(Operation):
 
         y = tree.map_structure(append_batch_axis, y)
         return y
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"function": self.function})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        config = config.copy()
+        config["function"] = serialization_lib.deserialize_keras_object(
+            config["function"]
+        )
+        return cls(**config)
 
 
 @keras_export("keras.ops.vectorized_map")

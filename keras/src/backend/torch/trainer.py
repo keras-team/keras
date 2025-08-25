@@ -299,7 +299,7 @@ class TorchTrainer(base_trainer.Trainer):
                     _use_cached_eval_dataset=True,
                 )
                 val_logs = {
-                    "val_" + name: val for name, val in val_logs.items()
+                    f"val_{name}": val for name, val in val_logs.items()
                 }
                 epoch_logs.update(val_logs)
 

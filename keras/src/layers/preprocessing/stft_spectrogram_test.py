@@ -11,7 +11,7 @@ from keras.src import testing
 
 
 class TestSpectrogram(testing.TestCase):
-    DTYPE = "float32" if backend.backend() == "torch" else "float64"
+    DTYPE = "float32"
 
     @staticmethod
     def _calc_spectrograms(
@@ -340,12 +340,7 @@ class TestSpectrogram(testing.TestCase):
             mask |= np.isclose(np.cos(y), np.cos(y_true), **tol_kwargs)
             mask |= np.isclose(np.sin(y), np.sin(y_true), **tol_kwargs)
 
-            if backend.backend() == "tensorflow":
-                self.assertTrue(np.all(mask))
-            else:
-                # TODO(mostafa-mahmoud): investigate the rare cases
-                # of non-small error in jax and torch
-                self.assertLess(np.mean(~mask), 2e-4)
+            self.assertLess(np.mean(~mask), 2e-4)
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",

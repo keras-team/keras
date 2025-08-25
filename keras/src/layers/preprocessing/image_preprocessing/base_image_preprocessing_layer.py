@@ -1,13 +1,13 @@
 import math
 
 from keras.src.backend import config as backend_config
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (  # noqa: E501
     densify_bounding_boxes,
 )
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
-class BaseImagePreprocessingLayer(TFDataLayer):
+class BaseImagePreprocessingLayer(DataLayer):
     _USE_BASE_FACTOR = True
     _FACTOR_BOUNDS = (-1, 1)
 

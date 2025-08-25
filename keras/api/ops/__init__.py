@@ -32,6 +32,7 @@ from keras.src.ops.core import vectorized_map as vectorized_map
 from keras.src.ops.core import while_loop as while_loop
 from keras.src.ops.einops import rearrange as rearrange
 from keras.src.ops.linalg import cholesky as cholesky
+from keras.src.ops.linalg import cholesky_inverse as cholesky_inverse
 from keras.src.ops.linalg import det as det
 from keras.src.ops.linalg import eig as eig
 from keras.src.ops.linalg import eigh as eigh
@@ -194,6 +195,7 @@ from keras.src.ops.numpy import hanning as hanning
 from keras.src.ops.numpy import heaviside as heaviside
 from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hstack as hstack
+from keras.src.ops.numpy import hypot as hypot
 from keras.src.ops.numpy import identity as identity
 from keras.src.ops.numpy import imag as imag
 from keras.src.ops.numpy import inner as inner
@@ -203,6 +205,7 @@ from keras.src.ops.numpy import isin as isin
 from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
 from keras.src.ops.numpy import isneginf as isneginf
+from keras.src.ops.numpy import isposinf as isposinf
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import left_shift as left_shift
 from keras.src.ops.numpy import less as less

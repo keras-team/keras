@@ -87,7 +87,7 @@ def format_layer_shape(layer):
 
     def format_shape(shape):
         highlighted = [highlight_number(x) for x in shape]
-        return "(" + ", ".join(highlighted) + ")"
+        return f"({', '.join(highlighted)})"
 
     # There are 2 approaches to get output shapes:
     # 1. Using `layer._inbound_nodes`, which is possible if the model is a
@@ -268,7 +268,7 @@ def print_summary(
 
     def get_layer_fields(layer, prefix=""):
         output_shape = format_layer_shape(layer)
-        name = prefix + layer.name
+        name = f"{prefix}{layer.name}"
         cls_name = layer.__class__.__name__
         name = rich.markup.escape(name)
         name += f" ({highlight_symbol(rich.markup.escape(cls_name))})"
@@ -276,7 +276,7 @@ def print_summary(
         if not hasattr(layer, "built"):
             params = highlight_number(0)
         elif not layer.built:
-            params = highlight_number(0) + " (unbuilt)"
+            params = f"{highlight_number(0)} (unbuilt)"
         else:
             params = highlight_number(f"{layer.count_params():,}")
 
@@ -296,7 +296,7 @@ def print_summary(
 
     def print_layer(layer, nested_level=0):
         if nested_level:
-            prefix = "   " * nested_level + "└" + " "
+            prefix = "   " * nested_level + "└ "
         else:
             prefix = ""
 

@@ -12,6 +12,7 @@ NumpyDtypeTest::test_blackman
 NumpyDtypeTest::test_hamming
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
+NumpyDtypeTest::test_hypot
 NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_cbrt
@@ -35,6 +36,7 @@ NumpyDtypeTest::test_isin
 NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
 NumpyDtypeTest::test_isneginf
+NumpyDtypeTest::test_isposinf
 NumpyDtypeTest::test_linspace
 NumpyDtypeTest::test_logaddexp
 NumpyDtypeTest::test_logspace
@@ -94,6 +96,7 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
 NumpyOneInputOpsCorrectnessTest::test_isneginf
+NumpyOneInputOpsCorrectnessTest::test_isposinf
 NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
@@ -140,6 +143,7 @@ NumpyTwoInputOpsCorrectnessTest::test_digitize
 NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_heaviside
+NumpyTwoInputOpsCorrectnessTest::test_hypot
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_isin
 NumpyTwoInputOpsCorrectnessTest::test_linspace
@@ -155,13 +159,17 @@ NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_isneginf
+NumpyOneInputOpsDynamicShapeTest::test_isposinf
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_isneginf
+NumpyOneInputOpsStaticShapeTest::test_isposinf
 NumpyTwoInputOpsDynamicShapeTest::test_heaviside
+NumpyTwoInputOpsDynamicShapeTest::test_hypot
 NumpyTwoInputOpsDynamicShapeTest::test_isin
 NumpyTwoInputOpsStaticShapeTest::test_heaviside
+NumpyTwoInputOpsStaticShapeTest::test_hypot
 NumpyTwoInputOpsStaticShapeTest::test_isin
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments
@@ -182,6 +190,7 @@ CoreOpsCorrectnessTest::test_scatter
 CoreOpsCorrectnessTest::test_switch 
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
+CoreOpsBehaviorTests::test_vectorized_map_serialization
 ExtractSequencesOpTest::test_extract_sequences_call
 InTopKTest::test_in_top_k_call
 MathOpsCorrectnessTest::test_erfinv_operation_basic
@@ -285,3 +294,5 @@ TestMathErrors::test_istft_invalid_window_shape_2D_inputs
 TestMathErrors::test_stft_invalid_input_type
 TestMathErrors::test_stft_invalid_window
 TestMathErrors::test_stft_invalid_window_shape
+LinalgOpsCorrectnessTest::test_cholesky
+LinalgOpsCorrectnessTest::test_cholesky_inverse

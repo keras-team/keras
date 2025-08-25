@@ -2,21 +2,21 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 
 @keras_export("keras.layers.Discretization")
-class Discretization(TFDataLayer):
+class Discretization(DataLayer):
     """A preprocessing layer which buckets continuous features by ranges.
 
     This layer will place each element of its input data into one of several
     contiguous ranges and output an integer index indicating which range each
     element was placed in.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Input shape:
