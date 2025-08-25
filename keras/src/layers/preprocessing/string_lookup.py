@@ -3,11 +3,11 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.index_lookup import IndexLookup
-from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 if backend.backend() == "torch":
     import torch
+
 
 @keras_export("keras.layers.StringLookup")
 class StringLookup(IndexLookup):
@@ -384,24 +384,27 @@ class StringLookup(IndexLookup):
         return {**base_config, **config}
 
     def call(self, inputs):
-        original_torch = False
-        if(backend.backend() == "torch" and isinstance(inputs, torch.Tensor)):
-            original_torch = True
-            numpy_inputs = inputs.detach().cpu().numpy()
-            inputs_for_processing = tf.convert_to_tensor(numpy_inputs)
+        is_torch_backend = backend.backend() == "torch"
+
+        inputs_for_processing = inputs
+        if is_torch_backend and isinstance(inputs, torch.Tensor):
+            inputs_for_processing = tf.convert_to_tensor(
+                inputs.detach().cpu().numpy()
+            )
         elif isinstance(inputs, (np.ndarray, list, tuple)):
-            if backend.backend() == "torch":
-                original_torch = True
             inputs_for_processing = tf.convert_to_tensor(inputs)
-        else:
-            inputs_for_processing = inputs
+
         output = super().call(inputs_for_processing)
-        if not original_torch:
-            return output
-        numpy_outputs = output.numpy()
-        if self.invert:
-            return [n.decode(self.encoding) for n in numpy_outputs]
-            # This returns a list[str] to make it equivalent to the torch implementation of this.
-            # See : https://docs.pytorch.org/text/stable/_modules/torchtext/vocab/vocab.html#Vocab.lookup_tokens
-        else:
-            return torch.from_numpy(numpy_outputs)
+
+        if is_torch_backend and isinstance(
+            inputs, (torch.Tensor, np.ndarray, list, tuple)
+        ):
+            numpy_outputs = output.numpy()
+            if self.invert:
+                # This returns a list[str] to make it equivalent to the torch
+                # implementation of this.
+                # See : https://docs.pytorch.org/text/stable/_modules/torchtext/vocab/vocab.html#Vocab.lookup_tokens
+                return [n.decode(self.encoding) for n in numpy_outputs]
+            else:
+                return torch.from_numpy(numpy_outputs)
+        return output
