@@ -1,5 +1,7 @@
 import keras
+from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.distillation.BaseDistillationStrategy")
@@ -107,6 +109,7 @@ class LogitsDistillation(BaseDistillationStrategy):
     Example:
 
     ```python
+    from keras import ops
     # Basic logits distillation
     strategy = LogitsDistillation(temperature=3.0)
 
@@ -119,7 +122,6 @@ class LogitsDistillation(BaseDistillationStrategy):
     # Custom loss by subclassing
     class CustomLogitsDistillation(LogitsDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            from keras import ops
             # Get the outputs to distill
             teacher_logits = teacher_outputs[self.output_index]
             student_logits = student_outputs[self.output_index]
@@ -219,7 +221,6 @@ class LogitsDistillation(BaseDistillationStrategy):
         Returns:
             Distillation loss tensor.
         """
-        from keras import ops
 
         # Normalize outputs to lists
         if not isinstance(teacher_outputs, (list, tuple)):
@@ -347,7 +348,6 @@ class FeatureDistillation(BaseDistillationStrategy):
     # Custom loss by subclassing
     class CustomFeatureDistillation(FeatureDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            from keras import ops
             # Use first output by default
             teacher_features = teacher_outputs[0]
             student_features = student_outputs[0]
@@ -605,7 +605,6 @@ class FeatureDistillation(BaseDistillationStrategy):
         Returns:
             Feature distillation loss tensor.
         """
-        from keras import ops
 
         # Normalize outputs to lists
         if not isinstance(teacher_outputs, (list, tuple)):
@@ -729,7 +728,6 @@ class MultiOutputDistillation(BaseDistillationStrategy):
     # Custom multi-output strategy
     class CustomMultiOutputDistillation(MultiOutputDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            from keras import ops
             # Get the outputs to distill
             teacher_logits = teacher_outputs[0]
             student_logits = student_outputs[0]
@@ -747,7 +745,6 @@ class MultiOutputDistillation(BaseDistillationStrategy):
 
     class CustomFeatureDistillation(FeatureDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            from keras import ops
             teacher_features = teacher_outputs[0]
             student_features = student_outputs[0]
             return ops.mean(ops.abs(teacher_features - student_features))
@@ -843,7 +840,6 @@ class MultiOutputDistillation(BaseDistillationStrategy):
 
     def get_config(self):
         """Get configuration for serialization."""
-        from keras.src.saving import serialization_lib
 
         return {
             "output_strategies": {
@@ -856,7 +852,7 @@ class MultiOutputDistillation(BaseDistillationStrategy):
     @classmethod
     def from_config(cls, config):
         """Create instance from configuration."""
-        from keras.src.saving import serialization_lib
+
 
         # JSON keys must be strings, so we convert them back to int
         config["output_strategies"] = {

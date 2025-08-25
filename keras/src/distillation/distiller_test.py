@@ -1,3 +1,7 @@
+import json
+import os
+import tempfile
+
 import numpy as np
 import pytest
 
@@ -334,9 +338,6 @@ class TestDistiller(TestCase):
 
     def test_distiller_serialization_and_saving(self):
         """Test Distiller serialization, saving, and loading."""
-        import json
-        import os
-        import tempfile
 
         # Use standard Sequential models for serialization testing
         teacher = keras.Sequential(
@@ -364,8 +365,6 @@ class TestDistiller(TestCase):
         )
 
         # Create distiller with single strategy
-        from keras.src.distillation.strategies import LogitsDistillation
-
         strategy = LogitsDistillation(
             temperature=3.0, loss_type="kl_divergence"
         )

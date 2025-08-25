@@ -1,6 +1,8 @@
 import keras
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.models.model import Model
+from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.distillation.Distiller")
@@ -594,8 +596,6 @@ class Distiller(Model):
                 )
 
             # Ensure student_loss is a scalar
-            from keras import ops
-
             if hasattr(student_loss, "shape") and len(student_loss.shape) > 0:
                 student_loss = ops.mean(student_loss)
 
@@ -611,8 +611,6 @@ class Distiller(Model):
             )
 
             # Ensure distillation_loss is a scalar
-            from keras import ops
-
             if (
                 hasattr(distillation_loss, "shape")
                 and len(distillation_loss.shape) > 0
@@ -650,7 +648,6 @@ class Distiller(Model):
 
     def get_config(self):
         """Get configuration for serialization."""
-        from keras.src.saving import serialization_lib
 
         config = super().get_config()
         config.update(
@@ -674,7 +671,6 @@ class Distiller(Model):
     @classmethod
     def from_config(cls, config):
         """Create instance from configuration."""
-        from keras.src.saving import serialization_lib
 
         config["teacher"] = serialization_lib.deserialize_keras_object(
             config["teacher"]

@@ -1,8 +1,11 @@
+import json
+
 import numpy as np
 import pytest
 
 import keras
 from keras import ops
+from keras.src.distillation.distiller import Distiller
 from keras.src.distillation.strategies import FeatureDistillation
 from keras.src.distillation.strategies import LogitsDistillation
 from keras.src.distillation.strategies import MultiOutputDistillation
@@ -207,7 +210,6 @@ class TestMultiOutputDistillation(TestCase):
 
     def test_end_to_end_with_multi_output_models(self):
         """Test end-to-end training with multi-output models."""
-        from keras.src.distillation.distiller import Distiller
 
         # Create multi-output models
         teacher = MultiOutputTeacher(vocab_size=10, hidden_dim=32)
@@ -271,7 +273,6 @@ class TestMultiOutputDistillation(TestCase):
 
     def test_serialization(self):
         """Test MultiOutputDistillation serialization and deserialization."""
-        import json
 
         # Create nested strategies
         strategy1 = LogitsDistillation(temperature=3.0, output_index=0)
