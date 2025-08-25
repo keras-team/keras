@@ -11,9 +11,9 @@ class Reshape(Layer):
 
     Args:
         target_shape: Target shape. Tuple of integers, does not include the
-            samples dimension (batch size). One element of the `target_shape` can
-            be -1 in which case the missing value is inferred from the size
-            of the array and remaining dimensions.
+            samples dimension (batch size). One element of the `target_shape`
+            can be -1 in which case the missing value is inferred from the
+            size of the array and remaining dimensions.
 
     Input shape:
         Arbitrary, but required to be compatible with `target_shape`.
