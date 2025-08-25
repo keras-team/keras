@@ -79,10 +79,6 @@ jobs:
             sudo \
             && rm -rf /var/lib/apt/lists/*
       
-      - name: Check Gloud installation
-        run: |
-          gcloud
-
       - name: Install Dependencies
         run: |
           pip install --no-cache-dir -U pip setuptools && \
@@ -99,10 +95,10 @@ jobs:
           echo "Verifying JAX installation..."
           python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()[0].device_kind}')"
 
-          # pytest keras --ignore keras/src/applications \
-          #             --ignore keras/src/layers/merging/merging_test.py \
-          #             --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
-          #             --ignore keras/src/backend/jax/distribution_lib_test.py \
-          #             --ignore keras/src/distribution/distribution_lib_test.py \
-          #             --cov=keras \
-          #             --cov-config=pyproject.toml
+          pytest keras --ignore keras/src/applications \
+                      --ignore keras/src/layers/merging/merging_test.py \
+                      --ignore keras/src/trainers/data_adapters/py_dataset_adapter_test.py \
+                      --ignore keras/src/backend/jax/distribution_lib_test.py \
+                      --ignore keras/src/distribution/distribution_lib_test.py \
+                      --cov=keras \
+                      --cov-config=pyproject.toml
