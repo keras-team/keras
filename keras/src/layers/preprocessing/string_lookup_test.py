@@ -89,3 +89,29 @@ class StringLookupTest(testing.TestCase):
         )
         output = layer(data)
         self.assertAllClose(output, np.array([[1, 3, 4], [4, 0, 2]]))
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="PyTorch only test")
+    def test_torch_backend_compatibility(self):
+        import torch
+        # Forward lookup: String -> number
+        forward_lookup = layers.StringLookup(vocabulary=["a", "b", "c"], oov_token="[OOV]")
+        input_data_str = ["a", "b", "[OOV]", "d"]
+        output_numeric = forward_lookup(input_data_str)
+        
+        # assert instance of output is torch.Tensor 
+        self.assertIsInstance(output_numeric, torch.Tensor)
+        expected_numeric = torch.tensor([1, 2, 0, 0])
+        self.assertAllClose(output_numeric.cpu(), expected_numeric)
+
+        # Inverse lookup: Number -> string        
+        inverse_lookup = layers.StringLookup(
+            vocabulary=["a", "b", "c"], oov_token="[OOV]", invert=True
+        ) 
+        input_data_int = torch.tensor([1, 2, 0], dtype=torch.int64)
+        output_string = inverse_lookup(input_data_int)
+        # Assert that the output is a list
+        # See : https://docs.pytorch.org/text/stable/_modules/torchtext/vocab/vocab.html#Vocab.lookup_tokens 
+        # The torch equivalent implementation of this returns a list of strings
+        self.assertIsInstance(output_string, list)
+        expected_string = ["a", "b", "[OOV]"]
+        self.assertEqual(output_string, expected_string)

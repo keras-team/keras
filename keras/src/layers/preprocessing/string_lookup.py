@@ -6,6 +6,8 @@ from keras.src.layers.preprocessing.index_lookup import IndexLookup
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
+if backend.backend() == "torch":
+    import torch
 
 @keras_export("keras.layers.StringLookup")
 class StringLookup(IndexLookup):
@@ -382,13 +384,24 @@ class StringLookup(IndexLookup):
         return {**base_config, **config}
 
     def call(self, inputs):
-        if isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
-            tf_inputs = True
+        original_torch = False
+        if(backend.backend() == "torch" and isinstance(inputs, torch.Tensor)):
+            original_torch = True
+            numpy_inputs = inputs.detach().cpu().numpy()
+            inputs_for_processing = tf.convert_to_tensor(numpy_inputs)
+        elif isinstance(inputs, (np.ndarray, list, tuple)):
+            if backend.backend() == "torch":
+                original_torch = True
+            inputs_for_processing = tf.convert_to_tensor(inputs)
         else:
-            tf_inputs = False
-            if not isinstance(inputs, (np.ndarray, list, tuple)):
-                inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
-        outputs = super().call(inputs)
-        if not tf_inputs:
-            outputs = backend_utils.convert_tf_tensor(outputs)
-        return outputs
+            inputs_for_processing = inputs
+        output = super().call(inputs_for_processing)
+        if not original_torch:
+            return output
+        numpy_outputs = output.numpy()
+        if self.invert:
+            return [n.decode(self.encoding) for n in numpy_outputs]
+            # This returns a list[str] to make it equivalent to the torch implementation of this.
+            # See : https://docs.pytorch.org/text/stable/_modules/torchtext/vocab/vocab.html#Vocab.lookup_tokens
+        else:
+            return torch.from_numpy(numpy_outputs)
