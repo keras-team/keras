@@ -12,6 +12,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.config import backend
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
@@ -167,7 +168,7 @@ class EinsumDense(Layer):
         # quantized to int8 or int4, because `quantized_build` has created the
         # appropriate kernel variable. For other modes (e.g., float8 or no
         # quantization), we still need the floating-point kernel.
-        if self.quantization_mode not in ("int8", "int4"):
+        if self.quantization_mode not in ("int8", "int4", "gptq"):
             # If the layer is quantized to int8, `self._kernel` will be added
             # in `self._int8_build`. Therefore, we skip it here.
             self._kernel = self.add_weight(
@@ -396,6 +397,8 @@ class EinsumDense(Layer):
             self._int4_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
+        elif mode == "gptq":
+            self._gptq_build(kernel_shape)
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
@@ -417,6 +420,31 @@ class EinsumDense(Layer):
             name="kernel_scale",
             shape=kernel_scale_shape,
             initializer="ones",
+            trainable=False,
+        )
+
+    def _gptq_build(self, kernel_shape):
+        self._set_quantization_info()
+        self._kernel = self.add_weight(
+            name="kernel",
+            shape=kernel_shape,
+            initializer="zeros",
+            dtype="int8",
+            trainable=False,
+        )
+        # Get the correct, broadcastable shape for scale and zero-point
+        scale_shape = self._get_kernel_scale_shape(kernel_shape)
+
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=scale_shape,
+            initializer="ones",
+            trainable=False,
+        )
+        self.zero_point = self.add_weight(
+            name="zero_point",
+            shape=scale_shape,
+            initializer="zeros",
             trainable=False,
         )
 
@@ -574,6 +602,30 @@ class EinsumDense(Layer):
             lora_x = ops.einsum(self.equation, inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
             x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
+    def _gptq_call(self, inputs, training=None):
+        zero_point = self.zero_point
+        if self.gptq_config.symmetric:
+            # Constant zero-point (symmetric): integer 0
+            zero_point = ops.zeros_like(zero_point, dtype="int8")
+
+        zero_point = self._adjust_scale_for_dequant(zero_point)
+
+        # handle zero point with kernel
+        kernel = ops.subtract(self._kernel, zero_point)
+
+        # if backend is torch, do a cast
+        if backend() == "torch":
+            kernel = ops.cast(kernel, self.compute_dtype)
+        x = ops.einsum(self.equation, inputs, kernel)
+        x = ops.cast(x, self.compute_dtype)
+        x = ops.multiply(x, self.kernel_scale)
+
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -756,13 +808,13 @@ class EinsumDense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not EinsumDense):
             raise self._not_implemented_error(self.quantize)
 
         kernel_shape = self._kernel.shape
-        if mode in ("int8", "int4"):
+        if mode in ("int8", "int4", "gptq"):
             self._set_quantization_info()
 
         if mode == "int8":
@@ -790,6 +842,9 @@ class EinsumDense(Layer):
             )
             kernel_value = packed_kernel_value
             del self._kernel
+        elif mode == "gptq":
+            del self._kernel
+            self.gptq_config = config
         self.quantized_build(kernel_shape, mode)
 
         # Assign values to the newly created variables.
@@ -1239,7 +1294,10 @@ def _analyze_quantization_info(equation, input_shape):
             input_spec = split_string.group(1)
             weight_spec = split_string.group(2)
             output_spec = split_string.group(3)
-            elided = len(input_shape) - len(input_spec)
+            input_shape_tuple = input_shape
+            if type(input_shape) is int:
+                input_shape_tuple = (input_shape,)
+            elided = len(input_shape_tuple) - len(input_spec)
             possible_labels = sorted(
                 set(possible_labels)
                 - set(input_spec)
