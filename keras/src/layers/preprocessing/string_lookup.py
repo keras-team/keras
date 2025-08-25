@@ -416,7 +416,7 @@ class StringLookup(IndexLookup):
             else:
                 return torch.from_numpy(numpy_outputs)
 
-        # Handle non-torch backend output conversion (preserving original behavior)
+        # other backends
         if not was_tf_input:
             output = backend_utils.convert_tf_tensor(output)
 
