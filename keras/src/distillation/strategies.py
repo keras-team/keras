@@ -853,7 +853,6 @@ class MultiOutputDistillation(BaseDistillationStrategy):
     def from_config(cls, config):
         """Create instance from configuration."""
 
-
         # JSON keys must be strings, so we convert them back to int
         config["output_strategies"] = {
             int(k): serialization_lib.deserialize_keras_object(v)
