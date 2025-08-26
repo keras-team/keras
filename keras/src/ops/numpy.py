@@ -2872,7 +2872,7 @@ class Einsum(Operation):
         kept_dims = sorted(kept_dims)
 
         if output_spec is None:
-            target_broadcast_spec = "..." + "".join(kept_dims)
+            target_broadcast_spec = f"...{''.join(kept_dims)}"
         else:
             target_broadcast_spec = output_spec
 
@@ -2894,18 +2894,18 @@ class Einsum(Operation):
                     )
                 for size, s in zip(x_shape, split_spec[0]):
                     # Replace the letter with the right shape.
-                    expanded_shape = expanded_shape.replace(s, str(size) + " ")
+                    expanded_shape = expanded_shape.replace(s, f"{str(size)} ")
                 expanded_shape = expanded_shape.replace("...", "")
             else:
                 # In this case, the input spec has "...", e.g., "i...j", "i...",
                 # or "...j".
                 for i in range(len(split_spec[0])):
                     expanded_shape = expanded_shape.replace(
-                        split_spec[0][i], str(x_shape[i]) + " "
+                        split_spec[0][i], f"{x_shape[i]} "
                     )
                 for i in range(len(split_spec[1])):
                     expanded_shape = expanded_shape.replace(
-                        split_spec[1][-i - 1], str(x_shape[-i - 1]) + " "
+                        split_spec[1][-i - 1], f"{x_shape[-i - 1]} "
                     )
                 # Shape matched by "..." will be inserted to the position of
                 # "...".
@@ -2919,7 +2919,7 @@ class Einsum(Operation):
                     wildcard_shape_start_index:wildcard_shape_end_index
                 ]
                 wildcard_shape_str = (
-                    " ".join([str(size) for size in wildcard_shape]) + " "
+                    f"{' '.join([str(size) for size in wildcard_shape])} "
                 )
                 expanded_shape = expanded_shape.replace(
                     "...", wildcard_shape_str
@@ -3512,6 +3512,50 @@ def hstack(xs):
     if any_symbolic_tensors((xs,)):
         return Hstack().symbolic_call(xs)
     return backend.numpy.hstack(xs)
+
+
+class Hypot(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.hypot(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+            dtype = backend.floatx()
+        elif dtype == "int64":
+            dtype = "float64"
+        return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
+
+
+@keras_export(["keras.ops.hypot", "keras.ops.numpy.hypot"])
+def hypot(x1, x2):
+    """Element-wise hypotenuse of right triangles with legs `x1` and `x2`.
+
+    This is equivalent to computing `sqrt(x1**2 + x2**2)` element-wise,
+    with shape determined by broadcasting.
+
+    Args:
+        x1: A tensor, representing the first leg of the right triangle.
+        x2: A tensor, representing the second leg of the right triangle.
+
+    Returns:
+        A tensor with a shape determined by broadcasting `x1` and `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([3.0, 4.0, 5.0])
+    >>> x2 = keras.ops.convert_to_tensor([4.0, 3.0, 12.0])
+    >>> keras.ops.hypot(x1, x2)
+    array([5., 5., 13.], dtype=float32)
+
+    >>> x1 = keras.ops.convert_to_tensor([[1, 2], [3, 4]])
+    >>> x2 = keras.ops.convert_to_tensor([1, 1])
+    >>> keras.ops.hypot(x1, x2)
+    array([[1.41421356 2.23606798],
+          [3.16227766 4.12310563]], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Hypot().symbolic_call(x1, x2)
+    return backend.numpy.hypot(x1, x2)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])

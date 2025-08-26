@@ -140,7 +140,7 @@ def register_keras_serializable(package="Custom", name=None):
     def decorator(arg):
         """Registers a class with the Keras serialization framework."""
         class_name = name if name is not None else arg.__name__
-        registered_name = package + ">" + class_name
+        registered_name = f"{package}>{class_name}"
 
         if inspect.isclass(arg) and not hasattr(arg, "get_config"):
             raise ValueError(

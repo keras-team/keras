@@ -12,6 +12,7 @@ NumpyDtypeTest::test_blackman
 NumpyDtypeTest::test_hamming
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
+NumpyDtypeTest::test_hypot
 NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_cbrt
@@ -142,6 +143,7 @@ NumpyTwoInputOpsCorrectnessTest::test_digitize
 NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_heaviside
+NumpyTwoInputOpsCorrectnessTest::test_hypot
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_isin
 NumpyTwoInputOpsCorrectnessTest::test_linspace
@@ -164,8 +166,10 @@ NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_isneginf
 NumpyOneInputOpsStaticShapeTest::test_isposinf
 NumpyTwoInputOpsDynamicShapeTest::test_heaviside
+NumpyTwoInputOpsDynamicShapeTest::test_hypot
 NumpyTwoInputOpsDynamicShapeTest::test_isin
 NumpyTwoInputOpsStaticShapeTest::test_heaviside
+NumpyTwoInputOpsStaticShapeTest::test_hypot
 NumpyTwoInputOpsStaticShapeTest::test_isin
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments

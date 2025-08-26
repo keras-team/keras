@@ -11,13 +11,12 @@ class Reshape(Layer):
 
     Args:
         target_shape: Target shape. Tuple of integers, does not include the
-            samples dimension (batch size).
+            samples dimension (batch size). One element of the `target_shape`
+            can be -1 in which case the missing value is inferred from the
+            size of the array and remaining dimensions.
 
     Input shape:
-        Arbitrary, although all dimensions in the input shape must be
-        known/fixed. Use the keyword argument `input_shape` (tuple of integers,
-        does not include the samples/batch size axis) when using this layer as
-        the first layer in a model.
+        Arbitrary, but required to be compatible with `target_shape`.
 
     Output shape:
         `(batch_size, *target_shape)`
@@ -29,7 +28,7 @@ class Reshape(Layer):
     >>> y.shape
     (None, 3, 4)
 
-    >>> # also supports shape inference using `-1` as dimension
+    >>> # another example with shape inference using `-1` as dimension
     >>> y = keras.layers.Reshape((-1, 2, 2))(x)
     >>> y.shape
     (None, 3, 2, 2)
@@ -37,7 +36,15 @@ class Reshape(Layer):
 
     def __init__(self, target_shape, **kwargs):
         super().__init__(**kwargs)
-        self.target_shape = tuple(target_shape)
+        target_shape = tuple(target_shape)
+        # test validity of target_shape
+        if target_shape.count(-1) > 1:
+            raise ValueError(
+                "The `target_shape` argument must not contain more than one "
+                f"`-1` value. Received: target_shape={target_shape}"
+            )
+        self.target_shape = target_shape
+        self.built = True
 
     def compute_output_shape(self, input_shape):
         return (
@@ -53,17 +60,17 @@ class Reshape(Layer):
             shape=output_shape, dtype=inputs.dtype, sparse=inputs.sparse
         )
 
-    def build(self, input_shape):
-        sample_output_shape = operation_utils.compute_reshape_output_shape(
-            input_shape[1:], self.target_shape, "target_shape"
-        )
-        self._resolved_target_shape = tuple(
-            -1 if d is None else d for d in sample_output_shape
-        )
-
     def call(self, inputs):
+        potentially_resolved_target_shape = (
+            operation_utils.compute_reshape_output_shape(
+                tuple(inputs.shape)[1:], self.target_shape, "target_shape"
+            )
+        )
+        potentially_resolved_target_shape = tuple(
+            -1 if d is None else d for d in potentially_resolved_target_shape
+        )
         return ops.reshape(
-            inputs, (ops.shape(inputs)[0],) + self._resolved_target_shape
+            inputs, (ops.shape(inputs)[0],) + potentially_resolved_target_shape
         )
 
     def get_config(self):

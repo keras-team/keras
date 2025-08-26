@@ -687,7 +687,7 @@ def diff(a, n=1, axis=-1):
     if n == 0:
         return OpenVINOKerasTensor(get_ov_output(a))
     if n < 0:
-        raise ValueError("order must be non-negative but got " + repr(n))
+        raise ValueError(f"order must be non-negative but got {repr(n)}")
     a = get_ov_output(a)
     a_type = a.get_element_type()
     if isinstance(a, np.ndarray):
@@ -900,6 +900,10 @@ def hstack(xs):
             elems[0], elems[i], "hstack()"
         )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
+
+
+def hypot(x1, x2):
+    raise NotImplementedError("`hypot` is not supported with openvino backend")
 
 
 def identity(n, dtype=None):

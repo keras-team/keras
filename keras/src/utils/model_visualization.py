@@ -178,7 +178,7 @@ def make_layer_label(layer, **kwargs):
         colspan = 1
 
     if cols:
-        table += "<tr>" + "".join(cols) + "</tr>"
+        table += f"<tr>{''.join(cols)}</tr>"
     table += "</table>>"
     return table
 
