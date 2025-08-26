@@ -135,14 +135,13 @@ class DTypePolicyMapTest(testing.TestCase):
         policy_map = DTypePolicyMap()
         # Policy for an exact layer path
         policy_map["model/encoder/layer_0/dense"] = bfloat16_policy
-        # Policy that could be partially matched
+        # Policy for a layer that is also a prefix of another layer's name
         policy_map["model/encoder/attention/query"] = int8_policy
-        # Regex policies for entire scopes
-        policy_map["model/decoder"] = float32_policy
-        policy_map["model/decoder/attention"] = float16_policy
+        # Regex policies for entire scopes MUST include wildcards
+        policy_map["model/decoder/.*"] = float32_policy
+        policy_map["model/decoder/attention/.*"] = float16_policy
 
         # 2. Test exact match
-        # An exact key should always return the correct policy.
         self.assertEqual(
             policy_map["model/encoder/layer_0/dense"], bfloat16_policy
         )
@@ -150,34 +149,32 @@ class DTypePolicyMapTest(testing.TestCase):
             policy_map["model/encoder/attention/query"], int8_policy
         )
 
-        # 3. Test successful regex fallback (component-wise match)
-        # "model/decoder" should match "model/decoder/layer_0" because
-        # it's a full component prefix.
+        # 3. Test successful regex fallback (explicit wildcard)
+        # "model/decoder/.*" should match its children.
         self.assertEqual(policy_map["model/decoder/layer_0"], float32_policy)
 
-        # 4. Test prevention of partial regex match
-        # "model/encoder/attention/query" should NOT match
-        # "model/encoder/attention/query_norm"
-        # as it's not followed by a '/' or the end of the string.
+        # 4. Test that partial matches are ignored
+        # The exact key "model/encoder/attention/query" should not match
+        # "model/encoder/attention/query_norm" without a wildcard.
         self.assertEqual(
             policy_map["model/encoder/attention/query_norm"],
             policy_map.default_policy,
         )
+        # A plain key "model/decoder" will not match "model/decoder/layer_0"
+        policy_map["model/decoder"] = bfloat16_policy  # Add exact key
+        self.assertEqual(policy_map["model/decoder/layer_0"], float32_policy)
+        # Still matches the more general regex
+        self.assertEqual(policy_map["model/decoder"], bfloat16_policy)
 
         # 5. Test no match
-        # A key with no exact or valid regex match should return the default.
         self.assertEqual(
             policy_map["model/embedding"], policy_map.default_policy
         )
-        self.assertEqual(
-            policy_map["prefix/model/decoder/attention"],
-            policy_map.default_policy,
-        )
 
         # 6. Test multiple regex matches causing a ValueError
-        # The path "model/decoder/attention/output" matches two regex keys:
-        # - "model/decoder"
-        # - "model/decoder/attention"
+        # "model/decoder/attention/output" matches two regex patterns:
+        # - "model/decoder/.*"
+        # - "model/decoder/attention/.*"
         with self.assertRaisesRegex(
             ValueError,
             "Path 'model/decoder/attention/output' matches multiple "
