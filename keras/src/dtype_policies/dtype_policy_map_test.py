@@ -169,6 +169,10 @@ class DTypePolicyMapTest(testing.TestCase):
         self.assertEqual(
             policy_map["model/embedding"], policy_map.default_policy
         )
+        self.assertEqual(
+            policy_map["prefix/model/decoder/attention"],
+            policy_map.default_policy,
+        )
 
         # 6. Test multiple regex matches causing a ValueError
         # The path "model/decoder/attention/output" matches two regex keys:

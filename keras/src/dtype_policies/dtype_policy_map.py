@@ -133,7 +133,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         matching_keys = [
             pattern
             for pattern in self._policy_map
-            if re.search(f"^{pattern}(/|$)", key)
+            if re.match(f"{pattern}(/|$)", key)
         ]
 
         # 3. Handle cases based on the number of matches found.
