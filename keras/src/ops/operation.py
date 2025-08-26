@@ -130,8 +130,33 @@ class Operation(KerasSaveable):
                 vars(instance)["_object__state"] = nnx.object.ObjectState()
 
         # Generate a config to be returned by default by `get_config()`.
-        arg_names = inspect.getfullargspec(cls.__init__).args
-        kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
+        signature = inspect.signature(cls.__init__)
+        argspec = inspect.getfullargspec(cls.__init__)
+
+        try:
+            bound_parameters = signature.bind(None, *args, **kwargs)
+            # Include default values in the config.
+            bound_parameters.apply_defaults()
+            # Extract all arguments as a dictionary.
+            kwargs = bound_parameters.arguments
+            # Expand variable kwargs argument.
+            kwargs |= kwargs.pop(argspec.varkw, {})
+            # Remove first positional argument, self.
+            kwargs.pop(argspec.args[0])
+            # Remove argument "name", as it is provided by get_config.
+            kwargs.pop("name", None)
+            if argspec.varargs is not None:
+                # Varargs cannot be meaningfully converted to a dictionary.
+                # Backward compatibility: if the signature contains varargs
+                # only store the first argument in varargs.
+                if len(kwargs[argspec.varargs]) > 0:
+                    kwargs[argspec.varargs] = kwargs[argspec.varargs][0]
+                else:
+                    kwargs.pop(argspec.varargs)
+        except TypeError:
+            # Raised by signature.bind when the supplied args and kwargs
+            # do not match the signature.
+            pass
 
         # For safety, we only rely on auto-configs for a small set of
         # serializable types.
