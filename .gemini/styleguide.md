@@ -40,7 +40,7 @@ When developing APIs, start by designing end-to-end workflows, and only sketch o
 
 It’s okay to say no: just because someone asks for a feature doesn’t mean we should do it. Every feature has a cost that goes beyond the initial CL: maintenance cost, documentation cost, and cognitive cost for our users (a sprawling API surface is a major usability issue).
 
-In particular, in the Keras API, every new feature has to be maintained in perpetuity, and has to be replicated in every implementation of the Keras API (which includes tf.keras, tensorflow.js, and other third-party implementations).
+In particular, in the Keras API, every new feature has to be maintained in perpetuity.
 
 As such, our criteria for adding a new feature in the API is the following:
 
@@ -76,7 +76,6 @@ Here are a few practical rules:
 - **Best-practices should come baked into your API.** The simplest way to use your API (leaving all arguments to their default value, using the most obvious tool for the task, etc) should be as close as possible to the best way of solving the problem. In particular, all arguments that can be given a default value should be given a default value, and that default should match the most common use case.
 - **Plain Python types are preferable to custom types.** Use tuples, strings, ints... A custom type requires more knowledge and effort on the part of the user (e.g. `TensorShape`, which is also breaking established conventions of scientific Python). **When using enums, make sure that their values are strings**, so as to make it possible for users to pass plain strings (example: `data_format="channels_last"`, `padding="valid"`).
 - **Explicit, single-level configuration arguments are preferable to nested, hidden configuration arguments.** Avoid something like: `MyLayer(hyperparameter_dict)`, instead use `MyLayer(units, activation=None, ...)`.
-- **No API should rely on TF Variable names or Op names.** These change all the time, and should be considered a convenience, not a part of the TensorFlow & Keras API.
 
 In particular, naming is important and difficult:
 
@@ -158,7 +157,7 @@ Documentation and error messages are an integral part of the API. Good docs and 
     - How can the user fix it?
 - **A docstring should answer the question: what is this about, and why & how should I use it?** It should assume as little context as possible, and it shouldn’t mention specialized terms without first introducing them (for example, “num_blocks: Number of blocks in the kernel” is not a good argument description if this is the first time you mention “blocks” in your docstring).
 - **Show, don’t tell: your documentation should not talk about how the software works, it should show how to use it.** Show code examples for end-to-end workflows; show code examples for each and every common use case and key feature of your API. **All docstrings should include code examples.**
-- **Deliberately design the user onboarding process for your feature.** How are complete newcomers going to find out the best way to solve their use case with your tool? Have an answer ready. Make sure your onboarding material closely maps to what your users care about: don't teach newcomers how your framework is implemented, teach them how they can use it to solve their own problems. After shipping a CL and writing good docstrings, make sure to create a Colab guide / tutorial showcasing the target workflow, and post it on the docs website or the TF blog.
+- **Deliberately design the user onboarding process for your feature.** How are complete newcomers going to find out the best way to solve their use case with your tool? Have an answer ready. Make sure your onboarding material closely maps to what your users care about: don't teach newcomers how your framework is implemented, teach them how they can use it to solve their own problems. After shipping a CL and writing good docstrings, make sure to create a Colab guide / tutorial showcasing the target workflow, and post it on the docs website.
 - The feature is not ready until:
     - 1) Users know about it
     - 2) They know how to use it
