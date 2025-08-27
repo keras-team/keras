@@ -998,6 +998,10 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     """
+    Return evenly spaced numbers over a specified interval.
+
+    Parameters
+    ----------
     axis : int, optional
         Currently only supports axis=0 (prepend) and axis=-1 (append).
         Intermediate axis values are treated as axis=-1.
