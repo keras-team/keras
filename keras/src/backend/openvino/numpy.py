@@ -998,7 +998,6 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     """
-    ...
     axis : int, optional
         Currently only supports axis=0 (prepend) and axis=-1 (append).
         Intermediate axis values are treated as axis=-1.
