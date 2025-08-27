@@ -1531,6 +1531,32 @@ def full_like(x, fill_value, dtype=None):
     return tf.broadcast_to(fill_value, tf.shape(x))
 
 
+def gcd(x1, x2):
+    x1 = tf.convert_to_tensor(x1)
+    x2 = tf.convert_to_tensor(x2)
+
+    if x1.dtype.size < x2.dtype.size:
+        x1 = tf.cast(x1, x2.dtype)
+    elif x2.dtype.size < x1.dtype.size:
+        x2 = tf.cast(x2, x1.dtype)
+
+    if not x1.dtype.is_integer:
+        raise TypeError("Arguments to gcd must be integers.")
+
+    target_shape = tf.broadcast_static_shape(x1.shape, x2.shape)
+    x1 = tf.broadcast_to(x1, target_shape)
+    x2 = tf.broadcast_to(x2, target_shape)
+
+    def cond(a, b):
+        return tf.reduce_any(b != 0)
+
+    def body(a, b):
+        return b, tf.math.floormod(a, b)
+
+    gcd_val, _ = tf.while_loop(cond, body, [tf.abs(x1), tf.abs(x2)])
+    return gcd_val
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
