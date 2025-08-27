@@ -839,6 +839,12 @@ def full_like(x, fill_value, dtype=None):
     return full(shape=x.shape, fill_value=fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.gcd(x1, x2)
+
+
 def greater(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.greater(x1, x2)
