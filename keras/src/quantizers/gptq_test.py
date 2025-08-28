@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+import keras
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
@@ -99,3 +100,136 @@ class GPTQTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "match input features"):
             bad_input = rng.standard_normal(size=(8, 99))
             gptq_instance.update_hessian_with_batch(bad_input)
+
+    def test_streaming_equals_big_batch(self):
+        """Tests that streaming updates match big batch updates."""
+        # dummy inputs
+        x = ops.array(np.random.randn(100, 7), "float32")
+
+        # One-shot hessian update
+        layer_1 = layers.Dense(5, use_bias=False)
+        layer_1.build(input_shape=(None, 7))
+
+        g1 = GPTQ(layer_1)
+        g1.update_hessian_with_batch(x)
+
+        # Streamed hessian update
+        layer_2 = layers.Dense(5, use_bias=False)
+        layer_2.build(input_shape=(None, 7))
+        g2 = GPTQ(layer_2)
+        g2.update_hessian_with_batch(x[:50])
+        g2.update_hessian_with_batch(x[50:])
+
+        # Both the one-shot and streamed hessian updates should match
+        self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-6, atol=1e-6)
+
+    def test_hessian_matches_closed_form(self):
+        """Tests that the Hessian matches the closed-form solution."""
+        x = ops.array(np.random.randn(128, 7), "float32")
+        layer = layers.Dense(5, use_bias=False)
+        layer.build((None, 7))
+        g = GPTQ(layer)
+        g.update_hessian_with_batch(x)
+
+        expected = ops.multiply(
+            ops.divide(2.0, x.shape[0]), ops.matmul(ops.transpose(x), x)
+        )
+        self.assertAllClose(g.hessian, expected, rtol=1e-6, atol=1e-6)
+
+    def test_higher_rank_inputs_are_reshaped(self):
+        """Tests that higher-rank inputs are reshaped correctly."""
+        # x: [batch, time, feat]
+        x = ops.array(np.random.randn(10, 4, 7), "float32")
+        x_flat = ops.reshape(x, (-1, ops.shape(x)[-1]))
+
+        layer1 = layers.Dense(5, use_bias=False)
+        layer1.build((None, 7))
+        g1 = GPTQ(layer1)
+        g1.update_hessian_with_batch(x)
+
+        layer2 = layers.Dense(5, use_bias=False)
+        layer2.build((None, 7))
+        g2 = GPTQ(layer2)
+        g2.update_hessian_with_batch(x_flat)
+
+        self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-6, atol=1e-6)
+
+    def test_raises_on_feature_mismatch(self):
+        x = ops.array(np.random.randn(8, 7), "float32")
+        layer = layers.Dense(5, use_bias=False)
+        layer.build((None, 6))  # wrong in_features
+        g = GPTQ(layer)
+
+        with self.assertRaisesRegex(ValueError, "do not match input features"):
+            g.update_hessian_with_batch(x)
+
+        with self.assertRaisesRegex(ValueError, "cannot be None"):
+            g.update_hessian_with_batch(None)
+        with self.assertRaisesRegex(ValueError, "cannot be empty"):
+            g.update_hessian_with_batch(
+                ops.array(np.empty((0, 7), dtype="float32"))
+            )
+
+    def test_num_samples_accumulates_correctly(self):
+        """Tests that the number of samples is accumulated correctly when
+        streaming updates are used."""
+        x = ops.array(np.random.randn(64, 7), "float32")
+        layer = layers.Dense(5, use_bias=False)
+        layer.build((None, 7))
+        g = GPTQ(layer)
+
+        g.update_hessian_with_batch(x[:5])
+        g.update_hessian_with_batch(x[5:30])
+        g.update_hessian_with_batch(x[30:])
+
+        self.assertEqual(g.num_samples, 64)
+
+    def test_numeric_stability_large_values(self):
+        """Tests numeric stability of hessian update with large input values."""
+        x = ops.array(1e6 * np.random.randn(32, 7), "float32")
+        layer = layers.Dense(5, use_bias=False)
+        layer.build((None, 7))
+
+        g = GPTQ(layer)
+        g.update_hessian_with_batch(x)
+
+        # Should be finite and symmetric
+        self.assertTrue(ops.all(ops.isfinite(g.hessian)))
+        self.assertTrue(ops.all(ops.equal(g.hessian, ops.transpose(g.hessian))))
+
+    def test_einsumdense_2d_kernel_hessian_shape(self):
+        x = layers.Input((7,))
+        y = layers.EinsumDense("ab,bc->ac", output_shape=(5,))(x)
+        model = keras.Model(x, y)
+        einsum_dense_layer = next(
+            l for l in model.layers if isinstance(l, layers.EinsumDense)
+        )
+
+        g = GPTQ(einsum_dense_layer)
+
+        # should infer rows==7
+        self.assertEqual(g.hessian.shape, (7, 7))
+
+    def test_einsumdense_3d_kernel_streaming_equals_big_batch(self):
+        """Tests that streaming updates to the Hessian are equivalent to a big
+        batch update."""
+        # Construct a tiny attention-like einsum with 3D kernel
+        x = layers.Input((7,))
+        qkv = layers.EinsumDense("bf,fhk->bhk", output_shape=(2, 3))(
+            x
+        )  # heads=2, head_dim=3
+        model = keras.Model(x, qkv)
+        einsum_dense_layer = next(
+            l for l in model.layers if isinstance(l, layers.EinsumDense)
+        )
+
+        x = ops.array(np.random.randn(50, 7), "float32")
+
+        g1 = GPTQ(einsum_dense_layer)
+        g1.update_hessian_with_batch(x)
+
+        g2 = GPTQ(einsum_dense_layer)
+        g2.update_hessian_with_batch(x[:20])
+        g2.update_hessian_with_batch(x[20:])
+
+        self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-6, atol=1e-6)

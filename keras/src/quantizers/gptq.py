@@ -87,46 +87,46 @@ class GPTQ:
                 pre-initialized Hessian matrix `self.hessian`.
         """
         if input_batch is None:
-            raise ValueError(f"Input tensor '{input_batch}' cannot be None.")
-
+            raise ValueError("Input tensor cannot be None.")
         if len(input_batch.shape) < 2:
             raise ValueError(
-                "Input tensor 'input_batch' must have a rank of at least 2 "
-                "(e.g., [batch, features]), but got rank "
-                f"{len(input_batch.shape)}."
+                "Input tensor must have rank >= 2 "
+                f"(got rank {len(input_batch.shape)})."
             )
         if ops.size(input_batch) == 0:
-            raise ValueError(f"Input tensor '{input_batch}' cannot be empty.")
+            raise ValueError("Input tensor cannot be empty.")
 
         if len(input_batch.shape) > 2:
+            # [batch, features]
             input_batch = ops.reshape(input_batch, (-1, input_batch.shape[-1]))
-        input_batch = ops.cast(input_batch, "float32")
+        x = ops.cast(input_batch, "float32")
 
-        if self.hessian.shape[0] != input_batch.shape[-1]:
+        # n and total as tensors
+        num_new_samples = ops.shape(x)[0]
+        num_prev_samples = self.num_samples
+        total_samples = ops.add(num_prev_samples, num_new_samples)
+
+        if self.hessian.shape[0] != x.shape[-1]:
             raise ValueError(
                 f"Hessian dimensions ({self.hessian.shape[0]}) do not "
-                f"match input features ({input_batch.shape[-1]})."
+                f"match input features ({x.shape[-1]})."
             )
 
-        current_hessian = ops.multiply(
-            2, ops.matmul(ops.transpose(input_batch), input_batch)
+        # gram_matrix: [features, features]
+        gram_matrix = ops.matmul(ops.transpose(x), x)
+
+        # Decay previous mean and add current per-sample contribution
+        # (factor 2/N)
+        if self.num_samples > 0:
+            self.hessian = ops.multiply(
+                self.hessian, ops.divide(num_prev_samples, total_samples)
+            )
+        self.hessian = ops.add(
+            self.hessian,
+            ops.multiply(ops.divide(2.0, total_samples), gram_matrix),
         )
 
-        if self.num_samples == 0:
-            self.hessian = current_hessian
-        else:
-            total_samples = ops.add(self.num_samples, input_batch.shape[0])
-            old_hessian_weight = ops.divide(self.num_samples, total_samples)
-            current_hessian_weight = ops.divide(
-                input_batch.shape[0], total_samples
-            )
-
-            # Update the accumulated Hessian
-            old_term = ops.multiply(self.hessian, old_hessian_weight)
-            current_term = ops.multiply(current_hessian, current_hessian_weight)
-            self.hessian = ops.add(old_term, current_term)
-
-        self.num_samples = ops.add(self.num_samples, input_batch.shape[0])
+        self.num_samples = ops.add(self.num_samples, x.shape[0] or 0)
 
     def quantize_and_correct_block(
         self,

@@ -1,13 +1,10 @@
-import numpy as np
 import pytest
 from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import models
-from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers import gptq_core
-from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
 
 VOCAB_SIZE = 100
@@ -109,7 +106,6 @@ class TestGPTQCore(testing.TestCase):
         model.quantize("gptq", config=config)
 
     @parameterized.named_parameters(
-        # Each tuple is (name, arg1, arg2, ...)
         (
             "no_embedding_layer",
             models.Sequential([layers.Dense(10)]),
@@ -134,7 +130,7 @@ class TestGPTQCore(testing.TestCase):
         ),
     )
     def test_apply_gptq_with_unsupported_architectures(
-        self, model, match_message
+        self, model, error_message
     ):
         """Tests that quantize fails correctly for various unsupported
         model architectures."""
@@ -142,21 +138,5 @@ class TestGPTQCore(testing.TestCase):
             model.build(input_shape=(None, 10))
 
         config = GPTQConfig(dataset=["test"], tokenizer=MockTokenizer())
-        with self.assertRaisesRegex(ValueError, match_message):
+        with self.assertRaisesRegex(ValueError, error_message):
             model.quantize("gptq", config=config)
-
-    def test_streaming_equals_big_batch(self):
-        # Build dummy inputs
-        X = ops.array(np.random.randn(100, 7), "float32")
-        # One-shot
-        layer_1 = layers.Dense(5, use_bias=False)
-        layer_1.build(input_shape=(None, 7))
-
-        g1 = GPTQ(layer_1)
-        g1.update_hessian_with_batch(X)
-
-        # Streamed
-        g2 = GPTQ(layer_1)
-        g2.update_hessian_with_batch(X[:40])
-        g2.update_hessian_with_batch(X[40:])
-        self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-5, atol=1e-5)
