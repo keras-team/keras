@@ -6,7 +6,20 @@ from keras.src import tree
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-def get_input_signature(model):
+def get_input_signature(model, max_sequence_length=512):
+    """Get input signature for model export.
+    
+    Args:
+        model: A Keras Model instance.
+        max_sequence_length: Maximum sequence length for sequence models (transformers).
+            Only applied when the model is detected as a sequence model based on input
+            names (e.g., 'token_ids', 'input_ids') or shape patterns. For non-sequence
+            models (e.g., image models), this parameter is ignored and dimensions remain
+            unbounded. Defaults to 512.
+    
+    Returns:
+        Input signature suitable for model export.
+    """
     if not isinstance(model, models.Model):
         raise TypeError(
             "The model must be a `keras.Model`. "
@@ -23,7 +36,7 @@ def get_input_signature(model):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
         # For subclassed models, try multiple approaches
-        input_signature = _infer_input_signature_from_model(model)
+        input_signature = _infer_input_signature_from_model(model, max_sequence_length)
         if not input_signature:
             # Fallback: Try to get from model.inputs if available
             if hasattr(model, 'inputs') and model.inputs:
@@ -37,10 +50,32 @@ def get_input_signature(model):
     return input_signature
 
 
-def _infer_input_signature_from_model(model):
+def _infer_input_signature_from_model(model, max_sequence_length=512):
     shapes_dict = getattr(model, "_build_shapes_dict", None)
     if not shapes_dict:
         return None
+
+    def _is_sequence_model():
+        """Detect if this is a sequence model based on input names and shapes."""
+        if not shapes_dict:
+            return False
+        
+        # Check input names for sequence model indicators
+        input_names = list(shapes_dict.keys())
+        sequence_indicators = ['token_ids', 'input_ids', 'tokens', 'input_tokens', 
+                             'padding_mask', 'attention_mask', 'segment_ids']
+        
+        if any(indicator in name.lower() for name in input_names for indicator in sequence_indicators):
+            return True
+            
+        # Check if any input has shape with 2+ dimensions where second dim is None
+        # This is typical for sequence models: (batch_size, seq_len, ...)
+        for shape in shapes_dict.values():
+            if isinstance(shape, (tuple, list)) and len(shape) >= 2:
+                if shape[0] is None and shape[1] is None:  # (None, None, ...)
+                    return True
+                    
+        return False
 
     def _make_input_spec(structure):
         # We need to turn wrapper structures like TrackingDict or _DictWrapper
@@ -49,14 +84,51 @@ def _infer_input_signature_from_model(model):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
             if all(isinstance(d, (int, type(None))) for d in structure):
+                # Handle shape bounding based on model type
+                is_sequence_model = _is_sequence_model()
+                bounded_shape = []
+                
+                for i, dim in enumerate(structure):
+                    if dim is None:
+                        if i == 0:
+                            # Always keep batch dimension as None
+                            bounded_shape.append(None)
+                        elif is_sequence_model and i == 1:
+                            # For sequence models, bound the sequence length dimension
+                            bounded_shape.append(max_sequence_length)
+                        else:
+                            # For non-sequence models or non-sequence dimensions, keep unbounded
+                            # This prevents breaking image models, etc.
+                            bounded_shape.append(None)
+                    else:
+                        bounded_shape.append(dim)
+                        
                 return layers.InputSpec(
-                    shape=(None,) + structure[1:], dtype=model.input_dtype
+                    shape=tuple(bounded_shape), dtype=model.input_dtype
                 )
             return tuple(_make_input_spec(v) for v in structure)
         elif isinstance(structure, list):
             if all(isinstance(d, (int, type(None))) for d in structure):
+                # Handle shape bounding based on model type
+                is_sequence_model = _is_sequence_model()
+                bounded_shape = []
+                
+                for i, dim in enumerate(structure):
+                    if dim is None:
+                        if i == 0:
+                            # Always keep batch dimension as None
+                            bounded_shape.append(None)
+                        elif is_sequence_model and i == 1:
+                            # For sequence models, bound the sequence length dimension
+                            bounded_shape.append(max_sequence_length)
+                        else:
+                            # For non-sequence models or non-sequence dimensions, keep unbounded
+                            bounded_shape.append(None)
+                    else:
+                        bounded_shape.append(dim)
+                        
                 return layers.InputSpec(
-                    shape=[None] + structure[1:], dtype=model.input_dtype
+                    shape=bounded_shape, dtype=model.input_dtype
                 )
             return [_make_input_spec(v) for v in structure]
         else:
