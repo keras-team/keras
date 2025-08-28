@@ -1,4 +1,5 @@
 import random
+from contextlib import contextmanager
 
 import numpy as np
 from absl import logging
@@ -10,6 +11,75 @@ from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_quantizer import GPTQQuantizer
+
+
+@contextmanager
+def stream_hessians(layers_map, gptq_objects):
+    """
+    Temporarily monkey-patch each target layer's `call` method so
+    that input activations are streamed into the GPTQ instance
+    running Hessian estimate at capture time.
+
+    On `__enter__`: For every (name, layer) in `layers_map`, replaces
+     `layer.call` with a wrapper that:
+     1) extracts the layer input from `*args`/`**kwargs`,
+     2) reshapes it to 2D `[-1, rows]` where
+      `rows = gptq_objects[name].rows`,
+     3) calls `gptq_objects[name].update_hessian_with_batch(x2d)`
+     4) delegates to the original `layer.call` and returns its
+      output.
+
+    On `__exit__`: All original `layer.call` methods are restored even if an
+     exception occurs.
+
+    * Space complexity: O(d**2) per layer (for the Hessian).
+    * No weights are modified; only GPTQ statistics are updated.
+
+    Args:
+        layers_map: Dict[str, Layer]. Mapping from logical layer names to
+         the Keras layers that should be patched during calibration. Keys must
+         match `gptq_objects`.
+        gptq_objects: Dict[str, GPTQ]. Mapping from names to GPTQ instances.
+
+    Yields:
+        None: The patched state is active only within the `with` block. After
+         exit, all layers are unpatched and safe to use normally.
+
+    Example:
+    ```python
+    >>> with stream_hessians(layers_map, gptq_objects):
+    ...     for sample in calibration_inputs:
+    ...         if len(sample.shape) == 2:
+    ...             sample = ops.expand_dims(sample, 0)
+    ...         _ = block(sample)   # hooks update Hessians on-the-fly
+    # <- original layer.call methods restored here
+    ```
+    """
+    original_calls = {}
+
+    def create_hook(name, original_call_func):
+        def hook(*args, **kwargs):
+            inp = args[0] if args else kwargs["inputs"]
+            # Explicitly reshape the input tensor to be 2D, with the
+            # second dimension matching the number of input features
+            # expected by the layer's kernel.
+            # This correctly handles inputs of any dimensionality
+            # (e.g., 3D or 4D).
+            num_features = gptq_objects[name].rows
+            input_2d = ops.reshape(inp, (-1, num_features))
+            gptq_objects[name].update_hessian_with_batch(input_2d)
+            return original_call_func(*args, **kwargs)
+
+        return hook
+
+    try:
+        for name, layer in layers_map.items():
+            original_calls[name] = layer.call
+            layer.call = create_hook(name, layer.call)
+        yield
+    finally:
+        for name, layer in layers_map.items():
+            layer.call = original_calls[name]
 
 
 def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
@@ -207,6 +277,8 @@ def apply_gptq_layerwise(
         embedding_layer(ops.convert_to_tensor(batch, dtype="int32"))
         for batch in dataloader
     ]
+    num_samples = min(num_samples, len(inputs))
+
     progbar = keras_utils.Progbar(target=len(transformer_blocks))
 
     for block_idx, block in enumerate(transformer_blocks):
@@ -224,62 +296,21 @@ def apply_gptq_layerwise(
                 name: GPTQ(layer) for name, layer in sub_layers_map.items()
             }
 
-            captured_inputs = {name: [] for name in sub_layers_map.keys()}
-            original_calls = {}
-
-            def create_hook(name, original_call_func):
-                """A factory for creating a hook to capture layer inputs."""
-
-                def hook(*args, **kwargs):
-                    if args:
-                        inp = args[0]
-                    else:
-                        inp = kwargs["inputs"]
-                    captured_inputs[name].append(inp)
-                    return original_call_func(*args, **kwargs)
-
-                return hook
-
-            try:
-                for name, layer in sub_layers_map.items():
-                    original_call = layer.call
-                    original_calls[name] = original_call
-                    layer.call = create_hook(name, original_call)
-
-                logging.info(f"Capturing activations for block {block_idx}...")
+            with stream_hessians(sub_layers_map, gptq_objects):
                 for sample_idx in range(num_samples):
                     current_input = inputs[sample_idx]
                     if len(current_input.shape) == 2:
                         current_input = ops.expand_dims(current_input, axis=0)
                     _ = block(current_input)
 
-            finally:
-                for name, layer in sub_layers_map.items():
-                    if name in original_calls:
-                        layer.call = original_calls[name]
-
-            logging.info(f"Building Hessians for block {block_idx}...")
             for name, gptq_object in gptq_objects.items():
-                layer_inputs = ops.concatenate(captured_inputs[name], axis=0)
-
-                # Explicitly reshape the input tensor to be 2D, with the second
-                # dimension matching the number of input features expected by
-                # the layer's kernel.
-                # This correctly handles inputs of any dimensionality
-                # (e.g., 3D or 4D).
-                num_features = gptq_object.rows
-                input_reshaped = ops.reshape(layer_inputs, (-1, num_features))
-                gptq_object.update_hessian_with_batch(input_reshaped)
-
-                quantizer = GPTQQuantizer(
+                logging.info(f"Quantizing {name}...")
+                gptq_object.quantizer = GPTQQuantizer(
                     weight_bits,
                     per_channel=True,
                     symmetric=symmetric,
                     group_size=group_size,
                 )
-            for name, gptq_object in gptq_objects.items():
-                logging.info(f"Quantizing {name}...")
-                gptq_object.quantizer = quantizer
                 gptq_object.quantize_and_correct_block(
                     hessian_damping=hessian_damping,
                     group_size=group_size,
@@ -287,7 +318,7 @@ def apply_gptq_layerwise(
                 )
                 gptq_object.free()
 
-            del gptq_objects, captured_inputs, original_calls
+            del gptq_objects
 
         if block_idx < len(transformer_blocks) - 1:
             logging.info(f"Generating inputs for block {block_idx + 1}...")

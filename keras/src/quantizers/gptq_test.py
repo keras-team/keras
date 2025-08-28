@@ -69,9 +69,7 @@ class GPTQTest(testing.TestCase):
         original_weights = np.copy(ops.convert_to_numpy(mock_layer.kernel))
 
         gptq_instance = GPTQ(mock_layer)
-        gptq_instance.quantizer = GPTQQuantizer(
-            weight_bits=4, symmetric=False
-        )
+        gptq_instance.quantizer = GPTQQuantizer(weight_bits=4, symmetric=False)
         calibration_data = rng.standard_normal(size=(128, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(calibration_data)
         gptq_instance.quantize_and_correct_block()
