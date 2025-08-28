@@ -3,3 +3,4 @@ from keras.src.export.openvino import export_openvino
 from keras.src.export.saved_model import ExportArchive
 from keras.src.export.saved_model import export_saved_model
 from keras.src.export.tfsm_layer import TFSMLayer
+from keras.src.export.lite_rt_exporter import LiteRTExporter

@@ -105,3 +105,28 @@ def convert_spec_to_tensor(spec, replace_none_number=None):
             s if s is not None else replace_none_number for s in shape
         )
     return ops.ones(shape, spec.dtype)
+
+
+# Import exporters here to avoid circular imports
+from keras.src.export.saved_model import export_saved_model
+from keras.src.export.lite_rt_exporter import LiteRTExporter
+
+# Registry for export formats
+EXPORT_FORMATS = {
+    "tf_saved_model": export_saved_model,
+    "lite_rt": LiteRTExporter,
+    # Add other formats as needed
+}
+
+
+def export_model(model, filepath, format="tf_saved_model", **kwargs):
+    """Export a model to the specified format."""
+    exporter_cls = EXPORT_FORMATS.get(format)
+    if exporter_cls is None:
+        raise ValueError(f"Unknown export format: {format}")
+    if format == "tf_saved_model":
+        # Handle tf_saved_model differently if it's a function
+        exporter_cls(model, filepath, **kwargs)
+    else:
+        exporter = exporter_cls(model, **kwargs)
+        exporter.export(filepath)
