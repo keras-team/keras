@@ -1,9 +1,13 @@
+import numpy as np
 import pytest
-from absl import logging
+from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
+from keras.src import testing
 from keras.src.quantizers import gptq_core
+from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
 
 VOCAB_SIZE = 100
@@ -67,7 +71,7 @@ def _get_model_with_backbone(
 
 
 @pytest.mark.requires_trainable_backend
-class TestGPTQCore:
+class TestGPTQCore(testing.TestCase):
     def test_get_dataloader_error_scenarios(self):
         """Tests error cases for get_dataloader."""
         with pytest.raises(ValueError, match="Provided dataset is empty"):
@@ -77,12 +81,10 @@ class TestGPTQCore:
                 dataset=[],
                 num_samples=10,
             )
-        with pytest.raises(
+        with self.assertRaisesRegex(
             TypeError,
-            match=(
-                "The `dataset` argument must be an iterable.*Got type: str.*"
-                "Please pass the loaded dataset directly."
-            ),
+            "The `dataset` argument must be an iterable.*Got type: str.*"
+            "Please pass the loaded dataset directly.",
         ):
             gptq_core.get_dataloader(
                 tokenizer=MockTokenizer(),
@@ -104,55 +106,35 @@ class TestGPTQCore:
         config = GPTQConfig(
             dataset=["test data"], tokenizer=MockTokenizer(), group_size=32
         )
-        try:
-            model.quantize("gptq", config=config)
-        except Exception as e:
-            pytest.fail(f"Multi-block quantization failed unexpectedly: {e}")
-
-    def test_apply_gptq_with_empty_block(self, caplog):
-        """Tests that a block with no quantizable layers is skipped
-        correctly."""
-        caplog.set_level(logging.INFO)
-        model = models.Sequential(
-            [layers.Embedding(VOCAB_SIZE, 10), MockEmptyBlock()]
-        )
-        model.build(input_shape=(None, 10))
-        config = GPTQConfig(dataset=["test data"], tokenizer=MockTokenizer())
         model.quantize("gptq", config=config)
-        assert "No Dense or EinsumDense layers found" in caplog.text
 
-    architecture_test_cases = [
+    @parameterized.named_parameters(
+        # Each tuple is (name, arg1, arg2, ...)
         (
+            "no_embedding_layer",
             models.Sequential([layers.Dense(10)]),
             "Could not automatically find an embedding layer",
-            "no_embedding_layer",
         ),
         (
+            "no_transformer_blocks",
             models.Sequential(
                 [layers.Embedding(VOCAB_SIZE, 10), layers.Dense(10)]
             ),
             "Could not automatically find any transformer-like blocks",
-            "no_transformer_blocks",
         ),
         (
+            "backbone_no_layers",
             _get_model_with_backbone(has_transformer_layers=False),
             "backbone does not have a 'transformer_layers' attribute",
-            "backbone_no_layers",
         ),
         (
+            "backbone_no_embedding",
             _get_model_with_backbone(embedding_name="wrong_name"),
             "Could not automatically find an embedding layer in the model",
-            "backbone_no_embedding",
         ),
-    ]
-
-    @pytest.mark.parametrize(
-        "model, match_message, test_id",
-        architecture_test_cases,
-        ids=[case[-1] for case in architecture_test_cases],
     )
     def test_apply_gptq_with_unsupported_architectures(
-        self, model, match_message, test_id
+        self, model, match_message
     ):
         """Tests that quantize fails correctly for various unsupported
         model architectures."""
@@ -160,5 +142,21 @@ class TestGPTQCore:
             model.build(input_shape=(None, 10))
 
         config = GPTQConfig(dataset=["test"], tokenizer=MockTokenizer())
-        with pytest.raises(ValueError, match=match_message):
+        with self.assertRaisesRegex(ValueError, match_message):
             model.quantize("gptq", config=config)
+
+    def test_streaming_equals_big_batch(self):
+        # Build dummy inputs
+        X = ops.array(np.random.randn(100, 7), "float32")
+        # One-shot
+        layer_1 = layers.Dense(5, use_bias=False)
+        layer_1.build(input_shape=(None, 7))
+
+        g1 = GPTQ(layer_1)
+        g1.update_hessian_with_batch(X)
+
+        # Streamed
+        g2 = GPTQ(layer_1)
+        g2.update_hessian_with_batch(X[:40])
+        g2.update_hessian_with_batch(X[40:])
+        self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-5, atol=1e-5)

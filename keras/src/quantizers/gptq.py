@@ -87,16 +87,16 @@ class GPTQ:
                 pre-initialized Hessian matrix `self.hessian`.
         """
         if input_batch is None:
-            raise ValueError("Input tensor 'input_batch' cannot be None.")
+            raise ValueError(f"Input tensor '{input_batch}' cannot be None.")
 
         if len(input_batch.shape) < 2:
             raise ValueError(
-                f"Input tensor 'input_batch' must have a rank of at least 2 "
-                f"(e.g., [batch, features]), but got rank "
+                "Input tensor 'input_batch' must have a rank of at least 2 "
+                "(e.g., [batch, features]), but got rank "
                 f"{len(input_batch.shape)}."
             )
         if ops.size(input_batch) == 0:
-            raise ValueError("Input tensor 'input_batch' cannot be empty.")
+            raise ValueError(f"Input tensor '{input_batch}' cannot be empty.")
 
         if len(input_batch.shape) > 2:
             input_batch = ops.reshape(input_batch, (-1, input_batch.shape[-1]))
@@ -104,8 +104,8 @@ class GPTQ:
 
         if self.hessian.shape[0] != input_batch.shape[-1]:
             raise ValueError(
-                f"Hessian dimensions ({self.hessian.shape[0]}) do not"
-                "match input features ({input_batch.shape[-1]})."
+                f"Hessian dimensions ({self.hessian.shape[0]}) do not "
+                f"match input features ({input_batch.shape[-1]})."
             )
 
         current_hessian = ops.multiply(
