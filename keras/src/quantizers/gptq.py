@@ -1,7 +1,8 @@
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-from keras.src.quantizers.gptq_quant import dequantize
+from keras.src.quantizers.gptq_quantizer import dequantize
+from keras.src.quantizers.gptq_quantizer import quantize
 
 
 class GPTQ:
@@ -261,20 +262,25 @@ class GPTQ:
                     )
 
                 # Quantize the current weight column
-                quantized_column = dequantize(
+                quantized_column = quantize(
                     ops.expand_dims(weight_column, 1),
                     self.quantizer.scale,
                     self.quantizer.zero,
                     self.quantizer.maxq,
+                )
+                dequantized_column = dequantize(
+                    quantized_column,
+                    self.quantizer.scale,
+                    self.quantizer.zero,
                 )[:, 0]
 
                 block_quantized = ops.slice_update(
                     block_quantized,
                     (0, col_idx),
-                    ops.expand_dims(quantized_column, axis=1),
+                    ops.expand_dims(dequantized_column, axis=1),
                 )
                 quantization_error = ops.divide(
-                    ops.subtract(weight_column, quantized_column),
+                    ops.subtract(weight_column, dequantized_column),
                     diagonal_element,
                 )
                 block_errors = ops.slice_update(
