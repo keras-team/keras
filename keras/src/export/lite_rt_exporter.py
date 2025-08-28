@@ -1,5 +1,6 @@
 import tensorflow as tf
 from keras.src.export.saved_model import ExportArchive  # Adjusted import based on available modules
+from keras.src.export.export_utils import get_input_signature
 from keras.src.utils import io_utils
 
 class LiteRTExporter:
@@ -15,11 +16,9 @@ class LiteRTExporter:
         if self.verbose:
             print("Starting custom LiteRT export...")
         
-        # Step 1: Get input signature (use _get_save_spec if not provided)
+        # Step 1: Get input signature (use get_input_signature if not provided)
         if self.input_signature is None:
-            input_signature = self.model._get_save_spec(dynamic_batch=True)
-            if input_signature is None:
-                raise ValueError("Unable to infer input signature. Provide `input_signature`.")
+            input_signature = get_input_signature(self.model)
         else:
             input_signature = self.input_signature
         
