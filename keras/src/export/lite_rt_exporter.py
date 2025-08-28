@@ -118,8 +118,9 @@ class LiteRTExporter:
             with tempfile.TemporaryDirectory() as temp_dir:
                 saved_model_path = os.path.join(temp_dir, "temp_saved_model")
                 
-                # Saving the concrete function is more reliable than saving the model directly.
-                tf.saved_model.save(concrete_fn, saved_model_path)
+                # Saving the model with the concrete function as a signature is more
+                # reliable as it ensures all trackable assets of the model are found.
+                tf.saved_model.save(self.model, saved_model_path, signatures=concrete_fn)
                 
                 converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_path)
                 
