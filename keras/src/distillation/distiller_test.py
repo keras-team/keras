@@ -395,12 +395,12 @@ class TestDistiller(TestCase):
             student_loss="sparse_categorical_crossentropy",
         )
 
-        # Test that get_student_model returns the same as direct access
+        # Test that student_model property returns the same as direct access
         student_direct = distiller.student
-        student_method = distiller.get_student_model()
+        student_property = distiller.student_model
 
-        self.assertIs(student_direct, student_method)
-        self.assertEqual(student_method.name, self.student.name)
+        self.assertIs(student_direct, student_property)
+        self.assertEqual(student_property.name, self.student.name)
 
     def test_distiller_serialization_and_saving(self):
         """Test Distiller serialization, saving, and loading."""
@@ -455,7 +455,8 @@ class TestDistiller(TestCase):
         required_keys = [
             "teacher",
             "student",
-            "strategy",
+            "strategies",
+            "strategy_weights",
             "student_loss_weight",
             "input_mapping",
             "output_mapping",
@@ -473,11 +474,11 @@ class TestDistiller(TestCase):
         # Verify reconstruction
         self.assertEqual(reconstructed_distiller.student_loss_weight, 0.7)
         self.assertIsInstance(
-            reconstructed_distiller.strategy, LogitsDistillation
+            reconstructed_distiller.strategies[0], LogitsDistillation
         )
 
         # Verify strategy parameters
-        self.assertEqual(reconstructed_distiller.strategy.temperature, 3.0)
+        self.assertEqual(reconstructed_distiller.strategies[0].temperature, 3.0)
 
         # Test that reconstructed distiller can be used for inference
         reconstructed_output = reconstructed_distiller(x_test)

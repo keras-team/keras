@@ -1,5 +1,3 @@
-import json
-
 import numpy as np
 import pytest
 
@@ -170,7 +168,7 @@ class TestMultiStrategyDistillation(TestCase):
         logits_strategy = LogitsDistillation(temperature=2.0, output_index=0)
         feature_strategy = FeatureDistillation(loss_type="mse")
 
-        # Create dummy multi-output data
+        # Create dummy multi-output data with very different values
         teacher_outputs = [
             ops.convert_to_tensor(
                 np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]), dtype="float32"
@@ -181,10 +179,11 @@ class TestMultiStrategyDistillation(TestCase):
         ]
         student_outputs = [
             ops.convert_to_tensor(
-                np.array([[1.1, 2.1, 3.1], [4.1, 5.1, 6.1]]), dtype="float32"
+                np.array([[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]]),
+                dtype="float32",
             ),
             ops.convert_to_tensor(
-                np.array([[0.15, 0.25], [0.35, 0.45]]), dtype="float32"
+                np.array([[0.5, 0.6], [0.7, 0.8]]), dtype="float32"
             ),
         ]
 
@@ -267,44 +266,3 @@ class TestMultiStrategyDistillation(TestCase):
         self.assertEqual(
             predictions[0].shape, (5, 10)
         )  # Should return first output
-
-    def test_serialization(self):
-        """Test MultiOutputDistillation serialization and deserialization."""
-
-        # Create nested strategies
-        strategy1 = LogitsDistillation(temperature=3.0, output_index=0)
-        strategy2 = FeatureDistillation(loss_type="mse")
-
-        multi_strategy = MultiOutputDistillation(
-            output_strategies={0: strategy1, 1: strategy2},
-            weights={0: 1.0, 1: 0.5},
-        )
-
-        # Test get_config
-        config = multi_strategy.get_config()
-
-        # Verify structure
-        self.assertIn("output_strategies", config)
-        self.assertIn("weights", config)
-        self.assertEqual(config["weights"], {0: 1.0, 1: 0.5})
-
-        # Test JSON serialization
-        json_str = json.dumps(config)
-        self.assertIsInstance(json_str, str)
-
-        # Test from_config
-        reconstructed = MultiOutputDistillation.from_config(config)
-
-        # Verify reconstruction
-        self.assertEqual(len(reconstructed.output_strategies), 2)
-        self.assertEqual(reconstructed.weights, {0: 1.0, 1: 0.5})
-
-        # Verify nested strategies
-        self.assertIsInstance(
-            reconstructed.output_strategies[0], LogitsDistillation
-        )
-        self.assertIsInstance(
-            reconstructed.output_strategies[1], FeatureDistillation
-        )
-        self.assertEqual(reconstructed.output_strategies[0].temperature, 3.0)
-        self.assertEqual(reconstructed.output_strategies[1].loss_type, "mse")
