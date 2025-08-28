@@ -14,6 +14,3 @@ from keras.src.distillation.strategies import (
 from keras.src.distillation.strategies import (
     LogitsDistillation as LogitsDistillation,
 )
-from keras.src.distillation.strategies import (
-    MultiOutputDistillation as MultiOutputDistillation,
-)

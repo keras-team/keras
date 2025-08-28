@@ -78,11 +78,13 @@ class TestDistiller(TestCase):
         # Check student_loss_weight
         self.assertEqual(self.distiller.student_loss_weight, 0.5)
 
-        # Check strategy
-        self.assertIsInstance(self.distiller.strategy, LogitsDistillation)
+        # Check strategies (should be a list with one strategy)
+        self.assertIsInstance(self.distiller.strategies, list)
+        self.assertEqual(len(self.distiller.strategies), 1)
+        self.assertIsInstance(self.distiller.strategies[0], LogitsDistillation)
 
         # Check that strategy has the correct temperature
-        self.assertEqual(self.distiller.strategy.temperature, 2.0)
+        self.assertEqual(self.distiller.strategies[0].temperature, 2.0)
 
         # Check that model is compiled
         self.assertIsNotNone(self.distiller.optimizer)
@@ -147,6 +149,70 @@ class TestDistiller(TestCase):
                 teacher=self.teacher,
                 student="not_a_model",
                 strategy=self.strategy,
+            )
+
+    def test_multi_strategy_functionality(self):
+        """Test multi-strategy functionality."""
+        # Create multiple strategies
+        strategies = [
+            LogitsDistillation(temperature=3.0, output_index=0),
+            LogitsDistillation(temperature=2.0, output_index=0),
+        ]
+        strategy_weights = [1.0, 0.5]
+
+        # Create distiller with multiple strategies
+        distiller = Distiller(
+            teacher=self.teacher,
+            student=self.student,
+            strategies=strategies,
+            strategy_weights=strategy_weights,
+            student_loss_weight=0.5,
+            optimizer="adam",
+            student_loss="sparse_categorical_crossentropy",
+        )
+
+        # Check that strategies are stored correctly
+        self.assertEqual(len(distiller.strategies), 2)
+        self.assertEqual(distiller.strategy_weights, [1.0, 0.5])
+        self.assertFalse(distiller.single_strategy)
+
+        # Test that both strategies have correct temperatures
+        self.assertEqual(distiller.strategies[0].temperature, 3.0)
+        self.assertEqual(distiller.strategies[1].temperature, 2.0)
+
+    def test_multi_strategy_validation(self):
+        """Test multi-strategy validation."""
+        strategies = [
+            LogitsDistillation(temperature=3.0, output_index=0),
+            LogitsDistillation(temperature=2.0, output_index=0),
+        ]
+
+        # Test with mismatched weights
+        with self.assertRaises(ValueError):
+            Distiller(
+                teacher=self.teacher,
+                student=self.student,
+                strategies=strategies,
+                strategy_weights=[1.0],  # Wrong length
+                student_loss_weight=0.5,
+            )
+
+        # Test with both strategy and strategies
+        with self.assertRaises(ValueError):
+            Distiller(
+                teacher=self.teacher,
+                student=self.student,
+                strategy=self.strategy,
+                strategies=strategies,
+                student_loss_weight=0.5,
+            )
+
+        # Test with neither strategy nor strategies
+        with self.assertRaises(ValueError):
+            Distiller(
+                teacher=self.teacher,
+                student=self.student,
+                student_loss_weight=0.5,
             )
 
     def test_student_loss_weighting(self):

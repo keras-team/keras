@@ -53,9 +53,10 @@ class Distiller(Model):
       learn better internal representations. Often leads to better performance
       than logits-only.
 
-    - `MultiOutputDistillation`: For models with multiple outputs (e.g.,
-      object detection with classification and regression heads). Allows
-      different distillation strategies for different outputs.
+    - Multiple Strategies: For models with multiple outputs (e.g., object
+      detection with classification and regression heads), pass a list of
+      strategies with corresponding weights. Each strategy will be applied to
+      its corresponding output.
 
     - Custom Strategies: Create custom strategies by subclassing
       `BaseDistillationStrategy` and overriding the `compute_loss` method.
@@ -66,9 +67,14 @@ class Distiller(Model):
         student: A `keras.Model` to be trained through distillation. This model
             will learn from both ground truth labels and the teacher's
             predictions.
-        strategy: Distillation strategy to apply. Can be `LogitsDistillation`,
-            `FeatureDistillation`, `MultiOutputDistillation`, or a custom
+        strategy: Single distillation strategy to apply. Can be
+            `LogitsDistillation`, `FeatureDistillation`, or a custom strategy.
+            Use `strategies` for multiple strategies.
+        strategies: List of distillation strategies to apply. Each strategy will
+            be applied to its corresponding output. Use `strategy` for a single
             strategy.
+        strategy_weights: List of weights for each strategy. Must have the same
+            length as `strategies`. If None, equal weights are used.
         student_loss_weight: Weight for the student's supervised loss component.
             Must be between 0 and 1. Higher values emphasize ground truth
             labels, lower values emphasize teacher predictions. Defaults to 0.5.
@@ -107,26 +113,25 @@ class Distiller(Model):
     # Train the distiller
     distiller.fit(x_train, y_train, epochs=10, validation_split=0.2)
 
-    # Get the trained student model
-    trained_student = distiller.get_student_model()
+    # Access the trained student model
+    trained_student = distiller.student_model
     ```
 
     For multi-output models:
 
     ```python
-    # Create multi-output strategy
-    multi_strategy = MultiOutputDistillation(
-        output_strategies={
-            0: LogitsDistillation(temperature=3.0, output_index=0),
-            1: LogitsDistillation(temperature=2.0, output_index=1)
-        },
-        weights={0: 1.0, 1: 0.5}  # Weight classification more heavily
-    )
+    # Create multiple strategies for different outputs
+    strategies = [
+        LogitsDistillation(temperature=3.0, output_index=0),
+        LogitsDistillation(temperature=2.0, output_index=1)
+    ]
+    strategy_weights = [1.0, 0.5]  # Weight classification more heavily
 
     distiller = Distiller(
         teacher=teacher,
         student=student,
-        strategy=multi_strategy,
+        strategies=strategies,
+        strategy_weights=strategy_weights,
         student_loss_weight=0.5,
         optimizer='adam',
         student_loss=['sparse_categorical_crossentropy', 'mse']
@@ -138,7 +143,9 @@ class Distiller(Model):
         self,
         teacher,
         student,
-        strategy,
+        strategy=None,
+        strategies=None,
+        strategy_weights=None,
         student_loss_weight=0.5,
         optimizer="adam",
         student_loss="sparse_categorical_crossentropy",
@@ -214,17 +221,51 @@ class Distiller(Model):
         # Validate architecture compatibility for feature distillation
         self._validate_architecture_compatibility(teacher, student)
 
-        # Store strategy (single strategy only)
-        if strategy is None:
+        # Handle strategy configuration
+        if strategy is not None and strategies is not None:
             raise ValueError(
-                "Distillation strategy cannot be None. "
-                "Please provide a valid strategy such as LogitsDistillation, "
-                "FeatureDistillation, or MultiOutputDistillation."
+                "Cannot specify both 'strategy' and 'strategies'. "
+                "Use 'strategy' for single strategy or 'strategies' for "
+                "multiple strategies."
             )
-        self.strategy = strategy
+
+        if strategy is not None:
+            # Single strategy mode
+            self.strategies = [strategy]
+            self.strategy_weights = [1.0]
+            self.single_strategy = True
+        elif strategies is not None:
+            # Multiple strategies mode
+            if not isinstance(strategies, (list, tuple)):
+                raise ValueError(
+                    f"strategies must be a list or tuple, got "
+                    f"{type(strategies)}"
+                )
+
+            self.strategies = strategies
+
+            # Set default weights if not provided
+            if strategy_weights is None:
+                self.strategy_weights = [1.0] * len(strategies)
+            else:
+                if len(strategy_weights) != len(strategies):
+                    raise ValueError(
+                        f"Number of strategy_weights ({len(strategy_weights)}) "
+                        f"must match number of strategies ({len(strategies)})"
+                    )
+                self.strategy_weights = strategy_weights
+
+            self.single_strategy = False
+        else:
+            raise ValueError(
+                "Must specify either 'strategy' or 'strategies'. "
+                "Please provide a valid strategy such as LogitsDistillation, "
+                "FeatureDistillation, or a list of strategies."
+            )
 
         # Validate strategy-specific compatibility
-        self._validate_strategy_compatibility(teacher, student)
+        for strategy in self.strategies:
+            self._validate_strategy_compatibility(teacher, student, strategy)
 
         # Freeze teacher model
         self.teacher.trainable = False
@@ -398,11 +439,11 @@ class Distiller(Model):
         # that require specific architectural compatibility
         pass
 
-    def _validate_strategy_compatibility(self, teacher, student):
+    def _validate_strategy_compatibility(self, teacher, student, strategy):
         """Validate that the strategy is compatible with the teacher and student
         models."""
-        if hasattr(self.strategy, "validate_model_compatibility"):
-            self.strategy.validate_model_compatibility(teacher, student)
+        if hasattr(strategy, "validate_model_compatibility"):
+            strategy.validate_model_compatibility(teacher, student)
 
     def _shapes_are_compatible(self, shape1, shape2):
         """Check if two shapes are compatible (allowing for batch dimension
@@ -432,12 +473,13 @@ class Distiller(Model):
                 return False
         return True
 
-    def get_student_model(self):
-        """Get the trained student model for independent use.
+    @property
+    def student_model(self):
+        """The trained student model for independent use.
 
-        This method returns the student model that has been trained through
-        the distillation process. The returned model can be used independently
-        for inference, further training, or saving.
+        This property provides access to the student model that has been trained
+        through the distillation process. The student model can be used
+        independently for inference, further training, or saving.
 
         Returns:
             keras.Model: The trained student model.
@@ -447,8 +489,8 @@ class Distiller(Model):
             # After training the distiller
             distiller.fit(x_train, y_train, epochs=10)
 
-            # Get the trained student model
-            trained_student = distiller.get_student_model()
+            # Access the trained student model
+            trained_student = distiller.student_model
 
             # Use the student model independently
             predictions = trained_student.predict(x_test)
@@ -605,10 +647,30 @@ class Distiller(Model):
             # Get teacher outputs
             teacher_outputs = self.teacher(x, training=False)
 
-            # Apply the single strategy
-            distillation_loss = self.strategy.compute_loss(
-                teacher_outputs, y_pred
-            )
+            # Apply strategies
+            for i, (strategy, weight) in enumerate(
+                zip(self.strategies, self.strategy_weights)
+            ):
+                # Get the corresponding output for this strategy
+                if isinstance(y_pred, (list, tuple)) and i < len(y_pred):
+                    strategy_output = y_pred[i]
+                else:
+                    strategy_output = y_pred
+
+                if isinstance(teacher_outputs, (list, tuple)) and i < len(
+                    teacher_outputs
+                ):
+                    strategy_teacher_output = teacher_outputs[i]
+                else:
+                    strategy_teacher_output = teacher_outputs
+
+                # Compute loss for this strategy
+                strategy_loss = strategy.compute_loss(
+                    strategy_teacher_output, strategy_output
+                )
+
+                # Apply weight and add to total
+                distillation_loss += weight * strategy_loss
 
             # Ensure distillation_loss is a scalar
             if (
@@ -658,9 +720,11 @@ class Distiller(Model):
                 "student": serialization_lib.serialize_keras_object(
                     self.student
                 ),
-                "strategy": serialization_lib.serialize_keras_object(
-                    self.strategy
-                ),
+                "strategies": [
+                    serialization_lib.serialize_keras_object(strategy)
+                    for strategy in self.strategies
+                ],
+                "strategy_weights": self.strategy_weights,
                 "student_loss_weight": self.student_loss_weight,
                 "input_mapping": self.input_mapping,
                 "output_mapping": self.output_mapping,
@@ -678,7 +742,8 @@ class Distiller(Model):
         config["student"] = serialization_lib.deserialize_keras_object(
             config["student"]
         )
-        config["strategy"] = serialization_lib.deserialize_keras_object(
-            config["strategy"]
-        )
+        config["strategies"] = [
+            serialization_lib.deserialize_keras_object(strategy)
+            for strategy in config["strategies"]
+        ]
         return cls(**config)

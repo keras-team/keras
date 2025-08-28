@@ -8,7 +8,6 @@ from keras import ops
 from keras.src.distillation.distiller import Distiller
 from keras.src.distillation.strategies import FeatureDistillation
 from keras.src.distillation.strategies import LogitsDistillation
-from keras.src.distillation.strategies import MultiOutputDistillation
 from keras.src.testing import TestCase
 
 
@@ -162,23 +161,14 @@ class TestFeatureDistillation(TestCase):
 
 
 @pytest.mark.requires_trainable_backend
-class TestMultiOutputDistillation(TestCase):
-    """Essential test cases for MultiOutputDistillation strategy."""
+class TestMultiStrategyDistillation(TestCase):
+    """Essential test cases for multi-strategy distillation."""
 
-    def test_multi_output_distillation_end_to_end(self):
-        """Test multi-output distillation end-to-end."""
+    def test_multi_strategy_distillation_end_to_end(self):
+        """Test multi-strategy distillation end-to-end."""
         # Create strategies for different outputs
         logits_strategy = LogitsDistillation(temperature=2.0, output_index=0)
         feature_strategy = FeatureDistillation(loss_type="mse")
-
-        # Create multi-output strategy
-        strategy = MultiOutputDistillation(
-            output_strategies={
-                0: logits_strategy,
-                1: feature_strategy,
-            },
-            weights={0: 1.0, 1: 0.5},
-        )
 
         # Create dummy multi-output data
         teacher_outputs = [
@@ -198,15 +188,23 @@ class TestMultiOutputDistillation(TestCase):
             ),
         ]
 
-        # Compute loss
-        loss = strategy.compute_loss(teacher_outputs, student_outputs)
+        # Test individual strategies
+        logits_loss = logits_strategy.compute_loss(
+            [teacher_outputs[0]], [student_outputs[0]]
+        )
+        feature_loss = feature_strategy.compute_loss(
+            [teacher_outputs[1]], [student_outputs[1]]
+        )
 
-        # Check that loss is a scalar tensor
-        self.assertEqual(len(loss.shape), 0)
+        # Check that losses are scalar tensors
+        self.assertEqual(len(logits_loss.shape), 0)
+        self.assertEqual(len(feature_loss.shape), 0)
 
-        # Check that loss is finite and positive
-        self.assertTrue(ops.isfinite(loss))
-        self.assertGreater(loss, 0.0)
+        # Check that losses are finite and positive
+        self.assertTrue(ops.isfinite(logits_loss))
+        self.assertTrue(ops.isfinite(feature_loss))
+        self.assertGreater(logits_loss, 0.0)
+        self.assertGreater(feature_loss, 0.0)
 
     def test_end_to_end_with_multi_output_models(self):
         """Test end-to-end training with multi-output models."""
@@ -219,20 +217,19 @@ class TestMultiOutputDistillation(TestCase):
         teacher.build((None, 5))
         student.build((None, 5))
 
-        # Create multi-output distillation strategy
-        multi_strategy = MultiOutputDistillation(
-            output_strategies={
-                0: LogitsDistillation(temperature=2.0, output_index=0),
-                1: FeatureDistillation(loss_type="mse"),
-            },
-            weights={0: 1.0, 1: 0.5},
-        )
+        # Create strategies list
+        strategies = [
+            LogitsDistillation(temperature=2.0, output_index=0),
+            FeatureDistillation(loss_type="mse"),
+        ]
+        strategy_weights = [1.0, 0.5]
 
-        # Create distiller
+        # Create distiller with strategies list
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=multi_strategy,
+            strategies=strategies,
+            strategy_weights=strategy_weights,
             student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
             student_loss=[
