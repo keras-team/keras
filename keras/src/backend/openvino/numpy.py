@@ -863,6 +863,10 @@ def full_like(x, fill_value, dtype=None):
     return OpenVINOKerasTensor(res)
 
 
+def gcd(x1, x2):
+    raise NotImplementedError("`gcd` is not supported with openvino backend")
+
+
 def greater(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):

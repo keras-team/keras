@@ -1535,10 +1535,9 @@ def gcd(x1, x2):
     x1 = tf.convert_to_tensor(x1)
     x2 = tf.convert_to_tensor(x2)
 
-    if x1.dtype.size < x2.dtype.size:
-        x1 = tf.cast(x1, x2.dtype)
-    elif x2.dtype.size < x1.dtype.size:
-        x2 = tf.cast(x2, x1.dtype)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
 
     if not x1.dtype.is_integer:
         raise TypeError("Arguments to gcd must be integers.")
@@ -1551,9 +1550,22 @@ def gcd(x1, x2):
         return tf.reduce_any(b != 0)
 
     def body(a, b):
-        return b, tf.math.floormod(a, b)
+        b_safe = tf.where(tf.equal(b, 0), tf.ones_like(b), b)
+        a, b = (
+            tf.where(tf.not_equal(b, 0), b, a),
+            tf.where(
+                tf.not_equal(b, 0),
+                tf.math.floormod(a, b_safe),
+                tf.zeros_like(b),
+            ),
+        )
+        return (tf.where(a < b, b, a), tf.where(a < b, a, b))
 
-    gcd_val, _ = tf.while_loop(cond, body, [tf.abs(x1), tf.abs(x2)])
+    if dtype not in [tf.uint8, tf.uint16, tf.uint32, tf.uint64]:
+        x1 = tf.abs(x1)
+        x2 = tf.abs(x2)
+
+    gcd_val, _ = tf.while_loop(cond, body, [x1, x2])
     return gcd_val
 
 

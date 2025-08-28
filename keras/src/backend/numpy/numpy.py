@@ -665,7 +665,9 @@ def full_like(x, fill_value, dtype=None):
 def gcd(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return np.gcd(x1, x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.gcd(x1, x2).astype(dtype)
 
 
 def greater(x1, x2):
