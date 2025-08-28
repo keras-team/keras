@@ -4,6 +4,8 @@ from keras.src import models
 from keras.src import ops
 from keras.src import tree
 from keras.src.utils.module_utils import tensorflow as tf
+# Import exporters here to avoid circular imports
+from keras.src.export.saved_model import export_saved_model
 
 
 def get_input_signature(model):
@@ -107,23 +109,33 @@ def convert_spec_to_tensor(spec, replace_none_number=None):
     return ops.ones(shape, spec.dtype)
 
 
-# Import exporters here to avoid circular imports
-from keras.src.export.saved_model import export_saved_model
-from keras.src.export.lite_rt_exporter import LiteRTExporter
-
 # Registry for export formats
 EXPORT_FORMATS = {
-    "tf_saved_model": export_saved_model,
-    "lite_rt": LiteRTExporter,
+    "tf_saved_model": export_saved_model,  # Direct import since it's already imported
+    "lite_rt": "keras.src.export.lite_rt_exporter:LiteRTExporter",
     # Add other formats as needed
 }
 
 
+def _get_exporter(format_name):
+    """Lazy import exporter to avoid circular imports."""
+    if format_name not in EXPORT_FORMATS:
+        raise ValueError(f"Unknown export format: {format_name}")
+
+    exporter = EXPORT_FORMATS[format_name]
+    if isinstance(exporter, str):
+        # Lazy import for string references
+        module_path, attr_name = exporter.split(":")
+        module = __import__(module_path, fromlist=[attr_name])
+        return getattr(module, attr_name)
+    else:
+        # Direct reference
+        return exporter
+
+
 def export_model(model, filepath, format="tf_saved_model", **kwargs):
     """Export a model to the specified format."""
-    exporter_cls = EXPORT_FORMATS.get(format)
-    if exporter_cls is None:
-        raise ValueError(f"Unknown export format: {format}")
+    exporter_cls = _get_exporter(format)
     if format == "tf_saved_model":
         # Handle tf_saved_model differently if it's a function
         exporter_cls(model, filepath, **kwargs)
