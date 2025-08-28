@@ -20,9 +20,7 @@ def get_input_signature(model):
             "before export."
         )
     if isinstance(model, models.Functional):
-        input_signature = [
-            tree.map_structure(make_input_spec, model._inputs_struct)
-        ]
+        input_signature = tree.map_structure(make_input_spec, model._inputs_struct)
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
