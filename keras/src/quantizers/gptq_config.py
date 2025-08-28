@@ -1,7 +1,4 @@
-from absl import logging
-
 from keras.src.api_export import keras_export
-from keras.src.quantizers.gptq_core import quantize_model
 
 
 @keras_export("keras.quantizers.GPTQConfig")
@@ -157,13 +154,3 @@ class GPTQConfig:
         self.group_size = group_size
         self.symmetric = symmetric
         self.activation_order = activation_order
-
-    def quantize(self, model):
-        """
-        Applies GPTQ quantization to the provided model using this
-        configuration.
-        """
-        logging.info("Initiating quantization from GPTQConfig...")
-        # The core logic is now delegated to gptqutils, which will handle
-        # the dynamic imports and data loading.
-        quantize_model(model=model, config=self)

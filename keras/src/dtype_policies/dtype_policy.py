@@ -83,6 +83,8 @@ class DTypePolicy:
             return "float16", "float32"
         elif name == "mixed_bfloat16":
             return "bfloat16", "float32"
+        elif name == "gptq":
+            return "int8", "int8"
         try:
             dtype = backend.standardize_dtype(name)
             return dtype, dtype
@@ -350,7 +352,11 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
-    if policy.startswith("int8") or policy.startswith("int4"):
+    if (
+        policy.startswith("int8")
+        or policy.startswith("int4")
+        or policy.startswith("gptq")
+    ):
         return QuantizedDTypePolicy(mode, source_name)
     elif policy.startswith("float8"):
         return QuantizedFloat8DTypePolicy(mode, source_name)

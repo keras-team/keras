@@ -104,10 +104,7 @@ class TestGPTQCore:
         config = GPTQConfig(
             dataset=["test data"], tokenizer=MockTokenizer(), group_size=32
         )
-        try:
-            model.quantize("gptq", config=config)
-        except Exception as e:
-            pytest.fail(f"Multi-block quantization failed unexpectedly: {e}")
+        model.quantize("gptq", config=config)
 
     def test_apply_gptq_with_empty_block(self, caplog):
         """Tests that a block with no quantizable layers is skipped

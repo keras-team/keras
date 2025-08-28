@@ -9,7 +9,7 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptq_quant import GPTQQuantization
+from keras.src.quantizers.gptq_quant import GPTQQuantizer
 
 
 def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
@@ -93,16 +93,7 @@ def find_layers_in_block(block):
     return found_layers
 
 
-def apply_gptq_layerwise(
-    model,
-    dataloader,
-    num_samples,
-    hessian_damping,
-    group_size,
-    symmetric,
-    activation_order,
-    weight_bits,
-):
+def apply_gptq_layerwise(model, dataloader, config):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
     This function is designed to work with common transformer architectures,
@@ -134,26 +125,21 @@ def apply_gptq_layerwise(
             attempt to automatically discover its structure.
         dataloader: An iterable providing calibration data. Each item should
             be a batch of token IDs suitable for the model's embedding layer.
-        num_samples: (int) The number of samples from the dataloader to use for
-            calibration.
-        hessian_damping: (float) The percentage of dampening to add to the
-            Hessian diagonal for stabilization during inverse calculation.
-            A value of 0.01 is common.
-        group_size: (int) The size of the groups to use for quantization. A
-            value of 128 means that 128 weights will share the same scaling
-            factor. Use -1 for per-channel quantization.
-        symmetric: (bool) If True, symmetric quantization is used. Otherwise,
-            asymmetric quantization is used.
-        activation_order: (bool) If True, reorders the weight columns based on
-            activation magnitude, which can improve quantization accuracy.
-        weight_bits: (int) The number of bits to use for the quantized weights,
-            e.g., 4 for 4-bit quantization.
+        config: A `GPTQConfiguration` object.
 
     Raises:
         ValueError: If the function cannot automatically find an embedding
             layer or any transformer-like blocks to quantize within the model.
     """
     logging.info("Starting model quantization...")
+
+    num_samples = config.num_samples
+    hessian_damping = config.hessian_damping
+    group_size = config.group_size
+    symmetric = config.symmetric
+    activation_order = config.activation_order
+    weight_bits = config.weight_bits
+
     embedding_layer = None
     transformer_blocks = []
     if hasattr(model, "backbone"):
@@ -221,7 +207,8 @@ def apply_gptq_layerwise(
         else:
             logging.info(f"Found layers: {list(sub_layers_map.keys())}")
             gptq_objects = {
-                name: GPTQ(layer) for name, layer in sub_layers_map.items()
+                name: GPTQ(layer, config)
+                for name, layer in sub_layers_map.items()
             }
 
             captured_inputs = {name: [] for name in sub_layers_map.keys()}
@@ -271,7 +258,7 @@ def apply_gptq_layerwise(
                 input_reshaped = ops.reshape(layer_inputs, (-1, num_features))
                 gptq_object.update_hessian_with_batch(input_reshaped)
 
-                quantizer = GPTQQuantization(
+                quantizer = GPTQQuantizer(
                     weight_bits,
                     per_channel=True,
                     symmetric=symmetric,
@@ -304,7 +291,7 @@ def apply_gptq_layerwise(
     logging.info("Quantization process complete.")
 
 
-def quantize_model(model, config):
+def apply_gptq(model, config):
     """
     Top-level function to quantize a Keras model using GPTQ.
     """
@@ -323,13 +310,4 @@ def quantize_model(model, config):
     # is now a NumPy array, which can be sliced and reused.
     calibration_dataloader = full_dataloader[: config.num_samples]
 
-    apply_gptq_layerwise(
-        model,
-        calibration_dataloader,  # Use the calibration slice
-        config.num_samples,  # Use the configured number of samples
-        config.hessian_damping,
-        config.group_size,
-        config.symmetric,
-        config.activation_order,
-        config.weight_bits,
-    )
+    apply_gptq_layerwise(model, calibration_dataloader, config)
