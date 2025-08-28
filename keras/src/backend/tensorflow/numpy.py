@@ -1531,6 +1531,44 @@ def full_like(x, fill_value, dtype=None):
     return tf.broadcast_to(fill_value, tf.shape(x))
 
 
+def gcd(x1, x2):
+    x1 = tf.convert_to_tensor(x1)
+    x2 = tf.convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    if not x1.dtype.is_integer:
+        raise TypeError("Arguments to gcd must be integers.")
+
+    target_shape = tf.broadcast_static_shape(x1.shape, x2.shape)
+    x1 = tf.broadcast_to(x1, target_shape)
+    x2 = tf.broadcast_to(x2, target_shape)
+
+    def cond(a, b):
+        return tf.reduce_any(b != 0)
+
+    def body(a, b):
+        b_safe = tf.where(tf.equal(b, 0), tf.ones_like(b), b)
+        a, b = (
+            tf.where(tf.not_equal(b, 0), b, a),
+            tf.where(
+                tf.not_equal(b, 0),
+                tf.math.floormod(a, b_safe),
+                tf.zeros_like(b),
+            ),
+        )
+        return (tf.where(a < b, b, a), tf.where(a < b, a, b))
+
+    if dtype not in [tf.uint8, tf.uint16, tf.uint32, tf.uint64]:
+        x1 = tf.abs(x1)
+        x2 = tf.abs(x2)
+
+    gcd_val, _ = tf.while_loop(cond, body, [x1, x2])
+    return gcd_val
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

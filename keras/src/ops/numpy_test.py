@@ -220,6 +220,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.full_like(x, 2).shape, (None, 3, 3))
 
+    def test_gcd(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.gcd(x, y).shape, (2, 3))
+
     def test_greater(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
