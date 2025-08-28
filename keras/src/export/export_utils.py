@@ -22,12 +22,18 @@ def get_input_signature(model):
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
+        # For subclassed models, try multiple approaches
         input_signature = _infer_input_signature_from_model(model)
-        if not input_signature or not model._called:
-            raise ValueError(
-                "The model provided has never called. "
-                "It must be called at least once before export."
-            )
+        if not input_signature:
+            # Fallback: Try to get from model.inputs if available
+            if hasattr(model, 'inputs') and model.inputs:
+                input_signature = tree.map_structure(make_input_spec, model.inputs)
+            elif not model._called:
+                raise ValueError(
+                    "The model provided has never been called and has no "
+                    "detectable input structure. It must be called at least once "
+                    "before export, or you must provide explicit input_signature."
+                )
     return input_signature
 
 
@@ -58,7 +64,22 @@ def _infer_input_signature_from_model(model):
                 f"Unsupported type {type(structure)} for {structure}"
             )
 
-    return [_make_input_spec(value) for value in shapes_dict.values()]
+    # Try to reconstruct the input structure from build shapes
+    if len(shapes_dict) == 1:
+        # Single input case
+        return _make_input_spec(list(shapes_dict.values())[0])
+    else:
+        # Multiple inputs - try to determine if it's a dict or list structure
+        # For Keras-Hub models like Gemma3, inputs are typically dictionaries
+        input_keys = list(shapes_dict.keys())
+        
+        # Common patterns for multi-input models
+        if any(key in ['token_ids', 'padding_mask', 'input_ids', 'attention_mask'] for key in input_keys):
+            # Dictionary input structure (common for transformers)
+            return {key: _make_input_spec(shape) for key, shape in shapes_dict.items()}
+        else:
+            # List input structure
+            return [_make_input_spec(shape) for shape in shapes_dict.values()]
 
 
 def make_input_spec(x):
