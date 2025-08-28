@@ -4,8 +4,6 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.export.export_utils import get_input_signature
-from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -358,6 +356,7 @@ class ExportArchive(BackendExportArchive):
             self._endpoint_names.append(name)
             return decorated_fn
 
+        from keras.src.export.export_utils import make_tf_tensor_spec
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
         )
@@ -415,6 +414,7 @@ class ExportArchive(BackendExportArchive):
                     f"the jax backend. Current backend: {backend.backend()}"
                 )
 
+        from keras.src.export.export_utils import make_tf_tensor_spec
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
         )
@@ -648,6 +648,7 @@ def export_saved_model(
         verbose = True  # Defaults to `True` for all backends.
     export_archive = ExportArchive()
     if input_signature is None:
+        from keras.src.export.export_utils import get_input_signature
         input_signature = get_input_signature(model)
 
     export_archive.track_and_add_endpoint(

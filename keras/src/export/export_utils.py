@@ -4,8 +4,6 @@ from keras.src import models
 from keras.src import ops
 from keras.src import tree
 from keras.src.utils.module_utils import tensorflow as tf
-# Import exporters here to avoid circular imports
-from keras.src.export.saved_model import export_saved_model
 
 
 def get_input_signature(model):
@@ -109,7 +107,7 @@ def convert_spec_to_tensor(spec, replace_none_number=None):
 
 # Registry for export formats
 EXPORT_FORMATS = {
-    "tf_saved_model": export_saved_model,  # Direct import since it's already imported
+    "tf_saved_model": "keras.src.export.saved_model:export_saved_model",
     "lite_rt": "keras.src.export.lite_rt_exporter:LiteRTExporter",
     # Add other formats as needed
 }
