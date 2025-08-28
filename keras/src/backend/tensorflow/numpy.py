@@ -1559,7 +1559,7 @@ def gcd(x1, x2):
                 tf.zeros_like(b),
             ),
         )
-        return (tf.where(a < b, b, a), tf.where(a < b, a, b))
+        return tf.maximum(a, b), tf.minimum(a, b)
 
     if dtype not in [tf.uint8, tf.uint16, tf.uint32, tf.uint64]:
         x1 = tf.abs(x1)
