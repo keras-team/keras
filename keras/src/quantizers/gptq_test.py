@@ -6,7 +6,10 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
+from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_quantizer import GPTQQuantizer
+from keras.src.quantizers.gptq_quantizer import dequantize
+from keras.src.quantizers.gptq_quantizer import quantize
 
 
 def _get_mock_layer(layer_type, kernel_shape, rng):
@@ -233,3 +236,54 @@ class GPTQTest(testing.TestCase):
         g2.update_hessian_with_batch(x[20:])
 
         self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-6, atol=1e-6)
+
+    def test_identity_inv_hessian_matches_direct_quantization(self):
+        """Tests that the matrix quantization without error correction
+        matches the direct implementation."""
+        in_features, out_features = 16, 8
+        weights = ops.reshape(
+            ops.linspace(
+                -0.9, 1.1, in_features * out_features, dtype="float32"
+            ),
+            (in_features, out_features),
+        )
+        weights_transpose = ops.transpose(weights)
+
+        # inverse_hessian = identity; no cross-feature correction
+        # (since all off-diagonal elements are zero), which means
+        # there is no interaction between different features
+        inverse_hessian = ops.eye(in_features, dtype="float32")
+
+        dequantized_weights = gptq_quantize_matrix(
+            weights_transpose,
+            inverse_hessian,
+            blocksize=128,
+            group_size=-1,
+            activation_order=False,
+            compute_scale_zero=_compute_scale_zero,
+        )
+
+        # Compare function output with columnwise direct application
+        # of quantization.
+        out = ops.zeros_like(weights_transpose)
+        for j in range(ops.shape(weights_transpose)[1]):
+            column = weights_transpose[:, j : j + 1]
+            scale, zero, maxq = _compute_scale_zero(column)
+            quantized_col = quantize(column, scale, zero, maxq)
+            dequantized = dequantize(quantized_col, scale, zero)
+            out = ops.slice_update(
+                out, (0, j), ops.expand_dims(dequantized[:, 0], 1)
+            )
+
+        self.assertAllClose(dequantized_weights, out, atol=1e-6)
+
+
+def _compute_scale_zero(x, **_):
+    # Per-column asymmetric int4 example
+    # scale = (max-min)/maxq, zero = round(-min/scale)
+    maxq = 15.0
+    xmin = ops.min(x, axis=0, keepdims=True)
+    xmax = ops.max(x, axis=0, keepdims=True)
+    scale = ops.divide(ops.subtract(xmax, xmin), ops.add(maxq, 1e-8))
+    zero = ops.round(ops.divide(ops.negative(xmin), ops.add(scale, 1e-8)))
+    return scale, zero, maxq

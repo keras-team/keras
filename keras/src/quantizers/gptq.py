@@ -1,9 +1,25 @@
 import types
+
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-from keras.src.quantizers.gptq_quantizer import compute_scale_zero, dequantize
+from keras.src.quantizers.gptq_quantizer import compute_scale_zero
+from keras.src.quantizers.gptq_quantizer import dequantize
 from keras.src.quantizers.gptq_quantizer import quantize
+
+
+def _stable_permutation(metric):
+    """Return a stable permutation that sorts `metric` in descending order.
+    Uses an index-based jitter to break ties deterministically."""
+    n = ops.shape(metric)[0]
+    idx = ops.arange(0, n, dtype="int32")
+
+    # tiny jitter = (idx / n) * 1e-12 so it never flips a real strict ordering
+    jitter = ops.divide(ops.cast(idx, "float32"), ops.cast(n, "float32"))
+    metric_jittered = ops.add(metric, ops.multiply(jitter, 1e-12))
+
+    # argsort by negative to get descending
+    return ops.argsort(ops.negative(metric_jittered))
 
 
 def gptq_quantize_matrix(
@@ -15,7 +31,6 @@ def gptq_quantize_matrix(
     activation_order=False,
     order_metric=None,
     compute_scale_zero=compute_scale_zero,
-    dequantize=dequantize,
 ):
     # weights_transpose: [out_features, in_features]
     weights_transpose = ops.cast(weights_transpose, "float32")
@@ -28,10 +43,22 @@ def gptq_quantize_matrix(
     if activation_order:
         if order_metric is None:
             # Use 1 / diag(invH) as importance proxy if H not available.
-            order_metric = ops.reciprocal(ops.add(ops.diagonal(inv_hessian), 1e-12))
-        # Descending by importance
-        perm = ops.argsort(ops.negative(order_metric))
+            order_metric = ops.reciprocal(
+                ops.add(ops.diagonal(inv_hessian), 1e-12)
+            )
+        else:
+            # sanitize provided metric
+            order_metric = ops.cast(order_metric, "float32")
+            order_metric = ops.where(
+                ops.isfinite(order_metric),
+                order_metric,
+                ops.zeros_like(order_metric),
+            )
+
+        # Sort in descending order by importance
+        perm = _stable_permutation(order_metric)
         inv_perm = ops.argsort(perm)
+
         weights_transpose = ops.take(weights_transpose, perm, axis=1)
         inv_hessian = ops.take(
             ops.take(inv_hessian, perm, axis=0), perm, axis=1
@@ -196,9 +223,7 @@ class GPTQ:
             # Create a temporary object that holds a reshaped
             # 2D version of the kernel.
             self.layer = types.SimpleNamespace(
-                kernel=ops.reshape(
-                    layer.kernel, (self.rows, self.columns)
-                ),
+                kernel=ops.reshape(layer.kernel, (self.rows, self.columns)),
                 bias=layer.bias,
             )
 
@@ -257,8 +282,11 @@ class GPTQ:
 
         # gram_matrix: [features, features]
         gram_matrix = ops.matmul(ops.transpose(x), x)
-        # Ensures numerical stability and symmetry in case of large floating point activations.
-        gram_matrix = ops.divide(ops.add(gram_matrix, ops.transpose(gram_matrix)), 2.0)
+        # Ensures numerical stability and symmetry in case of large floating
+        # point activations.
+        gram_matrix = ops.divide(
+            ops.add(gram_matrix, ops.transpose(gram_matrix)), 2.0
+        )
 
         # Decay previous mean and add current per-sample contribution
         # (factor 2/N)
@@ -365,7 +393,6 @@ class GPTQ:
             activation_order=activation_order,
             order_metric=ops.diagonal(hessian_matrix),
             compute_scale_zero=self.quantizer.find_params,
-            dequantize=dequantize,
         )
 
         quantized_weights = ops.transpose(quantized_weights)
