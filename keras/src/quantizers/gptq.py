@@ -3,6 +3,7 @@ import types
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
+from keras.src.ops import linalg
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_quantizer import GPTQQuantizer
 from keras.src.quantizers.gptq_quantizer import compute_scale_zero
@@ -405,7 +406,7 @@ class GPTQ:
         )
 
         # Compute the inverse Hessian, which is used for error correction
-        inverse_hessian = ops.linalg.inv(hessian_matrix)
+        inverse_hessian = linalg.inv(hessian_matrix)
 
         quantized_weights = gptq_quantize_matrix(
             weights_matrix,
