@@ -1,4 +1,5 @@
 from keras.src import ops
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 def compute_scale_zero(
@@ -143,13 +144,11 @@ class GPTQQuantizer:
             Defaults to -1.
     """
 
-    def __init__(
-        self, weight_bits, per_channel=True, symmetric=False, group_size=-1
-    ):
-        self.weight_bits = weight_bits
-        self.per_channel = per_channel
-        self.symmetric = symmetric
-        self.group_size = group_size
+    def __init__(self, config=GPTQConfig(tokenizer=None, dataset=None)):
+        self.weight_bits = config.weight_bits
+        self.per_channel = config.per_channel
+        self.symmetric = config.symmetric
+        self.group_size = config.group_size
 
         # These are now determined later by `find_params`
         self.scale = None

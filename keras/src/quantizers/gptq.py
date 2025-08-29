@@ -3,6 +3,8 @@ import types
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
+from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_quantizer import GPTQQuantizer
 from keras.src.quantizers.gptq_quantizer import compute_scale_zero
 from keras.src.quantizers.gptq_quantizer import dequantize
 from keras.src.quantizers.gptq_quantizer import quantize
@@ -212,10 +214,11 @@ def gptq_quantize_matrix(
 
 
 class GPTQ:
-    def __init__(self, layer):
+    def __init__(self, layer, config=GPTQConfig(tokenizer=None, dataset=None)):
         self.original_layer = layer
         self.num_samples = 0
-        self.quantizer = None
+        self.config = config
+        self.quantizer = GPTQQuantizer(config)
 
         # Explicitly handle each supported layer type
         if isinstance(layer, Dense) or (
@@ -336,9 +339,6 @@ class GPTQ:
     def quantize_and_correct_block(
         self,
         blocksize=128,
-        hessian_damping=0.01,
-        group_size=-1,
-        activation_order=False,
     ):
         """
         Performs GPTQ quantization and correction on the layer's weights.
@@ -376,16 +376,6 @@ class GPTQ:
         Args:
             blocksize: (int, optional) The size of the weight block to process
              at a time. Defaults to 128.
-            hessian_damping: (float, optional) The percentage of dampening to
-                add the
-                Hessian's diagonal. A value of 0.01 is recommended.
-                Defaults to 0.01.
-            group_size: (int, optional) The number of weights that share the
-                same quantization parameters (scale and zero-point).
-                A value of -1 indicates per-channel quantization.
-            activation_order: (bool, optional) If True, reorders weight columns
-                based
-                on their activation's second-order information.
         """
 
         weights_matrix = ops.transpose(ops.cast(self.layer.kernel, "float32"))
@@ -404,7 +394,7 @@ class GPTQ:
 
         # Add dampening factor to the Hessian diagonal
         damping_factor = ops.multiply(
-            hessian_damping, ops.mean(hessian_diagonal)
+            self.config.hessian_damping, ops.mean(hessian_diagonal)
         )
         hessian_diagonal = ops.add(hessian_diagonal, damping_factor)
         hessian_matrix = ops.add(
@@ -421,8 +411,8 @@ class GPTQ:
             weights_matrix,
             inv_hessian=inverse_hessian,
             blocksize=blocksize,
-            group_size=group_size,
-            activation_order=activation_order,
+            group_size=self.config.group_size,
+            activation_order=self.config.activation_order,
             order_metric=ops.diagonal(hessian_matrix),
             compute_scale_zero=self.quantizer.find_params,
         )

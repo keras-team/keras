@@ -6,8 +6,9 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
+from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
-from keras.src.quantizers.gptq_quantizer import GPTQQuantizer
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_quantizer import dequantize
 from keras.src.quantizers.gptq_quantizer import quantize
 
@@ -72,8 +73,16 @@ class GPTQTest(testing.TestCase):
         mock_layer = _get_mock_layer("Dense", kernel_shape=(16, 32), rng=rng)
         original_weights = np.copy(ops.convert_to_numpy(mock_layer.kernel))
 
-        gptq_instance = GPTQ(mock_layer)
-        gptq_instance.quantizer = GPTQQuantizer(weight_bits=4, symmetric=False)
+        gptq_instance = GPTQ(
+            mock_layer,
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                weight_bits=4,
+                symmetric=False,
+                group_size=-1,
+            ),
+        )
         calibration_data = rng.standard_normal(size=(128, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(calibration_data)
         gptq_instance.quantize_and_correct_block()
@@ -276,6 +285,57 @@ class GPTQTest(testing.TestCase):
             )
 
         self.assertAllClose(dequantized_weights, out, atol=1e-6)
+
+    def test_activation_order_permutation_is_undone(self):
+        in_features, out_features = 8, 6
+        layer = layers.Dense(out_features, use_bias=False)
+        layer.build((None, in_features))
+        weights = ops.array(
+            np.random.randn(in_features, out_features), "float32"
+        )
+        layer.set_weights([weights])
+
+        # generate a non-trivial order metric.
+        diag = ops.linspace(10.0, 1.0, in_features, dtype="float32")
+        diag = ops.random.shuffle(diag)
+        H = ops.diag(diag)
+
+        # Ensure it generates a non-trivial permutation
+        perm = _stable_permutation(diag)
+        self.assertFalse(ops.all(ops.equal(perm, ops.arange(in_features))))
+
+        # Quantize with activation order
+        g1 = GPTQ(
+            layer,
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                group_size=-1,
+                activation_order=True,
+            ),
+        )
+        g1.hessian = H
+        g1.quantize_and_correct_block()
+
+        # Quantize without activation order
+        layer2 = layers.Dense(out_features, use_bias=False)
+        layer2.build((None, in_features))
+        layer2.set_weights([ops.copy(weights)])
+
+        g2 = GPTQ(
+            layer2,
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                group_size=-1,
+                activation_order=False,
+            ),
+        )
+        g2.hessian = H
+        g2.quantize_and_correct_block()
+
+        # The weights should be identical since permutation is undone
+        self.assertAllClose(layer.get_weights()[0], layer2.get_weights()[0])
 
 
 def _compute_scale_zero(x, **_):

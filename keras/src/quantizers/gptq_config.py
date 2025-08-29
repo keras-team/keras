@@ -137,8 +137,10 @@ class GPTQConfig:
         self,
         dataset,
         tokenizer,
+        *,
         weight_bits: int = 4,
         num_samples: int = 128,
+        per_channel: bool = True,
         sequence_length: int = 512,
         hessian_damping: float = 0.01,
         group_size: int = 128,
@@ -148,6 +150,7 @@ class GPTQConfig:
         self.dataset = dataset
         self.tokenizer = tokenizer
         self.num_samples = num_samples
+        self.per_channel = per_channel
         self.sequence_length = sequence_length
         self.hessian_damping = hessian_damping
         self.weight_bits = weight_bits

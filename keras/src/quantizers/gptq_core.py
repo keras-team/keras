@@ -10,7 +10,6 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptq_quantizer import GPTQQuantizer
 
 
 @contextmanager
@@ -203,11 +202,6 @@ def apply_gptq_layerwise(model, dataloader, config):
     """
 
     num_samples = config.num_samples
-    hessian_damping = config.hessian_damping
-    group_size = config.group_size
-    symmetric = config.symmetric
-    activation_order = config.activation_order
-    weight_bits = config.weight_bits
 
     logging.info("Starting model quantization...")
     embedding_layer = None
@@ -279,7 +273,8 @@ def apply_gptq_layerwise(model, dataloader, config):
         else:
             logging.info(f"Found layers: {list(sub_layers_map.keys())}")
             gptq_objects = {
-                name: GPTQ(layer) for name, layer in sub_layers_map.items()
+                name: GPTQ(layer, config)
+                for name, layer in sub_layers_map.items()
             }
 
             with stream_hessians(sub_layers_map, gptq_objects):
@@ -291,17 +286,7 @@ def apply_gptq_layerwise(model, dataloader, config):
 
             for name, gptq_object in gptq_objects.items():
                 logging.info(f"Quantizing {name}...")
-                gptq_object.quantizer = GPTQQuantizer(
-                    weight_bits,
-                    per_channel=True,
-                    symmetric=symmetric,
-                    group_size=group_size,
-                )
-                gptq_object.quantize_and_correct_block(
-                    hessian_damping=hessian_damping,
-                    group_size=group_size,
-                    activation_order=activation_order,
-                )
+                gptq_object.quantize_and_correct_block()
                 gptq_object.free()
 
             del gptq_objects
