@@ -32,6 +32,38 @@ def gptq_quantize_matrix(
     order_metric=None,
     compute_scale_zero=compute_scale_zero,
 ):
+    """
+    Implements the GPTQ error correction updates.
+
+    For a single column update (column j):
+        e = invH[j, j] * (w_j - q_j)
+        W[:, j+1:] -= e * invH[j, j+1:]
+    where:
+    - w_j is the original column,
+    - q_j is the quantized column,
+    - invH is the inverse Hessian,
+    - e is the propagated error term.
+
+    Across entire blocks:
+        W[:, future] -= E_block * invH[block, future]
+    where:
+    - E_block is the quantization error accumulated for the current block,
+    - invH[block, future] denotes the cross-block slice of the inverse Hessian,
+    - W[:, future] are the columns yet to be quantized.
+
+    Args:
+        weights_transpose: Transposed weight matrix to quantize.
+        inv_hessian: Inverse Hessian matrix for error propagation.
+        blocksize: Size of the blocks to process (default: 128).
+        group_size: Size of the groups for parameter reuse
+         (default: -1, no grouping).
+        activation_order: Whether to apply activation-order permutation
+         (default: False).
+        order_metric: Metric for ordering features
+         (default: None, uses 1 / diag(invH)).
+        compute_scale_zero: Function to compute scale and zero for
+         quantization.
+    """
     # weights_transpose: [out_features, in_features]
     weights_transpose = ops.cast(weights_transpose, "float32")
     # hessian_inv: [in_features, in_features]
