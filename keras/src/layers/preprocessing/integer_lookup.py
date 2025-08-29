@@ -111,9 +111,12 @@ class IntegerLookup(IndexLookup):
                 appeared in the sample.
             - `"tf_idf"`: As `"multi_hot"`, but the TF-IDF algorithm is
                 applied to find the value in each token slot.
-            For `"int"` output, any shape of input and output is supported.
-            For all other output modes, currently only output up to rank 2
-            is supported. Defaults to `"int"`.
+            For `"int"` output, the output shape matches the input shape.
+            For `"one_hot"` output, the output shape is
+            `input_shape + (vocabulary_size,)`, where `input_shape` may
+            have arbitrary rank. For other output modes (`"multi_hot"`,
+            `"count"`, `"tf_idf"`), the output shape is `(batch_size,
+            vocabulary_size)`. Defaults to `"int"`.
         pad_to_max_tokens: Only applicable when `output_mode` is `"multi_hot"`,
             `"count"`, or `"tf_idf"`. If `True`, the output will have
             its feature axis padded to `max_tokens` even if the number
