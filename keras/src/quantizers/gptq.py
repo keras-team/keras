@@ -1,7 +1,8 @@
+import types
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-from keras.src.quantizers.gptq_quantizer import dequantize
+from keras.src.quantizers.gptq_quantizer import compute_scale_zero, dequantize
 from keras.src.quantizers.gptq_quantizer import quantize
 
 
@@ -13,21 +14,21 @@ def gptq_quantize_matrix(
     group_size=-1,
     activation_order=False,
     order_metric=None,
-    compute_scale_zero=None,
-    dequantize=None,
+    compute_scale_zero=compute_scale_zero,
+    dequantize=dequantize,
 ):
     # weights_transpose: [out_features, in_features]
     weights_transpose = ops.cast(weights_transpose, "float32")
     # hessian_inv: [in_features, in_features]
     inv_hessian = ops.cast(inv_hessian, "float32")
 
-    in_features = weights_transpose.shape[1]
+    in_features = ops.shape(weights_transpose)[1]
 
     # Optional activation-order permutation on feature axis (axis=1)
     if activation_order:
         if order_metric is None:
             # Use 1 / diag(invH) as importance proxy if H not available.
-            order_metric = ops.reciprocal(ops.diagonal(inv_hessian) + 1e-12)
+            order_metric = ops.reciprocal(ops.add(ops.diagonal(inv_hessian), 1e-12))
         # Descending by importance
         perm = ops.argsort(ops.negative(order_metric))
         inv_perm = ops.argsort(perm)
@@ -165,7 +166,7 @@ class GPTQ:
             self.kernel_shape = layer.kernel.shape
             self.rows = self.kernel_shape[0]  # Input features
             self.columns = self.kernel_shape[1]  # Output features
-            self.layer = layer  # The layer itself can be used directly.
+            self.layer = layer
 
         # Handle 3D EinsumDense layers (typically from attention blocks).
         elif isinstance(layer, EinsumDense) and layer.kernel.ndim == 3:
@@ -194,16 +195,12 @@ class GPTQ:
 
             # Create a temporary object that holds a reshaped
             # 2D version of the kernel.
-            self.layer = type(
-                "temp",
-                (object,),
-                {
-                    "kernel": ops.reshape(
-                        layer.kernel, (self.rows, self.columns)
-                    ),
-                    "bias": layer.bias,
-                },
-            )()
+            self.layer = types.SimpleNamespace(
+                kernel=ops.reshape(
+                    layer.kernel, (self.rows, self.columns)
+                ),
+                bias=layer.bias,
+            )
 
         else:
             # Raise an error if the layer is not supported.
@@ -252,14 +249,16 @@ class GPTQ:
         num_prev_samples = self.num_samples
         total_samples = ops.add(num_prev_samples, num_new_samples)
 
-        if self.hessian.shape[0] != x.shape[-1]:
+        if ops.shape(self.hessian)[0] != ops.shape(x)[-1]:
             raise ValueError(
-                f"Hessian dimensions ({self.hessian.shape[0]}) do not "
-                f"match input features ({x.shape[-1]})."
+                f"Hessian dimensions ({ops.shape(self.hessian)[0]}) do not "
+                f"match input features ({ops.shape(x)[-1]})."
             )
 
         # gram_matrix: [features, features]
         gram_matrix = ops.matmul(ops.transpose(x), x)
+        # Ensures numerical stability and symmetry in case of large floating point activations.
+        gram_matrix = ops.divide(ops.add(gram_matrix, ops.transpose(gram_matrix)), 2.0)
 
         # Decay previous mean and add current per-sample contribution
         # (factor 2/N)
@@ -272,7 +271,7 @@ class GPTQ:
             ops.multiply(ops.divide(2.0, total_samples), gram_matrix),
         )
 
-        self.num_samples = ops.add(self.num_samples, x.shape[0] or 0)
+        self.num_samples = self.num_samples + ops.shape(x)[0] or 0
 
     def quantize_and_correct_block(
         self,
@@ -365,10 +364,8 @@ class GPTQ:
             group_size=group_size,
             activation_order=activation_order,
             order_metric=ops.diagonal(hessian_matrix),
-            compute_scale_zero=lambda x, **kw: self.quantizer.find_params(
-                x, **kw
-            ),
-            dequantize=lambda x, s, z: dequantize(x, s, z),
+            compute_scale_zero=self.quantizer.find_params,
+            dequantize=dequantize,
         )
 
         quantized_weights = ops.transpose(quantized_weights)

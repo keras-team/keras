@@ -186,7 +186,7 @@ class GPTQTest(testing.TestCase):
 
     def test_numeric_stability_large_values(self):
         """Tests numeric stability of hessian update with large input values."""
-        x = ops.array(1e6 * np.random.randn(32, 7), "float32")
+        x = ops.multiply(ops.array(np.random.randn(32, 7), "float32"), 1e6)
         layer = layers.Dense(5, use_bias=False)
         layer.build((None, 7))
 
@@ -208,7 +208,7 @@ class GPTQTest(testing.TestCase):
         g = GPTQ(einsum_dense_layer)
 
         # should infer rows==7
-        self.assertEqual(g.hessian.shape, (7, 7))
+        self.assertEqual(ops.shape(g.hessian), (7, 7))
 
     def test_einsumdense_3d_kernel_streaming_equals_big_batch(self):
         """Tests that streaming updates to the Hessian are equivalent to a big
