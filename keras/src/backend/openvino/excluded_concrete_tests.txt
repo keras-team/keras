@@ -9,6 +9,7 @@ NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_bartlett
 NumpyDtypeTest::test_blackman
+NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hamming
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
@@ -142,6 +143,7 @@ NumpyTwoInputOpsCorrectnessTest::test_cross
 NumpyTwoInputOpsCorrectnessTest::test_digitize
 NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
+NumpyTwoInputOpsCorrectnessTest::test_gcd
 NumpyTwoInputOpsCorrectnessTest::test_heaviside
 NumpyTwoInputOpsCorrectnessTest::test_hypot
 NumpyTwoInputOpsCorrectnessTest::test_inner
@@ -165,9 +167,11 @@ NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_isneginf
 NumpyOneInputOpsStaticShapeTest::test_isposinf
+NumpyTwoInputOpsDynamicShapeTest::test_gcd
 NumpyTwoInputOpsDynamicShapeTest::test_heaviside
 NumpyTwoInputOpsDynamicShapeTest::test_hypot
 NumpyTwoInputOpsDynamicShapeTest::test_isin
+NumpyTwoInputOpsStaticShapeTest::test_gcd
 NumpyTwoInputOpsStaticShapeTest::test_heaviside
 NumpyTwoInputOpsStaticShapeTest::test_hypot
 NumpyTwoInputOpsStaticShapeTest::test_isin
