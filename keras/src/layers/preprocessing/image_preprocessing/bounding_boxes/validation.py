@@ -6,8 +6,8 @@ def _classes_shape(batched, classes_shape, max_boxes):
     if max_boxes is None:
         return None
     if batched:
-        return [None, max_boxes] + classes_shape[2:]
-    return [max_boxes] + classes_shape[2:]
+        return [None, max_boxes] + list(classes_shape[2:])
+    return [max_boxes] + list(classes_shape[1:])
 
 
 def _box_shape(batched, boxes_shape, max_boxes):
@@ -91,20 +91,20 @@ def densify_bounding_boxes(
                         labels_default_value for _ in range(num_boxes_to_add)
                     ]
             return {
-                "boxes": backend.convert_to_tensor(new_boxes, dtype="int32"),
-                "labels": backend.convert_to_tensor(new_boxes, dtype="int32"),
+                "boxes": backend.convert_to_tensor(new_boxes, dtype="float32"),
+                "labels": backend.convert_to_tensor(new_labels, dtype="int32"),
             }
 
     if tf_utils.is_ragged_tensor(boxes):
         bounding_boxes["boxes"] = bounding_boxes["boxes"].to_tensor(
             default_value=boxes_default_value,
-            shape=_classes_shape(
+            shape=_box_shape(
                 is_batched, bounding_boxes["boxes"].shape, max_boxes
             ),
         )
         bounding_boxes["labels"] = bounding_boxes["labels"].to_tensor(
             default_value=labels_default_value,
-            shape=_box_shape(
+            shape=_classes_shape(
                 is_batched, bounding_boxes["labels"].shape, max_boxes
             ),
         )
