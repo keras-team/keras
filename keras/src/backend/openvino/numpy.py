@@ -997,15 +997,15 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
-    """
-    Return evenly spaced numbers over a specified interval.
+    """Return evenly spaced numbers over a specified interval.
 
-    Parameters
-    ----------
-    axis : int, optional
-        Currently only supports axis=0 (prepend) and axis=-1 (append).
-        Intermediate axis values are treated as axis=-1.
+    Supports axis=0 (prepend) and axis=-1 (append). Intermediate axis values are
+    treated as axis=-1.
+
+    If `retstep` is True, also returns the step size between values.
+    
     """
+
     start = get_ov_output(start)
     stop = get_ov_output(stop)
 
