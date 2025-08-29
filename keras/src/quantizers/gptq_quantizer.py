@@ -166,6 +166,7 @@ class GPTQQuantizer:
             group_size=self.group_size,
             weight=weight,
         )
+        return self.scale, self.zero, self.maxq
 
     def ready(self):
         """Checks if the quantization parameters have been computed."""
