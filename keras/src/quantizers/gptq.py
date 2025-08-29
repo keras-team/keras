@@ -5,10 +5,10 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.ops import linalg
 from keras.src.quantizers.gptq_config import GPTQConfig
-from keras.src.quantizers.gptq_quantizer import GPTQQuantizer
-from keras.src.quantizers.gptq_quantizer import compute_scale_zero
-from keras.src.quantizers.gptq_quantizer import dequantize
-from keras.src.quantizers.gptq_quantizer import quantize
+from keras.src.quantizers.quantizers import GPTQQuantizer
+from keras.src.quantizers.quantizers import compute_quantization_parameters
+from keras.src.quantizers.quantizers import dequantize_with_zero_point
+from keras.src.quantizers.quantizers import quantize_with_zero_point
 
 
 def _stable_permutation(metric):
@@ -33,7 +33,7 @@ def gptq_quantize_matrix(
     group_size=-1,
     activation_order=False,
     order_metric=None,
-    compute_scale_zero=compute_scale_zero,
+    compute_scale_zero=compute_quantization_parameters,
 ):
     """
     Implements the GPTQ error correction updates.
@@ -151,10 +151,12 @@ def gptq_quantize_matrix(
                 )
 
             # Quantize one column
-            quantized_column = quantize(
+            quantized_column = quantize_with_zero_point(
                 ops.expand_dims(weight_column, 1), scale, zero, maxq
             )
-            quantized_column = dequantize(quantized_column, scale, zero)[:, 0]
+            quantized_column = dequantize_with_zero_point(
+                quantized_column, scale, zero
+            )[:, 0]
             block_weights_quantized = ops.slice_update(
                 block_weights_quantized,
                 (0, block_idx),

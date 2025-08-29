@@ -9,8 +9,8 @@ from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
-from keras.src.quantizers.gptq_quantizer import dequantize
-from keras.src.quantizers.gptq_quantizer import quantize
+from keras.src.quantizers.quantizers import dequantize_with_zero_point
+from keras.src.quantizers.quantizers import quantize_with_zero_point
 
 
 def _get_mock_layer(layer_type, kernel_shape, rng):
@@ -278,8 +278,8 @@ class GPTQTest(testing.TestCase):
         for j in range(ops.shape(weights_transpose)[1]):
             column = weights_transpose[:, j : j + 1]
             scale, zero, maxq = _compute_scale_zero(column)
-            quantized_col = quantize(column, scale, zero, maxq)
-            dequantized = dequantize(quantized_col, scale, zero)
+            quantized_col = quantize_with_zero_point(column, scale, zero, maxq)
+            dequantized = dequantize_with_zero_point(quantized_col, scale, zero)
             out = ops.slice_update(
                 out, (0, j), ops.expand_dims(dequantized[:, 0], 1)
             )
