@@ -205,6 +205,41 @@ def _find_layers_recursive(layer, prefix, found_layers):
             _find_layers_recursive(sub_layer, layer_name, found_layers)
 
 
+def _get_backbone_layers(model):
+    """Extract embedding and transformer layers from a KerasHub model."""
+    backbone = model.backbone
+    if not hasattr(backbone, "transformer_layers"):
+        raise ValueError(
+            "The model's backbone does not have a 'transformer_layers' "
+            "attribute. Please ensure you are using a standard KerasHub "
+            "transformer model."
+        )
+    transformer_blocks = backbone.transformer_layers
+
+    if hasattr(backbone, "token_embedding"):
+        embedding_layer = backbone.token_embedding
+    elif hasattr(backbone, "embedding"):
+        embedding_layer = backbone.embedding
+    else:
+        raise ValueError(
+            "Could not automatically find an embedding layer in the model."
+        )
+    return embedding_layer, transformer_blocks
+
+
+def _get_custom_layers(model):
+    """Heuristic for extracting embedding + transformer blocks from a custom
+    model."""
+    embedding_layer = None
+    transformer_blocks = []
+    for layer in model.layers:
+        if isinstance(layer, Embedding) and embedding_layer is None:
+            embedding_layer = layer
+        elif getattr(layer, "_layers", None):  # container-like block
+            transformer_blocks.append(layer)
+    return embedding_layer, transformer_blocks
+
+
 def find_layers_in_block(block):
     """
     A pluggable, generic function to find all Dense and EinsumDense layers
@@ -262,39 +297,10 @@ def apply_gptq_layerwise(model, dataloader, config):
     transformer_blocks = []
     if hasattr(model, "backbone"):
         logging.info("Detected KerasHub model structure.")
-        backbone = model.backbone
-
-        # Add the check for the 'transformer_layers' attribute.
-        if hasattr(backbone, "transformer_layers"):
-            transformer_blocks = backbone.transformer_layers
-        else:
-            # Raise a specific error if the attribute is missing.
-            raise ValueError(
-                "The model's backbone does not have a 'transformer_layers' "
-                "attribute. Please ensure you are using a standard KerasHub "
-                "transformer model."
-            )
-        # Find the embedding layer by checking for common names or by type.
-        if hasattr(backbone, "token_embedding"):
-            embedding_layer = backbone.token_embedding
-        elif hasattr(backbone, "embedding"):
-            embedding_layer = backbone.embedding
-        else:
-            raise ValueError(
-                "Could not automatically find an embedding layer in the model."
-            )
-
+        embedding_layer, transformer_blocks = _get_backbone_layers(model)
     else:
         logging.info("Detected custom model structure.")
-        for layer in model.layers:
-            # The first Embedding layer found is assumed to be the main one.
-            if isinstance(layer, Embedding) and embedding_layer is None:
-                embedding_layer = layer
-            # A "block" is a container-like layer with its own sub-layers
-            # that we can quantize. This is a heuristic that works for the
-            # test.
-            elif hasattr(layer, "_layers") and layer._layers:
-                transformer_blocks.append(layer)
+        embedding_layer, transformer_blocks = _get_custom_layers(model)
 
     if embedding_layer is None:
         raise ValueError(
