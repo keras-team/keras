@@ -1003,7 +1003,7 @@ def linspace(
     treated as axis=-1.
 
     If `retstep` is True, also returns the step size between values.
-    
+
     """
 
     start = get_ov_output(start)
