@@ -155,10 +155,10 @@ class TestDistiller(TestCase):
         """Test multi-strategy functionality."""
         # Create multiple strategies
         strategies = [
-            LogitsDistillation(temperature=3.0, output_index=0),
-            LogitsDistillation(temperature=2.0, output_index=0),
+            LogitsDistillation(temperature=3.0),
+            LogitsDistillation(temperature=2.0),
         ]
-        strategy_weights = [1.0, 0.5]
+        strategy_weights = [0.7, 0.3]
 
         # Create distiller with multiple strategies
         distiller = Distiller(
@@ -171,23 +171,40 @@ class TestDistiller(TestCase):
             student_loss="sparse_categorical_crossentropy",
         )
 
-        # Check that strategies are stored correctly
+        # Test that strategies are stored correctly
         self.assertEqual(len(distiller.strategies), 2)
-        self.assertEqual(distiller.strategy_weights, [1.0, 0.5])
-        self.assertFalse(distiller.single_strategy)
+        self.assertEqual(distiller.strategy_weights, [0.7, 0.3])
 
-        # Test that both strategies have correct temperatures
-        self.assertEqual(distiller.strategies[0].temperature, 3.0)
-        self.assertEqual(distiller.strategies[1].temperature, 2.0)
+        # Test training
+        x = np.random.random((10, 8)).astype(np.float32)
+        y = np.random.randint(0, 10, (10,))
+        history = distiller.fit(x, y, epochs=1, verbose=0)
+
+        # Check metrics
+        self.assertIn("total_loss", history.history)
+        self.assertIn("student_loss", history.history)
+        self.assertIn("distillation_loss", history.history)
 
     def test_multi_strategy_validation(self):
         """Test multi-strategy validation."""
         strategies = [
-            LogitsDistillation(temperature=3.0, output_index=0),
-            LogitsDistillation(temperature=2.0, output_index=0),
+            LogitsDistillation(temperature=3.0),
+            LogitsDistillation(temperature=2.0),
         ]
 
-        # Test with mismatched weights
+        # Test that validation passes for valid configurations
+        distiller = Distiller(
+            teacher=self.teacher,
+            student=self.student,
+            strategies=strategies,
+            student_loss_weight=0.5,
+            optimizer="adam",
+            student_loss="sparse_categorical_crossentropy",
+        )
+
+        self.assertEqual(len(distiller.strategies), 2)
+
+        # Test invalid strategy weights length
         with self.assertRaises(ValueError):
             Distiller(
                 teacher=self.teacher,
@@ -195,24 +212,8 @@ class TestDistiller(TestCase):
                 strategies=strategies,
                 strategy_weights=[1.0],  # Wrong length
                 student_loss_weight=0.5,
-            )
-
-        # Test with both strategy and strategies
-        with self.assertRaises(ValueError):
-            Distiller(
-                teacher=self.teacher,
-                student=self.student,
-                strategy=self.strategy,
-                strategies=strategies,
-                student_loss_weight=0.5,
-            )
-
-        # Test with neither strategy nor strategies
-        with self.assertRaises(ValueError):
-            Distiller(
-                teacher=self.teacher,
-                student=self.student,
-                student_loss_weight=0.5,
+                optimizer="adam",
+                student_loss="sparse_categorical_crossentropy",
             )
 
     def test_student_loss_weighting(self):
@@ -384,24 +385,6 @@ class TestDistiller(TestCase):
         prediction_sums = np.sum(predictions, axis=1)
         self.assertTrue(np.all(np.isfinite(prediction_sums)))
 
-    def test_get_student_model_method(self):
-        """Test the get_student_model() convenience method."""
-        distiller = Distiller(
-            teacher=self.teacher,
-            student=self.student,
-            strategy=self.strategy,
-            student_loss_weight=0.5,
-            optimizer=keras.optimizers.Adam(),
-            student_loss="sparse_categorical_crossentropy",
-        )
-
-        # Test that student_model property returns the same as direct access
-        student_direct = distiller.student
-        student_property = distiller.student_model
-
-        self.assertIs(student_direct, student_property)
-        self.assertEqual(student_property.name, self.student.name)
-
     def test_distiller_serialization_and_saving(self):
         """Test Distiller serialization, saving, and loading."""
 
@@ -431,9 +414,7 @@ class TestDistiller(TestCase):
         )
 
         # Create distiller with single strategy
-        strategy = LogitsDistillation(
-            temperature=3.0, loss_type="kl_divergence"
-        )
+        strategy = LogitsDistillation(temperature=3.0, loss="kl_divergence")
 
         original_distiller = Distiller(
             teacher=teacher,
@@ -458,8 +439,6 @@ class TestDistiller(TestCase):
             "strategies",
             "strategy_weights",
             "student_loss_weight",
-            "input_mapping",
-            "output_mapping",
         ]
         for key in required_keys:
             self.assertIn(key, config, f"Missing key: {key}")

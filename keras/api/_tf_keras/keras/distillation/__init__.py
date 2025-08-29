@@ -6,7 +6,7 @@ since your modifications would be overwritten.
 
 from keras.src.distillation.distiller import Distiller as Distiller
 from keras.src.distillation.strategies import (
-    BaseDistillationStrategy as BaseDistillationStrategy,
+    DistillationLoss as DistillationLoss,
 )
 from keras.src.distillation.strategies import (
     FeatureDistillation as FeatureDistillation,

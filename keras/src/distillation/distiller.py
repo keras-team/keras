@@ -1,5 +1,5 @@
 import keras
-from keras.src import ops
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.models.model import Model
 from keras.src.saving import serialization_lib
@@ -59,7 +59,7 @@ class Distiller(Model):
       its corresponding output.
 
     - Custom Strategies: Create custom strategies by subclassing
-      `BaseDistillationStrategy` and overriding the `compute_loss` method.
+      `DistillationLoss` and overriding the `compute_loss` method.
 
     Args:
         teacher: A trained `keras.Model` that serves as the knowledge source.
@@ -94,7 +94,9 @@ class Distiller(Model):
     import keras_hub as hub
 
     teacher = hub.models.CausalLM.from_preset("gemma3_4b_en")
-    student = hub.models.CausalLM.from_preset("gemma2_2b_en")
+    student = hub.models.CausalLM.from_preset(
+        "gemma2_2b_en", load_weights=False
+    )
 
     # Create distillation strategy
     strategy = LogitsDistillation(temperature=3.0)
@@ -153,10 +155,6 @@ class Distiller(Model):
         name="distiller",
         **kwargs,
     ):
-        # Extract input_mapping and output_mapping before super().__init__
-        self.input_mapping = kwargs.pop("input_mapping", None)
-        self.output_mapping = kwargs.pop("output_mapping", None)
-
         super().__init__(name=name, **kwargs)
 
         # Validate inputs
@@ -185,41 +183,28 @@ class Distiller(Model):
                 f"metrics must be a list or tuple, got {type(metrics)}"
             )
 
-        # Convert string loss to function if needed
-        if isinstance(student_loss, str):
-            self._student_loss = keras.losses.get(student_loss)
-            if self._student_loss is None:
+            # Convert string loss to function using tree.map_structure
+
+        def convert_loss_to_function(loss):
+            if isinstance(loss, str):
+                loss_fn = keras.losses.get(loss)
+                if loss_fn is None:
+                    raise ValueError(
+                        f"Unknown loss function: '{loss}'. "
+                        "Please provide a valid loss function name or instance."
+                    )
+                return loss_fn
+            elif loss is None:
                 raise ValueError(
-                    f"Unknown loss function: '{student_loss}'. "
-                    "Please provide a valid loss function name or instance."
+                    "Student loss function cannot be None. "
+                    "Please provide a valid 'student_loss' parameter."
                 )
-        elif isinstance(student_loss, list):
-            # Handle multi-output loss functions
-            self._student_loss = []
-            for i, loss in enumerate(student_loss):
-                if isinstance(loss, str):
-                    loss_fn = keras.losses.get(loss)
-                    if loss_fn is None:
-                        raise ValueError(
-                            f"Unknown loss function at index {i}: '{loss}'. "
-                            "Please provide valid loss function names or "
-                            "instances."
-                        )
-                    self._student_loss.append(loss_fn)
-                else:
-                    self._student_loss.append(loss)
-        else:
-            self._student_loss = student_loss
+            else:
+                return loss
 
-        # Validate that we have a valid loss function
-        if self._student_loss is None:
-            raise ValueError(
-                "Student loss function cannot be None. "
-                "Please provide a valid 'student_loss' parameter."
-            )
-
-        # Validate architecture compatibility for feature distillation
-        self._validate_architecture_compatibility(teacher, student)
+        self._student_loss = tree.map_structure(
+            convert_loss_to_function, student_loss
+        )
 
         # Handle strategy configuration
         if strategy is not None and strategies is not None:
@@ -266,6 +251,9 @@ class Distiller(Model):
         # Validate strategy-specific compatibility
         for strategy in self.strategies:
             self._validate_strategy_compatibility(teacher, student, strategy)
+
+        # Create efficient multi-layer feature extractors
+        self._create_multi_feature_extractors()
 
         # Freeze teacher model
         self.teacher.trainable = False
@@ -433,12 +421,6 @@ class Distiller(Model):
                     f"Both models must use the same data type."
                 )
 
-    def _validate_architecture_compatibility(self, teacher, student):
-        """Validate architecture compatibility for feature distillation."""
-        # This validation is strategy-specific and will be called by strategies
-        # that require specific architectural compatibility
-        pass
-
     def _validate_strategy_compatibility(self, teacher, student, strategy):
         """Validate that the strategy is compatible with the teacher and student
         models."""
@@ -472,6 +454,195 @@ class Distiller(Model):
             if dim1 is not None and dim2 is not None and dim1 != dim2:
                 return False
         return True
+
+    def _create_multi_feature_extractors(self):
+        """Create efficient feature extractors that extract all needed features
+        in single forward passes.
+
+        This method analyzes all FeatureDistillation strategies to determine
+        which layers need feature extraction, then creates models that extract
+        all required features in one pass to avoid redundant computation.
+        """
+        # Collect all layer names needed for feature extraction
+        teacher_layer_names = []
+        student_layer_names = []
+
+        for strategy in self.strategies:
+            if (
+                hasattr(strategy, "teacher_layer_name")
+                and strategy.teacher_layer_name
+            ):
+                if strategy.teacher_layer_name not in teacher_layer_names:
+                    teacher_layer_names.append(strategy.teacher_layer_name)
+            if (
+                hasattr(strategy, "student_layer_name")
+                and strategy.student_layer_name
+            ):
+                if strategy.student_layer_name not in student_layer_names:
+                    student_layer_names.append(strategy.student_layer_name)
+
+        # Create multi-output feature extractors if needed
+        self._teacher_feature_extractor = None
+        self._student_feature_extractor = None
+        self._teacher_layer_outputs = {}
+        self._student_layer_outputs = {}
+
+        if teacher_layer_names:
+            try:
+                # For Sequential models, use the last layer's output as final
+                if isinstance(self.teacher, keras.Sequential):
+                    final_output = self.teacher.layers[-1].output
+                    inputs = self.teacher.layers[0].input
+                else:
+                    # For Functional models
+                    if (
+                        not hasattr(self.teacher, "inputs")
+                        or self.teacher.inputs is None
+                    ):
+                        raise ValueError("Teacher model has no defined inputs")
+                    if (
+                        not hasattr(self.teacher, "output")
+                        or self.teacher.output is None
+                    ):
+                        raise ValueError("Teacher model has no defined output")
+                    final_output = self.teacher.output
+                    inputs = self.teacher.inputs
+
+                teacher_outputs = [final_output]  # Always include final output
+                teacher_output_names = ["final_output"]
+
+                for layer_name in teacher_layer_names:
+                    layer = self.teacher.get_layer(name=layer_name)
+                    teacher_outputs.append(layer.output)
+                    teacher_output_names.append(layer_name)
+
+                self._teacher_feature_extractor = keras.Model(
+                    inputs=inputs,
+                    outputs=teacher_outputs,
+                    name=f"{self.teacher.name}_multi_feature_extractor",
+                )
+                self._teacher_output_names = teacher_output_names
+            except (ValueError, AttributeError):
+                # Fallback to individual extraction for subclassed models
+                self._teacher_feature_extractor = None
+
+        if student_layer_names:
+            try:
+                # For Sequential models, use the last layer's output as final
+                if isinstance(self.student, keras.Sequential):
+                    final_output = self.student.layers[-1].output
+                    inputs = self.student.layers[0].input
+                else:
+                    # For Functional models
+                    if (
+                        not hasattr(self.student, "inputs")
+                        or self.student.inputs is None
+                    ):
+                        raise ValueError("Student model has no defined inputs")
+                    if (
+                        not hasattr(self.student, "output")
+                        or self.student.output is None
+                    ):
+                        raise ValueError("Student model has no defined output")
+                    final_output = self.student.output
+                    inputs = self.student.inputs
+
+                student_outputs = [final_output]  # Always include final output
+                student_output_names = ["final_output"]
+
+                for layer_name in student_layer_names:
+                    layer = self.student.get_layer(name=layer_name)
+                    student_outputs.append(layer.output)
+                    student_output_names.append(layer_name)
+
+                self._student_feature_extractor = keras.Model(
+                    inputs=inputs,
+                    outputs=student_outputs,
+                    name=f"{self.student.name}_multi_feature_extractor",
+                )
+                self._student_output_names = student_output_names
+            except (ValueError, AttributeError):
+                # Fallback to individual extraction for subclassed models
+                self._student_feature_extractor = None
+
+    def _extract_all_teacher_features(self, x):
+        """Extract all teacher features efficiently in a single forward pass.
+
+        Args:
+            x: Input data.
+
+        Returns:
+            Dict mapping layer names to their outputs, including 'final_output'.
+        """
+        if self._teacher_feature_extractor is not None:
+            # Use efficient multi-output extractor
+            feature_outputs = self._teacher_feature_extractor(x, training=False)
+            if not isinstance(feature_outputs, (list, tuple)):
+                feature_outputs = [feature_outputs]
+
+            # Map outputs to layer names
+            features = {}
+            for name, output in zip(
+                self._teacher_output_names, feature_outputs
+            ):
+                features[name] = output
+            return features
+        else:
+            # Fallback: just get final output for LogitsDistillation
+            return {"final_output": self.teacher(x, training=False)}
+
+    def _extract_all_student_features(self, x, y_pred):
+        """Extract all student features efficiently in a single forward pass.
+
+        Args:
+            x: Input data.
+            y_pred: Student predictions from forward pass (to avoid
+                recomputation).
+
+        Returns:
+            Dict mapping layer names to their outputs, including 'final_output'.
+        """
+        if self._student_feature_extractor is not None:
+            # Use efficient multi-output extractor
+            feature_outputs = self._student_feature_extractor(x, training=True)
+            if not isinstance(feature_outputs, (list, tuple)):
+                feature_outputs = [feature_outputs]
+
+            # Map outputs to layer names
+            features = {}
+            for name, output in zip(
+                self._student_output_names, feature_outputs
+            ):
+                features[name] = output
+            return features
+        else:
+            # Fallback: use y_pred for final output to avoid recomputation
+            return {"final_output": y_pred}
+
+    def _get_strategy_features(self, strategy, all_features, is_teacher):
+        """Get the specific features needed by a strategy from pre-extracted
+        features.
+
+        Args:
+            strategy: The FeatureDistillation strategy.
+            all_features: Dict of all extracted features.
+            is_teacher: Whether these are teacher features.
+
+        Returns:
+            The specific features needed by this strategy.
+        """
+        if is_teacher:
+            layer_name = strategy.teacher_layer_name or "final_output"
+        else:
+            layer_name = strategy.student_layer_name or "final_output"
+
+        if layer_name not in all_features:
+            raise ValueError(
+                f"Layer '{layer_name}' features not found in extracted "
+                f"features. Available features: {list(all_features.keys())}"
+            )
+
+        return all_features[layer_name]
 
     @property
     def student_model(self):
@@ -543,7 +714,9 @@ class Distiller(Model):
 
                     # Custom distillation loss computation
                     teacher_outputs = self.teacher(x, training=False)
-                    student_outputs = self.student(x, training=training)
+                    # Use y_pred (student output from forward pass) instead of
+                    # recomputing
+                    student_outputs = y_pred
 
                     # Custom loss logic here
                     distillation_loss = self._custom_distillation_loss(
@@ -558,115 +731,85 @@ class Distiller(Model):
                 def _custom_distillation_loss(self, teacher_outputs,
                                             student_outputs):
                     # Implement custom distillation loss logic
-                    from keras import ops
-                    return ops.mean(
-                        ops.square(teacher_outputs - student_outputs)
+                    return keras.ops.mean(
+                        keras.ops.square(teacher_outputs - student_outputs)
                     )
             ```
         """
-        # Normalize y_pred and y to lists for consistent handling
-        if not isinstance(y_pred, (list, tuple)):
-            y_pred = [y_pred]
-        if y is not None and not isinstance(y, (list, tuple)):
-            y = [y]
-
-        # Compute student loss
+        # Compute student loss using tree operations for dicts, manual for lists
         student_loss = 0.0
         if self.student_loss_weight > 0.0 and y is not None:
-            # Use the configured loss function
-            if (
-                hasattr(self, "_student_loss")
-                and self._student_loss is not None
-            ):
-                if isinstance(self._student_loss, list):
-                    # Multi-output loss
-                    if isinstance(y_pred, list) and len(y_pred) > 0:
-                        # Validate lengths match
-                        if len(y) != len(y_pred):
-                            raise ValueError(
-                                f"Number of targets ({len(y)}) must match "
-                                f"number of predictions ({len(y_pred)}) for "
-                                f"multi-output loss computation."
-                            )
-                        if len(self._student_loss) != len(y):
-                            raise ValueError(
-                                f"Number of loss functions "
-                                f"({len(self._student_loss)}) must match "
-                                f"number of outputs ({len(y)}) for "
-                                f"multi-output loss computation."
-                            )
+            if isinstance(self._student_loss, dict):
+                # Dict case - check keys match at runtime (keys can change)
+                loss_keys = set(self._student_loss.keys())
+                y_keys = set(y.keys())
+                pred_keys = set(y_pred.keys())
+                if loss_keys != y_keys or y_keys != pred_keys:
+                    raise ValueError(
+                        f"Keys must match across loss functions, targets, and "
+                        f"predictions. Loss keys: {loss_keys}, "
+                        f"Target keys: {y_keys}, Prediction keys: {pred_keys}"
+                    )
 
-                        # Compute loss for each output
-                        student_loss = sum(
-                            loss_fn(y[i], y_pred[i])
-                            for i, loss_fn in enumerate(self._student_loss)
-                        )
-                    else:
-                        # Single output with multi-output loss list
-                        if len(self._student_loss) != 1:
-                            raise ValueError(
-                                f"Single output provided but "
-                                f"{len(self._student_loss)} loss functions "
-                                f"configured. Use a single loss function or "
-                                f"provide multiple outputs."
-                            )
-                        student_loss = self._student_loss[0](y[0], y_pred[0])
-                else:
-                    # Single loss function
-                    if isinstance(y_pred, list) and len(y_pred) > 0:
-                        # Multi-output with single loss function
-                        if len(y) != len(y_pred):
-                            raise ValueError(
-                                f"Number of targets ({len(y)}) must match "
-                                f"number of predictions ({len(y_pred)}) for "
-                                f"multi-output loss computation."
-                            )
-                        # Use first output for student loss (consistent
-                        # behavior)
-                        student_loss = self._student_loss(y[0], y_pred[0])
-                    else:
-                        # Single output with single loss function
-                        student_loss = self._student_loss(y, y_pred)
+                # Compute losses manually and sum using tree.flatten
+                loss_values = {
+                    key: self._student_loss[key](y[key], y_pred[key])
+                    for key in self._student_loss.keys()
+                }
+                flat_losses = tree.flatten(loss_values)
+                student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
+            elif isinstance(self._student_loss, (list, tuple)):
+                # List/tuple case - check lengths match at runtime (can change)
+                if len(y) != len(y_pred) or len(self._student_loss) != len(y):
+                    raise ValueError(
+                        f"Number of targets ({len(y)}), predictions "
+                        f"({len(y_pred)}), and loss functions "
+                        f"({len(self._student_loss)}) must match."
+                    )
+
+                # Compute losses manually and sum using tree.flatten
+                loss_values = [
+                    loss_fn(y_true, y_pred_i)
+                    for loss_fn, y_true, y_pred_i in zip(
+                        self._student_loss, y, y_pred
+                    )
+                ]
+                flat_losses = tree.flatten(loss_values)
+                student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
             else:
-                # No loss function configured - this is an error
-                raise ValueError(
-                    "Student loss function is not configured. "
-                    "Please provide a valid 'student_loss' parameter to the "
-                    "Distiller constructor. "
-                    "Examples: 'sparse_categorical_crossentropy', "
-                    "'categorical_crossentropy', or a custom loss function."
-                )
+                # Single output case
+                student_loss = self._student_loss(y, y_pred)
 
             # Ensure student_loss is a scalar
             if hasattr(student_loss, "shape") and len(student_loss.shape) > 0:
-                student_loss = ops.mean(student_loss)
+                student_loss = keras.ops.mean(student_loss)
 
         # Compute distillation loss
         distillation_loss = 0.0
         if self.student_loss_weight < 1.0:
-            # Get teacher outputs
-            teacher_outputs = self.teacher(x, training=False)
+            # Extract all features efficiently in single forward passes
+            teacher_features = self._extract_all_teacher_features(x)
+            student_features = self._extract_all_student_features(x, y_pred)
 
-            # Apply strategies
-            for i, (strategy, weight) in enumerate(
-                zip(self.strategies, self.strategy_weights)
-            ):
-                # Get the corresponding output for this strategy
-                if isinstance(y_pred, (list, tuple)) and i < len(y_pred):
-                    strategy_output = y_pred[i]
+            # Apply strategies using pre-extracted features
+            for strategy, weight in zip(self.strategies, self.strategy_weights):
+                # Get appropriate outputs/features for this strategy
+                if hasattr(strategy, "teacher_layer_name"):
+                    # FeatureDistillation - use extracted features
+                    strategy_teacher_output = self._get_strategy_features(
+                        strategy, teacher_features, is_teacher=True
+                    )
+                    strategy_student_output = self._get_strategy_features(
+                        strategy, student_features, is_teacher=False
+                    )
                 else:
-                    strategy_output = y_pred
-
-                if isinstance(teacher_outputs, (list, tuple)) and i < len(
-                    teacher_outputs
-                ):
-                    strategy_teacher_output = teacher_outputs[i]
-                else:
-                    strategy_teacher_output = teacher_outputs
+                    # LogitsDistillation - use final model outputs
+                    strategy_teacher_output = teacher_features["final_output"]
+                    strategy_student_output = y_pred
 
                 # Compute loss for this strategy
                 strategy_loss = strategy.compute_loss(
-                    strategy_teacher_output, strategy_output
+                    strategy_teacher_output, strategy_student_output
                 )
 
                 # Apply weight and add to total
@@ -677,7 +820,7 @@ class Distiller(Model):
                 hasattr(distillation_loss, "shape")
                 and len(distillation_loss.shape) > 0
             ):
-                distillation_loss = ops.mean(distillation_loss)
+                distillation_loss = keras.ops.mean(distillation_loss)
 
         # Combine losses
         total_loss = (
@@ -726,8 +869,6 @@ class Distiller(Model):
                 ],
                 "strategy_weights": self.strategy_weights,
                 "student_loss_weight": self.student_loss_weight,
-                "input_mapping": self.input_mapping,
-                "output_mapping": self.output_mapping,
             }
         )
         return config

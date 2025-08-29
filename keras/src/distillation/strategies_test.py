@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 import keras
-from keras import ops
 from keras.src.distillation.distiller import Distiller
 from keras.src.distillation.strategies import FeatureDistillation
 from keras.src.distillation.strategies import LogitsDistillation
@@ -50,10 +49,10 @@ class TestLogitsDistillation(TestCase):
         strategy = LogitsDistillation(temperature=2.0)
 
         # Create dummy logits with sufficient difference to ensure non-zero loss
-        teacher_logits = ops.convert_to_tensor(
+        teacher_logits = keras.ops.convert_to_tensor(
             np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]), dtype="float32"
         )
-        student_logits = ops.convert_to_tensor(
+        student_logits = keras.ops.convert_to_tensor(
             np.array([[2.0, 1.0, 4.0], [3.0, 6.0, 2.0]]), dtype="float32"
         )
 
@@ -64,32 +63,30 @@ class TestLogitsDistillation(TestCase):
         self.assertEqual(len(loss.shape), 0)
 
         # Check that loss is finite and positive
-        self.assertTrue(ops.isfinite(loss))
+        self.assertTrue(keras.ops.isfinite(loss))
         self.assertGreater(loss, 0.0)
 
     def test_logits_distillation_with_different_loss_types(self):
         """Test logits distillation with different loss types."""
         # Test KL divergence
-        strategy_kl = LogitsDistillation(
-            temperature=2.0, loss_type="kl_divergence"
-        )
-        teacher_logits = ops.convert_to_tensor(
+        strategy_kl = LogitsDistillation(temperature=2.0, loss="kl_divergence")
+        teacher_logits = keras.ops.convert_to_tensor(
             np.array([[1.0, 2.0, 3.0]]), dtype="float32"
         )
-        student_logits = ops.convert_to_tensor(
+        student_logits = keras.ops.convert_to_tensor(
             np.array([[2.0, 1.0, 4.0]]), dtype="float32"
         )
 
         loss_kl = strategy_kl.compute_loss(teacher_logits, student_logits)
-        self.assertTrue(ops.isfinite(loss_kl))
+        self.assertTrue(keras.ops.isfinite(loss_kl))
         self.assertGreater(loss_kl, 0.0)
 
         # Test categorical crossentropy
         strategy_ce = LogitsDistillation(
-            temperature=2.0, loss_type="categorical_crossentropy"
+            temperature=2.0, loss="categorical_crossentropy"
         )
         loss_ce = strategy_ce.compute_loss(teacher_logits, student_logits)
-        self.assertTrue(ops.isfinite(loss_ce))
+        self.assertTrue(keras.ops.isfinite(loss_ce))
         self.assertGreater(loss_ce, 0.0)
 
 
@@ -131,30 +128,30 @@ class TestFeatureDistillation(TestCase):
 
         # Test MSE loss
         strategy_mse = FeatureDistillation(
-            loss_type="mse",
+            loss="mse",
             teacher_layer_name="teacher_dense_1",
             student_layer_name="student_dense_1",
         )
 
-        teacher_features = ops.convert_to_tensor(
+        teacher_features = keras.ops.convert_to_tensor(
             np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]), dtype="float32"
         )
-        student_features = ops.convert_to_tensor(
+        student_features = keras.ops.convert_to_tensor(
             np.array([[1.1, 2.1, 3.1], [4.1, 5.1, 6.1]]), dtype="float32"
         )
 
         loss_mse = strategy_mse.compute_loss(teacher_features, student_features)
         self.assertEqual(len(loss_mse.shape), 0)
-        self.assertTrue(ops.isfinite(loss_mse))
+        self.assertTrue(keras.ops.isfinite(loss_mse))
         self.assertGreater(loss_mse, 0.0)
 
         # Test cosine loss
-        strategy_cosine = FeatureDistillation(loss_type="cosine")
+        strategy_cosine = FeatureDistillation(loss="cosine_similarity")
         loss_cosine = strategy_cosine.compute_loss(
             teacher_features, student_features
         )
         self.assertEqual(len(loss_cosine.shape), 0)
-        self.assertTrue(ops.isfinite(loss_cosine))
+        self.assertTrue(keras.ops.isfinite(loss_cosine))
         self.assertGreaterEqual(loss_cosine, 0.0)
 
 
@@ -164,35 +161,37 @@ class TestMultiStrategyDistillation(TestCase):
 
     def test_multi_strategy_distillation_end_to_end(self):
         """Test multi-strategy distillation end-to-end."""
-        # Create strategies for different outputs
-        logits_strategy = LogitsDistillation(temperature=2.0, output_index=0)
-        feature_strategy = FeatureDistillation(loss_type="mse")
 
         # Create dummy multi-output data with very different values
         teacher_outputs = [
-            ops.convert_to_tensor(
+            keras.ops.convert_to_tensor(
                 np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]), dtype="float32"
             ),
-            ops.convert_to_tensor(
+            keras.ops.convert_to_tensor(
                 np.array([[0.1, 0.2], [0.3, 0.4]]), dtype="float32"
             ),
         ]
         student_outputs = [
-            ops.convert_to_tensor(
+            keras.ops.convert_to_tensor(
                 np.array([[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]]),
                 dtype="float32",
             ),
-            ops.convert_to_tensor(
+            keras.ops.convert_to_tensor(
                 np.array([[0.5, 0.6], [0.7, 0.8]]), dtype="float32"
             ),
         ]
 
-        # Test individual strategies
-        logits_loss = logits_strategy.compute_loss(
-            [teacher_outputs[0]], [student_outputs[0]]
+        # Test individual strategies with matching loss structures
+        logits_strategy_list = LogitsDistillation(
+            temperature=2.0, loss=["kl_divergence", "kl_divergence"]
         )
-        feature_loss = feature_strategy.compute_loss(
-            [teacher_outputs[1]], [student_outputs[1]]
+        feature_strategy_list = FeatureDistillation(loss=["mse", "mse"])
+
+        logits_loss = logits_strategy_list.compute_loss(
+            teacher_outputs, student_outputs
+        )
+        feature_loss = feature_strategy_list.compute_loss(
+            teacher_outputs, student_outputs
         )
 
         # Check that losses are scalar tensors
@@ -200,8 +199,8 @@ class TestMultiStrategyDistillation(TestCase):
         self.assertEqual(len(feature_loss.shape), 0)
 
         # Check that losses are finite and positive
-        self.assertTrue(ops.isfinite(logits_loss))
-        self.assertTrue(ops.isfinite(feature_loss))
+        self.assertTrue(keras.ops.isfinite(logits_loss))
+        self.assertTrue(keras.ops.isfinite(feature_loss))
         self.assertGreater(logits_loss, 0.0)
         self.assertGreater(feature_loss, 0.0)
 
@@ -218,8 +217,12 @@ class TestMultiStrategyDistillation(TestCase):
 
         # Create strategies list
         strategies = [
-            LogitsDistillation(temperature=2.0, output_index=0),
-            FeatureDistillation(loss_type="mse"),
+            LogitsDistillation(
+                temperature=2.0, loss=["kl_divergence", "kl_divergence"]
+            ),
+            FeatureDistillation(
+                loss=["mse", "mse"]
+            ),  # Match multi-output structure
         ]
         strategy_weights = [1.0, 0.5]
 

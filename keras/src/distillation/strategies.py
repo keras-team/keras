@@ -1,18 +1,18 @@
 import keras
-from keras.src import ops
+from keras.src import tree
 from keras.src.api_export import keras_export
 
 
-@keras_export("keras.distillation.BaseDistillationStrategy")
-class BaseDistillationStrategy:
-    """Base class for distillation strategies.
+@keras_export("keras.distillation.DistillationLoss")
+class DistillationLoss:
+    """Base class for distillation loss computation.
 
-    Distillation strategies define how to compute the distillation loss
-    between teacher and student outputs. Each strategy implements a specific
-    approach to knowledge transfer, from simple logits matching to multi-output
+    Distillation losses define how to compute the distillation loss
+    between teacher and student outputs. Each loss implements a specific
+    approach to knowledge transfer, from simple logits matching to feature-based
     distillation.
 
-    To create custom distillation strategies, subclass this class and
+    To create custom distillation losses, subclass this class and
     override the `compute_loss` method.
     """
 
@@ -62,7 +62,7 @@ class BaseDistillationStrategy:
 
 
 @keras_export("keras.distillation.LogitsDistillation")
-class LogitsDistillation(BaseDistillationStrategy):
+class LogitsDistillation(DistillationLoss):
     """Distillation strategy that transfers knowledge from final model outputs.
 
     This strategy applies temperature scaling to the teacher's logits before
@@ -76,8 +76,7 @@ class LogitsDistillation(BaseDistillationStrategy):
        probability distributions that reveal relationships between classes.
 
     2. Loss Computation: The loss is computed between the temperature-scaled
-       teacher logits and student logits using either KL divergence or
-       categorical crossentropy.
+       teacher logits and student logits using the specified loss function.
 
     When to Use Logits Distillation:
 
@@ -98,71 +97,95 @@ class LogitsDistillation(BaseDistillationStrategy):
         temperature: Temperature for softmax scaling. Higher values produce
             softer probability distributions that are easier for the student to
             learn. Typical values range from 3-5. Defaults to 3.0.
-        loss_type: Type of loss function to use. Options:
-            - `"kl_divergence"`: KL divergence between teacher and student
-              distributions
-            - `"categorical_crossentropy"`: Crossentropy with teacher as target
-        output_index: Index of the output to use for multi-output models.
-            Defaults to 0.
+        loss: Loss function(s) to use for distillation. Can be:
+            - String identifier (e.g., 'kl_divergence',
+              'categorical_crossentropy')
+            - Keras loss instance
+            - List/tuple of losses for multi-output models
+            - Dict of losses for named outputs
+            The structure must match the model's output structure.
+            Defaults to 'kl_divergence'.
 
     Example:
 
     ```python
-    from keras import ops
-    # Basic logits distillation
+    # Basic logits distillation with KL divergence
     strategy = LogitsDistillation(temperature=3.0)
 
     # With categorical crossentropy loss
     strategy = LogitsDistillation(
         temperature=4.0,
-        loss_type="categorical_crossentropy"
+        loss="categorical_crossentropy"
+    )
+
+    # With custom loss instance
+    strategy = LogitsDistillation(
+        temperature=4.0,
+        loss=keras.losses.CategoricalCrossentropy(from_logits=True)
+    )
+
+    # For multi-output models with list structure
+    strategy = LogitsDistillation(
+        temperature=3.0,
+        loss=["kl_divergence", "categorical_crossentropy"]
+    )
+
+    # For multi-output models with dict structure
+    strategy = LogitsDistillation(
+        temperature=3.0,
+        loss={
+            "classification": "kl_divergence",
+            "regression": "mse"
+        }
     )
 
     # Custom loss by subclassing
     class CustomLogitsDistillation(LogitsDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            # Get the outputs to distill
-            teacher_logits = teacher_outputs[self.output_index]
-            student_logits = student_outputs[self.output_index]
-
-            # Apply temperature scaling
-            teacher_logits = teacher_logits / self.temperature
-            student_logits = student_logits / self.temperature
-
-            # Custom loss computation
-            teacher_probs = ops.softmax(teacher_logits, axis=-1)
-            student_probs = ops.softmax(student_logits, axis=-1)
-            return ops.mean(
-                keras.losses.kl_divergence(teacher_probs, student_probs)
+            # Apply temperature scaling using tree.map_structure
+            teacher_scaled = tree.map_structure(
+                lambda x: x / self.temperature, teacher_outputs
+            )
+            student_scaled = tree.map_structure(
+                lambda x: x / self.temperature, student_outputs
             )
 
-    strategy = CustomLogitsDistillation(temperature=3.0)
-
-    # For multi-output models
-    strategy = LogitsDistillation(
-        temperature=3.0,
-        output_index=1  # Use second output
-    )
+            # Custom loss computation
+            return tree.map_structure(
+                lambda t, s: keras.ops.mean(
+                    keras.losses.kl_divergence(
+                        keras.ops.softmax(t, axis=-1),
+                        keras.ops.softmax(s, axis=-1)
+                    )
+                ),
+                teacher_scaled,
+                student_scaled
+            )
     ```
     """
 
     def __init__(
         self,
         temperature=3.0,
-        loss_type="kl_divergence",
-        output_index=0,
+        loss="kl_divergence",
     ):
         super().__init__()
         self.temperature = temperature
-        self.loss_type = loss_type
-        self.output_index = output_index
 
-        # Validate loss_type
-        if loss_type not in ["kl_divergence", "categorical_crossentropy"]:
-            raise ValueError(
-                f"loss_type must be one of ['kl_divergence', "
-                f"'categorical_crossentropy'], got {loss_type}"
-            )
+        # Convert loss structure to functions using tree.map_structure
+        def convert_loss_to_function(loss_item):
+            if isinstance(loss_item, str):
+                loss_fn = keras.losses.get(loss_item)
+                if loss_fn is None:
+                    raise ValueError(
+                        f"Unknown loss function: '{loss_item}'. "
+                        "Please provide a valid loss function name or instance."
+                    )
+                return loss_fn
+            else:
+                return loss_item
+
+        self.loss = tree.map_structure(convert_loss_to_function, loss)
 
         # Validate temperature
         if not isinstance(self.temperature, (int, float)):
@@ -178,109 +201,81 @@ class LogitsDistillation(BaseDistillationStrategy):
         """Validate that outputs are compatible for logits distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
 
-        # Ensure outputs are lists/tuples
-        if not isinstance(teacher_outputs, (list, tuple)):
-            teacher_outputs = [teacher_outputs]
-        if not isinstance(student_outputs, (list, tuple)):
-            student_outputs = [student_outputs]
-
-        # Check output index is valid
-        if self.output_index >= len(teacher_outputs):
+        # Validate that loss structure matches output structure
+        try:
+            tree.assert_same_structure(self.loss, teacher_outputs)
+            tree.assert_same_structure(self.loss, student_outputs)
+        except ValueError as e:
             raise ValueError(
-                f"output_index {self.output_index} is out of range. "
-                f"Teacher has {len(teacher_outputs)} outputs."
-            )
-        if self.output_index >= len(student_outputs):
-            raise ValueError(
-                f"output_index {self.output_index} is out of range. "
-                f"Student has {len(student_outputs)} outputs."
-            )
-
-        # Check that the selected outputs have compatible shapes
-        teacher_output = teacher_outputs[self.output_index]
-        student_output = student_outputs[self.output_index]
-
-        if teacher_output.shape[-1] != student_output.shape[-1]:
-            raise ValueError(
-                f"Teacher and student outputs must have the same number of "
-                f"classes. "
-                f"Teacher output shape: {teacher_output.shape}, "
-                f"Student output shape: {student_output.shape}"
+                f"Loss structure must match output structure. "
+                f"Loss structure: {tree.structure(self.loss)}, "
+                f"Teacher output structure: {tree.structure(teacher_outputs)}, "
+                f"Student output structure: {tree.structure(student_outputs)}. "
+                f"Error: {e}"
             )
 
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-        """Compute distillation loss using Keras built-in loss functions.
+        """Compute distillation loss using the configured loss function.
 
         Args:
-            teacher_outputs: Logits from teacher model. Can be a single tensor
-                or a list/tuple of tensors for multi-output models.
-            student_outputs: Logits from student model. Can be a single tensor
-                or a list/tuple of tensors for multi-output models.
+            teacher_outputs: Logits from teacher model. Can be a single tensor,
+                list/tuple of tensors, or dict of tensors.
+            student_outputs: Logits from student model. Can be a single tensor,
+                list/tuple of tensors, or dict of tensors.
             **kwargs: Additional arguments (ignored).
         Returns:
             Distillation loss tensor.
         """
+        # Apply temperature scaling using tree.map_structure
+        teacher_scaled = tree.map_structure(
+            lambda x: x / self.temperature, teacher_outputs
+        )
+        student_scaled = tree.map_structure(
+            lambda x: x / self.temperature, student_outputs
+        )
 
-        # Normalize outputs to lists
-        if not isinstance(teacher_outputs, (list, tuple)):
-            teacher_outputs = [teacher_outputs]
-        if not isinstance(student_outputs, (list, tuple)):
-            student_outputs = [student_outputs]
+        # Apply loss function(s) to corresponding outputs
+        def apply_loss(loss_fn, teacher_logits, student_logits):
+            # Special handling for KL divergence (needs probabilities)
+            if (
+                hasattr(loss_fn, "__name__")
+                and "kl" in loss_fn.__name__.lower()
+            ):
+                teacher_probs = keras.ops.softmax(teacher_logits, axis=-1)
+                student_probs = keras.ops.softmax(student_logits, axis=-1)
+                loss = keras.ops.mean(loss_fn(teacher_probs, student_probs))
+                # Scale by temperature^2 for KL (per literature)
+                return loss * (self.temperature**2)
+            else:
+                # For other losses, use logits directly
+                return keras.ops.mean(loss_fn(teacher_logits, student_logits))
 
-        # Get the outputs to distill
-        teacher_logits = teacher_outputs[self.output_index]
-        student_logits = student_outputs[self.output_index]
+        # Apply losses using tree.map_structure
+        loss_values = tree.map_structure(
+            apply_loss, self.loss, teacher_scaled, student_scaled
+        )
 
-        # Apply temperature scaling
-        teacher_logits = teacher_logits / self.temperature
-        student_logits = student_logits / self.temperature
-
-        if self.loss_type == "kl_divergence":
-            # Convert to probabilities for KL divergence
-            teacher_probs = ops.softmax(teacher_logits, axis=-1)
-            student_probs = ops.softmax(student_logits, axis=-1)
-
-            # Use Keras KLDivergence directly and reduce to scalar
-            loss = ops.mean(
-                keras.losses.kl_divergence(teacher_probs, student_probs)
-            )
-
-            # Scale by temperature^2 for KL (per literature)
-            return loss * (self.temperature**2)
-
-        elif self.loss_type == "categorical_crossentropy":
-            # Convert teacher to probabilities, keep student as logits and
-            # pass from_logits=True for correct computation.
-            teacher_probs = ops.softmax(teacher_logits, axis=-1)
-
-            loss = ops.mean(
-                keras.losses.categorical_crossentropy(
-                    teacher_probs, student_logits, from_logits=True
-                )
-            )
-
-            # Do NOT scale by temperature^2 for categorical crossentropy
-            return loss
-
-        else:
-            raise ValueError(f"Unknown loss_type: {self.loss_type}")
+        # Sum all losses and return scalar
+        flat_losses = tree.flatten(loss_values)
+        return keras.ops.sum(keras.ops.stack(flat_losses))
 
     def get_config(self):
         """Get configuration for serialization."""
         return {
             "temperature": self.temperature,
-            "loss_type": self.loss_type,
-            "output_index": self.output_index,
+            "loss": keras.losses.serialize(self.loss),
         }
 
     @classmethod
     def from_config(cls, config):
         """Create instance from configuration."""
+        config = config.copy()
+        config["loss"] = keras.losses.deserialize(config["loss"])
         return cls(**config)
 
 
 @keras_export("keras.distillation.FeatureDistillation")
-class FeatureDistillation(BaseDistillationStrategy):
+class FeatureDistillation(DistillationLoss):
     """Feature distillation strategy using intermediate layer representations.
 
     Feature distillation transfers knowledge from intermediate layers of the
@@ -330,9 +325,13 @@ class FeatureDistillation(BaseDistillationStrategy):
       rather than magnitude.
 
     Args:
-        loss_type: Type of loss function to use. Options:
-            - `"mse"`: Mean squared error between teacher and student features
-            - `"cosine"`: Cosine similarity between feature vectors
+        loss: Loss function(s) to use for feature distillation. Can be:
+            - String identifier (e.g., 'mse', 'cosine_similarity', 'mae')
+            - Keras loss instance
+            - List/tuple of losses for multi-output models
+            - Dict of losses for named outputs
+            The structure must match the model's output structure.
+            Defaults to 'mse'.
         teacher_layer_name: Name of the teacher layer to extract features from.
             If None, uses the final output. Defaults to None.
         student_layer_name: Name of the student layer to extract features from.
@@ -342,17 +341,37 @@ class FeatureDistillation(BaseDistillationStrategy):
 
     ```python
     # Basic feature distillation from final outputs
-    strategy = FeatureDistillation(loss_type="mse")
+    strategy = FeatureDistillation(loss="mse")
+
+    # With custom loss instance
+    strategy = FeatureDistillation(
+        loss=keras.losses.MeanAbsoluteError()
+    )
+
+    # For multi-output models with list structure
+    strategy = FeatureDistillation(
+        loss=["mse", "cosine_similarity"]
+    )
+
+    # For multi-output models with dict structure
+    strategy = FeatureDistillation(
+        loss={
+            "features_1": "mse",
+            "features_2": "cosine_similarity"
+        }
+    )
 
     # Custom loss by subclassing
     class CustomFeatureDistillation(FeatureDistillation):
         def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            # Use first output by default
-            teacher_features = teacher_outputs[0]
-            student_features = student_outputs[0]
-
-            # Custom L1 loss for feature distillation
-            return ops.mean(ops.abs(teacher_features - student_features))
+            # Apply loss using tree.map_structure
+            return tree.map_structure(
+                lambda t, s: keras.ops.mean(
+                    keras.ops.abs(t - s)
+                ),
+                teacher_outputs,
+                student_outputs
+            )
 
     strategy = CustomFeatureDistillation(
         teacher_layer_name="dense_1",
@@ -361,21 +380,21 @@ class FeatureDistillation(BaseDistillationStrategy):
 
     # Distill from specific layers with compatible shapes
     strategy = FeatureDistillation(
-        loss_type="mse",
+        loss="mse",
         teacher_layer_name="dense_1",
         student_layer_name="dense_1"
     )
 
     # Use cosine similarity for different feature sizes
     strategy = FeatureDistillation(
-        loss_type="cosine",
+        loss="cosine_similarity",
         teacher_layer_name="conv2d_2",
         student_layer_name="conv2d_1"
     )
 
     # Distill from final outputs (equivalent to logits distillation)
     strategy = FeatureDistillation(
-        loss_type="mse",
+        loss="mse",
         teacher_layer_name=None,  # Final output
         student_layer_name=None   # Final output
     )
@@ -383,9 +402,8 @@ class FeatureDistillation(BaseDistillationStrategy):
     """
 
     def __init__(
-        self, loss_type="mse", teacher_layer_name=None, student_layer_name=None
+        self, loss="mse", teacher_layer_name=None, student_layer_name=None
     ):
-        self.loss_type = loss_type
         self.teacher_layer_name = teacher_layer_name
         self.student_layer_name = student_layer_name
 
@@ -393,68 +411,99 @@ class FeatureDistillation(BaseDistillationStrategy):
         self._teacher_feature_model = None
         self._student_feature_model = None
 
-        # Validate loss_type
-        valid_loss_types = ["mse", "cosine"]
-        if loss_type not in valid_loss_types:
-            raise ValueError(f"loss_type must be one of {valid_loss_types}")
+        # Convert loss structure to functions using tree.map_structure
+        def convert_loss_to_function(loss_item):
+            if isinstance(loss_item, str):
+                loss_fn = keras.losses.get(loss_item)
+                if loss_fn is None:
+                    raise ValueError(
+                        f"Unknown loss function: '{loss_item}'. "
+                        "Please provide a valid loss function name or instance."
+                    )
+                return loss_fn
+            else:
+                return loss_item
 
-    def _get_teacher_features(self, teacher_model, inputs):
+        self.loss = tree.map_structure(convert_loss_to_function, loss)
+
+    def _get_features(
+        self, model, inputs, training, layer_name, feature_model_attr
+    ):
+        """Extract features from model at specified layer.
+
+        Args:
+            model: The model to extract features from.
+            inputs: Input data.
+            training: Whether model is in training mode.
+            layer_name: Name of layer to extract from (None for final output).
+            feature_model_attr: Attribute name to cache feature extraction
+                model.
+
+        Returns:
+            Extracted features.
+        """
+        # No specific layer, use the final model output
+        if layer_name is None:
+            return model(inputs, training=training)
+
+        # For intermediate layer extraction, create feature extractor if needed
+        if getattr(self, feature_model_attr) is None:
+            try:
+                setattr(
+                    self,
+                    feature_model_attr,
+                    self._create_feature_extractor(model, layer_name),
+                )
+            except ValueError as e:
+                if "no defined inputs" in str(e).lower():
+                    # Build the model by calling it with inputs first
+                    _ = model(inputs, training=training)
+                    # Now try again
+                    setattr(
+                        self,
+                        feature_model_attr,
+                        self._create_feature_extractor(model, layer_name),
+                    )
+                else:
+                    raise
+
+        return getattr(self, feature_model_attr)(inputs, training=training)
+
+    def get_teacher_features(self, teacher_model, inputs):
         """Extract features from teacher model."""
-        # No specific layer, use the final model output
-        if self.teacher_layer_name is None:
-            return teacher_model(inputs, training=False)
+        return self._get_features(
+            teacher_model,
+            inputs,
+            False,
+            self.teacher_layer_name,
+            "_teacher_feature_model",
+        )
 
-        # For intermediate layer extraction, we need to create a custom function
-        # that extracts the output at the specified layer
-        if self._teacher_feature_model is None:
-            # Build the model first if needed (for Sequential models)
-            try:
-                self._teacher_feature_model = self._create_feature_extractor(
-                    teacher_model, self.teacher_layer_name
-                )
-            except ValueError as e:
-                if "no defined inputs" in str(e).lower():
-                    # Build the model by calling it with the inputs first
-                    _ = teacher_model(inputs, training=False)
-                    # Now try again
-                    self._teacher_feature_model = (
-                        self._create_feature_extractor(
-                            teacher_model, self.teacher_layer_name
-                        )
-                    )
-                else:
-                    raise
-
-        return self._teacher_feature_model(inputs, training=False)
-
-    def _get_student_features(self, student_model, inputs):
+    def get_student_features(self, student_model, inputs):
         """Extract features from student model."""
-        # No specific layer, use the final model output
-        if self.student_layer_name is None:
-            return student_model(inputs, training=True)
+        return self._get_features(
+            student_model,
+            inputs,
+            True,
+            self.student_layer_name,
+            "_student_feature_model",
+        )
 
-        # For intermediate layer extraction, we need to create a custom function
-        # that extracts the output at the specified layer
-        if self._student_feature_model is None:
-            # Build the model first if needed (for Sequential models)
+    def validate_model_compatibility(self, teacher, student):
+        """Validate that teacher and student models are compatible for feature
+        distillation."""
+        # Check if specified layers exist in the models
+        if self.teacher_layer_name is not None:
             try:
-                self._student_feature_model = self._create_feature_extractor(
-                    student_model, self.student_layer_name
-                )
+                teacher.get_layer(name=self.teacher_layer_name)
             except ValueError as e:
-                if "no defined inputs" in str(e).lower():
-                    # Build the model by calling it with the inputs first
-                    _ = student_model(inputs, training=True)
-                    # Now try again
-                    self._student_feature_model = (
-                        self._create_feature_extractor(
-                            student_model, self.student_layer_name
-                        )
-                    )
-                else:
-                    raise
+                raise ValueError(f"In teacher model: {e}")
 
-        return self._student_feature_model(inputs, training=True)
+        if self.student_layer_name is not None:
+            try:
+                student.get_layer(name=self.student_layer_name)
+            except ValueError as e:
+                raise ValueError(f"In student model: {e}")
 
     def _create_feature_extractor(self, model, layer_name):
         """Create a feature extractor function for the specified layer.
@@ -471,20 +520,12 @@ class FeatureDistillation(BaseDistillationStrategy):
             # Return the original model if no layer specified
             return model
 
-        # Find the layer by name
-        target_layer = None
-        for layer in model.layers:
-            if layer.name == layer_name:
-                target_layer = layer
-                break
-
-        if target_layer is None:
+        # Get the layer using Keras built-in method
+        try:
+            target_layer = model.get_layer(name=layer_name)
+        except ValueError as e:
             raise ValueError(
-                f"Layer '{layer_name}' not found in model. "
-                f"This may happen with a subclassed model that cannot be "
-                f"traversed using the standard layer API. "
-                f"Available layers: "
-                f"{[layer.name for layer in model.layers]}"
+                f"Layer '{layer_name}' not found in model '{model.name}'. {e}"
             )
 
         # Create a new model that extracts features from the specified layer.
@@ -523,28 +564,27 @@ class FeatureDistillation(BaseDistillationStrategy):
         """Validate that outputs are compatible for feature distillation."""
         super().validate_outputs(teacher_outputs, student_outputs)
 
-        # Normalize outputs to lists
-        if not isinstance(teacher_outputs, (list, tuple)):
-            teacher_outputs = [teacher_outputs]
-        if not isinstance(student_outputs, (list, tuple)):
-            student_outputs = [student_outputs]
+        # Validate that loss structure matches output structure
+        try:
+            tree.assert_same_structure(self.loss, teacher_outputs)
+            tree.assert_same_structure(self.loss, student_outputs)
+        except ValueError as e:
+            raise ValueError(
+                f"Loss structure must match output structure. "
+                f"Loss structure: {tree.structure(self.loss)}, "
+                f"Teacher output structure: {tree.structure(teacher_outputs)}, "
+                f"Student output structure: {tree.structure(student_outputs)}. "
+                f"Error: {e}"
+            )
 
-        # For feature distillation, we need to validate layer compatibility
+        # For feature distillation, validate layer compatibility if specified
         if (
             self.teacher_layer_name is not None
             and self.student_layer_name is not None
         ):
             # Validate that the specified layers exist and are compatible
             self._validate_layer_compatibility(teacher_outputs, student_outputs)
-        else:
-            # If no specific layers are specified, validate final outputs
-            if len(teacher_outputs) != len(student_outputs):
-                raise ValueError(
-                    f"Teacher and student must have the same number of "
-                    f"outputs. "
-                    f"Teacher has {len(teacher_outputs)} outputs, "
-                    f"student has {len(student_outputs)} outputs."
-                )
+        # Note: Base class already validated output count compatibility
 
     def _validate_layer_compatibility(self, teacher_outputs, student_outputs):
         """Validate that the specified layers are compatible for feature
@@ -553,39 +593,6 @@ class FeatureDistillation(BaseDistillationStrategy):
         # compatibility when using feature distillation with specific layer
         # names
         pass
-
-    def validate_model_compatibility(self, teacher, student):
-        """Validate that teacher and student models are compatible for feature
-        distillation."""
-        # Check if specified layers exist in the models
-        if self.teacher_layer_name is not None:
-            if not self._layer_exists_in_model(
-                teacher, self.teacher_layer_name
-            ):
-                raise ValueError(
-                    f"Teacher layer '{self.teacher_layer_name}' not found in "
-                    f"teacher model. "
-                    f"Available layers: "
-                    f"{[layer.name for layer in teacher.layers]}"
-                )
-
-        if self.student_layer_name is not None:
-            if not self._layer_exists_in_model(
-                student, self.student_layer_name
-            ):
-                raise ValueError(
-                    f"Student layer '{self.student_layer_name}' not found in "
-                    f"student model. "
-                    f"Available layers: "
-                    f"{[layer.name for layer in student.layers]}"
-                )
-
-    def _layer_exists_in_model(self, model, layer_name):
-        """Check if a layer with the given name exists in the model."""
-        for layer in model.layers:
-            if layer.name == layer_name:
-                return True
-        return False
 
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute feature distillation loss using extracted features.
@@ -597,52 +604,44 @@ class FeatureDistillation(BaseDistillationStrategy):
 
         Args:
             teacher_outputs: Intermediate features from teacher model.
-                Can be a single tensor or a list/tuple of tensors.
+                Can be a single tensor, list/tuple of tensors, or dict of
+                tensors.
             student_outputs: Intermediate features from student model.
-                Can be a single tensor or a list/tuple of tensors.
+                Can be a single tensor, list/tuple of tensors, or dict of
+                tensors.
             **kwargs: Additional arguments (ignored).
         Returns:
             Feature distillation loss tensor.
         """
 
-        # Normalize outputs to lists
-        if not isinstance(teacher_outputs, (list, tuple)):
-            teacher_outputs = [teacher_outputs]
-        if not isinstance(student_outputs, (list, tuple)):
-            student_outputs = [student_outputs]
+        # Apply loss function(s) to corresponding features
+        def apply_loss(loss_fn, teacher_features, student_features):
+            loss = keras.ops.mean(loss_fn(teacher_features, student_features))
 
-        # Use first output by default (can be extended to use specific outputs)
-        teacher_features = teacher_outputs[0]
-        student_features = student_outputs[0]
+            # Special handling for cosine similarity (convert similarity to
+            # distance)
+            if (
+                hasattr(loss_fn, "__name__")
+                and "cosine" in loss_fn.__name__.lower()
+            ):
+                # Convert similarity to distance: distance = 1 - similarity
+                loss = 1.0 - loss
 
-        if self.loss_type == "mse":
-            # Use Keras MeanSquaredError directly and reduce to scalar
-            loss = ops.mean(
-                keras.losses.mean_squared_error(
-                    teacher_features, student_features
-                )
-            )
+            return loss
 
-        elif self.loss_type == "cosine":
-            # Use Keras CosineSimilarity directly (returns similarity, convert
-            # to distance)
-            similarity = ops.mean(
-                keras.losses.cosine_similarity(
-                    teacher_features, student_features
-                )
-            )
-            # Convert similarity to distance: distance = 1 - similarity
-            loss = 1.0 - similarity
+        # Apply losses using tree.map_structure
+        loss_values = tree.map_structure(
+            apply_loss, self.loss, teacher_outputs, student_outputs
+        )
 
-        else:
-            raise ValueError(f"Unknown loss_type: {self.loss_type}")
-
-        return loss
+        # Sum all losses and return scalar
+        flat_losses = tree.flatten(loss_values)
+        return keras.ops.sum(keras.ops.stack(flat_losses))
 
     def get_config(self):
         """Get configuration for serialization."""
         return {
-            "loss_type": self.loss_type,
+            "loss": keras.losses.serialize(self.loss),
             "teacher_layer_name": self.teacher_layer_name,
             "student_layer_name": self.student_layer_name,
         }
@@ -650,4 +649,6 @@ class FeatureDistillation(BaseDistillationStrategy):
     @classmethod
     def from_config(cls, config):
         """Create instance from configuration."""
+        config = config.copy()
+        config["loss"] = keras.losses.deserialize(config["loss"])
         return cls(**config)
