@@ -6,8 +6,8 @@ def _classes_shape(batched, classes_shape, max_boxes):
     if max_boxes is None:
         return None
     if batched:
-        return [None, max_boxes] + list(classes_shape[2:])
-    return [max_boxes] + list(classes_shape[1:])
+        return [None, max_boxes] + classes_shape[2:]
+    return [max_boxes] + classes_shape[1:]
 
 
 def _box_shape(batched, boxes_shape, max_boxes):
