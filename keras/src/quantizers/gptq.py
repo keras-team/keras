@@ -339,7 +339,7 @@ class GPTQ:
 
         self.num_samples = self.num_samples + ops.shape(x)[0] or 0
 
-    def quantize_and_correct_block(
+    def quantize_and_correct_layer(
         self,
         blocksize=128,
     ):
@@ -381,15 +381,14 @@ class GPTQ:
              at a time. Defaults to 128.
         """
 
-        weights_matrix = ops.transpose(ops.cast(self.layer.kernel, "float32"))
-        hessian_matrix = ops.cast(self.hessian, "float32")
+        weights_matrix = ops.transpose(self.layer.kernel)
 
         # Dampen the Hessian for Stability
-        hessian_diagonal = ops.diagonal(hessian_matrix)
+        hessian_diagonal = ops.diagonal(self.hessian)
         dead_diagonal = ops.equal(hessian_diagonal, 0.0)
         hessian_diagonal = ops.where(dead_diagonal, 1.0, hessian_diagonal)
         hessian_matrix = ops.add(
-            hessian_matrix,
+            self.hessian,
             ops.diag(
                 ops.where(dead_diagonal, 1.0, ops.zeros_like(hessian_diagonal))
             ),

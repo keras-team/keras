@@ -346,7 +346,7 @@ def apply_gptq_layerwise(model, dataloader, config):
 
             for name, gptq_object in gptq_objects.items():
                 logging.info(f"Quantizing {name}...")
-                gptq_object.quantize_and_correct_block()
+                gptq_object.quantize_and_correct_layer()
                 gptq_object.free()
 
             del gptq_objects

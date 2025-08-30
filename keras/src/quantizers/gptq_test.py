@@ -126,7 +126,7 @@ class GPTQTest(testing.TestCase):
         )
         calibration_data = rng.standard_normal(size=(128, 16)).astype("float32")
         gptq_instance.update_hessian_with_batch(calibration_data)
-        gptq_instance.quantize_and_correct_block()
+        gptq_instance.quantize_and_correct_layer()
 
         quantized_weights = ops.convert_to_numpy(mock_layer.kernel)
         self.assertFalse(np.allclose(original_weights, quantized_weights))
@@ -356,7 +356,7 @@ class GPTQTest(testing.TestCase):
             ),
         )
         g1.hessian = H
-        g1.quantize_and_correct_block()
+        g1.quantize_and_correct_layer()
 
         # Quantize without activation order
         layer2 = layers.Dense(out_features, use_bias=False)
@@ -373,7 +373,7 @@ class GPTQTest(testing.TestCase):
             ),
         )
         g2.hessian = H
-        g2.quantize_and_correct_block()
+        g2.quantize_and_correct_layer()
 
         # The weights should be identical since permutation is undone
         self.assertAllClose(layer.get_weights()[0], layer2.get_weights()[0])
