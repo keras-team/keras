@@ -420,7 +420,7 @@ def _get_sequence_classifier():
             ffn_output = self.ffn(out1)
             return self.layernorm2(out1 + ffn_output)
 
-    inputs = layers.Input(shape=(None,), dtype="int32")
+    inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
     x = layers.Embedding(VOCAB_SIZE, embed_dim)(inputs)
     x = SimpleTransformerBlock(embed_dim, num_heads, ff_dim)(x)
     x = layers.GlobalAveragePooling1D()(x)
