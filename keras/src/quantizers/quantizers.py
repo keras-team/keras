@@ -833,4 +833,4 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
     Returns:
         KerasTensor. The dequantized tensor.
     """
-    return ops.multiply(scale, (input_tensor - zero))
+    return ops.multiply(scale, ops.subtract(input_tensor, zero))
