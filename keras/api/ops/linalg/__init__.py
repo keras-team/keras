@@ -5,6 +5,7 @@ since your modifications would be overwritten.
 """
 
 from keras.src.ops.linalg import cholesky as cholesky
+from keras.src.ops.linalg import cholesky_inverse as cholesky_inverse
 from keras.src.ops.linalg import det as det
 from keras.src.ops.linalg import eig as eig
 from keras.src.ops.linalg import eigh as eigh

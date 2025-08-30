@@ -167,14 +167,15 @@ class Lambda(Layer):
         )
 
     @staticmethod
-    def _raise_for_lambda_deserialization(arg_name, safe_mode):
+    def _raise_for_lambda_deserialization(safe_mode):
         if safe_mode:
             raise ValueError(
-                f"The `{arg_name}` of this `Lambda` layer is a Python lambda. "
-                "Deserializing it is unsafe. If you trust the source of the "
-                "config artifact, you can override this error "
-                "by passing `safe_mode=False` "
-                "to `from_config()`, or calling "
+                "Requested the deserialization of a `Lambda` layer whose "
+                "`function` is a Python lambda. This carries a potential risk "
+                "of arbitrary code execution and thus it is disallowed by "
+                "default. If you trust the source of the artifact, you can "
+                "override this error by passing `safe_mode=False` to the "
+                "loading function, or calling "
                 "`keras.config.enable_unsafe_deserialization()."
             )
 
@@ -187,7 +188,7 @@ class Lambda(Layer):
             and "class_name" in fn_config
             and fn_config["class_name"] == "__lambda__"
         ):
-            cls._raise_for_lambda_deserialization("function", safe_mode)
+            cls._raise_for_lambda_deserialization(safe_mode)
             inner_config = fn_config["config"]
             fn = python_utils.func_load(
                 inner_config["code"],
@@ -206,7 +207,7 @@ class Lambda(Layer):
                 and "class_name" in fn_config
                 and fn_config["class_name"] == "__lambda__"
             ):
-                cls._raise_for_lambda_deserialization("function", safe_mode)
+                cls._raise_for_lambda_deserialization(safe_mode)
                 inner_config = fn_config["config"]
                 fn = python_utils.func_load(
                     inner_config["code"],

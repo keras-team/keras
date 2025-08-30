@@ -13,7 +13,7 @@ class RandomBrightness(BaseImagePreprocessingLayer):
     images. At inference time, the output will be identical to the input.
     Call the layer with `training=True` to adjust the brightness of the input.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Args:

@@ -2641,7 +2641,8 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
     ):
-        return KerasTensor(query.shape, dtype=query.dtype)
+        dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+        return KerasTensor(query.shape, dtype=dtype)
 
 
 @keras_export(

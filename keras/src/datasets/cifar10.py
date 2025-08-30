@@ -79,7 +79,7 @@ def load_data():
     # batches are within an inner folder
     path = os.path.join(path, "cifar-10-batches-py")
     for i in range(1, 6):
-        fpath = os.path.join(path, "data_batch_" + str(i))
+        fpath = os.path.join(path, f"data_batch_{i}")
         (
             x_train[(i - 1) * 10000 : i * 10000, :, :, :],
             y_train[(i - 1) * 10000 : i * 10000],

@@ -6,8 +6,18 @@ from keras.src.backend.common import dtypes
 from keras.src.backend.numpy.core import convert_to_tensor
 
 
-def cholesky(a):
-    return np.linalg.cholesky(a)
+def cholesky(a, upper=False):
+    return np.linalg.cholesky(a, upper=upper)
+
+
+def cholesky_inverse(a, upper=False):
+    identity = np.eye(a.shape[-1], dtype=a.dtype)
+    inv_chol = solve_triangular(a, identity, lower=not upper)
+    if upper:
+        a_inv = np.matmul(inv_chol, inv_chol.T)
+    else:
+        a_inv = np.matmul(inv_chol.T, inv_chol)
+    return a_inv
 
 
 def det(a):

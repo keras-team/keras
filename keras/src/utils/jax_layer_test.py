@@ -225,7 +225,7 @@ class TestJaxLayer(testing.TestCase):
         inputs1 = layers.Input(shape=input_shape)
         outputs1 = layer1(inputs1)
         model1 = models.Model(
-            inputs=inputs1, outputs=outputs1, name=model_name + "1"
+            inputs=inputs1, outputs=outputs1, name=f"{model_name}1"
         )
         model1.summary()
 
@@ -299,7 +299,7 @@ class TestJaxLayer(testing.TestCase):
             input_shape=input_shape,
             **layer_init_kwargs,
         )
-        model2 = models.Sequential([layer2], name=model_name + "2")
+        model2 = models.Sequential([layer2], name=f"{model_name}2")
         model2.summary()
         verify_weights_and_params(layer2)
         model2.compile(

@@ -38,7 +38,9 @@ class TFDatasetAdapter(DataAdapter):
         from keras.src.backend.tensorflow.core import convert_to_numpy
 
         for batch in self._dataset:
-            yield tree.map_structure(convert_to_numpy, batch)
+            yield tree.map_structure(
+                convert_to_numpy, batch, none_is_leaf=False
+            )
 
     def get_jax_iterator(self):
         from keras.src.backend.tensorflow.core import convert_to_numpy
@@ -52,7 +54,7 @@ class TFDatasetAdapter(DataAdapter):
                 return convert_to_numpy(x)
 
         for batch in self._dataset:
-            yield tree.map_structure(convert_to_jax, batch)
+            yield tree.map_structure(convert_to_jax, batch, none_is_leaf=False)
 
     def get_tf_dataset(self):
         return self._dataset

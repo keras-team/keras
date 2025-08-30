@@ -21,6 +21,9 @@ class Resizing(BaseImagePreprocessingLayer):
     format. Input pixel values can be of any range
     (e.g. `[0., 1.)` or `[0, 255]`).
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:
         `(..., height, width, channels)`, in `"channels_last"` format,
@@ -31,9 +34,6 @@ class Resizing(BaseImagePreprocessingLayer):
         `(..., target_height, target_width, channels)`,
         or `(..., channels, target_height, target_width)`,
         in `"channels_first"` format.
-
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
-    (independently of which backend you're using).
 
     Args:
         height: Integer, the height of the output shape.

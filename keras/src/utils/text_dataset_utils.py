@@ -2,6 +2,8 @@ import numpy as np
 
 from keras.src.api_export import keras_export
 from keras.src.utils import dataset_utils
+from keras.src.utils.grain_utils import make_string_batch
+from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -23,9 +25,10 @@ def text_dataset_from_directory(
     validation_split=None,
     subset=None,
     follow_links=False,
+    format="tf",
     verbose=True,
 ):
-    """Generates a `tf.data.Dataset` from text files in a directory.
+    """Generates a dataset from text files in a directory.
 
     If your directory structure is:
 
@@ -40,11 +43,15 @@ def text_dataset_from_directory(
     ```
 
     Then calling `text_dataset_from_directory(main_directory,
-    labels='inferred')` will return a `tf.data.Dataset` that yields batches of
+    labels='inferred')` will return a dataset that yields batches of
     texts from the subdirectories `class_a` and `class_b`, together with labels
     0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
 
     Only `.txt` files are supported at this time.
+
+    By default, this function will return a `tf.data.Dataset` object. You can
+    set `format="grain"` to return a `grain.IterDataset` object instead, which
+    removes the TensorFlow dependency.
 
     Args:
         directory: Directory where the data is located.
@@ -91,17 +98,32 @@ def text_dataset_from_directory(
             (the training and validation datasets respectively).
         follow_links: Whether to visits subdirectories pointed to by symlinks.
             Defaults to `False`.
+        format: The format of the return object. Defaults to `"tf"`. Available
+            options are:
+            - `"tf"`: returns a `tf.data.Dataset` object. Requires
+                TensorFlow to be installed.
+            - `"grain"`: returns a `grain.IterDataset` object. Requires
+                Grain to be installed.
         verbose: Whether to display number information on classes and
             number of files found. Defaults to `True`.
 
     Returns:
 
-    A `tf.data.Dataset` object.
+    A `tf.data.Dataset` (`format="tf"`) or `grain.IterDataset`
+    (`format="grain"`) object.
 
+    When `format="tf"`:
     - If `label_mode` is `None`, it yields `string` tensors of shape
         `(batch_size,)`, containing the contents of a batch of text files.
     - Otherwise, it yields a tuple `(texts, labels)`, where `texts`
         has shape `(batch_size,)` and `labels` follows the format described
+        below.
+
+    When `format="grain"`:
+    - If `label_mode` is `None`, it yields a list of Python strings containing
+        the contents of a batch of text files.
+    - Otherwise, it yields a tuple `(texts, labels)`, where `texts`
+        is a list of Python strings and `labels` follows the format described
         below.
 
     Rules regarding labels format:
@@ -136,6 +158,11 @@ def text_dataset_from_directory(
             '`label_mode` argument must be one of "int", '
             '"categorical", "binary", '
             f"or None. Received: label_mode={label_mode}"
+        )
+    if format not in ("tf", "grain"):
+        raise ValueError(
+            '`format` should be either "tf" or "grain". '
+            f"Received: format={format}"
         )
     if labels is None or label_mode is None:
         labels = None
@@ -199,6 +226,7 @@ def text_dataset_from_directory(
             shuffle=shuffle,
             shuffle_buffer_size=shuffle_buffer_size,
             seed=seed,
+            format=format,
         )
         val_dataset = paths_and_labels_to_dataset(
             file_paths=file_paths_val,
@@ -207,14 +235,25 @@ def text_dataset_from_directory(
             num_classes=len(class_names) if class_names else 0,
             max_length=max_length,
             shuffle=False,
+            format=format,
         )
 
-        if batch_size is not None:
-            train_dataset = train_dataset.batch(batch_size)
-            val_dataset = val_dataset.batch(batch_size)
-
-        train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
-        val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
+        if format == "tf":
+            if batch_size is not None:
+                train_dataset = train_dataset.batch(batch_size)
+                val_dataset = val_dataset.batch(batch_size)
+            train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
+            val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
+        else:
+            train_dataset = train_dataset.to_iter_dataset()
+            val_dataset = val_dataset.to_iter_dataset()
+            if batch_size is not None:
+                train_dataset = train_dataset.batch(
+                    batch_size, batch_fn=make_string_batch
+                )
+                val_dataset = val_dataset.batch(
+                    batch_size, batch_fn=make_string_batch
+                )
 
         # Users may need to reference `class_names`.
         train_dataset.class_names = class_names
@@ -238,10 +277,17 @@ def text_dataset_from_directory(
             shuffle=shuffle,
             shuffle_buffer_size=shuffle_buffer_size,
             seed=seed,
+            format=format,
         )
-        if batch_size is not None:
-            dataset = dataset.batch(batch_size)
-        dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
+        if format == "tf":
+            if batch_size is not None:
+                dataset = dataset.batch(batch_size)
+            dataset = dataset.prefetch(tf.data.AUTOTUNE)
+        else:
+            dataset = dataset.to_iter_dataset()
+            if batch_size is not None:
+                dataset = dataset.batch(batch_size, batch_fn=make_string_batch)
 
         # Users may need to reference `class_names`.
         dataset.class_names = class_names
@@ -257,11 +303,47 @@ def paths_and_labels_to_dataset(
     shuffle=False,
     shuffle_buffer_size=None,
     seed=None,
+    format="tf",
+):
+    """Constructs a dataset of text strings and labels."""
+    if format == "tf":
+        return _paths_and_labels_to_dataset_tf(
+            file_paths,
+            labels,
+            label_mode,
+            num_classes,
+            max_length,
+            shuffle,
+            shuffle_buffer_size,
+            seed,
+        )
+    elif format == "grain":
+        return _paths_and_labels_to_dataset_grain(
+            file_paths,
+            labels,
+            label_mode,
+            num_classes,
+            max_length,
+            shuffle,
+            shuffle_buffer_size,
+            seed,
+        )
+
+
+def _paths_and_labels_to_dataset_tf(
+    file_paths,
+    labels,
+    label_mode,
+    num_classes,
+    max_length,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
 ):
     """Constructs a dataset of text strings and labels."""
     path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
     if label_mode:
-        label_ds = dataset_utils.labels_to_dataset(
+        label_ds = dataset_utils.labels_to_dataset_tf(
             labels, label_mode, num_classes
         )
         ds = tf.data.Dataset.zip((path_ds, label_ds))
@@ -273,19 +355,62 @@ def paths_and_labels_to_dataset(
 
     if label_mode:
         ds = ds.map(
-            lambda x, y: (path_to_string_content(x, max_length), y),
+            lambda x, y: (_path_to_string_content_tf(x, max_length), y),
             num_parallel_calls=tf.data.AUTOTUNE,
         )
     else:
         ds = ds.map(
-            lambda x: path_to_string_content(x, max_length),
+            lambda x: _path_to_string_content_tf(x, max_length),
             num_parallel_calls=tf.data.AUTOTUNE,
         )
     return ds
 
 
-def path_to_string_content(path, max_length):
+def _path_to_string_content_tf(path, max_length):
     txt = tf.io.read_file(path)
     if max_length is not None:
         txt = tf.strings.substr(txt, 0, max_length)
+    return txt
+
+
+def _paths_and_labels_to_dataset_grain(
+    file_paths,
+    labels,
+    label_mode,
+    num_classes,
+    max_length,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
+):
+    """Constructs a dataset of text strings and labels."""
+    path_ds = grain.MapDataset.source(file_paths)
+    if label_mode:
+        label_ds = dataset_utils.labels_to_dataset_grain(
+            labels, label_mode, num_classes
+        )
+        ds = grain.experimental.ZipMapDataset([path_ds, label_ds])
+    else:
+        ds = path_ds
+
+    if shuffle:
+        ds = ds.shuffle(seed=seed)
+
+    if label_mode:
+        ds = ds.map(
+            lambda data: (
+                _path_to_string_content_grain(data[0], max_length),
+                data[1],
+            ),
+        )
+    else:
+        ds = ds.map(lambda x: _path_to_string_content_grain(x, max_length))
+    return ds
+
+
+def _path_to_string_content_grain(path, max_length):
+    with open(path, "r") as f:
+        txt = f.read()
+    if max_length is not None:
+        txt = txt[:max_length]
     return txt

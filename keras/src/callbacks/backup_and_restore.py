@@ -99,9 +99,9 @@ class BackupAndRestore(Callback):
         self._training_metadata_path = file_utils.join(
             backup_dir, "training_metadata.json"
         )
-        self._prev_weights_path = self._weights_path + ".bkp"
+        self._prev_weights_path = f"{self._weights_path}.bkp"
         self._prev_training_metadata_path = (
-            self._training_metadata_path + ".bkp"
+            f"{self._training_metadata_path}.bkp"
         )
         if save_freq != "epoch" and not isinstance(save_freq, int):
             raise ValueError(

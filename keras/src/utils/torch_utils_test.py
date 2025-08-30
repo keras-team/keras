@@ -248,26 +248,44 @@ class TorchUtilsTest(testing.TestCase):
         self.assertEqual(model.predict(np.zeros([5, 4])).shape, (5, 16))
         self.assertEqual(model(np.zeros([5, 4])).shape, (5, 16))
 
-    def test_save_load(self):
+    @parameterized.named_parameters(
+        ("safe_mode", True),
+        ("unsafe_mode", False),
+    )
+    def test_save_load(self, safe_mode):
         @keras.saving.register_keras_serializable()
         class M(keras.Model):
-            def __init__(self, channels=10, **kwargs):
-                super().__init__()
-                self.sequence = torch.nn.Sequential(
-                    torch.nn.Conv2d(1, channels, kernel_size=(3, 3)),
-                )
+            def __init__(self, module, **kwargs):
+                super().__init__(**kwargs)
+                self.module = module
 
             def call(self, x):
-                return self.sequence(x)
+                return self.module(x)
 
-        m = M()
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"module": self.module}
+                return {**base_config, **config}
+
+            @classmethod
+            def from_config(cls, config):
+                config["module"] = saving.deserialize_keras_object(
+                    config["module"]
+                )
+                return cls(**config)
+
+        m = M(torch.nn.Conv2d(1, 10, kernel_size=(3, 3)))
         device = get_device()  # Get the current device (e.g., "cuda" or "cpu")
         x = torch.ones(
             (10, 1, 28, 28), device=device
         )  # Place input on the correct device
-        m(x)
+        ref_output = m(x)
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
         m.save(temp_filepath)
-        new_model = saving.load_model(temp_filepath)
-        for ref_w, new_w in zip(m.get_weights(), new_model.get_weights()):
-            self.assertAllClose(ref_w, new_w, atol=1e-5)
+
+        if safe_mode:
+            with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+                saving.load_model(temp_filepath, safe_mode=safe_mode)
+        else:
+            new_model = saving.load_model(temp_filepath, safe_mode=safe_mode)
+            self.assertAllClose(new_model(x), ref_output)

@@ -44,7 +44,7 @@ def get_edge_dict(dot):
 
         for subgraph in graph.get_subgraphs():
             sub_nodes = get_node_dict(
-                subgraph, path=path + subgraph.get_label() + " > "
+                subgraph, path=f"{path}{subgraph.get_label()} > "
             )
             nodes.update(sub_nodes)
 
@@ -85,7 +85,7 @@ def get_edge_dict(dot):
 class ModelVisualizationTest(testing.TestCase):
     def multi_plot_model(self, model, name, expand_nested=False):
         if expand_nested:
-            name = name + "-expand_nested"
+            name = f"{name}-expand_nested"
 
         TEST_CASES = [
             {},
@@ -130,7 +130,7 @@ class ModelVisualizationTest(testing.TestCase):
 
         for test_case in TEST_CASES:
             tags = [v if k == "rankdir" else k for k, v in test_case.items()]
-            file_name = "-".join([name] + tags) + ".png"
+            file_name = f"{'-'.join([name] + tags)}.png"
             plot_model(
                 model, file_name, expand_nested=expand_nested, **test_case
             )

@@ -778,7 +778,7 @@ def _cudnn_gru(
     return (
         last_output,
         outputs,
-        state,
+        [state],
     )
 
 

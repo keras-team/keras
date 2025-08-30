@@ -176,6 +176,8 @@ class Attention(Layer):
             # Bias so padding positions do not contribute to attention
             # distribution.  Note 65504. is the max float16 value.
             max_value = 65504.0 if scores.dtype == "float16" else 1.0e9
+            if len(padding_mask.shape) == 2:
+                padding_mask = ops.expand_dims(padding_mask, axis=-2)
             scores -= max_value * ops.cast(padding_mask, dtype=scores.dtype)
 
         weights = ops.softmax(scores, axis=-1)

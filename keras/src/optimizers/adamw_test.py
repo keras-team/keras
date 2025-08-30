@@ -63,7 +63,7 @@ class AdamWTest(testing.TestCase):
     def test_correctness_with_golden(self):
         optimizer = AdamW(learning_rate=1.0, weight_decay=0.5, epsilon=2)
 
-        x = backend.Variable(np.ones([10]))
+        x = backend.Variable(np.ones([10], dtype="float32"))
         grads = ops.arange(0.1, 1.1, 0.1)
         first_grads = ops.full((10,), 0.01)
 

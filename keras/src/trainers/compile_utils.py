@@ -659,7 +659,7 @@ class CompileLoss(losses_module.Loss):
         # Add `Mean` metric to the tracker for each loss.
         if len(self._flat_losses) > 1:
             for _loss in self._flat_losses:
-                name = _loss.name + "_loss"
+                name = f"{_loss.name}_loss"
                 self._tracker.add_to_store(
                     "metrics", metrics_module.Mean(name=name)
                 )

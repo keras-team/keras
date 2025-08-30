@@ -23,6 +23,19 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.cholesky(x)
 
+    def test_cholesky_inverse(self):
+        x = KerasTensor([None, 20, 20])
+        out = linalg.cholesky_inverse(x)
+        self.assertEqual(out.shape, (None, 20, 20))
+
+        x = KerasTensor([None, None, 20])
+        with self.assertRaises(ValueError):
+            linalg.cholesky_inverse(x)
+
+        x = KerasTensor([None, 20, 15])
+        with self.assertRaises(ValueError):
+            linalg.cholesky_inverse(x)
+
     def test_det(self):
         x = KerasTensor([None, 20, 20])
         out = linalg.det(x)
@@ -196,6 +209,15 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             linalg.cholesky(x)
 
+    def test_cholesky_inverse(self):
+        x = KerasTensor([4, 3, 3])
+        out = linalg.cholesky_inverse(x)
+        self.assertEqual(out.shape, (4, 3, 3))
+
+        x = KerasTensor([10, 20, 15])
+        with self.assertRaises(ValueError):
+            linalg.cholesky_inverse(x)
+
     def test_det(self):
         x = KerasTensor([4, 3, 3])
         out = linalg.det(x)
@@ -331,12 +353,52 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
 
 class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
-        x = np.random.rand(4, 3, 3).astype("float32")
+        x_non_psd = np.random.rand(4, 3, 3).astype("float32")
         with self.assertRaises(ValueError):
-            linalg.cholesky(x)
-        x_psd = x @ x.transpose((0, 2, 1)) + 1e-5 * np.eye(3)
-        out = linalg.cholesky(x_psd)
-        self.assertAllClose(out, np.linalg.cholesky(x_psd), atol=1e-4)
+            linalg.cholesky(x_non_psd)
+
+        x = np.random.rand(4, 3, 3).astype("float32")
+        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
+            3, dtype="float32"
+        )
+
+        l_out = linalg.cholesky(x_psd, upper=False)
+        l_expected = np.linalg.cholesky(x_psd)
+        self.assertAllClose(l_out, l_expected, atol=1e-4)
+
+        u_out = linalg.cholesky(x_psd, upper=True)
+        u_expected = l_expected.transpose((0, 2, 1))
+        self.assertAllClose(u_out, u_expected, atol=1e-4)
+
+    @parameterized.named_parameters(
+        {"testcase_name": "lower", "upper": False},
+        {"testcase_name": "upper", "upper": True},
+    )
+    def test_cholesky_inverse(self, upper):
+        A = np.array(
+            [
+                [4.0, 12.0, -16.0],
+                [12.0, 37.0, -43.0],
+                [-16.0, -43.0, 98.0],
+            ],
+            dtype="float32",
+        )
+        if upper:
+            factor = np.linalg.cholesky(A, upper=True)
+        else:
+            factor = np.linalg.cholesky(A)
+
+        expected_inverse = np.array(
+            [
+                [49.36111, -13.555555, 2.111111],
+                [-13.555555, 3.777778, -0.555556],
+                [2.111111, -0.555556, 0.111111],
+            ],
+            dtype="float32",
+        )
+
+        output_inverse = linalg.cholesky_inverse(factor, upper=upper)
+        self.assertAllClose(output_inverse, expected_inverse, atol=1e-5)
 
     def test_det(self):
         x = np.random.rand(4, 3, 3)

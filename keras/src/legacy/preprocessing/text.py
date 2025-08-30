@@ -102,7 +102,7 @@ class Tokenizer:
             num_words = kwargs.pop("nb_words")
         document_count = kwargs.pop("document_count", 0)
         if kwargs:
-            raise TypeError("Unrecognized keyword arguments: " + str(kwargs))
+            raise TypeError(f"Unrecognized keyword arguments: {str(kwargs)}")
 
         self.word_counts = collections.OrderedDict()
         self.word_docs = collections.defaultdict(int)

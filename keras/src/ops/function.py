@@ -244,7 +244,7 @@ class Function(Operation):
 
 
 def make_node_key(op, node_index):
-    return str(id(op)) + "_ib-" + str(node_index)
+    return f"{id(op)}_ib-{node_index}"
 
 
 def map_graph(inputs, outputs):

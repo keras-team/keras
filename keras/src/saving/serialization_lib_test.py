@@ -175,31 +175,28 @@ class SerializationLibTest(testing.TestCase):
         _, new_obj, _ = self.roundtrip(obj, safe_mode=False)
         self.assertEqual(obj["activation"](3), new_obj["activation"](3))
 
-    # TODO
-    # def test_lambda_layer(self):
-    #     lmbda = keras.layers.Lambda(lambda x: x**2)
-    #     with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
-    #         self.roundtrip(lmbda, safe_mode=True)
+    def test_lambda_layer(self):
+        lmbda = keras.layers.Lambda(lambda x: x**2)
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            self.roundtrip(lmbda, safe_mode=True)
 
-    #     _, new_lmbda, _ = self.roundtrip(lmbda, safe_mode=False)
-    #     x = ops.random.normal((2, 2))
-    #     y1 = lmbda(x)
-    #     y2 = new_lmbda(x)
-    #     self.assertAllClose(y1, y2, atol=1e-5)
+        _, new_lmbda, _ = self.roundtrip(lmbda, safe_mode=False)
+        x = ops.random.normal((2, 2))
+        y1 = lmbda(x)
+        y2 = new_lmbda(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
 
-    # def test_safe_mode_scope(self):
-    #     lmbda = keras.layers.Lambda(lambda x: x**2)
-    #     with serialization_lib.SafeModeScope(safe_mode=True):
-    #         with self.assertRaisesRegex(
-    #             ValueError, "arbitrary code execution"
-    #         ):
-    #             self.roundtrip(lmbda)
-    #     with serialization_lib.SafeModeScope(safe_mode=False):
-    #         _, new_lmbda, _ = self.roundtrip(lmbda)
-    #     x = ops.random.normal((2, 2))
-    #     y1 = lmbda(x)
-    #     y2 = new_lmbda(x)
-    #     self.assertAllClose(y1, y2, atol=1e-5)
+    def test_safe_mode_scope(self):
+        lmbda = keras.layers.Lambda(lambda x: x**2)
+        with serialization_lib.SafeModeScope(safe_mode=True):
+            with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+                self.roundtrip(lmbda)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            _, new_lmbda, _ = self.roundtrip(lmbda)
+        x = ops.random.normal((2, 2))
+        y1 = lmbda(x)
+        y2 = new_lmbda(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
 
     @pytest.mark.requires_trainable_backend
     def test_dict_inputs_outputs(self):

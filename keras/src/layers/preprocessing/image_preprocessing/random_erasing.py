@@ -13,6 +13,12 @@ class RandomErasing(BaseImagePreprocessingLayer):
     an image are erased (replaced by a constant value or noise)
     during training to improve generalization.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
+    References:
+       - [Random Erasing paper](https://arxiv.org/abs/1708.04896).
+
     Args:
         factor: A single float or a tuple of two floats.
             `factor` controls the probability of applying the transformation.
@@ -35,9 +41,6 @@ class RandomErasing(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
-
-    References:
-       - [Random Erasing paper](https://arxiv.org/abs/1708.04896).
     """
 
     _USE_BASE_FACTOR = False

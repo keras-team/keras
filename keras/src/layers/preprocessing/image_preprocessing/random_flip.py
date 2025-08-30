@@ -27,7 +27,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
     of integer or floating point dtype.
     By default, the layer will output floats.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Input shape:

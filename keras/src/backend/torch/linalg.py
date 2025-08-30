@@ -7,8 +7,12 @@ from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 
 
-def cholesky(x):
-    return torch.linalg.cholesky(x)
+def cholesky(x, upper=False):
+    return torch.linalg.cholesky(x, upper=upper)
+
+
+def cholesky_inverse(x, upper=False):
+    return torch.cholesky_inverse(x, upper=upper)
 
 
 def det(x):

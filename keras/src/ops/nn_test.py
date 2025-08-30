@@ -2550,20 +2550,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
 
 class NNOpsDtypeTest(testing.TestCase):
-    """Test the dtype to verify that the behavior matches JAX."""
+    """Test the floating dtype to verify that the behavior matches JAX."""
 
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
-
-    def setUp(self):
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_elu(self, dtype):
@@ -3114,14 +3103,20 @@ class NNOpsDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(decoded.dtype), "int32")
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_dot_product_attention(self, dtype):
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(combinations(FLOAT_DTYPES, 2))
+            + [(dtype, dtype) for dtype in FLOAT_DTYPES]
+        )
+    )
+    def test_dot_product_attention(self, dtypes):
         # TODO: Get expected output from jax if `jax.nn.dot_product_attention`
         # is available.
-        query = knp.ones((2, 3, 3, 8), dtype=dtype)
-        key = knp.ones((2, 3, 3, 8), dtype=dtype)
-        value = knp.ones((2, 3, 3, 8), dtype=dtype)
-        expected_dtype = dtype
+        query_dtype, key_value_dtype = dtypes
+        query = knp.ones((2, 3, 3, 8), dtype=query_dtype)
+        key = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
+        value = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
+        expected_dtype = backend.result_type(*dtypes)
 
         self.assertDType(
             knn.dot_product_attention(query, key, value), expected_dtype

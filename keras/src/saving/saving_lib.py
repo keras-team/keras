@@ -46,8 +46,8 @@ except ImportError:
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
-_VARS_FNAME_H5 = _VARS_FNAME + ".h5"
-_VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
+_VARS_FNAME_H5 = f"{_VARS_FNAME}.h5"
+_VARS_FNAME_NPZ = f"{_VARS_FNAME}.npz"
 _ASSETS_DIRNAME = "assets"
 _MEMORY_UPPER_BOUND = 0.5  # 50%
 
@@ -664,7 +664,7 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 def _name_key(name):
     """Make sure that private attributes are visited last."""
     if name.startswith("_"):
-        return "~" + name
+        return f"~{name}"
     return name
 
 
@@ -1288,7 +1288,7 @@ class ShardedH5IOStore(H5IOStore):
         # If not found, check shard map and switch files.
         weight_map = self.sharding_config["weight_map"]
         filenames = weight_map.get(parsed_path) or weight_map.get(
-            "/" + parsed_path + "/vars"
+            f"/{parsed_path}/vars"
         )
         if filenames is not None:
             if not isinstance(filenames, list):

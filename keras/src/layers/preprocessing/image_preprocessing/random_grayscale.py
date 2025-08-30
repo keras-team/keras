@@ -19,7 +19,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
     image using standard RGB to grayscale conversion coefficients. Images
     that are not selected for conversion remain unchanged.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Args:

@@ -51,7 +51,7 @@ class AdamTest(testing.TestCase):
     def test_correctness_with_golden(self):
         optimizer = Adam(amsgrad=True)
 
-        x = backend.Variable(np.ones([10]))
+        x = backend.Variable(np.ones([10], dtype="float32"))
         grads = ops.arange(0.1, 1.1, 0.1)
         first_grads = ops.full((10,), 0.01)
 

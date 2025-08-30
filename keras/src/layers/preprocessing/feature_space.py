@@ -3,7 +3,7 @@ from keras.src import layers
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.saving import saving_lib
 from keras.src.saving import serialization_lib
 from keras.src.saving.keras_saveable import KerasSaveable
@@ -723,7 +723,7 @@ class FeatureSpace(Layer):
                 data[name] = tf.expand_dims(x, -1)
 
         with backend_utils.TFGraphScope():
-            # This scope is to make sure that inner TFDataLayers
+            # This scope is to make sure that inner DataLayers
             # will not convert outputs back to backend-native --
             # they should be TF tensors throughout
             preprocessed_data = self._preprocess_features(data)
@@ -808,7 +808,7 @@ class FeatureSpace(Layer):
         return
 
 
-class TFDConcat(TFDataLayer):
+class TFDConcat(DataLayer):
     def __init__(self, axis, **kwargs):
         super().__init__(**kwargs)
         self.axis = axis
@@ -817,6 +817,6 @@ class TFDConcat(TFDataLayer):
         return self.backend.numpy.concatenate(xs, axis=self.axis)
 
 
-class TFDIdentity(TFDataLayer):
+class TFDIdentity(DataLayer):
     def call(self, x):
         return x

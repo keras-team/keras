@@ -6,6 +6,9 @@ from keras.src.layers.preprocessing.index_lookup import IndexLookup
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
+if backend.backend() == "torch":
+    import torch
+
 
 @keras_export("keras.layers.StringLookup")
 class StringLookup(IndexLookup):
@@ -382,13 +385,39 @@ class StringLookup(IndexLookup):
         return {**base_config, **config}
 
     def call(self, inputs):
-        if isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
-            tf_inputs = True
-        else:
-            tf_inputs = False
-            if not isinstance(inputs, (np.ndarray, list, tuple)):
-                inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
-        outputs = super().call(inputs)
-        if not tf_inputs:
-            outputs = backend_utils.convert_tf_tensor(outputs)
-        return outputs
+        is_torch_backend = backend.backend() == "torch"
+
+        # Handle input conversion
+        inputs_for_processing = inputs
+        was_tf_input = isinstance(
+            inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)
+        )
+
+        if is_torch_backend and isinstance(inputs, torch.Tensor):
+            inputs_for_processing = tf.convert_to_tensor(
+                inputs.detach().cpu().numpy()
+            )
+        elif isinstance(inputs, (np.ndarray, list, tuple)):
+            inputs_for_processing = tf.convert_to_tensor(inputs)
+        elif not was_tf_input:
+            inputs_for_processing = tf.convert_to_tensor(
+                backend.convert_to_numpy(inputs)
+            )
+
+        output = super().call(inputs_for_processing)
+
+        # Handle torch backend output conversion
+        if is_torch_backend and isinstance(
+            inputs, (torch.Tensor, np.ndarray, list, tuple)
+        ):
+            numpy_outputs = output.numpy()
+            if self.invert:
+                return [n.decode(self.encoding) for n in numpy_outputs]
+            else:
+                return torch.from_numpy(numpy_outputs)
+
+        # other backends
+        if not was_tf_input:
+            output = backend_utils.convert_tf_tensor(output)
+
+        return output

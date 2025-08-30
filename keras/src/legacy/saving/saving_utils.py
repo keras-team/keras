@@ -1,4 +1,3 @@
-import json
 import threading
 
 from absl import logging
@@ -80,10 +79,6 @@ def model_from_config(config, custom_objects=None):
             function_dict["config"]["defaults"] = function_config[1]
             function_dict["config"]["closure"] = function_config[2]
             config["config"]["function"] = function_dict
-
-    # TODO(nkovela): Swap find and replace args during Keras 3.0 release
-    # Replace keras refs with keras
-    config = _find_replace_nested_dict(config, "keras.", "keras.")
 
     return serialization.deserialize_keras_object(
         config,
@@ -229,13 +224,6 @@ def _deserialize_metric(metric_config):
         # shape.
         return metric_config
     return metrics_module.deserialize(metric_config)
-
-
-def _find_replace_nested_dict(config, find, replace):
-    dict_str = json.dumps(config)
-    dict_str = dict_str.replace(find, replace)
-    config = json.loads(dict_str)
-    return config
 
 
 def _resolve_compile_arguments_compat(obj, obj_config, module):

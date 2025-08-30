@@ -78,7 +78,7 @@ def load_data(
     )
     path = get_file(
         fname=path,
-        origin=origin_folder + "imdb.npz",
+        origin=f"{origin_folder}imdb.npz",
         file_hash=(  # noqa: E501
             "69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f"
         ),
@@ -181,7 +181,7 @@ def get_word_index(path="imdb_word_index.json"):
     )
     path = get_file(
         fname=path,
-        origin=origin_folder + "imdb_word_index.json",
+        origin=f"{origin_folder}imdb_word_index.json",
         file_hash="bfafd718b763782e994055a2d397834f",
     )
     with open(path) as f:

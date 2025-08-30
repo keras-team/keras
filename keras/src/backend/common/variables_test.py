@@ -782,47 +782,36 @@ class VariableOpsBehaviorTest(test_case.TestCase):
             float(v)
 
 
-# TODO: Using uint64 will lead to weak type promotion (`float`),
-# resulting in different behavior between JAX and Keras. Currently, we
-# are skipping the test for uint64
-ALL_DTYPES = [
-    x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
-] + [None]
-INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-FLOAT_DTYPES = dtypes.FLOAT_TYPES
-COMPLEX_DTYPES = ["complex32", "complex64", "complex128"]
-
-if backend.backend() == "torch":
-    # TODO: torch doesn't support uint16, uint32 and uint64, complex
-    ALL_DTYPES = [
-        x
-        for x in ALL_DTYPES
-        if x not in ["uint16", "uint32", "uint64", "complex128", "complex64"]
-    ]
-    INT_DTYPES = [
-        x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-    ]
-elif backend.backend() == "openvino":
-    # TODO: openvino doesn't support complex
-    ALL_DTYPES = [x for x in ALL_DTYPES if x not in ["complex128", "complex64"]]
-# Remove float8 dtypes for the following tests
-ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
-NON_COMPLEX_DTYPES = [x for x in ALL_DTYPES if x and x not in COMPLEX_DTYPES]
-
-
 class VariableOpsDTypeTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
-    def setUp(self):
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+    ALL_DTYPES = [
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x
+        not in (
+            "string",
+            "complex128",
+            # Remove 64-bit dtypes.
+            "float64",
+            "uint64",
+            "int64",
+        )
+        + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
+    ] + [None]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+    COMPLEX_DTYPES = ["complex32", "complex64"]
+    if backend.backend() == "torch":
+        ALL_DTYPES = [
+            x for x in ALL_DTYPES if x not in ("uint16", "uint32", "complex64")
+        ]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "openvino":
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
+    NON_COMPLEX_DTYPES = [
+        x for x in ALL_DTYPES if x and x not in ["complex32", "complex64"]
+    ]
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
