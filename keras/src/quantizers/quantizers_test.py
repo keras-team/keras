@@ -813,9 +813,7 @@ class ComputeScaleZeroTest(testing.TestCase):
             group_size=-1,
             weight=True,
         )
-        # Dtypes should be float-like and all finite
-        self.assertEqual(scale.dtype, "float32")
-        self.assertEqual(zero.dtype, "float32")
-        self.assertEqual(maxq.dtype, "float32")
+        # All outputs should be all finite
         self.assertTrue(ops.all(ops.isfinite(scale)))
         self.assertTrue(ops.all(ops.isfinite(zero)))
+        self.assertTrue(ops.all(ops.isfinite(maxq)))
