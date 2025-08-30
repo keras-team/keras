@@ -1025,6 +1025,7 @@ def linspace(
             ) from e
     else:
         num = int(num)
+
     if dtype is None:
         output_type = OPENVINO_DTYPES[config.floatx()]
     else:
@@ -1032,8 +1033,10 @@ def linspace(
 
     start = ov_opset.convert(start, output_type).output(0)
     stop = ov_opset.convert(stop, output_type).output(0)
+
     if num < 0:
         raise ValueError("Number of samples, `num`, must be non-negative.")
+
     if num == 0:
         empty_shape = ov_opset.constant([0], Type.i32).output(0)
         result = ov_opset.broadcast(
@@ -1054,6 +1057,9 @@ def linspace(
             else:
                 step = ov_opset.subtract(stop, start).output(0)
             return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)
+    zero_i32 = ov_opset.constant(0, Type.i32).output(0)
+    one_i32 = ov_opset.constant(1, Type.i32).output(0)
+    one_i32_array = ov_opset.constant([1], Type.i32).output(0)
 
     num_const = ov_opset.constant(num, output_type).output(0)
 
@@ -1069,9 +1075,9 @@ def linspace(
     ).output(0)
 
     indices = ov_opset.range(
-        ov_opset.constant(0, Type.i32).output(0),
+        zero_i32,
         ov_opset.constant(num, Type.i32).output(0),
-        ov_opset.constant(1, Type.i32).output(0),
+        one_i32,
         output_type,
     ).output(0)
 
@@ -1083,15 +1089,9 @@ def linspace(
     ).output(0)
 
     start_rank = ov_opset.shape_of(start_shape).output(0)
+    ones_for_start = ov_opset.broadcast(one_i32, start_rank).output(0)
 
     if axis == 0:
-        result_shape = ov_opset.concat([indices_shape, start_shape], 0).output(
-            0
-        )
-
-        ones_for_start = ov_opset.broadcast(
-            ov_opset.constant(1, Type.i32).output(0), start_rank
-        ).output(0)
         indices_target_shape = ov_opset.concat(
             [indices_shape, ones_for_start], 0
         ).output(0)
@@ -1099,9 +1099,8 @@ def linspace(
             indices, indices_target_shape, False
         ).output(0)
 
-        one_const = ov_opset.constant([1], Type.i32).output(0)
         start_target_shape = ov_opset.concat(
-            [one_const, start_shape], 0
+            [one_i32_array, start_shape], 0
         ).output(0)
         start_reshaped = ov_opset.reshape(
             start, start_target_shape, False
@@ -1110,13 +1109,6 @@ def linspace(
             step, start_target_shape, False
         ).output(0)
     else:
-        result_shape = ov_opset.concat([start_shape, indices_shape], 0).output(
-            0
-        )
-
-        ones_for_start = ov_opset.broadcast(
-            ov_opset.constant(1, Type.i32).output(0), start_rank
-        ).output(0)
         indices_target_shape = ov_opset.concat(
             [ones_for_start, indices_shape], 0
         ).output(0)
@@ -1124,9 +1116,8 @@ def linspace(
             indices, indices_target_shape, False
         ).output(0)
 
-        one_const = ov_opset.constant([1], Type.i32).output(0)
         start_target_shape = ov_opset.concat(
-            [start_shape, one_const], 0
+            [start_shape, one_i32_array], 0
         ).output(0)
         start_reshaped = ov_opset.reshape(
             start, start_target_shape, False
@@ -1135,18 +1126,10 @@ def linspace(
             step, start_target_shape, False
         ).output(0)
 
-    indices_broadcasted = ov_opset.broadcast(
-        indices_reshaped, result_shape
-    ).output(0)
-    start_broadcasted = ov_opset.broadcast(start_reshaped, result_shape).output(
+    scaled_indices = ov_opset.multiply(indices_reshaped, step_reshaped).output(
         0
     )
-    step_broadcasted = ov_opset.broadcast(step_reshaped, result_shape).output(0)
-
-    scaled_indices = ov_opset.multiply(
-        indices_broadcasted, step_broadcasted
-    ).output(0)
-    result = ov_opset.add(start_broadcasted, scaled_indices).output(0)
+    result = ov_opset.add(start_reshaped, scaled_indices).output(0)
 
     if retstep:
         return OpenVINOKerasTensor(result), OpenVINOKerasTensor(step)
