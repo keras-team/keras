@@ -428,11 +428,7 @@ class GPTQ:
             )
 
         # Set the new quantized weights in the original layer
-        new_weights = [ops.convert_to_numpy(quantized_weights)]
-        if self.original_layer.bias is not None:
-            new_weights.append(ops.convert_to_numpy(self.original_layer.bias))
-
-        self.original_layer.set_weights(new_weights)
+        self.original_layer._kernel.assign(quantized_weights)
 
     def free(self):
         self.hessian = None
