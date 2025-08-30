@@ -1,7 +1,4 @@
-from absl import logging
-
 from keras.src.api_export import keras_export
-from keras.src.quantizers.gptq_core import quantize_model
 
 
 @keras_export("keras.quantizers.GPTQConfig")
@@ -140,8 +137,10 @@ class GPTQConfig:
         self,
         dataset,
         tokenizer,
+        *,
         weight_bits: int = 4,
         num_samples: int = 128,
+        per_channel: bool = True,
         sequence_length: int = 512,
         hessian_damping: float = 0.01,
         group_size: int = 128,
@@ -151,19 +150,10 @@ class GPTQConfig:
         self.dataset = dataset
         self.tokenizer = tokenizer
         self.num_samples = num_samples
+        self.per_channel = per_channel
         self.sequence_length = sequence_length
         self.hessian_damping = hessian_damping
         self.weight_bits = weight_bits
         self.group_size = group_size
         self.symmetric = symmetric
         self.activation_order = activation_order
-
-    def quantize(self, model):
-        """
-        Applies GPTQ quantization to the provided model using this
-        configuration.
-        """
-        logging.info("Initiating quantization from GPTQConfig...")
-        # The core logic is now delegated to gptqutils, which will handle
-        # the dynamic imports and data loading.
-        quantize_model(model=model, config=self)

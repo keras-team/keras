@@ -9,6 +9,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_core import gptq_quantize
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
@@ -440,8 +441,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     "The `config` argument must be of type "
                     "`keras.quantizers.GPTQConfig`."
                 )
-            # The config object's own quantize method drives the process
-            config.quantize(self)
+            gptq_quantize(self, config)
             return
 
         # For all other modes, verify that a config object was not passed.
