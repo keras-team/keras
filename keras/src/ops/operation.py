@@ -146,13 +146,9 @@ class Operation(KerasSaveable):
             # Remove argument "name", as it is provided by get_config.
             kwargs.pop("name", None)
             if argspec.varargs is not None:
-                # Varargs cannot be meaningfully converted to a dictionary.
-                # Backward compatibility: if the signature contains varargs
-                # only store the first argument in varargs.
-                if len(kwargs[argspec.varargs]) > 0:
-                    kwargs[argspec.varargs] = kwargs[argspec.varargs][0]
-                else:
-                    kwargs.pop(argspec.varargs)
+                # Varargs cannot be meaningfully converted to a dictionary,
+                # so they are ignored.
+                kwargs.pop(argspec.varargs)
         except TypeError:
             # Raised by signature.bind when the supplied args and kwargs
             # do not match the signature.
