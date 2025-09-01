@@ -57,31 +57,36 @@ def get_input_signature(model, max_sequence_length=512):
 
 def _get_safe_sequence_length(model, max_sequence_length):
     """Get a safe sequence length that won't cause tensor size overflow."""
-    model_class_name = getattr(model, '__class__', type(None)).__name__.lower()
-    model_module = getattr(getattr(model, '__class__', type(None)), '__module__', '').lower()
     
-    # Check if this is a large vocabulary model
-    large_vocab_indicators = ['gemma', 'llama', 'palm', 'gpt']
-    is_large_vocab = (
-        any(indicator in model_class_name for indicator in large_vocab_indicators) or
-        'keras_hub' in model_module
-    )
-    
-    if is_large_vocab:
-        # Estimate tensor size: seq_len × vocab_size × 4 bytes (float32)
-        # Conservative vocab size estimate for large models
-        estimated_vocab_size = 256000
-        estimated_bytes = max_sequence_length * estimated_vocab_size * 4
+    # Try to detect if this model has a large output vocabulary that could cause overflow
+    try:
+        # Check if model has vocabulary size attribute (common in language models)
+        vocab_size = None
+        if hasattr(model, 'tokenizer') and hasattr(model.tokenizer, 'vocabulary_size'):
+            vocab_size = model.tokenizer.vocabulary_size()
+        elif hasattr(model, 'vocabulary_size'):
+            vocab_size = model.vocabulary_size
+        elif hasattr(model, 'backbone') and hasattr(model.backbone, 'vocabulary_size'):
+            vocab_size = model.backbone.vocabulary_size
         
-        # If estimated size > 512MB, reduce sequence length
-        max_safe_bytes = 512 * 1024 * 1024  # 512MB
-        if estimated_bytes > max_safe_bytes:
-            safe_length = max_safe_bytes // (estimated_vocab_size * 4)
-            safe_length = max(32, min(safe_length, max_sequence_length))  # At least 32, at most original
-            if safe_length < max_sequence_length:
-                print(f"Warning: Reducing max_sequence_length from {max_sequence_length} to {safe_length} "
-                      f"for large vocabulary model to prevent tensor size overflow.")
-            return safe_length
+        # If we found a vocabulary size, check for potential overflow
+        if vocab_size and vocab_size > 50000:  # Large vocabulary threshold
+            # Calculate tensor size: seq_len × vocab_size × 4 bytes (float32)
+            estimated_bytes = max_sequence_length * vocab_size * 4
+            
+            # Use 10GB as safe limit (well under your 40GB peak but conservative for export)
+            max_safe_bytes = 10 * 1024 * 1024 * 1024  # 10GB
+            if estimated_bytes > max_safe_bytes:
+                safe_length = max_safe_bytes // (vocab_size * 4)
+                # Ensure at least 64 tokens for meaningful sequences
+                safe_length = max(64, min(safe_length, max_sequence_length))
+                if safe_length < max_sequence_length:
+                    print(f"Warning: Reducing max_sequence_length from {max_sequence_length} to {safe_length} "
+                          f"for model with large vocabulary (vocab_size={vocab_size}) to prevent tensor size overflow.")
+                return safe_length
+    except Exception:
+        # If we can't determine vocab size, proceed with original length
+        pass
     
     return max_sequence_length
 
