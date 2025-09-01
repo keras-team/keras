@@ -117,82 +117,14 @@ class LiteRTExporter:
         with tempfile.TemporaryDirectory() as temp_dir:
             saved_model_path = os.path.join(temp_dir, "temp_saved_model")
             
-            # Check if we need to use a clean trackable object to avoid _DictWrapper issues
-            trackable_obj = self._create_clean_trackable_object_if_needed()
-            
-            # Saving the model with the concrete function as a signature is more
-            # reliable as it ensures all trackable assets of the model are found.
+            # Save the model with the concrete function as a signature
             tf.saved_model.save(
-                trackable_obj, saved_model_path, signatures=concrete_fn
+                self.model, saved_model_path, signatures=concrete_fn
             )
             
             converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_path)
-            
-            # Keras-Hub models often require these settings.
             self._apply_common_converter_settings(converter, is_complex=True)
             return converter.convert()
-
-    def _create_clean_trackable_object_if_needed(self):
-        """
-        Create a clean trackable object if the model contains _DictWrapper objects
-        that cause issues during TensorFlow's introspection.
-        """
-        # Check if the model has _DictWrapper objects in its trackable children
-        has_dict_wrapper = self._model_has_dict_wrapper_issues()
-        
-        if not has_dict_wrapper:
-            return self.model
-        
-        # Create a clean trackable object to avoid _DictWrapper issues
-        trackable_obj = tf.__internal__.tracking.AutoTrackable()
-        
-        # Copy essential variables from the model
-        if hasattr(self.model, 'variables'):
-            trackable_obj.variables = list(self.model.variables)
-        if hasattr(self.model, 'trainable_variables'):
-            trackable_obj.trainable_variables = list(self.model.trainable_variables)
-        if hasattr(self.model, 'non_trainable_variables'):
-            trackable_obj.non_trainable_variables = list(self.model.non_trainable_variables)
-        
-        return trackable_obj
-
-    def _model_has_dict_wrapper_issues(self):
-        """
-        Check if the model contains _DictWrapper objects that cause introspection issues.
-        """
-        # Import _DictWrapper safely
-        try:
-            from tensorflow.python.trackable.data_structures import _DictWrapper
-        except ImportError:
-            return False
-        
-        # Check model's direct attributes for _DictWrapper objects
-        for attr_name in dir(self.model):
-            if attr_name.startswith('_'):
-                continue
-            try:
-                attr_value = getattr(self.model, attr_name, None)
-                if isinstance(attr_value, _DictWrapper):
-                    return True
-            except (AttributeError, TypeError):
-                continue
-            
-        return False
-
-    def _apply_common_converter_settings(self, converter, is_complex=False):
-        """Applies shared TFLite converter settings."""
-        converter.allow_custom_ops = self.kwargs.get("allow_custom_ops", is_complex)
-        converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
-        if self.kwargs.get("enable_select_tf_ops", is_complex):
-            converter.target_spec.supported_ops.append(tf.lite.OpsSet.SELECT_TF_OPS)
-
-        # Only apply user-specified optimizations, no defaults
-        if "optimizations" in self.kwargs:
-            converter.optimizations = self.kwargs["optimizations"]
-        
-        # Only apply user-specified representative dataset
-        if "representative_dataset" in self.kwargs:
-            converter.representative_dataset = self.kwargs["representative_dataset"]
 
     def _is_keras_hub_model(self):
         """

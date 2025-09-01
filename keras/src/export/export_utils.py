@@ -58,9 +58,8 @@ def get_input_signature(model, max_sequence_length=512):
 def _get_safe_sequence_length(model, max_sequence_length):
     """Get a safe sequence length that won't cause tensor size overflow."""
     
-    # Try to detect if this model has a large output vocabulary that could cause overflow
+    # Try to detect vocabulary size to prevent overflow
     try:
-        # Check if model has vocabulary size attribute (common in language models)
         vocab_size = None
         if hasattr(model, 'tokenizer') and hasattr(model.tokenizer, 'vocabulary_size'):
             vocab_size = model.tokenizer.vocabulary_size()
@@ -69,23 +68,18 @@ def _get_safe_sequence_length(model, max_sequence_length):
         elif hasattr(model, 'backbone') and hasattr(model.backbone, 'vocabulary_size'):
             vocab_size = model.backbone.vocabulary_size
         
-        # If we found a vocabulary size, check for potential overflow
-        if vocab_size and vocab_size > 50000:  # Large vocabulary threshold
+        # If we have a large vocabulary, check for potential overflow
+        if vocab_size and vocab_size > 50000:
             # Calculate tensor size: seq_len × vocab_size × 4 bytes (float32)
             estimated_bytes = max_sequence_length * vocab_size * 4
             
-            # Use 10GB as safe limit (well under your 40GB peak but conservative for export)
+            # Use 10GB as safe limit for export operations
             max_safe_bytes = 10 * 1024 * 1024 * 1024  # 10GB
             if estimated_bytes > max_safe_bytes:
                 safe_length = max_safe_bytes // (vocab_size * 4)
-                # Ensure at least 64 tokens for meaningful sequences
                 safe_length = max(64, min(safe_length, max_sequence_length))
-                if safe_length < max_sequence_length:
-                    print(f"Warning: Reducing max_sequence_length from {max_sequence_length} to {safe_length} "
-                          f"for model with large vocabulary (vocab_size={vocab_size}) to prevent tensor size overflow.")
                 return safe_length
     except Exception:
-        # If we can't determine vocab size, proceed with original length
         pass
     
     return max_sequence_length
