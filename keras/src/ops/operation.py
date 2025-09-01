@@ -233,6 +233,21 @@ class Operation(KerasSaveable):
                 config.pop("name", None)
             return config
         else:
+            example_str = """
+            class CustomLayer(keras.layers.Layer):
+                def __init__(self, arg1, arg2, **kwargs):
+                    super().__init__(**kwargs)
+                    self.arg1 = arg1
+                    self.arg2 = arg2
+
+                def get_config(self):
+                    config = super().get_config()
+                    config.update({
+                        "arg1": self.arg1,
+                        "arg2": self.arg2,
+                    })
+                    return config
+            """
             if getattr(self, "_auto_config_error_args", False):
                 raise NotImplementedError(
                     textwrap.dedent(
@@ -247,19 +262,7 @@ class Operation(KerasSaveable):
 
             Example:
 
-            class CustomLayer(keras.layers.Layer):
-                def __init__(self, arg1, arg2, **kwargs):
-                    super().__init__(**kwargs)
-                    self.arg1 = arg1
-                    self.arg2 = arg2
-
-                def get_config(self):
-                    config = super().get_config()
-                    config.update({{
-                            "arg1": self.arg1,
-                        "arg2": self.arg2,
-                    }})
-                    return config"""
+            {example_str}"""
                     )
                 )
             else:
@@ -273,19 +276,7 @@ class Operation(KerasSaveable):
 
             Example:
 
-            class CustomLayer(keras.layers.Layer):
-                def __init__(self, arg1, arg2, **kwargs):
-                    super().__init__(**kwargs)
-                    self.arg1 = arg1
-                    self.arg2 = arg2
-
-                def get_config(self):
-                    config = super().get_config()
-                    config.update({{
-                            "arg1": self.arg1,
-                        "arg2": self.arg2,
-                    }})
-                    return config"""
+            {example_str}"""
                     )
                 )
 
