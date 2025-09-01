@@ -176,11 +176,6 @@ class LiteRTExporter:
                     return True
             except (AttributeError, TypeError):
                 continue
-        
-        # Check if model class name suggests complex structures
-        model_class_name = self.model.__class__.__name__.lower()
-        if any(indicator in model_class_name for indicator in ['backbone', 'causal_lm', 'gemma', 'llama', 'bert']):
-            return True
             
         return False
 
@@ -191,46 +186,18 @@ class LiteRTExporter:
         if self.kwargs.get("enable_select_tf_ops", is_complex):
             converter.target_spec.supported_ops.append(tf.lite.OpsSet.SELECT_TF_OPS)
 
+        # Only apply user-specified optimizations, no defaults
         if "optimizations" in self.kwargs:
             converter.optimizations = self.kwargs["optimizations"]
-            
-        # For large models, enable memory optimization to prevent overflow
-        if is_complex and self._is_large_vocabulary_model():
-            # Enable optimizations that reduce intermediate tensor sizes
-            if not converter.optimizations:
-                converter.optimizations = [tf.lite.Optimize.DEFAULT]
-            # Use representative dataset for better quantization if available
-            if "representative_dataset" in self.kwargs:
-                converter.representative_dataset = self.kwargs["representative_dataset"]
-
-    def _is_large_vocabulary_model(self):
-        """Check if this is a large vocabulary model that might cause overflow."""
-        model_class_name = self.model.__class__.__name__.lower()
-        model_module = getattr(self.model.__class__, '__module__', '').lower()
         
-        # Models known to have large vocabularies
-        large_vocab_indicators = ['gemma', 'llama', 'palm', 'gpt', 'bert']
-        if any(indicator in model_class_name for indicator in large_vocab_indicators):
-            return True
-        if 'keras_hub' in model_module:
-            return True
-            
-        return False
+        # Only apply user-specified representative dataset
+        if "representative_dataset" in self.kwargs:
+            converter.representative_dataset = self.kwargs["representative_dataset"]
 
     def _is_keras_hub_model(self):
         """
-        Heuristically checks if the model is a complex model from Keras-Hub
-        that benefits from the SavedModel conversion path.
+        Checks if the model is from Keras-Hub based on module path only.
+        Keras-Hub models benefit from the SavedModel conversion path.
         """
         model_module = getattr(self.model.__class__, '__module__', '').lower()
-        if 'keras_hub' in model_module:
-            return True
-        
-        # Fallback check for models that might not be in the keras_hub module
-        # but follow similar patterns (e.g., custom backbones).
-        model_class_name = self.model.__class__.__name__.lower()
-        complex_indicators = ['backbone', 'causal_lm', 'gemma', 'llama', 'bert']
-        if any(indicator in model_class_name for indicator in complex_indicators):
-            return True
-            
-        return False
+        return 'keras_hub' in model_module
