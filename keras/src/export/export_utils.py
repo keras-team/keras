@@ -15,7 +15,8 @@ def get_input_signature(model, max_sequence_length=512):
             Only applied when the model is detected as a sequence model based on input
             names (e.g., 'token_ids', 'input_ids') or shape patterns. For non-sequence
             models (e.g., image models), this parameter is ignored and dimensions remain
-            unbounded. Defaults to 512.
+            unbounded. For large vocabulary models, this may be automatically reduced
+            to prevent tensor size overflow. Defaults to 512.
     
     Returns:
         Input signature suitable for model export.
@@ -30,13 +31,17 @@ def get_input_signature(model, max_sequence_length=512):
             "The model provided has not yet been built. It must be built "
             "before export."
         )
+        
+    # For large vocabulary models, adjust sequence length to prevent overflow
+    effective_max_length = _get_safe_sequence_length(model, max_sequence_length)
+    
     if isinstance(model, models.Functional):
         input_signature = tree.map_structure(make_input_spec, model._inputs_struct)
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
         # For subclassed models, try multiple approaches
-        input_signature = _infer_input_signature_from_model(model, max_sequence_length)
+        input_signature = _infer_input_signature_from_model(model, effective_max_length)
         if not input_signature:
             # Fallback: Try to get from model.inputs if available
             if hasattr(model, 'inputs') and model.inputs:
@@ -50,10 +55,44 @@ def get_input_signature(model, max_sequence_length=512):
     return input_signature
 
 
+def _get_safe_sequence_length(model, max_sequence_length):
+    """Get a safe sequence length that won't cause tensor size overflow."""
+    model_class_name = getattr(model, '__class__', type(None)).__name__.lower()
+    model_module = getattr(getattr(model, '__class__', type(None)), '__module__', '').lower()
+    
+    # Check if this is a large vocabulary model
+    large_vocab_indicators = ['gemma', 'llama', 'palm', 'gpt']
+    is_large_vocab = (
+        any(indicator in model_class_name for indicator in large_vocab_indicators) or
+        'keras_hub' in model_module
+    )
+    
+    if is_large_vocab:
+        # Estimate tensor size: seq_len × vocab_size × 4 bytes (float32)
+        # Conservative vocab size estimate for large models
+        estimated_vocab_size = 256000
+        estimated_bytes = max_sequence_length * estimated_vocab_size * 4
+        
+        # If estimated size > 512MB, reduce sequence length
+        max_safe_bytes = 512 * 1024 * 1024  # 512MB
+        if estimated_bytes > max_safe_bytes:
+            safe_length = max_safe_bytes // (estimated_vocab_size * 4)
+            safe_length = max(32, min(safe_length, max_sequence_length))  # At least 32, at most original
+            if safe_length < max_sequence_length:
+                print(f"Warning: Reducing max_sequence_length from {max_sequence_length} to {safe_length} "
+                      f"for large vocabulary model to prevent tensor size overflow.")
+            return safe_length
+    
+    return max_sequence_length
+
+
 def _infer_input_signature_from_model(model, max_sequence_length=512):
     shapes_dict = getattr(model, "_build_shapes_dict", None)
     if not shapes_dict:
         return None
+
+    # Use the safe sequence length to prevent overflow
+    safe_sequence_length = _get_safe_sequence_length(model, max_sequence_length)
 
     def _is_sequence_model():
         """Detect if this is a sequence model based on input names and shapes."""
@@ -95,7 +134,8 @@ def _infer_input_signature_from_model(model, max_sequence_length=512):
                             bounded_shape.append(None)
                         elif is_sequence_model and i == 1:
                             # For sequence models, bound the sequence length dimension
-                            bounded_shape.append(max_sequence_length)
+                            # Using safe sequence length to prevent overflow
+                            bounded_shape.append(safe_sequence_length)
                         else:
                             # For non-sequence models or non-sequence dimensions, keep unbounded
                             # This prevents breaking image models, etc.
@@ -120,7 +160,8 @@ def _infer_input_signature_from_model(model, max_sequence_length=512):
                             bounded_shape.append(None)
                         elif is_sequence_model and i == 1:
                             # For sequence models, bound the sequence length dimension
-                            bounded_shape.append(max_sequence_length)
+                            # Using safe sequence length to prevent overflow
+                            bounded_shape.append(safe_sequence_length)
                         else:
                             # For non-sequence models or non-sequence dimensions, keep unbounded
                             bounded_shape.append(None)
