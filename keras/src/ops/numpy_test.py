@@ -220,6 +220,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.full_like(x, 2).shape, (None, 3, 3))
 
+    def test_gcd(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.gcd(x, y).shape, (2, 3))
+
     def test_greater(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -744,6 +749,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
     def test_full_like(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.full_like(x, 2).shape, (2, 3))
+
+    def test_gcd(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.gcd(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.gcd(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
+            knp.gcd(x, y)
 
     def test_greater(self):
         x = KerasTensor((2, 3))
@@ -2850,6 +2868,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.FullLike()(x, np.ones([2, 3])),
             np.full_like(x, np.ones([2, 3])),
         )
+
+    def test_gcd(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.gcd(x, y), np.gcd(x, y))
+        self.assertAllClose(knp.gcd(x, 2), np.gcd(x, 2))
+        self.assertAllClose(knp.gcd(2, x), np.gcd(2, x))
+
+        self.assertAllClose(knp.Gcd()(x, y), np.gcd(x, y))
+        self.assertAllClose(knp.Gcd()(x, 2), np.gcd(x, 2))
+        self.assertAllClose(knp.Gcd()(2, x), np.gcd(2, x))
 
     def test_greater(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7397,6 +7426,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.FullLike().symbolic_call(x, 0).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_gcd(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.gcd(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.gcd(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Gcd().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 

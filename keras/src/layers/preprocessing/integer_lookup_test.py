@@ -104,3 +104,52 @@ class IntegerLookupTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
         output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([2, 3, 4, 0]))
+
+    def test_one_hot_output_with_higher_rank_input(self):
+        input_data = np.array([[1, 2], [3, 0]])
+        vocabulary = [1, 2, 3]
+        layer = layers.IntegerLookup(
+            vocabulary=vocabulary, output_mode="one_hot"
+        )
+        output_data = layer(input_data)
+        self.assertEqual(output_data.shape, (2, 2, 4))
+        expected_output = np.array(
+            [
+                [[0, 1, 0, 0], [0, 0, 1, 0]],
+                [[0, 0, 0, 1], [1, 0, 0, 0]],
+            ]
+        )
+        self.assertAllClose(output_data, expected_output)
+        output_data_3d = layer(np.expand_dims(input_data, axis=0))
+        self.assertEqual(output_data_3d.shape, (1, 2, 2, 4))
+        self.assertAllClose(
+            output_data_3d, np.expand_dims(expected_output, axis=0)
+        )
+
+    def test_multi_hot_output_shape(self):
+        input_data = np.array([[1, 2], [3, 0]])
+        vocabulary = [1, 2, 3]
+        layer = layers.IntegerLookup(
+            vocabulary=vocabulary, output_mode="multi_hot"
+        )
+        output_data = layer(input_data)
+        self.assertEqual(output_data.shape, (2, 4))
+
+    def test_count_output_shape(self):
+        input_data = np.array([[1, 2], [3, 0]])
+        vocabulary = [1, 2, 3]
+        layer = layers.IntegerLookup(vocabulary=vocabulary, output_mode="count")
+        output_data = layer(input_data)
+        self.assertEqual(output_data.shape, (2, 4))
+
+    def test_tf_idf_output_shape(self):
+        input_data = np.array([[1, 2], [3, 0]])
+        vocabulary = [1, 2, 3]
+        idf_weights = [1.0, 1.0, 1.0]
+        layer = layers.IntegerLookup(
+            vocabulary=vocabulary,
+            idf_weights=idf_weights,
+            output_mode="tf_idf",
+        )
+        output_data = layer(input_data)
+        self.assertEqual(output_data.shape, (2, 4))
