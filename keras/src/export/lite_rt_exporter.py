@@ -3,6 +3,7 @@ from keras.src.export.export_utils import get_input_signature, make_tf_tensor_sp
 from keras.src import tree
 import tempfile
 import os
+from pathlib import Path
 
 class LiteRTExporter:
     """
@@ -76,38 +77,37 @@ class LiteRTExporter:
 
     def _convert_to_tflite(self, concrete_fn):
         """
-        Converts a concrete function to TFLite, using the most appropriate
-        conversion path based on the model type.
+        Converts a concrete function to TFLite using direct conversion first.
+        Falls back to SavedModel only if direct conversion fails.
         """
-        # For complex models (like Keras-Hub transformers), the SavedModel path
-        # is more robust and correctly handles variable tracking.
-        if self._is_keras_hub_model():
-            if self.verbose:
-                print("Keras-Hub model detected. Using SavedModel conversion path for robustness.")
-            return self._convert_via_saved_model(concrete_fn)
-
-        # For standard Keras models, the direct `from_concrete_functions` path is efficient.
-        else:
-            if self.verbose:
-                print("Standard model detected. Using direct conversion path.")
-            return self._convert_direct(concrete_fn)
-
-    def _convert_direct(self, concrete_fn):
-        """Directly convert a concrete function to TFLite."""
+        # Try direct conversion first - this avoids _DictWrapper issues entirely
         try:
-            # Use trackable_obj if available to follow best practices.
-            if hasattr(self.model, '_get_save_spec'):
-                converter = tf.lite.TFLiteConverter.from_concrete_functions(
-                    [concrete_fn], trackable_obj=self.model
-                )
-            else:
-                # This path is deprecated but serves as a fallback.
-                converter = tf.lite.TFLiteConverter.from_concrete_functions([concrete_fn])
-            
-            self._apply_common_converter_settings(converter)
+            if self.verbose:
+                print("Attempting direct TFLite conversion...")
+            converter = tf.lite.TFLiteConverter.from_concrete_functions([concrete_fn])
+            self._apply_common_converter_settings(converter, is_complex=False)
             return converter.convert()
         except Exception as e:
-            raise IOError(f"Direct TFLite conversion failed. Error: {e}")
+            # Only fall back to SavedModel if direct conversion fails
+            if self.verbose:
+                print(f"Direct conversion failed: {e}")
+                print("Falling back to SavedModel conversion path...")
+            return self._convert_via_saved_model(concrete_fn)
+
+    def _convert_via_saved_model(self, concrete_fn):
+        """Fallback conversion via SavedModel for edge cases."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            saved_model_dir = Path(temp_dir) / "saved_model"
+            
+            tf.saved_model.save(
+                self.model,
+                str(saved_model_dir),
+                signatures={"serving_default": concrete_fn}
+            )
+            
+            converter = tf.lite.TFLiteConverter.from_saved_model(str(saved_model_dir))
+            self._apply_common_converter_settings(converter, is_complex=True)
+            return converter.convert()
 
     def _convert_via_saved_model(self, concrete_fn):
         """
@@ -117,10 +117,23 @@ class LiteRTExporter:
         with tempfile.TemporaryDirectory() as temp_dir:
             saved_model_path = os.path.join(temp_dir, "temp_saved_model")
             
-            # Save the model with the concrete function as a signature
-            tf.saved_model.save(
-                self.model, saved_model_path, signatures=concrete_fn
-            )
+            # Try normal path first, fallback if TensorFlow introspection fails
+            try:
+                tf.saved_model.save(
+                    self.model, saved_model_path, signatures=concrete_fn
+                )
+            except TypeError as e:
+                if "_DictWrapper" in str(e) or "__dict__ descriptor" in str(e):
+                    if self.verbose:
+                        print("Using fallback SavedModel path due to TensorFlow introspection issue.")
+                    # Fallback: save with minimal trackable object
+                    minimal_obj = tf.Module()
+                    tf.saved_model.save(
+                        minimal_obj, saved_model_path, 
+                        signatures={'serving_default': concrete_fn}
+                    )
+                else:
+                    raise e
             
             converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_path)
             self._apply_common_converter_settings(converter, is_complex=True)
