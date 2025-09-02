@@ -1,9 +1,3 @@
-import os
-
-# When using jax.experimental.enable_x64 in unit test, we want to keep the
-# default dtype with 32 bits, aligning it with Keras's default.
-os.environ["JAX_DEFAULT_DTYPE_BITS"] = "32"
-
 try:
     # When using torch and tensorflow, torch needs to be imported first,
     # otherwise it will segfault upon import. This should force the torch

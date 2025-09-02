@@ -8,6 +8,9 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
 class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
     """Ensure the maximum number of bounding boxes.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         max_number: Desired output number of bounding boxes.
         padding_value: The padding value of the `boxes` and `labels` in

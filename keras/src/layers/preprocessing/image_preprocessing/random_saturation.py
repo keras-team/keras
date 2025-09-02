@@ -13,6 +13,9 @@ class RandomSaturation(BaseImagePreprocessingLayer):
     This layer will randomly increase/reduce the saturation for the input RGB
     images.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A tuple of two floats or a single float.
             `factor` controls the extent to which the image saturation

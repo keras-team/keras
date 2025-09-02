@@ -8,6 +8,9 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
 class RandomPosterization(BaseImagePreprocessingLayer):
     """Reduces the number of bits for each color channel.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     References:
     - [AutoAugment: Learning Augmentation Policies from Data](https://arxiv.org/abs/1805.09501)
     - [RandAugment: Practical automated data augmentation with a reduced search space](https://arxiv.org/abs/1909.13719)

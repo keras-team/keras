@@ -468,8 +468,9 @@ def perspective_transform(
     data_format = backend.standardize_data_format(data_format)
 
     images = convert_to_tensor(images)
-    start_points = torch.tensor(start_points, dtype=torch.float32)
-    end_points = torch.tensor(end_points, dtype=torch.float32)
+    dtype = backend.standardize_dtype(images.dtype)
+    start_points = convert_to_tensor(start_points, dtype=dtype)
+    end_points = convert_to_tensor(end_points, dtype=dtype)
 
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
@@ -525,13 +526,15 @@ def perspective_transform(
         transforms = transforms.repeat(batch_size, 1)
 
     grid_x, grid_y = torch.meshgrid(
-        torch.arange(width, dtype=torch.float32, device=images.device),
-        torch.arange(height, dtype=torch.float32, device=images.device),
+        torch.arange(width, dtype=to_torch_dtype(dtype), device=images.device),
+        torch.arange(height, dtype=to_torch_dtype(dtype), device=images.device),
         indexing="xy",
     )
 
     output = torch.empty(
-        [batch_size, height, width, channels], device=images.device
+        [batch_size, height, width, channels],
+        dtype=to_torch_dtype(dtype),
+        device=images.device,
     )
 
     for i in range(batch_size):
@@ -563,8 +566,13 @@ def perspective_transform(
 
 
 def compute_homography_matrix(start_points, end_points):
-    start_points = convert_to_tensor(start_points, dtype=torch.float32)
-    end_points = convert_to_tensor(end_points, dtype=torch.float32)
+    start_points = convert_to_tensor(start_points)
+    end_points = convert_to_tensor(end_points)
+    dtype = backend.result_type(start_points.dtype, end_points.dtype, float)
+    # `torch.linalg.solve` requires float32.
+    compute_dtype = backend.result_type(dtype, "float32")
+    start_points = cast(start_points, dtype)
+    end_points = cast(end_points, dtype)
 
     start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
     start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
@@ -700,9 +708,11 @@ def compute_homography_matrix(start_points, end_points):
         dim=-1,
     ).unsqueeze(-1)
 
+    coefficient_matrix = cast(coefficient_matrix, compute_dtype)
+    target_vector = cast(target_vector, compute_dtype)
     homography_matrix = torch.linalg.solve(coefficient_matrix, target_vector)
     homography_matrix = homography_matrix.reshape(-1, 8)
-
+    homography_matrix = cast(homography_matrix, dtype)
     return homography_matrix
 
 

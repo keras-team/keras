@@ -1337,7 +1337,7 @@ class Layer(BackendLayer, Operation):
         else:
             attr_name = str(attr)
             attr_type = "attribute"
-        msg = " " + msg if msg is not None else ""
+        msg = f" {msg}" if msg is not None else ""
         return NotImplementedError(
             f"Layer {self.__class__.__name__} does not have a `{attr_name}` "
             f"{attr_type} implemented.{msg}"

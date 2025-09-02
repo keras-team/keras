@@ -20,6 +20,9 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     corner points, simulating a 3D-like transformation. The amount of distortion
     is controlled by the `factor` and `scale` parameters.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A float or a tuple of two floats.
             Represents the probability of applying the perspective
