@@ -714,8 +714,6 @@ class Distiller(Model):
 
                     # Custom distillation loss computation
                     teacher_outputs = self.teacher(x, training=False)
-                    # Use y_pred (student output from forward pass) instead of
-                    # recomputing
                     student_outputs = y_pred
 
                     # Custom loss logic here
