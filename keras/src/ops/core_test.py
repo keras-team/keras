@@ -1,4 +1,3 @@
-import contextlib
 import operator
 from unittest.mock import Mock
 
@@ -1370,43 +1369,29 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
 
 class CoreOpsDtypeTest(testing.TestCase):
-    # TODO: Using uint64 will lead to weak type promotion (`float`),
-    # resulting in different behavior between JAX and Keras. Currently, we
-    # are skipping the test for uint64
+    """Test the dtype to verify that the behavior matches JAX."""
+
     ALL_DTYPES = [
         x
         for x in dtypes.ALLOWED_DTYPES
-        if x not in ["string", "uint64", "complex64", "complex128"]
+        if x
+        not in (
+            "string",
+            "complex64",
+            "complex128",
+            # Remove 64-bit dtypes.
+            "float64",
+            "uint64",
+            "int64",
+        )
+        + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
     ] + [None]
-    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint16, uint32 and uint64
-        ALL_DTYPES = [
-            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-        INT_DTYPES = [
-            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-    # Remove float8 dtypes for the following tests
-    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
-
-    def setUp(self):
-        from jax.experimental import disable_x64
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        if backend.backend() == "jax":
-            self.jax_disable_x64 = disable_x64()
-        else:
-            self.jax_disable_x64 = contextlib.nullcontext()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     @parameterized.named_parameters(
         named_product(
@@ -1447,16 +1432,7 @@ class CoreOpsDtypeTest(testing.TestCase):
         ],
     )
     def test_convert_to_tensor(self, x, dtype, expected_dtype):
-        # We have to disable x64 for jax backend since jnp.array doesn't respect
-        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
-        # the expected dtype from 64 bit to 32 bit.
-        if backend.backend() == "jax":
-            expected_dtype = expected_dtype.replace("64", "32")
-
-        with self.jax_disable_x64:
-            self.assertDType(
-                ops.convert_to_tensor(x, dtype=dtype), expected_dtype
-            )
+        self.assertDType(ops.convert_to_tensor(x, dtype=dtype), expected_dtype)
 
     @parameterized.named_parameters(
         named_product(

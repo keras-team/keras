@@ -13,6 +13,9 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
     randomly selected degree of blurring, controlled by the `factor` and
     `sigma` arguments.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A single float or a tuple of two floats.
             `factor` controls the extent to which the image hue is impacted.

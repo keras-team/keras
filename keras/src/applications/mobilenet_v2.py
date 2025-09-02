@@ -369,11 +369,8 @@ def MobileNetV2(
     if weights == "imagenet":
         if include_top:
             model_name = (
-                "mobilenet_v2_weights_tf_dim_ordering_tf_kernels_"
-                + str(float(alpha))
-                + "_"
-                + str(rows)
-                + ".h5"
+                "mobilenet_v2_weights_tf_dim_ordering_tf_kernels"
+                f"_{float(alpha)}_{rows}.h5"
             )
             weight_path = BASE_WEIGHT_PATH + model_name
             weights_path = file_utils.get_file(
@@ -382,11 +379,7 @@ def MobileNetV2(
         else:
             model_name = (
                 "mobilenet_v2_weights_tf_dim_ordering_tf_kernels_"
-                + str(float(alpha))
-                + "_"
-                + str(rows)
-                + "_no_top"
-                + ".h5"
+                f"{float(alpha)}_{rows}_no_top.h5"
             )
             weight_path = BASE_WEIGHT_PATH + model_name
             weights_path = file_utils.get_file(
@@ -419,22 +412,22 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
             padding="same",
             use_bias=False,
             activation=None,
-            name=prefix + "expand",
+            name=f"{prefix}expand",
         )(x)
         x = layers.BatchNormalization(
             axis=channel_axis,
             epsilon=1e-3,
             momentum=0.999,
-            name=prefix + "expand_BN",
+            name=f"{prefix}expand_BN",
         )(x)
-        x = layers.ReLU(6.0, name=prefix + "expand_relu")(x)
+        x = layers.ReLU(6.0, name=f"{prefix}expand_relu")(x)
     else:
         prefix = "expanded_conv_"
 
     # Depthwise 3x3 convolution.
     if stride == 2:
         x = layers.ZeroPadding2D(
-            padding=imagenet_utils.correct_pad(x, 3), name=prefix + "pad"
+            padding=imagenet_utils.correct_pad(x, 3), name=f"{prefix}pad"
         )(x)
     x = layers.DepthwiseConv2D(
         kernel_size=3,
@@ -442,16 +435,16 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
         activation=None,
         use_bias=False,
         padding="same" if stride == 1 else "valid",
-        name=prefix + "depthwise",
+        name=f"{prefix}depthwise",
     )(x)
     x = layers.BatchNormalization(
         axis=channel_axis,
         epsilon=1e-3,
         momentum=0.999,
-        name=prefix + "depthwise_BN",
+        name=f"{prefix}depthwise_BN",
     )(x)
 
-    x = layers.ReLU(6.0, name=prefix + "depthwise_relu")(x)
+    x = layers.ReLU(6.0, name=f"{prefix}depthwise_relu")(x)
 
     # Project with a pointwise 1x1 convolution.
     x = layers.Conv2D(
@@ -460,17 +453,17 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
         padding="same",
         use_bias=False,
         activation=None,
-        name=prefix + "project",
+        name=f"{prefix}project",
     )(x)
     x = layers.BatchNormalization(
         axis=channel_axis,
         epsilon=1e-3,
         momentum=0.999,
-        name=prefix + "project_BN",
+        name=f"{prefix}project_BN",
     )(x)
 
     if in_channels == pointwise_filters and stride == 1:
-        return layers.Add(name=prefix + "add")([inputs, x])
+        return layers.Add(name=f"{prefix}add")([inputs, x])
     return x
 
 

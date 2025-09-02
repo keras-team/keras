@@ -109,16 +109,16 @@ class Bidirectional(Layer):
         # Recreate the forward layer from the original layer config, so that it
         # will not carry over any state from the layer.
         config = serialization_lib.serialize_keras_object(layer)
-        config["config"]["name"] = "forward_" + utils.removeprefix(
-            layer.name, "forward_"
+        config["config"]["name"] = (
+            f"forward_{utils.removeprefix(layer.name, 'forward_')}"
         )
         self.forward_layer = serialization_lib.deserialize_keras_object(config)
 
         if backward_layer is None:
             config = serialization_lib.serialize_keras_object(layer)
             config["config"]["go_backwards"] = True
-            config["config"]["name"] = "backward_" + utils.removeprefix(
-                layer.name, "backward_"
+            config["config"]["name"] = (
+                f"backward_{utils.removeprefix(layer.name, 'backward_')}"
             )
             self.backward_layer = serialization_lib.deserialize_keras_object(
                 config

@@ -58,6 +58,12 @@ def heaviside(x1, x2):
     return jnp.heaviside(x1, x2)
 
 
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.hypot(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return cast(jnp.kaiser(x, beta), config.floatx())
@@ -728,6 +734,12 @@ def full(shape, fill_value, dtype=None):
 
 def full_like(x, fill_value, dtype=None):
     return jnp.full_like(x, fill_value, dtype=dtype)
+
+
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.gcd(x1, x2)
 
 
 def greater(x1, x2):

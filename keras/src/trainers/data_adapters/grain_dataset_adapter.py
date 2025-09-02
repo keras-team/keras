@@ -80,7 +80,9 @@ class GrainDatasetAdapter(DataAdapter):
 
         class ConvertToNumpy(grain.transforms.Map):
             def map(self, x):
-                return tree.map_structure(convert_to_numpy, x)
+                return tree.map_structure(
+                    convert_to_numpy, x, none_is_leaf=False
+                )
 
         if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
             dataset = self._dataset.map(ConvertToNumpy())
@@ -109,7 +111,9 @@ class GrainDatasetAdapter(DataAdapter):
 
         class ConvertToJaxCompatible(grain.transforms.Map):
             def map(self, x):
-                return tree.map_structure(convert_to_jax_compatible, x)
+                return tree.map_structure(
+                    convert_to_jax_compatible, x, none_is_leaf=False
+                )
 
         if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
             dataset = self._dataset.map(ConvertToJaxCompatible())
@@ -131,6 +135,8 @@ class GrainDatasetAdapter(DataAdapter):
 
     def get_tf_dataset(self):
         def convert_to_tf(x):
+            if x is None:
+                return tf.experimental.Optional.empty(None)
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_tf_sparse(x)
             elif data_adapter_utils.is_jax_sparse(x):
