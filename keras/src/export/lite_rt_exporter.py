@@ -82,8 +82,12 @@ class LiteRTExporter:
             print("Using SavedModel conversion path for robustness.")
         
         with tempfile.TemporaryDirectory() as temp_dir:
+            # --- FIX: Save a bare tf.Module() instead of the full Keras model. ---
+            # The concrete_fn already captures all necessary variables. Saving a
+            # simple module avoids the `_DictWrapper` serialization error.
+            module = tf.Module()
             tf.saved_model.save(
-                self.model, temp_dir, signatures={"serving_default": concrete_fn}
+                module, temp_dir, signatures={"serving_default": concrete_fn}
             )
             
             converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir)
