@@ -133,6 +133,16 @@ class LiteRTExporter:
             concrete_fn = self._get_concrete_function(self.input_signature)
             return self._convert_direct(concrete_fn)
 
+    def _get_attribute(self, obj, attribute_names):
+        """Safely get an attribute from a list of possible names."""
+        for name in attribute_names:
+            if hasattr(obj, name):
+                return getattr(obj, name)
+        raise AttributeError(
+            f"Could not find any of the following attributes on object "
+            f"'{obj.__class__.__name__}': {', '.join(attribute_names)}"
+        )
+
     def _convert_generative_model(self):
         """
         Exports a CausalLM model via SavedModel with two distinct signatures
@@ -140,6 +150,13 @@ class LiteRTExporter:
         """
         module = GenerationModule(self.model, self.max_sequence_length)
         backbone = self.model.backbone
+
+        # Use the helper to generically get attributes
+        num_layers = self._get_attribute(backbone, ["num_layers"])
+        num_key_value_heads = self._get_attribute(
+            backbone, ["num_key_value_heads", "num_attention_heads"]
+        )
+        head_dim = self._get_attribute(backbone, ["head_dim", "key_dim"])
 
         # 1. Define the TensorSpec for the 'initialize' signature.
         init_signature = (
@@ -150,11 +167,11 @@ class LiteRTExporter:
         # 2. Define the TensorSpec for the 'decode' signature.
         cache_shape = [
             None,  # batch_size
-            backbone.num_layers,
+            num_layers,
             2,  # key and value
             self.max_sequence_length,
-            backbone.num_key_value_heads,
-            backbone.head_dim,
+            num_key_value_heads,
+            head_dim,
         ]
         decode_signature = (
             tf.TensorSpec(shape=[None, 1], dtype=tf.int32, name="token_ids"),
