@@ -1711,6 +1711,47 @@ def isposinf(x):
     return tf.math.equal(x, tf.constant(float("inf"), dtype=x.dtype))
 
 
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    ndim_x1 = tf.rank(x1)
+    ndim_x2 = tf.rank(x2)
+
+    def expand_front(x, num):
+        for _ in range(num):
+            x = tf.expand_dims(x, axis=0)
+        return x
+
+    x1 = tf.cond(
+        ndim_x1 < ndim_x2,
+        lambda: expand_front(x1, ndim_x2 - ndim_x1),
+        lambda: x1,
+    )
+    x2 = tf.cond(
+        ndim_x2 < ndim_x1,
+        lambda: expand_front(x2, ndim_x1 - ndim_x2),
+        lambda: x2,
+    )
+
+    x1_reshaped = tf.reshape(
+        x1, tf.concat([[s, 1] for s in tf.shape(x1)], axis=0)
+    )
+    x2_reshaped = tf.reshape(
+        x2, tf.concat([[1, s] for s in tf.shape(x2)], axis=0)
+    )
+
+    out = x1_reshaped * x2_reshaped
+
+    out_shape = tf.shape(x1) * tf.shape(x2)
+    out = tf.reshape(out, out_shape)
+    return out
+
+
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

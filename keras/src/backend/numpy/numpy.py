@@ -742,6 +742,12 @@ def isposinf(x):
     return np.isposinf(x)
 
 
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return np.kron(x1, x2)
+
+
 def less(x1, x2):
     return np.less(x1, x2)
 
