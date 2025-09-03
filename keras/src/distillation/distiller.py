@@ -197,6 +197,10 @@ class Distiller(Model):
         # Create efficient multi-layer feature extractors
         self._create_multi_feature_extractors()
 
+        # Validate that feature extraction setup succeeded for
+        # FeatureDistillation strategies
+        self._validate_feature_extraction_setup()
+
         # Freeze teacher model
         self.teacher.trainable = False
 
@@ -492,6 +496,38 @@ class Distiller(Model):
                 # Fallback to individual extraction for subclassed models
                 self._student_feature_extractor = None
 
+    def _validate_feature_extraction_setup(self):
+        """Validate that feature extraction setup succeeded for
+        FeatureDistillation strategies."""
+        for strategy in self.strategies:
+            # Check if strategy has layer names (indicates FeatureDistillation)
+            if (
+                hasattr(strategy, "teacher_layer_name")
+                and strategy.teacher_layer_name is not None
+            ):
+                if self._teacher_feature_extractor is None:
+                    raise RuntimeError(
+                        f"FeatureDistillation strategy targeting teacher layer "
+                        f"'{strategy.teacher_layer_name}' failed to create "
+                        f"feature extractor. This can happen with subclassed "
+                        f"models or models that haven't been built. Consider "
+                        f"using LogitsDistillation instead, or ensure your "
+                        f"models are built by calling them with sample input."
+                    )
+            if (
+                hasattr(strategy, "student_layer_name")
+                and strategy.student_layer_name is not None
+            ):
+                if self._student_feature_extractor is None:
+                    raise RuntimeError(
+                        f"FeatureDistillation strategy targeting student layer "
+                        f"'{strategy.student_layer_name}' failed to create "
+                        f"feature extractor. This can happen with subclassed "
+                        f"models or models that haven't been built. Consider "
+                        f"using LogitsDistillation instead, or ensure your "
+                        f"models are built by calling them with sample input."
+                    )
+
     def _extract_all_teacher_features(self, x):
         """Extract all teacher features in a single forward pass.
 
@@ -583,7 +619,7 @@ class Distiller(Model):
         return self.student(inputs, training=training, **kwargs)
 
     def compute_loss(
-        self, x=None, y=None, y_pred=None, sample_weight=None, training=None
+        self, x=None, y=None, y_pred=None, sample_weight=None, training=True
     ):
         """Compute combined distillation loss.
 
@@ -657,12 +693,27 @@ class Distiller(Model):
                 # Get appropriate outputs/features for this strategy
                 if hasattr(strategy, "teacher_layer_name"):
                     # FeatureDistillation - use extracted features
-                    strategy_teacher_output = self._get_strategy_features(
-                        strategy, teacher_features, is_teacher=True
-                    )
-                    strategy_student_output = self._get_strategy_features(
-                        strategy, student_features, is_teacher=False
-                    )
+                    try:
+                        strategy_teacher_output = self._get_strategy_features(
+                            strategy, teacher_features, is_teacher=True
+                        )
+                        strategy_student_output = self._get_strategy_features(
+                            strategy, student_features, is_teacher=False
+                        )
+                    except ValueError as e:
+                        # Provide more helpful error message for feature
+                        # extraction failures
+                        raise RuntimeError(
+                            f"FeatureDistillation failed for strategy "
+                            f"targeting teacher layer "
+                            f"'{strategy.teacher_layer_name}' and student "
+                            f"layer '{strategy.student_layer_name}'. This can "
+                            f"happen "
+                            f"with subclassed models or models that haven't "
+                            f"been built properly. Consider using only "
+                            f"LogitsDistillation for such models. "
+                            f"Original error: {e}"
+                        ) from e
                 else:
                     # LogitsDistillation - use final model outputs
                     strategy_teacher_output = teacher_features["final_output"]

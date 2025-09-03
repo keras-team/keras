@@ -291,8 +291,10 @@ class FeatureDistillation(DistillationLoss):
         """Compute feature distillation loss using extracted features.
 
         Args:
-            teacher_outputs: Features from teacher model.
-            student_outputs: Features from student model.
+            teacher_outputs: Extracted features from the specified teacher
+                layer.
+            student_outputs: Extracted features from the specified student
+                layer.
             **kwargs: Additional arguments (ignored).
         Returns:
             Feature distillation loss tensor.
