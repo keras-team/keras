@@ -51,7 +51,7 @@ def stream_hessians(layers_map, gptq_objects):
     ...         if len(sample.shape) == 2:
     ...             sample = ops.expand_dims(sample, 0)
     ...         _ = block(sample)   # hooks update Hessians on-the-fly
-    # <- original layer.call methods restored here
+    >>> # <- original layer.call methods restored here
     ```
     """
     original_calls = {}
