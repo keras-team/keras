@@ -3853,12 +3853,14 @@ class Kron(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
 
-        if len(x1_shape) != len(x2_shape):
-            raise ValueError(
-                f"Inputs must have the same number of dimensions for kron, "
-                f"Received: {len(x1_shape)} and {len(x2_shape)}."
-            )
-        output_shape = tuple(a * b for a, b in zip(x1_shape, x2_shape))
+        def _mul_shape_dim(a, b):
+            if a is None or b is None:
+                return None
+            return a * b
+
+        output_shape = tuple(
+            _mul_shape_dim(a, b) for a, b in zip(x1_shape, x2_shape)
+        )
 
         x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
         x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))

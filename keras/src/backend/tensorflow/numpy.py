@@ -1739,10 +1739,16 @@ def kron(x1, x2):
     )
 
     x1_reshaped = tf.reshape(
-        x1, tf.concat([[s, 1] for s in tf.shape(x1)], axis=0)
+        x1,
+        tf.reshape(
+            tf.stack([tf.shape(x1), tf.ones_like(tf.shape(x1))], axis=1), [-1]
+        ),
     )
     x2_reshaped = tf.reshape(
-        x2, tf.concat([[1, s] for s in tf.shape(x2)], axis=0)
+        x2,
+        tf.reshape(
+            tf.stack([tf.ones_like(tf.shape(x2)), tf.shape(x2)], axis=1), [-1]
+        ),
     )
 
     out = tf.multiply(x1_reshaped, x2_reshaped)
