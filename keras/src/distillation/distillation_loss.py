@@ -70,54 +70,12 @@ class FeatureDistillation(DistillationLoss):
     helps the student learn better internal representations and often leads
     to better performance compared to logits-only distillation.
 
-    How Feature Distillation Works:
-
-    1. Layer Selection: Specify which intermediate layers from teacher and
-       student models to use for distillation. These layers should have
-       compatible architectures or similar semantic meaning.
-
-    2. Feature Extraction: Extract activations from the specified layers
-       during forward pass. The teacher features are computed with
-       `training=False` (frozen), while student features are computed with
-       `training=True`.
-
-    3. Loss Computation: Compute loss between teacher and student features
-       using either MSE (for identical shapes) or cosine similarity (for
-       different shapes).
-
-    When to Use Feature Distillation:
-
-    - Similar Architectures: When teacher and student have similar layer
-      structures (e.g., both are CNNs with similar depths)
-    - Performance Improvement: Often leads to better student performance
-      than logits-only distillation
-    - Representation Learning: Helps student learn better internal features
-    - Multi-Scale Distillation: Can distill features from multiple layers
-      simultaneously
-
-    Layer Selection Guidelines:
-
-    - Early Layers: Capture low-level features (edges, textures)
-    - Middle Layers: Capture mid-level features (shapes, patterns)
-    - Late Layers: Capture high-level features (semantic concepts)
-    - Compatible Sizes: Choose layers with similar output dimensions
-    - Semantic Alignment: Match layers that serve similar functions
-
-    Loss Type Selection:
-
-    - `"mse"`: Use when teacher and student features have identical shapes.
-      Provides direct feature matching.
-    - `"cosine"`: Use when features have different shapes but
-      same feature dimension (last axis). Focuses on feature direction
-      rather than magnitude.
-
     Args:
-        loss: Loss function(s) to use for feature distillation. Can be:
+        loss: Loss function to use for feature distillation. Can be:
             - String identifier (e.g., 'mse', 'cosine_similarity', 'mae')
             - Keras loss instance
             - List/tuple of losses for multi-output models
             - Dict of losses for named outputs
-            The structure must match the model's output structure.
             Defaults to 'mse'.
         teacher_layer_name: Name of the teacher layer to extract features from.
             If None, uses the final output. Defaults to None.
@@ -130,42 +88,7 @@ class FeatureDistillation(DistillationLoss):
     # Basic feature distillation from final outputs
     strategy = FeatureDistillation(loss="mse")
 
-    # With custom loss instance
-    strategy = FeatureDistillation(
-        loss=keras.losses.MeanAbsoluteError()
-    )
-
-    # For multi-output models with list structure
-    strategy = FeatureDistillation(
-        loss=["mse", "cosine_similarity"]
-    )
-
-    # For multi-output models with dict structure
-    strategy = FeatureDistillation(
-        loss={
-            "features_1": "mse",
-            "features_2": "cosine_similarity"
-        }
-    )
-
-    # Custom loss by subclassing
-    class CustomFeatureDistillation(FeatureDistillation):
-        def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            # Apply loss using tree.map_structure
-            return tree.map_structure(
-                lambda t, s: keras.ops.mean(
-                    keras.ops.abs(t - s)
-                ),
-                teacher_outputs,
-                student_outputs
-            )
-
-    strategy = CustomFeatureDistillation(
-        teacher_layer_name="dense_1",
-        student_layer_name="dense_1"
-    )
-
-    # Distill from specific layers with compatible shapes
+    # Distill from specific intermediate layers
     strategy = FeatureDistillation(
         loss="mse",
         teacher_layer_name="dense_1",
@@ -179,11 +102,14 @@ class FeatureDistillation(DistillationLoss):
         student_layer_name="conv2d_1"
     )
 
-    # Distill from final outputs (equivalent to logits distillation)
+    # With custom loss instance
     strategy = FeatureDistillation(
-        loss="mse",
-        teacher_layer_name=None,  # Final output
-        student_layer_name=None   # Final output
+        loss=keras.losses.MeanAbsoluteError()
+    )
+
+    # For multi-output models
+    strategy = FeatureDistillation(
+        loss=["mse", "cosine_similarity"]
     )
     ```
     """
@@ -364,18 +290,9 @@ class FeatureDistillation(DistillationLoss):
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute feature distillation loss using extracted features.
 
-        Note: This method expects the outputs to already be the extracted
-        features from the specified layers, not the final model outputs.
-        The Distiller class is responsible for extracting the features
-        using the methods provided by this strategy.
-
         Args:
-            teacher_outputs: Intermediate features from teacher model.
-                Can be a single tensor, list/tuple of tensors, or dict of
-                tensors.
-            student_outputs: Intermediate features from student model.
-                Can be a single tensor, list/tuple of tensors, or dict of
-                tensors.
+            teacher_outputs: Features from teacher model.
+            student_outputs: Features from student model.
             **kwargs: Additional arguments (ignored).
         Returns:
             Feature distillation loss tensor.
@@ -435,44 +352,19 @@ class LogitsDistillation(FeatureDistillation):
     computing the loss between teacher and student predictions. It's the most
     common approach for knowledge distillation.
 
-    How Logits Distillation Works:
-
-    1. Temperature Scaling: The teacher's logits are divided by a `temperature`
-       parameter (typically 3-5) before applying softmax. This creates "softer"
-       probability distributions that reveal relationships between classes.
-
-    2. Loss Computation: The loss is computed between the temperature-scaled
-       teacher logits and student logits using the specified loss function.
-
-    When to Use Logits Distillation:
-
-    - General Classification: Works well for most classification tasks
-    - Model Compression: Effective for reducing model size while maintaining
-      accuracy
-    - Transfer Learning: Good for leveraging knowledge from pre-trained models
-    - Ensemble Distillation: Can combine multiple teacher models
-
-    Temperature Guidelines:
-
-    - Low Temperature (1-2): Sharp distributions, similar to hard labels
-    - Medium Temperature (3-5): Balanced softness, most commonly used
-    - High Temperature (6-10): Very soft distributions, reveals subtle
-      relationships
-
     Args:
         temperature: Temperature for softmax scaling. Higher values produce
             softer probability distributions that are easier for the student to
             learn. Typical values range from 3-5. Defaults to 3.0.
-        loss: Loss function(s) to use for distillation. Can be:
+        loss: Loss function to use for distillation. Can be:
             - String identifier (e.g., 'kl_divergence',
               'categorical_crossentropy')
             - Keras loss instance
             - List/tuple of losses for multi-output models
             - Dict of losses for named outputs
-            The structure must match the model's output structure.
             Defaults to 'kl_divergence'.
 
-    Example:
+    Examples:
 
     ```python
     # Basic logits distillation with KL divergence
@@ -490,43 +382,11 @@ class LogitsDistillation(FeatureDistillation):
         loss=keras.losses.CategoricalCrossentropy(from_logits=True)
     )
 
-    # For multi-output models with list structure
+    # For multi-output models
     strategy = LogitsDistillation(
         temperature=3.0,
         loss=["kl_divergence", "categorical_crossentropy"]
     )
-
-    # For multi-output models with dict structure
-    strategy = LogitsDistillation(
-        temperature=3.0,
-        loss={
-            "classification": "kl_divergence",
-            "regression": "mse"
-        }
-    )
-
-    # Custom loss by subclassing
-    class CustomLogitsDistillation(LogitsDistillation):
-        def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            # Apply temperature scaling using tree.map_structure
-            teacher_scaled = tree.map_structure(
-                lambda x: x / self.temperature, teacher_outputs
-            )
-            student_scaled = tree.map_structure(
-                lambda x: x / self.temperature, student_outputs
-            )
-
-            # Custom loss computation
-            return tree.map_structure(
-                lambda t, s: keras.ops.mean(
-                    keras.losses.kl_divergence(
-                        keras.ops.softmax(t, axis=-1),
-                        keras.ops.softmax(s, axis=-1)
-                    )
-                ),
-                teacher_scaled,
-                student_scaled
-            )
     ```
     """
 

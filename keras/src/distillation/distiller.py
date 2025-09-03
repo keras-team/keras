@@ -10,74 +10,23 @@ class Distiller(Model):
     """Distillation model for transferring knowledge from teacher to student.
 
     Knowledge distillation transfers knowledge from a large, complex model
-    (`teacher`) to a smaller, simpler model (`student`). The student learns
+    (teacher) to a smaller, simpler model (student). The student learns
     from both ground truth labels and the teacher's predictions, often
     achieving better performance than training on labels alone.
-
-    How Knowledge Distillation Works:
-
-    1. Teacher Model: A pre-trained, larger model that has learned complex
-       patterns and relationships in the data. The teacher is frozen during
-       distillation.
-
-    2. Student Model: A smaller, simpler model that we want to train to mimic
-       the teacher's behavior while being more efficient for deployment.
-
-    3. Distillation Process: The student learns from two sources:
-       - Hard targets: Traditional supervised learning with ground truth labels
-       - Soft targets: The teacher's predictions, which contain information
-         about class relationships and confidence levels
-
-    4. Temperature Scaling: The teacher's logits are divided by a `temperature`
-       parameter before applying softmax, creating "softer" probability
-       distributions that are easier for the student to learn from.
-
-    When to Use Knowledge Distillation:
-
-    - Model Compression: Reduce model size for deployment on
-      resource-constrained devices
-    - Performance Improvement: Student models often outperform models trained
-      only on labels
-    - Transfer Learning: Leverage knowledge from large pre-trained models
-    - Ensemble Distillation: Combine multiple teacher models into a single
-      student
-
-    Strategy Selection Guide:
-
-    - `LogitsDistillation`: Most common approach. Transfers final output
-      knowledge. Use for classification tasks where you want the student to
-      learn the teacher's decision boundaries and confidence patterns.
-
-    - `FeatureDistillation`: Transfers intermediate representations. Use when
-      teacher and student have similar architectures, as it helps the student
-      learn better internal representations. Often leads to better performance
-      than logits-only.
-
-    - Multiple Strategies: For models with multiple outputs (e.g., object
-      detection with classification and regression heads), pass a list of
-      strategies with corresponding weights. Each strategy will be applied to
-      its corresponding output.
-
-    - Custom Strategies: Create custom strategies by subclassing
-      `DistillationLoss` and overriding the `compute_loss` method.
 
     Args:
         teacher: A trained `keras.Model` that serves as the knowledge source.
             The teacher model is frozen during distillation.
-        student: A `keras.Model` to be trained through distillation. This model
-            will learn from both ground truth labels and the teacher's
-            predictions.
+        student: A `keras.Model` to be trained through distillation.
         strategy: Single distillation strategy to apply. Can be
             `LogitsDistillation`, `FeatureDistillation`, or a custom strategy.
             Use `strategies` for multiple strategies.
-        strategies: List of distillation strategies to apply. Each strategy will
-            be applied to its corresponding output. Use `strategy` for a single
-            strategy.
+        strategies: List of distillation strategies to apply. Use `strategy`
+            for a single strategy.
         strategy_weights: List of weights for each strategy. Must have the same
             length as `strategies`. If None, equal weights are used.
         student_loss_weight: Weight for the student's supervised loss component.
-            Must be between 0 and 1. Higher values emphasize ground truth
-            labels, lower values emphasize teacher predictions. Defaults to 0.5.
+            Must be between 0 and 1. Defaults to 0.5.
         optimizer: Optimizer for training the student model. Can be a string
             identifier (e.g., `'adam'`) or an optimizer instance.
         student_loss: Loss function for the student's supervised learning
@@ -87,56 +36,49 @@ class Distiller(Model):
         **kwargs: Additional keyword arguments passed to the parent `Model`
             class.
 
-    Example:
+        Examples:
 
     ```python
-    # Load pre-trained teacher model from KerasHub
+    # Basic distillation with KerasHub models
     import keras_hub as hub
 
-    teacher = hub.models.CausalLM.from_preset("gemma3_4b_en")
+    teacher = hub.models.CausalLM.from_preset("gemma_2b_en")
     student = hub.models.CausalLM.from_preset(
-        "gemma2_2b_en", load_weights=False
+        "gemma_1.1_2b_en", load_weights=False
     )
 
-    # Create distillation strategy
     strategy = LogitsDistillation(temperature=3.0)
 
-    # Create distiller
     distiller = Distiller(
         teacher=teacher,
         student=student,
         strategy=strategy,
-        student_loss_weight=0.7,
         optimizer='adam',
-        student_loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
+        student_loss='sparse_categorical_crossentropy'
     )
 
     # Train the distiller
-    distiller.fit(x_train, y_train, epochs=10, validation_split=0.2)
+    distiller.fit(x_train, y_train, epochs=10)
 
     # Access the trained student model
     trained_student = distiller.student_model
-    ```
 
-    For multi-output models:
-
-    ```python
-    # Create multiple strategies for different outputs
+    # Multiple strategies
     strategies = [
-        LogitsDistillation(temperature=3.0, output_index=0),
-        LogitsDistillation(temperature=2.0, output_index=1)
+        LogitsDistillation(temperature=3.0),
+        FeatureDistillation(
+            teacher_layer_name="dense_1",
+            student_layer_name="dense_1"
+        )
     ]
-    strategy_weights = [1.0, 0.5]  # Weight classification more heavily
 
     distiller = Distiller(
         teacher=teacher,
         student=student,
         strategies=strategies,
-        strategy_weights=strategy_weights,
-        student_loss_weight=0.5,
+        strategy_weights=[1.0, 0.5],
         optimizer='adam',
-        student_loss=['sparse_categorical_crossentropy', 'mse']
+        student_loss='sparse_categorical_crossentropy'
     )
     ```
     """
@@ -269,16 +211,7 @@ class Distiller(Model):
         self.compile(optimizer=optimizer, loss=student_loss, metrics=metrics)
 
     def _validate_models(self, teacher, student):
-        """Validate that teacher and student models are compatible for
-        distillation.
-
-        This method performs comprehensive validation including:
-        - Model type validation
-        - Input shape compatibility
-        - Output shape compatibility
-        - Architecture compatibility for feature distillation
-        - Data type compatibility
-        """
+        """Validate that teacher and student models are compatible."""
         # Basic model type validation
         if not isinstance(teacher, keras.Model):
             raise ValueError(
@@ -456,13 +389,7 @@ class Distiller(Model):
         return True
 
     def _create_multi_feature_extractors(self):
-        """Create efficient feature extractors that extract all needed features
-        in single forward passes.
-
-        This method analyzes all FeatureDistillation strategies to determine
-        which layers need feature extraction, then creates models that extract
-        all required features in one pass to avoid redundant computation.
-        """
+        """Create feature extractors for efficient multi-layer extraction."""
         # Collect all layer names needed for feature extraction
         teacher_layer_names = []
         student_layer_names = []
@@ -566,13 +493,13 @@ class Distiller(Model):
                 self._student_feature_extractor = None
 
     def _extract_all_teacher_features(self, x):
-        """Extract all teacher features efficiently in a single forward pass.
+        """Extract all teacher features in a single forward pass.
 
         Args:
             x: Input data.
 
         Returns:
-            Dict mapping layer names to their outputs, including 'final_output'.
+            Dict mapping layer names to their outputs.
         """
         if self._teacher_feature_extractor is not None:
             # Use efficient multi-output extractor
@@ -592,15 +519,14 @@ class Distiller(Model):
             return {"final_output": self.teacher(x, training=False)}
 
     def _extract_all_student_features(self, x, y_pred):
-        """Extract all student features efficiently in a single forward pass.
+        """Extract all student features in a single forward pass.
 
         Args:
             x: Input data.
-            y_pred: Student predictions from forward pass (to avoid
-                recomputation).
+            y_pred: Student predictions from forward pass.
 
         Returns:
-            Dict mapping layer names to their outputs, including 'final_output'.
+            Dict mapping layer names to their outputs.
         """
         if self._student_feature_extractor is not None:
             # Use efficient multi-output extractor
@@ -620,8 +546,7 @@ class Distiller(Model):
             return {"final_output": y_pred}
 
     def _get_strategy_features(self, strategy, all_features, is_teacher):
-        """Get the specific features needed by a strategy from pre-extracted
-        features.
+        """Get the specific features needed by a strategy.
 
         Args:
             strategy: The FeatureDistillation strategy.
@@ -648,33 +573,8 @@ class Distiller(Model):
     def student_model(self):
         """The trained student model for independent use.
 
-        This property provides access to the student model that has been trained
-        through the distillation process. The student model can be used
-        independently for inference, further training, or saving.
-
         Returns:
             keras.Model: The trained student model.
-
-        Example:
-            ```python
-            # After training the distiller
-            distiller.fit(x_train, y_train, epochs=10)
-
-            # Access the trained student model
-            trained_student = distiller.student_model
-
-            # Use the student model independently
-            predictions = trained_student.predict(x_test)
-
-            # Save the student model
-            trained_student.save('my_student_model.keras')
-
-            # Further train the student model
-            trained_student.compile(
-                optimizer='adam', loss='sparse_categorical_crossentropy'
-            )
-            trained_student.fit(x_new, y_new, epochs=5)
-            ```
         """
         return self.student
 
@@ -687,10 +587,6 @@ class Distiller(Model):
     ):
         """Compute combined distillation loss.
 
-        This method integrates distillation into Keras's standard training
-        workflow. Users can override this method to implement custom
-        distillation loss computation.
-
         Args:
             x: Input data.
             y: Target data.
@@ -700,39 +596,6 @@ class Distiller(Model):
 
         Returns:
             Combined loss tensor.
-
-        Example:
-            ```python
-            # Custom distillation loss by overriding compute_loss
-            class CustomDistiller(Distiller):
-                def compute_loss(self, x=None, y=None, y_pred=None,
-                               sample_weight=None, training=None):
-                    # Custom student loss computation
-                    student_loss = keras.losses.sparse_categorical_crossentropy(
-                        y, y_pred
-                    )
-
-                    # Custom distillation loss computation
-                    teacher_outputs = self.teacher(x, training=False)
-                    student_outputs = y_pred
-
-                    # Custom loss logic here
-                    distillation_loss = self._custom_distillation_loss(
-                        teacher_outputs, student_outputs
-                    )
-
-                    # Combine losses with custom weighting
-                    total_loss = 0.7 * student_loss + 0.3 * distillation_loss
-
-                    return total_loss
-
-                def _custom_distillation_loss(self, teacher_outputs,
-                                            student_outputs):
-                    # Implement custom distillation loss logic
-                    return keras.ops.mean(
-                        keras.ops.square(teacher_outputs - student_outputs)
-                    )
-            ```
         """
         # Compute student loss using tree operations for dicts, manual for lists
         student_loss = 0.0
