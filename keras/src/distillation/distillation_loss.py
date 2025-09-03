@@ -61,219 +61,6 @@ class DistillationLoss:
             )
 
 
-@keras_export("keras.distillation.LogitsDistillation")
-class LogitsDistillation(DistillationLoss):
-    """Distillation strategy that transfers knowledge from final model outputs.
-
-    This strategy applies temperature scaling to the teacher's logits before
-    computing the loss between teacher and student predictions. It's the most
-    common approach for knowledge distillation.
-
-    How Logits Distillation Works:
-
-    1. Temperature Scaling: The teacher's logits are divided by a `temperature`
-       parameter (typically 3-5) before applying softmax. This creates "softer"
-       probability distributions that reveal relationships between classes.
-
-    2. Loss Computation: The loss is computed between the temperature-scaled
-       teacher logits and student logits using the specified loss function.
-
-    When to Use Logits Distillation:
-
-    - General Classification: Works well for most classification tasks
-    - Model Compression: Effective for reducing model size while maintaining
-      accuracy
-    - Transfer Learning: Good for leveraging knowledge from pre-trained models
-    - Ensemble Distillation: Can combine multiple teacher models
-
-    Temperature Guidelines:
-
-    - Low Temperature (1-2): Sharp distributions, similar to hard labels
-    - Medium Temperature (3-5): Balanced softness, most commonly used
-    - High Temperature (6-10): Very soft distributions, reveals subtle
-      relationships
-
-    Args:
-        temperature: Temperature for softmax scaling. Higher values produce
-            softer probability distributions that are easier for the student to
-            learn. Typical values range from 3-5. Defaults to 3.0.
-        loss: Loss function(s) to use for distillation. Can be:
-            - String identifier (e.g., 'kl_divergence',
-              'categorical_crossentropy')
-            - Keras loss instance
-            - List/tuple of losses for multi-output models
-            - Dict of losses for named outputs
-            The structure must match the model's output structure.
-            Defaults to 'kl_divergence'.
-
-    Example:
-
-    ```python
-    # Basic logits distillation with KL divergence
-    strategy = LogitsDistillation(temperature=3.0)
-
-    # With categorical crossentropy loss
-    strategy = LogitsDistillation(
-        temperature=4.0,
-        loss="categorical_crossentropy"
-    )
-
-    # With custom loss instance
-    strategy = LogitsDistillation(
-        temperature=4.0,
-        loss=keras.losses.CategoricalCrossentropy(from_logits=True)
-    )
-
-    # For multi-output models with list structure
-    strategy = LogitsDistillation(
-        temperature=3.0,
-        loss=["kl_divergence", "categorical_crossentropy"]
-    )
-
-    # For multi-output models with dict structure
-    strategy = LogitsDistillation(
-        temperature=3.0,
-        loss={
-            "classification": "kl_divergence",
-            "regression": "mse"
-        }
-    )
-
-    # Custom loss by subclassing
-    class CustomLogitsDistillation(LogitsDistillation):
-        def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-            # Apply temperature scaling using tree.map_structure
-            teacher_scaled = tree.map_structure(
-                lambda x: x / self.temperature, teacher_outputs
-            )
-            student_scaled = tree.map_structure(
-                lambda x: x / self.temperature, student_outputs
-            )
-
-            # Custom loss computation
-            return tree.map_structure(
-                lambda t, s: keras.ops.mean(
-                    keras.losses.kl_divergence(
-                        keras.ops.softmax(t, axis=-1),
-                        keras.ops.softmax(s, axis=-1)
-                    )
-                ),
-                teacher_scaled,
-                student_scaled
-            )
-    ```
-    """
-
-    def __init__(
-        self,
-        temperature=3.0,
-        loss="kl_divergence",
-    ):
-        super().__init__()
-        self.temperature = temperature
-
-        # Convert loss structure to functions using tree.map_structure
-        def convert_loss_to_function(loss_item):
-            if isinstance(loss_item, str):
-                loss_fn = keras.losses.get(loss_item)
-                if loss_fn is None:
-                    raise ValueError(
-                        f"Unknown loss function: '{loss_item}'. "
-                        "Please provide a valid loss function name or instance."
-                    )
-                return loss_fn
-            else:
-                return loss_item
-
-        self.loss = tree.map_structure(convert_loss_to_function, loss)
-
-        # Validate temperature
-        if not isinstance(self.temperature, (int, float)):
-            raise ValueError(
-                f"temperature must be a number, got {type(self.temperature)}"
-            )
-        if self.temperature <= 0.0:
-            raise ValueError(
-                "temperature must be > 0. Set a positive value (e.g., 1-10)."
-            )
-
-    def validate_outputs(self, teacher_outputs, student_outputs):
-        """Validate that outputs are compatible for logits distillation."""
-        super().validate_outputs(teacher_outputs, student_outputs)
-
-        # Validate that loss structure matches output structure
-        try:
-            tree.assert_same_structure(self.loss, teacher_outputs)
-            tree.assert_same_structure(self.loss, student_outputs)
-        except ValueError as e:
-            raise ValueError(
-                f"Loss structure must match output structure. "
-                f"Loss structure: {tree.structure(self.loss)}, "
-                f"Teacher output structure: {tree.structure(teacher_outputs)}, "
-                f"Student output structure: {tree.structure(student_outputs)}. "
-                f"Error: {e}"
-            )
-
-    def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
-        """Compute distillation loss using the configured loss function.
-
-        Args:
-            teacher_outputs: Logits from teacher model. Can be a single tensor,
-                list/tuple of tensors, or dict of tensors.
-            student_outputs: Logits from student model. Can be a single tensor,
-                list/tuple of tensors, or dict of tensors.
-            **kwargs: Additional arguments (ignored).
-        Returns:
-            Distillation loss tensor.
-        """
-        # Apply temperature scaling using tree.map_structure
-        teacher_scaled = tree.map_structure(
-            lambda x: x / self.temperature, teacher_outputs
-        )
-        student_scaled = tree.map_structure(
-            lambda x: x / self.temperature, student_outputs
-        )
-
-        # Apply loss function(s) to corresponding outputs
-        def apply_loss(loss_fn, teacher_logits, student_logits):
-            # Special handling for KL divergence (needs probabilities)
-            if (
-                hasattr(loss_fn, "__name__")
-                and "kl" in loss_fn.__name__.lower()
-            ):
-                teacher_probs = keras.ops.softmax(teacher_logits, axis=-1)
-                student_probs = keras.ops.softmax(student_logits, axis=-1)
-                loss = keras.ops.mean(loss_fn(teacher_probs, student_probs))
-                # Scale by temperature^2 for KL (per literature)
-                return loss * (self.temperature**2)
-            else:
-                # For other losses, use logits directly
-                return keras.ops.mean(loss_fn(teacher_logits, student_logits))
-
-        # Apply losses using tree.map_structure
-        loss_values = tree.map_structure(
-            apply_loss, self.loss, teacher_scaled, student_scaled
-        )
-
-        # Sum all losses and return scalar
-        flat_losses = tree.flatten(loss_values)
-        return keras.ops.sum(keras.ops.stack(flat_losses))
-
-    def get_config(self):
-        """Get configuration for serialization."""
-        return {
-            "temperature": self.temperature,
-            "loss": keras.losses.serialize(self.loss),
-        }
-
-    @classmethod
-    def from_config(cls, config):
-        """Create instance from configuration."""
-        config = config.copy()
-        config["loss"] = keras.losses.deserialize(config["loss"])
-        return cls(**config)
-
-
 @keras_export("keras.distillation.FeatureDistillation")
 class FeatureDistillation(DistillationLoss):
     """Feature distillation strategy using intermediate layer representations.
@@ -469,26 +256,6 @@ class FeatureDistillation(DistillationLoss):
 
         return getattr(self, feature_model_attr)(inputs, training=training)
 
-    def get_teacher_features(self, teacher_model, inputs):
-        """Extract features from teacher model."""
-        return self._get_features(
-            teacher_model,
-            inputs,
-            False,
-            self.teacher_layer_name,
-            "_teacher_feature_model",
-        )
-
-    def get_student_features(self, student_model, inputs):
-        """Extract features from student model."""
-        return self._get_features(
-            student_model,
-            inputs,
-            True,
-            self.student_layer_name,
-            "_student_feature_model",
-        )
-
     def validate_model_compatibility(self, teacher, student):
         """Validate that teacher and student models are compatible for feature
         distillation."""
@@ -651,4 +418,199 @@ class FeatureDistillation(DistillationLoss):
         """Create instance from configuration."""
         config = config.copy()
         config["loss"] = keras.losses.deserialize(config["loss"])
+
+        # Filter out parameters that LogitsDistillation doesn't accept
+        # (inherited from FeatureDistillation's get_config)
+        config.pop("teacher_layer_name", None)
+        config.pop("student_layer_name", None)
+
+        return cls(**config)
+
+
+@keras_export("keras.distillation.LogitsDistillation")
+class LogitsDistillation(FeatureDistillation):
+    """Distillation strategy that transfers knowledge from final model outputs.
+
+    This strategy applies temperature scaling to the teacher's logits before
+    computing the loss between teacher and student predictions. It's the most
+    common approach for knowledge distillation.
+
+    How Logits Distillation Works:
+
+    1. Temperature Scaling: The teacher's logits are divided by a `temperature`
+       parameter (typically 3-5) before applying softmax. This creates "softer"
+       probability distributions that reveal relationships between classes.
+
+    2. Loss Computation: The loss is computed between the temperature-scaled
+       teacher logits and student logits using the specified loss function.
+
+    When to Use Logits Distillation:
+
+    - General Classification: Works well for most classification tasks
+    - Model Compression: Effective for reducing model size while maintaining
+      accuracy
+    - Transfer Learning: Good for leveraging knowledge from pre-trained models
+    - Ensemble Distillation: Can combine multiple teacher models
+
+    Temperature Guidelines:
+
+    - Low Temperature (1-2): Sharp distributions, similar to hard labels
+    - Medium Temperature (3-5): Balanced softness, most commonly used
+    - High Temperature (6-10): Very soft distributions, reveals subtle
+      relationships
+
+    Args:
+        temperature: Temperature for softmax scaling. Higher values produce
+            softer probability distributions that are easier for the student to
+            learn. Typical values range from 3-5. Defaults to 3.0.
+        loss: Loss function(s) to use for distillation. Can be:
+            - String identifier (e.g., 'kl_divergence',
+              'categorical_crossentropy')
+            - Keras loss instance
+            - List/tuple of losses for multi-output models
+            - Dict of losses for named outputs
+            The structure must match the model's output structure.
+            Defaults to 'kl_divergence'.
+
+    Example:
+
+    ```python
+    # Basic logits distillation with KL divergence
+    strategy = LogitsDistillation(temperature=3.0)
+
+    # With categorical crossentropy loss
+    strategy = LogitsDistillation(
+        temperature=4.0,
+        loss="categorical_crossentropy"
+    )
+
+    # With custom loss instance
+    strategy = LogitsDistillation(
+        temperature=4.0,
+        loss=keras.losses.CategoricalCrossentropy(from_logits=True)
+    )
+
+    # For multi-output models with list structure
+    strategy = LogitsDistillation(
+        temperature=3.0,
+        loss=["kl_divergence", "categorical_crossentropy"]
+    )
+
+    # For multi-output models with dict structure
+    strategy = LogitsDistillation(
+        temperature=3.0,
+        loss={
+            "classification": "kl_divergence",
+            "regression": "mse"
+        }
+    )
+
+    # Custom loss by subclassing
+    class CustomLogitsDistillation(LogitsDistillation):
+        def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
+            # Apply temperature scaling using tree.map_structure
+            teacher_scaled = tree.map_structure(
+                lambda x: x / self.temperature, teacher_outputs
+            )
+            student_scaled = tree.map_structure(
+                lambda x: x / self.temperature, student_outputs
+            )
+
+            # Custom loss computation
+            return tree.map_structure(
+                lambda t, s: keras.ops.mean(
+                    keras.losses.kl_divergence(
+                        keras.ops.softmax(t, axis=-1),
+                        keras.ops.softmax(s, axis=-1)
+                    )
+                ),
+                teacher_scaled,
+                student_scaled
+            )
+    ```
+    """
+
+    def __init__(
+        self,
+        temperature=3.0,
+        loss="kl_divergence",
+    ):
+        # Always use final outputs (no intermediate layers)
+        super().__init__(
+            loss=loss, teacher_layer_name=None, student_layer_name=None
+        )
+        self.temperature = temperature
+
+        # Validate temperature
+        if not isinstance(self.temperature, (int, float)):
+            raise ValueError(
+                f"temperature must be a number, got {type(self.temperature)}"
+            )
+        if self.temperature <= 0.0:
+            raise ValueError(
+                "temperature must be > 0. Set a positive value (e.g., 1-10)."
+            )
+
+    def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
+        """Compute distillation loss using the configured loss function.
+
+        Args:
+            teacher_outputs: Logits from teacher model. Can be a single tensor,
+                list/tuple of tensors, or dict of tensors.
+            student_outputs: Logits from student model. Can be a single tensor,
+                list/tuple of tensors, or dict of tensors.
+            **kwargs: Additional arguments (ignored).
+        Returns:
+            Distillation loss tensor.
+        """
+        # Apply temperature scaling using tree.map_structure
+        teacher_scaled = tree.map_structure(
+            lambda x: x / self.temperature, teacher_outputs
+        )
+        student_scaled = tree.map_structure(
+            lambda x: x / self.temperature, student_outputs
+        )
+
+        # Apply loss function(s) to corresponding outputs
+        def apply_loss(loss_fn, teacher_logits, student_logits):
+            # Special handling for KL divergence (needs probabilities)
+            if (
+                hasattr(loss_fn, "__name__")
+                and "kl" in loss_fn.__name__.lower()
+            ):
+                teacher_probs = keras.ops.softmax(teacher_logits, axis=-1)
+                student_probs = keras.ops.softmax(student_logits, axis=-1)
+                loss = keras.ops.mean(loss_fn(teacher_probs, student_probs))
+                # Scale by temperature^2 for KL (per literature)
+                return loss * (self.temperature**2)
+            else:
+                # For other losses, use logits directly
+                return keras.ops.mean(loss_fn(teacher_logits, student_logits))
+
+        # Apply losses using tree.map_structure
+        loss_values = tree.map_structure(
+            apply_loss, self.loss, teacher_scaled, student_scaled
+        )
+
+        # Sum all losses and return scalar
+        flat_losses = tree.flatten(loss_values)
+        return keras.ops.sum(keras.ops.stack(flat_losses))
+
+    def get_config(self):
+        """Get configuration for serialization."""
+        config = super().get_config()
+        config["temperature"] = self.temperature
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        """Create instance from configuration."""
+        config = config.copy()
+        config["loss"] = keras.losses.deserialize(config["loss"])
+
+        # Filter out parameters that LogitsDistillation doesn't accept
+        # (inherited from FeatureDistillation's get_config)
+        config.pop("teacher_layer_name", None)
+        config.pop("student_layer_name", None)
+
         return cls(**config)

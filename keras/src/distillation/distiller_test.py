@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 
 import keras
+from keras.src.distillation.distillation_loss import LogitsDistillation
 from keras.src.distillation.distiller import Distiller
-from keras.src.distillation.strategies import LogitsDistillation
 from keras.src.testing import TestCase
 
 
