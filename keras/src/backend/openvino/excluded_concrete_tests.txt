@@ -38,6 +38,7 @@ NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
 NumpyDtypeTest::test_isneginf
 NumpyDtypeTest::test_isposinf
+NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_linspace
 NumpyDtypeTest::test_logaddexp
 NumpyDtypeTest::test_logspace
@@ -97,6 +98,7 @@ NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
 NumpyOneInputOpsCorrectnessTest::test_isneginf
 NumpyOneInputOpsCorrectnessTest::test_isposinf
+NumpyOneInputOpsCorrectnessTest::test_kron
 NumpyOneInputOpsCorrectnessTest::test_logaddexp
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
@@ -160,11 +162,13 @@ NumpyOneInputOpsDynamicShapeTest::test_hamming
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_isneginf
 NumpyOneInputOpsDynamicShapeTest::test_isposinf
+NumpyOneInputOpsDynamicShapeTest::test_kron
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_isneginf
 NumpyOneInputOpsStaticShapeTest::test_isposinf
+NumpyOneInputOpsStaticShapeTest::test_kron
 NumpyTwoInputOpsDynamicShapeTest::test_gcd
 NumpyTwoInputOpsDynamicShapeTest::test_heaviside
 NumpyTwoInputOpsDynamicShapeTest::test_hypot
