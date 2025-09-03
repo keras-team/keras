@@ -1,4 +1,5 @@
-import random
+import math
+from contextlib import contextmanager
 
 import numpy as np
 from absl import logging
@@ -9,15 +10,109 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptq_quant import GPTQQuantization
 
 
-def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
+@contextmanager
+def stream_hessians(layers_map, gptq_objects):
+    """
+    Temporarily monkey-patch each target layer's `call` method so
+    that input activations are streamed into the GPTQ instance
+    running Hessian estimate at capture time.
+
+    On `__enter__`: For every (name, layer) in `layers_map`, replaces
+     `layer.call` with a wrapper that:
+     1) extracts the layer input from `*args`/`**kwargs`,
+     2) reshapes it to 2D `[-1, rows]` where
+      `rows = gptq_objects[name].rows`,
+     3) calls `gptq_objects[name].update_hessian_with_batch(x2d)`
+     4) delegates to the original `layer.call` and returns its
+      output.
+
+    On `__exit__`: All original `layer.call` methods are restored even if an
+     exception occurs.
+
+    * Space complexity: O(d**2) per layer (for the Hessian).
+    * No weights are modified; only GPTQ statistics are updated.
+
+    Args:
+        layers_map: Dict[str, Layer]. Mapping from logical layer names to
+         the Keras layers that should be patched during calibration. Keys must
+         match `gptq_objects`.
+        gptq_objects: Dict[str, GPTQ]. Mapping from names to GPTQ instances.
+
+    Yields:
+        None: The patched state is active only within the `with` block. After
+         exit, all layers are unpatched and safe to use normally.
+
+    Example:
+    ```python
+    >>> with stream_hessians(layers_map, gptq_objects):
+    ...     for sample in calibration_inputs:
+    ...         if len(sample.shape) == 2:
+    ...             sample = ops.expand_dims(sample, 0)
+    ...         _ = block(sample)   # hooks update Hessians on-the-fly
+    >>> # <- original layer.call methods restored here
+    ```
+    """
+    original_calls = {}
+
+    def create_hook(name, original_call_func):
+        def hook(*args, **kwargs):
+            inp = args[0] if args else kwargs["inputs"]
+            # Explicitly reshape the input tensor to be 2D, with the
+            # second dimension matching the number of input features
+            # expected by the layer's kernel.
+            # This correctly handles inputs of any dimensionality
+            # (e.g., 3D or 4D).
+            num_features = gptq_objects[name].rows
+            input_2d = ops.reshape(inp, (-1, num_features))
+            gptq_objects[name].update_hessian_with_batch(input_2d)
+            return original_call_func(*args, **kwargs)
+
+        return hook
+
+    try:
+        for name, layer in layers_map.items():
+            original_calls[name] = layer.call
+            layer.call = create_hook(name, layer.call)
+        yield
+    finally:
+        for name, layer in layers_map.items():
+            layer.call = original_calls[name]
+
+
+def get_dataloader(
+    tokenizer,
+    sequence_length,
+    dataset,
+    num_samples=128,
+    *,
+    strategy="strided",
+    seed=42,
+    stride=None,
+    eos_id=None,
+):
     """
     Prepares and chunks the calibration dataloader, repeating short datasets.
-    """
-    all_tokens = []
+    All processing happens on the CPU.
 
+    Args:
+        tokenizer: The tokenizer to use for text splitting.
+        sequence_length: The length of each input sequence.
+        dataset: The dataset to sample from.
+        num_samples: The number of samples to generate.
+        strategy: The sampling strategy to use. Possible values are
+         1. "strided": Samples are taken at regular intervals.
+         2. "linspace": Samples are taken at evenly spaced intervals.
+         3. "random": Samples are taken at random positions.
+        seed: The random seed for reproducibility. Used only if
+         strategy="random"
+        stride: The stride length for "strided" sampling.
+        eos_id: The end-of-sequence token ID.
+
+    Returns:
+        np.ndarray of shape (num_samples, 1, sequence_length), dtype int32.
+    """
     if not hasattr(dataset, "__iter__") or isinstance(dataset, (str, bytes)):
         raise TypeError(
             "The `dataset` argument must be an iterable (e.g., a list of "
@@ -27,44 +122,72 @@ def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
         )
 
     dataset_list = list(dataset)
-
     if not dataset_list:
         raise ValueError("Provided dataset is empty.")
 
+    pieces = []
     if isinstance(dataset_list[0], str):
-        logging.info("(Dataset contains strings, tokenizing now...)")
-        full_text = "\n\n".join(dataset_list)
-        all_tokens = tokenizer.tokenize(full_text)
+        for i, s in enumerate(dataset_list):
+            toks = np.asarray(tokenizer.tokenize(s)).reshape(-1)
+            pieces.append(toks)
+            # avoid windows that span document boundaries
+            if eos_id is not None and i < len(dataset_list) - 1:
+                pieces.append(np.array([eos_id], dtype=np.int32))
     else:
-        logging.info("(Dataset is pre-tokenized, concatenating...)")
-        all_tokens = np.concatenate(
-            [ops.convert_to_numpy(s).reshape(-1) for s in dataset_list], axis=0
-        )
+        for s in dataset_list:
+            toks = ops.convert_to_numpy(s).reshape(-1)
+            pieces.append(toks.astype(np.int32, copy=False))
 
-    all_tokens = np.array(all_tokens, dtype=np.int32)
+    all_tokens = (
+        pieces[0].astype(np.int32, copy=False)
+        if len(pieces) == 1
+        else np.concatenate(pieces, axis=0).astype(np.int32, copy=False)
+    )
 
-    # Repeat data if it's too short
     required_tokens = num_samples * sequence_length
-    if len(all_tokens) < required_tokens:
-        logging.info(
-            f"Warning: Dataset is too short ({len(all_tokens)} tokens)."
-            " Repeating data to generate {num_samples} samples."
-        )
-        repeats = -(-required_tokens // len(all_tokens))  # Ceiling division
+    if all_tokens.size < required_tokens:
+        repeats = math.ceil(required_tokens / max(1, all_tokens.size))
         all_tokens = np.tile(all_tokens, repeats)
 
-    # Chunk the token list into samples
+    max_start = all_tokens.size - sequence_length
+    if max_start < 0:
+        raise ValueError(
+            f"Not enough tokens to form one sample of length {sequence_length} "
+            f"(have {all_tokens.size})."
+        )
 
-    calibration_samples = []
-    for _ in range(num_samples):
-        # Generate a random starting index
-        start_index = random.randint(0, len(all_tokens) - sequence_length - 1)
-        end_index = start_index + sequence_length
-        sample = all_tokens[start_index:end_index]
-        calibration_samples.append(np.reshape(sample, (1, sequence_length)))
+    # Choose deterministic, well-spread starts by default
+    if strategy == "random":
+        rng = np.random.default_rng(seed)
+        starts = rng.integers(
+            0, max_start + 1, size=num_samples, dtype=np.int64
+        )
+    elif strategy == "linspace":
+        # even coverage with no RNG
+        starts = np.linspace(0, max_start, num_samples, dtype=np.int64)
+    elif strategy == "strided":
+        # stride chosen to cover the space roughly uniformly
+        if stride is None:
+            stride = max(1, (max_start + 1) // num_samples)
+        # offset derived deterministically from seed
+        offset = (
+            (abs(hash(("gptq-calib", seed))) % (max_start + 1))
+            if max_start > 0
+            else 0
+        )
+        starts = (offset + np.arange(num_samples, dtype=np.int64) * stride) % (
+            max_start + 1
+        )
+    else:
+        raise ValueError(f"Unknown strategy: {strategy}")
 
-    final_array = np.stack(calibration_samples, axis=0)
-    return final_array
+    # Gather contiguous windows
+    # sliding_window_view avoids building a big index matrix
+    windows = np.lib.stride_tricks.sliding_window_view(
+        all_tokens, sequence_length
+    )
+    samples = windows[starts]  # (num_samples, sequence_length)
+    return samples.astype(np.int32)[:, None, :]
 
 
 def _find_layers_recursive(layer, prefix, found_layers):
@@ -82,6 +205,41 @@ def _find_layers_recursive(layer, prefix, found_layers):
             _find_layers_recursive(sub_layer, layer_name, found_layers)
 
 
+def _get_backbone_layers(model):
+    """Extract embedding and transformer layers from a KerasHub model."""
+    backbone = model.backbone
+    if not hasattr(backbone, "transformer_layers"):
+        raise ValueError(
+            "The model's backbone does not have a 'transformer_layers' "
+            "attribute. Please ensure you are using a standard KerasHub "
+            "transformer model."
+        )
+    transformer_blocks = backbone.transformer_layers
+
+    if hasattr(backbone, "token_embedding"):
+        embedding_layer = backbone.token_embedding
+    elif hasattr(backbone, "embedding"):
+        embedding_layer = backbone.embedding
+    else:
+        raise ValueError(
+            "Could not automatically find an embedding layer in the model."
+        )
+    return embedding_layer, transformer_blocks
+
+
+def _get_custom_layers(model):
+    """Heuristic for extracting embedding + transformer blocks from a custom
+    model."""
+    embedding_layer = None
+    transformer_blocks = []
+    for layer in model.layers:
+        if isinstance(layer, Embedding) and embedding_layer is None:
+            embedding_layer = layer
+        elif getattr(layer, "_layers", None):  # container-like block
+            transformer_blocks.append(layer)
+    return embedding_layer, transformer_blocks
+
+
 def find_layers_in_block(block):
     """
     A pluggable, generic function to find all Dense and EinsumDense layers
@@ -93,16 +251,7 @@ def find_layers_in_block(block):
     return found_layers
 
 
-def apply_gptq_layerwise(
-    model,
-    dataloader,
-    num_samples,
-    hessian_damping,
-    group_size,
-    symmetric,
-    activation_order,
-    weight_bits,
-):
+def apply_gptq_layerwise(model, dataloader, config):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
     This function is designed to work with common transformer architectures,
@@ -134,63 +283,24 @@ def apply_gptq_layerwise(
             attempt to automatically discover its structure.
         dataloader: An iterable providing calibration data. Each item should
             be a batch of token IDs suitable for the model's embedding layer.
-        num_samples: (int) The number of samples from the dataloader to use for
-            calibration.
-        hessian_damping: (float) The percentage of dampening to add to the
-            Hessian diagonal for stabilization during inverse calculation.
-            A value of 0.01 is common.
-        group_size: (int) The size of the groups to use for quantization. A
-            value of 128 means that 128 weights will share the same scaling
-            factor. Use -1 for per-channel quantization.
-        symmetric: (bool) If True, symmetric quantization is used. Otherwise,
-            asymmetric quantization is used.
-        activation_order: (bool) If True, reorders the weight columns based on
-            activation magnitude, which can improve quantization accuracy.
-        weight_bits: (int) The number of bits to use for the quantized weights,
-            e.g., 4 for 4-bit quantization.
+        config: A GPTQConfiguration object.
 
     Raises:
         ValueError: If the function cannot automatically find an embedding
             layer or any transformer-like blocks to quantize within the model.
     """
+
+    num_samples = config.num_samples
+
     logging.info("Starting model quantization...")
     embedding_layer = None
     transformer_blocks = []
     if hasattr(model, "backbone"):
         logging.info("Detected KerasHub model structure.")
-        backbone = model.backbone
-
-        # Add the check for the 'transformer_layers' attribute.
-        if hasattr(backbone, "transformer_layers"):
-            transformer_blocks = backbone.transformer_layers
-        else:
-            # Raise a specific error if the attribute is missing.
-            raise ValueError(
-                "The model's backbone does not have a 'transformer_layers' "
-                "attribute. Please ensure you are using a standard KerasHub "
-                "transformer model."
-            )
-        # Find the embedding layer by checking for common names or by type.
-        if hasattr(backbone, "token_embedding"):
-            embedding_layer = backbone.token_embedding
-        elif hasattr(backbone, "embedding"):
-            embedding_layer = backbone.embedding
-        else:
-            raise ValueError(
-                "Could not automatically find an embedding layer in the model."
-            )
-
+        embedding_layer, transformer_blocks = _get_backbone_layers(model)
     else:
         logging.info("Detected custom model structure.")
-        for layer in model.layers:
-            # The first Embedding layer found is assumed to be the main one.
-            if isinstance(layer, Embedding) and embedding_layer is None:
-                embedding_layer = layer
-            # A "block" is a container-like layer with its own sub-layers
-            # that we can quantize. This is a heuristic that works for the
-            # test.
-            elif hasattr(layer, "_layers") and layer._layers:
-                transformer_blocks.append(layer)
+        embedding_layer, transformer_blocks = _get_custom_layers(model)
 
     if embedding_layer is None:
         raise ValueError(
@@ -207,6 +317,8 @@ def apply_gptq_layerwise(
         embedding_layer(ops.convert_to_tensor(batch, dtype="int32"))
         for batch in dataloader
     ]
+    num_samples = min(num_samples, len(inputs))
+
     progbar = keras_utils.Progbar(target=len(transformer_blocks))
 
     for block_idx, block in enumerate(transformer_blocks):
@@ -221,73 +333,23 @@ def apply_gptq_layerwise(
         else:
             logging.info(f"Found layers: {list(sub_layers_map.keys())}")
             gptq_objects = {
-                name: GPTQ(layer) for name, layer in sub_layers_map.items()
+                name: GPTQ(layer, config)
+                for name, layer in sub_layers_map.items()
             }
 
-            captured_inputs = {name: [] for name in sub_layers_map.keys()}
-            original_calls = {}
-
-            def create_hook(name, original_call_func):
-                """A factory for creating a hook to capture layer inputs."""
-
-                def hook(*args, **kwargs):
-                    if args:
-                        inp = args[0]
-                    else:
-                        inp = kwargs["inputs"]
-                    captured_inputs[name].append(inp)
-                    return original_call_func(*args, **kwargs)
-
-                return hook
-
-            try:
-                for name, layer in sub_layers_map.items():
-                    original_call = layer.call
-                    original_calls[name] = original_call
-                    layer.call = create_hook(name, original_call)
-
-                logging.info(f"Capturing activations for block {block_idx}...")
+            with stream_hessians(sub_layers_map, gptq_objects):
                 for sample_idx in range(num_samples):
                     current_input = inputs[sample_idx]
                     if len(current_input.shape) == 2:
                         current_input = ops.expand_dims(current_input, axis=0)
                     _ = block(current_input)
 
-            finally:
-                for name, layer in sub_layers_map.items():
-                    if name in original_calls:
-                        layer.call = original_calls[name]
-
-            logging.info(f"Building Hessians for block {block_idx}...")
-            for name, gptq_object in gptq_objects.items():
-                layer_inputs = ops.concatenate(captured_inputs[name], axis=0)
-
-                # Explicitly reshape the input tensor to be 2D, with the second
-                # dimension matching the number of input features expected by
-                # the layer's kernel.
-                # This correctly handles inputs of any dimensionality
-                # (e.g., 3D or 4D).
-                num_features = gptq_object.rows
-                input_reshaped = ops.reshape(layer_inputs, (-1, num_features))
-                gptq_object.update_hessian_with_batch(input_reshaped)
-
-                quantizer = GPTQQuantization(
-                    weight_bits,
-                    per_channel=True,
-                    symmetric=symmetric,
-                    group_size=group_size,
-                )
             for name, gptq_object in gptq_objects.items():
                 logging.info(f"Quantizing {name}...")
-                gptq_object.quantizer = quantizer
-                gptq_object.quantize_and_correct_block(
-                    hessian_damping=hessian_damping,
-                    group_size=group_size,
-                    activation_order=activation_order,
-                )
+                gptq_object.quantize_and_correct_layer()
                 gptq_object.free()
 
-            del gptq_objects, captured_inputs, original_calls
+            del gptq_objects
 
         if block_idx < len(transformer_blocks) - 1:
             logging.info(f"Generating inputs for block {block_idx + 1}...")
@@ -304,32 +366,23 @@ def apply_gptq_layerwise(
     logging.info("Quantization process complete.")
 
 
-def quantize_model(model, config):
+def gptq_quantize(model, config):
     """
     Top-level function to quantize a Keras model using GPTQ.
     """
     logging.info("Starting GPTQ quantization process...")
 
-    # Load ALL data needed from the generator/source in a single call.
+    # Load all data needed from the generator/source in a single call.
     total_samples_to_request = config.num_samples
-    full_dataloader = get_dataloader(
+    dataloader = get_dataloader(
         config.tokenizer,
         config.sequence_length,
         config.dataset,
         num_samples=total_samples_to_request,
     )
 
-    # Split the materialized data. This works because full_dataloader
+    # Split the materialized data. This works because dataloader
     # is now a NumPy array, which can be sliced and reused.
-    calibration_dataloader = full_dataloader[: config.num_samples]
+    calibration_dataloader = dataloader[: config.num_samples]
 
-    apply_gptq_layerwise(
-        model,
-        calibration_dataloader,  # Use the calibration slice
-        config.num_samples,  # Use the configured number of samples
-        config.hessian_damping,
-        config.group_size,
-        config.symmetric,
-        config.activation_order,
-        config.weight_bits,
-    )
+    apply_gptq_layerwise(model, calibration_dataloader, config)
