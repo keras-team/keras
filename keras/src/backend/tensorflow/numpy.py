@@ -1745,7 +1745,7 @@ def kron(x1, x2):
         x2, tf.concat([[1, s] for s in tf.shape(x2)], axis=0)
     )
 
-    out = x1_reshaped * x2_reshaped
+    out = tf.multiply(x1_reshaped, x2_reshaped)
 
     out_shape = tf.shape(x1) * tf.shape(x2)
     out = tf.reshape(out, out_shape)
