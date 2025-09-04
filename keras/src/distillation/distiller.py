@@ -18,13 +18,11 @@ class Distiller(Model):
         teacher: A trained `keras.Model` that serves as the knowledge source.
             The teacher model is frozen during distillation.
         student: A `keras.Model` to be trained through distillation.
-        strategy: Single distillation strategy to apply. Can be
-            `LogitsDistillation`, `FeatureDistillation`, or a custom strategy.
-            Use `strategies` for multiple strategies.
-        strategies: List of distillation strategies to apply. Use `strategy`
-            for a single strategy.
-        strategy_weights: List of weights for each strategy. Must have the same
-            length as `strategies`. If None, equal weights are used.
+        strategies: List of distillation strategies to apply. Can be a single
+            strategy or a list of strategies like `LogitsDistillation`,
+            `FeatureDistillation`, or custom distillation strategies.
+        strategy_weights: List of weights for each distillation strategy. Must
+            have the same length as `strategies`. If None, equal weights used.
         student_loss_weight: Weight for the student's supervised loss component.
             Must be between 0 and 1. Defaults to 0.5.
         optimizer: Optimizer for training the student model. Can be a string
@@ -36,7 +34,7 @@ class Distiller(Model):
         **kwargs: Additional keyword arguments passed to the parent `Model`
             class.
 
-        Examples:
+    Examples:
 
     ```python
     # Basic distillation with KerasHub models
@@ -47,12 +45,11 @@ class Distiller(Model):
         "gemma_1.1_2b_en", load_weights=False
     )
 
-    strategy = LogitsDistillation(temperature=3.0)
-
+    # Single distillation strategy
     distiller = Distiller(
         teacher=teacher,
         student=student,
-        strategy=strategy,
+        strategies=LogitsDistillation(temperature=3.0),
         optimizer='adam',
         student_loss='sparse_categorical_crossentropy'
     )
@@ -63,19 +60,17 @@ class Distiller(Model):
     # Access the trained student model
     trained_student = distiller.student_model
 
-    # Multiple strategies
-    strategies = [
-        LogitsDistillation(temperature=3.0),
-        FeatureDistillation(
-            teacher_layer_name="dense_1",
-            student_layer_name="dense_1"
-        )
-    ]
-
+    # Multiple distillation strategies
     distiller = Distiller(
         teacher=teacher,
         student=student,
-        strategies=strategies,
+        strategies=[
+            LogitsDistillation(temperature=3.0),
+            FeatureDistillation(
+                teacher_layer_name="dense_1",
+                student_layer_name="dense_1"
+            )
+        ],
         strategy_weights=[1.0, 0.5],
         optimizer='adam',
         student_loss='sparse_categorical_crossentropy'
@@ -87,8 +82,7 @@ class Distiller(Model):
         self,
         teacher,
         student,
-        strategy=None,
-        strategies=None,
+        strategies,
         strategy_weights=None,
         student_loss_weight=0.5,
         optimizer="adam",
@@ -148,29 +142,20 @@ class Distiller(Model):
             convert_loss_to_function, student_loss
         )
 
-        # Handle strategy configuration
-        if strategy is not None and strategies is not None:
+        # Handle strategies configuration
+        if strategies is None:
             raise ValueError(
-                "Cannot specify both 'strategy' and 'strategies'. "
-                "Use 'strategy' for single strategy or 'strategies' for "
-                "multiple strategies."
+                "Must specify 'strategies'. "
+                "Please provide a valid distillation strategy such as "
+                "LogitsDistillation, FeatureDistillation, or a list."
             )
 
-        if strategy is not None:
-            # Single strategy mode
-            self.strategies = [strategy]
+        # Convert single strategy to list for uniform handling
+        if not isinstance(strategies, (list, tuple)):
+            self.strategies = [strategies]
             self.strategy_weights = [1.0]
-            self.single_strategy = True
-        elif strategies is not None:
-            # Multiple strategies mode
-            if not isinstance(strategies, (list, tuple)):
-                raise ValueError(
-                    f"strategies must be a list or tuple, got "
-                    f"{type(strategies)}"
-                )
-
+        else:
             self.strategies = strategies
-
             # Set default weights if not provided
             if strategy_weights is None:
                 self.strategy_weights = [1.0] * len(strategies)
@@ -181,14 +166,6 @@ class Distiller(Model):
                         f"must match number of strategies ({len(strategies)})"
                     )
                 self.strategy_weights = strategy_weights
-
-            self.single_strategy = False
-        else:
-            raise ValueError(
-                "Must specify either 'strategy' or 'strategies'. "
-                "Please provide a valid strategy such as LogitsDistillation, "
-                "FeatureDistillation, or a list of strategies."
-            )
 
         # Validate strategy-specific compatibility
         for strategy in self.strategies:

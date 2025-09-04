@@ -98,7 +98,7 @@ class TestEndToEndDistillation(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=LogitsDistillation(temperature=3.0),
+            strategies=LogitsDistillation(temperature=3.0),
             student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
             student_loss="sparse_categorical_crossentropy",
@@ -167,7 +167,7 @@ class TestEndToEndDistillation(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=FeatureDistillation(
+            strategies=FeatureDistillation(
                 loss="mse",
                 teacher_layer_name="teacher_dense_1",
                 student_layer_name="student_dense_1",

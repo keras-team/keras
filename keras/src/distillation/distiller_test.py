@@ -56,7 +56,7 @@ class TestDistiller(TestCase):
         self.distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategy=self.strategy,
+            strategies=self.strategy,
             student_loss_weight=0.5,
             optimizer="adam",
             student_loss="sparse_categorical_crossentropy",
@@ -125,7 +125,7 @@ class TestDistiller(TestCase):
         Distiller(
             teacher=new_teacher,
             student=self.student,
-            strategy=self.strategy,
+            strategies=self.strategy,
             student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(),
             student_loss="sparse_categorical_crossentropy",
@@ -141,14 +141,14 @@ class TestDistiller(TestCase):
             Distiller(
                 teacher="not_a_model",
                 student=self.student,
-                strategy=self.strategy,
+                strategies=self.strategy,
             )
 
         with self.assertRaises(ValueError):
             Distiller(
                 teacher=self.teacher,
                 student="not_a_model",
-                strategy=self.strategy,
+                strategies=self.strategy,
             )
 
     def test_multi_strategy_functionality(self):
@@ -221,7 +221,7 @@ class TestDistiller(TestCase):
         distiller_0 = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategy=self.strategy,
+            strategies=self.strategy,
             student_loss_weight=0.0,
             optimizer=keras.optimizers.Adam(),
             student_loss="sparse_categorical_crossentropy",
@@ -231,7 +231,7 @@ class TestDistiller(TestCase):
         distiller_1 = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategy=self.strategy,
+            strategies=self.strategy,
             student_loss_weight=1.0,
             optimizer=keras.optimizers.Adam(),
             student_loss="sparse_categorical_crossentropy",
@@ -266,7 +266,7 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=self.strategy,
+            strategies=self.strategy,
             student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
             student_loss="sparse_categorical_crossentropy",
@@ -332,7 +332,7 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=self.strategy,
+            strategies=self.strategy,
             student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
             student_loss="sparse_categorical_crossentropy",
@@ -366,7 +366,7 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=self.strategy,
+            strategies=self.strategy,
             student_loss_weight=0.5,
             optimizer=keras.optimizers.Adam(learning_rate=0.01),
             student_loss="sparse_categorical_crossentropy",
@@ -419,7 +419,7 @@ class TestDistiller(TestCase):
         original_distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategy=strategy,
+            strategies=strategy,
             student_loss_weight=0.7,
             optimizer=keras.optimizers.Adam(),
             student_loss="sparse_categorical_crossentropy",
