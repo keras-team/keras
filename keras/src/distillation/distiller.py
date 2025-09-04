@@ -167,16 +167,14 @@ class Distiller(Model):
                     )
                 self.strategy_weights = strategy_weights
 
-        # Validate strategy-specific compatibility
+        # Validate strategy-specific compatibility and create feature extractors
         for strategy in self.strategies:
             self._validate_strategy_compatibility(teacher, student, strategy)
 
-        # Create efficient multi-layer feature extractors
         self._create_multi_feature_extractors()
 
-        # Validate that feature extraction setup succeeded for
-        # FeatureDistillation strategies
-        self._validate_feature_extraction_setup()
+        # Initialize the model - compile with provided parameters
+        self.compile(optimizer=optimizer, loss=student_loss, metrics=metrics)
 
         # Freeze teacher model
         self.teacher.trainable = False
@@ -187,9 +185,6 @@ class Distiller(Model):
             name="distillation_loss"
         )
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
-
-        # Compile the model with provided parameters
-        self.compile(optimizer=optimizer, loss=student_loss, metrics=metrics)
 
     def _validate_models(self, teacher, student):
         """Validate that teacher and student models are compatible."""
@@ -392,118 +387,66 @@ class Distiller(Model):
         # Create multi-output feature extractors if needed
         self._teacher_feature_extractor = None
         self._student_feature_extractor = None
-        self._teacher_layer_outputs = {}
-        self._student_layer_outputs = {}
 
         if teacher_layer_names:
-            try:
-                # For Sequential models, use the last layer's output as final
-                if isinstance(self.teacher, keras.Sequential):
-                    final_output = self.teacher.layers[-1].output
-                    inputs = self.teacher.layers[0].input
-                else:
-                    # For Functional models
-                    if (
-                        not hasattr(self.teacher, "inputs")
-                        or self.teacher.inputs is None
-                    ):
-                        raise ValueError("Teacher model has no defined inputs")
-                    if (
-                        not hasattr(self.teacher, "output")
-                        or self.teacher.output is None
-                    ):
-                        raise ValueError("Teacher model has no defined output")
-                    final_output = self.teacher.output
-                    inputs = self.teacher.inputs
-
-                teacher_outputs = [final_output]  # Always include final output
-                teacher_output_names = ["final_output"]
-
-                for layer_name in teacher_layer_names:
-                    layer = self.teacher.get_layer(name=layer_name)
-                    teacher_outputs.append(layer.output)
-                    teacher_output_names.append(layer_name)
-
-                self._teacher_feature_extractor = keras.Model(
-                    inputs=inputs,
-                    outputs=teacher_outputs,
-                    name=f"{self.teacher.name}_multi_feature_extractor",
-                )
-                self._teacher_output_names = teacher_output_names
-            except (ValueError, AttributeError):
-                # Fallback to individual extraction for subclassed models
-                self._teacher_feature_extractor = None
+            self._create_feature_extractor(
+                self.teacher, teacher_layer_names, "teacher"
+            )
 
         if student_layer_names:
-            try:
-                # For Sequential models, use the last layer's output as final
-                if isinstance(self.student, keras.Sequential):
-                    final_output = self.student.layers[-1].output
-                    inputs = self.student.layers[0].input
-                else:
-                    # For Functional models
-                    if (
-                        not hasattr(self.student, "inputs")
-                        or self.student.inputs is None
-                    ):
-                        raise ValueError("Student model has no defined inputs")
-                    if (
-                        not hasattr(self.student, "output")
-                        or self.student.output is None
-                    ):
-                        raise ValueError("Student model has no defined output")
-                    final_output = self.student.output
-                    inputs = self.student.inputs
+            self._create_feature_extractor(
+                self.student, student_layer_names, "student"
+            )
 
-                student_outputs = [final_output]  # Always include final output
-                student_output_names = ["final_output"]
+    def _create_feature_extractor(self, model, layer_names, model_type):
+        """Create feature extractor for a model."""
+        try:
+            # Get model inputs and final output
+            if isinstance(model, keras.Sequential):
+                final_output = model.layers[-1].output
+                inputs = model.layers[0].input
+            else:
+                if not hasattr(model, "inputs") or model.inputs is None:
+                    raise ValueError(
+                        f"{model_type} model has no defined inputs"
+                    )
+                if not hasattr(model, "output") or model.output is None:
+                    raise ValueError(
+                        f"{model_type} model has no defined output"
+                    )
+                final_output = model.output
+                inputs = model.inputs
 
-                for layer_name in student_layer_names:
-                    layer = self.student.get_layer(name=layer_name)
-                    student_outputs.append(layer.output)
-                    student_output_names.append(layer_name)
+            # Collect outputs
+            outputs = [final_output]  # Always include final output
+            output_names = ["final_output"]
 
-                self._student_feature_extractor = keras.Model(
-                    inputs=inputs,
-                    outputs=student_outputs,
-                    name=f"{self.student.name}_multi_feature_extractor",
-                )
-                self._student_output_names = student_output_names
-            except (ValueError, AttributeError):
-                # Fallback to individual extraction for subclassed models
+            for layer_name in layer_names:
+                layer = model.get_layer(name=layer_name)
+                outputs.append(layer.output)
+                output_names.append(layer_name)
+
+            # Create extractor
+            extractor = keras.Model(
+                inputs=inputs,
+                outputs=outputs,
+                name=f"{model.name}_multi_feature_extractor",
+            )
+
+            # Store based on model type
+            if model_type == "teacher":
+                self._teacher_feature_extractor = extractor
+                self._teacher_output_names = output_names
+            else:
+                self._student_feature_extractor = extractor
+                self._student_output_names = output_names
+
+        except (ValueError, AttributeError):
+            # Fallback for subclassed models
+            if model_type == "teacher":
+                self._teacher_feature_extractor = None
+            else:
                 self._student_feature_extractor = None
-
-    def _validate_feature_extraction_setup(self):
-        """Validate that feature extraction setup succeeded for
-        FeatureDistillation strategies."""
-        for strategy in self.strategies:
-            # Check if strategy has layer names (indicates FeatureDistillation)
-            if (
-                hasattr(strategy, "teacher_layer_name")
-                and strategy.teacher_layer_name is not None
-            ):
-                if self._teacher_feature_extractor is None:
-                    raise RuntimeError(
-                        f"FeatureDistillation strategy targeting teacher layer "
-                        f"'{strategy.teacher_layer_name}' failed to create "
-                        f"feature extractor. This can happen with subclassed "
-                        f"models or models that haven't been built. Consider "
-                        f"using LogitsDistillation instead, or ensure your "
-                        f"models are built by calling them with sample input."
-                    )
-            if (
-                hasattr(strategy, "student_layer_name")
-                and strategy.student_layer_name is not None
-            ):
-                if self._student_feature_extractor is None:
-                    raise RuntimeError(
-                        f"FeatureDistillation strategy targeting student layer "
-                        f"'{strategy.student_layer_name}' failed to create "
-                        f"feature extractor. This can happen with subclassed "
-                        f"models or models that haven't been built. Consider "
-                        f"using LogitsDistillation instead, or ensure your "
-                        f"models are built by calling them with sample input."
-                    )
 
     def _extract_all_teacher_features(self, x):
         """Extract all teacher features in a single forward pass.
@@ -582,6 +525,26 @@ class Distiller(Model):
 
         return all_features[layer_name]
 
+    def compile(self, optimizer="adam", loss=None, metrics=None, **kwargs):
+        """Compile the distiller with proper integration.
+
+        Args:
+            optimizer: Optimizer for training the student model.
+            loss: Student loss function (stored for serialization).
+            metrics: Additional metrics to track during training.
+            **kwargs: Additional arguments passed to parent compile.
+        """
+        # Store the student loss for serialization (not used in training)
+        self._student_loss_for_serialization = loss
+
+        # Compile with a dummy loss since we override compute_loss
+        super().compile(
+            optimizer=optimizer,
+            loss=None,  # We handle loss in compute_loss
+            metrics=metrics,
+            **kwargs,
+        )
+
     @property
     def student_model(self):
         """The trained student model for independent use.
@@ -604,17 +567,20 @@ class Distiller(Model):
             x: Input data.
             y: Target data.
             y_pred: Model predictions.
-            sample_weight: Sample weights.
+            sample_weight: Sample weights (currently unused).
             training: Whether the model is in training mode.
 
         Returns:
             Combined loss tensor.
         """
+        # Handle case where y_pred is not provided
+        if y_pred is None:
+            y_pred = self(x, training=training)
         # Compute student loss using tree operations for dicts, manual for lists
         student_loss = 0.0
         if self.student_loss_weight > 0.0 and y is not None:
             if isinstance(self._student_loss, dict):
-                # Dict case - check keys match at runtime (keys can change)
+                # Dict case - check keys match at runtime
                 loss_keys = set(self._student_loss.keys())
                 y_keys = set(y.keys())
                 pred_keys = set(y_pred.keys())
@@ -625,7 +591,6 @@ class Distiller(Model):
                         f"Target keys: {y_keys}, Prediction keys: {pred_keys}"
                     )
 
-                # Compute losses manually and sum using tree.flatten
                 loss_values = {
                     key: self._student_loss[key](y[key], y_pred[key])
                     for key in self._student_loss.keys()
@@ -641,7 +606,6 @@ class Distiller(Model):
                         f"({len(self._student_loss)}) must match."
                     )
 
-                # Compute losses manually and sum using tree.flatten
                 loss_values = [
                     loss_fn(y_true, y_pred_i)
                     for loss_fn, y_true, y_pred_i in zip(
@@ -661,15 +625,17 @@ class Distiller(Model):
         # Compute distillation loss
         distillation_loss = 0.0
         if self.student_loss_weight < 1.0:
-            # Extract all features efficiently in single forward passes
             teacher_features = self._extract_all_teacher_features(x)
             student_features = self._extract_all_student_features(x, y_pred)
 
             # Apply strategies using pre-extracted features
             for strategy, weight in zip(self.strategies, self.strategy_weights):
                 # Get appropriate outputs/features for this strategy
-                if hasattr(strategy, "teacher_layer_name"):
-                    # FeatureDistillation - use extracted features
+                if (
+                    hasattr(strategy, "teacher_layer_name")
+                    and strategy.teacher_layer_name is not None
+                ):
+                    # FeatureDistillation with specific layers
                     try:
                         strategy_teacher_output = self._get_strategy_features(
                             strategy, teacher_features, is_teacher=True
@@ -685,14 +651,13 @@ class Distiller(Model):
                             f"targeting teacher layer "
                             f"'{strategy.teacher_layer_name}' and student "
                             f"layer '{strategy.student_layer_name}'. This can "
-                            f"happen "
-                            f"with subclassed models or models that haven't "
+                            f"happen with subclassed models that haven't "
                             f"been built properly. Consider using only "
                             f"LogitsDistillation for such models. "
                             f"Original error: {e}"
                         ) from e
                 else:
-                    # LogitsDistillation - use final model outputs
+                    # LogitsDistillation or FeatureDistillation (final outputs)
                     strategy_teacher_output = teacher_features["final_output"]
                     strategy_student_output = y_pred
 
@@ -734,15 +699,30 @@ class Distiller(Model):
     @property
     def metrics(self):
         """Return list of metrics."""
-        return [
+        # Get parent metrics (from compile)
+        parent_metrics = []
+        if hasattr(super(), "metrics"):
+            parent_metrics = [
+                m
+                for m in super().metrics
+                if m
+                not in [
+                    self.total_loss_tracker,
+                    self.student_loss_tracker,
+                    self.distillation_loss_tracker,
+                ]
+            ]
+
+        # Add our custom loss trackers first
+        distillation_metrics = [
             self.total_loss_tracker,
             self.student_loss_tracker,
             self.distillation_loss_tracker,
         ]
+        return distillation_metrics + parent_metrics
 
     def get_config(self):
         """Get configuration for serialization."""
-
         config = super().get_config()
         config.update(
             {
@@ -758,6 +738,18 @@ class Distiller(Model):
                 ],
                 "strategy_weights": self.strategy_weights,
                 "student_loss_weight": self.student_loss_weight,
+                # Save current state, not initial parameters
+                "optimizer": serialization_lib.serialize_keras_object(
+                    self.optimizer
+                )
+                if hasattr(self, "optimizer") and self.optimizer
+                else None,
+                "student_loss": serialization_lib.serialize_keras_object(
+                    getattr(self, "_student_loss_for_serialization", None)
+                ),
+                # Note: metrics are not easily serializable due to
+                # CompileMetrics complexity, so we skip them in serialization
+                "metrics": None,
             }
         )
         return config
@@ -765,7 +757,9 @@ class Distiller(Model):
     @classmethod
     def from_config(cls, config):
         """Create instance from configuration."""
+        config = config.copy()
 
+        # Deserialize objects
         config["teacher"] = serialization_lib.deserialize_keras_object(
             config["teacher"]
         )
@@ -776,4 +770,19 @@ class Distiller(Model):
             serialization_lib.deserialize_keras_object(strategy)
             for strategy in config["strategies"]
         ]
+
+        # Handle optional parameters
+        if "optimizer" in config and config["optimizer"] is not None:
+            config["optimizer"] = serialization_lib.deserialize_keras_object(
+                config["optimizer"]
+            )
+        if "student_loss" in config and config["student_loss"] is not None:
+            config["student_loss"] = serialization_lib.deserialize_keras_object(
+                config["student_loss"]
+            )
+        if "metrics" in config and config["metrics"] is not None:
+            config["metrics"] = serialization_lib.deserialize_keras_object(
+                config["metrics"]
+            )
+
         return cls(**config)

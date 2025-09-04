@@ -222,7 +222,6 @@ class FeatureDistillation(DistillationLoss):
             )
 
         # Create a new model that extracts features from the specified layer.
-        # This approach is robust for models created with the Functional API.
         try:
             return keras.Model(
                 inputs=model.inputs,
@@ -231,7 +230,6 @@ class FeatureDistillation(DistillationLoss):
             )
         except (ValueError, AttributeError) as e:
             # Handle the case where the model doesn't have defined inputs yet
-            # (common with Sequential models that haven't been built)
             error_msg = str(e).lower()
             if (
                 "no defined inputs" in error_msg
@@ -277,7 +275,6 @@ class FeatureDistillation(DistillationLoss):
         ):
             # Validate that the specified layers exist and are compatible
             self._validate_layer_compatibility(teacher_outputs, student_outputs)
-        # Note: Base class already validated output count compatibility
 
     def _validate_layer_compatibility(self, teacher_outputs, student_outputs):
         """Validate that the specified layers are compatible for feature
@@ -337,12 +334,6 @@ class FeatureDistillation(DistillationLoss):
         """Create instance from configuration."""
         config = config.copy()
         config["loss"] = keras.losses.deserialize(config["loss"])
-
-        # Filter out parameters that LogitsDistillation doesn't accept
-        # (inherited from FeatureDistillation's get_config)
-        config.pop("teacher_layer_name", None)
-        config.pop("student_layer_name", None)
-
         return cls(**config)
 
 
