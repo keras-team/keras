@@ -1095,36 +1095,24 @@ def linspace(
         indices_target_shape = ov_opset.concat(
             [indices_shape, ones_for_start], 0
         ).output(0)
-        indices_reshaped = ov_opset.reshape(
-            indices, indices_target_shape, False
-        ).output(0)
-
         start_target_shape = ov_opset.concat(
             [one_i32_array, start_shape], 0
-        ).output(0)
-        start_reshaped = ov_opset.reshape(
-            start, start_target_shape, False
-        ).output(0)
-        step_reshaped = ov_opset.reshape(
-            step, start_target_shape, False
         ).output(0)
     else:
         indices_target_shape = ov_opset.concat(
             [ones_for_start, indices_shape], 0
         ).output(0)
-        indices_reshaped = ov_opset.reshape(
-            indices, indices_target_shape, False
-        ).output(0)
-
         start_target_shape = ov_opset.concat(
             [start_shape, one_i32_array], 0
         ).output(0)
-        start_reshaped = ov_opset.reshape(
-            start, start_target_shape, False
-        ).output(0)
-        step_reshaped = ov_opset.reshape(
-            step, start_target_shape, False
-        ).output(0)
+
+    indices_reshaped = ov_opset.reshape(
+        indices, indices_target_shape, False
+    ).output(0)
+    start_reshaped = ov_opset.reshape(start, start_target_shape, False).output(
+        0
+    )
+    step_reshaped = ov_opset.reshape(step, start_target_shape, False).output(0)
 
     scaled_indices = ov_opset.multiply(indices_reshaped, step_reshaped).output(
         0
