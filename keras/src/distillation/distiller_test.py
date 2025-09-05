@@ -45,11 +45,20 @@ class TestDistiller(TestCase):
         """Set up test fixtures."""
         super().setUp()
 
+        # Create test data
+        self.x = np.random.random((20, 5)).astype(np.float32)
+        self.y = np.random.randint(0, 10, (20,)).astype(np.int32)
+
         # Create teacher and student models
         self.teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         self.student = SimpleStudent(vocab_size=10, hidden_dim=16)
 
-        # Create distillation strategy with explicit temperature
+        # Build models
+        dummy_input = self.x[:2]
+        self.teacher(dummy_input)
+        self.student(dummy_input)
+
+        # Create distillation strategy
         self.strategy = LogitsDistillation(temperature=2.0)
 
         # Create distiller
@@ -62,10 +71,6 @@ class TestDistiller(TestCase):
             student_loss="sparse_categorical_crossentropy",
             metrics=["accuracy"],
         )
-
-        # Create test data
-        self.x = np.random.random((20, 5)).astype(np.float32)
-        self.y = np.random.randint(0, 10, (20,)).astype(np.int32)
 
     def test_distiller_initialization(self):
         """Test Distiller initialization."""
@@ -176,7 +181,7 @@ class TestDistiller(TestCase):
         self.assertEqual(distiller.strategy_weights, [0.7, 0.3])
 
         # Test training
-        x = np.random.random((10, 8)).astype(np.float32)
+        x = np.random.random((10, 5)).astype(np.float32)
         y = np.random.randint(0, 10, (10,))
         history = distiller.fit(x, y, epochs=1, verbose=0)
 
@@ -217,6 +222,7 @@ class TestDistiller(TestCase):
             )
 
     def test_student_loss_weighting(self):
+        """Test student loss weighting functionality."""
         # Test with student_loss_weight = 0.0 (only distillation loss)
         distiller_0 = Distiller(
             teacher=self.teacher,
@@ -261,6 +267,11 @@ class TestDistiller(TestCase):
         # Create fresh models for training
         teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         student = SimpleStudent(vocab_size=10, hidden_dim=16)
+
+        # Build models to avoid JAX tracer issues
+        dummy_input = x_train[:2]
+        teacher(dummy_input)
+        student(dummy_input)
 
         # Create distiller
         distiller = Distiller(
@@ -328,6 +339,11 @@ class TestDistiller(TestCase):
         teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         student = SimpleStudent(vocab_size=10, hidden_dim=16)
 
+        # Build models to avoid JAX tracer issues
+        dummy_input = x_test[:2]
+        teacher(dummy_input)
+        student(dummy_input)
+
         # Create distiller
         distiller = Distiller(
             teacher=teacher,
@@ -361,6 +377,11 @@ class TestDistiller(TestCase):
         # Create fresh models
         teacher = SimpleTeacher(vocab_size=10, hidden_dim=32)
         student = SimpleStudent(vocab_size=10, hidden_dim=16)
+
+        # Build models to avoid JAX tracer issues
+        dummy_input = x_test[:2]
+        teacher(dummy_input)
+        student(dummy_input)
 
         # Create distiller
         distiller = Distiller(

@@ -94,6 +94,15 @@ class TestEndToEndDistillation(TestCase):
             ]
         )
 
+        # Create test data
+        x = np.random.random((32, 20)).astype(np.float32)
+        y = np.random.randint(0, 10, (32,)).astype(np.int32)
+
+        # Build models to avoid JAX tracer issues
+        dummy_input = x[:2]
+        teacher(dummy_input)
+        student(dummy_input)
+
         # Create distiller
         distiller = Distiller(
             teacher=teacher,
@@ -104,10 +113,6 @@ class TestEndToEndDistillation(TestCase):
             student_loss="sparse_categorical_crossentropy",
             metrics=["accuracy"],
         )
-
-        # Create test data
-        x = np.random.random((32, 20)).astype(np.float32)
-        y = np.random.randint(0, 10, (32,)).astype(np.int32)
 
         # Test training
         history = distiller.fit(x, y, epochs=2, verbose=0)

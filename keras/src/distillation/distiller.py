@@ -173,9 +173,6 @@ class Distiller(Model):
 
         self._create_multi_feature_extractors()
 
-        # Initialize the model - compile with provided parameters
-        self.compile(optimizer=optimizer, loss=student_loss, metrics=metrics)
-
         # Freeze teacher model
         self.teacher.trainable = False
 
@@ -185,6 +182,9 @@ class Distiller(Model):
             name="distillation_loss"
         )
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
+
+        # Initialize the model - compile with provided parameters
+        self.compile(optimizer=optimizer, loss=student_loss, metrics=metrics)
 
     def _validate_models(self, teacher, student):
         """Validate that teacher and student models are compatible."""
