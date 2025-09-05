@@ -205,6 +205,41 @@ class GRUTest(testing.TestCase):
             output,
         )
 
+    def test_pass_return_state(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        initial_state = np.arange(4).reshape((2, 2)).astype("float32")
+
+        # Test with go_backwards=False
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            return_state=True,
+        )
+        output, state = layer(sequence, initial_state=initial_state)
+        self.assertAllClose(
+            np.array([[0.23774096, 0.33508456], [0.83659905, 1.0227708]]),
+            output,
+        )
+        self.assertAllClose(output, state)
+
+        # Test with go_backwards=True
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            return_state=True,
+            go_backwards=True,
+        )
+        output, state = layer(sequence, initial_state=initial_state)
+        self.assertAllClose(
+            np.array([[0.13486053, 0.23261218], [0.78257304, 0.9691353]]),
+            output,
+        )
+        self.assertAllClose(output, state)
+
     def test_masking(self):
         sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
         mask = np.array([[True, True, False, True], [True, False, False, True]])

@@ -632,14 +632,14 @@ def MBConvBlock(
                 padding="same",
                 data_format=backend.image_data_format(),
                 use_bias=False,
-                name=name + "expand_conv",
+                name=f"{name}expand_conv",
             )(inputs)
             x = layers.BatchNormalization(
                 axis=bn_axis,
                 momentum=bn_momentum,
-                name=name + "expand_bn",
+                name=f"{name}expand_bn",
             )(x)
-            x = layers.Activation(activation, name=name + "expand_activation")(
+            x = layers.Activation(activation, name=f"{name}expand_activation")(
                 x
             )
         else:
@@ -653,22 +653,22 @@ def MBConvBlock(
             padding="same",
             data_format=backend.image_data_format(),
             use_bias=False,
-            name=name + "dwconv2",
+            name=f"{name}dwconv2",
         )(x)
         x = layers.BatchNormalization(
-            axis=bn_axis, momentum=bn_momentum, name=name + "bn"
+            axis=bn_axis, momentum=bn_momentum, name=f"{name}bn"
         )(x)
-        x = layers.Activation(activation, name=name + "activation")(x)
+        x = layers.Activation(activation, name=f"{name}activation")(x)
 
         # Squeeze and excite
         if 0 < se_ratio <= 1:
             filters_se = max(1, int(input_filters * se_ratio))
-            se = layers.GlobalAveragePooling2D(name=name + "se_squeeze")(x)
+            se = layers.GlobalAveragePooling2D(name=f"{name}se_squeeze")(x)
             if bn_axis == 1:
                 se_shape = (filters, 1, 1)
             else:
                 se_shape = (1, 1, filters)
-            se = layers.Reshape(se_shape, name=name + "se_reshape")(se)
+            se = layers.Reshape(se_shape, name=f"{name}se_reshape")(se)
 
             se = layers.Conv2D(
                 filters_se,
@@ -676,7 +676,7 @@ def MBConvBlock(
                 padding="same",
                 activation=activation,
                 kernel_initializer=CONV_KERNEL_INITIALIZER,
-                name=name + "se_reduce",
+                name=f"{name}se_reduce",
             )(se)
             se = layers.Conv2D(
                 filters,
@@ -684,10 +684,10 @@ def MBConvBlock(
                 padding="same",
                 activation="sigmoid",
                 kernel_initializer=CONV_KERNEL_INITIALIZER,
-                name=name + "se_expand",
+                name=f"{name}se_expand",
             )(se)
 
-            x = layers.multiply([x, se], name=name + "se_excite")
+            x = layers.multiply([x, se], name=f"{name}se_excite")
 
         # Output phase
         x = layers.Conv2D(
@@ -698,10 +698,10 @@ def MBConvBlock(
             padding="same",
             data_format=backend.image_data_format(),
             use_bias=False,
-            name=name + "project_conv",
+            name=f"{name}project_conv",
         )(x)
         x = layers.BatchNormalization(
-            axis=bn_axis, momentum=bn_momentum, name=name + "project_bn"
+            axis=bn_axis, momentum=bn_momentum, name=f"{name}project_bn"
         )(x)
 
         if strides == 1 and input_filters == output_filters:
@@ -709,9 +709,9 @@ def MBConvBlock(
                 x = layers.Dropout(
                     survival_probability,
                     noise_shape=(None, 1, 1, 1),
-                    name=name + "drop",
+                    name=f"{name}drop",
                 )(x)
-            x = layers.add([x, inputs], name=name + "add")
+            x = layers.add([x, inputs], name=f"{name}add")
 
         return x
 
@@ -747,13 +747,13 @@ def FusedMBConvBlock(
                 data_format=backend.image_data_format(),
                 padding="same",
                 use_bias=False,
-                name=name + "expand_conv",
+                name=f"{name}expand_conv",
             )(inputs)
             x = layers.BatchNormalization(
-                axis=bn_axis, momentum=bn_momentum, name=name + "expand_bn"
+                axis=bn_axis, momentum=bn_momentum, name=f"{name}expand_bn"
             )(x)
             x = layers.Activation(
-                activation=activation, name=name + "expand_activation"
+                activation=activation, name=f"{name}expand_activation"
             )(x)
         else:
             x = inputs
@@ -761,13 +761,13 @@ def FusedMBConvBlock(
         # Squeeze and excite
         if 0 < se_ratio <= 1:
             filters_se = max(1, int(input_filters * se_ratio))
-            se = layers.GlobalAveragePooling2D(name=name + "se_squeeze")(x)
+            se = layers.GlobalAveragePooling2D(name=f"{name}se_squeeze")(x)
             if bn_axis == 1:
                 se_shape = (filters, 1, 1)
             else:
                 se_shape = (1, 1, filters)
 
-            se = layers.Reshape(se_shape, name=name + "se_reshape")(se)
+            se = layers.Reshape(se_shape, name=f"{name}se_reshape")(se)
 
             se = layers.Conv2D(
                 filters_se,
@@ -775,7 +775,7 @@ def FusedMBConvBlock(
                 padding="same",
                 activation=activation,
                 kernel_initializer=CONV_KERNEL_INITIALIZER,
-                name=name + "se_reduce",
+                name=f"{name}se_reduce",
             )(se)
             se = layers.Conv2D(
                 filters,
@@ -783,10 +783,10 @@ def FusedMBConvBlock(
                 padding="same",
                 activation="sigmoid",
                 kernel_initializer=CONV_KERNEL_INITIALIZER,
-                name=name + "se_expand",
+                name=f"{name}se_expand",
             )(se)
 
-            x = layers.multiply([x, se], name=name + "se_excite")
+            x = layers.multiply([x, se], name=f"{name}se_excite")
 
         # Output phase:
         x = layers.Conv2D(
@@ -796,14 +796,14 @@ def FusedMBConvBlock(
             kernel_initializer=CONV_KERNEL_INITIALIZER,
             padding="same",
             use_bias=False,
-            name=name + "project_conv",
+            name=f"{name}project_conv",
         )(x)
         x = layers.BatchNormalization(
-            axis=bn_axis, momentum=bn_momentum, name=name + "project_bn"
+            axis=bn_axis, momentum=bn_momentum, name=f"{name}project_bn"
         )(x)
         if expand_ratio == 1:
             x = layers.Activation(
-                activation=activation, name=name + "project_activation"
+                activation=activation, name=f"{name}project_activation"
             )(x)
 
         # Residual:
@@ -812,9 +812,9 @@ def FusedMBConvBlock(
                 x = layers.Dropout(
                     survival_probability,
                     noise_shape=(None, 1, 1, 1),
-                    name=name + "drop",
+                    name=f"{name}drop",
                 )(x)
-            x = layers.add([x, inputs], name=name + "add")
+            x = layers.add([x, inputs], name=f"{name}add")
         return x
 
     return apply

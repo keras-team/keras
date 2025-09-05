@@ -53,7 +53,7 @@ class AdamaxTest(testing.TestCase):
             learning_rate=0.2, beta_1=0.85, beta_2=0.95, epsilon=1e-6
         )
 
-        x = backend.Variable(np.ones([10]))
+        x = backend.Variable(np.ones([10], dtype="float32"))
         grads = ops.arange(0.1, 1.1, 0.1)
         first_grads = ops.full((10,), 0.01)
 

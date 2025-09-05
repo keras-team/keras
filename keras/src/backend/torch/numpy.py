@@ -839,6 +839,12 @@ def full_like(x, fill_value, dtype=None):
     return full(shape=x.shape, fill_value=fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.gcd(x1, x2)
+
+
 def greater(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.greater(x1, x2)
@@ -852,6 +858,22 @@ def greater_equal(x1, x2):
 def hstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return torch.hstack(xs)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+
+    return torch.hypot(x1, x2)
 
 
 def identity(n, dtype=None):
@@ -921,6 +943,12 @@ def isneginf(x):
 def isposinf(x):
     x = convert_to_tensor(x)
     return torch.isposinf(x)
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.kron(x1, x2)
 
 
 def less(x1, x2):

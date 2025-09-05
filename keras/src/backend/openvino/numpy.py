@@ -687,7 +687,7 @@ def diff(a, n=1, axis=-1):
     if n == 0:
         return OpenVINOKerasTensor(get_ov_output(a))
     if n < 0:
-        raise ValueError("order must be non-negative but got " + repr(n))
+        raise ValueError(f"order must be non-negative but got {repr(n)}")
     a = get_ov_output(a)
     a_type = a.get_element_type()
     if isinstance(a, np.ndarray):
@@ -863,6 +863,10 @@ def full_like(x, fill_value, dtype=None):
     return OpenVINOKerasTensor(res)
 
 
+def gcd(x1, x2):
+    raise NotImplementedError("`gcd` is not supported with openvino backend")
+
+
 def greater(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
@@ -900,6 +904,10 @@ def hstack(xs):
             elems[0], elems[i], "hstack()"
         )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
+
+
+def hypot(x1, x2):
+    raise NotImplementedError("`hypot` is not supported with openvino backend")
 
 
 def identity(n, dtype=None):
@@ -968,6 +976,10 @@ def isposinf(x):
     raise NotImplementedError(
         "`isposinf` is not supported with openvino backend"
     )
+
+
+def kron(x1, x2):
+    raise NotImplementedError("`kron` is not supported with openvino backend")
 
 
 def less(x1, x2):
@@ -1239,9 +1251,47 @@ def median(x, axis=None, keepdims=False):
 
 
 def meshgrid(*x, indexing="xy"):
-    raise NotImplementedError(
-        "`meshgrid` is not supported with openvino backend"
-    )
+    if len(x) < 2:
+        raise ValueError(
+            "meshgrid requires at least 2 input arrays. "
+            f"Received: {len(x)} input array(s)."
+        )
+    if indexing not in ("xy", "ij"):
+        raise ValueError("indexing must be either 'xy' or 'ij'")
+
+    tensors = [get_ov_output(xi) for xi in x]
+    n = len(tensors)
+
+    shapes = [
+        ov_opset.shape_of(t, Type.i64).output(0) for t in tensors
+    ]  # each is [Ni]
+    one = ov_opset.constant([1], Type.i64).output(0)
+
+    if indexing == "xy":
+        shape_list = [shapes[1], shapes[0]] + shapes[2:]
+        out_shape = ov_opset.concat(shape_list, axis=0).output(0)
+    else:
+        out_shape = ov_opset.concat(shapes, axis=0).output(0)
+
+    outputs = []
+    for i, t in enumerate(tensors):
+        reshape_parts = [one] * n
+        if indexing == "xy":
+            if i == 0:
+                reshape_parts[1] = shapes[0]
+            elif i == 1:
+                reshape_parts[0] = shapes[1]
+            else:
+                reshape_parts[i] = shapes[i]
+        else:
+            reshape_parts[i] = shapes[i]
+
+        reshape_shape = ov_opset.concat(reshape_parts, axis=0).output(0)
+        reshaped = ov_opset.reshape(t, reshape_shape, False).output(0)
+        broadcasted = ov_opset.broadcast(reshaped, out_shape).output(0)
+        outputs.append(OpenVINOKerasTensor(broadcasted))
+
+    return outputs
 
 
 def min(x, axis=None, keepdims=False, initial=None):

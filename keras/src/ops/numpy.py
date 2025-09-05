@@ -2872,7 +2872,7 @@ class Einsum(Operation):
         kept_dims = sorted(kept_dims)
 
         if output_spec is None:
-            target_broadcast_spec = "..." + "".join(kept_dims)
+            target_broadcast_spec = f"...{''.join(kept_dims)}"
         else:
             target_broadcast_spec = output_spec
 
@@ -2894,18 +2894,18 @@ class Einsum(Operation):
                     )
                 for size, s in zip(x_shape, split_spec[0]):
                     # Replace the letter with the right shape.
-                    expanded_shape = expanded_shape.replace(s, str(size) + " ")
+                    expanded_shape = expanded_shape.replace(s, f"{str(size)} ")
                 expanded_shape = expanded_shape.replace("...", "")
             else:
                 # In this case, the input spec has "...", e.g., "i...j", "i...",
                 # or "...j".
                 for i in range(len(split_spec[0])):
                     expanded_shape = expanded_shape.replace(
-                        split_spec[0][i], str(x_shape[i]) + " "
+                        split_spec[0][i], f"{x_shape[i]} "
                     )
                 for i in range(len(split_spec[1])):
                     expanded_shape = expanded_shape.replace(
-                        split_spec[1][-i - 1], str(x_shape[-i - 1]) + " "
+                        split_spec[1][-i - 1], f"{x_shape[-i - 1]} "
                     )
                 # Shape matched by "..." will be inserted to the position of
                 # "...".
@@ -2919,7 +2919,7 @@ class Einsum(Operation):
                     wildcard_shape_start_index:wildcard_shape_end_index
                 ]
                 wildcard_shape_str = (
-                    " ".join([str(size) for size in wildcard_shape]) + " "
+                    f"{' '.join([str(size) for size in wildcard_shape])} "
                 )
                 expanded_shape = expanded_shape.replace(
                     "...", wildcard_shape_str
@@ -3329,6 +3329,37 @@ def full_like(x, fill_value, dtype=None):
     return backend.numpy.full_like(x, fill_value, dtype=dtype)
 
 
+class Gcd(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.gcd(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.gcd", "keras.ops.numpy.gcd"])
+def gcd(x1, x2):
+    """Greatest common divisor of `x1` and `x2`, element-wise.
+
+    Args:
+        x1: First input tensor (integer type).
+        x2: Second input tensor (integer type).
+
+    Returns:
+        Output tensor, element-wise greatest common divisor of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Gcd().symbolic_call(x1, x2)
+    return backend.numpy.gcd(x1, x2)
+
+
 class GetItem(Operation):
     def call(self, x, key):
         if isinstance(key, list):
@@ -3512,6 +3543,50 @@ def hstack(xs):
     if any_symbolic_tensors((xs,)):
         return Hstack().symbolic_call(xs)
     return backend.numpy.hstack(xs)
+
+
+class Hypot(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.hypot(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+            dtype = backend.floatx()
+        elif dtype == "int64":
+            dtype = "float64"
+        return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
+
+
+@keras_export(["keras.ops.hypot", "keras.ops.numpy.hypot"])
+def hypot(x1, x2):
+    """Element-wise hypotenuse of right triangles with legs `x1` and `x2`.
+
+    This is equivalent to computing `sqrt(x1**2 + x2**2)` element-wise,
+    with shape determined by broadcasting.
+
+    Args:
+        x1: A tensor, representing the first leg of the right triangle.
+        x2: A tensor, representing the second leg of the right triangle.
+
+    Returns:
+        A tensor with a shape determined by broadcasting `x1` and `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([3.0, 4.0, 5.0])
+    >>> x2 = keras.ops.convert_to_tensor([4.0, 3.0, 12.0])
+    >>> keras.ops.hypot(x1, x2)
+    array([5., 5., 13.], dtype=float32)
+
+    >>> x1 = keras.ops.convert_to_tensor([[1, 2], [3, 4]])
+    >>> x2 = keras.ops.convert_to_tensor([1, 1])
+    >>> keras.ops.hypot(x1, x2)
+    array([[1.41421356 2.23606798],
+          [3.16227766 4.12310563]], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Hypot().symbolic_call(x1, x2)
+    return backend.numpy.hypot(x1, x2)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
@@ -3768,6 +3843,49 @@ def isposinf(x):
     if any_symbolic_tensors((x,)):
         return Isposinf().symbolic_call(x)
     return backend.numpy.isposinf(x)
+
+
+class Kron(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.kron(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+
+        def _mul_shape_dim(a, b):
+            if a is None or b is None:
+                return None
+            return a * b
+
+        output_shape = tuple(
+            _mul_shape_dim(a, b) for a, b in zip(x1_shape, x2_shape)
+        )
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.kron", "keras.ops.numpy.kron"])
+def kron(x1, x2):
+    """Kronecker product of `x1` and `x2`.
+
+    Computes the Kronecker product of two input tensors. If `x1` has shape
+    `(a0, a1, ..., an)` and `x2` has shape `(b0, b1, ..., bn)`, then the
+    output will have shape `(a0*b0, a1*b1, ..., an*bn)`.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        A tensor representing the Kronecker product of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Kron().symbolic_call(x1, x2)
+    return backend.numpy.kron(x1, x2)
 
 
 class Less(Operation):

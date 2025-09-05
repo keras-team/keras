@@ -411,7 +411,7 @@ def paths_and_labels_to_dataset(
     """Constructs a fixed-size dataset of audio and labels."""
     path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
     if label_mode:
-        label_ds = dataset_utils.labels_to_dataset(
+        label_ds = dataset_utils.labels_to_dataset_tf(
             labels, label_mode, num_classes
         )
         ds = tf.data.Dataset.zip((path_ds, label_ds))

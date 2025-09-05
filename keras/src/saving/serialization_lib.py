@@ -656,12 +656,12 @@ def deserialize_keras_object(
     if config["class_name"] == "__lambda__":
         if safe_mode:
             raise ValueError(
-                "Requested the deserialization of a `lambda` object. "
-                "This carries a potential risk of arbitrary code execution "
-                "and thus it is disallowed by default. If you trust the "
-                "source of the saved model, you can pass `safe_mode=False` to "
-                "the loading function in order to allow `lambda` loading, "
-                "or call `keras.config.enable_unsafe_deserialization()`."
+                "Requested the deserialization of a Python lambda. This "
+                "carries a potential risk of arbitrary code execution and thus "
+                "it is disallowed by default. If you trust the source of the "
+                "artifact, you can override this error by passing "
+                "`safe_mode=False` to the loading function, or calling "
+                "`keras.config.enable_unsafe_deserialization()."
             )
         return python_utils.func_load(inner_config["value"])
     if tf is not None and config["class_name"] == "__typespec__":
@@ -778,7 +778,7 @@ def _retrieve_class_or_fn(
         # module name might not match the package structure
         # (e.g. experimental symbols).
         if module == "keras" or module.startswith("keras."):
-            api_name = module + "." + name
+            api_name = f"{module}.{name}"
 
             if api_name in LOADING_APIS:
                 raise ValueError(
@@ -796,9 +796,7 @@ def _retrieve_class_or_fn(
         # the corresponding function from the identifying string.
         if obj_type == "function" and module == "builtins":
             for mod in BUILTIN_MODULES:
-                obj = api_export.get_symbol_from_name(
-                    "keras." + mod + "." + name
-                )
+                obj = api_export.get_symbol_from_name(f"keras.{mod}.{name}")
                 if obj is not None:
                     return obj
 
@@ -807,7 +805,7 @@ def _retrieve_class_or_fn(
             # i.e. "name" instead of "package>name". This allows recent versions
             # of Keras to reload models saved with 3.6 and lower.
             if ">" not in name:
-                separated_name = ">" + name
+                separated_name = f">{name}"
                 for custom_name, custom_object in custom_objects.items():
                     if custom_name.endswith(separated_name):
                         return custom_object

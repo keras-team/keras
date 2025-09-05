@@ -13,6 +13,12 @@ class CutMix(BaseImagePreprocessingLayer):
     between two images in the dataset, while the labels are also mixed
     proportionally to the area of the patches.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
+    References:
+       - [CutMix paper]( https://arxiv.org/abs/1905.04899).
+
     Args:
         factor: A single float or a tuple of two floats between 0 and 1.
             If a tuple of numbers is passed, a `factor` is sampled
@@ -23,9 +29,6 @@ class CutMix(BaseImagePreprocessingLayer):
             in patch sizes, leading to more diverse and larger mixed patches.
             Defaults to 1.
         seed: Integer. Used to create a random seed.
-
-    References:
-       - [CutMix paper]( https://arxiv.org/abs/1905.04899).
     """
 
     _USE_BASE_FACTOR = False
