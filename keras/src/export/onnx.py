@@ -11,7 +11,14 @@ from keras.src.export.tf2onnx_lib import patch_tf2onnx
 from keras.src.utils import io_utils
 
 
-def export_onnx(model, filepath, verbose=None, input_signature=None, **kwargs):
+def export_onnx(
+    model,
+    filepath,
+    verbose=None,
+    input_signature=None,
+    opset_version=None,
+    **kwargs,
+):
     """Export the model as a ONNX artifact for inference.
 
     This method lets you export a model to a lightweight ONNX artifact
@@ -31,6 +38,9 @@ def export_onnx(model, filepath, verbose=None, input_signature=None, **kwargs):
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
             `backend.KerasTensor`, or backend tensor. If not provided, it will
             be automatically computed. Defaults to `None`.
+        opset_version: Optional. An integer value that specifies the ONNX opset
+            version. If not provided, the default version for the backend will
+            be used. Defaults to `None`.
         **kwargs: Additional keyword arguments.
 
     **Note:** This feature is currently supported only with TensorFlow, JAX and
@@ -82,7 +92,10 @@ def export_onnx(model, filepath, verbose=None, input_signature=None, **kwargs):
         # Use `tf2onnx` to convert the `decorated_fn` to the ONNX format.
         patch_tf2onnx()  # TODO: Remove this once `tf2onnx` supports numpy 2.
         tf2onnx.convert.from_function(
-            decorated_fn, input_signature, output_path=filepath
+            decorated_fn,
+            input_signature,
+            opset=opset_version,
+            output_path=filepath,
         )
 
     elif backend.backend() == "torch":
@@ -126,7 +139,11 @@ def export_onnx(model, filepath, verbose=None, input_signature=None, **kwargs):
             try:
                 # Try the TorchDynamo-based ONNX exporter first.
                 onnx_program = torch.onnx.export(
-                    model, sample_inputs, verbose=actual_verbose, dynamo=True
+                    model,
+                    sample_inputs,
+                    verbose=actual_verbose,
+                    opset_version=opset_version,
+                    dynamo=True,
                 )
                 if hasattr(onnx_program, "optimize"):
                     onnx_program.optimize()  # Only supported by torch>=2.6.0.
@@ -139,7 +156,11 @@ def export_onnx(model, filepath, verbose=None, input_signature=None, **kwargs):
 
                 # Fall back to the TorchScript-based ONNX exporter.
                 torch.onnx.export(
-                    model, sample_inputs, filepath, verbose=actual_verbose
+                    model,
+                    sample_inputs,
+                    filepath,
+                    verbose=actual_verbose,
+                    opset_version=opset_version,
                 )
     else:
         raise NotImplementedError(

@@ -320,6 +320,19 @@ def hanning(x):
     return np.hanning(x).astype(config.floatx())
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    return np.heaviside(x1, x2).astype(dtype)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
     return np.kaiser(x, beta).astype(config.floatx())
@@ -359,6 +372,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 def bitwise_and(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_and(x, y)
 
 
@@ -374,12 +390,18 @@ def bitwise_not(x):
 def bitwise_or(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_or(x, y)
 
 
 def bitwise_xor(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_xor(x, y)
 
 
@@ -387,6 +409,9 @@ def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
     if not isinstance(y, int):
         y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = x.astype(dtype)
+        y = y.astype(dtype)
     return np.left_shift(x, y)
 
 
@@ -398,6 +423,9 @@ def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
     if not isinstance(y, int):
         y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = x.astype(dtype)
+        y = y.astype(dtype)
     return np.right_shift(x, y)
 
 
@@ -412,6 +440,18 @@ def blackman(x):
 
 def broadcast_to(x, shape):
     return np.broadcast_to(x, shape)
+
+
+def cbrt(x):
+    x = convert_to_tensor(x)
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+
+    return np.cbrt(x).astype(dtype)
 
 
 def ceil(x):
@@ -515,6 +555,19 @@ def cumsum(x, axis=None, dtype=None):
     return np.cumsum(x, axis=axis, dtype=dtype)
 
 
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.deg2rad(x).astype(dtype)
+
+
 def diag(x, k=0):
     return np.diag(x, k=k)
 
@@ -609,6 +662,14 @@ def full_like(x, fill_value, dtype=None):
     return np.full_like(x, fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.gcd(x1, x2).astype(dtype)
+
+
 def greater(x1, x2):
     return np.greater(x1, x2)
 
@@ -625,6 +686,19 @@ def hstack(xs):
             lambda x: convert_to_tensor(x).astype(dtype), xs
         )
     return np.hstack(xs)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    return np.hypot(x1, x2).astype(dtype)
 
 
 def identity(n, dtype=None):
@@ -644,12 +718,35 @@ def isfinite(x):
     return np.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return np.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 def isinf(x):
     return np.isinf(x)
 
 
 def isnan(x):
     return np.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return np.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return np.isposinf(x)
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.kron(x1, x2).astype(dtype)
 
 
 def less(x1, x2):

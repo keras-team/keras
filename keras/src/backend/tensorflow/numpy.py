@@ -156,6 +156,26 @@ def hanning(x):
     return tf.signal.hann_window(x, periodic=False)
 
 
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    return tf.where(
+        x1 < 0,
+        tf.zeros_like(x1),
+        tf.where(x1 > 0, tf.ones_like(x1), x2),
+    )
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x, dtype=tf.int32)
     return tf.signal.kaiser_window(x, beta=beta)
@@ -1089,6 +1109,18 @@ def broadcast_to(x, shape):
     return tf.broadcast_to(x, shape)
 
 
+def cbrt(x):
+    x = convert_to_tensor(x)
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "int64":
+        x = tf.cast(x, "float64")
+    elif dtype not in ["bfloat16", "float16", "float64"]:
+        x = tf.cast(x, config.floatx())
+
+    return tf.sign(x) * tf.pow(tf.abs(x), 1.0 / 3.0)
+
+
 @sparse.elementwise_unary
 def ceil(x):
     x = convert_to_tensor(x)
@@ -1254,6 +1286,28 @@ def cumsum(x, axis=None, dtype=None):
         x = tf.reshape(x, [-1])
         axis = 0
     return tf.math.cumsum(x, axis=axis)
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+
+    dtype = x.dtype
+    if standardize_dtype(dtype) in [
+        "bool",
+        "int8",
+        "int16",
+        "int32",
+        "uint8",
+        "uint16",
+        "uint32",
+    ]:
+        dtype = config.floatx()
+    elif standardize_dtype(dtype) in ["int64"]:
+        dtype = "float64"
+    x = tf.cast(x, dtype)
+
+    pi = tf.constant(math.pi, dtype=dtype)
+    return x * (pi / tf.constant(180.0, dtype=dtype))
 
 
 def diag(x, k=0):
@@ -1477,6 +1531,43 @@ def full_like(x, fill_value, dtype=None):
     return tf.broadcast_to(fill_value, tf.shape(x))
 
 
+def gcd(x1, x2):
+    x1 = tf.convert_to_tensor(x1)
+    x2 = tf.convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    if not x1.dtype.is_integer:
+        raise TypeError("Arguments to gcd must be integers.")
+
+    target_shape = tf.broadcast_static_shape(x1.shape, x2.shape)
+    x1 = tf.broadcast_to(x1, target_shape)
+    x2 = tf.broadcast_to(x2, target_shape)
+
+    def cond(a, b):
+        return tf.reduce_any(b != 0)
+
+    def body(a, b):
+        b_safe = tf.where(tf.equal(b, 0), tf.ones_like(b), b)
+        return (
+            tf.where(tf.not_equal(b, 0), b, a),
+            tf.where(
+                tf.not_equal(b, 0),
+                tf.math.floormod(a, b_safe),
+                tf.zeros_like(b),
+            ),
+        )
+
+    if dtype not in [tf.uint8, tf.uint16, tf.uint32, tf.uint64]:
+        x1 = tf.abs(x1)
+        x2 = tf.abs(x2)
+
+    gcd_val, _ = tf.while_loop(cond, body, [x1, x2])
+    return gcd_val
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1503,6 +1594,28 @@ def hstack(xs):
     if len(xs[0].shape) == 1:
         return tf.concat(xs, axis=0)
     return tf.concat(xs, axis=1)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    x1_abs = tf.abs(x1)
+    x2_abs = tf.abs(x2)
+    max_val = tf.maximum(x1_abs, x2_abs)
+    min_val = tf.minimum(x1_abs, x2_abs)
+
+    ratio = tf.math.divide_no_nan(min_val, max_val)
+    return max_val * tf.sqrt(1.0 + tf.square(ratio))
 
 
 def identity(n, dtype=None):
@@ -1538,6 +1651,34 @@ def isfinite(x):
     return tf.math.is_finite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    output_shape = tf.shape(x1)
+
+    x1 = tf.reshape(x1, [-1])
+    x2 = tf.reshape(x2, [-1])
+
+    if not assume_unique:
+        x2 = tf.unique(x2)[0]
+
+    if tf.size(x1) == 0 or tf.size(x2) == 0:
+        return tf.zeros(output_shape, dtype=tf.bool)
+
+    cmp = tf.equal(tf.expand_dims(x1, 1), tf.expand_dims(x2, 0))
+    result_flat = tf.reduce_any(cmp, axis=1)
+
+    if invert:
+        result_flat = tf.logical_not(result_flat)
+
+    return tf.reshape(result_flat, output_shape)
+
+
 def isinf(x):
     x = convert_to_tensor(x)
     dtype_as_dtype = tf.as_dtype(x.dtype)
@@ -1552,6 +1693,68 @@ def isnan(x):
     if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
         return tf.zeros(x.shape, tf.bool)
     return tf.math.is_nan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    dtype_as_dtype = tf.as_dtype(x.dtype)
+    if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
+        return tf.zeros_like(x, dtype=tf.bool)
+    return tf.math.equal(x, -tf.constant(float("inf"), dtype=x.dtype))
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    dtype_as_dtype = tf.as_dtype(x.dtype)
+    if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
+        return tf.zeros_like(x, dtype=tf.bool)
+    return tf.math.equal(x, tf.constant(float("inf"), dtype=x.dtype))
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    ndim_x1 = tf.rank(x1)
+    ndim_x2 = tf.rank(x2)
+
+    def expand_front(x, num):
+        for _ in range(num):
+            x = tf.expand_dims(x, axis=0)
+        return x
+
+    x1 = tf.cond(
+        ndim_x1 < ndim_x2,
+        lambda: expand_front(x1, ndim_x2 - ndim_x1),
+        lambda: x1,
+    )
+    x2 = tf.cond(
+        ndim_x2 < ndim_x1,
+        lambda: expand_front(x2, ndim_x1 - ndim_x2),
+        lambda: x2,
+    )
+
+    x1_reshaped = tf.reshape(
+        x1,
+        tf.reshape(
+            tf.stack([tf.shape(x1), tf.ones_like(tf.shape(x1))], axis=1), [-1]
+        ),
+    )
+    x2_reshaped = tf.reshape(
+        x2,
+        tf.reshape(
+            tf.stack([tf.ones_like(tf.shape(x2)), tf.shape(x2)], axis=1), [-1]
+        ),
+    )
+
+    out = tf.multiply(x1_reshaped, x2_reshaped)
+    out_shape = tf.multiply(tf.shape(x1), tf.shape(x2))
+    out = tf.reshape(out, out_shape)
+    return out
 
 
 def less(x1, x2):

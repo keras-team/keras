@@ -1,3 +1,4 @@
+import grain
 import numpy as np
 import pytest
 from tensorflow import data as tf_data
@@ -73,6 +74,21 @@ class RescalingTest(testing.TestCase):
         x = np.random.random((3, 10, 10, 3)) * 255
         ds = tf_data.Dataset.from_tensor_slices(x).batch(3).map(layer)
         next(iter(ds)).numpy()
+
+    def test_grain_compatibility(self):
+        layer = layers.Rescaling(scale=1.0 / 255, offset=0.5)
+        x = np.random.random((3, 10, 10, 3)) * 255
+        ds = grain.MapDataset.source(x).to_iter_dataset().batch(3).map(layer)
+        output = next(iter(ds))
+
+        self.assertTrue(backend.is_tensor(output))
+        # Ensure the device of the data is on CPU.
+        if backend.backend() == "tensorflow":
+            self.assertIn("CPU", str(output.device))
+        elif backend.backend() == "jax":
+            self.assertIn("CPU", str(output.device))
+        elif backend.backend() == "torch":
+            self.assertEqual("cpu", str(output.device))
 
     def test_rescaling_with_channels_first_and_vector_scale(self):
         config = backend.image_data_format()

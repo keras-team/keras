@@ -157,6 +157,23 @@ def _get_model_with_duplicate_variable_path():
     return model
 
 
+def _get_model_optional_inputs():
+    class OptionalInputLayer(layers.Layer):
+        def __init__(self):
+            super().__init__()
+            self.dense = layers.Dense(2)
+
+        def call(self, a, b=None):
+            x = a if b is None else a + b
+            return self.dense(x)
+
+    x1 = Input((2,), name="x1")
+    x2 = Input((2,), name="x2", optional=True)
+    y = OptionalInputLayer()(x1, x2)
+    model = Model({"x1": x1, "x2": x2}, y)
+    return model
+
+
 def _get_variable_value_by_path(variables, path):
     for v in variables:
         if v.path == path:
@@ -1045,7 +1062,7 @@ class ModelTest(testing.TestCase):
 
         if _type is other_type:
             with self.assertRaisesRegex(
-                ValueError, "[Ee]xpected.*" + _type.__name__
+                ValueError, f"[Ee]xpected.*{_type.__name__}"
             ):
                 model.fit(x, y, batch_size=2, epochs=1, verbose=0)
         else:
@@ -1218,6 +1235,38 @@ class ModelTest(testing.TestCase):
             ]
         )
         self.assertListEqual(hist_keys, ref_keys)
+
+    @parameterized.named_parameters(
+        ("optional_none", True), ("optional_tensor", False)
+    )
+    def test_functional_optional_inputs(self, is_optional_none):
+        model = _get_model_optional_inputs()
+        x1 = np.ones((2, 2))
+        x2 = None if is_optional_none else np.ones((2, 2))
+        y_true = np.ones((2, 2))
+
+        model.compile(loss="mse", optimizer="adam")
+        model.fit(x={"x1": x1, "x2": x2}, y=y_true)
+        model.evaluate(x={"x1": x1, "x2": x2}, y=y_true)
+        model.predict(x={"x1": x1, "x2": x2})
+
+    @parameterized.named_parameters(
+        ("optional_none", True), ("optional_tensor", False)
+    )
+    def test_functional_optional_inputs_generator(self, is_optional_none):
+        model = _get_model_optional_inputs()
+        x1 = np.ones((2, 2))
+        x2 = None if is_optional_none else np.ones((2, 2))
+        y_true = np.ones((2, 2))
+
+        def data_generator(with_y=True):
+            for _ in range(4):
+                yield ({"x1": x1, "x2": x2},) + ((y_true,) if with_y else ())
+
+        model.compile(loss="mse", optimizer="adam")
+        model.fit(data_generator())
+        model.evaluate(data_generator())
+        model.predict(data_generator(with_y=False))
 
     def test_export_error(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")

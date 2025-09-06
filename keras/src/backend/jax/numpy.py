@@ -39,26 +39,38 @@ def add(x1, x2):
 
 def bartlett(x):
     x = convert_to_tensor(x)
-    return jnp.bartlett(x)
+    return cast(jnp.bartlett(x), config.floatx())
 
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return jnp.hamming(x)
+    return cast(jnp.hamming(x), config.floatx())
 
 
 def hanning(x):
     x = convert_to_tensor(x)
-    return jnp.hanning(x)
+    return cast(jnp.hanning(x), config.floatx())
+
+
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.heaviside(x1, x2)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.hypot(x1, x2)
 
 
 def kaiser(x, beta):
     x = convert_to_tensor(x)
-    return jnp.kaiser(x, beta)
+    return cast(jnp.kaiser(x, beta), config.floatx())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
-    # Note: bincount is never tracable / jittable because the output shape
+    # Note: bincount is never traceable / jittable because the output shape
     # depends on the values in x.
     if sparse or isinstance(x, jax_sparse.BCOO):
         if isinstance(x, jax_sparse.BCOO):
@@ -491,12 +503,17 @@ def right_shift(x, y):
 
 def blackman(x):
     x = convert_to_tensor(x)
-    return jnp.blackman(x)
+    return cast(jnp.blackman(x), config.floatx())
 
 
 def broadcast_to(x, shape):
     x = convert_to_tensor(x)
     return jnp.broadcast_to(x, shape)
+
+
+def cbrt(x):
+    x = convert_to_tensor(x)
+    return jnp.cbrt(x)
 
 
 @sparse.elementwise_unary(linear=False)
@@ -596,6 +613,11 @@ def cumprod(x, axis=None, dtype=None):
 def cumsum(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     return jnp.cumsum(x, axis=axis, dtype=dtype)
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+    return jnp.deg2rad(x)
 
 
 def diag(x, k=0):
@@ -714,6 +736,12 @@ def full_like(x, fill_value, dtype=None):
     return jnp.full_like(x, fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.gcd(x1, x2)
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -753,6 +781,12 @@ def isfinite(x):
     return jnp.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 @sparse.elementwise_unary(linear=False)
 def isinf(x):
     x = convert_to_tensor(x)
@@ -763,6 +797,22 @@ def isinf(x):
 def isnan(x):
     x = convert_to_tensor(x)
     return jnp.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return jnp.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return jnp.isposinf(x)
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.kron(x1, x2)
 
 
 def less(x1, x2):

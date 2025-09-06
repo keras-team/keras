@@ -228,6 +228,8 @@ def rnn(
         elif isinstance(input_length, torch.Tensor):
             if go_backwards:
                 max_len = torch.max(input_length, dim=0)
+                if isinstance(max_len, torch.return_types.max):
+                    max_len = max_len[0]
                 rev_input_length = torch.subtract(max_len - 1, input_length)
 
                 def masking_fn(time):

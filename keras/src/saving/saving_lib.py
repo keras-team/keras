@@ -16,14 +16,9 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.backend.common import global_state
-from keras.src.layers.layer import Layer
-from keras.src.losses.loss import Loss
-from keras.src.metrics.metric import Metric
-from keras.src.optimizers.optimizer import Optimizer
 from keras.src.saving.serialization_lib import ObjectSharingScope
 from keras.src.saving.serialization_lib import deserialize_keras_object
 from keras.src.saving.serialization_lib import serialize_keras_object
-from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.utils import dtype_utils
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
@@ -51,8 +46,8 @@ except ImportError:
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
-_VARS_FNAME_H5 = _VARS_FNAME + ".h5"
-_VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
+_VARS_FNAME_H5 = f"{_VARS_FNAME}.h5"
+_VARS_FNAME_NPZ = f"{_VARS_FNAME}.npz"
 _ASSETS_DIRNAME = "assets"
 _MEMORY_UPPER_BOUND = 0.5  # 50%
 
@@ -669,7 +664,7 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 def _name_key(name):
     """Make sure that private attributes are visited last."""
     if name.startswith("_"):
-        return "~" + name
+        return f"~{name}"
     return name
 
 
@@ -1293,7 +1288,7 @@ class ShardedH5IOStore(H5IOStore):
         # If not found, check shard map and switch files.
         weight_map = self.sharding_config["weight_map"]
         filenames = weight_map.get(parsed_path) or weight_map.get(
-            "/" + parsed_path + "/vars"
+            f"/{parsed_path}/vars"
         )
         if filenames is not None:
             if not isinstance(filenames, list):
@@ -1584,32 +1579,60 @@ def get_attr_skipset(obj_type):
             "_self_unconditional_dependency_names",
         ]
     )
-    if obj_type == "Layer":
+    if obj_type == "Operation":
+        from keras.src.ops.operation import Operation
+
+        ref_obj = Operation()
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Layer":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj))
     elif obj_type == "Functional":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj) + ["operations", "_operations"])
     elif obj_type == "Sequential":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj) + ["_functional"])
     elif obj_type == "Metric":
+        from keras.src.metrics.metric import Metric
+        from keras.src.trainers.compile_utils import CompileMetrics
+
         ref_obj_a = Metric()
         ref_obj_b = CompileMetrics([], [])
         skipset.update(dir(ref_obj_a) + dir(ref_obj_b))
     elif obj_type == "Optimizer":
+        from keras.src.optimizers.optimizer import Optimizer
+
         ref_obj = Optimizer(1.0)
         skipset.update(dir(ref_obj))
         skipset.remove("variables")
     elif obj_type == "Loss":
+        from keras.src.losses.loss import Loss
+
         ref_obj = Loss()
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Cross":
+        from keras.src.layers.preprocessing.feature_space import Cross
+
+        ref_obj = Cross((), 1)
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Feature":
+        from keras.src.layers.preprocessing.feature_space import Feature
+
+        ref_obj = Feature("int32", lambda x: x, "int")
         skipset.update(dir(ref_obj))
     else:
         raise ValueError(
             f"get_attr_skipset got invalid {obj_type=}. "
             "Accepted values for `obj_type` are "
-            "['Layer', 'Functional', 'Sequential', 'Metric', "
-            "'Optimizer', 'Loss']"
+            "['Operation', 'Layer', 'Functional', 'Sequential', 'Metric', "
+            "'Optimizer', 'Loss', 'Cross', 'Feature']"
         )
 
     global_state.set_global_attribute(

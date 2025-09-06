@@ -249,7 +249,7 @@ class Trainer:
     @property
     def metrics(self):
         # Order: loss tracker, individual loss trackers, compiled metrics,
-        # custom metrcis, sublayer metrics.
+        # custom metrics, sublayer metrics.
         metrics = []
         if self.compiled:
             if self._loss_tracker is not None:
@@ -793,8 +793,16 @@ class Trainer:
         Returns:
             Scalar test loss (if the model has a single output and no metrics)
             or list of scalars (if the model has multiple outputs
-            and/or metrics). The attribute `model.metrics_names` will give you
-            the display labels for the scalar outputs.
+            and/or metrics).
+
+        Note: When using compiled metrics, `evaluate()` may return multiple
+        submetric values, while `model.metrics_names` often lists only
+        top-level names (e.g., 'loss', 'compile_metrics'), leading to a
+        length mismatch. The order of the `evaluate()` output corresponds
+        to the order of metrics specified during `model.compile()`. You can
+        use this order to map the `evaluate()` results to the intended
+        metric. `model.metrics_names` itself will still return only the
+        top-level names.
         """
         raise NotImplementedError
 
@@ -1072,7 +1080,7 @@ class Trainer:
                 )
 
             if data_batch is None:
-                for _, data_or_iterator in iterator:
+                for _, _, data_or_iterator in iterator:
                     if isinstance(data_or_iterator, (list, tuple)):
                         data_batch = data_or_iterator[0]
                     else:

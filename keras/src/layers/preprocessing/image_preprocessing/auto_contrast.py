@@ -17,6 +17,9 @@ class AutoContrast(BaseImagePreprocessingLayer):
 
     This layer is active at both training and inference time.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         value_range: Range of values the incoming images will have.
             Represented as a two number tuple written `(low, high)`.

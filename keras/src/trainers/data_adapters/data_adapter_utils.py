@@ -101,7 +101,9 @@ def list_to_tuple(maybe_list):
 
 
 def check_data_cardinality(data):
-    num_samples = set(int(i.shape[0]) for i in tree.flatten(data))
+    num_samples = set(
+        int(i.shape[0]) for i in tree.flatten(data) if i is not None
+    )
     if len(num_samples) > 1:
         msg = (
             "Data cardinality is ambiguous. "
@@ -133,18 +135,25 @@ def class_weight_to_sample_weights(y, class_weight):
     return sample_weight
 
 
-def get_tensor_spec(batches):
-    """Return the common tensor spec for a list of batches.
+def get_keras_tensor_spec(batches):
+    """Return the KerasTensor spec for a list of batches.
+
+    The spec is represented using `KerasTensor` which could handle dense, sparse
+    or ragged tensors.
 
     Args:
         batches: list of structures of tensors. The structures must be
             identical, but the shape at each leaf may be different.
-    Returns: the common tensor spec for all the batches.
+
+    Returns:
+        A nested structure of `KerasTensor`.
     """
-    from keras.src.utils.module_utils import tensorflow as tf
 
     def get_single_tensor_spec(*tensors):
         x = tensors[0]
+        if not hasattr(x, "shape"):
+            # Try to convert to a numpy array.
+            x = np.array(x)
         rank = len(x.shape)
         if rank < 1:
             raise ValueError(
@@ -164,26 +173,74 @@ def get_tensor_spec(batches):
         for dims in zip(*[list(x.shape) for x in tensors]):
             dims_set = set(dims)
             shape.append(dims_set.pop() if len(dims_set) == 1 else None)
-        shape[0] = None  # batch size may not be static
 
         dtype = backend.standardize_dtype(x.dtype)
-        if isinstance(x, tf.RaggedTensor):
-            return tf.RaggedTensorSpec(
+        if is_tensorflow_ragged(x):
+            return backend.KerasTensor(
                 shape=shape,
                 dtype=dtype,
+                ragged=True,
                 ragged_rank=x.ragged_rank,
                 row_splits_dtype=x.row_splits.dtype,
             )
-        if (
-            isinstance(x, tf.SparseTensor)
-            or is_scipy_sparse(x)
-            or is_jax_sparse(x)
-        ):
-            return tf.SparseTensorSpec(shape=shape, dtype=dtype)
+        if is_tensorflow_sparse(x) or is_scipy_sparse(x) or is_jax_sparse(x):
+            return backend.KerasTensor(shape=shape, dtype=dtype, sparse=True)
         else:
-            return tf.TensorSpec(shape=shape, dtype=dtype)
+            return backend.KerasTensor(shape=shape, dtype=dtype)
 
-    return tree.map_structure(get_single_tensor_spec, *batches)
+    return tree.map_structure(
+        get_single_tensor_spec, *batches, none_is_leaf=False
+    )
+
+
+def convert_to_tf_tensor_spec(keras_tensor, batch_axis_to_none=True):
+    """Convert a KerasTensor to a TensorSpec.
+
+    Args:
+        keras_tensor: A KerasTensor instance.
+        batch_axis_to_none: If `True`, the batch axis of the returned
+            tensor spec will be set to None. Defaults to `True`.
+    """
+    from keras.src.utils.module_utils import tensorflow as tf
+
+    if keras_tensor is None:
+        return tf.OptionalSpec(None)
+    if not isinstance(keras_tensor, backend.KerasTensor):
+        raise TypeError(
+            f"Expected a KerasTensor, but got {keras_tensor} of type "
+            f"{type(keras_tensor)}."
+        )
+    shape = list(keras_tensor.shape)
+    if batch_axis_to_none:
+        shape[0] = None
+    if keras_tensor.ragged:
+        return tf.RaggedTensorSpec(
+            shape=shape,
+            dtype=keras_tensor.dtype,
+            ragged_rank=keras_tensor.ragged_rank,
+            row_splits_dtype=keras_tensor.row_splits_dtype,
+        )
+    elif keras_tensor.sparse:
+        return tf.SparseTensorSpec(shape=shape, dtype=keras_tensor.dtype)
+    else:
+        return tf.TensorSpec(shape=shape, dtype=keras_tensor.dtype)
+
+
+def get_tensor_spec(batches):
+    """Return the common tensor spec for a list of batches.
+
+    The spec is represented using `tf.TensorSpec`, `tf.SparseTensorSpec` and
+    `tf.RaggedTensorSpec`.
+
+    Args:
+        batches: list of structures of tensors. The structures must be
+            identical, but the shape at each leaf may be different.
+
+    Returns:
+        A common tensor spec.
+    """
+    tensor_specs = get_keras_tensor_spec(batches)
+    return tree.map_structure(convert_to_tf_tensor_spec, tensor_specs)
 
 
 def get_jax_iterator(iterable):
@@ -201,7 +258,9 @@ def get_jax_iterator(iterable):
             return np.asarray(x)
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_jax_compatible, batch)
+        yield tree.map_structure(
+            convert_to_jax_compatible, batch, none_is_leaf=False
+        )
 
 
 def get_numpy_iterator(iterable):
@@ -217,7 +276,7 @@ def get_numpy_iterator(iterable):
         return x
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_numpy, batch)
+        yield tree.map_structure(convert_to_numpy, batch, none_is_leaf=False)
 
 
 def get_torch_dataloader(iterable):
@@ -231,7 +290,9 @@ def get_torch_dataloader(iterable):
 
         def __iter__(self):
             for batch in self.iterable:
-                yield tree.map_structure(convert_to_tensor, batch)
+                yield tree.map_structure(
+                    convert_to_tensor, batch, none_is_leaf=False
+                )
 
     dataset = ConverterIterableDataset(iterable)
     # `batch_size=None` indicates that we should not re-batch

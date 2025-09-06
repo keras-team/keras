@@ -3,15 +3,16 @@ from keras.src import layers
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.saving import saving_lib
 from keras.src.saving import serialization_lib
+from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
 
 
-class Cross:
+class Cross(KerasSaveable):
     def __init__(self, feature_names, crossing_dim, output_mode="one_hot"):
         if output_mode not in {"int", "one_hot"}:
             raise ValueError(
@@ -22,6 +23,9 @@ class Cross:
         self.feature_names = tuple(feature_names)
         self.crossing_dim = crossing_dim
         self.output_mode = output_mode
+
+    def _obj_type(self):
+        return "Cross"
 
     @property
     def name(self):
@@ -39,7 +43,7 @@ class Cross:
         return cls(**config)
 
 
-class Feature:
+class Feature(KerasSaveable):
     def __init__(self, dtype, preprocessor, output_mode):
         if output_mode not in {"int", "one_hot", "float"}:
             raise ValueError(
@@ -54,6 +58,9 @@ class Feature:
             )
         self.preprocessor = preprocessor
         self.output_mode = output_mode
+
+    def _obj_type(self):
+        return "Feature"
 
     def get_config(self):
         return {
@@ -716,7 +723,7 @@ class FeatureSpace(Layer):
                 data[name] = tf.expand_dims(x, -1)
 
         with backend_utils.TFGraphScope():
-            # This scope is to make sure that inner TFDataLayers
+            # This scope is to make sure that inner DataLayers
             # will not convert outputs back to backend-native --
             # they should be TF tensors throughout
             preprocessed_data = self._preprocess_features(data)
@@ -801,7 +808,7 @@ class FeatureSpace(Layer):
         return
 
 
-class TFDConcat(TFDataLayer):
+class TFDConcat(DataLayer):
     def __init__(self, axis, **kwargs):
         super().__init__(**kwargs)
         self.axis = axis
@@ -810,6 +817,6 @@ class TFDConcat(TFDataLayer):
         return self.backend.numpy.concatenate(xs, axis=self.axis)
 
 
-class TFDIdentity(TFDataLayer):
+class TFDIdentity(DataLayer):
     def call(self, x):
         return x

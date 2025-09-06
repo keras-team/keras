@@ -11,6 +11,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.torch.core import get_device
 from keras.src.utils.torch_utils import TorchModuleWrapper
 
 
@@ -246,3 +247,45 @@ class TorchUtilsTest(testing.TestCase):
         model = keras.Model(x, y)
         self.assertEqual(model.predict(np.zeros([5, 4])).shape, (5, 16))
         self.assertEqual(model(np.zeros([5, 4])).shape, (5, 16))
+
+    @parameterized.named_parameters(
+        ("safe_mode", True),
+        ("unsafe_mode", False),
+    )
+    def test_save_load(self, safe_mode):
+        @keras.saving.register_keras_serializable()
+        class M(keras.Model):
+            def __init__(self, module, **kwargs):
+                super().__init__(**kwargs)
+                self.module = module
+
+            def call(self, x):
+                return self.module(x)
+
+            def get_config(self):
+                base_config = super().get_config()
+                config = {"module": self.module}
+                return {**base_config, **config}
+
+            @classmethod
+            def from_config(cls, config):
+                config["module"] = saving.deserialize_keras_object(
+                    config["module"]
+                )
+                return cls(**config)
+
+        m = M(torch.nn.Conv2d(1, 10, kernel_size=(3, 3)))
+        device = get_device()  # Get the current device (e.g., "cuda" or "cpu")
+        x = torch.ones(
+            (10, 1, 28, 28), device=device
+        )  # Place input on the correct device
+        ref_output = m(x)
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        m.save(temp_filepath)
+
+        if safe_mode:
+            with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+                saving.load_model(temp_filepath, safe_mode=safe_mode)
+        else:
+            new_model = saving.load_model(temp_filepath, safe_mode=safe_mode)
+            self.assertAllClose(new_model(x), ref_output)

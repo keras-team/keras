@@ -1,4 +1,4 @@
-import openvino.runtime.opset14 as ov_opset
+import openvino.opset14 as ov_opset
 from openvino import Type
 
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
@@ -18,7 +18,14 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
 
 def top_k(x, k, sorted=True):
-    raise NotImplementedError("`top_k` is not supported with openvino backend")
+    x = get_ov_output(x)
+    k_tensor = ov_opset.constant(k, dtype=Type.i32)
+    axis = -1
+    sort_type = "value" if sorted else "none"
+    topk_node = ov_opset.topk(x, k_tensor, axis, "max", sort_type)
+    values = topk_node.output(0)
+    indices = topk_node.output(1)
+    return OpenVINOKerasTensor(values), OpenVINOKerasTensor(indices)
 
 
 def in_top_k(targets, predictions, k):
@@ -37,13 +44,17 @@ def logsumexp(x, axis=None, keepdims=False):
         axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
     const_zero = ov_opset.constant(0, x.get_element_type()).output(0)
-    reduce_max = ov_opset.reduce_max(x, axis, keepdims).output(0)
+    # Use keepdims=True for reduce_max to ensure proper broadcasting
+    reduce_max = ov_opset.reduce_max(x, axis, True).output(0)
     is_finite = ov_opset.is_finite(reduce_max).output(0)
     norm_max = ov_opset.select(is_finite, reduce_max, const_zero).output(0)
     norm_max_sub = ov_opset.subtract(x, norm_max).output(0)
     exp_norm_max = ov_opset.exp(norm_max_sub).output(0)
     sum_exp = ov_opset.reduce_sum(exp_norm_max, axis, keepdims).output(0)
     log_sum_exp = ov_opset.log(sum_exp).output(0)
+    # Squeeze norm_max if needed to match dimensions
+    if not keepdims:
+        norm_max = ov_opset.squeeze(norm_max, axis).output(0)
     log_sum_exp = ov_opset.add(norm_max, log_sum_exp).output(0)
     return OpenVINOKerasTensor(log_sum_exp)
 

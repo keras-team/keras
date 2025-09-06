@@ -8,6 +8,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
+from keras.src.saving import serialization_lib
 from keras.src.utils import traceback_utils
 
 
@@ -16,13 +17,16 @@ class Map(Operation):
         return backend.core.map(f, xs)
 
     def compute_output_spec(self, f, xs):
-        x = xs[0]
-        n = xs.shape[0]
+        x = tree.map_structure(lambda t: t[0], xs)
+        n = tree.flatten(xs)[0].shape[0]
         y = backend.compute_output_spec(f, x)
 
-        def append_batch_axis(x):
+        def append_batch_axis(t):
             return KerasTensor(
-                shape=(n,) + x.shape, dtype=x.dtype, sparse=x.sparse
+                shape=(n,) + t.shape,
+                dtype=t.dtype,
+                sparse=t.sparse,
+                ragged=t.ragged,
             )
 
         y = tree.map_structure(append_batch_axis, y)
@@ -397,7 +401,20 @@ class Slice(Operation):
         return backend.core.slice(inputs, start_indices, self.shape)
 
     def compute_output_spec(self, inputs, start_indices):
-        return KerasTensor(self.shape, dtype=inputs.dtype)
+        if any(s == -1 for s in self.shape) and isinstance(
+            start_indices, KerasTensor
+        ):
+            raise ValueError(
+                "When using -1 in `shape`, `start_indices` should not be a "
+                "KerasTensor. "
+            )
+        # If self.shape[i] is -1, all remaining elements in dimension i are
+        # included in the slice.
+        final_shape = tuple(
+            inputs.shape[i] - start_indices[i] if s == -1 else s
+            for i, s in enumerate(self.shape)
+        )
+        return KerasTensor(final_shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.slice")
@@ -542,7 +559,9 @@ class WhileLoop(Operation):
         )
 
     def compute_output_spec(self, loop_vars):
-        return [KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars]
+        return tree.map_structure(
+            lambda v: KerasTensor(v.shape, dtype=v.dtype), loop_vars
+        )
 
 
 @keras_export("keras.ops.while_loop")
@@ -587,6 +606,10 @@ def while_loop(
     >>> keras.ops.while_loop(cond, body, (x, y))
     10, 11
     """
+    if any_symbolic_tensors((loop_vars,)):
+        return WhileLoop(
+            cond, body, maximum_iterations=maximum_iterations
+        ).symbolic_call(loop_vars)
     return backend.core.while_loop(
         cond,
         body,
@@ -808,8 +831,6 @@ def cast(x, dtype):
     >>> x = keras.ops.arange(4)
     >>> x = keras.ops.cast(x, dtype="float16")
     """
-    dtype = backend.standardize_dtype(dtype)
-
     if any_symbolic_tensors((x,)):
         return Cast(dtype=dtype)(x)
     return backend.core.cast(x, dtype)
@@ -874,8 +895,6 @@ def saturate_cast(x, dtype):
     >>> #  [255 255 255 255]]
 
     """
-    dtype = backend.standardize_dtype(dtype)
-
     if any_symbolic_tensors((x,)):
         return SaturateCast(dtype=dtype)(x)
     return _saturate_cast(x, dtype)
@@ -1063,7 +1082,44 @@ def cond(pred, true_fn, false_fn):
     return Cond()(pred, true_fn, false_fn)
 
 
-# TODO: also create an Op subclass VectorizedMap.
+class VectorizedMap(Operation):
+    def __init__(self, function, *, name=None):
+        super().__init__(name=name)
+        self.function = function
+
+    def call(self, elements):
+        return backend.core.vectorized_map(self.function, elements)
+
+    def compute_output_spec(self, elements):
+        x = tree.map_structure(lambda t: t[0], elements)
+        n = tree.flatten(elements)[0].shape[0]
+        y = backend.compute_output_spec(self.function, x)
+
+        def append_batch_axis(t):
+            return KerasTensor(
+                shape=(n,) + t.shape,
+                dtype=t.dtype,
+                sparse=t.sparse,
+                ragged=t.ragged,
+            )
+
+        y = tree.map_structure(append_batch_axis, y)
+        return y
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"function": self.function})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        config = config.copy()
+        config["function"] = serialization_lib.deserialize_keras_object(
+            config["function"]
+        )
+        return cls(**config)
+
+
 @keras_export("keras.ops.vectorized_map")
 def vectorized_map(function, elements):
     """Parallel map of `function` on axis 0 of tensor(s) `elements`.
@@ -1072,18 +1128,18 @@ def vectorized_map(function, elements):
     in the case of a single tensor input `elements`:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         outputs = []
         for e in elements:
             outputs.append(function(e))
-        return stack(outputs)
+        return np.stack(outputs)
     ```
 
     In the case of an iterable of tensors `elements`,
     it implements the following:
 
     ```python
-    def vectorized_map(function, elements)
+    def vectorized_map(function, elements):
         batch_size = elements[0].shape[0]
         outputs = []
         for index in range(batch_size):
@@ -1094,6 +1150,8 @@ def vectorized_map(function, elements):
     In this case, `function` is expected to take as input
     a single list of tensor arguments.
     """
+    if any_symbolic_tensors((elements,)):
+        return VectorizedMap(function)(elements)
     return backend.core.vectorized_map(function, elements)
 
 

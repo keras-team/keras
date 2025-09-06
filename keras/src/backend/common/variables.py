@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 
 from keras.src import backend
@@ -142,7 +144,7 @@ class Variable:
         self._name = name
         parent_path = current_path()
         if parent_path:
-            self._path = current_path() + "/" + name
+            self._path = os.path.join(current_path(), name)
         else:
             self._path = name
         self._shape = None
@@ -211,6 +213,11 @@ class Variable:
 
     def _deferred_initialize(self):
         if self._value is not None:
+            # If NNX is enabled, it's possible the variable was already
+            # initialized by a concrete call. In this case, _deferred_initialize
+            # returns early and does not raise an error.
+            if config.is_nnx_enabled():
+                return
             raise ValueError(f"Variable {self.path} is already initialized.")
 
         if in_stateless_scope():

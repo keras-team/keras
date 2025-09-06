@@ -8,6 +8,8 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
+from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_core import gptq_quantize
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
@@ -420,7 +422,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def quantize(self, mode, **kwargs):
+    def quantize(self, mode, config=None, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -432,6 +434,22 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 time.
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
+
+        if mode == "gptq":
+            if not isinstance(config, GPTQConfig):
+                raise ValueError(
+                    "The `config` argument must be of type "
+                    "`keras.quantizers.GPTQConfig`."
+                )
+            gptq_quantize(self, config)
+            return
+
+        # For all other modes, verify that a config object was not passed.
+        if config is not None:
+            raise ValueError(
+                f"The `config` argument is only supported for 'gptq' mode, "
+                f"but received mode='{mode}'."
+            )
 
         type_check = kwargs.pop("type_check", True)
         if kwargs:
@@ -548,17 +566,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
                 not provided, it will be automatically computed. Defaults to
                 `None`.
-            **kwargs: Additional keyword arguments:
-                - Specific to the JAX backend and `format="tf_saved_model"`:
-                    - `is_static`: Optional `bool`. Indicates whether `fn` is
-                        static. Set to `False` if `fn` involves state updates
-                        (e.g., RNG seeds and counters).
-                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
-                        `jax2tf.convert`. See the documentation for
-                        [`jax2tf.convert`](
-                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
-                        If `native_serialization` and `polymorphic_shapes` are
-                        not provided, they will be automatically computed.
+            **kwargs: Additional keyword arguments.
+                - `is_static`: Optional `bool`. Specific to the JAX backend and
+                    `format="tf_saved_model"`. Indicates whether `fn` is static.
+                    Set to `False` if `fn` involves state updates (e.g., RNG
+                    seeds and counters).
+                - `jax2tf_kwargs`: Optional `dict`. Specific to the JAX backend
+                    and `format="tf_saved_model"`. Arguments for
+                    `jax2tf.convert`. See the documentation for
+                    [`jax2tf.convert`](
+                        https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                    If `native_serialization` and `polymorphic_shapes` are not
+                    provided, they will be automatically computed.
+                - `opset_version`: Optional `int`. Specific to `format="onnx"`.
+                    An integer value that specifies the ONNX opset version.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -595,9 +616,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         ```
         """
         from keras.src.export import export_onnx
+        from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx")
+        available_formats = ("tf_saved_model", "onnx", "openvino")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
@@ -614,6 +636,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             )
         elif format == "onnx":
             export_onnx(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "openvino":
+            export_openvino(
                 self,
                 filepath,
                 verbose,
@@ -842,9 +872,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         def _flatten(current_dict, prefix=""):
             for key, value in current_dict.items():
                 if isinstance(value, dict):
-                    _flatten(value, prefix + key + "/")
+                    _flatten(value, f"{prefix}{key}/")
                 else:
-                    flat_dict[prefix + key] = value
+                    flat_dict[f"{prefix}{key}"] = value
 
         _flatten(nested_dict)
         return flat_dict

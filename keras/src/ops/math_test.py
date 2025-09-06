@@ -124,9 +124,6 @@ def _istft(
 
     x = _overlap_sequences(x, sequence_stride)
 
-    if backend.backend() in {"numpy", "jax"}:
-        x = np.nan_to_num(x)
-
     start = 0 if center is False else fft_length // 2
     if length is not None:
         end = start + length
@@ -182,8 +179,10 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
     def test_logsumexp(self):
         x = KerasTensor((None, 2, 3), dtype="float32")
-        result = kmath.logsumexp(x)
-        self.assertEqual(result.shape, ())
+        self.assertEqual(kmath.logsumexp(x).shape, ())
+        self.assertEqual(kmath.logsumexp(x, axis=1).shape, (None, 3))
+        self.assertEqual(kmath.logsumexp(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(kmath.logsumexp(x, keepdims=True).shape, (1, 1, 1))
 
     def test_extract_sequences(self):
         # Defined dimension
@@ -858,10 +857,13 @@ class MathOpsCorrectnessTest(testing.TestCase):
         )
         if backend.backend() in ("numpy", "jax", "torch"):
             # these backends have different implementation for the boundary of
-            # the output, so we need to truncate 5% befroe assertAllClose
+            # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
+        # Nans are handled differently in different backends, so zero them out.
+        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
         # Test N-D case.
@@ -887,10 +889,13 @@ class MathOpsCorrectnessTest(testing.TestCase):
         )
         if backend.backend() in ("numpy", "jax", "torch"):
             # these backends have different implementation for the boundary of
-            # the output, so we need to truncate 5% befroe assertAllClose
+            # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
+        # Nans are handled differently in different backends, so zero them out.
+        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
     def test_rsqrt(self):
@@ -979,34 +984,27 @@ class MathOpsCorrectnessTest(testing.TestCase):
 class MathDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
 
-    # TODO: Using uint64 will lead to weak type promotion (`float`),
-    # resulting in different behavior between JAX and Keras. Currently, we
-    # are skipping the test for uint64
     ALL_DTYPES = [
-        x for x in dtypes.ALLOWED_DTYPES if x not in ["string", "uint64"]
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x
+        not in (
+            "string",
+            "complex64",
+            "complex128",
+            # Remove 64-bit dtypes.
+            "float64",
+            "uint64",
+            "int64",
+        )
+        + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
     ] + [None]
-    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint16, uint32 and uint64
-        ALL_DTYPES = [
-            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-        INT_DTYPES = [
-            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-
-    def setUp(self):
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
 
 class ExtractSequencesOpTest(testing.TestCase):

@@ -298,7 +298,7 @@ class Functional(Function, Model):
             self._inputs_struct, dict
         ):
             # This is to avoid warning
-            # when we have reconciable dict/list structs
+            # when we have reconcilable dict/list structs
             if hasattr(self._inputs_struct, "__len__") and all(
                 isinstance(i, backend.KerasTensor) for i in self._inputs_struct
             ):
@@ -773,7 +773,7 @@ def is_input_keras_tensor(x):
 
 def clone_single_keras_tensor(x):
     return backend.KerasTensor(
-        shape=x.shape, dtype=x.dtype, sparse=x.sparse, name=x.name + "_clone"
+        shape=x.shape, dtype=x.dtype, sparse=x.sparse, name=f"{x.name}_clone"
     )
 
 
@@ -836,7 +836,7 @@ def clone_graph_nodes(inputs, outputs):
                 batch_shape=kt_input.shape,
                 dtype=kt_input.dtype,
                 sparse=kt_input.sparse,
-                name=kt_input.name + "CLONE",
+                name=f"{kt_input.name}CLONE",
             )
             cloned_inputs.append(cloned_input)
             kt_id_mapping[id(kt_input)] = cloned_input
