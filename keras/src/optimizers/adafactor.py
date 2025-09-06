@@ -209,6 +209,7 @@ class Adafactor(optimizer.Optimizer):
         return config
 
 
-Adafactor.__doc__ = Adafactor.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adafactor.__doc__ is not None:
+    Adafactor.__doc__ = Adafactor.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )
