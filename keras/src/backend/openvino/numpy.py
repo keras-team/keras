@@ -967,9 +967,30 @@ def isnan(x):
 
 
 def isneginf(x):
-    raise NotImplementedError(
-        "`isneginf` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    
+    if x_type.is_integral() or x_type == Type.boolean:
+        shape = ov_opset.shape_of(x, "i32").output(0)
+        false_const = ov_opset.constant(False, Type.boolean).output(0)
+        return OpenVINOKerasTensor(ov_opset.broadcast(false_const, shape).output(0))
+    
+    if x_type == Type.bf16:
+        x_f32 = ov_opset.convert(x, Type.f32).output(0)
+        neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
+        is_neg_inf = ov_opset.equal(x_f32, neg_inf).output(0)
+    else:
+        if x_type == Type.f16:
+            neg_inf = ov_opset.constant(-np.inf, Type.f16).output(0)
+        elif x_type == Type.f32:
+            neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
+        elif x_type == Type.f64:
+            neg_inf = ov_opset.constant(-np.inf, Type.f64).output(0)
+        else:
+            neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
+        is_neg_inf = ov_opset.equal(x, neg_inf).output(0)
+    
+    return OpenVINOKerasTensor(is_neg_inf)
 
 
 def isposinf(x):
