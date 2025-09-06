@@ -653,7 +653,6 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def deg2rad(x):
-
     x = get_ov_output(x)
     x_type = x.get_element_type()
     pi_over_180 = np.pi / 180.0
