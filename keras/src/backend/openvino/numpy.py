@@ -1110,12 +1110,14 @@ def median(x, axis=None, keepdims=False):
         x = get_ov_output(x)
         return OpenVINOKerasTensor(x)
 
-    # the median algorithm follows numpy's method;
-    # if axis is None, flatten all dimensions of the array and find the
-    # median value.
-    # if axis is single int or list/tuple of multiple values, re-order x array
-    # to move those axis dims to the right, flatten the multiple axis dims
-    # then calculate median values along the flattened axis.
+    """
+    The median algorithm follows numpy's method;
+    if axis is None, flatten all dimensions of the array and find the
+    median value.
+    if axis is single int or list/tuple of multiple values, re-order x array
+    to move those axis dims to the right, flatten the multiple axis dims
+    then calculate median values along the flattened axis.
+    """
 
     x = get_ov_output(x)
     x_type = x.get_element_type()
