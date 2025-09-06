@@ -363,7 +363,7 @@ class Embedding(Layer):
             )
         return outputs
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)

@@ -667,7 +667,7 @@ class GPTQQuantizer(Quantizer):
         self.zero = None
         self.maxq = None
 
-    def find_params(self, input_tensor, weight=False):
+    def find_params(self, input_tensor, weight=True):
         """Finds quantization parameters (scale and zero) for a given tensor."""
         self.scale, self.zero, self.maxq = compute_quantization_parameters(
             input_tensor,
@@ -834,3 +834,60 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
         KerasTensor. The dequantized tensor.
     """
     return ops.multiply(scale, ops.subtract(input_tensor, zero))
+
+
+def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
+    """Rebuild a dequantized-proxy weight matrix from group params.
+
+    Args:
+        weights_matrix: 2D tensor of shape [out_features, in_features].
+        scale: Per-group scale tensor of shape [out_features, n_groups].
+        zero: Per-group zero-point tensor of shape [out_features, n_groups].
+        g_idx: Integer tensor of shape [in_features,] mapping each column to
+            its group index.
+        maxq: Scalar (float) representing the maximum integer quantization
+            level (e.g., 2^bits - 1).
+
+    Returns:
+        A tensor `Q` with the same shape as `weights_matrix` containing the
+        dequantized (float) proxy weights produced by quantize->dequantize
+        with the provided group parameters.
+    """
+    g_idx = ops.cast(g_idx, "int32")
+    scale_cols = ops.take(scale, g_idx, axis=1)  # [out_features, in_features]
+    zero_cols  = ops.take(zero,  g_idx, axis=1)  # [out_features, in_features]
+
+    # Quantize elementwise, then cast to int
+    q = quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
+    return ops.cast(q, "int32")
+
+
+def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
+    """Rebuild a dequantized-proxy weight matrix from group params.
+
+    Args:
+        weights_matrix: 2D tensor of shape [out_features, in_features].
+        scale: Per-group scale tensor of shape [out_features, n_groups].
+        zero: Per-group zero-point tensor of shape [out_features, n_groups].
+        g_idx: Integer tensor of shape [in_features,] mapping each column to
+            its group index.
+        maxq: Scalar (float) representing the maximum integer quantization
+            level (e.g., 2^bits - 1).
+
+    Returns:
+        A tensor `Q` with the same shape as `weights_matrix` containing the
+        dequantized (float) proxy weights produced by quantize->dequantize
+        with the provided group parameters.
+    """
+    # Use g_idx to "gather" the correct scale and zero columns for each
+    # column in the weights_matrix. This creates tensors with the same shape
+    # as the weights_matrix.
+    # ops.gather(params, indices, axis)
+    scales_mapped = ops.take(scale, g_idx, axis=1)
+    zeros_mapped = ops.take(zero, g_idx, axis=1)
+
+    # Now, dequantization is a simple element-wise operation on the full matrices.
+    # This assumes a standard dequantization formula: (quantized_value - zero_point) * scale
+    Q = ops.multiply(ops.subtract(weights_matrix, zeros_mapped), scales_mapped)
+
+    return Q

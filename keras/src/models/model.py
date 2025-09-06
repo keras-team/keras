@@ -435,18 +435,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
-        if mode == "gptq":
-            if not isinstance(config, GPTQConfig):
-                raise ValueError(
-                    "The `config` argument must be of type "
-                    "`keras.quantizers.GPTQConfig`."
-                )
-            gptq_quantize(self, config)
-            self._post_quantize(mode, **kwargs)
-            return
-
         # For all other modes, verify that a config object was not passed.
-        if config is not None:
+        if config is not None and mode != "gptq":
             raise ValueError(
                 f"The `config` argument is only supported for 'gptq' mode, "
                 f"but received mode='{mode}'."
@@ -468,12 +458,21 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             list_of_sublayers = list(layer._flatten_layers())
             if len(list_of_sublayers) == 1:  # leaves of the model
                 try:
-                    layer.quantize(mode, type_check=type_check)
+                    layer.quantize(mode, type_check=type_check, config=config)
                     mode_changed = True
                 except NotImplementedError as e:
                     warnings.warn(str(e))
         # We need to set these functions to `None` to remake them for changed
         # call function
+        if mode == "gptq":
+            if not isinstance(config, GPTQConfig):
+                raise ValueError(
+                    "The `config` argument must be of type "
+                    "`keras.quantizers.GPTQConfig`."
+                )
+            gptq_quantize(self, config)
+            # return
+
         if mode_changed:
             self.train_function = None
             self.test_function = None

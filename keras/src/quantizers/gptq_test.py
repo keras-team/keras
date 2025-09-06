@@ -14,7 +14,9 @@ from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
+from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 from keras.src.testing.test_utils import named_product
 
@@ -305,13 +307,21 @@ class GPTQTest(testing.TestCase):
         # there is no interaction between different features
         inverse_hessian = ops.eye(in_features, dtype="float32")
 
-        dequantized_weights = gptq_quantize_matrix(
+        scale_map, zero_map, g_idx = gptq_quantize_matrix(
             weights_transpose,
             inverse_hessian,
             blocksize=128,
             group_size=-1,
             activation_order=False,
             compute_scale_zero=_compute_scale_zero,
+        )
+
+        qmax = 15.0
+        quantized_weights = quantize_with_sz_map(
+            weights_transpose, scale_map, zero_map, g_idx, qmax
+        )
+        dequantized_weights = dequantize_with_sz_map(
+            quantized_weights, scale_map, zero_map, g_idx
         )
 
         # Compare function output with columnwise direct application
@@ -408,8 +418,8 @@ def _get_sequence_classifier():
             )
             self.ffn = models.Sequential(
                 [
-                    layers.Dense(ff_dim, activation="relu"),
-                    layers.Dense(embed_dim),
+                    layers.Dense(ff_dim, activation="relu", use_bias=True),
+                    layers.Dense(embed_dim, use_bias=True),
                 ]
             )
             self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
@@ -468,6 +478,10 @@ CONFIGS = {
     "act_order": {"activation_order": True},
     "symmetric": {"symmetric": True},
     "group_wise": {"group_size": 2},
+    "group_wise_per_channel": {"group_size": 4, "per_channel": True},
+    "group_wise_act_order": {"group_size": 8, "activation_order": True},
+    "symmetric_act_order": {"symmetric": True, "activation_order": True},
+    "symmetric_per_channel": {"symmetric": True, "per_channel": True},
 }
 
 
@@ -547,7 +561,8 @@ class TestModelQuantization(testing.TestCase):
         Validates classification performance of the quantized model
         with respect to the full-precision baseline.
         """
-        rng = np.random.default_rng(seed=0)
+        rng = np.random.default_rng(seed=321)
+        keras.utils.set_random_seed(123)
 
         # Build the calibration set.
         calibration_set = list(
@@ -557,6 +572,7 @@ class TestModelQuantization(testing.TestCase):
 
         # Build classifier and tokenizer
         model = _get_sequence_classifier()
+        model.compile(jit_compile=False, run_eagerly=True)
         tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
 
         # Build an eval batch drawn from the SAME distribution as calibration
@@ -596,7 +612,7 @@ class TestModelQuantization(testing.TestCase):
         self.assertGreaterEqual(
             top1_match, 0.5, f"Top-1 agreement too low: {top1_match:.3f}"
         )
-        self.assertLessEqual(kl, 0.50, f"KL divergence too high: {kl:.3f}")
+        self.assertLessEqual(kl, 0.30, f"KL divergence too high: {kl:.3f}")
 
     @parameterized.named_parameters(
         {

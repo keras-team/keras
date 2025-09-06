@@ -1,5 +1,6 @@
 import re
 import string
+from math import ceil
 
 import ml_dtypes
 import numpy as np
@@ -14,6 +15,7 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
 @keras_export("keras.layers.EinsumDense")
@@ -167,7 +169,7 @@ class EinsumDense(Layer):
         # quantized to int8 or int4, because `quantized_build` has created the
         # appropriate kernel variable. For other modes (e.g., float8 or no
         # quantization), we still need the floating-point kernel.
-        if self.quantization_mode not in ("int8", "int4"):
+        if self.quantization_mode not in ("int8", "int4", "gptq"):
             # If the layer is quantized to int8, `self._kernel` will be added
             # in `self._int8_build`. Therefore, we skip it here.
             self._kernel = self.add_weight(
@@ -201,6 +203,8 @@ class EinsumDense(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
+        if getattr(self, "gptq", False) and self.quantization_mode == "gptq":
+            return self.quantized_kernel
         if self.lora_enabled:
             return self._kernel + (
                 self.lora_alpha / self.lora_rank
@@ -389,13 +393,15 @@ class EinsumDense(Layer):
 
     # Quantization-related (int8 and float8) methods
 
-    def quantized_build(self, kernel_shape, mode):
+    def quantized_build(self, kernel_shape, mode, config):
         if mode == "int8":
             self._int8_build(kernel_shape)
         elif mode == "int4":
             self._int4_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
+        elif mode == "gptq":
+            self._gptq_build(kernel_shape, config=config)
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
@@ -419,6 +425,106 @@ class EinsumDense(Layer):
             initializer="ones",
             trainable=False,
         )
+
+    def _gptq_build(self, kernel_shape, config):
+        """
+        Allocate quantized kernel & params for EinsumDense.
+
+        Args:
+            kernel_shape: tuple/list; the layer's original kernel shape, e.g.
+                [in_features, out_features] or [in_features, heads, head_dim].
+            group_size: int; contiguous input-group size for quantization
+                (=-1 means per-output-channel with no grouping).
+        """
+        self.gptq = False
+
+        self.original_kernel_shape = kernel_shape
+        if len(kernel_shape) == 2:
+            rows = kernel_shape[0]
+            columns = kernel_shape[1]
+        elif len(kernel_shape) == 3:
+            shape = list(self.original_kernel_shape)
+            try:
+                d_model_dim_index = shape.index(max(shape))
+            except ValueError:
+                raise TypeError(
+                    f"Could not determine hidden dimension from shape {shape}"
+                )
+
+            if d_model_dim_index == 0:  # QKV projection case
+                in_features, heads, head_dim = shape
+                rows, columns = (
+                    in_features,
+                    heads * head_dim,
+                )
+            elif d_model_dim_index in [1, 2]:  # Attention Output case
+                heads, head_dim, out_features = shape
+                rows, columns = (
+                    heads * head_dim,
+                    out_features,
+                )
+            else:
+                raise ValueError("Could not determine row/column split.")
+
+        if config.group_size == -1:
+            n_groups = 1
+        else:
+            n_groups = ceil(rows / config.group_size)
+
+        if hasattr(self, "_set_quantization_info"):
+            self._set_quantization_info()
+
+        self.quantized_kernel = self.add_weight(
+            name="kernel",
+            shape=(columns, rows),
+            initializer="zeros",
+            dtype="int32",
+            trainable=False,
+        )
+
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=(columns, n_groups),
+            initializer="ones",
+            dtype="float32",
+            trainable=False,
+        )
+        self.kernel_zero = self.add_weight(
+            name="zero_point",
+            shape=(columns, n_groups),
+            initializer="zeros",
+            dtype="float32",
+            trainable=False,
+        )
+
+        self.g_idx = self.add_weight(
+            name="g_idx",
+            shape=(rows,),
+            initializer="zeros",
+            dtype="int32",
+            trainable=False,
+        )
+
+    def _gptq_call(self, inputs, training=False):
+        if not self.gptq:
+            W = self._kernel
+        else:
+            W = dequantize_with_sz_map(
+                self.quantized_kernel,
+                self.kernel_scale,
+                self.kernel_zero,
+                self.g_idx,
+            )
+            W = ops.transpose(W)
+
+            W = ops.reshape(W, self.original_kernel_shape)
+
+        y = ops.einsum(self.equation, inputs, W)
+        if self.bias is not None:
+            y = ops.add(y, self.bias)
+        if self.activation is not None:
+            y = self.activation(y)
+        return y
 
     def _int4_build(self, kernel_shape):
         """Build variables for int4 quantization.
@@ -756,13 +862,13 @@ class EinsumDense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not EinsumDense):
             raise self._not_implemented_error(self.quantize)
 
         kernel_shape = self._kernel.shape
-        if mode in ("int8", "int4"):
+        if mode in ("int8", "int4", "gptq"):
             self._set_quantization_info()
 
         if mode == "int8":
@@ -790,7 +896,7 @@ class EinsumDense(Layer):
             )
             kernel_value = packed_kernel_value
             del self._kernel
-        self.quantized_build(kernel_shape, mode)
+        self.quantized_build(kernel_shape, mode, config=config)
 
         # Assign values to the newly created variables.
         if mode in ("int8", "int4"):

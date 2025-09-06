@@ -349,7 +349,7 @@ def apply_gptq_layerwise(model, dataloader, config):
                 gptq_object.quantize_and_correct_layer()
                 gptq_object.free()
 
-            del gptq_objects
+            # del gptq_objects
 
         if block_idx < len(transformer_blocks) - 1:
             logging.info(f"Generating inputs for block {block_idx + 1}...")

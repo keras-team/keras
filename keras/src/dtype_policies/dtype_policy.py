@@ -350,7 +350,11 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
-    if policy.startswith("int8") or policy.startswith("int4"):
+    if (
+        policy.startswith("int8")
+        or policy.startswith("int4")
+        or policy.startswith("gptq")
+    ):
         return QuantizedDTypePolicy(mode, source_name)
     elif policy.startswith("float8"):
         return QuantizedFloat8DTypePolicy(mode, source_name)
