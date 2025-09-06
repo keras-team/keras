@@ -1064,9 +1064,53 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    raise NotImplementedError(
-        "`logaddexp` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "logaddexp()")
+
+    if x1.element_type.is_integral() or x2.element_type.is_integral():
+        float_dtype = OPENVINO_DTYPES[config.floatx()]
+        if x1.element_type.is_integral():
+            x1 = ov_opset.convert(x1, float_dtype)
+        if x2.element_type.is_integral():
+            x2 = ov_opset.convert(x2, float_dtype)
+
+    # Get the output nodes properly
+    max_val_node = ov_opset.maximum(x1, x2)
+    max_val = max_val_node.output(0)
+
+    # Compute absolute difference
+    sub_node = ov_opset.subtract(x1, x2)
+    abs_diff_node = ov_opset.abs(sub_node.output(0))
+    abs_diff = abs_diff_node.output(0)
+
+    # Compute negative absolute difference and its exponential
+    neg_abs_diff_node = ov_opset.negative(abs_diff)
+    neg_abs_diff = neg_abs_diff_node.output(0)
+    exp_neg_abs_node = ov_opset.exp(neg_abs_diff)
+    exp_neg_abs = exp_neg_abs_node.output(0)
+
+    # Get the element type from the node, not the output
+    element_type = exp_neg_abs_node.get_element_type()
+    one_node = ov_opset.constant(1, element_type)
+    one = one_node.output(0)
+
+    # Compute log term
+    one_plus_exp_node = ov_opset.add(one, exp_neg_abs)
+    one_plus_exp = one_plus_exp_node.output(0)
+    log_term_node = ov_opset.log(one_plus_exp)
+    log_term = log_term_node.output(0)
+
+    # Final result
+    result_node = ov_opset.add(max_val, log_term)
+    result = result_node.output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def logical_and(x1, x2):
