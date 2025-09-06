@@ -1757,6 +1757,29 @@ def kron(x1, x2):
     return out
 
 
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    if not x1.dtype.is_integer:
+        raise TypeError("Arguments to lcm must be integers.")
+
+    x1 = tf.math.abs(x1)
+    x2 = tf.math.abs(x2)
+
+    d = gcd(x1, x2)
+    d_safe = tf.where(d == 0, tf.constant(1, dtype=d.dtype), d)
+
+    result = x1 * (x2 // d_safe)
+    result = tf.where(d == 0, tf.zeros_like(result), result)
+
+    return result
+
+
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
