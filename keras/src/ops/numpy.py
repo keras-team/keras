@@ -3913,6 +3913,13 @@ def lcm(x1, x2):
 
     Returns:
         Output tensor, element-wise least common multiple of `x1` and `x2`.
+
+    Examples:
+
+    >>> x1 = keras.ops.convert_to_tensor([2, 3, 4])
+    >>> x2 = keras.ops.convert_to_tensor([5, 6, 7])
+    >>> keras.ops.lcm(x1, x2)
+    array([10,  6, 28], dtype=int32)
     """
     if any_symbolic_tensors((x1, x2)):
         return Lcm().symbolic_call(x1, x2)
