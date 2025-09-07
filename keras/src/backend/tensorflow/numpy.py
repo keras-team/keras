@@ -1768,14 +1768,17 @@ def lcm(x1, x2):
     if not x1.dtype.is_integer:
         raise TypeError("Arguments to lcm must be integers.")
 
-    x1 = tf.math.abs(x1)
-    x2 = tf.math.abs(x2)
+    if dtype not in [tf.uint8, tf.uint16, tf.uint32, tf.uint64]:
+        x1 = tf.math.abs(x1)
+        x2 = tf.math.abs(x2)
 
-    d = gcd(x1, x2)
-    d_safe = tf.where(d == 0, tf.constant(1, dtype=d.dtype), d)
+    divisor = gcd(x1, x2)
+    divisor_safe = tf.where(
+        divisor == 0, tf.constant(1, dtype=divisor.dtype), divisor
+    )
 
-    result = x1 * (x2 // d_safe)
-    result = tf.where(d == 0, tf.zeros_like(result), result)
+    result = x1 * (x2 // divisor_safe)
+    result = tf.where(divisor == 0, tf.zeros_like(result), result)
 
     return result
 

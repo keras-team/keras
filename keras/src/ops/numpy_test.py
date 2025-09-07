@@ -253,7 +253,7 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
     def test_lcm(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
-        self.assertEqual(knp.lcm(x, y).shape, (None, None))
+        self.assertEqual(knp.lcm(x, y).shape, (2, 3))
 
     def test_less(self):
         x = KerasTensor((None, 3))
