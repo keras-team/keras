@@ -250,6 +250,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.kron(x, y).shape, (None, None))
 
+    def test_lcm(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.lcm(x, y).shape, (None, None))
+
     def test_less(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -819,6 +824,11 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.kron(x, y).shape, (4, 9))
+
+    def test_lcm(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.lcm(x, y).shape, (2, 3))
 
     def test_less(self):
         x = KerasTensor((2, 3))
@@ -3006,6 +3016,22 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([[4, 5, 6], [3, 2, 1]])
         self.assertAllClose(knp.kron(x, y), np.kron(x, y))
         self.assertAllClose(knp.Kron()(x, y), np.kron(x, y))
+
+    def test_lcm(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
+        self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array(4)
+        self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
+        self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([4])
+        self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
+        self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
 
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7722,6 +7748,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Kron().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_lcm(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.lcm(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.lcm(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Lcm().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 
