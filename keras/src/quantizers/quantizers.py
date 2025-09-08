@@ -679,14 +679,6 @@ class GPTQQuantizer(Quantizer):
         )
         return self.scale, self.zero, self.maxq
 
-    def ready(self):
-        """Checks if the quantization parameters have been computed."""
-        return (
-            self.scale is not None
-            and self.zero is not None
-            and self.maxq is not None
-        )
-
     def get_config(self):
         config = super().get_config()
         config.update(
@@ -718,6 +710,11 @@ def compute_quantization_parameters(
     """
     Computes the scale and zero-point for quantization.
 
+    This function calculates the scale and zero-point required for quantizing
+    a given tensor `x` based on the specified parameters. It supports grouped,
+    per-channel, per-tensor, symmetric, and asymmetric quantization - along
+    with any combinations of these.
+
     Args:
         x: KerasTensor. The input tensor to quantize.
         bits: int. The number of bits to quantize to (e.g., 4).
@@ -725,6 +722,11 @@ def compute_quantization_parameters(
         per_channel: bool. Whether to quantize per channel.
         group_size: int. The group size for quantization.
         weight: bool. Whether the input tensor is a weight tensor.
+
+    Returns:
+        scale: KerasTensor. The scale tensor for quantization.
+        zero: KerasTensor. The zero tensor for quantization.
+        maxq: scalar. The maximum quantization value.
     """
     if x is None:
         raise ValueError(f"Input tensor {x} cannot be None.")
@@ -837,7 +839,12 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
 
 
 def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
-    """Rebuild a dequantized-proxy weight matrix from group params.
+    """Quantize the weight matrix from group params.
+
+    This function uses the provided scale and zero tensors to quantize the
+    input weights_matrix according to the group indices. It maps each column
+    of the weights_matrix to its corresponding group parameters and performs
+    the quantization operation.
 
     Args:
         weights_matrix: 2D tensor of shape [out_features, in_features].
@@ -849,13 +856,12 @@ def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
             level (e.g., 2^bits - 1).
 
     Returns:
-        A tensor `Q` with the same shape as `weights_matrix` containing the
-        dequantized (float) proxy weights produced by quantize->dequantize
-        with the provided group parameters.
+        A tensor with the same shape as `weights_matrix` containing the
+        quantized weights produced using the provided group parameters.
     """
     g_idx = ops.cast(g_idx, "int32")
     scale_cols = ops.take(scale, g_idx, axis=1)  # [out_features, in_features]
-    zero_cols  = ops.take(zero,  g_idx, axis=1)  # [out_features, in_features]
+    zero_cols = ops.take(zero, g_idx, axis=1)  # [out_features, in_features]
 
     # Quantize elementwise, then cast to int
     q = quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
@@ -863,7 +869,12 @@ def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
 
 
 def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
-    """Rebuild a dequantized-proxy weight matrix from group params.
+    """Rebuild a dequantized weight matrix from group params.
+
+    This function uses the provided scale and zero tensors to dequantize the
+    input weights_matrix according to the group indices. It maps each column
+    of the weights_matrix to its corresponding group parameters and performs
+    the dequantization operation.
 
     Args:
         weights_matrix: 2D tensor of shape [out_features, in_features].
@@ -875,19 +886,15 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
             level (e.g., 2^bits - 1).
 
     Returns:
-        A tensor `Q` with the same shape as `weights_matrix` containing the
-        dequantized (float) proxy weights produced by quantize->dequantize
-        with the provided group parameters.
+        A tensor with the same shape as `weights_matrix` containing the
+        dequantized weights produced using the provided group parameters.
     """
-    # Use g_idx to "gather" the correct scale and zero columns for each
-    # column in the weights_matrix. This creates tensors with the same shape
-    # as the weights_matrix.
-    # ops.gather(params, indices, axis)
+    # Map group indices to scales and zeros
     scales_mapped = ops.take(scale, g_idx, axis=1)
     zeros_mapped = ops.take(zero, g_idx, axis=1)
 
-    # Now, dequantization is a simple element-wise operation on the full matrices.
-    # This assumes a standard dequantization formula: (quantized_value - zero_point) * scale
-    Q = ops.multiply(ops.subtract(weights_matrix, zeros_mapped), scales_mapped)
+    quantized = ops.multiply(
+        ops.subtract(weights_matrix, zeros_mapped), scales_mapped
+    )
 
-    return Q
+    return quantized
