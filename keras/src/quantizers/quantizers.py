@@ -655,12 +655,17 @@ class GPTQQuantizer(Quantizer):
             Defaults to -1.
     """
 
-    def __init__(self, config=GPTQConfig(tokenizer=None, dataset=None)):
+    def __init__(
+        self,
+        config=GPTQConfig(tokenizer=None, dataset=None),
+        compute_dtype="float32",
+    ):
         Quantizer.__init__(self)
         self.weight_bits = config.weight_bits
         self.per_channel = config.per_channel
         self.symmetric = config.symmetric
         self.group_size = config.group_size
+        self.compute_dtype = compute_dtype
 
         # These are now determined later by `find_params`
         self.scale = None
@@ -676,6 +681,7 @@ class GPTQQuantizer(Quantizer):
             per_channel=self.per_channel,
             group_size=self.group_size,
             weight=weight,
+            compute_dtype=self.compute_dtype,
         )
         return self.scale, self.zero, self.maxq
 
@@ -705,7 +711,14 @@ class GPTQQuantizer(Quantizer):
 
 
 def compute_quantization_parameters(
-    x, *, bits, symmetric=False, per_channel=False, group_size=-1, weight=False
+    x,
+    *,
+    bits,
+    symmetric=False,
+    per_channel=False,
+    group_size=-1,
+    weight=False,
+    compute_dtype="float32",
 ):
     """
     Computes the scale and zero-point for quantization.
@@ -768,7 +781,7 @@ def compute_quantization_parameters(
     min_values = ops.where(zero_range, ops.subtract(min_values, 1), min_values)
     max_values = ops.where(zero_range, ops.add(max_values, 1), max_values)
 
-    maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), "float32")
+    maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), compute_dtype)
 
     # Calculate scale and zero-point
     scale = ops.divide(ops.subtract(max_values, min_values), maxq)
@@ -792,6 +805,8 @@ def compute_quantization_parameters(
     if per_channel:
         scale = ops.reshape(scale, [-1, 1])
         zero = ops.reshape(zero, [-1, 1])
+
+    zero = ops.cast(zero, "uint8")
 
     return scale, zero, maxq
 
@@ -817,7 +832,9 @@ def quantize_with_zero_point(input_tensor, scale, zero, maxq):
     safe_scale = ops.where(ops.equal(scale, 0), epsilon, scale)
 
     quantized_tensor = ops.round(
-        ops.add(ops.divide(input_tensor, safe_scale), zero)
+        ops.add(
+            ops.divide(input_tensor, safe_scale), ops.cast(zero, scale.dtype)
+        )
     )
     quantized_tensor = ops.clip(quantized_tensor, 0, maxq)
     return quantized_tensor
@@ -835,7 +852,9 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
     Returns:
         KerasTensor. The dequantized tensor.
     """
-    return ops.multiply(scale, ops.subtract(input_tensor, zero))
+    return ops.multiply(
+        scale, ops.subtract(input_tensor, ops.cast(zero, scale.dtype))
+    )
 
 
 def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
@@ -859,13 +878,11 @@ def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
         A tensor with the same shape as `weights_matrix` containing the
         quantized weights produced using the provided group parameters.
     """
-    g_idx = ops.cast(g_idx, "int32")
     scale_cols = ops.take(scale, g_idx, axis=1)  # [out_features, in_features]
     zero_cols = ops.take(zero, g_idx, axis=1)  # [out_features, in_features]
 
     # Quantize elementwise, then cast to int
-    q = quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
-    return ops.cast(q, "int32")
+    return quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
 
 
 def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
@@ -892,6 +909,7 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
     # Map group indices to scales and zeros
     scales_mapped = ops.take(scale, g_idx, axis=1)
     zeros_mapped = ops.take(zero, g_idx, axis=1)
+    zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
 
     quantized = ops.multiply(
         ops.subtract(weights_matrix, zeros_mapped), scales_mapped

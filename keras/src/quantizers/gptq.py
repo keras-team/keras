@@ -274,7 +274,9 @@ class GPTQ:
         self.original_layer = layer
         self.num_samples = 0
         self.config = config
-        self.quantizer = GPTQQuantizer(config)
+        self.quantizer = GPTQQuantizer(
+            config, compute_dtype=layer.variable_dtype
+        )
         # Explicitly handle each supported layer type
         if isinstance(layer, Dense) or (
             isinstance(layer, EinsumDense) and layer.kernel.ndim == 2
@@ -438,7 +440,7 @@ class GPTQ:
         )
         # Compute the inverse Hessian, which is used for error correction
         inverse_hessian = linalg.inv(hessian_matrix)
-        Q, scale, zero, g_idx = gptq_quantize_matrix(
+        quantized, scale, zero, g_idx = gptq_quantize_matrix(
             weights_matrix,
             inv_hessian=inverse_hessian,
             blocksize=blocksize,
@@ -447,8 +449,11 @@ class GPTQ:
             order_metric=ops.diagonal(hessian_matrix),
             compute_scale_zero=partial(self.quantizer.find_params, weight=True),
         )
+        quantized = ops.cast(
+            quantized, self.original_layer.quantized_kernel.dtype
+        )
 
-        self.original_layer.quantized_kernel.assign(Q)
+        self.original_layer.quantized_kernel.assign(quantized)
         self.original_layer.kernel_scale.assign(scale)
         self.original_layer.kernel_zero.assign(zero)
         self.original_layer.g_idx.assign(g_idx)

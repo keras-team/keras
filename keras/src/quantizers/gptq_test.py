@@ -478,10 +478,15 @@ CONFIGS = {
     "act_order": {"activation_order": True},
     "symmetric": {"symmetric": True},
     "group_wise": {"group_size": 2},
-    "group_wise_per_channel": {"group_size": 4, "per_channel": True},
+    "group_wise_per_channel": {"group_size": 8, "per_channel": True},
     "group_wise_act_order": {"group_size": 8, "activation_order": True},
     "symmetric_act_order": {"symmetric": True, "activation_order": True},
     "symmetric_per_channel": {"symmetric": True, "per_channel": True},
+    "group_wise_symmetric_8bit": {
+        "group_size": 8,
+        "symmetric": True,
+        "weight_bits": 8,
+    },
 }
 
 

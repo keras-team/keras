@@ -478,7 +478,7 @@ class EinsumDense(Layer):
             name="kernel",
             shape=(columns, rows),
             initializer="zeros",
-            dtype="int32",
+            dtype="uint8",
             trainable=False,
         )
 
@@ -486,14 +486,13 @@ class EinsumDense(Layer):
             name="kernel_scale",
             shape=(columns, n_groups),
             initializer="ones",
-            dtype="float32",
             trainable=False,
         )
         self.kernel_zero = self.add_weight(
             name="zero_point",
             shape=(columns, n_groups),
             initializer="zeros",
-            dtype="float32",
+            dtype="uint8",
             trainable=False,
         )
 

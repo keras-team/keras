@@ -367,7 +367,7 @@ class Dense(Layer):
             name="kernel",
             shape=(kernel_shape[1], kernel_shape[0]),
             initializer="zeros",
-            dtype="int32",
+            dtype="uint8",
             trainable=False,
         )
 
@@ -379,14 +379,13 @@ class Dense(Layer):
             name="kernel_scale",
             shape=(self.units, n_groups),
             initializer="ones",
-            dtype="float32",
             trainable=False,
         )
         self.kernel_zero = self.add_weight(
             name="kernel_zero",
             shape=(self.units, n_groups),
             initializer="zeros",
-            dtype="float32",
+            dtype="uint8",
             trainable=False,
         )
         self.g_idx = self.add_weight(
