@@ -1357,8 +1357,7 @@ class LayerTest(testing.TestCase):
         self.assertTrue("inner_inner_layer/inner" in variable_paths)
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("_torch_params.", "")
-                for param_name, _ in layer.named_parameters()
+                param_name for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
 
@@ -1414,8 +1413,7 @@ class LayerTest(testing.TestCase):
         )
         if backend.backend() == "torch":
             parameter_names = set(
-                param_name.replace("_torch_params.", "")
-                for param_name, _ in layer.named_parameters()
+                param_name for param_name, _ in layer.named_parameters()
             )
             self.assertSetEqual(variable_paths, parameter_names)
 
@@ -1466,7 +1464,15 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "_torch_params.training_layer/post_build_modify_layer/var",
+                "training_layer/post_build_modify_layer/var",
+            )
+            parameters = list(layer.parameters())
+            self.assertEqual(len(parameters), 1)
+            state_dict = layer.state_dict()
+            self.assertEqual(len(state_dict), 1)
+            self.assertIn(
+                "training_layer/post_build_modify_layer/var",
+                state_dict.keys(),
             )
 
         layer.post_build_modify_layer.post_build_add()
@@ -1480,29 +1486,27 @@ class LayerTest(testing.TestCase):
             "training_layer/post_build_modify_layer/var2",
         )
         if backend.backend() == "torch":
-            # TODO (haohuanw, fchollet): Needs further discussion on how to
-            # properly manage torch params. Post build modification cannot
-            # propagate to parent torch params.
             parameter_names = [pname for pname, _ in layer.named_parameters()]
-            # Below check should have 2 parameters instead of 1.
-            self.assertEqual(len(parameter_names), 1)
-            self.assertEqual(
-                parameter_names[0],
-                "_torch_params.training_layer/post_build_modify_layer/var",
-            )
-
-            parameter_names = [
-                pname
-                for pname, _ in layer.post_build_modify_layer.named_parameters()
-            ]
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "_torch_params.training_layer/post_build_modify_layer/var",
+                "training_layer/post_build_modify_layer/var",
             )
             self.assertEqual(
                 parameter_names[1],
-                "_torch_params.training_layer/post_build_modify_layer/var2",
+                "training_layer/post_build_modify_layer/var2",
+            )
+            parameters = list(layer.parameters())
+            self.assertEqual(len(parameters), 2)
+            state_dict = layer.state_dict()
+            self.assertEqual(len(state_dict), 2)
+            self.assertIn(
+                "training_layer/post_build_modify_layer/var",
+                state_dict.keys(),
+            )
+            self.assertIn(
+                "training_layer/post_build_modify_layer/var2",
+                state_dict.keys(),
             )
 
         layer.post_build_modify_layer.post_build_remove()
@@ -1512,35 +1516,23 @@ class LayerTest(testing.TestCase):
             "training_layer/post_build_modify_layer/var2",
         )
         if backend.backend() == "torch":
-            # TODO (haohuanw, fchollet): Needs further discussion on how to
-            # properly manage torch params. Post build modification cannot
-            # propagate to parent torch params.
             parameter_names = [pname for pname, _ in layer.named_parameters()]
-            # Below check should have 1 parameters instead of 2, torch_params
-            # in parent layer is wrong.
-            self.assertEqual(len(parameter_names), 2)
-            self.assertEqual(
-                parameter_names[0],
-                "post_build_modify_layer._torch_params.training_layer/"
-                "post_build_modify_layer/var2",
-            )
-            self.assertEqual(
-                parameter_names[1],
-                "_torch_params.training_layer/post_build_modify_layer/var",
-            )
-
-            parameter_names = [
-                pname
-                for pname, _ in layer.post_build_modify_layer.named_parameters()
-            ]
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "_torch_params.training_layer/post_build_modify_layer/var2",
+                "training_layer/post_build_modify_layer/var2",
+            )
+            parameters = list(layer.parameters())
+            self.assertEqual(len(parameters), 1)
+            state_dict = layer.state_dict()
+            self.assertEqual(len(state_dict), 1)
+            self.assertIn(
+                "training_layer/post_build_modify_layer/var2",
+                state_dict.keys(),
             )
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
-    def test_torch_params_create_deterministic(self):
+    def test_torch_named_parameters_deterministic(self):
         class MyLayer(layers.Layer):
             def __init__(self):
                 super().__init__()
@@ -1560,6 +1552,58 @@ class LayerTest(testing.TestCase):
         layer2.build(None)
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_torch_specific_methods(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w1 = self.add_weight(name="w1")
+                self.w2 = self.add_weight(
+                    dtype="int32", trainable=False, name="w2"
+                )
+                self.w3 = self.add_weight(
+                    dtype="bool", trainable=False, name="w3"
+                )
+                self.w4 = self.add_weight(
+                    dtype="int32", shape=(2, 2), trainable=False, name="w4"
+                )
+                self.w5 = self.add_weight(
+                    initializer="ones", shape=(2, 2), name="w5"
+                )
+
+        layer1 = MyLayer()
+        layer1.build(None)
+
+        # named_parameters().
+        named_parameters = list(layer1.named_parameters())
+        self.assertLen(named_parameters, 5)
+        # Trainable.
+        self.assertEqual(named_parameters[0][0], "my_layer/w1")
+        self.assertEqual(named_parameters[1][0], "my_layer/w5")
+        # Non-trainable.
+        self.assertEqual(named_parameters[2][0], "my_layer/w2")
+        self.assertEqual(named_parameters[3][0], "my_layer/w3")
+        self.assertEqual(named_parameters[4][0], "my_layer/w4")
+
+        # parameters().
+        parameters = list(pname for pname, _ in layer1.named_parameters())
+        self.assertLen(parameters, 5)
+        for i in range(len(parameters)):
+            self.assertEqual(parameters[i], named_parameters[i][0])
+
+        # state_dict().
+        state_dict = layer1.state_dict()
+        self.assertLen(state_dict, 5)
+        for i in range(len(named_parameters)):
+            self.assertIn(named_parameters[i][0], state_dict.keys())
+
+        # Raise error when calling load_state_dict.
+        with self.assertRaisesRegex(
+            NotImplementedError,
+            r"Keras with the Torch backend does not support `load_state_dict`.",
+        ):
+            layer1.load_state_dict({})
 
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):

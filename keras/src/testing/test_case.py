@@ -369,11 +369,11 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 and expected_num_seed_generators is not None
             ):
                 self.assertLen(
-                    layer.torch_params,
+                    list(layer.named_parameters()),
                     expected_num_trainable_weights
                     + expected_num_non_trainable_weights
                     + expected_num_seed_generators,
-                    msg="Unexpected number of torch_params",
+                    msg="Unexpected number of named_parameters()",
                 )
 
         def run_output_asserts(layer, output, eager=False):
