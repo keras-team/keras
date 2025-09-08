@@ -647,7 +647,7 @@ def list_devices(device_type=None):
     Return:
         List of devices that are available for distribute computation.
     """
-    return distribution_lib.list_devices(device_type)
+    return list_devices(device_type)
 
 
 @keras_export("keras.distribution.initialize")
@@ -737,7 +737,7 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         num_processes = int(os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"])
     if process_id is None and "KERAS_DISTRIBUTION_PROCESS_ID" in os.environ:
         process_id = int(os.environ["KERAS_DISTRIBUTION_PROCESS_ID"])
-    distribution_lib.initialize(job_addresses, num_processes, process_id)
+    initialize(job_addresses, num_processes, process_id)
 
 
 @keras_export("keras.distribution.DeviceMesh")
@@ -811,7 +811,7 @@ class DeviceMesh:
     @property
     def backend_mesh(self):
         if not hasattr(self, "_backend_mesh"):
-            self._backend_mesh = distribution_lib._to_backend_mesh(self)
+            self._backend_mesh = _to_backend_mesh(self)
         return self._backend_mesh
 
     def __repr__(self):
@@ -871,7 +871,7 @@ class TensorLayout:
     @property
     def backend_layout(self):
         if not hasattr(self, "_backend_layout"):
-            self._backend_layout = distribution_lib._to_backend_layout(self)
+            self._backend_layout = _to_backend_layout(self)
         return self._backend_layout
 
     def _validate_axes(self):
@@ -1028,10 +1028,10 @@ class AutoShardDistribution(Distribution):
         self._sharding_plan = None
         self._sharding_planner = None
         self._shard_applier = None
-        self._num_process = distribution_lib.num_processes()
-        self._process_id = distribution_lib.process_id()
-        self._num_process = distribution_lib.num_processes()
-        self._process_id = distribution_lib.process_id()
+        self._num_process = num_processes()
+        self._process_id = process_id()
+        self._num_process = num_processes()
+        self._process_id = process_id()
 
     def _get_backend_components(self):
         if self._sharding_planner and self._shard_applier:
@@ -1132,8 +1132,8 @@ class DataParallel(Distribution):
             self._initialize_mesh_from_list_devices(auto_shard_dataset)
 
         # Those following attributes might get convert to public methods.
-        self._num_process = distribution_lib.num_processes()
-        self._process_id = distribution_lib.process_id()
+        self._num_process = num_processes()
+        self._process_id = process_id()
         self._is_multi_process = self._num_process > 1
 
     def _initialize_with_device_mesh(self, device_mesh, auto_shard_dataset):
@@ -1340,8 +1340,8 @@ class ModelParallel(Distribution):
         self._layout_map = layout_map
 
         # Those following attributes might get convert to public methods.
-        self._num_process = distribution_lib.num_processes()
-        self._process_id = distribution_lib.process_id()
+        self._num_process = num_processes()
+        self._process_id = process_id()
         self._is_multi_process = self._num_process > 1
 
     def get_data_layout(self, data_shape):
@@ -1574,10 +1574,8 @@ def distribute_tensor(tensor, layout):
         a new value with the specified tensor layout.
     """
     if isinstance(tensor, KerasTensor):
-        # keras tensor is only used for building functional model, and can't be
-        # used to alter layout/sharding.
         return tensor
-    return distribution_lib.distribute_tensor(tensor, layout)
+    return distribute_tensor(tensor, layout)
 
 
 @keras_export("keras.distribution.distribution")
@@ -1596,32 +1594,56 @@ def set_distribution(value):
     global_state.set_global_attribute(GLOBAL_ATTRIBUTE_NAME, value)
 
 
+"""
+Test suite for model verification with Parallax (Keras AutoShardDistribution),
+using KerasNLP presets and the Tiny Shakespeare dataset.
+
+This script compares the training performance (loss and perplexity) of a
+baseline model against its Parallax-sharded equivalent. The goal is to verify
+the correctness and performance of Keras's automatic sharding capabilities.
+
+It is generalized to run tests for multiple model architectures, including:
+- Gemma
+- GPT-2
+- Bloom
+- OPT
+"""
+import os
+import time
+import logging
+import json
+
+import numpy as np
+import keras
+import keras_nlp
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import tensorflow_datasets as tfds
+import jax
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 BATCH_SIZE = 8
 SEQUENCE_LENGTH = 128
 LEARNING_RATE = 3e-5
-EPOCHS = 2
-STEPS_PER_EPOCH = 10
+EPOCHS = 10
+STEPS_PER_EPOCH = 50
 VALIDATION_STEPS = 10
 
-# --- MODEL PRESETS TO TEST ---
-# Note:
-# - 'gemma_2b_en' is used as a stand-in for 'Gemini'.
-# - 'bloom_560m_en' is used as the closest available substitute for 'Bloom 1B'.
 MODEL_MAPPING = {
     "gpt2_base_en": keras_nlp.models.GPT2CausalLM,
     "bloom_560m_multi": keras_nlp.models.BloomCausalLM,
     "opt_125m_en": keras_nlp.models.OPTCausalLM,
 }
 
-# --- UNIFIED DATA LOADING ---
 def load_shakespeare_dataset(model_preset, model_class):
     """Loads and preprocesses the Tiny Shakespeare dataset for a given model."""
     print(f"   Loading and preprocessing Tiny Shakespeare dataset for {model_preset}...")
     ds = tfds.load("tiny_shakespeare", split="train")
     text = "".join(example["text"].decode("utf-8") for example in ds.as_numpy_iterator())
 
-    # Each model has its own tokenizer, loaded via its preprocessor.
     tokenizer = model_class.from_preset(model_preset).preprocessor.tokenizer
     token_ids = tokenizer.tokenize(text)
 
@@ -1630,7 +1652,6 @@ def load_shakespeare_dataset(model_preset, model_class):
 
     all_data = tf.data.Dataset.from_tensor_slices(sequences)
 
-    # Split the data into training and validation sets (90% train, 10% val)
     num_sequences = sequences.shape[0]
     num_train_samples = int(0.9 * num_sequences)
 
@@ -1649,7 +1670,6 @@ def format_for_causal_lm(data):
     labels = data[:, 1:]
     return features, labels
 
-# --- GENERALIZED MODEL DEFINITION ---
 def get_model_from_preset(preset_name, model_class):
     """Creates a CausalLM model from a KerasNLP preset."""
     print(f"   Creating {preset_name} model from Keras preset...")
@@ -1657,24 +1677,21 @@ def get_model_from_preset(preset_name, model_class):
     print(f"      ✅ Model created with {model.count_params():,} parameters.")
     return model
 
-# --- GENERALIZED PLOTTING ---
-def plot_training_graphs(parallax_history, preset_name):
+def plot_training_graphs(history_dict, preset_name):
     """Plots and saves the loss and perplexity graphs for the Parallax model."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
     fig.suptitle(f"{preset_name} - Parallax (AutoShard) Training Performance", fontsize=16)
 
-    # --- Plot 1: Loss ---
-    ax1.plot(parallax_history.history["loss"], label="Parallax - Training Loss", color="green", linestyle="-")
-    ax1.plot(parallax_history.history["val_loss"], label="Parallax - Validation Loss", color="green", linestyle="--")
+    ax1.plot(history_dict["loss"], label="Parallax - Training Loss", color="green", linestyle="-")
+    ax1.plot(history_dict["val_loss"], label="Parallax - Validation Loss", color="green", linestyle="--")
     ax1.set_title("Training and Validation Loss")
     ax1.set_ylabel("Loss")
     ax1.set_xlabel("Epoch")
     ax1.legend()
     ax1.grid(True)
 
-    # --- Plot 2: Perplexity ---
-    ax2.plot(parallax_history.history["perplexity"], label="Parallax - Training Perplexity", color="purple", linestyle="-")
-    ax2.plot(parallax_history.history["val_perplexity"], label="Parallax - Validation Perplexity", color="purple", linestyle="--")
+    ax2.plot(history_dict["perplexity"], label="Parallax - Training Perplexity", color="purple", linestyle="-")
+    ax2.plot(history_dict["val_perplexity"], label="Parallax - Validation Perplexity", color="purple", linestyle="--")
     ax2.set_title("Training and Validation Perplexity")
     ax2.set_ylabel("Perplexity")
     ax2.set_xlabel("Epoch")
@@ -1685,19 +1702,19 @@ def plot_training_graphs(parallax_history, preset_name):
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(output_filename)
     print(f"\n   ✅ Performance graph saved to {output_filename}")
-    plt.close() # Close the figure to free up memory
+    plt.close()
 
-# --- GENERALIZED TRAINING VERIFICATION ---
 def run_model_verification(preset_name, model_class):
-    """Runs the full training verification test for a given model preset."""
+    """
+    Runs the full training verification test for a given model preset.
+    Returns a list of per-epoch history dictionaries on success, or a status string on skip.
+    """
     print(f"🔧 TRAINING FOR: {preset_name.upper()}")
     print("=" * 50)
     start_time = time.time()
 
-    # 1. Prepare the dataset
     train_ds_raw, val_ds_raw = load_shakespeare_dataset(preset_name, model_class)
 
-    # Create the data pipelines
     train_ds = (
         train_ds_raw.batch(BATCH_SIZE, drop_remainder=True)
         .map(format_for_causal_lm, num_parallel_calls=tf.data.AUTOTUNE)
@@ -1711,17 +1728,13 @@ def run_model_verification(preset_name, model_class):
         .repeat()
     )
 
-    # 2. Set up and train the Parallax (AutoShardDistribution) model
     print("\n   --- Training Parallax (AutoShardDistribution) Model ---")
 
-    # This check MUST come before any distribution objects are created.
     num_devices = jax.device_count()
     if num_devices < 2:
         print(f"      ⚠️ Skipping Parallax test for {preset_name}: requires at least 2 JAX devices, but found {num_devices}.")
-        print("      To simulate devices, uncomment the 'XLA_FLAGS' line at the top of the script.")
-        return False
+        return "SKIPPED"
 
-    # Define the device mesh.
     mesh = keras.distribution.DeviceMesh(
         shape=(num_devices,),
         axis_names=("model",),
@@ -1730,21 +1743,14 @@ def run_model_verification(preset_name, model_class):
     distribution = AutoShardDistribution(mesh)
     print(f"      Initialized Parallax with a '{mesh.axis_names}' mesh across {num_devices} devices.")
 
-    # Create the model OUTSIDE the distribution scope first.
     parallax_model = get_model_from_preset(preset_name, model_class)
 
-    # Run the auto-sharding analysis. This traces the model and applies the
-    # sharding plan to the variables of the already-created model.
     print("      Running Parallax auto-sharding analysis...")
     sample_batch_features, _ = next(iter(train_ds))
-    # Convert the dictionary of tf.Tensors to a dictionary of NumPy arrays
-    # for JAX compatibility during tracing.
     sample_batch_np = {
         key: value.numpy() for key, value in sample_batch_features.items()
     }
 
-    # Using a scope here ensures any backend functions called by shard()
-    # know about the distribution strategy.
     with distribution.scope():
         distribution.shard(parallax_model, sample_batch_np)
     print("      ✅ Auto-sharding plan applied.")
@@ -1754,7 +1760,7 @@ def run_model_verification(preset_name, model_class):
         loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=[keras_nlp.metrics.Perplexity(from_logits=True, name="perplexity")],
     )
-    # The distribution strategy is automatically picked up by fit()
+
     parallax_history = parallax_model.fit(
         train_ds,
         validation_data=val_ds,
@@ -1764,21 +1770,32 @@ def run_model_verification(preset_name, model_class):
         verbose=1
     )
     print("      ✅ Parallax model training completed.")
+    
+    history_dict = parallax_history.history
 
-    # 3. Review results and plot
     print("\n   --- Final Validation Metrics ---")
-    parallax_final_val_loss = parallax_history.history['val_loss'][-1]
-    parallax_final_perplexity = parallax_history.history['val_perplexity'][-1]
+    parallax_final_val_loss = history_dict['val_loss'][-1]
+    parallax_final_perplexity = history_dict['val_perplexity'][-1]
     print(f"      Parallax Final Validation Loss: {parallax_final_val_loss:.4f}")
     print(f"      Parallax Final Validation Perplexity: {parallax_final_perplexity:.4f}")
 
-    plot_training_graphs(parallax_history, preset_name)
+    plot_training_graphs(history_dict, preset_name)
 
     print(f"✅ Test for {preset_name} completed in {time.time() - start_time:.2f}s")
-    return True
+    
+    num_epochs = len(history_dict.get("loss", []))
+    epoch_by_epoch_history = []
+    metric_keys = list(history_dict.keys())
+
+    for i in range(num_epochs):
+        epoch_record = {"epoch": i + 1}
+        for key in metric_keys:
+            epoch_record[key] = history_dict[key][i]
+        epoch_by_epoch_history.append(epoch_record)
+        
+    return epoch_by_epoch_history
 
 
-# --- Main Execution Block ---
 if __name__ == "__main__":
     print("\n🎯 PARALLAX (AUTOSHARD) TRAINING SUITE")
     print("=" * 70)
@@ -1788,21 +1805,35 @@ if __name__ == "__main__":
 
     for preset, model_class in MODEL_MAPPING.items():
         try:
-            result = run_model_verification(preset, model_class)
-            if result:
-                results[preset] = "✅ COMPLETED"
-            else:
-                results[preset] = "⚠️ SKIPPED"
+            history_data = run_model_verification(preset, model_class)
+            
+            if isinstance(history_data, list):
+                results[preset] = {
+                    "status": "✅ COMPLETED",
+                    "history": history_data
+                }
+            elif history_data == "SKIPPED":
+                results[preset] = {
+                    "status": "⚠️ SKIPPED",
+                    "history": None
+                }
         except Exception as e:
             logger.error(f"Test for {preset} failed with an exception: {e}", exc_info=True)
-            results[preset] = "💥 ERROR"
+            results[preset] = {
+                "status": "💥 ERROR",
+                "history": None
+            }
         print("-" * 70)
 
     print("\n" + "=" * 70)
     print("🎉 TRAINING SUITE COMPLETED!")
     print(f"   Total execution time: {time.time() - total_start_time:.2f}s")
     print("\n   --- SUMMARY ---")
-    for preset, status in results.items():
-        print(f"   - {preset:<25}: {status}")
+    for preset, data in results.items():
+        print(f"   - {preset:<25}: {data['status']}")
     print("=" * 70)
 
+    results_filename = "results.json"
+    with open(results_filename, "w") as f:
+        json.dump(results, f, indent=4)
+    print(f"\n✅ Training summary and detailed epoch metrics saved to {results_filename}")
