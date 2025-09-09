@@ -378,6 +378,8 @@ def reduce_shape(shape, axis=None, keepdims=False):
     elif isinstance(axis, int):
         axis = (axis,)
 
+    axis = [canonicalize_axis(a, len(shape)) for a in axis]
+
     if keepdims:
         for ax in axis:
             shape[ax] = 1
