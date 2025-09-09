@@ -80,6 +80,14 @@ def export_onnx(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
+    input_names = []
+    for i, spec in enumerate(input_signature):
+        name = getattr(spec, "name", None)
+        if name is None:
+            name = f"input_{i}"
+        input_names.append(name)
+else:
+    input_names = [f"input_{i}" for i in range(len(model.inputs))]
 
     if backend.backend() in ("tensorflow", "jax"):
         from keras.src.utils.module_utils import tf2onnx
@@ -143,6 +151,7 @@ def export_onnx(
                     sample_inputs,
                     verbose=actual_verbose,
                     opset_version=opset_version,
+                    input_names=input_names,
                     dynamo=True,
                 )
                 if hasattr(onnx_program, "optimize"):
@@ -161,6 +170,7 @@ def export_onnx(
                     filepath,
                     verbose=actual_verbose,
                     opset_version=opset_version,
+                    input_names=input_names
                 )
     else:
         raise NotImplementedError(
