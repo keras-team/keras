@@ -590,10 +590,7 @@ class Distiller(Model):
                 )
 
             # Ensure distillation_loss is a scalar
-            if (
-                hasattr(distillation_loss, "shape")
-                and len(distillation_loss.shape) > 0
-            ):
+            if len(distillation_loss.shape) > 0:
                 distillation_loss = keras.ops.mean(distillation_loss)
 
         # Combine losses
