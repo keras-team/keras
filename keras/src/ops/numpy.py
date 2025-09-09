@@ -3845,6 +3845,49 @@ def isposinf(x):
     return backend.numpy.isposinf(x)
 
 
+class Kron(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.kron(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+
+        def _mul_shape_dim(a, b):
+            if a is None or b is None:
+                return None
+            return a * b
+
+        output_shape = tuple(
+            _mul_shape_dim(a, b) for a, b in zip(x1_shape, x2_shape)
+        )
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.kron", "keras.ops.numpy.kron"])
+def kron(x1, x2):
+    """Kronecker product of `x1` and `x2`.
+
+    Computes the Kronecker product of two input tensors. If `x1` has shape
+    `(a0, a1, ..., an)` and `x2` has shape `(b0, b1, ..., bn)`, then the
+    output will have shape `(a0*b0, a1*b1, ..., an*bn)`.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        A tensor representing the Kronecker product of `x1` and `x2`.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Kron().symbolic_call(x1, x2)
+    return backend.numpy.kron(x1, x2)
+
+
 class Less(Operation):
     def call(self, x1, x2):
         return backend.numpy.less(x1, x2)
