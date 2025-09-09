@@ -1359,7 +1359,13 @@ class LayerTest(testing.TestCase):
             parameter_names = set(
                 param_name for param_name, _ in layer.named_parameters()
             )
-            self.assertSetEqual(variable_paths, parameter_names)
+            self.assertSetEqual(
+                parameter_names,
+                {
+                    "inner.inner_layer/inner",
+                    "inner.inner.inner_inner_layer/inner",
+                },
+            )
 
     def test_custom_layer_add_weight_in_build_name(self):
         class TrainingLayer(layers.Layer):
@@ -1415,7 +1421,13 @@ class LayerTest(testing.TestCase):
             parameter_names = set(
                 param_name for param_name, _ in layer.named_parameters()
             )
-            self.assertSetEqual(variable_paths, parameter_names)
+            self.assertSetEqual(
+                parameter_names,
+                {
+                    "inner.training_layer/inner_layer/inner",
+                    "inner.inner.training_layer/inner_layer/inner_inner_layer/inner",
+                },
+            )
 
     def test_layer_variable_tracking_correct(self):
         class TrainingLayer(layers.Layer):
@@ -1464,14 +1476,14 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "training_layer/post_build_modify_layer/var",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
             )
             parameters = list(layer.parameters())
             self.assertEqual(len(parameters), 1)
             state_dict = layer.state_dict()
             self.assertEqual(len(state_dict), 1)
             self.assertIn(
-                "training_layer/post_build_modify_layer/var",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
                 state_dict.keys(),
             )
 
@@ -1490,22 +1502,22 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
                 parameter_names[0],
-                "training_layer/post_build_modify_layer/var",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
             )
             self.assertEqual(
                 parameter_names[1],
-                "training_layer/post_build_modify_layer/var2",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
             )
             parameters = list(layer.parameters())
             self.assertEqual(len(parameters), 2)
             state_dict = layer.state_dict()
             self.assertEqual(len(state_dict), 2)
             self.assertIn(
-                "training_layer/post_build_modify_layer/var",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
                 state_dict.keys(),
             )
             self.assertIn(
-                "training_layer/post_build_modify_layer/var2",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
                 state_dict.keys(),
             )
 
@@ -1520,14 +1532,14 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "training_layer/post_build_modify_layer/var2",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
             )
             parameters = list(layer.parameters())
             self.assertEqual(len(parameters), 1)
             state_dict = layer.state_dict()
             self.assertEqual(len(state_dict), 1)
             self.assertIn(
-                "training_layer/post_build_modify_layer/var2",
+                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
                 state_dict.keys(),
             )
 
@@ -1578,13 +1590,8 @@ class LayerTest(testing.TestCase):
         # named_parameters().
         named_parameters = list(layer1.named_parameters())
         self.assertLen(named_parameters, 5)
-        # Trainable.
-        self.assertEqual(named_parameters[0][0], "my_layer/w1")
-        self.assertEqual(named_parameters[1][0], "my_layer/w5")
-        # Non-trainable.
-        self.assertEqual(named_parameters[2][0], "my_layer/w2")
-        self.assertEqual(named_parameters[3][0], "my_layer/w3")
-        self.assertEqual(named_parameters[4][0], "my_layer/w4")
+        for i in range(len(named_parameters)):
+            self.assertEqual(named_parameters[i][0], f"my_layer/w{i + 1}")
 
         # parameters().
         parameters = list(pname for pname, _ in layer1.named_parameters())
@@ -1598,12 +1605,31 @@ class LayerTest(testing.TestCase):
         for i in range(len(named_parameters)):
             self.assertIn(named_parameters[i][0], state_dict.keys())
 
-        # Raise error when calling load_state_dict.
-        with self.assertRaisesRegex(
-            NotImplementedError,
-            r"Keras with the Torch backend does not support `load_state_dict`.",
-        ):
-            layer1.load_state_dict({})
+        # load_state_dict().
+        layer1.load_state_dict(state_dict)
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_torch_integration(self):
+        import torch
+
+        class Net(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.fc1 = layers.Dense(1)
+
+            def forward(self, x):
+                x = self.fc1(x)
+                return x
+
+        net = Net()
+        self.assertAllEqual(list(net(torch.empty(100, 10)).shape), [100, 1])
+        self.assertLen(list(net.parameters()), 2)
+        kernel = net.fc1.kernel
+        transposed_kernel = torch.transpose(kernel, 0, 1)
+        self.assertIsInstance(kernel, backend.Variable)
+        self.assertIsInstance(
+            torch.mul(kernel, transposed_kernel), torch.Tensor
+        )
 
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):

@@ -1,5 +1,4 @@
 import warnings
-from collections import OrderedDict
 
 import torch
 
@@ -23,48 +22,26 @@ class TorchLayer(torch.nn.Module):
         if in_stateless_scope():
             return
 
+    def forward(self, *args, **kwargs):
+        return Operation.__call__(self, *args, **kwargs)
+
     def _setattr_hook(self, name, value):
         from keras.src.layers import Layer
 
-        if isinstance(value, torch.nn.Module) and not isinstance(value, Layer):
+        if (
+            isinstance(value, torch.nn.Module)
+            and not isinstance(value, Layer)
+            and not name == "_torch_params"
+        ):
             from keras.src.utils.torch_utils import TorchModuleWrapper
 
             if not isinstance(self, TorchModuleWrapper):
                 value = TorchModuleWrapper(value)
         return name, value
 
-    # Overrided torch.nn.Module methods.
+    def _post_track_variable(self, variable):
+        self._parameters[variable.path] = variable.value
 
-    def forward(self, *args, **kwargs):
-        return Operation.__call__(self, *args, **kwargs)
-
-    def named_parameters(self, prefix="", recurse=True, remove_duplicate=True):
-        seen = set()
-        for layer in self._flatten_layers(
-            include_self=False, recursive=recurse
-        ):
-            for variable in layer.variables:
-                if remove_duplicate and id(variable) in seen:
-                    continue
-                seen.add(id(variable))
-                name = prefix + variable.path
-                yield name, variable.value
-        for variable in self.variables:
-            if remove_duplicate and id(variable) in seen:
-                continue
-            seen.add(id(variable))
-            name = prefix + variable.path
-            yield name, variable.value
-
-    def state_dict(self, *args, destination=None, prefix="", keep_vars=False):
-        if destination is None:
-            destination = OrderedDict()
-        for name, param in self.named_parameters(prefix=prefix, recurse=True):
-            destination[prefix + name] = param if keep_vars else param.detach()
-        return destination
-
-    def load_state_dict(self, state_dict, strict=True, assign=False):
-        raise NotImplementedError(
-            "Keras with the Torch backend does not support `load_state_dict`. "
-            "Please use `layer.set_weights` instead."
-        )
+    def _post_untrack_variable(self, variable):
+        if variable.path in self._parameters:
+            del self._parameters[variable.path]
