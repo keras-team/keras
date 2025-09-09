@@ -64,7 +64,9 @@ class TimeseriesGenerator(PyDataset):
         shuffle=False,
         reverse=False,
         batch_size=128,
+        **kwargs,
     ):
+        super().__init__(**kwargs)
         if len(data) != len(targets):
             raise ValueError(
                 "Data and targets have to be "
