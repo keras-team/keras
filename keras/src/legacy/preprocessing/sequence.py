@@ -47,6 +47,8 @@ class TimeseriesGenerator(PyDataset):
             in reverse chronological order.
         batch_size: Number of timeseries samples in each batch
             (except maybe the last one).
+        **kwargs: Additional keyword arguments for the `PyDataset` base class,
+            such as `workers`, `use_multiprocessing`, and `max_queue_size`.
 
     Returns:
         A PyDataset instance.

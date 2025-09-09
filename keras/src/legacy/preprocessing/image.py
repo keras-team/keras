@@ -30,6 +30,8 @@ class Iterator(PyDataset):
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
         seed: Random seeding for data shuffling.
+        **kwargs: Additional keyword arguments for the `PyDataset` base class,
+            such as `workers`, `use_multiprocessing`, and `max_queue_size`.
     """
 
     white_list_formats = ("png", "jpg", "jpeg", "bmp", "ppm", "tif", "tiff")
