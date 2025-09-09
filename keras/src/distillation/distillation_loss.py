@@ -1,6 +1,7 @@
 import keras
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.distillation.DistillationLoss")
@@ -60,6 +61,22 @@ class DistillationLoss:
                 f"student has {len(student_outputs)} outputs."
             )
 
+    def validate_model_compatibility(self, teacher, student):
+        """Validate that teacher and student models are compatible.
+
+        This method ensures that the teacher and student models are compatible
+        for the specific distillation strategy. It should check model structure,
+        layer availability, and other strategy-specific requirements.
+
+        Args:
+            teacher: The teacher model.
+            student: The student model.
+        Raises:
+            ValueError: If models are not compatible with this strategy.
+        """
+        # can be overridden by subclasses
+        pass
+
 
 @keras_export("keras.distillation.FeatureDistillation")
 class FeatureDistillation(DistillationLoss):
@@ -74,8 +91,7 @@ class FeatureDistillation(DistillationLoss):
         loss: Loss function to use for feature distillation. Can be:
             - String identifier (e.g., 'mse', 'cosine_similarity', 'mae')
             - Keras loss instance
-            - List/tuple of losses for multi-output models
-            - Dict of losses for named outputs
+            - Nested structure of losses matching the layer output structure
             Defaults to 'mse'.
         teacher_layer_name: Name of the teacher layer to extract features from.
             If None, uses the final output. Defaults to None.
@@ -120,10 +136,6 @@ class FeatureDistillation(DistillationLoss):
         self.teacher_layer_name = teacher_layer_name
         self.student_layer_name = student_layer_name
 
-        # Feature extraction models (created when needed)
-        self._teacher_feature_model = None
-        self._student_feature_model = None
-
         # Convert loss structure to functions using tree.map_structure
         def convert_loss_to_function(loss_item):
             if isinstance(loss_item, str):
@@ -138,49 +150,6 @@ class FeatureDistillation(DistillationLoss):
                 return loss_item
 
         self.loss = tree.map_structure(convert_loss_to_function, loss)
-
-    def _get_features(
-        self, model, inputs, training, layer_name, feature_model_attr
-    ):
-        """Extract features from model at specified layer.
-
-        Args:
-            model: The model to extract features from.
-            inputs: Input data.
-            training: Whether model is in training mode.
-            layer_name: Name of layer to extract from (None for final output).
-            feature_model_attr: Attribute name to cache feature extraction
-                model.
-
-        Returns:
-            Extracted features.
-        """
-        # No specific layer, use the final model output
-        if layer_name is None:
-            return model(inputs, training=training)
-
-        # For intermediate layer extraction, create feature extractor if needed
-        if getattr(self, feature_model_attr) is None:
-            try:
-                setattr(
-                    self,
-                    feature_model_attr,
-                    self._create_feature_extractor(model, layer_name),
-                )
-            except ValueError as e:
-                if "no defined inputs" in str(e).lower():
-                    # Build the model by calling it with inputs first
-                    _ = model(inputs, training=training)
-                    # Now try again
-                    setattr(
-                        self,
-                        feature_model_attr,
-                        self._create_feature_extractor(model, layer_name),
-                    )
-                else:
-                    raise
-
-        return getattr(self, feature_model_attr)(inputs, training=training)
 
     def validate_model_compatibility(self, teacher, student):
         """Validate that teacher and student models are compatible for feature
@@ -338,7 +307,7 @@ class FeatureDistillation(DistillationLoss):
 
 
 @keras_export("keras.distillation.LogitsDistillation")
-class LogitsDistillation(FeatureDistillation):
+class LogitsDistillation(DistillationLoss):
     """Distillation strategy that transfers knowledge from final model outputs.
 
     This strategy applies temperature scaling to the teacher's logits before
@@ -353,8 +322,7 @@ class LogitsDistillation(FeatureDistillation):
             - String identifier (e.g., 'kl_divergence',
               'categorical_crossentropy')
             - Keras loss instance
-            - List/tuple of losses for multi-output models
-            - Dict of losses for named outputs
+            - Nested structure of losses matching the model output structure
             Defaults to 'kl_divergence'.
 
     Examples:
@@ -388,11 +356,19 @@ class LogitsDistillation(FeatureDistillation):
         temperature=3.0,
         loss="kl_divergence",
     ):
-        # Always use final outputs (no intermediate layers)
-        super().__init__(
-            loss=loss, teacher_layer_name=None, student_layer_name=None
-        )
         self.temperature = temperature
+
+        # Convert loss structure to functions using tree.map_structure
+        def convert_loss_to_function(loss_item):
+            if isinstance(loss_item, str):
+                loss_fn = keras.losses.get(loss_item)
+                if loss_fn is None:
+                    raise ValueError(f"Unknown loss function: {loss_item}")
+                return loss_fn
+            else:
+                return loss_item
+
+        self.loss = tree.map_structure(convert_loss_to_function, loss)
 
         # Validate temperature
         if not isinstance(self.temperature, (int, float)):
@@ -418,10 +394,10 @@ class LogitsDistillation(FeatureDistillation):
         """
         # Apply temperature scaling using tree.map_structure
         teacher_scaled = tree.map_structure(
-            lambda x: x / self.temperature, teacher_outputs
+            lambda x: keras.ops.divide(x, self.temperature), teacher_outputs
         )
         student_scaled = tree.map_structure(
-            lambda x: x / self.temperature, student_outputs
+            lambda x: keras.ops.divide(x, self.temperature), student_outputs
         )
 
         # Apply loss function(s) to corresponding outputs
@@ -451,19 +427,14 @@ class LogitsDistillation(FeatureDistillation):
 
     def get_config(self):
         """Get configuration for serialization."""
-        config = super().get_config()
-        config["temperature"] = self.temperature
-        return config
+        return {
+            "temperature": self.temperature,
+            "loss": serialization_lib.serialize_keras_object(self.loss),
+        }
 
     @classmethod
     def from_config(cls, config):
         """Create instance from configuration."""
         config = config.copy()
         config["loss"] = keras.losses.deserialize(config["loss"])
-
-        # Filter out parameters that LogitsDistillation doesn't accept
-        # (inherited from FeatureDistillation's get_config)
-        config.pop("teacher_layer_name", None)
-        config.pop("student_layer_name", None)
-
         return cls(**config)

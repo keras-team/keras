@@ -67,8 +67,12 @@ class TestDistiller(TestCase):
             student=self.student,
             strategies=self.strategy,
             student_loss_weight=0.5,
+        )
+
+        # Compile distiller
+        self.distiller.compile(
             optimizer="adam",
-            student_loss="sparse_categorical_crossentropy",
+            loss="sparse_categorical_crossentropy",
             metrics=["accuracy"],
         )
 
@@ -132,8 +136,6 @@ class TestDistiller(TestCase):
             student=self.student,
             strategies=self.strategy,
             student_loss_weight=0.5,
-            optimizer=keras.optimizers.Adam(),
-            student_loss="sparse_categorical_crossentropy",
         )
 
         # Teacher should now be frozen
@@ -172,8 +174,13 @@ class TestDistiller(TestCase):
             strategies=strategies,
             strategy_weights=strategy_weights,
             student_loss_weight=0.5,
+        )
+
+        # Compile distiller
+        distiller.compile(
             optimizer="adam",
-            student_loss="sparse_categorical_crossentropy",
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
         )
 
         # Test that strategies are stored correctly
@@ -203,8 +210,6 @@ class TestDistiller(TestCase):
             student=self.student,
             strategies=strategies,
             student_loss_weight=0.5,
-            optimizer="adam",
-            student_loss="sparse_categorical_crossentropy",
         )
 
         self.assertEqual(len(distiller.strategies), 2)
@@ -217,8 +222,6 @@ class TestDistiller(TestCase):
                 strategies=strategies,
                 strategy_weights=[1.0],  # Wrong length
                 student_loss_weight=0.5,
-                optimizer="adam",
-                student_loss="sparse_categorical_crossentropy",
             )
 
     def test_student_loss_weighting(self):
@@ -229,8 +232,6 @@ class TestDistiller(TestCase):
             student=self.student,
             strategies=self.strategy,
             student_loss_weight=0.0,
-            optimizer=keras.optimizers.Adam(),
-            student_loss="sparse_categorical_crossentropy",
         )
 
         # Test with student_loss_weight = 1.0 (only student loss)
@@ -239,8 +240,18 @@ class TestDistiller(TestCase):
             student=self.student,
             strategies=self.strategy,
             student_loss_weight=1.0,
-            optimizer=keras.optimizers.Adam(),
-            student_loss="sparse_categorical_crossentropy",
+        )
+
+        # Compile both distillers
+        distiller_0.compile(
+            optimizer="adam",
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
+        )
+        distiller_1.compile(
+            optimizer="adam",
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
         )
 
         # Test that they can be used for training without errors
@@ -279,8 +290,12 @@ class TestDistiller(TestCase):
             student=student,
             strategies=self.strategy,
             student_loss_weight=0.5,
-            optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            student_loss="sparse_categorical_crossentropy",
+        )
+
+        # Compile distiller
+        distiller.compile(
+            optimizer="adam",
+            loss="sparse_categorical_crossentropy",
             metrics=["accuracy"],
         )
 
@@ -350,8 +365,13 @@ class TestDistiller(TestCase):
             student=student,
             strategies=self.strategy,
             student_loss_weight=0.5,
-            optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            student_loss="sparse_categorical_crossentropy",
+        )
+
+        # Compile distiller
+        distiller.compile(
+            optimizer="adam",
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
         )
 
         # Train briefly
@@ -389,8 +409,6 @@ class TestDistiller(TestCase):
             student=student,
             strategies=self.strategy,
             student_loss_weight=0.5,
-            optimizer=keras.optimizers.Adam(learning_rate=0.01),
-            student_loss="sparse_categorical_crossentropy",
         )
 
         # Make predictions
@@ -442,8 +460,6 @@ class TestDistiller(TestCase):
             student=student,
             strategies=strategy,
             student_loss_weight=0.7,
-            optimizer=keras.optimizers.Adam(),
-            student_loss="sparse_categorical_crossentropy",
         )
 
         # Build the models by calling them
@@ -490,7 +506,6 @@ class TestDistiller(TestCase):
 
             # Compile original distiller
             original_distiller.compile(
-                optimizer=keras.optimizers.Adam(),
                 loss="sparse_categorical_crossentropy",
             )
 

@@ -25,14 +25,15 @@ class Distiller(Model):
             have the same length as `strategies`. If None, equal weights used.
         student_loss_weight: Weight for the student's supervised loss component.
             Must be between 0 and 1. Defaults to 0.5.
-        optimizer: Optimizer for training the student model. Can be a string
-            identifier (e.g., `'adam'`) or an optimizer instance.
-        student_loss: Loss function for the student's supervised learning
-            component. Can be a string identifier or a loss function instance.
-        metrics: List of metrics to track during training.
         name: Name for the distiller model. Defaults to `"distiller"`.
         **kwargs: Additional keyword arguments passed to the parent `Model`
             class.
+
+    Attributes:
+        student: The student model being trained. Access this to get the trained
+            student model for independent use after distillation training.
+        teacher: The teacher model providing knowledge. This model is frozen
+            during training.
 
     Examples:
 
@@ -50,15 +51,20 @@ class Distiller(Model):
         teacher=teacher,
         student=student,
         strategies=LogitsDistillation(temperature=3.0),
+    )
+
+    # Compile the distiller (like any Keras model)
+    distiller.compile(
         optimizer='adam',
-        student_loss='sparse_categorical_crossentropy'
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
     )
 
     # Train the distiller
     distiller.fit(x_train, y_train, epochs=10)
 
     # Access the trained student model
-    trained_student = distiller.student_model
+    trained_student = distiller.student
 
     # Multiple distillation strategies
     distiller = Distiller(
@@ -72,8 +78,13 @@ class Distiller(Model):
             )
         ],
         strategy_weights=[1.0, 0.5],
+    )
+
+    # Compile with custom settings
+    distiller.compile(
         optimizer='adam',
-        student_loss='sparse_categorical_crossentropy'
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
     )
     ```
     """
@@ -85,9 +96,6 @@ class Distiller(Model):
         strategies,
         strategy_weights=None,
         student_loss_weight=0.5,
-        optimizer="adam",
-        student_loss="sparse_categorical_crossentropy",
-        metrics=None,
         name="distiller",
         **kwargs,
     ):
@@ -112,35 +120,6 @@ class Distiller(Model):
                 f"got {student_loss_weight}"
             )
         self.student_loss_weight = student_loss_weight
-
-        # Validate metrics parameter
-        if metrics is not None and not isinstance(metrics, (list, tuple)):
-            raise ValueError(
-                f"metrics must be a list or tuple, got {type(metrics)}"
-            )
-
-            # Convert string loss to function using tree.map_structure
-
-        def convert_loss_to_function(loss):
-            if isinstance(loss, str):
-                loss_fn = keras.losses.get(loss)
-                if loss_fn is None:
-                    raise ValueError(
-                        f"Unknown loss function: '{loss}'. "
-                        "Please provide a valid loss function name or instance."
-                    )
-                return loss_fn
-            elif loss is None:
-                raise ValueError(
-                    "Student loss function cannot be None. "
-                    "Please provide a valid 'student_loss' parameter."
-                )
-            else:
-                return loss
-
-        self._student_loss = tree.map_structure(
-            convert_loss_to_function, student_loss
-        )
 
         # Handle strategies configuration
         if strategies is None:
@@ -183,9 +162,6 @@ class Distiller(Model):
         )
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
 
-        # Initialize the model - compile with provided parameters
-        self.compile(optimizer=optimizer, loss=student_loss, metrics=metrics)
-
     def _validate_models(self, teacher, student):
         """Validate that teacher and student models are compatible."""
         # Basic model type validation
@@ -223,36 +199,14 @@ class Distiller(Model):
         if teacher_inputs is None or student_inputs is None:
             return
 
-        # Handle single input case
-        if not isinstance(teacher_inputs, (list, tuple)):
-            teacher_inputs = [teacher_inputs]
-        if not isinstance(student_inputs, (list, tuple)):
-            student_inputs = [student_inputs]
-
-        # Check number of inputs
-        if len(teacher_inputs) != len(student_inputs):
-            raise ValueError(
-                f"Teacher and student must have the same number of inputs. "
-                f"Teacher has {len(teacher_inputs)} inputs, "
-                f"student has {len(student_inputs)} inputs."
-            )
-
-        # Check input shapes
-        for i, (teacher_input, student_input) in enumerate(
-            zip(teacher_inputs, student_inputs)
-        ):
-            teacher_shape = teacher_input.shape
-            student_shape = student_input.shape
-
-            # Check if shapes are compatible (allowing for batch dimension
-            # flexibility)
-            if not self._shapes_are_compatible(teacher_shape, student_shape):
-                raise ValueError(
-                    f"Input {i} shapes are incompatible. "
-                    f"Teacher input shape: {teacher_shape}, "
-                    f"Student input shape: {student_shape}. "
-                    f"All dimensions except batch size must match."
-                )
+        # Validate input structures and shapes
+        tree.map_structure(
+            lambda ti, si: self._assert_shapes_are_compatible(
+                ti.shape, si.shape, "input"
+            ),
+            teacher_inputs,
+            student_inputs,
+        )
 
     def _validate_output_compatibility(self, teacher, student):
         """Validate that teacher and student have compatible output shapes."""
@@ -264,35 +218,24 @@ class Distiller(Model):
         if teacher_outputs is None or student_outputs is None:
             return
 
-        # Handle single output case
-        if not isinstance(teacher_outputs, (list, tuple)):
-            teacher_outputs = [teacher_outputs]
-        if not isinstance(student_outputs, (list, tuple)):
-            student_outputs = [student_outputs]
+        # Validate output structures and shapes
+        tree.map_structure(
+            lambda to, so: self._assert_shapes_are_compatible(
+                to.shape, so.shape, "output"
+            ),
+            teacher_outputs,
+            student_outputs,
+        )
 
-        # Check number of outputs
-        if len(teacher_outputs) != len(student_outputs):
+    def _assert_same_dtype(self, teacher_dtype, student_dtype, context):
+        """Assert that teacher and student dtypes are the same."""
+        if teacher_dtype != student_dtype:
             raise ValueError(
-                f"Teacher and student must have the same number of outputs. "
-                f"Teacher has {len(teacher_outputs)} outputs, "
-                f"student has {len(student_outputs)} outputs."
+                f"Teacher and student {context} dtypes are incompatible. "
+                f"Teacher {context} dtype: {teacher_dtype}, "
+                f"Student {context} dtype: {student_dtype}. "
+                f"Both models must use the same data type."
             )
-
-        # Check output shapes
-        for i, (teacher_output, student_output) in enumerate(
-            zip(teacher_outputs, student_outputs)
-        ):
-            teacher_shape = teacher_output.shape
-            student_shape = student_output.shape
-
-            # For distillation, output shapes should be compatible
-            if not self._shapes_are_compatible(teacher_shape, student_shape):
-                raise ValueError(
-                    f"Output {i} shapes are incompatible. "
-                    f"Teacher output shape: {teacher_shape}, "
-                    f"Student output shape: {student_shape}. "
-                    f"All dimensions except batch size must match."
-                )
 
     def _validate_dtype_compatibility(self, teacher, student):
         """Validate that teacher and student have compatible data types."""
@@ -301,68 +244,53 @@ class Distiller(Model):
             return
         if teacher.inputs is None or student.inputs is None:
             return
-        teacher_dtypes = [input.dtype for input in teacher.inputs]
-        student_dtypes = [input.dtype for input in student.inputs]
 
         # Check input dtypes
-        for i, (teacher_dtype, student_dtype) in enumerate(
-            zip(teacher_dtypes, student_dtypes)
-        ):
-            if teacher_dtype != student_dtype:
-                raise ValueError(
-                    f"Input {i} data types are incompatible. "
-                    f"Teacher dtype: {teacher_dtype}, "
-                    f"Student dtype: {student_dtype}."
-                )
+        tree.map_structure(
+            lambda ti, si: self._assert_same_dtype(ti.dtype, si.dtype, "input"),
+            teacher.inputs,
+            student.inputs,
+        )
 
         # Check output dtypes
-        teacher_output_dtypes = [output.dtype for output in teacher.outputs]
-        student_output_dtypes = [output.dtype for output in student.outputs]
+        if not hasattr(teacher, "outputs") or not hasattr(student, "outputs"):
+            return
+        if teacher.outputs is None or student.outputs is None:
+            return
 
-        for i, (teacher_dtype, student_dtype) in enumerate(
-            zip(teacher_output_dtypes, student_output_dtypes)
-        ):
-            if teacher_dtype != student_dtype:
-                raise ValueError(
-                    f"Output {i} data types are incompatible. "
-                    f"Teacher output dtype: {teacher_dtype}, "
-                    f"Student output dtype: {student_dtype}. "
-                    f"Both models must use the same data type."
-                )
+        tree.map_structure(
+            lambda to, so: self._assert_same_dtype(
+                to.dtype, so.dtype, "output"
+            ),
+            teacher.outputs,
+            student.outputs,
+        )
 
     def _validate_strategy_compatibility(self, teacher, student, strategy):
         """Validate that the strategy is compatible with the teacher and student
         models."""
-        if hasattr(strategy, "validate_model_compatibility"):
-            strategy.validate_model_compatibility(teacher, student)
+        strategy.validate_model_compatibility(teacher, student)
 
-    def _shapes_are_compatible(self, shape1, shape2):
-        """Check if two shapes are compatible (allowing for batch dimension
+    def _assert_shapes_are_compatible(self, shape1, shape2, context):
+        """Assert that two shapes are compatible (allowing for batch dimension
         flexibility)."""
-        # Convert to lists for easier handling
-        if hasattr(shape1, "as_list"):
-            shape1 = shape1.as_list()
-        elif hasattr(shape1, "__iter__"):
-            shape1 = list(shape1)
-        else:
-            shape1 = [shape1]
-
-        if hasattr(shape2, "as_list"):
-            shape2 = shape2.as_list()
-        elif hasattr(shape2, "__iter__"):
-            shape2 = list(shape2)
-        else:
-            shape2 = [shape2]
-
         # Check if they have the same number of dimensions
         if len(shape1) != len(shape2):
-            return False
+            raise ValueError(
+                f"Teacher and student {context} shapes have different number "
+                f"of dimensions. Teacher {context} shape: {shape1}, "
+                f"Student {context} shape: {shape2}."
+            )
 
-        # Check all dimensions except the first (batch dimension)
-        for dim1, dim2 in zip(shape1[1:], shape2[1:]):
+        # Check all dimensions (including batch dimension for distillation)
+        for dim1, dim2 in zip(shape1, shape2):
             if dim1 is not None and dim2 is not None and dim1 != dim2:
-                return False
-        return True
+                raise ValueError(
+                    f"Teacher and student {context} shapes are incompatible. "
+                    f"Teacher {context} shape: {shape1}, "
+                    f"Student {context} shape: {shape2}. "
+                    f"All dimensions must match for distillation."
+                )
 
     def _create_multi_feature_extractors(self):
         """Create feature extractors for efficient multi-layer extraction."""
@@ -385,21 +313,29 @@ class Distiller(Model):
                     student_layer_names.append(strategy.student_layer_name)
 
         # Create multi-output feature extractors if needed
-        self._teacher_feature_extractor = None
-        self._student_feature_extractor = None
+        self._teacher_feature_extractor = (
+            self._create_feature_extractor(self.teacher, teacher_layer_names)
+            if teacher_layer_names
+            else None
+        )
 
-        if teacher_layer_names:
-            self._create_feature_extractor(
-                self.teacher, teacher_layer_names, "teacher"
-            )
+        self._student_feature_extractor = (
+            self._create_feature_extractor(self.student, student_layer_names)
+            if student_layer_names
+            else None
+        )
 
-        if student_layer_names:
-            self._create_feature_extractor(
-                self.student, student_layer_names, "student"
-            )
+    def _create_feature_extractor(self, model, layer_names):
+        """Create a feature extractor for a model.
 
-    def _create_feature_extractor(self, model, layer_names, model_type):
-        """Create feature extractor for a model."""
+        Args:
+            model: The model to create an extractor for.
+            layer_names: List of layer names to extract features from.
+
+        Returns:
+            keras.Model: Feature extractor that returns a dict of features,
+            or None if extractor creation fails.
+        """
         try:
             # Get model inputs and final output
             if isinstance(model, keras.Sequential):
@@ -408,45 +344,30 @@ class Distiller(Model):
             else:
                 if not hasattr(model, "inputs") or model.inputs is None:
                     raise ValueError(
-                        f"{model_type} model has no defined inputs"
+                        f"{model.name} model has no defined inputs"
                     )
                 if not hasattr(model, "output") or model.output is None:
                     raise ValueError(
-                        f"{model_type} model has no defined output"
+                        f"{model.name} model has no defined output"
                     )
                 final_output = model.output
                 inputs = model.inputs
 
             # Collect outputs
-            outputs = [final_output]  # Always include final output
-            output_names = ["final_output"]
-
+            outputs = {"final_output": final_output}
             for layer_name in layer_names:
                 layer = model.get_layer(name=layer_name)
-                outputs.append(layer.output)
-                output_names.append(layer_name)
+                outputs[layer_name] = layer.output
 
-            # Create extractor
-            extractor = keras.Model(
+            # Create and return extractor
+            return keras.Model(
                 inputs=inputs,
                 outputs=outputs,
                 name=f"{model.name}_multi_feature_extractor",
             )
-
-            # Store based on model type
-            if model_type == "teacher":
-                self._teacher_feature_extractor = extractor
-                self._teacher_output_names = output_names
-            else:
-                self._student_feature_extractor = extractor
-                self._student_output_names = output_names
-
         except (ValueError, AttributeError):
             # Fallback for subclassed models
-            if model_type == "teacher":
-                self._teacher_feature_extractor = None
-            else:
-                self._student_feature_extractor = None
+            return None
 
     def _extract_all_teacher_features(self, x):
         """Extract all teacher features in a single forward pass.
@@ -458,18 +379,8 @@ class Distiller(Model):
             Dict mapping layer names to their outputs.
         """
         if self._teacher_feature_extractor is not None:
-            # Use efficient multi-output extractor
-            feature_outputs = self._teacher_feature_extractor(x, training=False)
-            if not isinstance(feature_outputs, (list, tuple)):
-                feature_outputs = [feature_outputs]
-
-            # Map outputs to layer names
-            features = {}
-            for name, output in zip(
-                self._teacher_output_names, feature_outputs
-            ):
-                features[name] = output
-            return features
+            # Use efficient multi-output extractor (returns dict directly)
+            return self._teacher_feature_extractor(x, training=False)
         else:
             # Fallback: just get final output for LogitsDistillation
             return {"final_output": self.teacher(x, training=False)}
@@ -485,18 +396,8 @@ class Distiller(Model):
             Dict mapping layer names to their outputs.
         """
         if self._student_feature_extractor is not None:
-            # Use efficient multi-output extractor
-            feature_outputs = self._student_feature_extractor(x, training=True)
-            if not isinstance(feature_outputs, (list, tuple)):
-                feature_outputs = [feature_outputs]
-
-            # Map outputs to layer names
-            features = {}
-            for name, output in zip(
-                self._student_output_names, feature_outputs
-            ):
-                features[name] = output
-            return features
+            # Use efficient multi-output extractor (returns dict directly)
+            return self._student_feature_extractor(x, training=True)
         else:
             # Fallback: use y_pred for final output to avoid recomputation
             return {"final_output": y_pred}
@@ -530,12 +431,41 @@ class Distiller(Model):
 
         Args:
             optimizer: Optimizer for training the student model.
-            loss: Student loss function (stored for serialization).
+            loss: Student loss function for the student's supervised learning.
+                Can be a string identifier or a loss function instance.
             metrics: Additional metrics to track during training.
             **kwargs: Additional arguments passed to parent compile.
         """
-        # Store the student loss for serialization (not used in training)
+        # Validate and convert student loss
+        if loss is None:
+            raise ValueError(
+                "Student loss function cannot be None. "
+                "Please provide a valid 'loss' parameter."
+            )
+
+        # Convert string loss to function using tree.map_structure
+        def convert_loss_to_function(loss_item):
+            if isinstance(loss_item, str):
+                loss_fn = keras.losses.get(loss_item)
+                if loss_fn is None:
+                    raise ValueError(
+                        f"Unknown loss function: '{loss_item}'. "
+                        "Please provide a valid loss function name or instance."
+                    )
+                return loss_fn
+            else:
+                return loss_item
+
+        self._student_loss = tree.map_structure(convert_loss_to_function, loss)
+
+        # Store the student loss for serialization
         self._student_loss_for_serialization = loss
+
+        # Validate metrics parameter
+        if metrics is not None and not isinstance(metrics, (list, tuple)):
+            raise ValueError(
+                f"metrics must be a list or tuple, got {type(metrics)}"
+            )
 
         # Compile with a dummy loss since we override compute_loss
         super().compile(
@@ -544,15 +474,6 @@ class Distiller(Model):
             metrics=metrics,
             **kwargs,
         )
-
-    @property
-    def student_model(self):
-        """The trained student model for independent use.
-
-        Returns:
-            keras.Model: The trained student model.
-        """
-        return self.student
 
     def call(self, inputs, training=None, **kwargs):
         """Forward pass returns student predictions."""
@@ -579,44 +500,41 @@ class Distiller(Model):
         # Compute student loss using tree operations for dicts, manual for lists
         student_loss = 0.0
         if self.student_loss_weight > 0.0 and y is not None:
-            if isinstance(self._student_loss, dict):
-                # Dict case - check keys match at runtime
-                loss_keys = set(self._student_loss.keys())
-                y_keys = set(y.keys())
-                pred_keys = set(y_pred.keys())
-                if loss_keys != y_keys or y_keys != pred_keys:
-                    raise ValueError(
-                        f"Keys must match across loss functions, targets, and "
-                        f"predictions. Loss keys: {loss_keys}, "
-                        f"Target keys: {y_keys}, Prediction keys: {pred_keys}"
-                    )
-
-                loss_values = {
-                    key: self._student_loss[key](y[key], y_pred[key])
-                    for key in self._student_loss.keys()
-                }
+            # Use tree.map_structure for cleaner loss computation
+            try:
+                loss_values = tree.map_structure(
+                    lambda l, o, o_pred: l(o, o_pred),
+                    self._student_loss,
+                    y,
+                    y_pred,
+                )
                 flat_losses = tree.flatten(loss_values)
-                student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
-            elif isinstance(self._student_loss, (list, tuple)):
-                # List/tuple case - check lengths match at runtime (can change)
-                if len(y) != len(y_pred) or len(self._student_loss) != len(y):
-                    raise ValueError(
-                        f"Number of targets ({len(y)}), predictions "
-                        f"({len(y_pred)}), and loss functions "
-                        f"({len(self._student_loss)}) must match."
-                    )
-
-                loss_values = [
-                    loss_fn(y_true, y_pred_i)
-                    for loss_fn, y_true, y_pred_i in zip(
-                        self._student_loss, y, y_pred
-                    )
-                ]
-                flat_losses = tree.flatten(loss_values)
-                student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
-            else:
-                # Single output case
-                student_loss = self._student_loss(y, y_pred)
+                student_loss = (
+                    keras.ops.sum(keras.ops.stack(flat_losses))
+                    if len(flat_losses) > 1
+                    else flat_losses[0]
+                )
+            except (ValueError, TypeError):
+                # Fallback for TrackedDict compatibility issues
+                if isinstance(self._student_loss, dict):
+                    loss_values = {
+                        key: self._student_loss[key](y[key], y_pred[key])
+                        for key in self._student_loss.keys()
+                    }
+                    flat_losses = tree.flatten(loss_values)
+                    student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
+                elif isinstance(self._student_loss, (list, tuple)):
+                    loss_values = [
+                        loss_fn(y_true, y_pred_i)
+                        for loss_fn, y_true, y_pred_i in zip(
+                            self._student_loss, y, y_pred
+                        )
+                    ]
+                    flat_losses = tree.flatten(loss_values)
+                    student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
+                else:
+                    # Single output case
+                    student_loss = self._student_loss(y, y_pred)
 
             # Ensure student_loss is a scalar
             if hasattr(student_loss, "shape") and len(student_loss.shape) > 0:
@@ -667,7 +585,9 @@ class Distiller(Model):
                 )
 
                 # Apply weight and add to total
-                distillation_loss += weight * strategy_loss
+                distillation_loss = keras.ops.add(
+                    distillation_loss, keras.ops.multiply(weight, strategy_loss)
+                )
 
             # Ensure distillation_loss is a scalar
             if (
@@ -677,9 +597,12 @@ class Distiller(Model):
                 distillation_loss = keras.ops.mean(distillation_loss)
 
         # Combine losses
-        total_loss = (
-            self.student_loss_weight * student_loss
-            + (1.0 - self.student_loss_weight) * distillation_loss
+        total_loss = keras.ops.add(
+            keras.ops.multiply(self.student_loss_weight, student_loss),
+            keras.ops.multiply(
+                keras.ops.subtract(1.0, self.student_loss_weight),
+                distillation_loss,
+            ),
         )
 
         # Update metrics
@@ -695,31 +618,6 @@ class Distiller(Model):
         self.student_loss_tracker.reset_state()
         self.distillation_loss_tracker.reset_state()
         self.total_loss_tracker.reset_state()
-
-    @property
-    def metrics(self):
-        """Return list of metrics."""
-        # Get parent metrics (from compile)
-        parent_metrics = []
-        if hasattr(super(), "metrics"):
-            parent_metrics = [
-                m
-                for m in super().metrics
-                if m
-                not in [
-                    self.total_loss_tracker,
-                    self.student_loss_tracker,
-                    self.distillation_loss_tracker,
-                ]
-            ]
-
-        # Add our custom loss trackers first
-        distillation_metrics = [
-            self.total_loss_tracker,
-            self.student_loss_tracker,
-            self.distillation_loss_tracker,
-        ]
-        return distillation_metrics + parent_metrics
 
     def get_config(self):
         """Get configuration for serialization."""
@@ -738,18 +636,6 @@ class Distiller(Model):
                 ],
                 "strategy_weights": self.strategy_weights,
                 "student_loss_weight": self.student_loss_weight,
-                # Save current state, not initial parameters
-                "optimizer": serialization_lib.serialize_keras_object(
-                    self.optimizer
-                )
-                if hasattr(self, "optimizer") and self.optimizer
-                else None,
-                "student_loss": serialization_lib.serialize_keras_object(
-                    getattr(self, "_student_loss_for_serialization", None)
-                ),
-                # Note: metrics are not easily serializable due to
-                # CompileMetrics complexity, so we skip them in serialization
-                "metrics": None,
             }
         )
         return config
@@ -770,19 +656,5 @@ class Distiller(Model):
             serialization_lib.deserialize_keras_object(strategy)
             for strategy in config["strategies"]
         ]
-
-        # Handle optional parameters
-        if "optimizer" in config and config["optimizer"] is not None:
-            config["optimizer"] = serialization_lib.deserialize_keras_object(
-                config["optimizer"]
-            )
-        if "student_loss" in config and config["student_loss"] is not None:
-            config["student_loss"] = serialization_lib.deserialize_keras_object(
-                config["student_loss"]
-            )
-        if "metrics" in config and config["metrics"] is not None:
-            config["metrics"] = serialization_lib.deserialize_keras_object(
-                config["metrics"]
-            )
 
         return cls(**config)
