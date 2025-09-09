@@ -80,12 +80,10 @@ def export_onnx(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
-    input_names = []
-    for i, spec in enumerate(input_signature):
-        name = getattr(spec, "name", None)
-        if name is None:
-            name = f"input_{i}"
-        input_names.append(name)
+    input_names = [
+        getattr(spec, "name", None) or f"input_{i}"
+        for i, spec in enumerate(input_signature)
+    ]
 
     if backend.backend() in ("tensorflow", "jax"):
         from keras.src.utils.module_utils import tf2onnx
