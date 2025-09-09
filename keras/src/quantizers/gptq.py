@@ -453,11 +453,11 @@ class GPTQ:
             quantized, self.original_layer.quantized_kernel.dtype
         )
 
+        del self.original_layer._kernel
         self.original_layer.quantized_kernel.assign(quantized)
         self.original_layer.kernel_scale.assign(scale)
         self.original_layer.kernel_zero.assign(zero)
         self.original_layer.g_idx.assign(g_idx)
-        del self.original_layer._kernel
         self.original_layer.gptq = True
 
     def free(self):
