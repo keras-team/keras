@@ -86,8 +86,6 @@ def export_onnx(
         if name is None:
             name = f"input_{i}"
         input_names.append(name)
-else:
-    input_names = [f"input_{i}" for i in range(len(model.inputs))]
 
     if backend.backend() in ("tensorflow", "jax"):
         from keras.src.utils.module_utils import tf2onnx
