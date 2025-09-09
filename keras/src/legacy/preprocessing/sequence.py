@@ -149,18 +149,22 @@ class TimeseriesGenerator(PyDataset):
         except TypeError as e:
             raise TypeError(f"Targets not JSON Serializable: {targets}") from e
 
-        return {
-            "data": json_data,
-            "targets": json_targets,
-            "length": self.length,
-            "sampling_rate": self.sampling_rate,
-            "stride": self.stride,
-            "start_index": self.start_index,
-            "end_index": self.end_index,
-            "shuffle": self.shuffle,
-            "reverse": self.reverse,
-            "batch_size": self.batch_size,
-        }
+        config = super().get_config()
+        config.update(
+            {
+                "data": json_data,
+                "targets": json_targets,
+                "length": self.length,
+                "sampling_rate": self.sampling_rate,
+                "stride": self.stride,
+                "start_index": self.start_index,
+                "end_index": self.end_index,
+                "shuffle": self.shuffle,
+                "reverse": self.reverse,
+                "batch_size": self.batch_size,
+            }
+        )
+        return config
 
     def to_json(self, **kwargs):
         """Returns a JSON string containing the generator's configuration.
