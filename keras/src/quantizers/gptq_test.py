@@ -576,7 +576,6 @@ class TestModelQuantization(testing.TestCase):
 
         # Build classifier and tokenizer
         model = _get_sequence_classifier()
-        model.compile(jit_compile=False, run_eagerly=True)
         tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
 
         # Build an eval batch drawn from the SAME distribution as calibration
@@ -624,7 +623,7 @@ class TestModelQuantization(testing.TestCase):
             "mode": "gptq",
             "config": {"weight_bits": 4},
             "expected_exception": ValueError,
-            "error_msg": "must be of type",
+            "error_msg": "Mode 'gptq' requires a valid `config`",
         },
         {
             "testcase_name": "non_gptq_with_unsupported_config",
