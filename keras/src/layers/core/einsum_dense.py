@@ -13,6 +13,8 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -164,7 +166,10 @@ class EinsumDense(Layer):
         self.full_output_shape = tuple(full_output_shape)
         self.input_spec = InputSpec(ndim=len(input_shape))
         if self.quantization_mode is not None:
-            self.quantized_build(kernel_shape, mode=self.quantization_mode)
+            self.quantized_build(
+                kernel_shape,
+                mode=self.quantization_mode,
+            )
         # Skip creating a duplicate kernel variable when the layer is already
         # quantized to int8 or int4, because `quantized_build` has created the
         # appropriate kernel variable. For other modes (e.g., float8 or no
@@ -284,7 +289,9 @@ class EinsumDense(Layer):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
         kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
-        target_variables = [kernel_value]
+        target_variables = (
+            [kernel_value] if self.quantization_mode != "gptq" else []
+        )
         if self.bias is not None:
             target_variables.append(self.bias)
         if self.quantization_mode is not None:
@@ -297,6 +304,11 @@ class EinsumDense(Layer):
                 target_variables.append(self.kernel_amax_history)
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
+            elif self.quantization_mode == "gptq":
+                target_variables.append(self.quantized_kernel)
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_zero)
+                target_variables.append(self.g_idx)
             else:
                 raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
@@ -310,7 +322,7 @@ class EinsumDense(Layer):
             return
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        target_variables = [self._kernel]
+        target_variables = [self._kernel] if self.quantization_mode != "gptq" else []
         if self.bias is not None:
             target_variables.append(self.bias)
         if self.quantization_mode is not None:
@@ -323,6 +335,11 @@ class EinsumDense(Layer):
                 target_variables.append(self.kernel_amax_history)
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
+            elif self.quantization_mode == "gptq":
+                target_variables.append(self.quantized_kernel)
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_zero)
+                target_variables.append(self.g_idx)
             else:
                 raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
@@ -391,17 +408,15 @@ class EinsumDense(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    # Quantization-related (int8 and float8) methods
-
-    def quantized_build(self, kernel_shape, mode, config):
+    def quantized_build(self, input_shape, mode, config=None):
         if mode == "int8":
-            self._int8_build(kernel_shape)
+            self._int8_build(input_shape)
         elif mode == "int4":
-            self._int4_build(kernel_shape)
+            self._int4_build(input_shape)
         elif mode == "float8":
             self._float8_build()
         elif mode == "gptq":
-            self._gptq_build(kernel_shape, config=config)
+            self._gptq_build(input_shape, config)
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
@@ -466,10 +481,19 @@ class EinsumDense(Layer):
             else:
                 raise ValueError("Could not determine row/column split.")
 
-        if config.group_size == -1:
+        if isinstance(self.dtype_policy, GPTQDTypePolicy):
+            policy_group_size = self.dtype_policy.group_size
+        elif isinstance(self.dtype_policy, DTypePolicyMap):
+            policy_group_size = self.dtype_policy[self.path].group_size
+        else:
+            policy_group_size = None
+        group_size = (
+            config.group_size if config else policy_group_size
+        )
+        if group_size == -1:
             n_groups = 1
         else:
-            n_groups = ceil(rows / config.group_size)
+            n_groups = ceil(rows / group_size)
 
         if hasattr(self, "_set_quantization_info"):
             self._set_quantization_info()
@@ -895,7 +919,7 @@ class EinsumDense(Layer):
             )
             kernel_value = packed_kernel_value
             del self._kernel
-        self.quantized_build(kernel_shape, mode, config=config)
+        self.quantized_build(kernel_shape, mode, config)
 
         # Assign values to the newly created variables.
         if mode in ("int8", "int4"):
@@ -905,6 +929,9 @@ class EinsumDense(Layer):
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:
             policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            if mode == "gptq":
+                policy.weight_bits = config.weight_bits
+                policy.group_size = config.group_size
             self.dtype_policy = policy
 
     def _get_kernel_scale_shape(self, kernel_shape):
@@ -965,7 +992,7 @@ class EinsumDense(Layer):
                     This is `None` if the layer is not quantized.
         """
         # If not a quantized layer, return the full-precision kernel directly.
-        if self.dtype_policy.quantization_mode is None:
+        if self.dtype_policy.quantization_mode in (None, "gptq"):
             return self.kernel, None
 
         # If quantized but LoRA is not enabled, return the original quantized

@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 
 import numpy as np
@@ -9,6 +10,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
@@ -410,16 +412,28 @@ def _get_sequence_classifier():
     num_heads = 4
     ff_dim = 32
 
+    @keras.saving.register_keras_serializable(package="GPTQTest")
     class SimpleTransformerBlock(layers.Layer):
         def __init__(self, embed_dim, num_heads, ff_dim, **kwargs):
             super().__init__(**kwargs)
+            self.embed_dim = embed_dim
+            self.num_heads = num_heads
+            self.ff_dim = ff_dim
+
             self.att = layers.MultiHeadAttention(
-                num_heads=num_heads, key_dim=embed_dim // num_heads
+                num_heads=num_heads, key_dim=embed_dim // num_heads, **kwargs
             )
+            sub_kwargs = kwargs.copy()
+            sub_kwargs.pop("name", None)
             self.ffn = models.Sequential(
                 [
-                    layers.Dense(ff_dim, activation="relu", use_bias=True),
-                    layers.Dense(embed_dim, use_bias=True),
+                    layers.Dense(
+                        ff_dim,
+                        activation="relu",
+                        use_bias=True,
+                        name="ffn_dense_1",
+                    ),
+                    layers.Dense(embed_dim, use_bias=True, name="ffn_dense_2"),
                 ]
             )
             self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
@@ -430,6 +444,19 @@ def _get_sequence_classifier():
             out1 = self.layernorm1(inputs + attention_output)
             ffn_output = self.ffn(out1)
             return self.layernorm2(out1 + ffn_output)
+
+        def get_config(self):
+            base_config = super().get_config()
+            config = {
+                "embed_dim": self.embed_dim,
+                "num_heads": self.num_heads,
+                "ff_dim": self.ff_dim,
+            }
+            return {**base_config, **config}
+
+        @classmethod
+        def from_config(cls, config):
+            return cls(**config)
 
     inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
     x = layers.Embedding(VOCAB_SIZE, embed_dim)(inputs)
@@ -616,6 +643,16 @@ class TestModelQuantization(testing.TestCase):
             top1_match, 0.5, f"Top-1 agreement too low: {top1_match:.3f}"
         )
         self.assertLessEqual(kl, 0.30, f"KL divergence too high: {kl:.3f}")
+
+        # Save and load the quantized model
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded = saving.load_model(temp_filepath)
+        self.assertAllClose(
+            model.predict(x_eval), loaded.predict(x_eval), atol=1e-6
+        )
 
     @parameterized.named_parameters(
         {

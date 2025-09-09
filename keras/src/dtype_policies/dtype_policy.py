@@ -288,6 +288,38 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         return config
 
 
+@keras_export("keras.dtype_policies.GPTQDTypePolicy")
+class GPTQDTypePolicy(QuantizedDTypePolicy):
+    def __init__(
+        self,
+        mode,
+        source_name=None,
+        weight_bits=None,
+        group_size=None,
+    ):
+        super().__init__(
+            mode=mode,
+            source_name=source_name,
+        )
+        self.weight_bits = weight_bits
+        self.group_size = group_size
+
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return (
+            self.weight_bits == other.weight_bits
+            and self.group_size == other.group_size
+        )
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {"weight_bits": self.weight_bits, "group_size": self.group_size}
+        )
+        return config
+
+
 @keras_export(
     [
         "keras.config.set_dtype_policy",
@@ -350,12 +382,10 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
-    if (
-        policy.startswith("int8")
-        or policy.startswith("int4")
-        or policy.startswith("gptq")
-    ):
+    if policy.startswith("int8") or policy.startswith("int4"):
         return QuantizedDTypePolicy(mode, source_name)
+    elif policy.startswith("gptq"):
+        return GPTQDTypePolicy(mode, source_name)
     elif policy.startswith("float8"):
         return QuantizedFloat8DTypePolicy(mode, source_name)
     else:

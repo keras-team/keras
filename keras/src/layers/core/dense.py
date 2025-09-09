@@ -9,6 +9,8 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -111,7 +113,10 @@ class Dense(Layer):
     def build(self, input_shape):
         kernel_shape = (input_shape[-1], self.units)
         if self.quantization_mode:
-            self.quantized_build(kernel_shape, mode=self.quantization_mode)
+            self.quantized_build(
+                kernel_shape,
+                mode=self.quantization_mode,
+            )
         if self.quantization_mode not in ("int8", "int4", "gptq"):
             # If the layer is quantized to int8 or int4, `self._kernel` will be
             # added in `self._int8_build` or `_int4_build`. Therefore, we skip
@@ -225,7 +230,9 @@ class Dense(Layer):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
         kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
-        target_variables = [kernel_value]
+        target_variables = (
+            [kernel_value] if self.quantization_mode != "gptq" else []
+        )
         if self.use_bias:
             target_variables.append(self.bias)
         if self.quantization_mode is not None:
@@ -238,6 +245,11 @@ class Dense(Layer):
                 target_variables.append(self.kernel_amax_history)
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
+            elif self.quantization_mode == "gptq":
+                target_variables.append(self.quantized_kernel)
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_zero)
+                target_variables.append(self.g_idx)
             else:
                 raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
@@ -251,7 +263,9 @@ class Dense(Layer):
             return
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        target_variables = [self._kernel]
+        target_variables = (
+            [self._kernel] if self.quantization_mode != "gptq" else []
+        )
         if self.use_bias:
             target_variables.append(self.bias)
         if self.quantization_mode is not None:
@@ -264,6 +278,11 @@ class Dense(Layer):
                 target_variables.append(self.kernel_amax_history)
                 target_variables.append(self.outputs_grad_scale)
                 target_variables.append(self.outputs_grad_amax_history)
+            elif self.quantization_mode == "gptq":
+                target_variables.append(self.quantized_kernel)
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_zero)
+                target_variables.append(self.g_idx)
             else:
                 raise self._quantization_mode_error(self.quantization_mode)
         for i, variable in enumerate(target_variables):
@@ -328,17 +347,15 @@ class Dense(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    # Quantization-related (int8 and float8) methods
-
-    def quantized_build(self, kernel_shape, mode, config):
+    def quantized_build(self, input_shape, mode, config=None):
         if mode == "int8":
-            self._int8_build(kernel_shape)
+            self._int8_build(input_shape)
         elif mode == "int4":
-            self._int4_build(kernel_shape)
+            self._int4_build(input_shape)
         elif mode == "float8":
             self._float8_build()
         elif mode == "gptq":
-            self._gptq_build(kernel_shape, config)
+            self._gptq_build(input_shape, config)
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
@@ -370,11 +387,19 @@ class Dense(Layer):
             dtype="uint8",
             trainable=False,
         )
-
-        if config.group_size == -1:
+        if isinstance(self.dtype_policy, GPTQDTypePolicy):
+            policy_group_size = self.dtype_policy.group_size
+        elif isinstance(self.dtype_policy, DTypePolicyMap):
+            policy_group_size = self.dtype_policy[self.path].group_size
+        else:
+            policy_group_size = None
+        group_size = (
+            config.group_size if config else policy_group_size
+        )
+        if group_size == -1:
             n_groups = 1
         else:
-            n_groups = ceil(self.kernel_shape[0] / config.group_size)
+            n_groups = ceil(self.kernel_shape[0] / group_size)
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=(self.units, n_groups),
@@ -730,6 +755,9 @@ class Dense(Layer):
             from keras.src import dtype_policies  # local import to avoid cycle
 
             policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            if mode == "gptq":
+                policy.weight_bits = config.weight_bits
+                policy.group_size = config.group_size
             self.dtype_policy = policy
 
     def _get_kernel_with_merged_lora(self):
@@ -761,7 +789,7 @@ class Dense(Layer):
                 `kernel_scale`: The quantization scale for the merged kernel.
                     This is `None` if the layer is not quantized.
         """
-        if self.dtype_policy.quantization_mode is None:
+        if self.dtype_policy.quantization_mode in (None, "gptq"):
             return self.kernel, None
 
         kernel_value = self._kernel

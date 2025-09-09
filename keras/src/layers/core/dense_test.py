@@ -15,6 +15,7 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 class DenseTest(testing.TestCase):
@@ -959,3 +960,18 @@ class DenseTest(testing.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_gptq_serialization(self):
+        """Test that a GPTQ-quantized layer can be serialized and deserialized
+        correctly."""
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+        config = layer.get_config()
+        new_layer = layers.Dense.from_config(config)
+        new_layer.build((None, 8))
