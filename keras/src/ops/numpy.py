@@ -5589,9 +5589,11 @@ class SearchSorted(Operation):
                 "searchsorted only supports 1-D sorted sequences. Use"
                 "keras.ops.vectorized_map to extend to N-D sequences."
             )
+        sequence_len = sorted_sequence.shape[0]
         out_type = (
             "int32"
-            if sorted_sequence.shape[0] <= np.iinfo(np.int32).max
+            if sequence_len is not None
+            and sequence_len <= np.iinfo(np.int32).max
             else "int64"
         )
         return KerasTensor(values.shape, dtype=out_type)
