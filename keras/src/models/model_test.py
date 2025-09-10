@@ -808,6 +808,14 @@ class ModelTest(testing.TestCase):
                     layer.dtype_policy.name, f"{mode}_from_float32"
                 )
                 self.assertEqual(layer.dtype_policy.quantization_mode, mode)
+        if mode == "int8":
+            self.assertLen(model.variables, 6)
+            if backend.backend() == "torch":
+                self.assertLen(list(model.named_parameters()), 6)
+        elif mode == "float8":
+            self.assertLen(model.variables, 16)
+            if backend.backend() == "torch":
+                self.assertLen(list(model.named_parameters()), 16)
 
     @parameterized.named_parameters(
         ("int8", "int8"),
