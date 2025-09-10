@@ -144,8 +144,8 @@ class GPTQTest(testing.TestCase):
 
     def test_update_hessian_invalid_input(self):
         rng = np.random.default_rng(seed=42)
-        mock_layer = _get_test_layer("Dense", kernel_shape=(16, 32))
-        gptq_instance = GPTQ(mock_layer)
+        dense = _get_test_layer("Dense", kernel_shape=(16, 32))
+        gptq_instance = GPTQ(dense)
         with self.assertRaisesRegex(ValueError, "cannot be None"):
             gptq_instance.update_hessian_with_batch(None)
         with self.assertRaisesRegex(ValueError, "cannot be empty"):

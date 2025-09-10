@@ -157,24 +157,3 @@ class GPTQConfig:
         self.group_size = group_size
         self.symmetric = symmetric
         self.activation_order = activation_order
-
-    def __getitem__(self, key):
-        return getattr(self, key)
-
-    def get_config(self):
-        return {
-            "dataset": self.dataset,
-            "tokenizer": self.tokenizer,
-            "num_samples": self.num_samples,
-            "per_channel": self.per_channel,
-            "sequence_length": self.sequence_length,
-            "hessian_damping": self.hessian_damping,
-            "weight_bits": self.weight_bits,
-            "group_size": self.group_size,
-            "symmetric": self.symmetric,
-            "activation_order": self.activation_order,
-        }
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
