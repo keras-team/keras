@@ -342,6 +342,14 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
             (2, None, 1),
         )
 
+    def test_searchsorted(self):
+        a = KerasTensor((None,))
+        v = KerasTensor((2, 3))
+
+        output = knp.searchsorted(a, v)
+        self.assertEqual(output.shape, v.shape)
+        self.assertEqual(output.dtype, "int64")
+
     def test_take(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.take(x, 1).shape, ())

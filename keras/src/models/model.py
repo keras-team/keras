@@ -442,6 +442,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     "`keras.quantizers.GPTQConfig`."
                 )
             gptq_quantize(self, config)
+            self._post_quantize(mode, **kwargs)
             return
 
         # For all other modes, verify that a config object was not passed.
@@ -477,6 +478,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.train_function = None
             self.test_function = None
             self.predict_function = None
+            self._post_quantize(mode, **kwargs)
+
+    def _post_quantize(self, mode, **kwargs):
+        if backend.backend() == "torch":
+            # We need to manually retrack `torch_params`.
+            # The reason is that after quantization, the removed variables are
+            # still referenced by `torch_params` and cannot be gc.
+            for layer in self._flatten_layers():
+                layer._track_variables()
 
     def build_from_config(self, config):
         if not config:
