@@ -32,8 +32,27 @@ class GeneratorDataAdapter(DataAdapter):
         from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_tf(x, spec):
+            is_optional = isinstance(spec, tf.OptionalSpec)
             if x is None:
-                return tf.experimental.Optional.empty(None)
+                if not is_optional:
+                    raise TypeError(
+                        "Generator yielded a `None` element where a tensor of "
+                        f"shape {spec.shape} was expected. For every optional "
+                        "tensor your generator provides, make sure that the "
+                        "generator's first two batches include a `None` value "
+                        "and an actual tensor."
+                    )
+                return tf.experimental.Optional.empty(spec._element_spec)
+            if is_optional:
+                spec = spec._element_spec
+                if spec is None:
+                    raise TypeError(
+                        f"Generator yielded a tensor of shape {x.shape} where "
+                        "a `None` element was expected. For every optional "
+                        "tensor your generator provides, make sure that the "
+                        "generator's first two batches include a `None` value "
+                        "and an actual tensor."
+                    )
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_tf_sparse(x)
             elif data_adapter_utils.is_jax_sparse(x):
@@ -48,6 +67,8 @@ class GeneratorDataAdapter(DataAdapter):
                     "dimension value wherever there is a variable input "
                     "dimension."
                 )
+            if is_optional:
+                return tf.experimental.Optional.from_value(x)
             return x
 
         def get_tf_iterator():
