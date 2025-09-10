@@ -263,9 +263,9 @@ class Dense(Layer):
         targets = []
         if mode != "gptq":
             targets.append(kernel_value)
-        if getattr(self, "bias", None) is not None:
+        if self.bias is not None:
             targets.append(self.bias)
-        if merged_kernel_scale is not None:
+        if merged_kernel_scale is not None and mode in ("int4", "int8"):
             targets.append(merged_kernel_scale)
 
         # Append per-mode attributes (order matters)
@@ -311,7 +311,7 @@ class Dense(Layer):
         targets = []
         if mode != "gptq":
             targets.append(self._kernel)
-        if getattr(self, "use_bias", False):
+        if self.bias is not None:
             targets.append(self.bias)
         targets.extend(getattr(self, name) for name in MODE_SPEC[mode])
 
