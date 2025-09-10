@@ -401,3 +401,7 @@ class Operation(KerasSaveable):
     def _post_untrack_variable(self, variable):
         """Can be overridden for per backend post untrack actions."""
         pass
+
+    def _post_quantize(self, mode, **kwargs):
+        """Can be overridden for per backend post quantize actions."""
+        pass

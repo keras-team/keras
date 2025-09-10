@@ -249,6 +249,7 @@ class Layer(BackendLayer, Operation):
             obj._tracker.unlock()
             try:
                 original_quantize_method(mode, **kwargs)
+                obj._post_quantize(mode, **kwargs)
             except Exception:
                 raise
             finally:

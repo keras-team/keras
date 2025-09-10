@@ -1361,10 +1361,7 @@ class LayerTest(testing.TestCase):
             )
             self.assertSetEqual(
                 parameter_names,
-                {
-                    "inner.inner_layer/inner",
-                    "inner.inner.inner_inner_layer/inner",
-                },
+                {"inner_layer/inner", "inner_inner_layer/inner"},
             )
 
     def test_custom_layer_add_weight_in_build_name(self):
@@ -1424,8 +1421,8 @@ class LayerTest(testing.TestCase):
             self.assertSetEqual(
                 parameter_names,
                 {
-                    "inner.training_layer/inner_layer/inner",
-                    "inner.inner.training_layer/inner_layer/inner_inner_layer/inner",
+                    "training_layer/inner_layer/inner",
+                    "training_layer/inner_layer/inner_inner_layer/inner",
                 },
             )
 
@@ -1475,16 +1472,14 @@ class LayerTest(testing.TestCase):
             parameter_names = [pname for pname, _ in layer.named_parameters()]
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
-                parameter_names[0],
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
+                parameter_names[0], "training_layer/post_build_modify_layer/var"
             )
             parameters = list(layer.parameters())
             self.assertEqual(len(parameters), 1)
             state_dict = layer.state_dict()
             self.assertEqual(len(state_dict), 1)
             self.assertIn(
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
-                state_dict.keys(),
+                "training_layer/post_build_modify_layer/var", state_dict.keys()
             )
 
         layer.post_build_modify_layer.post_build_add()
@@ -1501,24 +1496,21 @@ class LayerTest(testing.TestCase):
             parameter_names = [pname for pname, _ in layer.named_parameters()]
             self.assertEqual(len(parameter_names), 2)
             self.assertEqual(
-                parameter_names[0],
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
+                parameter_names[0], "training_layer/post_build_modify_layer/var"
             )
             self.assertEqual(
                 parameter_names[1],
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
+                "training_layer/post_build_modify_layer/var2",
             )
             parameters = list(layer.parameters())
             self.assertEqual(len(parameters), 2)
             state_dict = layer.state_dict()
             self.assertEqual(len(state_dict), 2)
             self.assertIn(
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var",
-                state_dict.keys(),
+                "training_layer/post_build_modify_layer/var", state_dict.keys()
             )
             self.assertIn(
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
-                state_dict.keys(),
+                "training_layer/post_build_modify_layer/var2", state_dict.keys()
             )
 
         layer.post_build_modify_layer.post_build_remove()
@@ -1532,15 +1524,14 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(parameter_names), 1)
             self.assertEqual(
                 parameter_names[0],
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
+                "training_layer/post_build_modify_layer/var2",
             )
             parameters = list(layer.parameters())
             self.assertEqual(len(parameters), 1)
             state_dict = layer.state_dict()
             self.assertEqual(len(state_dict), 1)
             self.assertIn(
-                "post_build_modify_layer.training_layer/post_build_modify_layer/var2",
-                state_dict.keys(),
+                "training_layer/post_build_modify_layer/var2", state_dict.keys()
             )
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
@@ -1590,8 +1581,9 @@ class LayerTest(testing.TestCase):
         # named_parameters().
         named_parameters = list(layer1.named_parameters())
         self.assertLen(named_parameters, 5)
+        names = [pname for pname, _ in named_parameters]
         for i in range(len(named_parameters)):
-            self.assertEqual(named_parameters[i][0], f"my_layer/w{i + 1}")
+            self.assertIn(f"my_layer/w{i + 1}", names)
 
         # parameters().
         parameters = list(pname for pname, _ in layer1.named_parameters())

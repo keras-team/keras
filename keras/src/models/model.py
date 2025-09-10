@@ -477,6 +477,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.train_function = None
             self.test_function = None
             self.predict_function = None
+            self._post_quantize(mode, config=config, **kwargs)
 
     def build_from_config(self, config):
         if not config:
