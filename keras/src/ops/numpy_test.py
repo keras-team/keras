@@ -3265,6 +3265,19 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.take(x, indices, axis=2), np.take(x, indices, axis=2)
         )
 
+        # Test with a Keras int64 Variable which causes weird casting behavior
+        # in TF.
+        x = rng.standard_normal((2, 3, 4, 5))
+        indices = keras.Variable(
+            initializer="ones",
+            shape=(3,),
+            dtype="int64",
+            trainable=False,
+        )
+        self.assertAllClose(
+            knp.take(x, indices, axis=2), np.take(x, indices, axis=2)
+        )
+
     @parameterized.named_parameters(
         named_product(
             [

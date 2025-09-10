@@ -2403,7 +2403,9 @@ def take(x, indices, axis=None):
 
     def fix_negative_indices(i):
         # Correct the indices using "fill" mode which is the same as in jax
-        return tf.where(i < 0, i + tf.cast(tf.shape(x)[axis], i.dtype), i)
+        return tf.where(
+            i < 0, tf.cast(i + tf.cast(tf.shape(x)[axis], i.dtype), i.dtype), i
+        )
 
     if isinstance(indices, tf.SparseTensor):
         if x.dtype not in (tf.float16, tf.float32, tf.float64, tf.bfloat16):
