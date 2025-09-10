@@ -290,6 +290,22 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
 
 @keras_export("keras.dtype_policies.GPTQDTypePolicy")
 class GPTQDTypePolicy(QuantizedDTypePolicy):
+    """Quantized dtype policy for GPTQ quantization.
+
+    This policy helps propagate quantization settings for GPTQ
+    when loading a GPTQ quantized model in Keras format.
+
+    Args:
+        mode: The quantization mode, "gptq".
+        source_name: The source dtype policy name, e.g. "float32".
+        weight_bits: Number of bits to quantize weights to. Supported values
+            are 2, 3, 4, and 8.
+        group_size: The group size for quantization. Supported values are
+            -1 (for whole-tensor quantization) or any positive integer.
+            Typically a smaller group size leads to better accuracy but
+            slower speed.
+    """
+
     def __init__(
         self,
         mode,

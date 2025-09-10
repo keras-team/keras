@@ -1,4 +1,4 @@
-from math import ceil
+import math
 
 import ml_dtypes
 
@@ -229,31 +229,50 @@ class Dense(Layer):
             return
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
-        target_variables = (
-            [kernel_value] if self.quantization_mode != "gptq" else []
-        )
-        if self.use_bias:
-            target_variables.append(self.bias)
-        if self.quantization_mode is not None:
-            if self.quantization_mode in ("int8", "int4"):
-                target_variables.append(kernel_scale)
-            elif self.quantization_mode == "float8":
-                target_variables.append(self.inputs_scale)
-                target_variables.append(self.inputs_amax_history)
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_amax_history)
-                target_variables.append(self.outputs_grad_scale)
-                target_variables.append(self.outputs_grad_amax_history)
-            elif self.quantization_mode == "gptq":
-                target_variables.append(self.quantized_kernel)
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_zero)
-                target_variables.append(self.g_idx)
-            else:
-                raise self._quantization_mode_error(self.quantization_mode)
-        for i, variable in enumerate(target_variables):
-            store[str(i)] = variable
+        mode = self.quantization_mode
+
+        # For int4/int8, the merged LoRA scale (if any) comes from
+        # `_get_kernel_with_merged_lora()` and is appended below.
+        MODE_SPEC = {
+            None: [],
+            "int4": [],
+            "int8": [],
+            "float8": [
+                "inputs_scale",
+                "inputs_amax_history",
+                "kernel_scale",
+                "kernel_amax_history",
+                "outputs_grad_scale",
+                "outputs_grad_amax_history",
+            ],
+            "gptq": [
+                "quantized_kernel",
+                "kernel_scale",
+                "kernel_zero",
+                "g_idx",
+            ],
+        }
+
+        if mode not in MODE_SPEC:
+            raise self._quantization_mode_error(mode)
+
+        # Kernel plus optional merged LoRA-aware scale (returns (kernel, None)
+        # for None/gptq)
+        kernel_value, merged_kernel_scale = self._get_kernel_with_merged_lora()
+
+        targets = []
+        if mode != "gptq":
+            targets.append(kernel_value)
+        if getattr(self, "bias", None) is not None:
+            targets.append(self.bias)
+        if merged_kernel_scale is not None:
+            targets.append(merged_kernel_scale)
+
+        # Append per-mode attributes (order matters)
+        targets.extend(getattr(self, name) for name in MODE_SPEC[mode])
+
+        for i, var in enumerate(targets):
+            store[str(i)] = var
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -263,29 +282,40 @@ class Dense(Layer):
             return
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        target_variables = (
-            [self._kernel] if self.quantization_mode != "gptq" else []
-        )
-        if self.use_bias:
-            target_variables.append(self.bias)
-        if self.quantization_mode is not None:
-            if self.quantization_mode in ("int8", "int4"):
-                target_variables.append(self.kernel_scale)
-            elif self.quantization_mode == "float8":
-                target_variables.append(self.inputs_scale)
-                target_variables.append(self.inputs_amax_history)
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_amax_history)
-                target_variables.append(self.outputs_grad_scale)
-                target_variables.append(self.outputs_grad_amax_history)
-            elif self.quantization_mode == "gptq":
-                target_variables.append(self.quantized_kernel)
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_zero)
-                target_variables.append(self.g_idx)
-            else:
-                raise self._quantization_mode_error(self.quantization_mode)
-        for i, variable in enumerate(target_variables):
+        mode = self.quantization_mode
+
+        # Per-mode variable spec (order matters).
+        MODE_SPEC = {
+            None: [],
+            "int8": ["kernel_scale"],
+            "int4": ["kernel_scale"],
+            "float8": [
+                "inputs_scale",
+                "inputs_amax_history",
+                "kernel_scale",
+                "kernel_amax_history",
+                "outputs_grad_scale",
+                "outputs_grad_amax_history",
+            ],
+            "gptq": [
+                "quantized_kernel",
+                "kernel_scale",
+                "kernel_zero",
+                "g_idx",
+            ],
+        }
+
+        if mode not in MODE_SPEC:
+            raise self._quantization_mode_error(mode)
+
+        targets = []
+        if mode != "gptq":
+            targets.append(self._kernel)
+        if getattr(self, "use_bias", False):
+            targets.append(self.bias)
+        targets.extend(getattr(self, name) for name in MODE_SPEC[mode])
+
+        for i, variable in enumerate(targets):
             variable.assign(store[str(i)])
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
@@ -387,17 +417,12 @@ class Dense(Layer):
             dtype="uint8",
             trainable=False,
         )
-        if isinstance(self.dtype_policy, GPTQDTypePolicy):
-            policy_group_size = self.dtype_policy.group_size
-        elif isinstance(self.dtype_policy, DTypePolicyMap):
-            policy_group_size = self.dtype_policy[self.path].group_size
-        else:
-            policy_group_size = None
-        group_size = config.group_size if config else policy_group_size
+
+        group_size = self._get_gptq_group_size(config)
         if group_size == -1:
             n_groups = 1
         else:
-            n_groups = ceil(self.kernel_shape[0] / group_size)
+            n_groups = math.ceil(self.kernel_shape[0] / group_size)
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=(self.units, n_groups),
@@ -840,3 +865,38 @@ class Dense(Layer):
         else:
             kernel_value = requantized_kernel
         return kernel_value, kernel_scale
+
+    def _get_gptq_group_size(self, config):
+        """Determine the group size for GPTQ quantization.
+
+        The group size can be specified either through the `config` argument
+        or through the `dtype_policy` if it is of type `GPTQDTypePolicy`.
+
+        The config argument is usually available when quantizing the layer
+        via the `quantize` method. If the layer was deserialized from a
+        saved model, the group size should be specified in the `dtype_policy`.
+
+        Args:
+            config: An optional configuration object that may contain the
+                `group_size` attribute.
+        Returns:
+            int. The determined group size for GPTQ quantization.
+        Raises:
+            ValueError: If the group size is not specified in either the
+                `config` or the `dtype_policy`.
+        """
+        if isinstance(self.dtype_policy, GPTQDTypePolicy):
+            policy_group_size = self.dtype_policy.group_size
+        elif isinstance(self.dtype_policy, DTypePolicyMap):
+            policy_group_size = self.dtype_policy[self.path].group_size
+        else:
+            policy_group_size = None
+        group_size = config.group_size if config else policy_group_size
+
+        if group_size is None:
+            raise ValueError(
+                "For GPTQ quantization, the group_size must be specified"
+                "either through a `dtype_policy` of type "
+                "`GPTQDTypePolicy` or the `config` argument."
+            )
+        return group_size
