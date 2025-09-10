@@ -201,14 +201,11 @@ def _get_backbone_layers(model):
         )
     transformer_blocks = backbone.transformer_layers
 
+    embedding_layer = None
     if hasattr(backbone, "token_embedding"):
         embedding_layer = backbone.token_embedding
     elif hasattr(backbone, "embedding"):
         embedding_layer = backbone.embedding
-    else:
-        raise ValueError(
-            "Could not automatically find an embedding layer in the model."
-        )
     return embedding_layer, transformer_blocks
 
 

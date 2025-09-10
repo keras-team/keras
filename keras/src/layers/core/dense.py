@@ -393,9 +393,7 @@ class Dense(Layer):
             policy_group_size = self.dtype_policy[self.path].group_size
         else:
             policy_group_size = None
-        group_size = (
-            config.group_size if config else policy_group_size
-        )
+        group_size = config.group_size if config else policy_group_size
         if group_size == -1:
             n_groups = 1
         else:

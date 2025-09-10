@@ -15,7 +15,7 @@ ALL_OBJECTS = {
     QuantizedDTypePolicy,
     QuantizedFloat8DTypePolicy,
     DTypePolicyMap,
-    GPTQDTypePolicy
+    GPTQDTypePolicy,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 
