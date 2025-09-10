@@ -179,6 +179,10 @@ class OpenVINOKerasTensor:
         first, other = align_operand_types(
             first, other, "OpenVINOKerasTensor::__sub__"
         )
+        if first.get_element_type() == Type.boolean:
+            return OpenVINOKerasTensor(
+                ov_opset.logical_xor(first, other).output(0)
+            )
         return OpenVINOKerasTensor(ov_opset.subtract(first, other).output(0))
 
     def __rsub__(self, other):
