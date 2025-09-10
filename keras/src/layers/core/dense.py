@@ -440,7 +440,7 @@ class Dense(Layer):
             name="g_idx",
             shape=(self.kernel_shape[0],),
             initializer="zeros",
-            dtype="int32",
+            dtype="float32",
             trainable=False,
         )
 

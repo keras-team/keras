@@ -549,7 +549,7 @@ class EinsumDense(Layer):
             name="g_idx",
             shape=(rows,),
             initializer="zeros",
-            dtype="int32",
+            dtype="float32",
             trainable=False,
         )
 

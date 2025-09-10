@@ -878,8 +878,9 @@ def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
         A tensor with the same shape as `weights_matrix` containing the
         quantized weights produced using the provided group parameters.
     """
-    scale_cols = ops.take(scale, g_idx, axis=1)  # [out_features, in_features]
-    zero_cols = ops.take(zero, g_idx, axis=1)  # [out_features, in_features]
+    groups = ops.cast(g_idx, "int32")
+    scale_cols = ops.take(scale, groups, axis=1)  # [out_features, in_features]
+    zero_cols = ops.take(zero, groups, axis=1)  # [out_features, in_features]
 
     # Quantize elementwise, then cast to int
     return quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
@@ -907,8 +908,9 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
         dequantized weights produced using the provided group parameters.
     """
     # Map group indices to scales and zeros
-    scales_mapped = ops.take(scale, g_idx, axis=1)
-    zeros_mapped = ops.take(zero, g_idx, axis=1)
+    groups = ops.cast(g_idx, "int32")
+    scales_mapped = ops.take(scale, groups, axis=1)
+    zeros_mapped = ops.take(zero, groups, axis=1)
     zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
 
     quantized = ops.multiply(

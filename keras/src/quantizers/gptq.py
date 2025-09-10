@@ -247,7 +247,7 @@ def gptq_quantize_matrix(
     # g_idx in permuted domain
     g_idx = ops.arange(0, in_features, dtype="int32")
     g_idx = ops.divide(g_idx, base_group)
-    g_idx = ops.cast(g_idx, "int32")
+    g_idx = ops.cast(g_idx, "float32")
 
     # Map group indices and quantized weights back to original column order
     if activation_order:
