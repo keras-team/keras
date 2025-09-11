@@ -92,8 +92,13 @@ class OpenVINOTrainer(base_trainer.Trainer):
         return parametrize_data
 
     def _get_compiled_model(self, data):
+        # OpenVINO compiled model cache is disabled for now.
+        # For more information, please visit:
+        # https://github.com/openvinotoolkit/openvino/issues/32045
+        use_cache = False
         if (
-            self.ov_compiled_model is not None
+            use_cache
+            and self.ov_compiled_model is not None
             and get_device() == self.ov_device
         ):
             return self.ov_compiled_model
