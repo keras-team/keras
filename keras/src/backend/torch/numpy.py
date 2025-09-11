@@ -951,6 +951,12 @@ def kron(x1, x2):
     return torch.kron(x1, x2)
 
 
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.lcm(x1, x2)
+
+
 def less(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.less(x1, x2)

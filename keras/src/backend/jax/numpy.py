@@ -815,6 +815,12 @@ def kron(x1, x2):
     return jnp.kron(x1, x2)
 
 
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.lcm(x1, x2)
+
+
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
