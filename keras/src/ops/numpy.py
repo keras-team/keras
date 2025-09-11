@@ -3914,7 +3914,7 @@ def lcm(x1, x2):
     Returns:
         Output tensor, element-wise least common multiple of `x1` and `x2`.
 
-    Examples:
+    Example:
     >>> x1 = keras.ops.convert_to_tensor([2, 3, 4])
     >>> x2 = keras.ops.convert_to_tensor([5, 6, 7])
     >>> keras.ops.lcm(x1, x2)

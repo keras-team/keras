@@ -1761,12 +1761,15 @@ def lcm(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
+    if not (x1.dtype.is_integer and x2.dtype.is_integer):
+        raise TypeError(
+            f"Arguments to lcm must be integers. "
+            f"Received: x1.dtype={x1.dtype.name}, x2.dtype={x2.dtype.name}"
+        )
+
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-
-    if not x1.dtype.is_integer:
-        raise TypeError("Arguments to lcm must be integers.")
 
     if dtype not in [tf.uint8, tf.uint16, tf.uint32, tf.uint64]:
         x1 = tf.math.abs(x1)
