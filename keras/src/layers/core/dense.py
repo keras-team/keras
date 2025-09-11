@@ -778,10 +778,12 @@ class Dense(Layer):
         if self.dtype_policy.quantization_mode is None:
             from keras.src import dtype_policies  # local import to avoid cycle
 
-            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            policy_name = mode
             if mode == "gptq":
-                policy.weight_bits = config.weight_bits
-                policy.group_size = config.group_size
+                policy_name = config.dtype_policy_string()
+            policy = dtype_policies.get(
+                f"{policy_name}_from_{self.dtype_policy.name}"
+            )
             self.dtype_policy = policy
 
     def _get_kernel_with_merged_lora(self):

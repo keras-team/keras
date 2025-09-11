@@ -310,9 +310,11 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
         self,
         mode,
         source_name=None,
-        weight_bits=None,
-        group_size=None,
     ):
+        mode, weight_bits, group_size = mode.split("/")
+        weight_bits = int(weight_bits)
+        group_size = int(group_size)
+
         super().__init__(
             mode=mode,
             source_name=source_name,
