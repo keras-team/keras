@@ -17,6 +17,7 @@ from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
@@ -248,6 +249,10 @@ class EinsumDense(Layer):
             raise ValueError(
                 "lora is already enabled. This can only be done once per layer."
             )
+        if self.quantization_mode == "gptq":
+            raise NotImplementedError(
+                "lora is not currently supported with GPTQ quantization."
+            )
         self._tracker.unlock()
         # Determine the appropriate (unpacked) kernel shape for LoRA.
         if self.quantization_mode == "int4":
@@ -441,15 +446,15 @@ class EinsumDense(Layer):
                 f"Expected: {[v.name for v in all_vars]}"
             )
 
-    def quantized_build(self, input_shape, mode, config=None):
+    def quantized_build(self, kernel_shape, mode, config=None):
         if mode == "int8":
-            self._int8_build(input_shape)
+            self._int8_build(kernel_shape)
         elif mode == "int4":
-            self._int4_build(input_shape)
+            self._int4_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
         elif mode == "gptq":
-            self._gptq_build(input_shape, config)
+            self._gptq_build(kernel_shape, config)
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
@@ -1169,21 +1174,26 @@ class EinsumDense(Layer):
             ValueError: If the group size is not specified in either the
                 `config` or the `dtype_policy`.
         """
-        if isinstance(self.dtype_policy, GPTQDTypePolicy):
-            policy_group_size = self.dtype_policy.group_size
+        if config and isinstance(config, GPTQConfig):
+            return config.group_size
+        elif isinstance(self.dtype_policy, GPTQDTypePolicy):
+            return self.dtype_policy.group_size
         elif isinstance(self.dtype_policy, DTypePolicyMap):
-            policy_group_size = self.dtype_policy[self.path].group_size
+            policy = self.dtype_policy[self.path]
+            if not isinstance(policy, GPTQDTypePolicy):
+                # This should never happen based on how we set the
+                # quantization mode, but we check just in case.
+                raise ValueError(
+                    "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
+                    f"Got: {type(policy)}"
+                )
+            return policy.group_size
         else:
-            policy_group_size = None
-        group_size = config.group_size if config else policy_group_size
-
-        if group_size is None:
             raise ValueError(
                 "For GPTQ quantization, the group_size must be specified"
                 "either through a `dtype_policy` of type "
                 "`GPTQDTypePolicy` or the `config` argument."
             )
-        return group_size
 
 
 def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
