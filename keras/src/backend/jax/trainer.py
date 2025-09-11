@@ -105,7 +105,10 @@ class JAXTrainer(base_trainer.Trainer):
             ]
         ) as scope:
             self._loss_tracker.update_state(
-                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
+                unscaled_loss,
+                sample_weight=next(
+                    i for i in tree.flatten(x) if i is not None
+                ).shape[0],
             )
             logs = self.compute_metrics(x, y, y_pred, sample_weight)
 

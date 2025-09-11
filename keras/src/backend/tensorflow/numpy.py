@@ -2302,8 +2302,11 @@ def searchsorted(sorted_sequence, values, side="left"):
             "to extend it to N-D sequences. Received: "
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
+    sequence_len = sorted_sequence.shape[0]
     out_type = (
-        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+        "int32"
+        if sequence_len is not None and sequence_len <= np.iinfo(np.int32).max
+        else "int64"
     )
     return tf.searchsorted(
         sorted_sequence, values, side=side, out_type=out_type
