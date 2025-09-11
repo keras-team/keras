@@ -190,21 +190,6 @@ def get_dataloader(
     return samples.astype(np.int32)[:, None, :]
 
 
-def _find_layers_recursive(layer, prefix, found_layers):
-    """
-    Recursively search for Dense and EinsumDense layers and record them.
-    """
-    for sub_layer in layer._layers:
-        # Construct a unique name for the layer based on its hierarchy
-        layer_name = f"{prefix}.{sub_layer.name}"
-        if isinstance(sub_layer, (Dense, EinsumDense)):
-            found_layers[layer_name] = sub_layer
-
-        # Recurse into nested layers that are not the target types
-        elif hasattr(sub_layer, "_layers") and sub_layer._layers:
-            _find_layers_recursive(sub_layer, layer_name, found_layers)
-
-
 def _get_backbone_layers(model):
     """Extract embedding and transformer layers from a KerasHub model."""
     backbone = model.backbone
@@ -216,14 +201,11 @@ def _get_backbone_layers(model):
         )
     transformer_blocks = backbone.transformer_layers
 
+    embedding_layer = None
     if hasattr(backbone, "token_embedding"):
         embedding_layer = backbone.token_embedding
     elif hasattr(backbone, "embedding"):
         embedding_layer = backbone.embedding
-    else:
-        raise ValueError(
-            "Could not automatically find an embedding layer in the model."
-        )
     return embedding_layer, transformer_blocks
 
 
@@ -242,12 +224,18 @@ def _get_custom_layers(model):
 
 def find_layers_in_block(block):
     """
-    A pluggable, generic function to find all Dense and EinsumDense layers
-    within any transformer block by using a recursive search.
+    Finds all Dense and EinsumDense layers in a transformer block.
+
+    Args:
+        block: A Keras layer representing a transformer block.
+    Returns:
+        A dict mapping layer paths to the corresponding Dense or EinsumDense
     """
     found_layers = {}
-    # Start the recursive search from the block itself
-    _find_layers_recursive(block, "block", found_layers)
+    for sub_layer in block._flatten_layers():
+        if len(list(sub_layer._flatten_layers())) == 1:
+            if isinstance(sub_layer, (Dense, EinsumDense)):
+                found_layers[sub_layer.path] = sub_layer
     return found_layers
 
 

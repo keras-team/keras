@@ -288,6 +288,55 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         return config
 
 
+@keras_export("keras.dtype_policies.GPTQDTypePolicy")
+class GPTQDTypePolicy(QuantizedDTypePolicy):
+    """Quantized dtype policy for GPTQ quantization.
+
+    This policy helps propagate quantization settings for GPTQ
+    when loading a GPTQ quantized model in Keras format.
+
+    Args:
+        mode: The quantization mode, "gptq".
+        source_name: The source dtype policy name, e.g. "float32".
+        weight_bits: Number of bits to quantize weights to. Supported values
+            are 2, 3, 4, and 8.
+        group_size: The group size for quantization. Supported values are
+            -1 (for whole-tensor quantization) or any positive integer.
+            Typically a smaller group size leads to better accuracy but
+            slower speed.
+    """
+
+    def __init__(
+        self,
+        mode,
+        source_name=None,
+    ):
+        mode, weight_bits, group_size = mode.split("/")
+        super().__init__(
+            mode=mode,
+            source_name=source_name,
+        )
+
+        self._name = f"{mode}/{weight_bits}/{group_size}_from_{source_name}"
+        self.mode = mode
+        self.weight_bits = int(weight_bits)
+        self.group_size = int(group_size)
+
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return (
+            self.weight_bits == other.weight_bits
+            and self.group_size == other.group_size
+        )
+
+    def get_config(self):
+        config = super().get_config()
+        mode = f"{self.mode}/{self.weight_bits}/{self.group_size}"
+        config.update({"mode": mode})
+        return config
+
+
 @keras_export(
     [
         "keras.config.set_dtype_policy",
@@ -352,6 +401,8 @@ def _get_quantized_dtype_policy_by_str(policy):
     mode, source_name = split_name
     if policy.startswith("int8") or policy.startswith("int4"):
         return QuantizedDTypePolicy(mode, source_name)
+    elif policy.startswith("gptq"):
+        return GPTQDTypePolicy(mode, source_name)
     elif policy.startswith("float8"):
         return QuantizedFloat8DTypePolicy(mode, source_name)
     else:

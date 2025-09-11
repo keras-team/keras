@@ -10,7 +10,9 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
 from keras.src.quantizers.quantizers import compute_quantization_parameters
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
+from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 
 
@@ -732,7 +734,7 @@ class ComputeScaleZeroTest(testing.TestCase):
         )
         # With symmetric=True and constant input, zero = (maxq+1)/2
         self.assertAllClose(zero, ops.array((float(maxq) + 1.0) / 2.0))
-        self.assertTrue(ops.all(scale > 0.0))
+        self.assertTrue(ops.all(ops.greater(scale, 0.0)))
 
     def test_weight_per_tensor_tiles_rows(self):
         """Tests that scales/zeros tensors are properly tiled when
@@ -769,7 +771,7 @@ class ComputeScaleZeroTest(testing.TestCase):
         # Per-channel (ungrouped): one scale per output row -> (rows, 1)
         self.assertEqual(scale.shape, (6, 1))
         self.assertEqual(zero.shape, (6, 1))
-        self.assertTrue(ops.all(scale > 0.0))
+        self.assertTrue(ops.all(ops.greater(scale, 0.0)))
 
         # Each channel should have roughly unique scales and zeros
         self.assertFalse(ops.all(scale == scale[0, 0]))
@@ -795,7 +797,7 @@ class ComputeScaleZeroTest(testing.TestCase):
         num_groups = (rows * cols) // groups
         self.assertEqual(scale.shape, (num_groups, 1))
         self.assertEqual(zero.shape, (num_groups, 1))
-        self.assertTrue(ops.all(scale > 0.0))
+        self.assertTrue(ops.all(ops.greater(scale, 0.0)))
 
     @parameterized.named_parameters(
         ("sym_true", True),
@@ -817,3 +819,105 @@ class ComputeScaleZeroTest(testing.TestCase):
         self.assertTrue(ops.all(ops.isfinite(scale)))
         self.assertTrue(ops.all(ops.isfinite(zero)))
         self.assertTrue(ops.all(ops.isfinite(maxq)))
+
+    def test_dequantize_with_sz_map_logic(self):
+        """Validates the vectorized dequantization logic against a
+        manual implementation."""
+        out_features, in_features, group_size = 4, 16, 4
+        n_groups = in_features // group_size
+
+        # Create dummy quantized weights
+        q_weights = ops.cast(
+            ops.array(
+                np.random.randint(0, 15, size=(out_features, in_features))
+            ),
+            "uint8",
+        )
+
+        # Create dummy scales and zeros
+        scale = ops.abs(
+            ops.array(
+                np.random.random((out_features, n_groups)).astype("float32")
+            )
+        )
+        zero = ops.cast(
+            ops.array(np.random.randint(0, 15, size=(out_features, n_groups))),
+            "uint8",
+        )
+
+        # Create group index mapping
+        g_idx = ops.array(np.arange(in_features) // group_size, dtype="int32")
+
+        # Get the result from the function under test
+        dequantized_result = dequantize_with_sz_map(
+            q_weights, scale, zero, g_idx
+        )
+
+        # Manually compute the expected result
+        expected_dequantized = np.zeros(
+            (out_features, in_features), dtype="float32"
+        )
+
+        for i in range(out_features):
+            for j in range(in_features):
+                group = g_idx[j]
+                s = scale[i, group]
+                z = zero[i, group]
+                # Dequantization formula: (q_val - z) * s
+                expected_dequantized[i, j] = ops.multiply(
+                    ops.subtract(q_weights[i, j], ops.cast(z, "float32")), s
+                )
+
+        self.assertAllClose(dequantized_result, expected_dequantized)
+
+    def test_quantize_with_sz_map_logic(self):
+        """Validates the vectorized quantization logic against a
+        manual implementation."""
+        out_features, in_features, group_size = 4, 16, 4
+        n_groups = in_features // group_size
+
+        # Create dummy float weights
+        weights = ops.array(
+            np.random.default_rng(5).standard_normal(
+                (out_features, in_features)
+            ),
+            "float32",
+        )
+
+        # Create dummy scales and zeros
+        scale = ops.abs(
+            ops.array(
+                np.random.random((out_features, n_groups)).astype("float32")
+            )
+        )
+        zero = ops.cast(
+            ops.array(np.random.randint(0, 15, size=(out_features, n_groups))),
+            "uint8",
+        )
+
+        maxq = ops.array(15.0)
+
+        # Create group index mapping
+        g_idx = ops.array(np.arange(in_features) // group_size, dtype="int32")
+
+        # Get the result from the function under test
+        quantized_result = quantize_with_sz_map(
+            weights, scale, zero, g_idx, maxq
+        )
+
+        # Manually compute the expected result
+        expected_quantized = np.zeros(
+            (out_features, in_features), dtype="uint8"
+        )
+
+        for i in range(out_features):
+            for j in range(in_features):
+                group = g_idx[j]
+                s = scale[i, group]
+                z = zero[i, group]
+                # Quantization formula: clip(round(x/s + z), 0, maxq)
+                q_val = ops.round(ops.add(ops.divide(weights[i, j], s), z))
+                q_val_clipped = ops.clip(q_val, 0.0, maxq)
+                expected_quantized[i, j] = ops.cast(q_val_clipped, "uint8")
+
+        self.assertAllClose(quantized_result, expected_quantized)

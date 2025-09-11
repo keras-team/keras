@@ -157,3 +157,11 @@ class GPTQConfig:
         self.group_size = group_size
         self.symmetric = symmetric
         self.activation_order = activation_order
+
+    def dtype_policy_string(self):
+        """Returns the dtype policy string for this configuration.
+
+        Returns:
+            A string representing the dtype policy, e.g. "gptq_4bit".
+        """
+        return f"gptq/{self.weight_bits}/{self.group_size}"

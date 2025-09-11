@@ -47,25 +47,46 @@ class TransformerBlock(layers.Layer):
 def _get_model_with_backbone(
     has_transformer_layers=True, embedding_name="embedding"
 ):
-    """Creates a mock KerasNLP-style model with a backbone."""
+    """Creates a KerasHub-style model with a backbone."""
 
-    class MockBackbone(layers.Layer):
-        def __init__(self, **kwargs):
+    class Backbone(layers.Layer):
+        def __init__(self, vocab_size, embedding_dim=128, **kwargs):
             super().__init__(**kwargs)
+            # Use direct assignment
+            setattr(
+                self,
+                embedding_name,
+                layers.Embedding(vocab_size, embedding_dim),
+            )
+
+            # Keep track of layers in a list for the call method
+            self.transformer_layers = []
             if has_transformer_layers:
-                self.transformer_layers = [TransformerBlock()]
-            setattr(self, embedding_name, layers.Embedding(VOCAB_SIZE, 128))
-
-    class MockModel(models.Model):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
-            self.backbone = MockBackbone()
+                self.transformer_layers.append(TransformerBlock())
 
         def call(self, inputs):
-            return self.backbone(inputs)
+            x = getattr(self, embedding_name)(inputs)
+            for layer in self.transformer_layers:
+                x = layer(x)
+            return x
 
-    model = MockModel()
-    model.build(input_shape=(None, 10))
+    class Model(models.Model):
+        def __init__(self, vocab_size, **kwargs):
+            super().__init__(**kwargs)
+            # Pass configuration directly
+            self.backbone = Backbone(vocab_size=vocab_size)
+            self.classifier = layers.Dense(1, activation="sigmoid")
+
+        def call(self, inputs):
+            x = self.backbone(inputs)
+            x = layers.GlobalAveragePooling1D()(x)
+            return self.classifier(x)
+
+    model = Model(vocab_size=VOCAB_SIZE)
+    rng = np.random.default_rng(seed=42)
+    dummy_input = rng.normal(loc=0, scale=1, size=(2, 64)).astype(np.float32)
+
+    _ = model(dummy_input)
     return model
 
 
@@ -269,7 +290,7 @@ class TestGPTQCore(testing.TestCase):
         (
             "backbone_no_layers",
             _get_model_with_backbone(has_transformer_layers=False),
-            "backbone does not have a 'transformer_layers' attribute",
+            "Could not automatically find any transformer-like blocks",
         ),
         (
             "backbone_no_embedding",
