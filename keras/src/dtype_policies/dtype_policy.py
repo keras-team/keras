@@ -312,16 +312,15 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
         source_name=None,
     ):
         mode, weight_bits, group_size = mode.split("/")
-        weight_bits = int(weight_bits)
-        group_size = int(group_size)
-
         super().__init__(
             mode=mode,
             source_name=source_name,
         )
+
+        self._name = f"{mode}/{weight_bits}/{group_size}_from_{source_name}"
         self.mode = mode
-        self.weight_bits = weight_bits
-        self.group_size = group_size
+        self.weight_bits = int(weight_bits)
+        self.group_size = int(group_size)
 
     def __eq__(self, other):
         if super().__eq__(other) is False:
