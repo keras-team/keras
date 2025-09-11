@@ -1105,10 +1105,6 @@ def maximum(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
-    if np.isscalar(x):
-        x = get_ov_output(x)
-        return OpenVINOKerasTensor(x)
-
     """
     The median algorithm follows numpy's method;
     if axis is None, flatten all dimensions of the array and find the
@@ -1117,6 +1113,9 @@ def median(x, axis=None, keepdims=False):
     to move those axis dims to the right, flatten the multiple axis dims
     then calculate median values along the flattened axis.
     """
+    if np.isscalar(x):
+        x = get_ov_output(x)
+        return OpenVINOKerasTensor(x)
 
     x = get_ov_output(x)
     x_type = x.get_element_type()
@@ -1134,7 +1133,6 @@ def median(x, axis=None, keepdims=False):
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         flattened = True
-
     else:
         # move axis dims to the rightmost positions.
         flattened = False
