@@ -95,11 +95,13 @@ class OpenVINOTrainer(base_trainer.Trainer):
         # OpenVINO compiled model cache is disabled for now.
         # For more information, please visit:
         # https://github.com/openvinotoolkit/openvino/issues/32045
-        # if (
-        #     self.ov_compiled_model is not None
-        #     and get_device() == self.ov_device
-        # ):
-        #     return self.ov_compiled_model
+        use_cache = False
+        if (
+            use_cache
+            and self.ov_compiled_model is not None
+            and get_device() == self.ov_device
+        ):
+            return self.ov_compiled_model
 
         # remove the previous cached compiled model if exists
         del self.ov_compiled_model
