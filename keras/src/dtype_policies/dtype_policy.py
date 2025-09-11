@@ -319,6 +319,7 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
             mode=mode,
             source_name=source_name,
         )
+        self.mode = mode
         self.weight_bits = weight_bits
         self.group_size = group_size
 
@@ -332,9 +333,8 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
 
     def get_config(self):
         config = super().get_config()
-        config.update(
-            {"weight_bits": self.weight_bits, "group_size": self.group_size}
-        )
+        mode = f"{self.mode}/{self.weight_bits}/{self.group_size}"
+        config.update({"mode": mode})
         return config
 
 

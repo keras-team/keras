@@ -1035,3 +1035,4 @@ class EinsumDenseTest(testing.TestCase):
         config = layer.get_config()
         new_layer = layers.EinsumDense.from_config(config)
         new_layer.build((None, 3))
+        self.assertEqual(new_layer.quantization_mode, "gptq")
