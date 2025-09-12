@@ -166,7 +166,7 @@ def export_onnx(
                     filepath,
                     verbose=actual_verbose,
                     opset_version=opset_version,
-                    input_names=input_names
+                    input_names=input_names,
                 )
     else:
         raise NotImplementedError(
