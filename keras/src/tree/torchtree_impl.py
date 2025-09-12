@@ -76,8 +76,12 @@ torch_tree._private_register_pytree_node(
 )
 
 
+def _tree_is_leaf(tree):
+    return torch_tree._get_node_type(tree) not in torch_tree.SUPPORTED_NODES
+
+
 def is_nested(structure):
-    return not torch_tree.tree_is_leaf(structure)
+    return not _tree_is_leaf(structure)
 
 
 def traverse(func, structure, top_down=True):
@@ -147,9 +151,9 @@ def map_structure(func, *structures, none_is_leaf=True):
 
     def tree_is_leaf(x, none_is_leaf=True):
         if none_is_leaf:
-            return torch_tree.tree_is_leaf(x) or x is None
+            return _tree_is_leaf(x) or x is None
         else:
-            return torch_tree.tree_is_leaf(x)
+            return _tree_is_leaf(x)
 
     # Add check for same structures, otherwise torch_tree just maps to
     # shallowest.
@@ -174,7 +178,7 @@ def map_structure_up_to(shallow_structure, func, *structures):
     # Add check that `shallow_structure` really is the shallowest.
     # Also only call `func` on `structures` and not `shallow_structure`.
     def func_with_check_without_shallow_structure(shallow, *args):
-        if not torch_tree.tree_is_leaf(shallow):
+        if not _tree_is_leaf(shallow):
             raise ValueError("Structures don't have the same nested structure.")
         return func(*args)
 
@@ -187,9 +191,7 @@ def map_structure_up_to(shallow_structure, func, *structures):
 
 def assert_same_structure(a, b):
     def check(a_leaf, b_leaf):
-        if not torch_tree.tree_is_leaf(a_leaf) or not torch_tree.tree_is_leaf(
-            b_leaf
-        ):
+        if not _tree_is_leaf(a_leaf) or not _tree_is_leaf(b_leaf):
             raise ValueError("Structures don't have the same nested structure.")
         return None
 
