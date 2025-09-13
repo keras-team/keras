@@ -14,9 +14,9 @@ from keras.src import ops
 from keras.src import testing
 from keras.src import tree
 from keras.src.export import onnx
+from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
-from keras.src.layers.input_spec import InputSpec as InputSpec
 
 
 class CustomModel(models.Model):
@@ -281,7 +281,11 @@ class ExportONNXTest(testing.TestCase):
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
 
         # Test with custom input name
-        input_spec = [InputSpec(name="custom_input", shape=(batch_size, 10))]
+        input_spec = [
+            InputSpec(
+                name="custom_input", shape=(batch_size, 10), dtype="float32"
+            )
+        ]
         onnx.export_onnx(model, temp_filepath, input_signature=input_spec)
 
         onnx_model = onnx_lib.load(temp_filepath)
