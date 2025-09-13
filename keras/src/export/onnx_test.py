@@ -281,9 +281,7 @@ class ExportONNXTest(testing.TestCase):
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
 
         # Test with custom input name
-        input_spec = [
-            InputSpec(name="custom_input", shape=(batch_size, 10))
-        ]
+        input_spec = [InputSpec(name="custom_input", shape=(batch_size, 10))]
         onnx.export_onnx(model, temp_filepath, input_signature=input_spec)
 
         onnx_model = onnx_lib.load(temp_filepath)
