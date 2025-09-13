@@ -279,6 +279,7 @@ class ExportONNXTest(testing.TestCase):
         model = get_model("sequential")
         batch_size = 3 if backend.backend() != "torch" else 1
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_output = model(ref_input)
 
         # Test with custom input name
         input_spec = [
@@ -296,5 +297,4 @@ class ExportONNXTest(testing.TestCase):
         ort_inputs = {
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
-        ref_output = model(ref_input)
         self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
