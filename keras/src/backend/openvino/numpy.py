@@ -46,6 +46,8 @@ def subtract(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "subtract()")
+    if x1.get_element_type() == Type.boolean:
+        return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.subtract(x1, x2).output(0))
 
 
