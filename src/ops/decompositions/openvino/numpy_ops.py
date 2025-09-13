@@ -3,15 +3,14 @@
 import numpy as np
 
 
-# logspace function that returns a numpy array (TODO: replace with actual OpenVINO nodes)
+# TODO: Replace with actual OpenVINO operations in the future
 def logspace(start, stop, num=50, dtype=np.float32):
-    # TODO: Implement with OpenVINO operations instead of numpy
+    """Generate log-spaced values (temporary NumPy implementation)."""
     values = np.logspace(start, stop, num=num, dtype=dtype)
     return values
 
 
-# Dummy evaluate function placeholder
+# Temporary placeholder evaluation function
 def _dummy_evaluate(node):
-    # TODO: Implement a real evaluation function for OpenVINO graphs
-    # If node is already a numpy array, just return it
+    """Return node as-is. TODO: Implement real OpenVINO evaluation."""
     return node
