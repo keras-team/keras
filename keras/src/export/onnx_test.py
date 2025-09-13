@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src import tree
 from keras.src.export import onnx
+from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
 
@@ -269,3 +270,31 @@ class ExportONNXTest(testing.TestCase):
         if opset_version is not None:
             onnx_model = onnx_lib.load(temp_filepath)
             self.assertEqual(onnx_model.opset_import[0].version, opset_version)
+
+    def test_export_with_input_names(self):
+        """Test ONNX export uses InputSpec.name for input names."""
+        import onnx as onnx_lib
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model("sequential")
+        batch_size = 3 if backend.backend() != "torch" else 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_output = model(ref_input)
+
+        # Test with custom input name
+        input_spec = [
+            InputSpec(
+                name="custom_input", shape=(batch_size, 10), dtype="float32"
+            )
+        ]
+        onnx.export_onnx(model, temp_filepath, input_signature=input_spec)
+
+        onnx_model = onnx_lib.load(temp_filepath)
+        input_names = [input.name for input in onnx_model.graph.input]
+        self.assertIn("custom_input", input_names)
+
+        ort_session = onnxruntime.InferenceSession(temp_filepath)
+        ort_inputs = {
+            k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
+        }
+        self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
