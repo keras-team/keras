@@ -14,70 +14,44 @@ def register_tree_node_class(cls):
     return cls
 
 
-# Re-register dict and defaultdict nodes to ensure the consistent behavior
-# compared to optree.
-def _deregister_pytree_node(cls):
-    with torch_tree._NODE_REGISTRY_LOCK:
-        del torch_tree.SUPPORTED_NODES[cls]
-        node_def = torch_tree.SUPPORTED_SERIALIZED_TYPES[cls]
-        del torch_tree.SERIALIZED_TYPE_TO_PYTHON_TYPE[
-            node_def.serialized_type_name
-        ]
-        del torch_tree.SUPPORTED_SERIALIZED_TYPES[cls]
-        if hasattr(torch_tree, "CONSTANT_NODES"):
-            torch_tree.CONSTANT_NODES.discard(cls)
-
-
-_deregister_pytree_node(dict)
-_deregister_pytree_node(defaultdict)
-
-
-def _dict_flatten(d):
-    keys = sorted(d.keys())
-    values = [d[k] for k in keys]
-    return values, keys
-
-
-def _dict_flatten_with_keys(d):
-    values, context = _dict_flatten(d)
-    return [
-        (torch_tree.MappingKey(k), v) for k, v in zip(context, values)
-    ], context
-
-
-def _defaultdict_flatten(d):
-    values, dict_context = _dict_flatten(d)
-    return values, [d.default_factory, dict_context]
-
-
-def _defaultdict_flatten_with_keys(d):
-    values, context = _defaultdict_flatten(d)
-    _, dict_context = context
-    return [
-        (torch_tree.MappingKey(k), v) for k, v in zip(dict_context, values)
-    ], context
-
-
-torch_tree._private_register_pytree_node(
-    dict,
-    _dict_flatten,
-    torch_tree._dict_unflatten,
-    serialized_type_name="builtins.dict",
-    flatten_with_keys_fn=_dict_flatten_with_keys,
-)
-torch_tree._private_register_pytree_node(
-    defaultdict,
-    _defaultdict_flatten,
-    torch_tree._defaultdict_unflatten,
-    serialized_type_name="collections.defaultdict",
-    to_dumpable_context=torch_tree._defaultdict_serialize,
-    from_dumpable_context=torch_tree._defaultdict_deserialize,
-    flatten_with_keys_fn=_defaultdict_flatten_with_keys,
-)
-
-
-def _tree_is_leaf(tree):
+def _tree_is_leaf(tree, is_leaf=None):
+    if is_leaf is not None and is_leaf(tree):
+        return True
     return torch_tree._get_node_type(tree) not in torch_tree.SUPPORTED_NODES
+
+
+def _dict_to_ordered_dict(structure):
+    # We need to sort dict and defaultdict to ensure a deterministic order that
+    # that is consistent with other tree implementations.
+    def func(x):
+        if type(x) is dict:
+            return {k: x[k] for k in sorted(x.keys())}
+        elif type(x) is defaultdict:
+            return defaultdict(
+                x.default_factory,
+                {k: x[k] for k in sorted(x.keys())},
+            )
+        return None
+
+    def traverse_children():
+        children, treedef = torch_tree.tree_flatten(
+            structure,
+            is_leaf=lambda x: x is not structure,
+        )
+        if treedef.num_nodes == 1 and treedef.num_leaves == 1:
+            return structure
+        else:
+            return torch_tree.tree_unflatten(
+                [_dict_to_ordered_dict(c) for c in children],
+                treedef,
+            )
+
+    ret = func(structure)
+    if ret is None:
+        return traverse_children()
+    if isinstance(ret, type) and ret.__name__ == "MAP_TO_NONE":
+        return None
+    return ret
 
 
 def is_nested(structure):
@@ -98,6 +72,7 @@ def traverse(func, structure, top_down=True):
                 treedef,
             )
 
+    structure = _dict_to_ordered_dict(structure)
     if top_down:
         ret = func(structure)
         if ret is None:
@@ -114,14 +89,17 @@ def traverse(func, structure, top_down=True):
 
 
 def flatten(structure):
-    # torch_tree.tree_flatten returns a pair (leaves, treespec) where the first
-    # element is a list of leaf values and the second element is a treespec
-    # representing the structure of the pytree.
+    # We need to first sort dicts to ensure a deterministic order that is
+    # consistent with other tree implementations.
+    structure = _dict_to_ordered_dict(structure)
     leaves, _ = torch_tree.tree_flatten(structure)
     return leaves
 
 
 def flatten_with_path(structure):
+    # We need to first sort dicts to ensure a deterministic order that is
+    # consistent with other tree implementations.
+    structure = _dict_to_ordered_dict(structure)
     leaves_with_path, _ = torch_tree.tree_flatten_with_path(structure)
     results = []
     fields = []
@@ -149,26 +127,23 @@ def map_structure(func, *structures, none_is_leaf=True):
     if not structures:
         raise ValueError("Must provide at least one structure")
 
-    def tree_is_leaf(x, none_is_leaf=True):
-        if none_is_leaf:
-            return _tree_is_leaf(x) or x is None
-        else:
-            return _tree_is_leaf(x)
+    map_func = func
+    if not none_is_leaf:
 
-    # Add check for same structures, otherwise torch_tree just maps to
-    # shallowest.
-    def func_with_check(*args):
-        if not all(tree_is_leaf(s, none_is_leaf=none_is_leaf) for s in args):
-            raise ValueError("Structures don't have the same nested structure.")
-        return func(*args)
+        def func_skipping_none(*args):
+            # Check if the reference entry (first one) is None
+            if args[0] is None:
+                if not all(s is None for s in args):
+                    raise ValueError(
+                        "Structure mismatch: some arguments are None, others "
+                        f"are not. Received arguments: {args}."
+                    )
+                return None
+            return func(*args)
 
-    map_func = func_with_check if len(structures) > 1 else func
+        map_func = func_skipping_none
 
-    return torch_tree.tree_map(
-        map_func,
-        *structures,
-        is_leaf=lambda x: tree_is_leaf(x, none_is_leaf=none_is_leaf),
-    )
+    return torch_tree.tree_map(map_func, *structures)
 
 
 def map_structure_up_to(shallow_structure, func, *structures):
@@ -214,6 +189,9 @@ def assert_same_paths(a, b):
 
 
 def pack_sequence_as(structure, flat_sequence):
+    # We need to first sort dicts to ensure a deterministic order that is
+    # consistent with other tree implementations.
+    structure = _dict_to_ordered_dict(structure)
     _, treespec = torch_tree.tree_flatten(structure)
     return torch_tree.tree_unflatten(flat_sequence, treespec)
 
@@ -231,4 +209,7 @@ def map_shape_structure(func, structure):
             isinstance(e, (int, type(None))) for e in x
         )
 
+    # We need to first sort dicts to ensure a deterministic order that is
+    # consistent with other tree implementations.
+    structure = _dict_to_ordered_dict(structure)
     return torch_tree.tree_map(func, structure, is_leaf=is_shape_tuple)
