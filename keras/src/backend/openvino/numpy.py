@@ -969,12 +969,14 @@ def isnan(x):
 def isneginf(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
-    
+
     if x_type.is_integral() or x_type == Type.boolean:
         shape = ov_opset.shape_of(x, "i32").output(0)
         false_const = ov_opset.constant(False, Type.boolean).output(0)
-        return OpenVINOKerasTensor(ov_opset.broadcast(false_const, shape).output(0))
-    
+        return OpenVINOKerasTensor(
+            ov_opset.broadcast(false_const, shape).output(0)
+        )
+
     if x_type == Type.bf16:
         x_f32 = ov_opset.convert(x, Type.f32).output(0)
         neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
@@ -989,7 +991,7 @@ def isneginf(x):
         else:
             neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
         is_neg_inf = ov_opset.equal(x, neg_inf).output(0)
-    
+
     return OpenVINOKerasTensor(is_neg_inf)
 
 
