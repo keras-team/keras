@@ -87,10 +87,6 @@ class ExportONNXTest(testing.TestCase):
         )
     )
     def test_standard_model_export(self, model_type):
-        if backend.backend() == "torch" and model_type == "lstm":
-            self.skipTest(
-                "TODO: The torch backend doesn't support the LSTM model."
-            )
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
         batch_size = 3 if backend.backend() != "torch" else 1
