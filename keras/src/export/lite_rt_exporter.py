@@ -20,20 +20,36 @@ class LiteRTExporter:
     callable signature for `model.call`.
     """
 
-    def __init__(self, model, input_signature=None, verbose=None, max_sequence_length=512, 
+    def __init__(self, model, input_signature=None, verbose=0, max_sequence_length=512, 
                  aot_compile_targets=None, **kwargs):
+        """Initialize the LiteRT exporter.
+        
+        Args:
+            model: The Keras model to export
+            input_signature: Input signature specification
+            verbose: Verbosity level (0=quiet, 1=info)
+            max_sequence_length: Maximum sequence length for inference
+            aot_compile_targets: List of LiteRT targets for AOT compilation
+            **kwargs: Additional export parameters
+        """
         self.model = model
         self.input_signature = input_signature
-        self.verbose = verbose or 0
+        self.verbose = verbose
         self.max_sequence_length = max_sequence_length
-        self.aot_compile_targets = aot_compile_targets  # List of LiteRT targets for AOT compilation
+        self.aot_compile_targets = aot_compile_targets
         self.kwargs = kwargs
 
     def export(self, filepath):
-        """Exports the Keras model to a TFLite file and optionally performs AOT compilation."""
+        """Exports the Keras model to a TFLite file and optionally performs AOT compilation.
+        
+        Args:
+            filepath: Output path for the exported model
+            
+        Returns:
+            Path to exported model or compiled models if AOT compilation is performed
+        """
         if self.verbose:
             print("Starting LiteRT export...")
-            print(f"Model: {type(self.model)} - built: {self.model.built}")
 
         # 1. Ensure the model is built by calling it if necessary
         self._ensure_model_built()
@@ -90,13 +106,6 @@ class LiteRTExporter:
             print("Ensuring model is traced by performing a forward pass...")
 
         try:
-            # Debug information
-            if self.verbose:
-                print(f"Model type: {type(self.model)}")
-                print(f"Model built: {self.model.built}")
-                if hasattr(self.model, '_functional'):
-                    print(f"Sequential _functional: {self.model._functional}")
-
             # Generate dummy inputs based on the model's specification
             dummy_inputs = []
             # Prioritize `model.inputs` as it's the most reliable source
@@ -107,8 +116,6 @@ class LiteRTExporter:
                     shape = [1 if dim is None else dim for dim in input_layer.shape]
                     dummy_input = tf.zeros(shape, dtype=input_layer.dtype or tf.float32)
                     dummy_inputs.append(dummy_input)
-                    if self.verbose:
-                        print(f"  Input shape: {shape}, dtype: {input_layer.dtype or tf.float32}")
             else:
                 # Fallback for pure Sequential models without an Input layer
                 if self.verbose:
@@ -124,15 +131,7 @@ class LiteRTExporter:
                         "Please add an `Input` layer or specify `input_shape` in the first layer."
                     )
 
-            # Debug the dummy inputs
-            if self.verbose:
-                print(f"About to call model with {len(dummy_inputs)} inputs")
-                for i, inp in enumerate(dummy_inputs):
-                    print(f"  Input {i}: shape={inp.shape}, dtype={inp.dtype}")
-
             # Perform a direct call in inference mode to trace the model.
-            # This is more robust than a simple call() and avoids the
-            # overhead of model.predict().
             if len(dummy_inputs) == 1:
                 result = self.model(dummy_inputs[0], training=False)
             else:
@@ -140,13 +139,10 @@ class LiteRTExporter:
 
             if self.verbose:
                 print("Model successfully traced via direct call with training=False.")
-                print(f"Output shape: {result.shape if hasattr(result, 'shape') else type(result)}")
 
         except Exception as e:
             if self.verbose:
                 print(f"Error during model call: {e}")
-                import traceback
-                traceback.print_exc()
             raise ValueError(f"Failed to trace model with error: {e}")
 
         # Final, critical check
