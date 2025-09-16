@@ -807,7 +807,7 @@ class Trainer:
         raise NotImplementedError
 
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None, accumulate=True
     ):
         """Generates output predictions for the input samples.
 
@@ -858,9 +858,13 @@ class Trainer:
                 repeating dataset, it will run indefinitely.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during prediction.
+            accumulate: Boolean. Whether to accumulate predictions in memory.
+                If `False`, predictions are not returned and must be handled
+                via callbacks to avoid memory issues with large datasets.
+                Defaults to `True`.
 
         Returns:
-            NumPy array(s) of predictions.
+            NumPy array(s) of predictions if `accumulate=True`, otherwise `None`.
         """
         raise NotImplementedError
 

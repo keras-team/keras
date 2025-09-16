@@ -395,7 +395,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None, accumulate=True
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = TorchEpochIterator(
@@ -438,17 +438,21 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_predict_function()
         self.stop_predicting = False
         callbacks.on_predict_begin()
-        outputs = None
+        outputs = None if accumulate else []
         for begin_step, end_step, data in epoch_iterator:
             callbacks.on_predict_batch_begin(begin_step)
             batch_outputs = self.predict_function(data)
-            outputs = append_to_outputs(batch_outputs, outputs)
+            if accumulate:
+                outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
-        outputs = tree.map_structure(backend.convert_to_numpy, outputs)
-        return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
+        if accumulate:
+            outputs = tree.map_structure(backend.convert_to_numpy, outputs)
+            return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
+        else:
+            return None
 
     def train_on_batch(
         self,
