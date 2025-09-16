@@ -1711,6 +1711,81 @@ def isposinf(x):
     return tf.math.equal(x, tf.constant(float("inf"), dtype=x.dtype))
 
 
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    ndim_x1 = tf.rank(x1)
+    ndim_x2 = tf.rank(x2)
+
+    def expand_front(x, num):
+        for _ in range(num):
+            x = tf.expand_dims(x, axis=0)
+        return x
+
+    x1 = tf.cond(
+        ndim_x1 < ndim_x2,
+        lambda: expand_front(x1, ndim_x2 - ndim_x1),
+        lambda: x1,
+    )
+    x2 = tf.cond(
+        ndim_x2 < ndim_x1,
+        lambda: expand_front(x2, ndim_x1 - ndim_x2),
+        lambda: x2,
+    )
+
+    x1_reshaped = tf.reshape(
+        x1,
+        tf.reshape(
+            tf.stack([tf.shape(x1), tf.ones_like(tf.shape(x1))], axis=1), [-1]
+        ),
+    )
+    x2_reshaped = tf.reshape(
+        x2,
+        tf.reshape(
+            tf.stack([tf.ones_like(tf.shape(x2)), tf.shape(x2)], axis=1), [-1]
+        ),
+    )
+
+    out = tf.multiply(x1_reshaped, x2_reshaped)
+    out_shape = tf.multiply(tf.shape(x1), tf.shape(x2))
+    out = tf.reshape(out, out_shape)
+    return out
+
+
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    if not (x1.dtype.is_integer and x2.dtype.is_integer):
+        raise TypeError(
+            f"Arguments to lcm must be integers. "
+            f"Received: x1.dtype={x1.dtype.name}, x2.dtype={x2.dtype.name}"
+        )
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    if dtype not in [tf.uint8, tf.uint16, tf.uint32, tf.uint64]:
+        x1 = tf.math.abs(x1)
+        x2 = tf.math.abs(x2)
+
+    divisor = gcd(x1, x2)
+    divisor_safe = tf.where(
+        divisor == 0, tf.constant(1, dtype=divisor.dtype), divisor
+    )
+
+    result = x1 * (x2 // divisor_safe)
+    result = tf.where(divisor == 0, tf.zeros_like(result), result)
+
+    return result
+
+
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -2256,8 +2331,11 @@ def searchsorted(sorted_sequence, values, side="left"):
             "to extend it to N-D sequences. Received: "
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
+    sequence_len = sorted_sequence.shape[0]
     out_type = (
-        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+        "int32"
+        if sequence_len is not None and sequence_len <= np.iinfo(np.int32).max
+        else "int64"
     )
     return tf.searchsorted(
         sorted_sequence, values, side=side, out_type=out_type
