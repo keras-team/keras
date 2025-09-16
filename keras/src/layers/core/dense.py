@@ -409,7 +409,9 @@ class Dense(Layer):
         )
 
     def _gptq_build(self, kernel_shape, config):
-        self.gptq = False
+        # Ensures the forward pass uses the original high-precision kernel
+        # until calibration has been performed.
+        self.is_gptq_calibrated = False
         self.kernel_shape = kernel_shape
         self.quantized_kernel = self.add_weight(
             name="kernel",
@@ -446,7 +448,7 @@ class Dense(Layer):
         )
 
     def _gptq_call(self, inputs, training=False):
-        if not self.gptq:
+        if not self.is_gptq_calibrated:
             W = self._kernel
         else:
             W = (

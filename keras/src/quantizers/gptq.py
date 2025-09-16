@@ -481,7 +481,7 @@ class GPTQ:
         self.original_layer.kernel_scale.assign(scale)
         self.original_layer.kernel_zero.assign(zero)
         self.original_layer.g_idx.assign(g_idx)
-        self.original_layer.gptq = True
+        self.original_layer.is_gptq_calibrated = True
 
     def free(self):
         del self.hessian

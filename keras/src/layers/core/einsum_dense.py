@@ -489,7 +489,9 @@ class EinsumDense(Layer):
             group_size: int; contiguous input-group size for quantization
                 (=-1 means per-output-channel with no grouping).
         """
-        self.gptq = False
+        # Ensures the forward pass uses the original high-precision kernel
+        # until calibration has been performed.
+        self.is_gptq_calibrated = False
 
         self.original_kernel_shape = kernel_shape
         if len(kernel_shape) == 2:
@@ -559,7 +561,7 @@ class EinsumDense(Layer):
         )
 
     def _gptq_call(self, inputs, training=False):
-        if not self.gptq:
+        if not self.is_gptq_calibrated:
             W = self._kernel
         else:
             W = dequantize_with_sz_map(
