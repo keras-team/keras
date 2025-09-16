@@ -46,6 +46,8 @@ def subtract(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "subtract()")
+    if x1.get_element_type() == Type.boolean:
+        return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.subtract(x1, x2).output(0))
 
 
@@ -967,15 +969,46 @@ def isnan(x):
 
 
 def isneginf(x):
-    raise NotImplementedError(
-        "`isneginf` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        shape = ov_opset.shape_of(x, "i32").output(0)
+        false_const = ov_opset.constant(False, Type.boolean).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.broadcast(false_const, shape).output(0)
+        )
+
+    if x_type == Type.bf16:
+        x_f32 = ov_opset.convert(x, Type.f32).output(0)
+        neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
+        is_neg_inf = ov_opset.equal(x_f32, neg_inf).output(0)
+    else:
+        if x_type == Type.f16:
+            neg_inf = ov_opset.constant(-np.inf, Type.f16).output(0)
+        elif x_type == Type.f32:
+            neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
+        elif x_type == Type.f64:
+            neg_inf = ov_opset.constant(-np.inf, Type.f64).output(0)
+        else:
+            neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
+        is_neg_inf = ov_opset.equal(x, neg_inf).output(0)
+
+    return OpenVINOKerasTensor(is_neg_inf)
 
 
 def isposinf(x):
     raise NotImplementedError(
         "`isposinf` is not supported with openvino backend"
     )
+
+
+def kron(x1, x2):
+    raise NotImplementedError("`kron` is not supported with openvino backend")
+
+
+def lcm(x1, x2):
+    raise NotImplementedError("`lcm` is not supported with openvino backend")
 
 
 def less(x1, x2):
@@ -1060,9 +1093,53 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    raise NotImplementedError(
-        "`logaddexp` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "logaddexp()")
+
+    if x1.element_type.is_integral() or x2.element_type.is_integral():
+        float_dtype = OPENVINO_DTYPES[config.floatx()]
+        if x1.element_type.is_integral():
+            x1 = ov_opset.convert(x1, float_dtype)
+        if x2.element_type.is_integral():
+            x2 = ov_opset.convert(x2, float_dtype)
+
+    # Get the output nodes properly
+    max_val_node = ov_opset.maximum(x1, x2)
+    max_val = max_val_node.output(0)
+
+    # Compute absolute difference
+    sub_node = ov_opset.subtract(x1, x2)
+    abs_diff_node = ov_opset.abs(sub_node.output(0))
+    abs_diff = abs_diff_node.output(0)
+
+    # Compute negative absolute difference and its exponential
+    neg_abs_diff_node = ov_opset.negative(abs_diff)
+    neg_abs_diff = neg_abs_diff_node.output(0)
+    exp_neg_abs_node = ov_opset.exp(neg_abs_diff)
+    exp_neg_abs = exp_neg_abs_node.output(0)
+
+    # Get the element type from the node, not the output
+    element_type = exp_neg_abs_node.get_element_type()
+    one_node = ov_opset.constant(1, element_type)
+    one = one_node.output(0)
+
+    # Compute log term
+    one_plus_exp_node = ov_opset.add(one, exp_neg_abs)
+    one_plus_exp = one_plus_exp_node.output(0)
+    log_term_node = ov_opset.log(one_plus_exp)
+    log_term = log_term_node.output(0)
+
+    # Final result
+    result_node = ov_opset.add(max_val, log_term)
+    result = result_node.output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def logical_and(x1, x2):
@@ -1355,7 +1432,35 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    raise NotImplementedError("`prod` is not supported with openvino backend")
+    x = get_ov_output(x)
+
+    # If a specific dtype is requested, cast the input to that dtype.
+    if dtype is not None:
+        ov_dtype = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        x = ov_opset.convert(x, ov_dtype).output(0)
+    # Otherwise, apply dtype promotion rules before reduction.
+    else:
+        x_type = x.get_element_type()
+        if x_type == Type.boolean:
+            x = ov_opset.convert(x, Type.i32).output(0)
+        elif x_type in (Type.i8, Type.i16):
+            x = ov_opset.convert(x, Type.i32).output(0)
+        elif x_type in (Type.u8, Type.u16):
+            x = ov_opset.convert(x, Type.u32).output(0)
+
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis = ov_opset.constant(axis, Type.i32).output(0)
+
+    # Compute the product
+    result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):

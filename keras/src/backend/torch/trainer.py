@@ -54,7 +54,10 @@ class TorchTrainer(base_trainer.Trainer):
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
         self._loss_tracker.update_state(
-            loss, sample_weight=tree.flatten(x)[0].shape[0]
+            loss,
+            sample_weight=next(
+                i for i in tree.flatten(x) if i is not None
+            ).shape[0],
         )
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
@@ -90,7 +93,10 @@ class TorchTrainer(base_trainer.Trainer):
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
-            loss, sample_weight=tree.flatten(x)[0].shape[0]
+            loss,
+            sample_weight=next(
+                i for i in tree.flatten(x) if i is not None
+            ).shape[0],
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 

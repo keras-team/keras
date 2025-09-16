@@ -5,12 +5,8 @@ import numpy as np
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
+from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
-
-try:
-    import grain
-except ImportError:
-    grain = None
 
 
 class GrainDatasetAdapter(DataAdapter):

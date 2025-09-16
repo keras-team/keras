@@ -945,6 +945,18 @@ def isposinf(x):
     return torch.isposinf(x)
 
 
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.kron(x1, x2)
+
+
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.lcm(x1, x2)
+
+
 def less(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.less(x1, x2)
@@ -1434,7 +1446,7 @@ def searchsorted(sorted_sequence, values, side="left"):
             "to extend it to N-D sequences. Received: "
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
-    out_int32 = len(sorted_sequence) <= np.iinfo(np.int32).max
+    out_int32 = sorted_sequence.shape[0] <= np.iinfo(np.int32).max
     return torch.searchsorted(
         sorted_sequence, values, side=side, out_int32=out_int32
     )
