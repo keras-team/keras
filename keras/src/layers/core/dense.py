@@ -147,7 +147,10 @@ class Dense(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
-        if getattr(self, "gptq", False) and self.quantization_mode == "gptq":
+        if (
+            getattr(self, "is_gptq_calibrated", False)
+            and self.quantization_mode == "gptq"
+        ):
             return self.quantized_kernel
         if self.lora_enabled:
             return self._kernel + (
