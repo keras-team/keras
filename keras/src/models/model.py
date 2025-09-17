@@ -434,46 +434,49 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
-        if mode == "gptq":
-            if not isinstance(config, GPTQConfig):
-                raise ValueError(
-                    "The `config` argument must be of type "
-                    "`keras.quantizers.GPTQConfig`."
-                )
-            gptq_quantize(self, config)
-            self._post_quantize(mode, **kwargs)
-            return
-
-        # For all other modes, verify that a config object was not passed.
-        if config is not None:
-            raise ValueError(
-                f"The `config` argument is only supported for 'gptq' mode, "
-                f"but received mode='{mode}'."
-            )
-
+        # Validate inputs.
         type_check = kwargs.pop("type_check", True)
         if kwargs:
             raise ValueError(
                 "Unrecognized keyword arguments "
                 f"passed to {self.__class__.__name__}: {kwargs}"
             )
+
         if mode not in QUANTIZATION_MODES:
             raise ValueError(
                 "Invalid quantization mode. "
                 f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
             )
-        mode_changed = False
+
+        if mode == "gptq":
+            if not isinstance(config, GPTQConfig):
+                raise ValueError(
+                    "Mode 'gptq' requires a valid `config` argument of type "
+                    f"`GPTQConfig`. Received: {type(config)}"
+                )
+        elif config is not None:
+            # All other modes must not receive a config
+            raise ValueError(
+                f"The `config` argument is only supported for 'gptq' mode, "
+                f"but received mode='{mode}' and a non-None config."
+            )
+
+        graph_modified = False
         for layer in self._flatten_layers():
-            list_of_sublayers = list(layer._flatten_layers())
-            if len(list_of_sublayers) == 1:  # leaves of the model
+            if len(list(layer._flatten_layers())) == 1:
                 try:
-                    layer.quantize(mode, type_check=type_check)
-                    mode_changed = True
+                    layer.quantize(mode, type_check=type_check, config=config)
+                    graph_modified = True
                 except NotImplementedError as e:
                     warnings.warn(str(e))
-        # We need to set these functions to `None` to remake them for changed
-        # call function
-        if mode_changed:
+                except AttributeError:
+                    pass
+
+        if mode == "gptq":
+            gptq_quantize(self, config)
+
+        # If any layer was changed, we must rebuild the execution functions.
+        if graph_modified:
             self.train_function = None
             self.test_function = None
             self.predict_function = None
