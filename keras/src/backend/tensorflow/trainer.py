@@ -580,7 +580,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.make_predict_function()
         self.stop_predicting = False
         callbacks.on_predict_begin()
-        outputs = None if accumulate else []
+        outputs = None
         with epoch_iterator.catch_stop_iteration():
             for begin_step, end_step, iterator in epoch_iterator:
                 callbacks.on_predict_batch_begin(begin_step)
@@ -595,12 +595,13 @@ class TensorFlowTrainer(base_trainer.Trainer):
                     break
         callbacks.on_predict_end()
         if accumulate:
+            if outputs is None:
+                return None
             outputs = tree.map_structure_up_to(
                 batch_outputs, potentially_ragged_concat, outputs
             )
             return tree.map_structure(convert_to_np_if_not_ragged, outputs)
-        else:
-            return None
+        return outputs
 
     def train_on_batch(
         self,

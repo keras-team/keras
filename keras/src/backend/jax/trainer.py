@@ -694,7 +694,7 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs
 
         self._jax_state_synced = True
-        outputs = None if accumulate else []
+        outputs = None
         non_trainable_variables = None
         with epoch_iterator.catch_stop_iteration():
             for begin_step, end_step, iterator in epoch_iterator:
@@ -733,9 +733,10 @@ class JAXTrainer(base_trainer.Trainer):
         callbacks.on_predict_end()
         self._jax_state = None
         if accumulate:
+            if outputs is None:
+                return None
             return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
-        else:
-            return None
+        return outputs
 
     def train_on_batch(
         self,

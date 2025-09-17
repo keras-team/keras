@@ -438,7 +438,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_predict_function()
         self.stop_predicting = False
         callbacks.on_predict_begin()
-        outputs = None if accumulate else []
+        outputs = None
         for begin_step, end_step, data in epoch_iterator:
             callbacks.on_predict_batch_begin(begin_step)
             batch_outputs = self.predict_function(data)
@@ -449,10 +449,11 @@ class TorchTrainer(base_trainer.Trainer):
                 break
         callbacks.on_predict_end()
         if accumulate:
+            if outputs is None:
+                return None
             outputs = tree.map_structure(backend.convert_to_numpy, outputs)
             return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
-        else:
-            return None
+        return outputs
 
     def train_on_batch(
         self,
