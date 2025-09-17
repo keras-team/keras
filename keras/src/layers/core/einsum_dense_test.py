@@ -14,6 +14,7 @@ from keras.src import optimizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 class EinsumDenseTest(testing.TestCase):
@@ -1014,3 +1015,24 @@ class EinsumDenseTest(testing.TestCase):
         y_inference = layer(x, training=False)
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
+
+    def test_gptq_serialization(self):
+        """Test that a GPTQ-quantized layer can be serialized and deserialized
+        correctly."""
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+        config = layer.get_config()
+        new_layer = layers.EinsumDense.from_config(config)
+        new_layer.build((None, 3))
+        self.assertEqual(new_layer.quantization_mode, "gptq")
