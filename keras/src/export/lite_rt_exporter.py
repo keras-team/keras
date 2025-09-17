@@ -20,7 +20,7 @@ class LiteRTExporter:
     callable signature for `model.call`.
     """
 
-    def __init__(self, model, input_signature=None, verbose=0, max_sequence_length=512, 
+    def __init__(self, model, input_signature=None, verbose=0, 
                  aot_compile_targets=None, **kwargs):
         """Initialize the LiteRT exporter.
         
@@ -28,14 +28,12 @@ class LiteRTExporter:
             model: The Keras model to export
             input_signature: Input signature specification
             verbose: Verbosity level (0=quiet, 1=info)
-            max_sequence_length: Maximum sequence length for inference
             aot_compile_targets: List of LiteRT targets for AOT compilation
             **kwargs: Additional export parameters
         """
         self.model = model
         self.input_signature = input_signature
         self.verbose = verbose
-        self.max_sequence_length = max_sequence_length
         self.aot_compile_targets = aot_compile_targets
         self.kwargs = kwargs
 
@@ -54,11 +52,11 @@ class LiteRTExporter:
         # 1. Ensure the model is built by calling it if necessary
         self._ensure_model_built()
 
-        # 2. Resolve / infer input signature with bounded sequence length.
+        # 2. Resolve / infer input signature
         if self.input_signature is None:
             if self.verbose:
-                print(f"Inferring input signature with max_sequence_length={self.max_sequence_length}.")
-            self.input_signature = get_input_signature(self.model, self.max_sequence_length)
+                print("Inferring input signature from model.")
+            self.input_signature = get_input_signature(self.model)
         
         # 3. Convert the model to TFLite.
         tflite_model = self._convert_to_tflite(self.input_signature)

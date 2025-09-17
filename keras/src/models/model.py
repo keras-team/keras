@@ -593,14 +593,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
                 - `allow_custom_ops`: Optional `bool`. Specific to `format="lite_rt"`.
-                    Whether to allow custom operations during conversion. Defaults to `False`.a
+                    Whether to allow custom operations during conversion. Defaults to `False`.
                 - `enable_select_tf_ops`: Optional `bool`. Specific to `format="lite_rt"`.
                     Whether to enable TensorFlow Select ops for unsupported operations. Defaults to `False`.
                 - `optimizations`: Optional `list`. Specific to `format="lite_rt"`.
                     List of optimizations to apply (e.g., `[tf.lite.Optimize.DEFAULT]`).
-                - `max_sequence_length`: Optional `int`. Specific to `format="lite_rt"`.
-                    Maximum sequence length for transformer models to avoid unbounded shapes.
-                    Defaults to `512`.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
