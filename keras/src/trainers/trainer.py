@@ -807,7 +807,13 @@ class Trainer:
         raise NotImplementedError
 
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None, accumulate=True
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
+        accumulate=True,
     ):
         """Generates output predictions for the input samples.
 
@@ -864,7 +870,8 @@ class Trainer:
                 Defaults to `True`.
 
         Returns:
-            NumPy array(s) of predictions if `accumulate=True`, otherwise `None`.
+            NumPy array(s) of predictions if `accumulate=True`,
+            otherwise `None`.
         """
         raise NotImplementedError
 

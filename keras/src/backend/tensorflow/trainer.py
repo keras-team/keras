@@ -521,7 +521,13 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None, accumulate=True
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
+        accumulate=True,
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = TFEpochIterator(

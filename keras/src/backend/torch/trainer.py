@@ -395,7 +395,13 @@ class TorchTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None, accumulate=True
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
+        accumulate=True,
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = TorchEpochIterator(
@@ -452,7 +458,9 @@ class TorchTrainer(base_trainer.Trainer):
             if outputs is None:
                 return None
             outputs = tree.map_structure(backend.convert_to_numpy, outputs)
-            return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
+            return tree.map_structure_up_to(
+                batch_outputs, np.concatenate, outputs
+            )
         return outputs
 
     def train_on_batch(

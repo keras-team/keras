@@ -638,7 +638,13 @@ class JAXTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None, accumulate=True
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
+        accumulate=True,
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = JAXEpochIterator(
@@ -735,7 +741,9 @@ class JAXTrainer(base_trainer.Trainer):
         if accumulate:
             if outputs is None:
                 return None
-            return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
+            return tree.map_structure_up_to(
+                batch_outputs, np.concatenate, outputs
+            )
         return outputs
 
     def train_on_batch(
