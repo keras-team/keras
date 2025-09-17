@@ -288,6 +288,94 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         return config
 
 
+@keras_export("keras.dtype_policies.GPTQDTypePolicy")
+class GPTQDTypePolicy(QuantizedDTypePolicy):
+    """Quantized dtype policy for GPTQ quantization.
+
+    This policy helps propagate quantization settings for GPTQ
+    when loading a GPTQ quantized model in Keras format.
+
+    Args:
+        mode: The quantization mode. This should be a string in the format
+            `"gptq/<weight_bits>/<group_size>"`.
+            -   `"gptq"`: The identifier for the quantization algorithm.
+            -   `<weight_bits>`: Number of bits to quantize weights to.
+                Supported values are 2, 3, 4, and 8.
+            -   `<group_size>`: The group size for quantization. Supported
+                values are -1 (for whole-tensor quantization) or any
+                positive integer. Typically a smaller group size leads
+                to better accuracy but slower speed.
+            Example: `"gptq/4/128"`.
+        source_name: The source dtype policy name, e.g. "float32".
+    """
+
+    def __init__(
+        self,
+        mode,
+        source_name=None,
+    ):
+        parts = mode.split("/")
+        expected_format = "'gptq/<weight_bits>/<group_size>'"
+
+        # Validate format
+        if len(parts) != 3 or parts[0] != "gptq":
+            raise ValueError(
+                "Invalid mode for GPTQDTypePolicy. Expected format "
+                f"{expected_format}, but got '{mode}'."
+            )
+
+        # Validate and cast weight_bits and group_size
+        try:
+            weight_bits = int(parts[1])
+            group_size = int(parts[2])
+        except ValueError:
+            raise ValueError(
+                "Invalid mode for GPTQDTypePolicy. <weight_bits> and "
+                "<group_size> must be integers. Expected format "
+                f"{expected_format}, but got '{mode}'."
+            )
+
+        # Validate supported values
+        if weight_bits not in [2, 3, 4, 8]:
+            raise ValueError(
+                "Invalid weight_bits in mode. Supported values are "
+                f"2, 3, 4, and 8, but got {weight_bits} from '{mode}'."
+            )
+
+        if group_size < -1 or group_size == 0:
+            raise ValueError(
+                "Invalid group_size in mode. Supported values are "
+                "-1 (whole-tensor) or a positive integer, "
+                f"but got {group_size} from '{mode}'."
+            )
+
+        base_mode = parts[0]
+        super().__init__(
+            mode=base_mode,
+            source_name=source_name,
+        )
+
+        self._name = f"{mode}_from_{source_name}"
+        self.mode = base_mode
+        self.weight_bits = weight_bits
+        self.group_size = group_size
+
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return (
+            self.weight_bits == other.weight_bits
+            and self.group_size == other.group_size
+        )
+
+    def get_config(self):
+        config = super().get_config()
+        # Reconstruct the full mode string for serialization
+        mode = f"{self.mode}/{self.weight_bits}/{self.group_size}"
+        config.update({"mode": mode})
+        return config
+
+
 @keras_export(
     [
         "keras.config.set_dtype_policy",
@@ -352,6 +440,8 @@ def _get_quantized_dtype_policy_by_str(policy):
     mode, source_name = split_name
     if policy.startswith("int8") or policy.startswith("int4"):
         return QuantizedDTypePolicy(mode, source_name)
+    elif policy.startswith("gptq"):
+        return GPTQDTypePolicy(mode, source_name)
     elif policy.startswith("float8"):
         return QuantizedFloat8DTypePolicy(mode, source_name)
     else:

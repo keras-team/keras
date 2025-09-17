@@ -147,6 +147,23 @@ class GPTQConfig:
         symmetric: bool = False,
         activation_order: bool = False,
     ):
+        if weight_bits not in [2, 3, 4, 8]:
+            raise ValueError(
+                f"Unsupported weight_bits {weight_bits}. "
+                "Supported values are 2, 3, 4, and 8."
+            )
+        if num_samples <= 0:
+            raise ValueError("num_samples must be a positive integer.")
+        if sequence_length <= 0:
+            raise ValueError("sequence_length must be a positive integer.")
+        if hessian_damping < 0 or hessian_damping > 1:
+            raise ValueError("hessian_damping must be between 0 and 1.")
+        if group_size < -1 or group_size == 0:
+            raise ValueError(
+                "Invalid group_size. Supported values are -1 (whole-tensor) "
+                "or a positive integer, "
+                f"but got {group_size}."
+            )
         self.dataset = dataset
         self.tokenizer = tokenizer
         self.num_samples = num_samples
@@ -157,3 +174,11 @@ class GPTQConfig:
         self.group_size = group_size
         self.symmetric = symmetric
         self.activation_order = activation_order
+
+    def dtype_policy_string(self):
+        """Returns the dtype policy string for this configuration.
+
+        Returns:
+            A string representing the dtype policy, e.g. "gptq_4bit".
+        """
+        return f"gptq/{self.weight_bits}/{self.group_size}"
