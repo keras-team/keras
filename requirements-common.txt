@@ -23,9 +23,9 @@ dm_tree
 coverage
 # for onnx_test.py
 onnxruntime
-# TODO(https://github.com/keras-team/keras/issues/21390)
-# > 0.3.1 breaks LSTM model export in torch backend.
-onnxscript<=0.3.1
+# https://github.com/keras-team/keras/issues/21390
+# onnxscript==0.3.2 breaks LSTM model export.
+onnxscript!=0.3.2
 openvino
 # for grain_dataset_adapter_test.py
 grain
