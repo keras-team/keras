@@ -2207,6 +2207,93 @@ class TestTrainer(testing.TestCase):
         out3 = model.predict_on_batch(np.ones((2, 20)))
         self.assertGreater(5, np.sum(np.abs(out2 - out3)))
 
+    def test_predict_accumulate_parameter(self):
+        # Test that `predict` with accumulate=True/False works correctly
+        model = ExampleModel(units=3)
+        x = np.ones((10, 4))
+
+        # Test accumulate=True (default behavior)
+        outputs_accumulated = model.predict(x, batch_size=2, accumulate=True)
+        self.assertIsInstance(outputs_accumulated, np.ndarray)
+        self.assertEqual(outputs_accumulated.shape, (10, 3))
+        self.assertAllClose(outputs_accumulated, 4 * np.ones((10, 3)))
+
+        # Test accumulate=False with callback to capture outputs
+        class OutputCaptureCallback(Callback):
+            def __init__(self):
+                super().__init__()
+                self.outputs = []
+
+            def on_predict_batch_end(self, batch, logs=None):
+                if logs and "outputs" in logs:
+                    self.outputs.append(logs["outputs"])
+
+        callback = OutputCaptureCallback()
+        outputs_none = model.predict(
+            x, batch_size=2, accumulate=False, callbacks=[callback]
+        )
+
+        # Verify accumulate=False returns None
+        self.assertIsNone(outputs_none)
+
+        # Verify callback captured the correct number of batches
+        self.assertEqual(
+            len(callback.outputs), 5
+        )  # 10 samples / 2 batch_size = 5 batches
+
+        # Verify callback outputs match accumulated outputs when concatenated
+        concatenated_outputs = np.concatenate(callback.outputs, axis=0)
+        self.assertAllClose(outputs_accumulated, concatenated_outputs)
+
+    def test_predict_accumulate_parameter_multi_output(self):
+        # Test accumulate parameter with multi-output model
+        inputs = layers.Input((4,))
+        output1 = layers.Dense(3, name="out1")(inputs)
+        output2 = layers.Dense(2, name="out2")(inputs)
+        model = models.Model(inputs=inputs, outputs=[output1, output2])
+
+        x = np.ones((8, 4))
+
+        # Test accumulate=True (default behavior)
+        outputs_accumulated = model.predict(x, batch_size=2, accumulate=True)
+        self.assertIsInstance(outputs_accumulated, list)
+        self.assertEqual(len(outputs_accumulated), 2)
+        self.assertEqual(outputs_accumulated[0].shape, (8, 3))
+        self.assertEqual(outputs_accumulated[1].shape, (8, 2))
+
+        # Test accumulate=False with callback
+        class OutputCaptureCallback(Callback):
+            def __init__(self):
+                super().__init__()
+                self.outputs = []
+
+            def on_predict_batch_end(self, batch, logs=None):
+                if logs and "outputs" in logs:
+                    self.outputs.append(logs["outputs"])
+
+        callback = OutputCaptureCallback()
+        outputs_none = model.predict(
+            x, batch_size=2, accumulate=False, callbacks=[callback]
+        )
+
+        # Verify accumulate=False returns None
+        self.assertIsNone(outputs_none)
+
+        # Verify callback captured the correct outputs
+        self.assertEqual(
+            len(callback.outputs), 4
+        )  # 8 samples / 2 batch_size = 4 batches
+
+        # Verify callback outputs match accumulated outputs when concatenated
+        concatenated_outputs_1 = np.concatenate(
+            [out[0] for out in callback.outputs], axis=0
+        )
+        concatenated_outputs_2 = np.concatenate(
+            [out[1] for out in callback.outputs], axis=0
+        )
+        self.assertAllClose(outputs_accumulated[0], concatenated_outputs_1)
+        self.assertAllClose(outputs_accumulated[1], concatenated_outputs_2)
+
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
         model = ExampleModel(units=3)
