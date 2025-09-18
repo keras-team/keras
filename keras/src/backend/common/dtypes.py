@@ -233,8 +233,8 @@ def _resolve_weak_type(dtype, precision="32"):
 
 
 BIT64_TO_BIT32_DTYPE = {
-    # TF's variables needs int64 to be placed on GPU. Don't convert int64 to
-    # int32.
+    # Since TF variables require int64 to be placed on the GPU, we exclusively
+    # enable the int64 dtype for TF.
     "int64": "int64" if config.backend() == "tensorflow" else "int32",
     "uint64": "uint32",
     "float64": "float32",
@@ -271,8 +271,8 @@ def _lattice_result_type(*args):
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
 
-    # Force to be 32-bit dtype when encountering 64-bit dtype.
-    # TODO(hongyu): Add a config to enable 64-bit dtypes.
+    # Force to be 32-bit dtype when encountering 64-bit dtype. This is to
+    # be aligned with JAX's default behavior.
     out_dtype = BIT64_TO_BIT32_DTYPE.get(out_dtype, out_dtype)
     return out_dtype
 
