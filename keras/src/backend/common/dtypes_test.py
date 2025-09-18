@@ -63,21 +63,25 @@ class DtypesTest(test_case.TestCase):
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="TensorFlow only"
     )
-    def test_result_type_with_int64(self):
+    @parameterized.named_parameters(
+        named_product(
+            dtype=[
+                "int8",
+                "int16",
+                "int32",
+                "int64",
+                "uint8",
+                "uint16",
+                "uint32",
+            ]
+        )
+    )
+    def test_result_type_with_int64(self, dtype):
         # https://github.com/keras-team/keras/issues/21677
         x1 = ops.ones((1,), dtype="int64")
-        for dtype in (
-            "int8",
-            "int16",
-            "int32",
-            "int64",
-            "uint8",
-            "uint16",
-            "uint32",
-        ):
-            x2 = ops.ones((1,), dtype=dtype)
-            out = backend.result_type(x1.dtype, x2.dtype)
-            self.assertEqual(out, "int64")
+        x2 = ops.ones((1,), dtype=dtype)
+        out = backend.result_type(x1.dtype, x2.dtype)
+        self.assertEqual(out, "int64")
 
     def test_result_type_with_none(self):
         import jax.numpy as jnp
