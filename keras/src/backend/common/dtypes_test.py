@@ -29,8 +29,11 @@ class DtypesTest(test_case.TestCase):
     if backend.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
     elif backend.backend() == "tensorflow":
-        # TODO(hongyu): Re-enable uint32 tests when we figure out how to handle
-        # (uint32, int*) -> int64 promotion. JAX doesn't natively support int64.
+        # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
+        # dtypes.result_type(uint32, int*) -> int64 promotion.
+        # Since TF variables require int64 to be placed on the GPU, we
+        # exclusively enable the int64 dtype for TF. However, JAX does not
+        # natively support int64, which prevents us from comparing the dtypes.
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
     elif backend.backend() == "openvino":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
