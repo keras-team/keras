@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -27,6 +28,10 @@ class DtypesTest(test_case.TestCase):
     ] + [None]
     if backend.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        # TODO(hongyu): Re-enable uint32 tests when we figure out how to handle
+        # (uint32, int*) -> int64 promotion. JAX doesn't natively support int64.
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
     elif backend.backend() == "openvino":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
 
@@ -54,6 +59,25 @@ class DtypesTest(test_case.TestCase):
         out = backend.result_type(x1.dtype, x2.dtype)
         expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_result_type_with_int64(self):
+        # https://github.com/keras-team/keras/issues/21677
+        x1 = ops.ones((1,), dtype="int64")
+        for dtype in (
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+            "uint8",
+            "uint16",
+            "uint32",
+        ):
+            x2 = ops.ones((1,), dtype=dtype)
+            out = backend.result_type(x1.dtype, x2.dtype)
+            self.assertEqual(out, "int64")
 
     def test_result_type_with_none(self):
         import jax.numpy as jnp

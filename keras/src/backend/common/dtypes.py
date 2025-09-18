@@ -232,16 +232,10 @@ def _resolve_weak_type(dtype, precision="32"):
         return f"float{precision}"
 
 
-BIT64_TO_BIT16_DTYPE = {
-    "int32": "int16",
-    "int64": "int16",
-    "uint32": "uint16",
-    "uint64": "uint16",
-    "float32": "float16",
-    "float64": "float16",
-}
 BIT64_TO_BIT32_DTYPE = {
-    "int64": "int32",
+    # TF's variables needs int64 to be placed on GPU. Don't convert int64 to
+    # int32.
+    "int64": "int64" if config.backend() == "tensorflow" else "int32",
     "uint64": "uint32",
     "float64": "float32",
     "complex128": "complex64",
