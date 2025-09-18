@@ -193,6 +193,27 @@ class TrackedList(list):
         # For optree / dmtree
         return cls(children)
 
+    def torchtree_flatten(self):
+        # For torchtree
+        # Returns (values, metadata)
+        return (self, None)
+
+    @classmethod
+    def torchtree_unflatten(cls, children, metadata):
+        # For torchtree
+        # Requires (children, metadata)
+        return cls(children)
+
+    def torchtree_flatten_with_keys(self):
+        # For torchtree
+        # Returns (children, metadata)
+        from torch.utils import _pytree as torch_tree
+
+        values, context = self.torchtree_flatten()
+        return [
+            (torch_tree.SequenceKey(i), v) for i, v in enumerate(values)
+        ], context
+
 
 @tree.register_tree_node_class
 class TrackedDict(dict):
@@ -244,6 +265,29 @@ class TrackedDict(dict):
         # For optree / dmtree
         return cls(zip(keys, values))
 
+    def torchtree_flatten(self):
+        # For torch_tree
+        # Returns (values, metadata)
+        keys = sorted(list(self.keys()))
+        values = [self[k] for k in keys]
+        return values, keys
+
+    @classmethod
+    def torchtree_unflatten(cls, values, keys):
+        # For torch_tree
+        # Requires (children, metadata)
+        return cls(zip(keys, values))
+
+    def torchtree_flatten_with_keys(self):
+        # For torchtree
+        # Returns (children, metadata)
+        from torch.utils import _pytree as torch_tree
+
+        values, context = self.torchtree_flatten()
+        return [
+            (torch_tree.MappingKey(k), v) for k, v in zip(context, values)
+        ], context
+
 
 @tree.register_tree_node_class
 class TrackedSet(set):
@@ -288,3 +332,24 @@ class TrackedSet(set):
     def tree_unflatten(cls, metadata, children):
         # For optree / dmtree
         return cls(children)
+
+    def torchtree_flatten(self):
+        # For torchtree
+        # Returns (values, metadata)
+        return (self, None)
+
+    @classmethod
+    def torchtree_unflatten(cls, children, metadata):
+        # For torchtree
+        # Requires (values, metadata)
+        return cls(children)
+
+    def torchtree_flatten_with_keys(self):
+        # For torchtree
+        # Returns (children, metadata)
+        from torch.utils import _pytree as torch_tree
+
+        values, context = self.torchtree_flatten()
+        return [
+            (torch_tree.SequenceKey(i), v) for i, v in enumerate(values)
+        ], context
