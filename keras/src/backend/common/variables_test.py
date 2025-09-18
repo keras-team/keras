@@ -328,6 +328,10 @@ class VariablePropertiesTest(test_case.TestCase):
         v = backend.Variable(initializer=np.ones((2, 2)), name="test_var")
         self.assertEqual(v.path, "test_var")
 
+        with backend.name_scope("test_scope"):
+            v = backend.Variable(initializer=np.ones((2, 2)), name="test_var")
+            self.assertEqual(v.path, "test_scope/test_var")
+
     def test_overwrite_with_gradient_setter(self):
         v = backend.Variable(
             initializer=initializers.RandomNormal(),
