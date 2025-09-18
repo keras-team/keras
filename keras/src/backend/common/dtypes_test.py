@@ -60,9 +60,6 @@ class DtypesTest(test_case.TestCase):
         expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TensorFlow only"
-    )
     @parameterized.named_parameters(
         named_product(
             dtype=[
@@ -75,6 +72,9 @@ class DtypesTest(test_case.TestCase):
                 "uint32",
             ]
         )
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
     )
     def test_result_type_with_int64(self, dtype):
         # https://github.com/keras-team/keras/issues/21677
