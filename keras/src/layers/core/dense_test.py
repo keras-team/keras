@@ -359,28 +359,36 @@ class DenseTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
-    # Test quantization-related (int8 and float8) methods
+    # Test quantization-related methods.
 
-    def test_quantize_int8(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("int4", "int4"),
+    )
+    def test_quantize_int(self, mode):
+        if mode == "int4" and testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault")
         layer = layers.Dense(units=16)
         layer.build((None, 8))
         x = np.random.random((2, 8))
         y_float = layer(x)
-        layer.quantize("int8")
+        layer.quantize(mode)
 
-        # Verify weights dtype
+        # Verify the dtype of the weights.
+        # The kernel's data type is int8, despite the int4 quantization, because
+        # we pack the int4 values into int8.
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
             backend.standardize_dtype(layer.kernel_scale.dtype),
             layer.variable_dtype,
         )
 
-        # Try eager call and verify output correctness
+        # Verify the correctness of the outputs.
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
         self.assertLess(mse, 1e-3)  # A weak correctness test
 
-        # Try saving and reloading the model
+        # Check model save / load round-trip.
         model = models.Sequential([layer])
         temp_filepath = os.path.join(
             self.get_temp_dir(), "quantized_model.keras"
@@ -389,22 +397,27 @@ class DenseTest(testing.TestCase):
         new_model = saving.load_model(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-        # Try saving and reloading the model's weights only
+        # Check weights-only save / load round-trip.
         temp_filepath = os.path.join(
             self.get_temp_dir(), "quantized_model.weights.h5"
         )
         model.save_weights(temp_filepath)
+        new_model = models.Sequential([layers.Dense(units=16)])
+        new_model.build((None, 8))
+        new_model.quantize(mode)
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
 
-        # Try lora
+        # Check LoRA integration when quantizing.
         layer = layers.Dense(units=16)
         layer.build((None, 8))
         layer.enable_lora(4)
-        layer.quantize("int8")
+        layer.quantize(mode)
         x = np.random.random((2, 8))
         _ = layer(x)
 
-        # Try building with quantized dtype policy
-        layer = layers.Dense(units=16, dtype="int8_from_mixed_bfloat16")
+        # Check building a quantized layer with dtype argument.
+        layer = layers.Dense(units=16, dtype=f"{mode}_from_mixed_bfloat16")
         layer.build((None, 8))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
@@ -413,6 +426,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8"),
+        ("int4", "int4"),
         ("float8", "float8"),
     )
     def test_quantize_on_unbuilt_layer(self, mode):
@@ -424,6 +438,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8"),
+        ("int4", "int4"),
         ("float8", "float8"),
     )
     def test_quantize_on_subclass(self, mode):
@@ -439,13 +454,14 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8"),
+        ("int4", "int4"),
         ("float8", "float8"),
     )
     def test_quantize_when_already_quantized(self, mode):
         layer = layers.Dense(units=2)
         layer.build((None, 2))
         layer.quantize(mode)
-        for m in ["int8", "float8"]:
+        for m in ["int8", "int4", "float8"]:
             with self.assertRaisesRegex(
                 ValueError, "is already quantized with dtype_policy="
             ):
@@ -453,7 +469,7 @@ class DenseTest(testing.TestCase):
 
         layer = layers.Dense(units=2, dtype=f"{mode}_from_float32")
         layer.build((None, 2))
-        for m in ["int8", "float8"]:
+        for m in ["int8", "int4", "float8"]:
             with self.assertRaisesRegex(
                 ValueError, "is already quantized with dtype_policy="
             ):
@@ -461,6 +477,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
+        ("int4", "int4_from_float32", 3),  # bias + packed kernel + scale
         ("float8", "float8_from_float32", 8),
     )
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
@@ -506,8 +523,8 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_mixed_bfloat16", 1, 2),
-        ("float8", "float8_from_mixed_bfloat16", 8, 0),
         ("int4", "int4_from_mixed_bfloat16", 1, 2),
+        ("float8", "float8_from_mixed_bfloat16", 8, 0),
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
@@ -526,20 +543,30 @@ class DenseTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @parameterized.named_parameters(
+        ("int8", "int8", 3, 2, 5),
+        ("int4", "int4", 3, 2, 5),
+    )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
-    def test_quantize_int8_when_lora_enabled(self):
+    def test_quantize_lora_integration(
+        self,
+        mode,
+        num_trainable_weights,
+        num_non_trainable_weights,
+        num_torch_params,
+    ):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
         config = dict(units=16)
         layer = layers.Dense(**config)
         layer.build((None, 8))
         layer.enable_lora(4)
-        layer.quantize("int8")
-        self.assertLen(layer.trainable_weights, 3)
-        self.assertLen(layer.non_trainable_weights, 2)
+        layer.quantize(mode)
+        self.assertLen(layer.trainable_weights, num_trainable_weights)
+        self.assertLen(layer.non_trainable_weights, num_non_trainable_weights)
         if backend.backend() == "torch":
-            self.assertLen(layer.torch_params, 5)
+            self.assertLen(layer.torch_params, num_torch_params)
 
         # Try calling fit()
         init_lora_a_kernel_value = layer.lora_kernel_a.numpy()
@@ -577,7 +604,7 @@ class DenseTest(testing.TestCase):
         model.save_weights(temp_filepath)
         new_model = models.Sequential([layers.Dense(**config)])
         new_model.build((None, 8))
-        new_model.quantize("int8")
+        new_model.quantize(mode)
         new_model.load_weights(temp_filepath)
         self.assertFalse(new_model.layers[0].lora_enabled)
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
@@ -791,177 +818,6 @@ class DenseTest(testing.TestCase):
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
 
-    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
-    def test_quantize_int4(self):
-        """Basic correctness / serialization test for int4 quantization."""
-        layer = layers.Dense(units=16)
-        layer.build((None, 8))
-
-        # Reference (float32) output.
-        x = np.random.random((2, 8))
-        y_float = layer(x)
-
-        # Quantize to int4 and validate kernel dtype / scale dtype.
-        layer.quantize("int4")
-        self.assertEqual(
-            backend.standardize_dtype(layer._kernel.dtype),
-            "int8",  # Packed int4 values are stored as int8
-        )
-        self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype),
-            layer.variable_dtype,
-        )
-
-        y_quantized = layer(x)
-        mse = ops.mean(ops.square(y_float - y_quantized))
-        self.assertLess(mse, 15e-4)  # Weak correctness check
-
-        # Check model save / load round-trip.
-        model = models.Sequential([layer])
-        temp_filepath = os.path.join(
-            self.get_temp_dir(), "quantized_int4_model.keras"
-        )
-        model.save(temp_filepath)
-        new_model = saving.load_model(temp_filepath)
-        self.assertAllClose(model.predict(x), new_model.predict(x))
-
-        # Check weights-only save / load round-trip.
-        temp_filepath = os.path.join(
-            self.get_temp_dir(), "quantized_int4_model.weights.h5"
-        )
-        model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.Dense(units=16)])
-        new_model.build((None, 8))
-        new_model.quantize("int4")
-        new_model.load_weights(temp_filepath)
-        self.assertAllClose(model.predict(x), new_model.predict(x))
-
-    def test_quantize_int4_on_unbuilt_layer(self):
-        layer = layers.Dense(units=2)
-        with self.assertRaisesRegex(
-            ValueError, "Cannot quantize a layer that isn't yet built."
-        ):
-            layer.quantize("int4")
-
-    def test_quantize_int4_on_subclass(self):
-        class MyDense(layers.Dense):
-            pass
-
-        layer = MyDense(units=16)
-        layer.build((None, 8))
-        with self.assertRaises(NotImplementedError):
-            layer.quantize("int4")
-
-        # It should succeed when `type_check=False`.
-        layer.quantize("int4", type_check=False)
-
-    def test_quantize_int4_when_already_quantized(self):
-        layer = layers.Dense(units=2)
-        layer.build((None, 2))
-        layer.quantize("int4")
-        for m in ["int8", "float8", "int4"]:
-            with self.assertRaisesRegex(
-                ValueError, "is already quantized with dtype_policy="
-            ):
-                layer.quantize(m)
-
-        layer = layers.Dense(units=2, dtype="int4_from_float32")
-        layer.build((None, 2))
-        for m in ["int8", "float8", "int4"]:
-            with self.assertRaisesRegex(
-                ValueError, "is already quantized with dtype_policy="
-            ):
-                layer.quantize(m)
-
-    def test_quantize_int4_by_setting_dtype_policy(self):
-        policy = "int4_from_float32"
-        expected_num_variables = 3  # bias + packed kernel + scale
-        layer = layers.Dense(units=2)
-        layer.build((None, 2))
-        layer.dtype_policy = policy
-        self.assertLen(layer.variables, expected_num_variables)
-
-    @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
-    def test_quantize_int4_when_lora_enabled(self):
-        config = dict(units=16)
-        layer = layers.Dense(**config)
-        layer.build((None, 8))
-        layer.enable_lora(4)
-        layer.quantize("int4")
-        self.assertLen(layer.trainable_weights, 3)
-        self.assertLen(layer.non_trainable_weights, 2)
-        if backend.backend() == "torch":
-            self.assertLen(layer.torch_params, 5)
-
-        # Try calling fit()
-        init_lora_a_kernel_value = layer.lora_kernel_a.numpy()
-        init_lora_b_kernel_value = layer.lora_kernel_b.numpy()
-        x = np.random.random((64, 8))
-        y = np.random.random((64, 16))
-        model = models.Sequential([layer])
-        model.compile(optimizer="sgd", loss="mse")
-        model.fit(x, y, epochs=2)
-
-        final_lora_a_kernel_value = layer.lora_kernel_a.numpy()
-        final_lora_b_kernel_value = layer.lora_kernel_b.numpy()
-        diff_a = np.max(
-            np.abs(init_lora_a_kernel_value - final_lora_a_kernel_value)
-        )
-        diff_b = np.max(
-            np.abs(init_lora_b_kernel_value - final_lora_b_kernel_value)
-        )
-        self.assertGreater(diff_a, 0.0)
-        self.assertGreater(diff_b, 0.0)
-
-        # Save & reload full model
-        model = models.Sequential([layer])
-        temp_filepath = os.path.join(
-            self.get_temp_dir(), "quantized_int4_lora_model.keras"
-        )
-        model.save(temp_filepath)
-        new_model = saving.load_model(temp_filepath)
-        self.assertTrue(new_model.layers[0].lora_enabled)
-        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
-
-        # Save & reload weights only
-        temp_filepath = os.path.join(
-            self.get_temp_dir(), "quantized_int4_lora_model.weights.h5"
-        )
-        model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.Dense(**config)])
-        new_model.build((None, 8))
-        new_model.quantize("int4")
-        new_model.load_weights(temp_filepath)
-        self.assertFalse(new_model.layers[0].lora_enabled)
-        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
-
-        # Try loading a normal checkpoint into a lora model
-        new_model.save_weights(temp_filepath)
-        model.load_weights(temp_filepath)
-        self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
-
-        # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
-
-            temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-            ref_input = tf.random.normal((2, 8))
-            ref_output = model(ref_input)
-            model.export(temp_filepath, format="tf_saved_model")
-            reloaded_layer = export.TFSMLayer(temp_filepath)
-            self.assertAllClose(
-                reloaded_layer(ref_input), ref_output, atol=1e-7
-            )
-            self.assertLen(reloaded_layer.weights, len(model.weights))
-            self.assertLen(
-                reloaded_layer.trainable_weights, len(model.trainable_weights)
-            )
-            self.assertLen(
-                reloaded_layer.non_trainable_weights,
-                len(model.non_trainable_weights),
-            )
-
     def test_gptq_serialization(self):
         """Test that a GPTQ-quantized layer can be serialized and deserialized
         correctly."""
@@ -987,3 +843,74 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(
             layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
         )
+
+    def test_legacy_load_own_variables(self):
+        # In previous versions, `load_own_variables` accepted a store with
+        # numeric keys.
+        # TODO: add gptq_store test.
+        float32_store = {
+            "0": np.random.random((8, 16)).astype("float32"),
+            "1": np.random.random((16,)).astype("float32"),
+        }
+        int8_store = {
+            "0": np.random.randint(-128, 127, size=(8, 16), dtype="int8"),
+            "1": np.random.random((16,)).astype("float32"),
+            "2": np.random.random((16,)).astype("float32"),  # kernel_scale.
+        }
+        int4_store = {
+            "0": np.random.randint(-128, 127, size=(4, 16), dtype="int8"),
+            "1": np.random.random((16,)).astype("float32"),
+            "2": np.random.random((16,)).astype("float32"),  # kernel_scale.
+        }
+        float8_store = {
+            "0": np.random.random((8, 16)).astype("float32"),
+            "1": np.random.random((16,)).astype("float32"),
+            # inputs_scale.
+            "2": np.random.random(()).astype("float32"),
+            # inputs_amax_history.
+            "3": np.random.random((1024,)).astype("float32"),
+            # kernel_scale.
+            "4": np.random.random(()).astype("float32"),
+            # kernel_amax_history.
+            "5": np.random.random((1024,)).astype("float32"),
+            # outputs_grad_scale.
+            "6": np.random.random(()).astype("float32"),
+            # outputs_grad_amax_history.
+            "7": np.random.random((1024,)).astype("float32"),
+        }
+
+        # Test float32 layer.
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.load_own_variables(float32_store)
+        self.assertAllClose(layer.kernel, float32_store["0"])
+        self.assertAllClose(layer.bias, float32_store["1"])
+
+        # Test int8-quantized layer.
+        layer = layers.Dense(units=16, dtype="int8_from_float32")
+        layer.build((None, 8))
+        layer.load_own_variables(int8_store)
+        self.assertAllClose(layer.kernel, int8_store["0"])
+        self.assertAllClose(layer.bias, int8_store["1"])
+        self.assertAllClose(layer.kernel_scale, int8_store["2"])
+
+        # Test int4-quantized layer.
+        layer = layers.Dense(units=16, dtype="int4_from_float32")
+        layer.build((None, 8))
+        layer.load_own_variables(int4_store)
+        self.assertAllClose(layer.kernel, int4_store["0"])
+        self.assertAllClose(layer.bias, int4_store["1"])
+        self.assertAllClose(layer.kernel_scale, int4_store["2"])
+
+        # Test float8-quantized layer.
+        layer = layers.Dense(units=16, dtype="float8_from_float32")
+        layer.build((None, 8))
+        layer.load_own_variables(float8_store)
+        self.assertAllClose(layer.kernel, float8_store["0"])
+        self.assertAllClose(layer.bias, float8_store["1"])
+        self.assertAllClose(layer.inputs_scale, float8_store["2"])
+        self.assertAllClose(layer.inputs_amax_history, float8_store["3"])
+        self.assertAllClose(layer.kernel_scale, float8_store["4"])
+        self.assertAllClose(layer.kernel_amax_history, float8_store["5"])
+        self.assertAllClose(layer.outputs_grad_scale, float8_store["6"])
+        self.assertAllClose(layer.outputs_grad_amax_history, float8_store["7"])
