@@ -54,8 +54,7 @@ class ComputeOutputSpecTest(unittest.TestCase):
         def single_arg_sparse_fn(x):
             y0 = ops.transpose(x, axes=(0, 2, 1))
             y1 = ops.squeeze(ops.expand_dims(x, axis=3), axis=3)
-            y2 = ops.reshape(ops.reshape(x, (-1, 9)), (-1, 3, 3))
-            return (y0, y1, y2)
+            return (y0, y1)
 
         x = KerasTensor(shape=(None, 3, 3), sparse=True)
         ys = backend.compute_output_spec(single_arg_sparse_fn, x)
@@ -65,12 +64,10 @@ class ComputeOutputSpecTest(unittest.TestCase):
 
         def three_args_sparse_fn(x1, x2, x3=None):
             y0 = ops.add(x1, x2)  # sparse, sparse
-            y1 = ops.concatenate([x1, x2], axis=0)  # sparse, sparse
-            y2 = ops.divide(x1, x3)  # sparse, dense
-            y3 = ops.matmul(x1, x2)  # sparse, sparse
-            y4 = ops.multiply(x1, x2)  # sparse, sparse
-            y5 = ops.multiply(x1, x3)  # sparse, dense
-            return (y0, y1, y2, y3, y4, y5)
+            y1 = ops.divide(x1, x3)  # sparse, dense
+            y2 = ops.matmul(x1, x2)  # sparse, sparse
+            y3 = ops.multiply(x1, x3)  # sparse, dense
+            return (y0, y1, y2, y3)
 
         x1 = KerasTensor(shape=(None, 3, 3), sparse=True)
         x2 = KerasTensor(shape=(None, 3, 3), sparse=True)

@@ -597,6 +597,12 @@ def standardize_shape(shape):
                 shape = shape.as_list()
         shape = tuple(shape)
 
+    if config.backend() == "jax":
+        # Replace `_DimExpr` (dimension expression) with None
+        shape = tuple(
+            [None if "_DimExpr" in str(type(d)) else d for d in shape]
+        )
+
     if config.backend() == "torch":
         # `shape` might be `torch.Size`. We need to convert the items in it to
         # either int or `None`
@@ -604,9 +610,6 @@ def standardize_shape(shape):
 
     for e in shape:
         if e is None:
-            continue
-        if config.backend() == "jax" and "_DimExpr" in str(type(e)):
-            # JAX2TF tracing uses JAX-native dimension expressions
             continue
         if not is_int_dtype(type(e)):
             raise ValueError(
