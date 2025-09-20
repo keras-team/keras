@@ -175,8 +175,10 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
         **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
     """
     data_format = backend.standardize_data_format(data_format)
+    if file_format is not None and file_format.lower() == 'jpg':
+        file_format = 'jpeg'
     img = array_to_img(x, data_format=data_format, scale=scale)
-    if img.mode == "RGBA" and (file_format == "jpg" or file_format == "jpeg"):
+    if img.mode == "RGBA" and file_format in ["jpeg", "jpg"]:
         warnings.warn(
             "The JPG format does not support RGBA images, converting to RGB."
         )
