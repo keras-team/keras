@@ -1048,5 +1048,5 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4")
         packed_kernel = layer._kernel
         self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, orig_len=2)
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
         )
