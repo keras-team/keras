@@ -299,52 +299,26 @@ class EinsumDense(Layer):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
-        # The keys of the `store` will be saved as determined because the
-        # default ordering will change after quantization
         mode = self.quantization_mode
-
-        # For int4/int8, the merged LoRA scale (if any) comes from
-        # `_get_kernel_with_merged_lora()` and is appended below.
-        MODE_SPEC = {
-            None: [],
-            "int4": [],
-            "int8": [],
-            "float8": [
-                "inputs_scale",
-                "inputs_amax_history",
-                "kernel_scale",
-                "kernel_amax_history",
-                "outputs_grad_scale",
-                "outputs_grad_amax_history",
-            ],
-            "gptq": [
-                "quantized_kernel",
-                "kernel_scale",
-                "kernel_zero",
-                "g_idx",
-            ],
-        }
-
-        if mode not in MODE_SPEC:
+        if mode not in self.MODE_SPEC:
             raise self._quantization_mode_error(mode)
 
         # Kernel plus optional merged LoRA-aware scale (returns (kernel, None)
         # for None/gptq)
         kernel_value, merged_kernel_scale = self._get_kernel_with_merged_lora()
 
-        targets = []
+        # Save the variables using the name as the key.
         if mode != "gptq":
-            targets.append(kernel_value)
+            store["kernel"] = kernel_value
         if self.bias is not None:
-            targets.append(self.bias)
-        if merged_kernel_scale is not None and mode in ("int4", "int8"):
-            targets.append(merged_kernel_scale)
-
-        # Append per-mode attributes (order matters)
-        targets.extend(getattr(self, name) for name in MODE_SPEC[mode])
-
-        for i, var in enumerate(targets):
-            store[str(i)] = var
+            store["bias"] = self.bias
+        for name in self.MODE_SPEC[mode]:
+            if name == "kernel_scale" and mode in ("int4", "int8"):
+                # For int4/int8, the merged LoRA scale (if any) comes from
+                # `_get_kernel_with_merged_lora()`
+                store[name] = merged_kernel_scale
+            else:
+                store[name] = getattr(self, name)
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -352,42 +326,35 @@ class EinsumDense(Layer):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
+        mode = self.quantization_mode
+        if mode not in self.MODE_SPEC:
+            raise self._quantization_mode_error(mode)
+
+        # Determine whether to use the legacy loading method.
+        if "0" in store:
+            return self._legacy_load_own_variables(store)
+
+        # Load the variables using the name as the key.
+        if mode != "gptq":
+            self._kernel.assign(store["kernel"])
+        if self.bias is not None:
+            self.bias.assign(store["bias"])
+        for name in self.MODE_SPEC[mode]:
+            getattr(self, name).assign(store[name])
+        if self.lora_enabled:
+            self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
+            self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
+
+    def _legacy_load_own_variables(self, store):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
         mode = self.quantization_mode
-
-        # Per-mode variable spec (order matters).
-        MODE_SPEC = {
-            None: [],
-            "int8": ["kernel_scale"],
-            "int4": ["kernel_scale"],
-            "float8": [
-                "inputs_scale",
-                "inputs_amax_history",
-                "kernel_scale",
-                "kernel_amax_history",
-                "outputs_grad_scale",
-                "outputs_grad_amax_history",
-            ],
-            "gptq": [
-                "quantized_kernel",
-                "kernel_scale",
-                "kernel_zero",
-                "g_idx",
-            ],
-        }
-
-        if mode not in MODE_SPEC:
-            raise self._quantization_mode_error(mode)
-
         targets = []
-
         if mode != "gptq":
             targets.append(self._kernel)
         if self.bias is not None:
             targets.append(self.bias)
-        targets.extend(getattr(self, name) for name in MODE_SPEC[mode])
-
+        targets.extend(getattr(self, name) for name in self.MODE_SPEC[mode])
         for i, variable in enumerate(targets):
             variable.assign(store[str(i)])
         if self.lora_enabled:
@@ -453,6 +420,27 @@ class EinsumDense(Layer):
                 f"{len(store.keys())} variables during loading. "
                 f"Expected: {[v.name for v in all_vars]}"
             )
+
+    # Per-mode variable spec.
+    MODE_SPEC = {
+        None: [],
+        "int8": ["kernel_scale"],
+        "int4": ["kernel_scale"],
+        "float8": [
+            "inputs_scale",
+            "inputs_amax_history",
+            "kernel_scale",
+            "kernel_amax_history",
+            "outputs_grad_scale",
+            "outputs_grad_amax_history",
+        ],
+        "gptq": [
+            "quantized_kernel",
+            "kernel_scale",
+            "kernel_zero",
+            "g_idx",
+        ],
+    }
 
     def quantized_build(self, kernel_shape, mode, config=None):
         if mode == "int8":

@@ -408,22 +408,6 @@ class DenseTest(testing.TestCase):
         new_model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-        # Check LoRA integration when quantizing.
-        layer = layers.Dense(units=16)
-        layer.build((None, 8))
-        layer.enable_lora(4)
-        layer.quantize(mode)
-        x = np.random.random((2, 8))
-        _ = layer(x)
-
-        # Check building a quantized layer with dtype argument.
-        layer = layers.Dense(units=16, dtype=f"{mode}_from_mixed_bfloat16")
-        layer.build((None, 8))
-        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
-        self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
-        )
-
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("int4", "int4"),

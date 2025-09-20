@@ -425,12 +425,13 @@ class EinsumDenseTest(testing.TestCase):
             supports_masking=False,
         )
 
-    # Test quantization-related (int8 and float8) methods
+    # Test quantization-related methods.
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("int4", "int4"),
     )
-    def test_quantize(self, quantization_mode):
+    def test_quantize_int(self, mode):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -439,7 +440,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.build((None, 3))
         x = np.random.random((2, 3))
         y_float = layer(x)
-        layer.quantize(quantization_mode)
+        layer.quantize(mode)
 
         # Verify weights dtype
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
@@ -468,24 +469,12 @@ class EinsumDenseTest(testing.TestCase):
         )
         model.save_weights(temp_filepath)
 
-        # Try lora
-        layer = layers.EinsumDense(
-            equation="ab,bcd->acd",
-            output_shape=(8, 32),
-            bias_axes="d",
-        )
-        layer.build((None, 3))
-        layer.enable_lora(2)
-        layer.quantize(quantization_mode)
-        x = np.random.random((2, 3))
-        _ = layer(x)
-
         # Try building with quantized dtype policy
         layer = layers.EinsumDense(
             equation="abcde,afce->acdbf",  # Test reduce and transpose
             output_shape=(2, 4, 8, 16),
             bias_axes="d",
-            dtype=f"{quantization_mode}_from_mixed_bfloat16",
+            dtype=f"{mode}_from_mixed_bfloat16",
         )
         layer.build((1, 8, 2, 4, 32))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
@@ -495,7 +484,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(
             equation="a,b->ab",  # Test expand
             output_shape=(4,),
-            dtype=f"{quantization_mode}_from_float32",
+            dtype=f"{mode}_from_float32",
         )
         layer.build((None,))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
@@ -741,7 +730,7 @@ class EinsumDenseTest(testing.TestCase):
         ),
     )
     @pytest.mark.requires_trainable_backend
-    def test_quantize_when_lora_enabled(
+    def test_quantize_lora_integration(
         self, quantization_mode, equation, input_shape, output_shape
     ):
         config = dict(
@@ -1050,3 +1039,79 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(
             layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
         )
+
+    def test_legacy_load_own_variables(self):
+        # In previous versions, `load_own_variables` accepted a store with
+        # numeric keys.
+        # TODO: add gptq_store test.
+        float32_store = {
+            "0": np.random.random((3, 8, 32)).astype("float32"),
+            "1": np.random.random((32,)).astype("float32"),
+        }
+        int8_store = {
+            "0": np.random.randint(-128, 127, size=(3, 8, 32), dtype="int8"),
+            "1": np.random.random((32,)).astype("float32"),
+            "2": np.random.random((1, 8, 32)).astype("float32"),
+        }
+        int4_store = {
+            "0": np.random.randint(-128, 127, size=(2, 8, 32), dtype="int8"),
+            "1": np.random.random((32,)).astype("float32"),
+            "2": np.random.random((1, 8, 32)).astype("float32"),
+        }
+        float8_store = {
+            "0": np.random.random((3, 8, 32)).astype("float32"),
+            "1": np.random.random((32,)).astype("float32"),
+            # inputs_scale.
+            "2": np.random.random(()).astype("float32"),
+            # inputs_amax_history.
+            "3": np.random.random((1024,)).astype("float32"),
+            # kernel_scale.
+            "4": np.random.random(()).astype("float32"),
+            # kernel_amax_history.
+            "5": np.random.random((1024,)).astype("float32"),
+            # outputs_grad_scale.
+            "6": np.random.random(()).astype("float32"),
+            # outputs_grad_amax_history.
+            "7": np.random.random((1024,)).astype("float32"),
+        }
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+
+        # Test float32 layer.
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.load_own_variables(float32_store)
+        self.assertAllClose(layer.kernel, float32_store["0"])
+        self.assertAllClose(layer.bias, float32_store["1"])
+
+        # Test int8-quantized layer.
+        layer = layers.EinsumDense(**config, dtype="int8_from_float32")
+        layer.build((None, 3))
+        layer.load_own_variables(int8_store)
+        self.assertAllClose(layer.kernel, int8_store["0"])
+        self.assertAllClose(layer.bias, int8_store["1"])
+        self.assertAllClose(layer.kernel_scale, int8_store["2"])
+
+        # Test int4-quantized layer.
+        layer = layers.EinsumDense(**config, dtype="int4_from_float32")
+        layer.build((None, 3))
+        layer.load_own_variables(int4_store)
+        self.assertAllClose(layer.kernel, int4_store["0"])
+        self.assertAllClose(layer.bias, int4_store["1"])
+        self.assertAllClose(layer.kernel_scale, int4_store["2"])
+
+        # Test float8-quantized layer.
+        layer = layers.EinsumDense(**config, dtype="float8_from_float32")
+        layer.build((None, 3))
+        layer.load_own_variables(float8_store)
+        self.assertAllClose(layer.kernel, float8_store["0"])
+        self.assertAllClose(layer.bias, float8_store["1"])
+        self.assertAllClose(layer.inputs_scale, float8_store["2"])
+        self.assertAllClose(layer.inputs_amax_history, float8_store["3"])
+        self.assertAllClose(layer.kernel_scale, float8_store["4"])
+        self.assertAllClose(layer.kernel_amax_history, float8_store["5"])
+        self.assertAllClose(layer.outputs_grad_scale, float8_store["6"])
+        self.assertAllClose(layer.outputs_grad_amax_history, float8_store["7"])
