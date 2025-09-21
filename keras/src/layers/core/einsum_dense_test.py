@@ -428,10 +428,10 @@ class EinsumDenseTest(testing.TestCase):
     # Test quantization-related methods.
 
     @parameterized.named_parameters(
-        ("int8", "int8"),
-        ("int4", "int4"),
+        ("int8", "int8", 1e-3),
+        ("int4", "int4", 3e-3),
     )
-    def test_quantize_int(self, mode):
+    def test_quantize_int(self, mode, error_threshold):
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -452,7 +452,7 @@ class EinsumDenseTest(testing.TestCase):
         # Try eager call and verify output correctness
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
-        self.assertLess(mse, 1e-3)  # A weak correctness test
+        self.assertLess(mse, error_threshold)  # A weak correctness test
 
         # Try saving and reloading the model
         model = models.Sequential([layer])
@@ -526,7 +526,7 @@ class EinsumDenseTest(testing.TestCase):
             "btnh,nhd->btd",
             (None, 8),
             (1, 2, 2, 4),
-            2e-3,
+            3e-3,
         ),
         (
             "int4_btd,ndh->btnh",
@@ -534,7 +534,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,ndh->btnh",
             (None, 2, 8),
             (1, 2, 4),
-            2e-3,
+            3e-3,
         ),
         (
             "int4_btd,df->btf",

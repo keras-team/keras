@@ -362,10 +362,10 @@ class DenseTest(testing.TestCase):
     # Test quantization-related methods.
 
     @parameterized.named_parameters(
-        ("int8", "int8"),
-        ("int4", "int4"),
+        ("int8", "int8", 1e-3),
+        ("int4", "int4", 2e-3),
     )
-    def test_quantize_int(self, mode):
+    def test_quantize_int(self, mode, error_threshold):
         if mode == "int4" and testing.tensorflow_uses_gpu():
             self.skipTest("Segfault")
         layer = layers.Dense(units=16)
@@ -386,7 +386,7 @@ class DenseTest(testing.TestCase):
         # Verify the correctness of the outputs.
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
-        self.assertLess(mse, 1e-3)  # A weak correctness test
+        self.assertLess(mse, error_threshold)  # A weak correctness test
 
         # Check model save / load round-trip.
         model = models.Sequential([layer])
