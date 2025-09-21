@@ -6,6 +6,7 @@ __pycache__
 **/.vscode test/**
 **/.vscode-smoke/**
 **/.venv*/
+venv
 bin/**
 build/**
 obj/**
