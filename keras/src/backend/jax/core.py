@@ -3,6 +3,7 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
+from jax import export as jax_export
 
 from keras.src import tree
 from keras.src.backend import config
@@ -282,8 +283,6 @@ def is_tensor(x):
 
 
 def shape(x):
-    # This will work as long as we disallow
-    # dynamic shapes in JAX.
     return x.shape
 
 
@@ -315,31 +314,29 @@ def compute_output_spec(fn, *args, **kwargs):
             else:
                 maybe_symbolic_kwargs[k] = v
 
-        # Second, find out if there are dynamic shapes
-        has_none = False
-        for x in tree.flatten((maybe_symbolic_args, maybe_symbolic_kwargs)):
-            if isinstance(x, KerasTensor) and any(d is None for d in x.shape):
-                has_none = True
+        # Create a _DimExpr instance for one dimension by creating a symbolic
+        # shape with one dimension and extracting it.
+        #
+        # We create a single dynamic dimension and reuse it instead of creating
+        # N dynamic dimensions. This is for backwards compatibility. Previously
+        # we would fill all dynamic dimensions with the same concrete value.
+        # This can handle the case where there is an implicit assumption that
+        # two dimensions are the same (e.g. square images).
+        #
+        # We add the constraint "dynamic_dimension>=2" to prevent JAX from
+        # assuming that the dimension can be broadcastable or squeezable. It
+        # removes this ambiguity.
+        dynamic_dimension = jax_export.symbolic_shape(
+            "(dynamic_dimension)",
+            constraints=["dynamic_dimension>=2"],
+        )[0]
 
-        def convert_keras_tensor_to_jax(x, fill_value=None):
+        def convert_keras_tensor_to_jax(x):
             if isinstance(x, KerasTensor):
-                shape = list(x.shape)
-                if fill_value:
-                    for i, e in enumerate(shape):
-                        if e is None:
-                            shape[i] = fill_value
-                jax_tensor = jax.ShapeDtypeStruct(shape, dtype=x.dtype)
-                return jax_tensor
-            if isinstance(x, dict):
-                return {
-                    k: convert_keras_tensor_to_jax(v, fill_value=fill_value)
-                    for k, v in x.items()
-                }
-            if isinstance(x, list):
-                return [
-                    convert_keras_tensor_to_jax(xi, fill_value=fill_value)
-                    for xi in x
-                ]
+                shape = tuple(
+                    [d if d is not None else dynamic_dimension for d in x.shape]
+                )
+                return jax.ShapeDtypeStruct(shape, dtype=x.dtype)
             return x
 
         def wrapped_fn(*args, **kwargs):
@@ -374,63 +371,25 @@ def compute_output_spec(fn, *args, **kwargs):
             with StatelessScope():
                 return fn(*rec_args, **kwargs, **static_kwargs)
 
-        if has_none:
-            ms_args_1, ms_kwargs_1 = tree.map_structure(
-                lambda x: convert_keras_tensor_to_jax(x, fill_value=83),
-                (maybe_symbolic_args, maybe_symbolic_kwargs),
-            )
-            _, jax_out_1 = jax.make_jaxpr(wrapped_fn, return_shape=True)(
-                *ms_args_1, **ms_kwargs_1
-            )
-
-            ms_args_2, ms_kwargs_2 = tree.map_structure(
-                lambda x: convert_keras_tensor_to_jax(x, fill_value=89),
-                (maybe_symbolic_args, maybe_symbolic_kwargs),
-            )
-            _, jax_out_2 = jax.make_jaxpr(wrapped_fn, return_shape=True)(
-                *ms_args_2, **ms_kwargs_2
-            )
-
-            def merge_shapes(shape1, shape2):
-                return tuple(
-                    [d1 if d1 == d2 else None for d1, d2 in zip(shape1, shape2)]
-                )
-
-            def convert_jax_specs_to_keras_tensor(x1, x2):
-                if isinstance(x1, jax.ShapeDtypeStruct):
-                    if not isinstance(x2, jax.ShapeDtypeStruct):
-                        raise ValueError("Indeterministic output ordering.")
-                    return KerasTensor(
-                        merge_shapes(x1.shape, x2.shape), dtype=x1.dtype
-                    )
-                elif isinstance(x1, jax_sparse.BCOO):
-                    if not isinstance(x2, jax_sparse.BCOO):
-                        raise ValueError("Indeterministic output ordering.")
-                    return KerasTensor(
-                        merge_shapes(x1.shape, x2.shape),
-                        dtype=x1.dtype,
-                        sparse=True,
-                    )
-                else:
-                    return x1
-
-            return tree.map_structure(
-                convert_jax_specs_to_keras_tensor, jax_out_1, jax_out_2
-            )
-
-        maybe_symbolic_args, maybe_symbolic_kwargs = tree.map_structure(
+        maybe_symbolic_args_jax, maybe_symbolic_kwargs_jax = tree.map_structure(
             convert_keras_tensor_to_jax,
             (maybe_symbolic_args, maybe_symbolic_kwargs),
         )
-        _, jax_out = jax.make_jaxpr(wrapped_fn, return_shape=True)(
-            *maybe_symbolic_args, **maybe_symbolic_kwargs
+        jax_out = jax.eval_shape(
+            wrapped_fn, *maybe_symbolic_args_jax, **maybe_symbolic_kwargs_jax
         )
 
         def convert_jax_spec_to_keras_tensor(x):
             if isinstance(x, jax.ShapeDtypeStruct):
-                return KerasTensor(x.shape, x.dtype)
+                shape = tuple(
+                    d if isinstance(d, int) else None for d in x.shape
+                )
+                return KerasTensor(shape, x.dtype)
             elif isinstance(x, jax_sparse.BCOO):
-                return KerasTensor(x.shape, x.dtype, sparse=True)
+                shape = tuple(
+                    d if isinstance(d, int) else None for d in x.shape
+                )
+                return KerasTensor(shape, x.dtype, sparse=True)
             return x
 
         return tree.map_structure(convert_jax_spec_to_keras_tensor, jax_out)
