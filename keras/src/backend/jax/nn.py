@@ -1411,3 +1411,27 @@ def dot_product_attention(
     )
     encoded = vmapped_fn(query, key, value, bias, mask, is_causal, scale)
     return jnp.reshape(encoded, output_shape)
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    filter_shape = _pair(kernel_size)
+    window_strides = _pair(stride)
+    lhs_dilation = _pair(dilation)
+
+    if isinstance(padding, int):
+        padding = ((padding, padding), (padding, padding))
+    else:
+        padding = ((padding[0], padding[0]), (padding[1], padding[1]))
+
+    patches = lax.conv_general_dilated_patches(
+        lhs=input,
+        filter_shape=filter_shape,
+        window_strides=window_strides,
+        padding=padding,
+        lhs_dilation=lhs_dilation,
+    )
+
+    return patches

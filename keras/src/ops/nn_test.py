@@ -3260,8 +3260,8 @@ class NNOpsBehaviorTest(testing.TestCase):
             pytest.skip("Backend does not support unfold operation")
         x = ops.arange(8, dtype="float32")
         x = ops.reshape(x, [1, 1, 2, 4])
-        fold_result = knn.unfold(x, 2)
+        unfold_result = knn.unfold(x, 2)
         except_result = [
             [[0.0, 1.0, 2.0], [1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [5.0, 6.0, 7.0]]
         ]
-        self.assertEqual(fold_result, except_result)
+        self.assertEqual(unfold_result, except_result)

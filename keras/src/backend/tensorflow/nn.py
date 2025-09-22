@@ -1090,7 +1090,6 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     returns: Tensor of shape [N, C*kH*kW, L]
     """
 
-    # --- 统一成二元组 ---
     def _pair(x):
         return (x, x) if isinstance(x, int) else x
 
@@ -1107,7 +1106,6 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     if paddings != [[0, 0], [0, 0], [0, 0], [0, 0]]:
         x = tf.pad(x, paddings)
 
-    # --- 调用 TF 原语 ---
     patches = tf.image.extract_patches(
         images=x,
         sizes=[1, kH, kW, 1],

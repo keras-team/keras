@@ -3049,7 +3049,7 @@ def _polar(abs_, angle):
     return result
 
 
-class UnFold(Operation):
+class Unfold(Operation):
     def __init__(self, kernel_size, dilation=1, padding=0, stride=1, name=None):
         super().__init__(name=name)
         self.kernel_size = kernel_size
@@ -3119,9 +3119,12 @@ def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
     """
     input_shape = x.shape
     ndims = len(input_shape)
-    assert ndims == 4, "Input must be a 4D tensor"
+    if ndims != 4:
+        raise ValueError(
+            f"Input must be a 4D tensor. Received: input.shape={input_shape}"
+        )
     if any_symbolic_tensors((x,)):
-        return UnFold(kernel_size, dilation, padding, stride).symbolic_call(x)
+        return Unfold(kernel_size, dilation, padding, stride).symbolic_call(x)
     return _unfold(x, kernel_size, dilation, padding, stride)
 
 
