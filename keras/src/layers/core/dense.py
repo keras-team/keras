@@ -422,7 +422,7 @@ class Dense(Layer):
         weight_bits = self._get_gptq_weight_bits(config)
         if weight_bits == 4:
             # For 4-bit weights, we pack two values per byte.
-            units = math.ceil(kernel_shape[1] / 2)
+            units = (kernel_shape[1] + 1) // 2
         else:
             units = kernel_shape[1]
 

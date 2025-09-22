@@ -477,9 +477,7 @@ class GPTQ:
             quantized, self.original_layer.quantized_kernel.dtype
         )
 
-        if self.config.weight_bits == 4 and isinstance(
-            self.original_layer, Dense
-        ):
+        if self.config.weight_bits == 4:
             # For 4-bit weights, we need to pack them into bytes
             quantized, _, _ = quantizers.pack_int4(
                 quantized, axis=0, dtype="uint8"

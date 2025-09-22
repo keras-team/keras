@@ -136,6 +136,7 @@ class EinsumDense(Layer):
         bias_constraint=None,
         lora_rank=None,
         lora_alpha=None,
+        gptq_unpacked_column_size=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -155,6 +156,7 @@ class EinsumDense(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
+        self.gptq_unpacked_column_size = gptq_unpacked_column_size
 
     def build(self, input_shape):
         shape_data = _analyze_einsum_string(
@@ -388,6 +390,8 @@ class EinsumDense(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
             config["lora_alpha"] = self.lora_alpha
+        if self.gptq_unpacked_column_size:
+            config["gptq_unpacked_column_size"] = self.gptq_unpacked_column_size
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -533,12 +537,20 @@ class EinsumDense(Layer):
         else:
             n_groups = math.ceil(rows / group_size)
 
+        weight_bits = self._get_gptq_weight_bits(config)
+
+        self.gptq_unpacked_column_size = columns
+        if weight_bits == 4:
+            kernel_columns = (columns + 1) // 2
+        else:
+            kernel_columns = columns
+
         if hasattr(self, "_set_quantization_info"):
             self._set_quantization_info()
 
         self.quantized_kernel = self.add_weight(
             name="kernel",
-            shape=(columns, rows),
+            shape=(kernel_columns, rows),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
@@ -570,8 +582,17 @@ class EinsumDense(Layer):
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
+            if self.dtype_policy.weight_bits == 4:
+                W = quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.gptq_unpacked_column_size,
+                    axis=0,
+                    dtype="int8",
+                )
+            else:
+                W = self.quantized_kernel
             W = dequantize_with_sz_map(
-                self.quantized_kernel,
+                W,
                 self.kernel_scale,
                 self.kernel_zero,
                 self.g_idx,
@@ -1201,6 +1222,47 @@ class EinsumDense(Layer):
         else:
             raise ValueError(
                 "For GPTQ quantization, the group_size must be specified"
+                "either through a `dtype_policy` of type "
+                "`GPTQDTypePolicy` or the `config` argument."
+            )
+
+    def _get_gptq_weight_bits(self, config):
+        """Determine the number of weight bits for GPTQ quantization.
+
+        The number of weight bits can be specified either through the `config`
+        argument or through the `dtype_policy` if it is of type
+        `GPTQDTypePolicy`.
+
+        The config argument is usually available when quantizing the layer
+        via the `quantize` method. If the layer was deserialized from a
+        saved model, the weight bits should be specified in the `dtype_policy`.
+
+        Args:
+            config: An optional configuration object that may contain the
+                `weight_bits` attribute.
+        Returns:
+            int. The determined number of weight bits for GPTQ quantization.
+        Raises:
+            ValueError: If the weight bits is not specified in either the
+                `config` or the `dtype_policy`.
+        """
+        if config and isinstance(config, GPTQConfig):
+            return config.weight_bits
+        elif isinstance(self.dtype_policy, GPTQDTypePolicy):
+            return self.dtype_policy.weight_bits
+        elif isinstance(self.dtype_policy, DTypePolicyMap):
+            policy = self.dtype_policy[self.path]
+            if not isinstance(policy, GPTQDTypePolicy):
+                # This should never happen based on how we set the
+                # quantization mode, but we check just in case.
+                raise ValueError(
+                    "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
+                    f"Got: {type(policy)}"
+                )
+            return policy.weight_bits
+        else:
+            raise ValueError(
+                "For GPTQ quantization, the weight_bits must be specified"
                 "either through a `dtype_policy` of type "
                 "`GPTQDTypePolicy` or the `config` argument."
             )
