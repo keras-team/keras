@@ -537,7 +537,6 @@ class EinsumDense(Layer):
         else:
             n_groups = math.ceil(rows / group_size)
 
-
         self.gptq_unpacked_column_size = columns
 
         weight_bits = self._get_gptq_weight_bits(config)
@@ -581,13 +580,13 @@ class EinsumDense(Layer):
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
-            should_unpack = self.dtype_policy.weight_bits == 4
+            should_unpack = self._get_gptq_weight_bits(config=None) == 4
             W = (
                 quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.gptq_unpacked_column_size,
                     axis=0,
-                    dtype="int8",
+                    dtype="uint8",
                 )
                 if should_unpack
                 else self.quantized_kernel

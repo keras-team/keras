@@ -463,7 +463,7 @@ class Dense(Layer):
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
-            should_unpack = self.dtype_policy.weight_bits == 4
+            should_unpack = self._get_gptq_weight_bits(config=None) == 4
             W = (
                 quantizers.unpack_int4(
                     self.quantized_kernel,
@@ -474,15 +474,13 @@ class Dense(Layer):
                 if should_unpack
                 else self.quantized_kernel
             )
-            W = (
-                ops.transpose(
-                    dequantize_with_sz_map(
-                        W,
-                        self.kernel_scale,
-                        self.kernel_zero,
-                        self.g_idx,
-                    )
-                ),
+            W = ops.transpose(
+                dequantize_with_sz_map(
+                    W,
+                    self.kernel_scale,
+                    self.kernel_zero,
+                    self.g_idx,
+                )
             )
 
         y = ops.matmul(inputs, W)
