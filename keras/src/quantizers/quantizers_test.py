@@ -134,7 +134,6 @@ class QuantizersTest(testing.TestCase):
         },
     ]
 
-    # DTYPE_PARAMS remains the same
     DTYPE_PARAMS = [
         {"testcase_name": "int8", "dtype": "int8", "minval": -8, "maxval": 8},
         {"testcase_name": "uint8", "dtype": "uint8", "minval": 0, "maxval": 16},

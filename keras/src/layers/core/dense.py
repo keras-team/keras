@@ -147,18 +147,39 @@ class Dense(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
-        if (
-            getattr(self, "is_gptq_calibrated", False)
-            and self.quantization_mode == "gptq"
-        ):
-            return self.quantized_kernel
-        kernel = self._kernel
-        if self.quantization_mode == "int4":
-            kernel = quantizers.unpack_int4(kernel, self._orig_input_dim)
-        if self.lora_enabled:
-            return kernel + (self.lora_alpha / self.lora_rank) * ops.matmul(
+
+        mode = getattr(self, "quantization_mode", None)
+        is_gptq = mode == "gptq"
+        is_int4 = mode == "int4"
+        calibrated = bool(getattr(self, "is_gptq_calibrated", False))
+        gptq_bits = self._get_gptq_weight_bits(None) if is_gptq else None
+
+        # Decide the source tensor first (packed vs already-quantized vs plain
+        # kernel)
+        if is_gptq and calibrated and gptq_bits != 4:
+            # calibrated GPTQ, not 4-bit, no unpacking needed
+            kernel = self.quantized_kernel
+        else:
+            # Start with the stored kernel
+            kernel = getattr(self, "_kernel", None)
+
+            # Handle int4 unpacking cases in one place
+            if is_int4:
+                kernel = quantizers.unpack_int4(kernel, self._orig_input_dim)
+            elif is_gptq and calibrated and gptq_bits == 4:
+                kernel = quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.units,
+                    axis=0,
+                    dtype="uint8",
+                )
+
+        # Apply LoRA once at the end.
+        if getattr(self, "lora_enabled", False):
+            kernel = kernel + (self.lora_alpha / self.lora_rank) * ops.matmul(
                 self.lora_kernel_a, self.lora_kernel_b
             )
+
         return kernel
 
     def call(self, inputs, training=None):
