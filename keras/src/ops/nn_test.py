@@ -3264,4 +3264,6 @@ class NNOpsBehaviorTest(testing.TestCase):
         except_result = [
             [[0.0, 1.0, 2.0], [1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [5.0, 6.0, 7.0]]
         ]
-        self.assertEqual(unfold_result, except_result)
+        unfold_result = ops.convert_to_numpy(unfold_result)
+        except_result = ops.convert_to_numpy(except_result)
+        self.assertTrue(np.array_equal(unfold_result, except_result))
