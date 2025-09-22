@@ -418,9 +418,17 @@ class Dense(Layer):
         # until calibration has been performed.
         self.is_gptq_calibrated = False
         self.kernel_shape = kernel_shape
+
+        weight_bits = self._get_gptq_weight_bits(config)
+        if weight_bits == 4:
+            # For 4-bit weights, we pack two values per byte.
+            units = math.ceil(kernel_shape[1] / 2)
+        else:
+            units = kernel_shape[1]
+
         self.quantized_kernel = self.add_weight(
             name="kernel",
-            shape=(kernel_shape[1], kernel_shape[0]),
+            shape=(units, kernel_shape[0]),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
@@ -456,10 +464,20 @@ class Dense(Layer):
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
+            # if 4-bit weights, unpack them
+            if self.dtype_policy.weight_bits == 4:
+                W = quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.units,
+                    axis=0,
+                    dtype="uint8",
+                )
+            else:
+                W = self.quantized_kernel
             W = (
                 ops.transpose(
                     dequantize_with_sz_map(
-                        self.quantized_kernel,
+                        W,
                         self.kernel_scale,
                         self.kernel_zero,
                         self.g_idx,
@@ -912,6 +930,47 @@ class Dense(Layer):
         else:
             raise ValueError(
                 "For GPTQ quantization, the group_size must be specified"
+                "either through a `dtype_policy` of type "
+                "`GPTQDTypePolicy` or the `config` argument."
+            )
+
+    def _get_gptq_weight_bits(self, config):
+        """Determine the number of weight bits for GPTQ quantization.
+
+        The number of weight bits can be specified either through the `config`
+        argument or through the `dtype_policy` if it is of type
+        `GPTQDTypePolicy`.
+
+        The config argument is usually available when quantizing the layer
+        via the `quantize` method. If the layer was deserialized from a
+        saved model, the weight bits should be specified in the `dtype_policy`.
+
+        Args:
+            config: An optional configuration object that may contain the
+                `weight_bits` attribute.
+        Returns:
+            int. The determined number of weight bits for GPTQ quantization.
+        Raises:
+            ValueError: If the weight bits is not specified in either the
+                `config` or the `dtype_policy`.
+        """
+        if config and isinstance(config, GPTQConfig):
+            return config.weight_bits
+        elif isinstance(self.dtype_policy, GPTQDTypePolicy):
+            return self.dtype_policy.weight_bits
+        elif isinstance(self.dtype_policy, DTypePolicyMap):
+            policy = self.dtype_policy[self.path]
+            if not isinstance(policy, GPTQDTypePolicy):
+                # This should never happen based on how we set the
+                # quantization mode, but we check just in case.
+                raise ValueError(
+                    "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
+                    f"Got: {type(policy)}"
+                )
+            return policy.weight_bits
+        else:
+            raise ValueError(
+                "For GPTQ quantization, the weight_bits must be specified"
                 "either through a `dtype_policy` of type "
                 "`GPTQDTypePolicy` or the `config` argument."
             )
