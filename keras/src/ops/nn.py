@@ -3050,7 +3050,7 @@ def _polar(abs_, angle):
 
 
 class Unfold(Operation):
-    def __init__(self, kernel_size, dilation, padding, stride, name=None):
+    def __init__(self, kernel_size, dilation, padding, stride, *, name=None):
         super().__init__(name=name)
         self.kernel_size = kernel_size
         self.dilation = dilation
