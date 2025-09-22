@@ -214,11 +214,16 @@ class EinsumDense(Layer):
             and self.quantization_mode == "gptq"
         ):
             return self.quantized_kernel
+        kernel = self._kernel
+        if self.quantization_mode == "int4":
+            kernel = quantizers.unpack_int4(
+                kernel, self._orig_length_along_pack_axis, self._int4_pack_axis
+            )
         if self.lora_enabled:
-            return self._kernel + (
-                self.lora_alpha / self.lora_rank
-            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
-        return self._kernel
+            return kernel + (self.lora_alpha / self.lora_rank) * ops.matmul(
+                self.lora_kernel_a, self.lora_kernel_b
+            )
+        return kernel
 
     def compute_output_shape(self, _):
         return self.full_output_shape

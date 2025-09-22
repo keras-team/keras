@@ -152,11 +152,14 @@ class Dense(Layer):
             and self.quantization_mode == "gptq"
         ):
             return self.quantized_kernel
+        kernel = self._kernel
+        if self.quantization_mode == "int4":
+            kernel = quantizers.unpack_int4(kernel, self._orig_input_dim)
         if self.lora_enabled:
-            return self._kernel + (
-                self.lora_alpha / self.lora_rank
-            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
-        return self._kernel
+            return kernel + (self.lora_alpha / self.lora_rank) * ops.matmul(
+                self.lora_kernel_a, self.lora_kernel_b
+            )
+        return kernel
 
     def call(self, inputs, training=None):
         x = ops.matmul(inputs, self.kernel)

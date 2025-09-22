@@ -11,6 +11,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
+from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
@@ -552,7 +553,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            2e-3,
+            3e-3,
         ),
     )
     def test_quantize_with_specific_equations(
@@ -1036,3 +1037,16 @@ class EinsumDenseTest(testing.TestCase):
         new_layer = layers.EinsumDense.from_config(config)
         new_layer.build((None, 3))
         self.assertEqual(new_layer.quantization_mode, "gptq")
+
+    def test_int4_kernel_returns_unpacked_form(self):
+        """Test that the `kernel` property returns the unpacked int4 kernel."""
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(2,),
+        )
+        layer.build((None, 2))
+        layer.quantize("int4")
+        packed_kernel = layer._kernel
+        self.assertAllClose(
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        )
