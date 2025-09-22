@@ -1043,7 +1043,7 @@ class EinsumDenseTest(testing.TestCase):
     def test_legacy_load_own_variables(self):
         # In previous versions, `load_own_variables` accepted a store with
         # numeric keys.
-        # TODO: add gptq_store test.
+        # TODO(JyotinderSingh): add gptq_store test.
         float32_store = {
             "0": np.random.random((3, 8, 32)).astype("float32"),
             "1": np.random.random((32,)).astype("float32"),

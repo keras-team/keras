@@ -141,11 +141,16 @@ class Embedding(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `embeddings`."
             )
+        embeddings = self._embeddings
+        if self.quantization_mode == "int4":
+            embeddings = quantizers.unpack_int4(
+                embeddings, self._orig_output_dim, axis=-1
+            )
         if self.lora_enabled:
-            return self._embeddings + (
-                self.lora_alpha / self.lora_rank
-            ) * ops.matmul(self.lora_embeddings_a, self.lora_embeddings_b)
-        return self._embeddings
+            return embeddings + (self.lora_alpha / self.lora_rank) * ops.matmul(
+                self.lora_embeddings_a, self.lora_embeddings_b
+            )
+        return embeddings
 
     def call(self, inputs):
         if inputs.dtype != "int32" and inputs.dtype != "int64":
@@ -213,7 +218,7 @@ class Embedding(Layer):
         if not self.built:
             return
         mode = self.quantization_mode
-        if mode not in self.MODE_SPEC:
+        if mode not in self.quantization_variable_spec:
             raise self._quantization_mode_error(mode)
 
         # Embeddings plus optional merged LoRA-aware scale
@@ -224,7 +229,7 @@ class Embedding(Layer):
 
         # Save the variables using the name as the key.
         store["embeddings"] = embeddings_value
-        for name in self.MODE_SPEC[mode]:
+        for name in self.quantization_variable_spec[mode]:
             if name == "embeddings_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_embeddings_with_merged_lora()`
@@ -239,7 +244,7 @@ class Embedding(Layer):
         if not self.built:
             return
         mode = self.quantization_mode
-        if mode not in self.MODE_SPEC:
+        if mode not in self.quantization_variable_spec:
             raise self._quantization_mode_error(mode)
 
         # Determine whether to use the legacy loading method.
@@ -248,7 +253,7 @@ class Embedding(Layer):
 
         # Load the variables using the name as the key.
         self._embeddings.assign(store["embeddings"])
-        for name in self.MODE_SPEC[mode]:
+        for name in self.quantization_variable_spec[mode]:
             getattr(self, name).assign(store[name])
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
@@ -263,11 +268,10 @@ class Embedding(Layer):
         # default ordering will change after quantization
         mode = self.quantization_mode
         targets = [self._embeddings]
-        if self.quantization_mode is not None:
-            if mode in ("int8", "int4"):
-                targets.append(self.embeddings_scale)
-            else:
-                raise self._quantization_mode_error(mode)
+        targets.extend(
+            getattr(self, name)
+            for name in self.quantization_variable_spec[mode]
+        )
         for i, variable in enumerate(targets):
             variable.assign(store[str(i)])
         if self.lora_enabled:
@@ -342,12 +346,19 @@ class Embedding(Layer):
             f"Received: quantization_mode={mode}"
         )
 
-    # Per-mode variable spec.
-    MODE_SPEC = {
-        None: [],
-        "int8": ["embeddings_scale"],
-        "int4": ["embeddings_scale"],
-    }
+    @property
+    def quantization_variable_spec(self):
+        """Returns a dict mapping quantization modes to variable names.
+
+        This spec is used by `save_own_variables` and `load_own_variables` to
+        determine which variables should be saved/loaded for each quantization
+        mode.
+        """
+        return {
+            None: [],
+            "int8": ["embeddings_scale"],
+            "int4": ["embeddings_scale"],
+        }
 
     def quantized_build(self, embeddings_shape, mode):
         if mode == "int8":

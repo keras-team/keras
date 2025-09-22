@@ -10,6 +10,7 @@ from keras.src import export
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import quantizers
 from keras.src import saving
 from keras.src.testing import test_case
 
@@ -295,6 +296,15 @@ class EmbeddingTest(test_case.TestCase):
             layer.variable_dtype,
         )
 
+        # Verify the unpacked embeddings for int4 quantization.
+        if mode == "int4":
+            self.assertAllClose(
+                layer.embeddings,
+                quantizers.unpack_int4(
+                    layer._embeddings, layer.output_dim, axis=-1
+                ),
+            )
+
         # Verify the correctness of the outputs.
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
@@ -558,18 +568,18 @@ class EmbeddingTest(test_case.TestCase):
         layer = layers.Embedding(10, 16)
         layer.build()
         layer.load_own_variables(float32_store)
-        self.assertAllClose(layer.embeddings, float32_store["0"])
+        self.assertAllClose(layer._embeddings, float32_store["0"])
 
         # Test int8-quantized layer.
         layer = layers.Embedding(10, 16, dtype="int8_from_float32")
         layer.build()
         layer.load_own_variables(int8_store)
-        self.assertAllClose(layer.embeddings, int8_store["0"])
+        self.assertAllClose(layer._embeddings, int8_store["0"])
         self.assertAllClose(layer.embeddings_scale, int8_store["1"])
 
         # Test int4-quantized layer.
         layer = layers.Embedding(10, 16, dtype="int4_from_float32")
         layer.build()
         layer.load_own_variables(int4_store)
-        self.assertAllClose(layer.embeddings, int4_store["0"])
+        self.assertAllClose(layer._embeddings, int4_store["0"])
         self.assertAllClose(layer.embeddings_scale, int4_store["1"])
