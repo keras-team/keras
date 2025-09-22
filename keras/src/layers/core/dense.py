@@ -420,11 +420,10 @@ class Dense(Layer):
         self.kernel_shape = kernel_shape
 
         weight_bits = self._get_gptq_weight_bits(config)
-        if weight_bits == 4:
-            # For 4-bit weights, we pack two values per byte.
-            units = (kernel_shape[1] + 1) // 2
-        else:
-            units = kernel_shape[1]
+        # For 4-bit weights, we pack two values per byte.
+        units = (
+            (kernel_shape[1] + 1) // 2 if weight_bits == 4 else kernel_shape[1]
+        )
 
         self.quantized_kernel = self.add_weight(
             name="kernel",
@@ -464,16 +463,17 @@ class Dense(Layer):
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
-            # if 4-bit weights, unpack them
-            if self.dtype_policy.weight_bits == 4:
-                W = quantizers.unpack_int4(
+            should_unpack = self.dtype_policy.weight_bits == 4
+            W = (
+                quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.units,
                     axis=0,
                     dtype="uint8",
                 )
-            else:
-                W = self.quantized_kernel
+                if should_unpack
+                else self.quantized_kernel
+            )
             W = (
                 ops.transpose(
                     dequantize_with_sz_map(
