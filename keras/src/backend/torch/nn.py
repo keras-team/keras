@@ -1092,3 +1092,13 @@ def dot_product_attention(
             scale=scale,
         )
     return torch.transpose(attention_output, axis1, axis0)
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    return tnn.unfold(
+        input,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )

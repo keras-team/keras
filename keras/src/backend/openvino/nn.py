@@ -502,3 +502,7 @@ def dot_product_attention(
     raise NotImplementedError(
         "`dot_product_attention` is not supported with openvino backend"
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    raise NotImplementedError("`unfold` is not supported with openvino backend")

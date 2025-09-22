@@ -1175,3 +1175,7 @@ def dot_product_attention(
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    raise NotImplementedError("`unfold` is not supported with numpy backend")

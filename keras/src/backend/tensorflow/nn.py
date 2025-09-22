@@ -1077,3 +1077,45 @@ def dot_product_attention(
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """
+    PyTorch-style unfold for 4-D NCHW tensors.
+    input: Tensor of shape [N, C, H, W]
+    kernel_size: int or (int, int)
+    dilation: int or (int, int)
+    padding: int or (int, int)
+    stride: int or (int, int)
+    returns: Tensor of shape [N, C*kH*kW, L]
+    """
+
+    # --- 统一成二元组 ---
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    kH, kW = _pair(kernel_size)
+    dH, dW = _pair(dilation)
+    pH, pW = _pair(padding)
+    sH, sW = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    x = tf.transpose(input, [0, 2, 3, 1])  # [N, H, W, C]
+
+    paddings = [[0, 0], [pH, pH], [pW, pW], [0, 0]]
+    if paddings != [[0, 0], [0, 0], [0, 0], [0, 0]]:
+        x = tf.pad(x, paddings)
+
+    # --- 调用 TF 原语 ---
+    patches = tf.image.extract_patches(
+        images=x,
+        sizes=[1, kH, kW, 1],
+        strides=[1, sH, sW, 1],
+        rates=[1, dH, dW, 1],
+        padding="VALID",
+    )
+
+    N, outH, outW, _ = patches.shape
+    patches = tf.reshape(patches, [N, outH * outW, C * kH * kW])
+    return tf.transpose(patches, [0, 2, 1])  # [N, C*kH*kW, L]

@@ -228,3 +228,25 @@ def unstack(x, axis=0):
         lax.index_in_dim(x, i, axis, keepdims=False)
         for i in range(x.shape[axis])
     ]
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    filter_shape = (kernel_size, kernel_size)
+
+    window_strides = (stride, stride)
+    lhs_dilation = (dilation, dilation)
+
+    if isinstance(padding, int):
+        padding = ((padding, padding), (padding, padding))
+    else:
+        padding = ((padding[0], padding[0]), (padding[1], padding[1]))
+
+    patches = lax.conv_general_dilated_patches(
+        lhs=input,
+        filter_shape=filter_shape,
+        window_strides=window_strides,
+        padding=padding,
+        lhs_dilation=lhs_dilation,
+    )
+
+    return patches

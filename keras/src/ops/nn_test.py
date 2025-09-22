@@ -3254,3 +3254,14 @@ class NNOpsBehaviorTest(testing.TestCase):
             UserWarning, r"You passed `rms_scaling=True`, which is deprecated"
         ):
             knn.layer_normalization(x, rms_scaling=True)
+
+    def test_unfold(self):
+        if keras.config.backend() in ["numpy", "openvino"]:
+            pytest.skip("Backend does not support unfold operation")
+        x = ops.arange(8, dtype="float32")
+        x = ops.reshape(x, [1, 1, 2, 4])
+        fold_result = knn.unfold(x, 2)
+        except_result = [
+            [[0.0, 1.0, 2.0], [1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [5.0, 6.0, 7.0]]
+        ]
+        self.assertEqual(fold_result, except_result)
