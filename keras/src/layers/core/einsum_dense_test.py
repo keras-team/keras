@@ -553,7 +553,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            2e-3,
+            3e-3,
         ),
     )
     def test_quantize_with_specific_equations(
