@@ -1084,14 +1084,14 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config)
         layer.build((None, 3))
         layer.load_own_variables(float32_store)
-        self.assertAllClose(layer.kernel, float32_store["0"])
+        self.assertAllClose(layer._kernel, float32_store["0"])
         self.assertAllClose(layer.bias, float32_store["1"])
 
         # Test int8-quantized layer.
         layer = layers.EinsumDense(**config, dtype="int8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(int8_store)
-        self.assertAllClose(layer.kernel, int8_store["0"])
+        self.assertAllClose(layer._kernel, int8_store["0"])
         self.assertAllClose(layer.bias, int8_store["1"])
         self.assertAllClose(layer.kernel_scale, int8_store["2"])
 
@@ -1099,7 +1099,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="int4_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(int4_store)
-        self.assertAllClose(layer.kernel, int4_store["0"])
+        self.assertAllClose(layer._kernel, int4_store["0"])
         self.assertAllClose(layer.bias, int4_store["1"])
         self.assertAllClose(layer.kernel_scale, int4_store["2"])
 
@@ -1107,7 +1107,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="float8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(float8_store)
-        self.assertAllClose(layer.kernel, float8_store["0"])
+        self.assertAllClose(layer._kernel, float8_store["0"])
         self.assertAllClose(layer.bias, float8_store["1"])
         self.assertAllClose(layer.inputs_scale, float8_store["2"])
         self.assertAllClose(layer.inputs_amax_history, float8_store["3"])
