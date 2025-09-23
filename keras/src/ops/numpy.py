@@ -595,27 +595,28 @@ class Arange(Operation):
         super().__init__(name=name)
         self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def call(self, start, stop=None, step=1):
+    def call(self, start, stop=None, step=None):
         return backend.numpy.arange(start, stop, step=step, dtype=self.dtype)
 
-    def compute_output_spec(self, start, stop=None, step=1):
+    def compute_output_spec(self, start, stop=None, step=None):
         if stop is None:
             start, stop = 0, start
+        if step is None:
+            step = 1
         output_shape = [int(np.ceil((stop - start) / step))]
         dtype = self.dtype
         if dtype is None:
-            dtypes_to_resolve = [
-                getattr(start, "dtype", type(start)),
-                getattr(step, "dtype", type(step)),
-            ]
+            dtypes_to_resolve = [getattr(start, "dtype", type(start))]
             if stop is not None:
                 dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            if step is not None:
+                dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
             dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.arange", "keras.ops.numpy.arange"])
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     """Return evenly spaced values within a given interval.
 
     `arange` can be called with a varying number of positional arguments:
