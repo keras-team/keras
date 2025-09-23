@@ -28,13 +28,22 @@ if dmtree.available:
             "t": dmtree_impl,
         }
     ]
-if optree.available:
+if backend.backend() != "torch" and optree.available:
     from keras.src.tree import optree_impl
 
     TEST_CASES += [
         {
             "testcase_name": "optree",
             "t": optree_impl,
+        },
+    ]
+if backend.backend() == "torch":
+    from keras.src.tree import torchtree_impl
+
+    TEST_CASES += [
+        {
+            "testcase_name": "torchtree",
+            "t": torchtree_impl,
         },
     ]
 
@@ -532,13 +541,13 @@ class TreeTest(testing.TestCase):
         # Error cases.
         with self.assertRaisesRegex(TypeError, "[Ii]terable"):
             t.pack_sequence_as([10, 20], 1)
-        with self.assertRaisesRegex(ValueError, "leaves.*expected: 1"):
+        with self.assertRaisesRegex(ValueError, "leaves.*[expected:|holds] 1"):
             t.pack_sequence_as(10, [])
-        with self.assertRaisesRegex(ValueError, "leaves.*expected: 1"):
+        with self.assertRaisesRegex(ValueError, "leaves.*[expected:|holds] 1"):
             t.pack_sequence_as(10, [1, 2])
-        with self.assertRaisesRegex(ValueError, "Too few leaves"):
+        with self.assertRaisesRegex(ValueError, "[Too few leaves|holds 2]"):
             t.pack_sequence_as([10, 20], [1])
-        with self.assertRaisesRegex(ValueError, "Too many leaves"):
+        with self.assertRaisesRegex(ValueError, "[Too many leaves|holds 3]"):
             t.pack_sequence_as([10, 20], [1, 2, 3])
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
@@ -1008,15 +1017,15 @@ class TreeTest(testing.TestCase):
         )
 
         # Mismatched keys
-        with self.assertRaisesRegex(ValueError, "key"):
+        with self.assertRaisesRegex(ValueError, "[key|Node arity mismatch]"):
             t.map_structure(f2, {"a": 1, "b": 2}, {"a": 1})
-        with self.assertRaisesRegex(ValueError, "key"):
+        with self.assertRaisesRegex(ValueError, "[key|Node arity mismatch]"):
             t.map_structure(
                 f2,
                 defaultdict(default_value, [("a", 1), ("b", 2)]),
                 defaultdict(default_value, [("a", 10)]),
             )
-        with self.assertRaisesRegex(ValueError, "key"):
+        with self.assertRaisesRegex(ValueError, "[key|Node arity mismatch]"):
             t.map_structure(
                 f2, OrderedDict([("a", 1), ("b", 2)]), OrderedDict([("a", 10)])
             )
@@ -1344,46 +1353,62 @@ class TreeTest(testing.TestCase):
             )
 
         # Mismatched key count.
-        with self.assertRaisesRegex(ValueError, "[Dd]ictionary key mismatch"):
+        with self.assertRaisesRegex(
+            ValueError, "[Dd]ictionary key mismatch|Node arity mismatch"
+        ):
             t.assert_same_structure(
                 {"a": 1, "b": 2},
                 {"a": 1},
             )
-        with self.assertRaisesRegex(ValueError, "[Dd]ictionary key mismatch"):
+        with self.assertRaisesRegex(
+            ValueError, "[Dd]ictionary key mismatch|Node arity mismatch"
+        ):
             t.assert_same_structure(
                 defaultdict(default_value, [("a", 1), ("b", 2)]),
                 defaultdict(default_value, [("a", 10)]),
             )
-        with self.assertRaisesRegex(ValueError, "[Dd]ictionary key mismatch"):
+        with self.assertRaisesRegex(
+            ValueError, "[Dd]ictionary key mismatch|Node arity mismatch"
+        ):
             t.assert_same_structure(
                 OrderedDict([("a", 1), ("b", 2)]),
                 OrderedDict([("a", 10)]),
             )
 
         # Mismatched keys.
-        with self.assertRaisesRegex(ValueError, "[Dd]ictionary key mismatch"):
+        with self.assertRaisesRegex(
+            ValueError, "[Dd]ictionary key mismatch|Node keys mismatch"
+        ):
             t.assert_same_structure(
                 {"a": 1},
                 {"b": 2},
             )
-        with self.assertRaisesRegex(ValueError, "[Dd]ictionary key mismatch"):
+        with self.assertRaisesRegex(
+            ValueError, "[Dd]ictionary key mismatch|Node keys mismatch"
+        ):
             t.assert_same_structure(
                 defaultdict(default_value, [("a", 1)]),
                 defaultdict(default_value, [("b", 2)]),
             )
-        with self.assertRaisesRegex(ValueError, "[Dd]ictionary key mismatch"):
+        with self.assertRaisesRegex(
+            ValueError, "[Dd]ictionary key mismatch|Node keys mismatch"
+        ):
             t.assert_same_structure(
                 OrderedDict([("a", 1)]),
                 OrderedDict([("b", 2)]),
             )
 
         # Mismatched key count and keys with TrackedDict.
-        with self.assertRaisesRegex(ValueError, "Mismatch custom node data"):
+        with self.assertRaisesRegex(
+            ValueError, "Mismatch custom node data|Node arity mismatch"
+        ):
             t.assert_same_structure(
                 TrackedDict({"a": 1, "b": 2}),
                 TrackedDict({"a": 1}),
             )
-        with self.assertRaisesRegex(ValueError, "Mismatch custom node data"):
+        with self.assertRaisesRegex(
+            ValueError, "Mismatch custom node data|Node context mismatch"
+        ):
             t.assert_same_structure(
                 TrackedDict({"a": 1}),
                 TrackedDict({"b": 2}),

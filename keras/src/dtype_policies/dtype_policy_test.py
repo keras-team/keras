@@ -9,6 +9,7 @@ from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.src.dtype_policies.dtype_policy import dtype_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.testing import test_case
 
 
@@ -691,3 +692,55 @@ class DTypePolicyGlobalFunctionsEdgeCasesTest(test_case.TestCase):
         """Test setting the policy to None."""
         with self.assertRaisesRegex(ValueError, "Invalid `policy` argument"):
             set_dtype_policy(None)
+
+
+class GPTQConfigErrorHandlingTest(test_case.TestCase):
+    """Test error handling in GPTQConfig."""
+
+    def test_invalid_weight_bits(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported weight_bits"):
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                weight_bits=5,
+            )
+
+    def test_negative_num_samples(self):
+        with self.assertRaisesRegex(
+            ValueError, "num_samples must be a positive integer."
+        ):
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                num_samples=-10,
+            )
+
+    def test_zero_sequence_length(self):
+        with self.assertRaisesRegex(
+            ValueError, "sequence_length must be a positive integer."
+        ):
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                sequence_length=0,
+            )
+
+    def test_invalid_hessian_damping(self):
+        with self.assertRaisesRegex(
+            ValueError, "hessian_damping must be between 0 and 1."
+        ):
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                hessian_damping=1.5,
+            )
+
+    def test_invalid_group_size(self):
+        with self.assertRaisesRegex(
+            ValueError, "Invalid group_size. Supported values are -1"
+        ):
+            GPTQConfig(
+                dataset=None,
+                tokenizer=None,
+                group_size=0,
+            )

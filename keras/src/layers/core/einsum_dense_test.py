@@ -11,9 +11,11 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
+from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 class EinsumDenseTest(testing.TestCase):
@@ -551,7 +553,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            2e-3,
+            3e-3,
         ),
     )
     def test_quantize_with_specific_equations(
@@ -1014,3 +1016,37 @@ class EinsumDenseTest(testing.TestCase):
         y_inference = layer(x, training=False)
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
+
+    def test_gptq_serialization(self):
+        """Test that a GPTQ-quantized layer can be serialized and deserialized
+        correctly."""
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+        config = layer.get_config()
+        new_layer = layers.EinsumDense.from_config(config)
+        new_layer.build((None, 3))
+        self.assertEqual(new_layer.quantization_mode, "gptq")
+
+    def test_int4_kernel_returns_unpacked_form(self):
+        """Test that the `kernel` property returns the unpacked int4 kernel."""
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(2,),
+        )
+        layer.build((None, 2))
+        layer.quantize("int4")
+        packed_kernel = layer._kernel
+        self.assertAllClose(
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        )

@@ -11,10 +11,12 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
+from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 class DenseTest(testing.TestCase):
@@ -959,3 +961,29 @@ class DenseTest(testing.TestCase):
                 reloaded_layer.non_trainable_weights,
                 len(model.non_trainable_weights),
             )
+
+    def test_gptq_serialization(self):
+        """Test that a GPTQ-quantized layer can be serialized and deserialized
+        correctly."""
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+        config = layer.get_config()
+        new_layer = layers.Dense.from_config(config)
+        new_layer.build((None, 8))
+        self.assertEqual(new_layer.quantization_mode, "gptq")
+
+    def test_int4_kernel_returns_unpacked_form(self):
+        """Test that the `kernel` property returns the unpacked int4 kernel."""
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        layer.quantize("int4")
+        packed_kernel = layer._kernel
+        self.assertAllClose(
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        )
