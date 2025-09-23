@@ -749,6 +749,13 @@ def kron(x1, x2):
     return np.kron(x1, x2).astype(dtype)
 
 
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.lcm(x1, x2).astype(dtype)
+
+
 def less(x1, x2):
     return np.less(x1, x2)
 
@@ -1031,7 +1038,9 @@ def searchsorted(sorted_sequence, values, side="left"):
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
     out_type = (
-        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+        "int32"
+        if sorted_sequence.shape[0] <= np.iinfo(np.int32).max
+        else "int64"
     )
     return np.searchsorted(sorted_sequence, values, side=side).astype(out_type)
 

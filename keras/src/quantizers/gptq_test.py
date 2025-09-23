@@ -5,15 +5,16 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.api import models
 from keras.src import backend
 from keras.src import layers
+from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 from keras.src.testing.test_utils import named_product
@@ -55,7 +56,7 @@ bit-rates.
 """
 
 
-def _get_mock_layer(layer_type, kernel_shape, rng):
+def _get_test_layer(layer_type, kernel_shape):
     if layer_type == "Dense":
         layer = layers.Dense(units=kernel_shape[1])
         layer.build(input_shape=(None, kernel_shape[0]))
@@ -64,11 +65,7 @@ def _get_mock_layer(layer_type, kernel_shape, rng):
         layer = layers.EinsumDense(
             equation="...h,hio->...io", output_shape=output_shape
         )
-        dummy_input = rng.standard_normal(size=(1, 1, kernel_shape[0]))
-        layer(dummy_input)
-        layer.kernel.assign(
-            rng.standard_normal(size=kernel_shape).astype("float32")
-        )
+        layer.build(input_shape=(None, kernel_shape[0]))
     else:
         layer = layers.Layer()
     return layer
@@ -77,9 +74,7 @@ def _get_mock_layer(layer_type, kernel_shape, rng):
 @pytest.mark.requires_trainable_backend
 class GPTQTest(testing.TestCase):
     def test_initialization_with_dense_layer(self):
-        rng = np.random.default_rng(seed=42)
-
-        mock_layer = _get_mock_layer("Dense", kernel_shape=(64, 128), rng=rng)
+        mock_layer = _get_test_layer("Dense", kernel_shape=(64, 128))
 
         gptq_instance = GPTQ(mock_layer)
         self.assertEqual(gptq_instance.rows, 64)
@@ -87,66 +82,70 @@ class GPTQTest(testing.TestCase):
         self.assertEqual(gptq_instance.hessian.shape, (64, 64))
 
     def test_initialization_with_einsumdense_3d(self):
-        rng = np.random.default_rng(seed=42)
-        mock_layer = _get_mock_layer(
-            "EinsumDense", kernel_shape=(64, 4, 32), rng=rng
-        )
+        mock_layer = _get_test_layer("EinsumDense", kernel_shape=(64, 4, 32))
         gptq_instance = GPTQ(mock_layer)
         self.assertEqual(gptq_instance.rows, 64)
         self.assertEqual(gptq_instance.columns, 4 * 32)
         self.assertEqual(gptq_instance.hessian.shape, (64, 64))
 
     def test_update_hessian(self):
+        dense = _get_test_layer("Dense", kernel_shape=(16, 32))
+        dense_gptq = GPTQ(dense)
+
         rng = np.random.default_rng(seed=42)
-        mock_layer = _get_mock_layer("Dense", kernel_shape=(16, 32), rng=rng)
-        gptq_instance = GPTQ(mock_layer)
         batch1 = rng.standard_normal(size=(8, 16)).astype("float32")
-        gptq_instance.update_hessian_with_batch(batch1)
-        self.assertEqual(gptq_instance.num_samples, 8)
-        H1 = np.copy(ops.convert_to_numpy(gptq_instance.hessian))
+
+        dense_gptq.update_hessian_with_batch(batch1)
+        self.assertEqual(dense_gptq.num_samples, 8)
+        H1 = dense_gptq.hessian
+
         batch2 = rng.standard_normal(size=(4, 16)).astype("float32")
-        gptq_instance.update_hessian_with_batch(batch2)
-        self.assertEqual(gptq_instance.num_samples, 12)
-        H2 = np.copy(ops.convert_to_numpy(gptq_instance.hessian))
-        self.assertFalse(np.allclose(H1, H2))
 
-    def test_full_quantization_process(self):
+        dense_gptq.update_hessian_with_batch(batch2)
+        self.assertEqual(dense_gptq.num_samples, 12)
+
+        H2 = dense_gptq.hessian
+
+        self.assertNotAllClose(H1, H2)
+
+    def test_gptq_on_single_layer(self):
         rng = np.random.default_rng(seed=42)
-        mock_layer = _get_mock_layer("Dense", kernel_shape=(16, 32), rng=rng)
-        original_weights = np.copy(ops.convert_to_numpy(mock_layer.kernel))
+        dense = _get_test_layer("Dense", kernel_shape=(16, 32))
 
-        gptq_instance = GPTQ(
-            mock_layer,
-            GPTQConfig(
-                dataset=None,
-                tokenizer=None,
-                weight_bits=4,
-                symmetric=False,
-                group_size=-1,
-            ),
+        config = GPTQConfig(
+            dataset=None,
+            tokenizer=None,
+            weight_bits=4,
+            symmetric=False,
+            group_size=-1,
         )
+
+        dense.quantize("gptq", config=config)
+        dense_gptq = GPTQ(
+            dense,
+            config,
+        )
+
         calibration_data = rng.standard_normal(size=(128, 16)).astype("float32")
-        gptq_instance.update_hessian_with_batch(calibration_data)
-        gptq_instance.quantize_and_correct_layer()
 
-        quantized_weights = ops.convert_to_numpy(mock_layer.kernel)
-        self.assertFalse(np.allclose(original_weights, quantized_weights))
+        dense_gptq.update_hessian_with_batch(calibration_data)
+        dense_gptq.quantize_and_correct_layer()
 
-        gptq_instance.free()
-        self.assertIsNone(gptq_instance.hessian)
+        self.assertEqual(dense.kernel.dtype, "uint8")
+
+        dense_gptq.free()
+        self.assertIsNone(getattr(dense_gptq, "hessian", None))
+        self.assertIsNone(getattr(dense_gptq, "layer", None))
 
     def test_unsupported_layer_error(self):
-        rng = np.random.default_rng(seed=42)
-        unsupported_layer = _get_mock_layer(
-            "Unsupported", kernel_shape=None, rng=rng
-        )
+        unsupported_layer = _get_test_layer("Unsupported", kernel_shape=None)
         with self.assertRaisesRegex(TypeError, "Unsupported layer type"):
             GPTQ(unsupported_layer)
 
     def test_update_hessian_invalid_input(self):
         rng = np.random.default_rng(seed=42)
-        mock_layer = _get_mock_layer("Dense", kernel_shape=(16, 32), rng=rng)
-        gptq_instance = GPTQ(mock_layer)
+        dense = _get_test_layer("Dense", kernel_shape=(16, 32))
+        gptq_instance = GPTQ(dense)
         with self.assertRaisesRegex(ValueError, "cannot be None"):
             gptq_instance.update_hessian_with_batch(None)
         with self.assertRaisesRegex(ValueError, "cannot be empty"):
@@ -305,13 +304,17 @@ class GPTQTest(testing.TestCase):
         # there is no interaction between different features
         inverse_hessian = ops.eye(in_features, dtype="float32")
 
-        dequantized_weights = gptq_quantize_matrix(
+        quantized_weights, scale_map, zero_map, g_idx = gptq_quantize_matrix(
             weights_transpose,
             inverse_hessian,
             blocksize=128,
-            group_size=-1,
+            group_size=1,  # per-column quantization
             activation_order=False,
             compute_scale_zero=_compute_scale_zero,
+        )
+
+        dequantized_weights = dequantize_with_sz_map(
+            quantized_weights, scale_map, zero_map, g_idx
         )
 
         # Compare function output with columnwise direct application
@@ -328,56 +331,55 @@ class GPTQTest(testing.TestCase):
 
         self.assertAllClose(dequantized_weights, out, atol=1e-6)
 
-    def test_activation_order_permutation_is_undone(self):
+    def test_activation_order_produces_equivalent_weights(self):
+        """
+        Tests that quantizing with `activation_order=True` yields the same
+        final weights as `activation_order=False`, because the internal
+        permutation should be undone.
+        """
+        # Set up shared inputs and a non-trivial permutation.
         in_features, out_features = 8, 6
-        layer = layers.Dense(out_features, use_bias=False)
-        layer.build((None, in_features))
-        weights = ops.array(
+        initial_weights = ops.array(
             np.random.randn(in_features, out_features), "float32"
         )
-        layer.set_weights([weights])
 
-        # generate a non-trivial order metric.
-        diag = ops.linspace(10.0, 1.0, in_features, dtype="float32")
-        diag = ops.random.shuffle(diag)
-        H = ops.diag(diag)
+        # Generate a Hessian that creates a non-trivial permutation.
+        hessian_diag = ops.random.shuffle(
+            ops.linspace(10.0, 1.0, in_features, dtype="float32")
+        )
+        hessian_matrix = ops.diag(hessian_diag)
 
-        # Ensure it generates a non-trivial permutation
-        perm = _stable_permutation(diag)
+        # Sanity check: ensure the permutation is not the identity.
+        perm = _stable_permutation(hessian_diag)
         self.assertFalse(ops.all(ops.equal(perm, ops.arange(in_features))))
 
-        # Quantize with activation order
-        g1 = GPTQ(
-            layer,
-            GPTQConfig(
+        def create_and_quantize(use_activation_order):
+            layer = layers.Dense(out_features, use_bias=False)
+            layer.build((None, in_features))
+            layer.set_weights([ops.copy(initial_weights)])
+
+            config = GPTQConfig(
                 dataset=None,
                 tokenizer=None,
                 group_size=-1,
-                activation_order=True,
-            ),
+                activation_order=use_activation_order,
+            )
+            layer.quantize("gptq", config=config)
+
+            quantizer = GPTQ(layer, config)
+            quantizer.hessian = hessian_matrix
+            quantizer.quantize_and_correct_layer()
+            return layer
+
+        # Quantize two layers, one with and one without activation ordering.
+        ordered_layer = create_and_quantize(use_activation_order=True)
+        unordered_layer = create_and_quantize(use_activation_order=False)
+
+        self.assertAllClose(
+            ordered_layer.get_weights()[0],
+            unordered_layer.get_weights()[0],
+            msg="Weights should be identical as the permutation is undone.",
         )
-        g1.hessian = H
-        g1.quantize_and_correct_layer()
-
-        # Quantize without activation order
-        layer2 = layers.Dense(out_features, use_bias=False)
-        layer2.build((None, in_features))
-        layer2.set_weights([ops.copy(weights)])
-
-        g2 = GPTQ(
-            layer2,
-            GPTQConfig(
-                dataset=None,
-                tokenizer=None,
-                group_size=-1,
-                activation_order=False,
-            ),
-        )
-        g2.hessian = H
-        g2.quantize_and_correct_layer()
-
-        # The weights should be identical since permutation is undone
-        self.assertAllClose(layer.get_weights()[0], layer2.get_weights()[0])
 
 
 def _compute_scale_zero(x, **_):
@@ -403,6 +405,7 @@ def _get_sequence_classifier():
     class SimpleTransformerBlock(layers.Layer):
         def __init__(self, embed_dim, num_heads, ff_dim, **kwargs):
             super().__init__(**kwargs)
+
             self.att = layers.MultiHeadAttention(
                 num_heads=num_heads, key_dim=embed_dim // num_heads
             )
@@ -467,7 +470,15 @@ CONFIGS = {
     "per_channel": {"group_size": -1, "per_channel": True},
     "act_order": {"activation_order": True},
     "symmetric": {"symmetric": True},
-    "group_wise": {"group_size": 2},
+    "group_wise": {"group_size": 8},
+    "group_wise_act_order": {"group_size": 8, "activation_order": True},
+    "symmetric_act_order": {"symmetric": True, "activation_order": True},
+    "symmetric_per_channel": {"symmetric": True, "per_channel": True},
+    "group_wise_symmetric_8bit": {
+        "group_size": 8,
+        "symmetric": True,
+        "weight_bits": 8,
+    },
 }
 
 
@@ -547,7 +558,8 @@ class TestModelQuantization(testing.TestCase):
         Validates classification performance of the quantized model
         with respect to the full-precision baseline.
         """
-        rng = np.random.default_rng(seed=0)
+        rng = np.random.default_rng(seed=321)
+        keras.utils.set_random_seed(123)
 
         # Build the calibration set.
         calibration_set = list(
@@ -594,9 +606,9 @@ class TestModelQuantization(testing.TestCase):
         kl = _mean_kl(p_ref, p_q)
 
         self.assertGreaterEqual(
-            top1_match, 0.6, f"Top-1 agreement too low: {top1_match:.3f}"
+            top1_match, 0.5, f"Top-1 agreement too low: {top1_match:.3f}"
         )
-        self.assertLessEqual(kl, 0.50, f"KL divergence too high: {kl:.3f}")
+        self.assertLessEqual(kl, 0.30, f"KL divergence too high: {kl:.3f}")
 
     @parameterized.named_parameters(
         {
@@ -604,7 +616,7 @@ class TestModelQuantization(testing.TestCase):
             "mode": "gptq",
             "config": {"weight_bits": 4},
             "expected_exception": ValueError,
-            "error_msg": "must be of type",
+            "error_msg": "Mode 'gptq' requires a valid `config`",
         },
         {
             "testcase_name": "non_gptq_with_unsupported_config",

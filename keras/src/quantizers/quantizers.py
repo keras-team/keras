@@ -655,19 +655,24 @@ class GPTQQuantizer(Quantizer):
             Defaults to -1.
     """
 
-    def __init__(self, config=GPTQConfig(tokenizer=None, dataset=None)):
+    def __init__(
+        self,
+        config=GPTQConfig(tokenizer=None, dataset=None),
+        compute_dtype="float32",
+    ):
         Quantizer.__init__(self)
         self.weight_bits = config.weight_bits
         self.per_channel = config.per_channel
         self.symmetric = config.symmetric
         self.group_size = config.group_size
+        self.compute_dtype = compute_dtype
 
         # These are now determined later by `find_params`
         self.scale = None
         self.zero = None
         self.maxq = None
 
-    def find_params(self, input_tensor, weight=False):
+    def find_params(self, input_tensor, weight=True):
         """Finds quantization parameters (scale and zero) for a given tensor."""
         self.scale, self.zero, self.maxq = compute_quantization_parameters(
             input_tensor,
@@ -676,16 +681,9 @@ class GPTQQuantizer(Quantizer):
             per_channel=self.per_channel,
             group_size=self.group_size,
             weight=weight,
+            compute_dtype=self.compute_dtype,
         )
         return self.scale, self.zero, self.maxq
-
-    def ready(self):
-        """Checks if the quantization parameters have been computed."""
-        return (
-            self.scale is not None
-            and self.zero is not None
-            and self.maxq is not None
-        )
 
     def get_config(self):
         config = super().get_config()
@@ -713,10 +711,22 @@ class GPTQQuantizer(Quantizer):
 
 
 def compute_quantization_parameters(
-    x, *, bits, symmetric=False, per_channel=False, group_size=-1, weight=False
+    x,
+    *,
+    bits,
+    symmetric=False,
+    per_channel=False,
+    group_size=-1,
+    weight=False,
+    compute_dtype="float32",
 ):
     """
     Computes the scale and zero-point for quantization.
+
+    This function calculates the scale and zero-point required for quantizing
+    a given tensor `x` based on the specified parameters. It supports grouped,
+    per-channel, per-tensor, symmetric, and asymmetric quantization - along
+    with any combinations of these.
 
     Args:
         x: KerasTensor. The input tensor to quantize.
@@ -725,6 +735,11 @@ def compute_quantization_parameters(
         per_channel: bool. Whether to quantize per channel.
         group_size: int. The group size for quantization.
         weight: bool. Whether the input tensor is a weight tensor.
+
+    Returns:
+        scale: KerasTensor. The scale tensor for quantization.
+        zero: KerasTensor. The zero tensor for quantization.
+        maxq: scalar. The maximum quantization value.
     """
     if x is None:
         raise ValueError(f"Input tensor {x} cannot be None.")
@@ -766,7 +781,7 @@ def compute_quantization_parameters(
     min_values = ops.where(zero_range, ops.subtract(min_values, 1), min_values)
     max_values = ops.where(zero_range, ops.add(max_values, 1), max_values)
 
-    maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), "float32")
+    maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), compute_dtype)
 
     # Calculate scale and zero-point
     scale = ops.divide(ops.subtract(max_values, min_values), maxq)
@@ -790,6 +805,8 @@ def compute_quantization_parameters(
     if per_channel:
         scale = ops.reshape(scale, [-1, 1])
         zero = ops.reshape(zero, [-1, 1])
+
+    zero = ops.cast(zero, "uint8")
 
     return scale, zero, maxq
 
@@ -815,7 +832,9 @@ def quantize_with_zero_point(input_tensor, scale, zero, maxq):
     safe_scale = ops.where(ops.equal(scale, 0), epsilon, scale)
 
     quantized_tensor = ops.round(
-        ops.add(ops.divide(input_tensor, safe_scale), zero)
+        ops.add(
+            ops.divide(input_tensor, safe_scale), ops.cast(zero, scale.dtype)
+        )
     )
     quantized_tensor = ops.clip(quantized_tensor, 0, maxq)
     return quantized_tensor
@@ -833,4 +852,69 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
     Returns:
         KerasTensor. The dequantized tensor.
     """
-    return ops.multiply(scale, ops.subtract(input_tensor, zero))
+    return ops.multiply(
+        scale, ops.subtract(input_tensor, ops.cast(zero, scale.dtype))
+    )
+
+
+def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
+    """Quantize the weight matrix from group params.
+
+    This function uses the provided scale and zero tensors to quantize the
+    input weights_matrix according to the group indices. It maps each column
+    of the weights_matrix to its corresponding group parameters and performs
+    the quantization operation.
+
+    Args:
+        weights_matrix: 2D tensor of shape [out_features, in_features].
+        scale: Per-group scale tensor of shape [out_features, n_groups].
+        zero: Per-group zero-point tensor of shape [out_features, n_groups].
+        g_idx: Integer tensor of shape [in_features,] mapping each column to
+            its group index.
+        maxq: Scalar (float) representing the maximum integer quantization
+            level (e.g., 2^bits - 1).
+
+    Returns:
+        A tensor with the same shape as `weights_matrix` containing the
+        quantized weights produced using the provided group parameters.
+    """
+    groups = ops.cast(g_idx, "int32")
+    scale_cols = ops.take(scale, groups, axis=1)  # [out_features, in_features]
+    zero_cols = ops.take(zero, groups, axis=1)  # [out_features, in_features]
+
+    # Quantize elementwise, then cast to int
+    return quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
+
+
+def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
+    """Rebuild a dequantized weight matrix from group params.
+
+    This function uses the provided scale and zero tensors to dequantize the
+    input weights_matrix according to the group indices. It maps each column
+    of the weights_matrix to its corresponding group parameters and performs
+    the dequantization operation.
+
+    Args:
+        weights_matrix: 2D tensor of shape [out_features, in_features].
+        scale: Per-group scale tensor of shape [out_features, n_groups].
+        zero: Per-group zero-point tensor of shape [out_features, n_groups].
+        g_idx: Integer tensor of shape [in_features,] mapping each column to
+            its group index.
+        maxq: Scalar (float) representing the maximum integer quantization
+            level (e.g., 2^bits - 1).
+
+    Returns:
+        A tensor with the same shape as `weights_matrix` containing the
+        dequantized weights produced using the provided group parameters.
+    """
+    # Map group indices to scales and zeros
+    groups = ops.cast(g_idx, "int32")
+    scales_mapped = ops.take(scale, groups, axis=1)
+    zeros_mapped = ops.take(zero, groups, axis=1)
+    zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
+
+    quantized = ops.multiply(
+        ops.subtract(weights_matrix, zeros_mapped), scales_mapped
+    )
+
+    return quantized
