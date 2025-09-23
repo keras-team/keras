@@ -1178,4 +1178,45 @@ def dot_product_attention(
 
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
-    raise NotImplementedError("`unfold` is not supported with numpy backend")
+    """
+    NumPy implementation of torch.nn.Unfold (im2col).
+    input : (N, C, H, W)
+    return: (N, C*kH*kW, L)
+    """
+
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = np.pad(
+            input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])), mode="constant"
+        )
+
+    # ----  spatial size ----
+    oH = (input.shape[2] - (k[0] - 1) * d[0] - 1) // s[0] + 1
+    oW = (input.shape[3] - (k[1] - 1) * d[1] - 1) // s[1] + 1
+
+    i0 = np.arange(0, oH) * s[0]
+    j0 = np.arange(0, oW) * s[1]
+    i, j = np.meshgrid(i0, j0, indexing="ij")  # shape (oH, oW)
+    i = i.reshape(-1)
+    j = j.reshape(-1)
+
+    # ---- flatten patches ----
+    patches = np.empty((N, C, k[0], k[1], oH * oW), dtype=input.dtype)
+    for idx in range(k[0]):
+        for jdx in range(k[1]):
+            patches[:, :, idx, jdx, :] = input[
+                :, :, i + idx * d[0], j + jdx * d[1]
+            ]
+
+    # ---- reshape -> (N, C*kH*kW, L) ----
+    return patches.reshape(N, C * k[0] * k[1], -1)

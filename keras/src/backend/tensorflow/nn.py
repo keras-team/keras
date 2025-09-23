@@ -1081,39 +1081,37 @@ def dot_product_attention(
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     """
-    PyTorch-style unfold for 4-D NCHW tensors.
-    input: Tensor of shape [N, C, H, W]
-    kernel_size: int or (int, int)
-    dilation: int or (int, int)
-    padding: int or (int, int)
-    stride: int or (int, int)
-    returns: Tensor of shape [N, C*kH*kW, L]
+    input: (N, C, H, W)
+    return (N, C*kH*kW, L)
     """
-
-    def _pair(x):
-        return (x, x) if isinstance(x, int) else x
-
-    kH, kW = _pair(kernel_size)
-    dH, dW = _pair(dilation)
-    pH, pW = _pair(padding)
-    sH, sW = _pair(stride)
-
+    k = (
+        (kernel_size, kernel_size)
+        if isinstance(kernel_size, int)
+        else kernel_size
+    )
+    d = (dilation, dilation) if isinstance(dilation, int) else dilation
+    p = (padding, padding) if isinstance(padding, int) else padding
+    s = (stride, stride) if isinstance(stride, int) else stride
     N, C, H, W = input.shape
 
-    x = tf.transpose(input, [0, 2, 3, 1])  # [N, H, W, C]
-
-    paddings = [[0, 0], [pH, pH], [pW, pW], [0, 0]]
-    if paddings != [[0, 0], [0, 0], [0, 0], [0, 0]]:
-        x = tf.pad(x, paddings)
-
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = tf.pad(input, [[0, 0], [0, 0], [p[0], p[0]], [p[1], p[1]]])
+    x = tf.transpose(input, [0, 2, 3, 1])  # (N, H, W, C)
     patches = tf.image.extract_patches(
         images=x,
-        sizes=[1, kH, kW, 1],
-        strides=[1, sH, sW, 1],
-        rates=[1, dH, dW, 1],
+        sizes=[1, k[0], k[1], 1],
+        strides=[1, s[0], s[1], 1],
+        rates=[1, d[0], d[1], 1],
         padding="VALID",
-    )
+    )  # (N, nH, nW, kH*kW*C)
 
-    N, outH, outW, _ = patches.shape
-    patches = tf.reshape(patches, [N, outH * outW, C * kH * kW])
-    return tf.transpose(patches, [0, 2, 1])  # [N, C*kH*kW, L]
+    N, nH, nW, D = patches.shape
+    patches = tf.reshape(
+        patches, [N, nH, nW, k[0], k[1], C]
+    )  # (N, nH, nW, kH, kW, C)
+    patches = tf.transpose(
+        patches, [0, 5, 3, 4, 1, 2]
+    )  # (N, C, kH, kW, nH, nW)
+    patches = tf.reshape(patches, [N, C * k[0] * k[1], nH * nW])
+    return patches

@@ -1414,24 +1414,43 @@ def dot_product_attention(
 
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+
     def _pair(x):
         return (x, x) if isinstance(x, int) else x
 
-    filter_shape = _pair(kernel_size)
-    window_strides = _pair(stride)
-    lhs_dilation = _pair(dilation)
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
 
-    if isinstance(padding, int):
-        padding = ((padding, padding), (padding, padding))
-    else:
-        padding = ((padding[0], padding[0]), (padding[1], padding[1]))
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = jnp.pad(input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])))
 
     patches = lax.conv_general_dilated_patches(
-        lhs=input,
-        filter_shape=filter_shape,
-        window_strides=window_strides,
-        padding=padding,
-        lhs_dilation=lhs_dilation,
-    )
+        input,
+        filter_shape=k,
+        window_strides=s,
+        padding="VALID",  # has padde
+        rhs_dilation=d,
+        dimension_numbers=("NCHW", "OIHW", "NCHW"),  # only support 'NCHW'
+    )  # shape: (N, C*kH*kW, oH, oW)
 
-    return patches
+    # ---- reshape -> (N, C*kH*kW, L) ----
+    _, CKK, oH, oW = patches.shape
+    return patches.reshape(N, CKK, oH * oW)
