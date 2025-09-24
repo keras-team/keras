@@ -4240,6 +4240,40 @@ def logaddexp(x1, x2):
     return backend.numpy.logaddexp(x1, x2)
 
 
+class Logaddexp2(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.logaddexp2(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            float,
+        )
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.logaddexp2", "keras.ops.numpy.logaddexp2"])
+def logaddexp2(x1, x2):
+    """Base-2 logarithm of the sum of exponentiations of the inputs.
+
+    Calculates `log2(2**x1 + 2**x2)`.
+
+    Args:
+        x1: Input tensor.
+        x2: Input tensor.
+
+    Returns:
+        Output tensor, element-wise log base 2 of the sum of 2**x1 and 2**x2.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Logaddexp2().symbolic_call(x1, x2)
+    return backend.numpy.logaddexp2(x1, x2)
+
+
 class LogicalAnd(Operation):
     def call(self, x1, x2):
         return backend.numpy.logical_and(x1, x2)

@@ -1142,6 +1142,12 @@ def logaddexp(x1, x2):
     return OpenVINOKerasTensor(result)
 
 
+def logaddexp2(x1, x2):
+    raise NotImplementedError(
+        "`logaddexp2` is not supported with openvino backend"
+    )
+
+
 def logical_and(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)

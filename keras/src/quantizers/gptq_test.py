@@ -398,7 +398,7 @@ def _get_sequence_classifier():
 
     tokens -> Embedding -> Transformer -> GAP -> Dense(num_classes).
     """
-    embed_dim = 32
+    embed_dim = 64
     num_heads = 4
     ff_dim = 32
 

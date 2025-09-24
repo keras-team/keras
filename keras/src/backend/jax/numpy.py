@@ -888,6 +888,12 @@ def logaddexp(x1, x2):
     return jnp.logaddexp(x1, x2)
 
 
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.logaddexp2(x1, x2)
+
+
 def logical_and(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
