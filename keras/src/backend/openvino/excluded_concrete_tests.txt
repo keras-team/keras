@@ -96,6 +96,7 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
 NumpyOneInputOpsCorrectnessTest::test_isposinf
+NumpyOneInputOpsCorrectnessTest::test_logaddexp2
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
 NumpyOneInputOpsCorrectnessTest::test_median
@@ -146,7 +147,6 @@ NumpyTwoInputOpsCorrectnessTest::test_isin
 NumpyTwoInputOpsCorrectnessTest::test_kron
 NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_linspace
-NumpyTwoInputOpsCorrectnessTest::test_logaddexp2
 NumpyTwoInputOpsCorrectnessTest::test_logspace
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
