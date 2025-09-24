@@ -1913,17 +1913,16 @@ def logaddexp2(x1, x2):
     x1 = tf.convert_to_tensor(x1)
     x2 = tf.convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = tf.cast(x1, float)
-    x2 = tf.cast(x2, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     delta = x1 - x2
-    log2 = tf.math.log(2.0)
-    ret = tf.where(
+    log2 = tf.cast(tf.math.log(2.0), dtype)
+    return tf.where(
         tf.math.is_nan(delta),
         x1 + x2,
         tf.maximum(x1, x2)
         + tf.math.log1p(tf.math.exp(-tf.abs(delta) * log2)) / log2,
     )
-    return tf.cast(ret, dtype)
 
 
 def logical_and(x1, x2):

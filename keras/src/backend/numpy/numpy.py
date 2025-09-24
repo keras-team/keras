@@ -839,7 +839,7 @@ def logaddexp2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    return np.logaddexp(x1, x2).astype(dtype)
+    return np.logaddexp2(x1, x2).astype(dtype)
 
 
 def logical_and(x1, x2):
