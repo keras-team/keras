@@ -4268,6 +4268,13 @@ def logaddexp2(x1, x2):
 
     Returns:
         Output tensor, element-wise log base 2 of the sum of 2**x1 and 2**x2.
+
+    Example:
+    >>> from keras import ops
+    >>> x1 = ops.array([1, 2, 3])
+    >>> x2 = ops.array([1, 2, 3])
+    >>> ops.logaddexp2(x1, x2)
+    array([5.169925, 6.169925, 7.169925], dtype=float32)
     """
     if any_symbolic_tensors((x1, x2)):
         return Logaddexp2().symbolic_call(x1, x2)
