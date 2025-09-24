@@ -898,3 +898,37 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_amax_history, float8_store["5"])
         self.assertAllClose(layer.outputs_grad_scale, float8_store["6"])
         self.assertAllClose(layer.outputs_grad_amax_history, float8_store["7"])
+
+    def test_int4_gptq_kernel_returns_unpacked_form(self):
+        """Test that the `kernel` property returns the unpacked int4 GPTQ
+        kernel."""
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+        layer.is_gptq_calibrated = True  # Bypass calibration check
+        packed_kernel = layer.quantized_kernel
+        self.assertAllClose(
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        )
+
+    def test_gptq_kernel_packing(self):
+        """Validates that 4-bit GPTQ packing reduces the kernel size."""
+        layer = layers.Dense(units=16, use_bias=False)
+        layer.build((None, 8))
+
+        original_kernel_params = ops.prod(layer._kernel.shape)
+
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+
+        quantized_kernel_params = ops.prod(layer.quantized_kernel.shape)
+        self.assertEqual(quantized_kernel_params, original_kernel_params // 2)
