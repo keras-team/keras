@@ -4274,7 +4274,7 @@ def logaddexp2(x1, x2):
     >>> x1 = ops.array([1, 2, 3])
     >>> x2 = ops.array([1, 2, 3])
     >>> ops.logaddexp2(x1, x2)
-    array([5.169925, 6.169925, 7.169925], dtype=float32)
+    array([2., 3., 4.], dtype=float32)
     """
     if any_symbolic_tensors((x1, x2)):
         return Logaddexp2().symbolic_call(x1, x2)
