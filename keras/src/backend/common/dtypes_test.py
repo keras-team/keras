@@ -93,6 +93,12 @@ class DtypesTest(test_case.TestCase):
                 "bfloat16",
                 "float32",
                 "float64",
+                "int8",
+                "int16",
+                "int32",
+                "int64",
+                "uint8",
+                "uint16",
             ]
         )
     )
