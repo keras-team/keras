@@ -324,7 +324,7 @@ class CompileMetrics(metrics_module.Metric):
         return flat_metrics
 
     def _flatten_y(self, y):
-        names = getattr(self, "_resolved_output_names", self.output_names)
+        names = self._resolved_output_names
         if isinstance(y, dict) and names:
             result = []
             for name in names:
