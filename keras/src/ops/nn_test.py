@@ -149,8 +149,8 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knn.celu(x).shape, (None, 2, 3))
 
     def test_glu(self):
-        x = KerasTensor([None, 2, 3])
-        self.assertEqual(knn.glu(x).shape, (None, 2, 3))
+        x = KerasTensor([None, 2, 4])
+        self.assertEqual(knn.glu(x).shape, (None, 2, 2))
 
     def test_tanh_shrink(self):
         x = KerasTensor([None, 2, 3])
@@ -851,8 +851,8 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.celu(x).shape, (1, 2, 3))
 
     def test_glu(self):
-        x = KerasTensor([1, 2, 3])
-        self.assertEqual(knn.glu(x).shape, (1, 2, 3))
+        x = KerasTensor([1, 2, 4])
+        self.assertEqual(knn.glu(x).shape, (1, 2, 2))
 
     def test_tanh_shrink(self):
         x = KerasTensor([1, 2, 3])
@@ -2733,9 +2733,6 @@ class NNOpsDtypeTest(testing.TestCase):
     def test_glu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
-
-        if dtype == "bfloat16":
-            self.skipTest("Weirdness with numpy")
 
         x = knp.ones((2), dtype=dtype)
         x_jax = jnp.ones((2), dtype=dtype)
