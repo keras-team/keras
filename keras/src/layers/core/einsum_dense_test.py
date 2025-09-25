@@ -1076,7 +1076,8 @@ class EinsumDenseTest(testing.TestCase):
         gptq_store = {
             # bias
             "0": np.random.random((32,)).astype("float32"),
-            "1": np.random.randint(0, 16, size=(32, 24), dtype="uint8"),
+            # quantized_kernel
+            "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
             # kernel_scale.
             "2": np.random.random((32, 3)).astype("float32"),
             # kernel_zero

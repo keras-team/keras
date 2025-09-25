@@ -864,7 +864,8 @@ class DenseTest(testing.TestCase):
         gptq_store = {
             # bias
             "0": np.random.random((16,)).astype("float32"),
-            "1": np.random.randint(0, 16, size=(16, 8), dtype="uint8"),
+            # quantized_kernel
+            "1": np.random.randint(0, 16, size=(8, 8), dtype="uint8"),
             # kernel_scale.
             "2": np.random.random((16, 1)).astype("float32"),
             # kernel_zero
