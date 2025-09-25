@@ -86,6 +86,27 @@ class DtypesTest(test_case.TestCase):
         out = backend.result_type(x1.dtype, x2.dtype)
         self.assertEqual(out, "int64")
 
+    @parameterized.named_parameters(
+        named_product(
+            dtype=[
+                "float16",
+                "bfloat16",
+                "float32",
+                "float64",
+            ]
+        )
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_result_type_with_float64(self, dtype):
+        # Float types have a similar issue as int64 in TF.:
+        # https://github.com/keras-team/keras/issues/21677
+        x1 = ops.ones((1,), dtype="float64")
+        x2 = ops.ones((1,), dtype=dtype)
+        out = backend.result_type(x1.dtype, x2.dtype)
+        self.assertEqual(out, "float64")
+
     def test_result_type_with_none(self):
         import jax.numpy as jnp
 
