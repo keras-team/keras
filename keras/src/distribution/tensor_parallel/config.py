@@ -3,10 +3,11 @@ from typing import Any
 from typing import Dict
 from typing import Sequence
 
-from keras.src.backend.distributed import get_distributed_backend
 from keras.src.distribution.tensor_parallel.communications import AllGatherKeras
 from keras.src.distribution.tensor_parallel.communications import AllReduceKeras
 from keras.src.distribution.tensor_parallel.communications import BroadcastKeras
+
+from keras.src.backend.distributed import get_distributed_backend
 
 
 @dataclasses.dataclass
@@ -20,8 +21,10 @@ class ConfigKeras:
         world_size = len(devices)
         backend = get_distributed_backend()
 
-        # Pass the backend instance to the constructors
-        make_allreduce = lambda ws: AllReduceKeras(
+        make_allreduce_sum = lambda ws: AllReduceKeras(
+            ws, backend=backend, op="sum"
+        )
+        make_allreduce_mean = lambda ws: AllReduceKeras(
             ws, backend=backend, op="mean"
         )
         make_allgather = lambda ws, dim: AllGatherKeras(
@@ -37,7 +40,11 @@ class ConfigKeras:
                     for key, action in actions.items():
                         if isinstance(action, str):
                             if action == "sum":
-                                result[pattern][key] = make_allreduce(
+                                result[pattern][key] = make_allreduce_sum(
+                                    world_size
+                                )
+                            elif action == "mean":
+                                result[pattern][key] = make_allreduce_mean(
                                     world_size
                                 )
                             elif action.startswith("gather"):

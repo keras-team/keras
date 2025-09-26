@@ -1,7 +1,6 @@
 import logging
 
 from keras.src.backend.distributed.base import BaseDistributedBackend
-
 from keras.src.backend.jax.distributed_backend import JaxDistributedBackend
 from keras.src.backend.numpy.distributed_backend import NumpyDistributedBackend
 from keras.src.backend.tensorflow.distributed_backend import (
