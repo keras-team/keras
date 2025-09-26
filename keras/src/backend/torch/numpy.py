@@ -313,18 +313,19 @@ def append(x1, x2, axis=None):
     return torch.cat((x1, x2), dim=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [getattr(start, "dtype", type(start))]
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        if step is not None:
+            dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
     if stop is None:
-        return torch.arange(end=start, dtype=dtype, device=get_device())
+        start, stop = 0, start
+    if step is None:
+        step = 1
     return torch.arange(
         start, stop, step=step, dtype=dtype, device=get_device()
     )

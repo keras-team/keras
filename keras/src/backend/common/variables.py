@@ -599,8 +599,10 @@ def standardize_shape(shape):
 
     if config.backend() == "jax":
         # Replace `_DimExpr` (dimension expression) with None
+        from jax import export as jax_export
+
         shape = tuple(
-            [None if "_DimExpr" in str(type(d)) else d for d in shape]
+            None if jax_export.is_symbolic_dim(d) else d for d in shape
         )
 
     if config.backend() == "torch":
