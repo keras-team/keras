@@ -94,7 +94,6 @@ class SplitKeras(StateActionKeras, _ConcatenateMixin):
         return tensor[tuple(slices)]
 
 
-# MODIFIED: Ensure this class inherits from `_ConcatenateMixin`
 class GatherKeras(StateActionKeras, _ConcatenateMixin):
     """
     Represents a gather operation, where tensors are collected from all ranks.

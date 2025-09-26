@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import logging
 from typing import Any
 from typing import List
@@ -10,22 +8,6 @@ from keras.src.backend.distributed import get_distributed_backend
 from keras.src.backend.distributed.base import BaseDistributedBackend
 
 logger = logging.getLogger(__name__)
-
-
-def _clone_tensor(tensor):
-    return keras.ops.convert_to_tensor(keras.ops.convert_to_numpy(tensor))
-
-
-def _sum_tensors(tensors):
-    if not tensors:
-        return None
-    if len(tensors) == 1:
-        return tensors[0]
-
-    total = tensors[0]
-    for tensor in tensors[1:]:
-        total = keras.ops.add(total, tensor)
-    return total
 
 
 class CollectiveOpKeras:
@@ -105,7 +87,6 @@ class BroadcastKeras(CollectiveOpKeras):
             )
 
     def __call__(self, tensor: Any) -> Any:
-        # MODIFIED: Use the real backend function instead of a placeholder
         return self.broadcast_fn(tensor, root=self.src_rank)
 
 
@@ -113,7 +94,6 @@ class ScatterKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        # MODIFIED: Type hint to use the base class
         backend: BaseDistributedBackend,
         dim: int = -1,
         rank: int = 0,

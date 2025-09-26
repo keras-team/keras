@@ -17,11 +17,15 @@ class PytorchDistributedBackend(BaseDistributedBackend):
         return torch
 
     def convert_to_backend_tensor(self, tensor: Any) -> Any:
-        return tensor.clone().detach()
+        return torch.as_tensor(tensor)
 
     def compute_gradients(
         self, loss: Any, trainable_vars: List[Any]
     ) -> List[Any]:
+        logger.warning(
+            "PyTorch gradient computation is handled by `loss.backward()` in "
+            "the Keras model's `train_step`. This is a placeholder."
+        )
         return [torch.zeros_like(var) for var in trainable_vars]
 
     def apply_gradients(
@@ -33,7 +37,7 @@ class PytorchDistributedBackend(BaseDistributedBackend):
         for grad, var in zip(gradients, trainable_vars):
             if grad is not None:
                 with torch.no_grad():
-                    var -= learning_rate * grad
+                    var.sub_(grad * learning_rate)
 
     def create_optimizer(self, optimizer_class: str, **kwargs):
         if optimizer_class.lower() == "adam":
@@ -89,8 +93,8 @@ class PytorchDistributedBackend(BaseDistributedBackend):
             if rank == root:
                 if x.shape[0] % world_size != 0:
                     raise ValueError(
-                        "The first dimension of the tensor must be "
-                        "divisible by world size."
+                        "The first dimension of the tensor must be divisible "
+                        "by world size."
                     )
                 scatter_list = list(torch.chunk(x, world_size, dim=0))
             else:
@@ -101,12 +105,6 @@ class PytorchDistributedBackend(BaseDistributedBackend):
             )
             dist.scatter(output_tensor, scatter_list, src=root)
             return output_tensor
-
-        def no_op_simulated(x, **kwargs):
-            return x
-
-        def scatter_simulated(x, **kwargs):
-            return x
 
         try:
             if not (dist.is_available() and dist.is_initialized()):
@@ -124,9 +122,22 @@ class PytorchDistributedBackend(BaseDistributedBackend):
             logger.warning(
                 f"torch.distributed not available: {e}. Using SIMULATED ops."
             )
+
+            def all_reduce_simulated(x, op="sum"):
+                return x
+
+            def all_gather_simulated(x, axis=0):
+                return torch.cat([x, x], dim=axis)
+
+            def broadcast_simulated(x, root=0):
+                return x
+
+            def scatter_simulated(x, root=0):
+                return x
+
             return {
-                "all_reduce": no_op_simulated,
-                "all_gather": no_op_simulated,
-                "broadcast": no_op_simulated,
+                "all_reduce": all_reduce_simulated,
+                "all_gather": all_gather_simulated,
+                "broadcast": broadcast_simulated,
                 "scatter": scatter_simulated,
             }
