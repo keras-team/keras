@@ -235,6 +235,57 @@ class TestCompileMetrics(testing.TestCase):
         self.assertEqual(len(result), 1)
         self.assertTrue("my_custom_metric" in result)
 
+    def test_dict_outputs_ignore_mismatched_output_names(self):
+        """Tests that when output_names does not match dict keys, the correct
+        keys are used."""
+
+        # output_names represent internal op names that do not match dict keys.
+        compile_metrics = CompileMetrics(
+            metrics={
+                "a": metrics_module.MeanSquaredError(),
+                "b": metrics_module.MeanSquaredError(),
+            },
+            weighted_metrics=None,
+            output_names=["dense", "dense_1"],
+        )
+
+        # Symbolic build with dict outputs keyed by user-facing names.
+        y_true = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 2)),
+        }
+        y_pred = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 2)),
+        }
+
+        # The build method should correctly map metrics for outputs 'a' and 'b',
+        # even when the op names do not match.
+        compile_metrics.build(y_true, y_pred)
+
+        # Make the two outputs produce different MSEs to verify mapping.
+        y_true = {
+            "a": np.zeros((3, 2), dtype="float32"),
+            "b": np.zeros((3, 2), dtype="float32"),
+        }
+        y_pred = {
+            # MSE(a) = 0.0
+            "a": np.zeros((3, 2), dtype="float32"),
+            # MSE(b) = 1.0
+            "b": np.ones((3, 2), dtype="float32"),
+        }
+        compile_metrics.update_state(y_true, y_pred)
+
+        result = compile_metrics.result()
+        self.assertIsInstance(result, dict)
+
+        # Should expose metrics under the dict keys ('a', 'b'),
+        # and not the internal names.
+        self.assertIn("a_mean_squared_error", result)
+        self.assertIn("b_mean_squared_error", result)
+        self.assertAllClose(result["a_mean_squared_error"], 0.0)
+        self.assertAllClose(result["b_mean_squared_error"], 1.0, atol=1e-6)
+
 
 class TestCompileLoss(testing.TestCase):
     def test_single_output_case(self):

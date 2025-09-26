@@ -148,6 +148,7 @@ class CompileMetrics(metrics_module.Metric):
         self.built = False
         self.name = "compile_metrics"
         self.output_names = output_names
+        self._resolved_output_names = None
 
     @property
     def metrics(self):
@@ -175,10 +176,16 @@ class CompileMetrics(metrics_module.Metric):
 
     def build(self, y_true, y_pred):
         num_outputs = 1  # default
-        if self.output_names:
+        # Resolve output names. If y_pred is a dict, prefer its keys.
+        if isinstance(y_pred, dict):
+            keys = sorted(list(y_pred.keys()))
+            if self.output_names and set(self.output_names) == set(keys):
+                # If there is a perfect match, use the user-provided order.
+                output_names = self.output_names
+            else:
+                output_names = keys
+        elif self.output_names:
             output_names = self.output_names
-        elif isinstance(y_pred, dict):
-            output_names = sorted(list(y_pred.keys()))
         elif isinstance(y_pred, (list, tuple)):
             num_outputs = len(y_pred)
             if all(hasattr(x, "_keras_history") for x in y_pred):
@@ -187,6 +194,7 @@ class CompileMetrics(metrics_module.Metric):
                 output_names = None
         else:
             output_names = None
+        self._resolved_output_names = output_names
         if output_names:
             num_outputs = len(output_names)
 
@@ -316,9 +324,10 @@ class CompileMetrics(metrics_module.Metric):
         return flat_metrics
 
     def _flatten_y(self, y):
-        if isinstance(y, dict) and self.output_names:
+        names = self._resolved_output_names
+        if isinstance(y, dict) and names:
             result = []
-            for name in self.output_names:
+            for name in names:
                 if name in y:
                     result.append(y[name])
             return result
