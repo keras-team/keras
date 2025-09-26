@@ -1178,7 +1178,171 @@ def maximum(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
-    raise NotImplementedError("`median` is not supported with openvino backend")
+    """
+    The median algorithm follows numpy's method;
+    if axis is None, flatten all dimensions of the array and find the
+    median value.
+    if axis is single int or list/tuple of multiple values, re-order x array
+    to move those axis dims to the right, flatten the multiple axis dims
+    then calculate median values along the flattened axis.
+    """
+    if np.isscalar(x):
+        x = get_ov_output(x)
+        return OpenVINOKerasTensor(x)
+
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type == Type.boolean or x_type.is_integral():
+        x_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, x_type).output(0)
+
+    x_shape_original = ov_opset.shape_of(x, Type.i32).output(0)
+    x_rank_original = ov_opset.shape_of(x_shape_original, Type.i32).output(0)
+    x_rank_original_scalar = ov_opset.squeeze(
+        x_rank_original, ov_opset.constant(0, Type.i32).output(0)
+    ).output(0)
+
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        flattened = True
+    else:
+        # move axis dims to the rightmost positions.
+        flattened = False
+        if isinstance(axis, int):
+            axis = [axis]
+        if isinstance(axis, (tuple, list)):
+            axis = list(axis)
+        ov_axis = ov_opset.constant(axis, Type.i32).output(0)
+        # normalise any negative axes to their positive equivalents by gathering
+        # the indices from axis range.
+        axis_as_range = ov_opset.range(
+            ov_opset.constant(0, Type.i32).output(0),
+            x_rank_original_scalar,
+            ov_opset.constant(1, Type.i32).output(0),
+            Type.i32,
+        ).output(0)
+        flatten_axes = ov_opset.gather(
+            axis_as_range, ov_axis, ov_opset.constant([0], Type.i32)
+        ).output(0)
+
+        # right (flatten) axis dims are defined,
+        # now define the left (remaining) axis dims.
+
+        # to find remaining axes, use not_equal comparison between flatten_axes
+        # and axis_as_range.
+        # reshape axis_as_range to suit not_equal broadcasting rules for
+        # comparison.
+        axis_comparison_shape = ov_opset.concat(
+            [
+                ov_opset.shape_of(flatten_axes, Type.i32).output(0),
+                ov_opset.shape_of(axis_as_range, Type.i32).output(0),
+            ],
+            0,
+        ).output(0)
+        reshaped_axis_range = ov_opset.broadcast(
+            axis_as_range, axis_comparison_shape
+        ).output(0)
+        axis_compare = ov_opset.not_equal(
+            reshaped_axis_range,
+            ov_opset.unsqueeze(
+                flatten_axes, ov_opset.constant(1, Type.i32).output(0)
+            ).output(0),
+        ).output(0)
+        axis_compare = ov_opset.reduce_logical_and(
+            axis_compare, ov_opset.constant(0, Type.i32).output(0)
+        ).output(0)
+        nz = ov_opset.non_zero(axis_compare, Type.i32).output(0)
+        nz = ov_opset.squeeze(
+            nz, ov_opset.constant(0, Type.i32).output(0)
+        ).output(0)
+        remaining_axes = ov_opset.gather(
+            axis_as_range, nz, ov_opset.constant(0, Type.i32).output(0)
+        ).output(0)
+        # concat to place flatten axes on the right and remaining axes on the
+        # left.
+        reordered_axes = ov_opset.concat(
+            [remaining_axes, flatten_axes], 0
+        ).output(0)
+        x_transposed = ov_opset.transpose(x, reordered_axes).output(0)
+
+        # flatten the axis dims if more than 1 axis in input.
+        if len(axis) > 1:
+            x_flatten_rank = ov_opset.subtract(
+                x_rank_original,
+                ov_opset.constant([len(axis) - 1], Type.i32).output(0),
+            ).output(0)
+            # create flatten shape of 0's (keep axes)
+            # and -1 at the end (flattened axis)
+            x_flatten_shape = ov_opset.broadcast(
+                ov_opset.constant([0], Type.i32).output(0), x_flatten_rank
+            ).output(0)
+            x_flatten_shape = ov_opset.scatter_elements_update(
+                x_flatten_shape,
+                ov_opset.constant([-1], Type.i32).output(0),
+                ov_opset.constant([-1], Type.i32).output(0),
+                0,
+                "sum",
+            ).output(0)
+
+            x_transposed = ov_opset.reshape(
+                x_transposed, x_flatten_shape, True
+            ).output(0)
+
+        x = x_transposed
+
+    k_value = ov_opset.gather(
+        ov_opset.shape_of(x, Type.i32).output(0),
+        ov_opset.constant(-1, Type.i32).output(0),
+        ov_opset.constant(0, Type.i32).output(0),
+    ).output(0)
+
+    x_sorted = ov_opset.topk(
+        x, k_value, -1, "min", "value", stable=True
+    ).output(0)
+
+    half_index = ov_opset.floor(
+        ov_opset.divide(k_value, ov_opset.constant(2, Type.i32)).output(0)
+    ).output(0)
+
+    # for odd length dimension, select the middle value as median.
+    # for even length dimension, calculate the mean between the 2 middle values.
+    x_mod = ov_opset.mod(k_value, ov_opset.constant(2, Type.i32)).output(0)
+    is_even = ov_opset.equal(x_mod, ov_opset.constant(0, Type.i32)).output(0)
+
+    med_0 = ov_opset.gather(
+        x_sorted, half_index, ov_opset.constant(-1, Type.i32).output(0)
+    ).output(0)
+    med_1 = ov_opset.gather(
+        x_sorted,
+        ov_opset.subtract(half_index, ov_opset.constant(1, Type.i32)).output(0),
+        ov_opset.constant(-1, Type.i32).output(0),
+    ).output(0)
+
+    median_odd = med_0
+    median_even = ov_opset.divide(
+        ov_opset.add(med_1, med_0).output(0),
+        ov_opset.constant(2, x_type),
+    ).output(0)
+
+    median_eval = ov_opset.select(is_even, median_even, median_odd).output(0)
+
+    if keepdims:
+        # reshape median_eval to original rank of x.
+        if flattened:
+            # create a tensor of ones for reshape, the original rank of x.
+            median_shape = ov_opset.divide(
+                x_shape_original, x_shape_original, "none"
+            ).output(0)
+            median_eval = ov_opset.reshape(
+                median_eval, median_shape, False
+            ).output(0)
+        else:
+            median_eval = ov_opset.unsqueeze(median_eval, flatten_axes).output(
+                0
+            )
+
+    return OpenVINOKerasTensor(median_eval)
 
 
 def meshgrid(*x, indexing="xy"):
