@@ -1,10 +1,7 @@
-# keras/src/backend/distributed/factory.py
-
 import logging
 
 from keras.src.backend.distributed.base import BaseDistributedBackend
 
-# Import all the concrete implementation classes
 from keras.src.backend.jax.distributed_backend import JaxDistributedBackend
 from keras.src.backend.numpy.distributed_backend import NumpyDistributedBackend
 from keras.src.backend.tensorflow.distributed_backend import (

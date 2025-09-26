@@ -1,5 +1,3 @@
-# keras/src/backend/distributed/base.py
-
 from abc import ABC
 from abc import abstractmethod
 from typing import Any
