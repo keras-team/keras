@@ -1054,6 +1054,15 @@ def logaddexp(x1, x2):
         return torch.logaddexp(x1, x2)
 
 
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return torch.logaddexp2(x1, x2)
+
+
 def logical_and(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_and(x1, x2)
