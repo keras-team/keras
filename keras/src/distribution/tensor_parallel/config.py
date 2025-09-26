@@ -14,9 +14,7 @@ class ConfigKeras:
     state_rules: Dict[str, Any]
     output_rules: Dict[str, Any]
 
-    def create_collective_ops(
-        self, devices: Sequence[str], distributed: bool = True
-    ):
+    def create_collective_ops(self, devices: Sequence[str]):
         world_size = len(devices)
         backend = get_distributed_backend()
 
