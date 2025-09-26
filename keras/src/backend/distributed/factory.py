@@ -6,9 +6,7 @@ from keras.src.backend.numpy.distributed_backend import NumpyDistributedBackend
 from keras.src.backend.tensorflow.distributed_backend import (
     TensorflowDistributedBackend,
 )
-from keras.src.backend.torch.distributed_backend import (
-    PytorchDistributedBackend,
-)
+from keras.src.backend.torch.distributed_backend import TorchDistributedBackend
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +30,7 @@ def get_distributed_backend(
                     logger.info(
                         "Auto-detected PyTorch for distributed backend."
                     )
-                    return PytorchDistributedBackend()
+                    return TorchDistributedBackend()
                 except ImportError:
                     logger.warning("Using NumPy distributed backend.")
                     return NumpyDistributedBackend()
@@ -41,8 +39,8 @@ def get_distributed_backend(
         return JaxDistributedBackend()
     elif backend_name == "tensorflow":
         return TensorflowDistributedBackend()
-    elif backend_name == "pytorch":
-        return PytorchDistributedBackend()
+    elif backend_name == "torch":
+        return TorchDistributedBackend()
     elif backend_name == "numpy":
         return NumpyDistributedBackend()
     else:

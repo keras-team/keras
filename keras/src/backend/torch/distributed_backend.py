@@ -10,7 +10,7 @@ from keras.src.backend.distributed.base import BaseDistributedBackend
 logger = logging.getLogger(__name__)
 
 
-class PytorchDistributedBackend(BaseDistributedBackend):
+class TorchDistributedBackend(BaseDistributedBackend):
     """PyTorch-specific implementation of distributed operations."""
 
     def get_tensor_lib(self):

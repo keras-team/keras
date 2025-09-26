@@ -43,7 +43,7 @@ def test_create_collective_ops_parsing(mock_get_backend, mock_backend):
 
     sum_op = rules["dense_layer"]["kernel"]
     assert isinstance(sum_op, AllReduceKeras)
-    assert sum_op.op == "mean"
+    assert sum_op.op == "sum"
     assert sum_op.world_size == world_size
     assert sum_op.backend == mock_backend
 

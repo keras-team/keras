@@ -1,8 +1,17 @@
 import numpy as np
+import pytest
 
+import keras
 from keras.src.distribution.tensor_parallel.communications import (
     TensorParallelCommunicator,
 )
+
+if keras.backend.backend() == "openvino":
+    pytest.skip(
+        "The OpenVINO backend does not support distributed communication, "
+        "skipping tensor parallel tests."
+    )
+
 
 communicator = TensorParallelCommunicator(world_size=4, rank=0)
 
