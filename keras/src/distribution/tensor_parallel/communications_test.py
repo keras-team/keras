@@ -9,7 +9,8 @@ from keras.src.distribution.tensor_parallel.communications import (
 if keras.backend.backend() == "openvino":
     pytest.skip(
         "The OpenVINO backend does not support distributed communication, "
-        "skipping tensor parallel tests."
+        "skipping tensor parallel tests.",
+        allow_module_level=True,
     )
 
 

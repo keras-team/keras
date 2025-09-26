@@ -133,7 +133,12 @@ class TorchDistributedBackend(BaseDistributedBackend):
                 return x
 
             def scatter_simulated(x, root=0):
-                return x
+                if x.shape[0] % 2 != 0:
+                    raise ValueError(
+                        "For simulated scatter, the first dimension must be "
+                        "divisible by 2."
+                    )
+                return torch.chunk(x, 2, dim=0)[0]
 
             return {
                 "all_reduce": all_reduce_simulated,
