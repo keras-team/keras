@@ -24,3 +24,4 @@ from keras.src.backend.numpy.rnn import cudnn_ok
 from keras.src.backend.numpy.rnn import gru
 from keras.src.backend.numpy.rnn import lstm
 from keras.src.backend.numpy.rnn import rnn
+from keras.src.backend.numpy.numpy import take
