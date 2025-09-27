@@ -53,7 +53,6 @@ NumpyDtypeTest::test_roll
 NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
-NumpyDtypeTest::test_sort
 NumpyDtypeTest::test_sqrt
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
@@ -114,7 +113,6 @@ NumpyOneInputOpsCorrectnessTest::test_select
 NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_size
 NumpyOneInputOpsCorrectnessTest::test_slogdet
-NumpyOneInputOpsCorrectnessTest::test_sort
 NumpyOneInputOpsCorrectnessTest::test_sqrt_int32
 NumpyOneInputOpsCorrectnessTest::test_squeeze
 NumpyOneInputOpsCorrectnessTest::test_std
