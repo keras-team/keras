@@ -1077,3 +1077,41 @@ def dot_product_attention(
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """
+    input: (N, C, H, W)
+    return (N, C*kH*kW, L)
+    """
+    k = (
+        (kernel_size, kernel_size)
+        if isinstance(kernel_size, int)
+        else kernel_size
+    )
+    d = (dilation, dilation) if isinstance(dilation, int) else dilation
+    p = (padding, padding) if isinstance(padding, int) else padding
+    s = (stride, stride) if isinstance(stride, int) else stride
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = tf.pad(input, [[0, 0], [0, 0], [p[0], p[0]], [p[1], p[1]]])
+    x = tf.transpose(input, [0, 2, 3, 1])  # (N, H, W, C)
+    patches = tf.image.extract_patches(
+        images=x,
+        sizes=[1, k[0], k[1], 1],
+        strides=[1, s[0], s[1], 1],
+        rates=[1, d[0], d[1], 1],
+        padding="VALID",
+    )  # (N, nH, nW, kH*kW*C)
+
+    N, nH, nW, D = patches.shape
+    patches = tf.reshape(
+        patches, [N, nH, nW, k[0], k[1], C]
+    )  # (N, nH, nW, kH, kW, C)
+    patches = tf.transpose(
+        patches, [0, 5, 3, 4, 1, 2]
+    )  # (N, C, kH, kW, nH, nW)
+    patches = tf.reshape(patches, [N, C * k[0] * k[1], nH * nW])
+    return patches

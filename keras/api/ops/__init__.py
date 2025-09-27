@@ -116,6 +116,7 @@ from keras.src.ops.nn import sparsemax as sparsemax
 from keras.src.ops.nn import squareplus as squareplus
 from keras.src.ops.nn import tanh_shrink as tanh_shrink
 from keras.src.ops.nn import threshold as threshold
+from keras.src.ops.nn import unfold as unfold
 from keras.src.ops.numpy import abs as abs
 from keras.src.ops.numpy import absolute as absolute
 from keras.src.ops.numpy import add as add
