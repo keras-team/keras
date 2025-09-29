@@ -357,6 +357,7 @@ class ExportArchive(BackendExportArchive):
             return decorated_fn
 
         from keras.src.export.export_utils import make_tf_tensor_spec
+
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
         )
@@ -415,6 +416,7 @@ class ExportArchive(BackendExportArchive):
                 )
 
         from keras.src.export.export_utils import make_tf_tensor_spec
+
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
         )
@@ -649,6 +651,7 @@ def export_saved_model(
     export_archive = ExportArchive()
     if input_signature is None:
         from keras.src.export.export_utils import get_input_signature
+
         input_signature = get_input_signature(model)
 
     export_archive.track_and_add_endpoint(

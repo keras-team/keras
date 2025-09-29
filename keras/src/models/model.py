@@ -568,8 +568,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.  Defaults to
-                `"tf_saved_model"`.
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.
+                Defaults to `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
                 backends and formats.
@@ -592,12 +592,18 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     provided, they will be automatically computed.
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
-                - `allow_custom_ops`: Optional `bool`. Specific to `format="litert"`.
-                    Whether to allow custom operations during conversion. Defaults to `False`.
-                - `enable_select_tf_ops`: Optional `bool`. Specific to `format="litert"`.
-                    Whether to enable TensorFlow Select ops for unsupported operations. Defaults to `False`.
-                - `optimizations`: Optional `list`. Specific to `format="litert"`.
-                    List of optimizations to apply (e.g., `[tf.lite.Optimize.DEFAULT]`).
+                - `allow_custom_ops`: Optional `bool`. Specific to
+                `format="litert"`.
+                    Whether to allow custom operations during conversion.
+                    Defaults to `False`.
+                - `enable_select_tf_ops`: Optional `bool`. Specific to
+                `format="litert"`.
+                    Whether to enable TensorFlow Select ops for unsupported
+                    operations. Defaults to `False`.
+                - `optimizations`: Optional `list`. Specific to
+                `format="litert"`.
+                    List of optimizations to apply (e.g.,
+                    `[tf.lite.Optimize.DEFAULT]`).
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -642,9 +648,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         # Load the artifact in a different process/environment
         interpreter = tf.lite.Interpreter(model_path="path/to/location")
         interpreter.allocate_tensors()
-        interpreter.set_tensor(interpreter.get_input_details()[0]['index'], input_data)
+        interpreter.set_tensor(
+            interpreter.get_input_details()[0]['index'], input_data
+        )
         interpreter.invoke()
-        output_data = interpreter.get_tensor(interpreter.get_output_details()[0]['index'])
+        output_data = interpreter.get_tensor(
+            interpreter.get_output_details()[0]['index']
+        )
         ```
         """
         from keras.src.export import export_litert

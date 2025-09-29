@@ -10,6 +10,7 @@ from absl.testing import parameterized
 # Try to use AI Edge LiteRT interpreter, fallback to TensorFlow Lite
 try:
     from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
+
     litert_available = True
     print("Using AI Edge LiteRT interpreter")
 except ImportError:
@@ -24,7 +25,6 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
-from keras.src.export import export_litert
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
 
@@ -59,7 +59,8 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     if type == "subclass":
         model = CustomModel(layer_list)
         model.build(input_shape=(None,) + input_shape)
-        # Trace the model with dummy data to ensure it's properly built for export
+        # Trace the model with dummy data to ensure it's properly built for
+        # export
         dummy_input = np.zeros((1,) + input_shape, dtype=np.float32)
         _ = model(dummy_input)  # This traces the model
         return model
@@ -84,10 +85,21 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
             merge_mode="concat",
         )(x)
         return models.Model(inputs=inputs, outputs=outputs)
+    if type == "multi_input":
+        input1 = layers.Input(shape=input_shape, name="input1")
+        input2 = layers.Input(shape=input_shape, name="input2")
+        x1 = layers.Dense(10, activation="relu")(input1)
+        x2 = layers.Dense(10, activation="relu")(input2)
+        combined = layers.concatenate([x1, x2])
+        output = layers.Dense(1, activation="sigmoid")(combined)
+        return models.Model(inputs=[input1, input2], outputs=output)
+    if type == "multi_output":
+        inputs = layers.Input(shape=input_shape)
+        shared = layers.Dense(20, activation="relu")(inputs)
+        output1 = layers.Dense(1, activation="sigmoid", name="output1")(shared)
+        output2 = layers.Dense(3, activation="softmax", name="output2")(shared)
+        return models.Model(inputs=inputs, outputs=[output1, output2])
     raise ValueError(f"Unknown model type: {type}")
-
-
-
 
 
 def _convert_to_numpy(structure):
@@ -118,7 +130,8 @@ def _set_interpreter_inputs(interpreter, inputs):
                         break
                 if matched_key is None:
                     raise KeyError(
-                        f"Unable to match input '{detail['name']}' in provided inputs"
+                        f"Unable to match input '{detail['name']}' in provided "
+                        f"inputs"
                     )
                 value = inputs[matched_key]
             interpreter.set_tensor(detail["index"], value)
@@ -136,7 +149,9 @@ def _set_interpreter_inputs(interpreter, inputs):
 
 def _get_interpreter_outputs(interpreter):
     output_details = interpreter.get_output_details()
-    outputs = [interpreter.get_tensor(detail["index"]) for detail in output_details]
+    outputs = [
+        interpreter.get_tensor(detail["index"]) for detail in output_details
+    ]
     return outputs[0] if len(outputs) == 1 else outputs
 
 
@@ -148,13 +163,11 @@ def _get_interpreter_outputs(interpreter):
     testing.tensorflow_uses_gpu(),
     reason="LiteRT export tests are only run on CPU to avoid CI issues.",
 )
-# Note: Tests use AI Edge LiteRT interpreter when available, 
+# Note: Tests use AI Edge LiteRT interpreter when available,
 # fallback to TensorFlow Lite interpreter otherwise
 class ExportLitertTest(testing.TestCase):
     @parameterized.named_parameters(
-        named_product(
-            model_type=["sequential", "functional", "lstm"]
-        )
+        named_product(model_type=["sequential", "functional", "lstm"])
     )
     def test_standard_model_export(self, model_type):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -167,8 +180,9 @@ class ExportLitertTest(testing.TestCase):
         ref_input = ref_input.astype("float32")
         ref_output = _convert_to_numpy(model(ref_input))
 
-        export_path = export_litert(model, temp_filepath)
-        self.assertTrue(export_path.endswith(".tflite"))
+        # Test with model.export()
+        model.export(temp_filepath, format="litert")
+        export_path = f"{temp_filepath}.tflite"
         self.assertTrue(os.path.exists(export_path))
 
         interpreter = LiteRtInterpreter(model_path=export_path)
@@ -185,7 +199,7 @@ class ExportLitertTest(testing.TestCase):
     def test_model_with_input_structure(self, struct_type):
         batch_size = 1  # TFLite expects batch_size=1
         base_input = np.random.normal(size=(batch_size, 10)).astype("float32")
-        
+
         if struct_type == "tuple":
             # Use Functional API for proper Input layer handling
             input1 = layers.Input(shape=(10,), name="input_1")
@@ -205,7 +219,9 @@ class ExportLitertTest(testing.TestCase):
             input1 = layers.Input(shape=(10,), name="x")
             input2 = layers.Input(shape=(10,), name="y")
             output = layers.Add()([input1, input2])
-            model = models.Model(inputs={"x": input1, "y": input2}, outputs=output)
+            model = models.Model(
+                inputs={"x": input1, "y": input2}, outputs=output
+            )
             ref_input = {"x": base_input, "y": base_input * 2}
         else:
             raise AssertionError("Unexpected structure type")
@@ -215,7 +231,9 @@ class ExportLitertTest(testing.TestCase):
             model(tree.map_structure(ops.convert_to_tensor, ref_input))
         )
 
-        export_path = export_litert(model, temp_filepath)
+        # Test with model.export()
+        model.export(temp_filepath, format="litert")
+        export_path = f"{temp_filepath}.tflite"
         interpreter = LiteRtInterpreter(model_path=export_path)
         interpreter.allocate_tensors()
 
@@ -237,19 +255,21 @@ class ExportLitertTest(testing.TestCase):
 
     def test_model_with_multiple_inputs(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        
+
         # Use Functional API for proper Input layer handling
         input_x = layers.Input(shape=(10,), name="x")
         input_y = layers.Input(shape=(10,), name="y")
         output = layers.Add()([input_x, input_y])
         model = models.Model(inputs=[input_x, input_y], outputs=output)
-        
+
         batch_size = 1  # TFLite expects batch_size=1
         ref_input_x = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = _convert_to_numpy(model([ref_input_x, ref_input_y]))
 
-        export_path = export_litert(model, temp_filepath)
+        # Test with model.export()
+        model.export(temp_filepath, format="litert")
+        export_path = f"{temp_filepath}.tflite"
         interpreter = LiteRtInterpreter(model_path=export_path)
         interpreter.allocate_tensors()
 
@@ -263,25 +283,33 @@ class ExportLitertTest(testing.TestCase):
         larger_x = np.concatenate([ref_input_x, ref_input_x], axis=0)
         larger_y = np.concatenate([ref_input_y, ref_input_y], axis=0)
         input_details = interpreter.get_input_details()
-        interpreter.resize_tensor_input(input_details[0]["index"], larger_x.shape)
-        interpreter.resize_tensor_input(input_details[1]["index"], larger_y.shape)
+        interpreter.resize_tensor_input(
+            input_details[0]["index"], larger_x.shape
+        )
+        interpreter.resize_tensor_input(
+            input_details[1]["index"], larger_y.shape
+        )
         interpreter.allocate_tensors()
         _set_interpreter_inputs(interpreter, [larger_x, larger_y])
         interpreter.invoke()
         larger_output = _get_interpreter_outputs(interpreter)
         larger_ref_output = _convert_to_numpy(model([larger_x, larger_y]))
-        self.assertAllClose(larger_ref_output, larger_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(
+            larger_ref_output, larger_output, atol=1e-4, rtol=1e-4
+        )
 
     def test_export_with_custom_input_signature(self):
         model = get_model("sequential")
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         input_signature = [layers.InputSpec(shape=(None, 10), dtype="float32")]
 
-        export_path = export_litert(
-            model,
+        # Test with model.export()
+        model.export(
             temp_filepath,
+            format="litert",
             input_signature=input_signature,
         )
+        export_path = f"{temp_filepath}.tflite"
         self.assertTrue(os.path.exists(export_path))
 
         interpreter = LiteRtInterpreter(model_path=export_path)
@@ -289,3 +317,73 @@ class ExportLitertTest(testing.TestCase):
         input_details = interpreter.get_input_details()
         self.assertEqual(len(input_details), 1)
         self.assertEqual(tuple(input_details[0]["shape"][1:]), (10,))
+
+    def test_multi_output_model_export(self):
+        """Test exporting multi-output models."""
+        model = get_model("multi_output")
+
+        # Build the model
+        ref_input = np.random.normal(size=(3, 10)).astype("float32")
+        model(ref_input)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model.export(temp_filepath, format="litert")
+
+        tflite_path = f"{temp_filepath}.tflite"
+        self.assertTrue(os.path.exists(tflite_path))
+
+        # Test inference
+        interpreter = LiteRtInterpreter(model_path=tflite_path)
+        interpreter.allocate_tensors()
+
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+
+        self.assertEqual(len(output_details), 2)
+
+        test_input = np.random.random(input_details[0]["shape"]).astype(
+            np.float32
+        )
+        interpreter.set_tensor(input_details[0]["index"], test_input)
+        interpreter.invoke()
+
+        for detail in output_details:
+            output = interpreter.get_tensor(detail["index"])
+            self.assertIsInstance(output, np.ndarray)
+
+    def test_export_with_verbose(self):
+        """Test export with verbose output."""
+        model = get_model("sequential")
+        dummy_input = np.random.random((3, 10)).astype(np.float32)
+        model(dummy_input)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        # Export with verbose=True
+        model.export(temp_filepath, format="litert", verbose=True)
+
+        tflite_path = f"{temp_filepath}.tflite"
+        self.assertTrue(os.path.exists(tflite_path))
+
+        # Verify the exported model works
+        interpreter = LiteRtInterpreter(model_path=tflite_path)
+        interpreter.allocate_tensors()
+
+        input_details = interpreter.get_input_details()
+        self.assertEqual(len(input_details), 1)
+
+    def test_export_error_handling(self):
+        """Test error handling in export API."""
+        model = get_model("sequential")
+        dummy_input = np.random.random((3, 10)).astype(np.float32)
+        model(dummy_input)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        # Test with invalid format
+        with self.assertRaises(ValueError):
+            model.export(temp_filepath, format="invalid_format")
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

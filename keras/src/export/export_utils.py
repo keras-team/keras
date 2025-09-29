@@ -8,10 +8,10 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 def get_input_signature(model):
     """Get input signature for model export.
-    
+
     Args:
         model: A Keras Model instance.
-    
+
     Returns:
         Input signature suitable for model export.
     """
@@ -25,9 +25,11 @@ def get_input_signature(model):
             "The model provided has not yet been built. It must be built "
             "before export."
         )
-        
+
     if isinstance(model, models.Functional):
-        input_signature = tree.map_structure(make_input_spec, model._inputs_struct)
+        input_signature = tree.map_structure(
+            make_input_spec, model._inputs_struct
+        )
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
@@ -35,13 +37,16 @@ def get_input_signature(model):
         input_signature = _infer_input_signature_from_model(model)
         if not input_signature:
             # Fallback: Try to get from model.inputs if available
-            if hasattr(model, 'inputs') and model.inputs:
-                input_signature = tree.map_structure(make_input_spec, model.inputs)
+            if hasattr(model, "inputs") and model.inputs:
+                input_signature = tree.map_structure(
+                    make_input_spec, model.inputs
+                )
             elif not model._called:
                 raise ValueError(
                     "The model provided has never been called and has no "
-                    "detectable input structure. It must be called at least once "
-                    "before export, or you must provide explicit input_signature."
+                    "detectable input structure. It must be called at least "
+                    "once before export, or you must provide explicit "
+                    "input_signature."
                 )
     return input_signature
 
@@ -58,26 +63,29 @@ def _infer_input_signature_from_model(model):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                # Keep batch dimension unbounded, keep other dimensions as they are
+                # Keep batch dimension unbounded, keep other dimensions as they
+                # are
                 bounded_shape = []
-                
+
                 for i, dim in enumerate(structure):
                     if dim is None and i == 0:
                         # Always keep batch dimension as None
                         bounded_shape.append(None)
                     else:
-                        # Keep other dimensions as they are (None or specific size)
+                        # Keep other dimensions as they are (None or specific
+                        # size)
                         bounded_shape.append(dim)
-                        
+
                 return layers.InputSpec(
                     shape=tuple(bounded_shape), dtype=model.input_dtype
                 )
             return tuple(_make_input_spec(v) for v in structure)
         elif isinstance(structure, list):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                # Keep batch dimension unbounded, keep other dimensions as they are
+                # Keep batch dimension unbounded, keep other dimensions as they
+                # are
                 bounded_shape = []
-                
+
                 for i, dim in enumerate(structure):
                     if dim is None and i == 0:
                         # Always keep batch dimension as None
@@ -85,7 +93,7 @@ def _infer_input_signature_from_model(model):
                     else:
                         # Keep other dimensions as they are
                         bounded_shape.append(dim)
-                        
+
                 return layers.InputSpec(
                     shape=bounded_shape, dtype=model.input_dtype
                 )
@@ -102,7 +110,9 @@ def _infer_input_signature_from_model(model):
     else:
         # Multiple inputs - try to determine if it's a dict or list structure
         # Return as dictionary by default to preserve input names
-        return {key: _make_input_spec(shape) for key, shape in shapes_dict.items()}
+        return {
+            key: _make_input_spec(shape) for key, shape in shapes_dict.items()
+        }
 
 
 def make_input_spec(x):
