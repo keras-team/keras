@@ -6357,8 +6357,10 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.parameters(
-        (10, None, 1, None),
-        (0, 10, 1, None),
+        (10, None, None, None),  # stop
+        (2, 10, None, None),  # start, stop
+        (10, None, 2, None),  # stop, step
+        (0, 10, 2, None),  # start, stop, step
         (0, 10, 0.5, None),
         (10.0, None, 1, None),
         (0, 10.0, 1, None),

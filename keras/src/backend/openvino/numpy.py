@@ -210,7 +210,7 @@ def append(x1, x2, axis=None):
     return OpenVINOKerasTensor(ov_opset.concat([x1, x2], axis).output(0))
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     if stop is None:
         start, stop = get_ov_output(0), get_ov_output(start)
     else:
