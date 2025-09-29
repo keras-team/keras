@@ -121,19 +121,15 @@ class TestNumpyDistributedBackend(unittest.TestCase):
 
         x_gather = np.array([[1.0, 2.0]])
         gathered = ops["all_gather"](x_gather, axis=0)
-        np.testing.assert_array_equal(
-            gathered, np.array([[1.0, 2.0], [1.0, 2.0]])
-        )
+        np.testing.assert_array_equal(gathered, x_gather)
 
         x_broadcast = np.array([5.0, 6.0])
         broadcasted = ops["broadcast"](x_broadcast)
         np.testing.assert_array_equal(broadcasted, x_broadcast)
 
         x_scatter = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-        scattered = ops["scatter"](x_scatter, num_devices=2)
-        self.assertEqual(len(scattered), 2)
-        np.testing.assert_array_equal(scattered[0], np.array([[1, 2], [3, 4]]))
-        np.testing.assert_array_equal(scattered[1], np.array([[5, 6], [7, 8]]))
+        scattered = ops["scatter"](x_scatter)
+        np.testing.assert_array_equal(scattered, x_scatter)
 
 
 if __name__ == "__main__":

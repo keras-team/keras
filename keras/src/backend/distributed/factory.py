@@ -38,12 +38,13 @@ def get_distributed_backend(
                     )
                     return TorchDistributedBackend()
                 except ImportError:
-                    from keras.src.backend.numpy.distributed_backend import (
-                        NumpyDistributedBackend,
+                    error_msg = (
+                        "Could not automatically detect a distributed backend "
+                        "(JAX, TensorFlow, or PyTorch). Please install them "
+                        "or explicitly specify a backend."
                     )
-
-                    logger.warning("Using NumPy distributed backend.")
-                    return NumpyDistributedBackend()
+                    logger.error(error_msg)
+                    raise ImportError(error_msg)
 
     elif backend_name == "jax":
         from keras.src.backend.jax.distributed_backend import (
@@ -68,6 +69,11 @@ def get_distributed_backend(
             NumpyDistributedBackend,
         )
 
+        logger.warning(
+            "Using explicitly requested NumPy distributed backend. "
+            "This backend is for simulation and does not support "
+            "multi-device computation."
+        )
         return NumpyDistributedBackend()
     else:
         raise ValueError(f"Unknown distributed backend: {backend_name}")

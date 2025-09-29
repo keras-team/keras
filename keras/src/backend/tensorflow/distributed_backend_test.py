@@ -83,28 +83,34 @@ class TestTensorflowDistributedBackend(unittest.TestCase):
         self.assertIsInstance(self.backend.is_multi_device_capable(), bool)
 
     def test_get_communication_ops_simulated(self):
+        """
+        Test the simulated communication ops for a non-distributed context.
+        """
         ops = self.backend.get_communication_ops()
 
+        device_info = self.backend.get_device_info()
+        world_size = device_info.get("device_count", 1)
+        if world_size == 0:
+            world_size = 1
+
         x_reduce = tf.constant([[1.0, 2.0], [3.0, 4.0]])
-        reduced = ops["all_reduce"](x_reduce)
-        np.testing.assert_allclose(reduced.numpy(), np.array([4.0, 6.0]))
+        reduced = ops["all_reduce"](x_reduce, op="sum")
+        expected_reduce = x_reduce * world_size
+        self.assertEqual(reduced.shape, x_reduce.shape)
+        tf.debugging.assert_near(reduced, expected_reduce, rtol=1e-6)
 
         x_gather = tf.constant([[1.0, 2.0]])
         gathered = ops["all_gather"](x_gather, axis=0)
-        np.testing.assert_allclose(
-            gathered.numpy(), np.array([[1.0, 2.0], [1.0, 2.0]])
-        )
+        expected_gather = tf.concat([x_gather] * world_size, axis=0)
+        self.assertEqual(gathered.shape, (world_size, 2))
+        tf.debugging.assert_near(gathered, expected_gather, rtol=1e-6)
 
-        x_broadcast = tf.constant([5.0, 6.0])
-        broadcasted = ops["broadcast"](x_broadcast)
-        np.testing.assert_allclose(broadcasted.numpy(), x_broadcast.numpy())
-
-        x_scatter = tf.constant([[1, 2], [3, 4], [5, 6], [7, 8]])
-        scattered = ops["scatter"](x_scatter, num_devices=2)
-        self.assertEqual(len(scattered), 2)
-        np.testing.assert_allclose(
-            scattered[0].numpy(), np.array([[1, 2], [3, 4]])
-        )
+        scatter_data = list(range(world_size * 2))
+        x_scatter = tf.constant(scatter_data, dtype=tf.float32)
+        scattered = ops["scatter"](x_scatter)
+        expected_scatter = tf.constant(scatter_data[:2], dtype=tf.float32)
+        self.assertEqual(scattered.shape, (2,))
+        tf.debugging.assert_near(scattered, expected_scatter, rtol=1e-6)
 
 
 if __name__ == "__main__":

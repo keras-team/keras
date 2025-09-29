@@ -125,20 +125,50 @@ class TorchDistributedBackend(BaseDistributedBackend):
             }
         except (ImportError, RuntimeError) as e:
             logger.warning(
-                f"torch.distributed not available: {e}. Using SIMULATED ops."
+                f"torch.distributed not available: {e}. Using SIMULATED ops "
+                "to mimic a multi-device environment."
+            )
+
+            device_info = self.get_device_info()
+            simulated_world_size = device_info.get("device_count", 1)
+            if simulated_world_size == 0:
+                simulated_world_size = 1
+
+            logger.info(
+                f"Simulating with world_size={simulated_world_size} "
+                "based on available devices."
             )
 
             def all_reduce_simulated(x, op="sum"):
-                return keras.ops.sum(x, axis=0)
+                if simulated_world_size <= 1:
+                    return x
+                if op == "sum":
+                    return keras.ops.multiply(x, simulated_world_size)
+                elif op == "mean":
+                    return x
+                else:
+                    raise ValueError(f"Unsupported all_reduce op: {op}")
 
             def all_gather_simulated(x, axis=0):
-                return keras.ops.concatenate([x, x], axis=axis)
+                if simulated_world_size <= 1:
+                    return x
+                tensor_list = [x] * simulated_world_size
+                return keras.ops.concatenate(tensor_list, axis=axis)
 
-            def broadcast_simulated(x):
+            def broadcast_simulated(x, root=0):
                 return x
 
-            def scatter_simulated(x, num_devices):
-                return keras.ops.split(x, num_devices, axis=0)
+            def scatter_simulated(x, root=0):
+                if simulated_world_size <= 1:
+                    return x
+                if keras.ops.shape(x)[0] % simulated_world_size != 0:
+                    raise ValueError(
+                        "For simulation, the first dimension of tensor must "
+                        f"be divisible by the simulated world size "
+                        f"({simulated_world_size})."
+                    )
+                chunks = keras.ops.split(x, simulated_world_size, axis=0)
+                return chunks[0]
 
             return {
                 "all_reduce": all_reduce_simulated,

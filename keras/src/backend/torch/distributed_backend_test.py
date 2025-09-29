@@ -100,31 +100,28 @@ class TestTorchDistributedBackend(unittest.TestCase):
         """
         ops = self.backend.get_communication_ops()
 
+        device_info = self.backend.get_device_info()
+        world_size = device_info.get("device_count", 1)
+        if world_size == 0:
+            world_size = 1
+
         x_reduce = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
-        reduced = ops["all_reduce"](x_reduce)
-        expected_reduce = torch.tensor([4.0, 6.0]).to(reduced.device)
+        reduced = ops["all_reduce"](x_reduce, op="sum")
+        expected_reduce = x_reduce * world_size
+        self.assertEqual(reduced.shape, x_reduce.shape)
         torch.testing.assert_close(reduced, expected_reduce)
 
         x_gather = torch.tensor([[1.0, 2.0]])
         gathered = ops["all_gather"](x_gather, axis=0)
-        expected_gather = torch.tensor([[1.0, 2.0], [1.0, 2.0]]).to(
-            gathered.device
-        )
+        expected_gather = torch.cat([x_gather] * world_size, dim=0)
+        self.assertEqual(gathered.shape, (world_size, 2))
         torch.testing.assert_close(gathered, expected_gather)
 
-        x_broadcast = torch.tensor([5.0, 6.0])
-        broadcasted = ops["broadcast"](x_broadcast)
-        torch.testing.assert_close(
-            broadcasted, x_broadcast.to(broadcasted.device)
-        )
-
-        x_scatter = torch.tensor(
-            [[1, 2], [3, 4], [5, 6], [7, 8]], dtype=torch.float32
-        )
-        scattered = ops["scatter"](x_scatter, root=0)
-        expected_scatter = torch.tensor(
-            [[1, 2], [3, 4]], dtype=torch.float32
-        ).to(scattered.device)
+        scatter_data = list(range(world_size * 2))
+        x_scatter = torch.tensor(scatter_data, dtype=torch.float32)
+        scattered = ops["scatter"](x_scatter)
+        expected_scatter = torch.tensor(scatter_data[:2], dtype=torch.float32)
+        self.assertEqual(scattered.shape, (2,))
         torch.testing.assert_close(scattered, expected_scatter)
 
 

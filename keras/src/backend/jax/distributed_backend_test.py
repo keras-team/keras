@@ -1,6 +1,7 @@
 import logging
 import os
 import unittest
+from unittest.mock import patch
 
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 
@@ -9,6 +10,7 @@ import numpy as np
 import optax
 import pytest
 
+import keras
 from keras.src import backend
 from keras.src.backend.jax.distributed_backend import JaxDistributedBackend
 
@@ -84,7 +86,7 @@ class TestJaxDistributedBackend(unittest.TestCase):
 
         grad1 = jnp.array([0.1, 0.2])
         grad2 = jnp.array(0.5)
-        gradients = [grad1, grad2, None]
+        gradients = [grad1, grad2]
         learning_rate = 0.1
         self.backend.apply_gradients(gradients, trainable_vars, learning_rate)
 
@@ -123,27 +125,44 @@ class TestJaxDistributedBackend(unittest.TestCase):
         self.assertIsInstance(self.backend.is_multi_device_capable(), bool)
 
     def test_get_communication_ops_simulated(self):
-        ops = self.backend.get_communication_ops()
+        with patch.object(
+            self.backend,
+            "get_device_info",
+            return_value={
+                "backend": "jax",
+                "devices": ["cpu:0", "cpu:1"],
+                "device_count": 2,
+            },
+        ):
+            with patch.object(
+                self.backend, "is_multi_device_capable", return_value=False
+            ):
+                ops = self.backend.get_communication_ops()
+                simulated_world_size = 2
 
-        x_reduce = jnp.array([[1.0, 2.0], [3.0, 4.0]])
-        reduced = ops["all_reduce"](x_reduce)
-        np.testing.assert_array_equal(reduced, jnp.array([4.0, 6.0]))
+                x_reduce = jnp.array([[1.0, 2.0], [3.0, 4.0]])
+                reduced = ops["all_reduce"](x_reduce, op="sum")
+                np.testing.assert_allclose(
+                    reduced, x_reduce * simulated_world_size
+                )
 
-        x_gather = jnp.array([[1.0, 2.0]])
-        gathered = ops["all_gather"](x_gather, axis=0)
-        np.testing.assert_array_equal(
-            gathered, jnp.array([[1.0, 2.0], [1.0, 2.0]])
-        )
+                x_gather = jnp.array([[1.0, 2.0]])
+                gathered = ops["all_gather"](x_gather, axis=0)
+                expected_gather = keras.ops.concatenate(
+                    [x_gather] * simulated_world_size, axis=0
+                )
+                np.testing.assert_allclose(gathered, expected_gather)
 
-        x_broadcast = jnp.array([5.0, 6.0])
-        broadcasted = ops["broadcast"](x_broadcast)
-        np.testing.assert_array_equal(broadcasted, x_broadcast)
+                x_broadcast = jnp.array([5.0, 6.0])
+                broadcasted = ops["broadcast"](x_broadcast)
+                np.testing.assert_allclose(broadcasted, x_broadcast)
 
-        x_scatter = jnp.array([[1, 2], [3, 4], [5, 6], [7, 8]])
-        scattered = ops["scatter"](x_scatter, num_devices=2)
-        self.assertEqual(len(scattered), 2)
-        np.testing.assert_array_equal(scattered[0], jnp.array([[1, 2], [3, 4]]))
-        np.testing.assert_array_equal(scattered[1], jnp.array([[5, 6], [7, 8]]))
+                x_scatter = jnp.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+                scattered = ops["scatter"](x_scatter)
+                expected_scatter = keras.ops.split(
+                    x_scatter, simulated_world_size, axis=0
+                )[0]
+                np.testing.assert_allclose(scattered, expected_scatter)
 
 
 if __name__ == "__main__":

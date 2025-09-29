@@ -22,24 +22,17 @@ class NumpyDistributedBackend(BaseDistributedBackend):
     def compute_gradients(
         self, loss: Any, trainable_vars: List[Any]
     ) -> List[Any]:
-        epsilon = 1e-7
-        gradients = []
+        """
+        NumPy backend does not support automatic differentiation.
 
-        for var in trainable_vars:
-            if hasattr(var, "shape"):
-                grad = np.zeros_like(var)
-                for i in range(var.size):
-                    idx = np.unravel_index(i, var.shape)
-                    var_plus = var.copy()
-                    var_minus = var.copy()
-                    var_plus[idx] += epsilon
-                    var_minus[idx] -= epsilon
-                    grad[idx] = (loss - loss) / (2 * epsilon)
-                gradients.append(grad)
-            else:
-                gradients.append(0.0)
-
-        return gradients
+        This method returns zero gradients as a fallback. In a real workflow,
+        gradients would need to be computed manually or by a different backend.
+        """
+        logger.warning(
+            "NumPy backend does not support automatic differentiation. "
+            "Returning zero gradients as a fallback."
+        )
+        return [np.zeros_like(var) for var in trainable_vars]
 
     def apply_gradients(
         self,
@@ -63,7 +56,10 @@ class NumpyDistributedBackend(BaseDistributedBackend):
             def apply_gradients(self, grads_and_vars):
                 for grad, var in grads_and_vars:
                     if grad is not None:
-                        var -= self.learning_rate * grad
+                        if isinstance(var, np.ndarray):
+                            var -= self.learning_rate * grad
+                        else:
+                            var.assign(var.value - self.learning_rate * grad)
 
         return NumpyOptimizer(**kwargs)
 
@@ -74,19 +70,43 @@ class NumpyDistributedBackend(BaseDistributedBackend):
         return False
 
     def get_communication_ops(self) -> dict:
-        logger.info("Using SIMULATED NumPy communication ops.")
+        device_info = self.get_device_info()
+        world_size = device_info.get("device_count", 1)
+        if world_size == 0:
+            world_size = 1
+
+        logger.info(
+            "Using SIMULATED NumPy communication ops. "
+            f"Simulating with world_size={world_size} "
+            "based on available devices."
+        )
 
         def all_reduce_np(x, op="sum"):
-            return keras.ops.sum(x, axis=0)
+            if op == "sum":
+                return keras.ops.sum(x, axis=0)
+            elif op == "mean":
+                return keras.ops.mean(x, axis=0)
+            else:
+                raise ValueError(f"Unsupported all_reduce op: {op}")
 
         def all_gather_np(x, axis=0):
-            return keras.ops.concatenate([x, x], axis=axis)
+            if world_size <= 1:
+                return x
+            return keras.ops.concatenate([x] * world_size, axis=axis)
 
-        def broadcast_np(x):
+        def broadcast_np(x, root=0):
             return x
 
-        def scatter_np(x, num_devices):
-            return keras.ops.split(x, num_devices, axis=0)
+        def scatter_np(x, root=0):
+            if world_size <= 1:
+                return x
+            if keras.ops.shape(x)[0] % world_size != 0:
+                raise ValueError(
+                    "For simulation, the first dimension of the tensor must "
+                    f"be divisible by the simulated world size ({world_size})."
+                )
+            chunks = keras.ops.split(x, world_size, axis=0)
+            return chunks[0]
 
         return {
             "all_reduce": all_reduce_np,
