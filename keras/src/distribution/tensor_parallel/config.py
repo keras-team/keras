@@ -3,7 +3,9 @@ from typing import Any
 from typing import Dict
 from typing import Sequence
 
-from keras.src.backend.distributed.factory import get_distributed_backend
+from keras.src.backend.distributed.backend_resolver import (
+    get_distributed_backend,
+)
 from keras.src.distribution.tensor_parallel.communications import AllGatherKeras
 from keras.src.distribution.tensor_parallel.communications import AllReduceKeras
 from keras.src.distribution.tensor_parallel.communications import BroadcastKeras

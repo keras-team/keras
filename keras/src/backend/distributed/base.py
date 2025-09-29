@@ -4,19 +4,18 @@ from typing import Any
 from typing import List
 
 
-class BaseDistributedBackend(ABC):
+class DistributedBackend(ABC):
     """
     Abstract Base Class for a distributed backend.
+
+    This class defines the interface for backend-specific operations required
+    for distributed training. Tensor conversions should be handled by the
+    backend-agnostic `keras.ops.convert_to_tensor` function.
     """
 
     @abstractmethod
     def get_tensor_lib(self):
         """Get the appropriate tensor library for the backend."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def convert_to_backend_tensor(self, tensor: Any) -> Any:
-        """Convert a tensor to the appropriate backend format."""
         raise NotImplementedError
 
     @abstractmethod

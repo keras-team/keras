@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import List
 
@@ -8,21 +7,14 @@ import jax.numpy as jnp
 import optax
 
 import keras
-from keras.src.backend.distributed.base import BaseDistributedBackend
-
-logger = logging.getLogger(__name__)
+from keras.src.backend.distributed.base import DistributedBackend
 
 
-class JaxDistributedBackend(BaseDistributedBackend):
+class JaxDistributedBackend(DistributedBackend):
     """JAX-specific implementation of distributed operations."""
 
     def get_tensor_lib(self):
         return jnp
-
-    def convert_to_backend_tensor(self, tensor: Any) -> Any:
-        if isinstance(tensor, jax.Array):
-            return tensor
-        return jnp.array(tensor)
 
     def compute_gradients(
         self, loss: Any, trainable_vars: List[Any]
@@ -34,11 +26,6 @@ class JaxDistributedBackend(BaseDistributedBackend):
         computation must be done via `jax.grad` on a function that computes
         the loss from the parameters, which requires a different architecture.
         """
-        logger.warning(
-            "JAX backend `compute_gradients` is a fallback and returns "
-            "zero gradients. A functional `jax.grad` approach should be used "
-            "for training."
-        )
         return [jnp.zeros_like(var) for var in trainable_vars]
 
     def apply_gradients(
@@ -52,13 +39,6 @@ class JaxDistributedBackend(BaseDistributedBackend):
                 new_value = var - (learning_rate * grad)
                 if hasattr(var, "assign"):
                     var.assign(new_value)
-                else:
-                    logger.warning(
-                        "Applying gradients to a standard JAX array has no "
-                        "effect as JAX arrays are immutable. This operation "
-                        "only works for mutable objects with an `.assign()` "
-                        "method."
-                    )
 
     def create_optimizer(self, optimizer_class: str, **kwargs):
         if optimizer_class.lower() == "adam":
@@ -74,8 +54,7 @@ class JaxDistributedBackend(BaseDistributedBackend):
         try:
             info["devices"] = [str(d) for d in jax.devices()]
             info["device_count"] = jax.local_device_count()
-        except Exception as e:
-            logger.warning(f"Could not get device info for JAX: {e}")
+        except Exception:
             info["devices"] = ["cpu"]
             info["device_count"] = 1
         return info
@@ -87,8 +66,6 @@ class JaxDistributedBackend(BaseDistributedBackend):
         try:
             if not self.is_multi_device_capable():
                 raise RuntimeError("JAX is not running on multiple devices.")
-
-            logger.info("Using real JAX collective communication ops.")
 
             def all_reduce_jax(x, op="sum", axis_name="data"):
                 if op == "sum":
@@ -104,10 +81,6 @@ class JaxDistributedBackend(BaseDistributedBackend):
                 return lax.all_gather(x, axis_name=axis_name, axis=0)[root]
 
             def scatter_jax(x, root=0):
-                logger.warning(
-                    "Scatter is not a native op in JAX pmap; returning the "
-                    "input tensor as a fallback."
-                )
                 return x
 
             return {
@@ -116,21 +89,11 @@ class JaxDistributedBackend(BaseDistributedBackend):
                 "broadcast": broadcast_jax,
                 "scatter": scatter_jax,
             }
-        except (ImportError, RuntimeError) as e:
-            logger.warning(
-                "JAX collective ops not available or multiple devices not "
-                f"configured: {e}. Using SIMULATED ops."
-            )
-
+        except (ImportError, RuntimeError):
             device_info = self.get_device_info()
             simulated_world_size = device_info.get("device_count", 1)
             if simulated_world_size == 0:
                 simulated_world_size = 1
-
-            logger.info(
-                f"Simulating with world_size={simulated_world_size} "
-                "based on available devices."
-            )
 
             def all_reduce_simulated(x, op="sum"):
                 if simulated_world_size <= 1:

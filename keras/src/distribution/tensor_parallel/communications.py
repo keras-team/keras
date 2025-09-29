@@ -4,8 +4,10 @@ from typing import List
 from typing import Tuple
 
 import keras
-from keras.src.backend.distributed.base import BaseDistributedBackend
-from keras.src.backend.distributed.factory import get_distributed_backend
+from keras.src.backend.distributed.backend_resolver import (
+    get_distributed_backend,
+)
+from keras.src.backend.distributed.base import DistributedBackend
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ class AllReduceKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        backend: BaseDistributedBackend,
+        backend: DistributedBackend,
         op: str = "sum",
         rank: int = 0,
     ):
@@ -47,7 +49,7 @@ class AllGatherKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        backend: BaseDistributedBackend,
+        backend: DistributedBackend,
         dim: int = -1,
         rank: int = 0,
     ):
@@ -71,7 +73,7 @@ class BroadcastKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        backend: BaseDistributedBackend,
+        backend: DistributedBackend,
         src_rank: int = 0,
         rank: int = 0,
     ):
@@ -94,7 +96,7 @@ class ScatterKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        backend: BaseDistributedBackend,
+        backend: DistributedBackend,
         dim: int = -1,
         rank: int = 0,
     ):
@@ -224,7 +226,7 @@ class TensorParallelCommunicator:
 
 
 def allreduce_gradients(
-    gradients: List, world_size: int, backend: BaseDistributedBackend
+    gradients: List, world_size: int, backend: DistributedBackend
 ) -> List:
     allreduce_op = AllReduceKeras(world_size, backend=backend, op="mean")
     local_gradient = gradients[0] if isinstance(gradients, list) else gradients
@@ -234,7 +236,7 @@ def allreduce_gradients(
 def allgather_outputs(
     outputs: List,
     world_size: int,
-    backend: BaseDistributedBackend,
+    backend: DistributedBackend,
     dim: int = -1,
 ):
     allgather_op = AllGatherKeras(world_size, backend=backend, dim=dim)
@@ -245,7 +247,7 @@ def allgather_outputs(
 def broadcast_parameters(
     parameters: List,
     world_size: int,
-    backend: BaseDistributedBackend,
+    backend: DistributedBackend,
     src_rank: int = 0,
 ) -> List:
     broadcast_op = BroadcastKeras(
