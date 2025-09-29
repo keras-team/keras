@@ -4,8 +4,8 @@ from typing import List
 from typing import Tuple
 
 import keras
-from keras.src.backend.distributed.factory import get_distributed_backend
 from keras.src.backend.distributed.base import BaseDistributedBackend
+from keras.src.backend.distributed.factory import get_distributed_backend
 
 logger = logging.getLogger(__name__)
 

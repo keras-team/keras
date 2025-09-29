@@ -32,8 +32,6 @@ def get_distributed_backend(
         pass
     elif backend_name == "torch":
         pass
-
-        return TorchDistributedBackend()
     elif backend_name == "numpy":
         pass
     else:
