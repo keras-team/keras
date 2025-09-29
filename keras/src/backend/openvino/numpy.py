@@ -1599,7 +1599,43 @@ def size(x):
 
 
 def sort(x, axis=-1):
-    raise NotImplementedError("`sort` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+
+    if rank == 0:
+        return OpenVINOKerasTensor(x)
+
+    # Handle axis=None by flattening the input
+    if axis is None:
+        x = ov_opset.reshape(
+            x, ov_opset.constant([-1], Type.i32), False
+        ).output(0)
+        axis = 0
+    # Handle negative axis
+    elif axis < 0:
+        axis = rank + axis
+
+    # Get the size of the dimension to sort
+    shape_tensor = ov_opset.shape_of(x, output_type=Type.i32).output(0)
+    k = ov_opset.gather(
+        shape_tensor,
+        ov_opset.constant([axis], Type.i32).output(0),
+        ov_opset.constant(0, Type.i32).output(0),
+    ).output(0)
+
+    # Convert k to a scalar value
+    k_scalar = ov_opset.squeeze(k, ov_opset.constant([0], Type.i32)).output(0)
+
+    # Use topk with k=size_of_axis to get all elements sorted
+    topk_outputs = ov_opset.topk(
+        x, k=k_scalar, axis=axis, mode="min", sort="value", stable=True
+    )
+
+    # Get the sorted values
+    sorted_values = topk_outputs.output(0)
+
+    return OpenVINOKerasTensor(sorted_values)
 
 
 def split(x, indices_or_sections, axis=0):
