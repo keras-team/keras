@@ -3116,8 +3116,6 @@ def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
     >>> patches.shape
     (1, 8, 4)
 
-    The output can be reshaped back to spatial format with
-    `keras.ops.fold` (if implemented).
     """
     input_shape = x.shape
     ndims = len(input_shape)

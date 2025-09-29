@@ -1414,7 +1414,7 @@ def dot_product_attention(
 
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
-    """
+    """JAX implementation of Unfold.
     Extract sliding local blocks from a **NCHW** batched image tensor.
 
     Args:
