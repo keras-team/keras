@@ -1,7 +1,6 @@
 import logging
 
 from keras.src.backend.distributed.base import BaseDistributedBackend
-import traceback  # <-- Add this import
 
 logger = logging.getLogger(__name__)
 
@@ -12,8 +11,6 @@ def get_distributed_backend(
     """
     Factory to get the best available or a specific distributed backend.
     """
-    print("!!! Keras Distributed Backend Factory was called !!!")
-    traceback.print_stack()
     if backend_name == "auto":
         try:
             from keras.src.backend.jax.distributed_backend import (
