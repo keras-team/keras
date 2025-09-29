@@ -26,13 +26,10 @@ class TensorflowDistributedBackend(BaseDistributedBackend):
         self, loss: Any, trainable_vars: List[Any]
     ) -> List[Any]:
         with tf.GradientTape() as tape:
-            # TensorFlow's tape automatically watches trainable variables,
-            # but explicit watching is safer.
             for var in trainable_vars:
                 tape.watch(var)
 
         try:
-            # Assuming loss is already a tensor computed from watched variables
             gradients = tape.gradient(loss, trainable_vars)
             logger.info("   - TensorFlow gradient computation successful")
             return gradients

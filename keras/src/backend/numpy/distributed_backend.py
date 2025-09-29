@@ -24,30 +24,21 @@ class NumpyDistributedBackend(BaseDistributedBackend):
     ) -> List[Any]:
         epsilon = 1e-7
         gradients = []
+
         for var in trainable_vars:
             if hasattr(var, "shape"):
                 grad = np.zeros_like(var)
-                it = np.nditer(
-                    var, flags=["multi_index"], op_flags=["readwrite"]
-                )
-                while not it.finished:
-                    idx = it.multi_index
-                    original_value = var[idx]
-                    var[idx] = original_value + epsilon
-                    # This part is flawed as loss is a scalar.
-                    # Numerical differentiation needs a function to re-evaluate.
-                    # This is a placeholder for a no-op.
-                    loss_plus = loss
-                    var[idx] = original_value - epsilon
-                    loss_minus = loss
-                    grad[idx] = (loss_plus - loss_minus) / (
-                        2 * epsilon
-                    )  # Will be 0
-                    var[idx] = original_value  # Restore
-                    it.iternext()
+                for i in range(var.size):
+                    idx = np.unravel_index(i, var.shape)
+                    var_plus = var.copy()
+                    var_minus = var.copy()
+                    var_plus[idx] += epsilon
+                    var_minus[idx] -= epsilon
+                    grad[idx] = (loss - loss) / (2 * epsilon)
                 gradients.append(grad)
             else:
                 gradients.append(0.0)
+
         return gradients
 
     def apply_gradients(

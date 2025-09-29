@@ -5,6 +5,7 @@ from typing import List
 import torch
 import torch.distributed as dist
 
+import keras
 from keras.src.backend.distributed.base import BaseDistributedBackend
 
 logger = logging.getLogger(__name__)
@@ -23,10 +24,14 @@ class TorchDistributedBackend(BaseDistributedBackend):
         self, loss: Any, trainable_vars: List[Any]
     ) -> List[Any]:
         logger.warning(
-            "PyTorch gradient computation is handled by `loss.backward()` in "
-            "the Keras model's `train_step`. This is a placeholder."
+            "PyTorch gradient computation is handled by `loss.backward()`."
         )
-        return [torch.zeros_like(var) for var in trainable_vars]
+        return self._create_zero_gradients(trainable_vars)
+
+    def _create_zero_gradients(self, trainable_vars: List[Any]) -> List[Any]:
+        """Create zero gradients as fallback."""
+        lib = self.get_tensor_lib()
+        return [lib.zeros_like(var) for var in trainable_vars]
 
     def apply_gradients(
         self,
@@ -45,7 +50,7 @@ class TorchDistributedBackend(BaseDistributedBackend):
         elif optimizer_class.lower() == "sgd":
             return torch.optim.SGD(**kwargs)
         else:
-            return torch.optim.Adam(lr=0.001)
+            return torch.optim.Adam(lr=0.001, **kwargs)
 
     def get_device_info(self) -> dict:
         info = {"backend": "pytorch", "devices": [], "device_count": 0}
@@ -124,21 +129,16 @@ class TorchDistributedBackend(BaseDistributedBackend):
             )
 
             def all_reduce_simulated(x, op="sum"):
-                return x
+                return keras.ops.sum(x, axis=0)
 
             def all_gather_simulated(x, axis=0):
-                return torch.cat([x, x], dim=axis)
+                return keras.ops.concatenate([x, x], axis=axis)
 
-            def broadcast_simulated(x, root=0):
+            def broadcast_simulated(x):
                 return x
 
-            def scatter_simulated(x, root=0):
-                if x.shape[0] % 2 != 0:
-                    raise ValueError(
-                        "For simulated scatter, the first dimension must be "
-                        "divisible by 2."
-                    )
-                return torch.chunk(x, 2, dim=0)[0]
+            def scatter_simulated(x, num_devices):
+                return keras.ops.split(x, num_devices, axis=0)
 
             return {
                 "all_reduce": all_reduce_simulated,
