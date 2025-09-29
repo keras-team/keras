@@ -152,7 +152,7 @@ def convert_spec_to_tensor(spec, replace_none_number=None):
 # Registry for export formats
 EXPORT_FORMATS = {
     "tf_saved_model": "keras.src.export.saved_model:export_saved_model",
-    "lite_rt": "keras.src.export.lite_rt_exporter:LiteRTExporter",
+    "litert": "keras.src.export.litert_exporter:export_litert",
     # Add other formats as needed
 }
 
@@ -175,10 +175,10 @@ def _get_exporter(format_name):
 
 def export_model(model, filepath, format="tf_saved_model", **kwargs):
     """Export a model to the specified format."""
-    exporter_cls = _get_exporter(format)
-    if format == "tf_saved_model":
-        # Handle tf_saved_model differently if it's a function
-        exporter_cls(model, filepath, **kwargs)
-    else:
-        exporter = exporter_cls(model, **kwargs)
-        exporter.export(filepath)
+    exporter = _get_exporter(format)
+
+    if isinstance(exporter, type):
+        exporter_instance = exporter(model, **kwargs)
+        return exporter_instance.export(filepath)
+
+    return exporter(model, filepath, **kwargs)

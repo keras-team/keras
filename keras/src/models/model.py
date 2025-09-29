@@ -568,7 +568,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"lite_rt"`.  Defaults to
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.  Defaults to
                 `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
@@ -592,11 +592,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     provided, they will be automatically computed.
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
-                - `allow_custom_ops`: Optional `bool`. Specific to `format="lite_rt"`.
+                - `allow_custom_ops`: Optional `bool`. Specific to `format="litert"`.
                     Whether to allow custom operations during conversion. Defaults to `False`.
-                - `enable_select_tf_ops`: Optional `bool`. Specific to `format="lite_rt"`.
+                - `enable_select_tf_ops`: Optional `bool`. Specific to `format="litert"`.
                     Whether to enable TensorFlow Select ops for unsupported operations. Defaults to `False`.
-                - `optimizations`: Optional `list`. Specific to `format="lite_rt"`.
+                - `optimizations`: Optional `list`. Specific to `format="litert"`.
                     List of optimizations to apply (e.g., `[tf.lite.Optimize.DEFAULT]`).
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
@@ -637,7 +637,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         ```python
         # Export the model as a LiteRT artifact
-        model.export("path/to/location", format="lite_rt")
+        model.export("path/to/location", format="litert")
 
         # Load the artifact in a different process/environment
         interpreter = tf.lite.Interpreter(model_path="path/to/location")
@@ -647,11 +647,12 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         output_data = interpreter.get_tensor(interpreter.get_output_details()[0]['index'])
         ```
         """
+        from keras.src.export import export_litert
         from keras.src.export import export_onnx
         from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx", "openvino", "lite_rt")
+        available_formats = ("tf_saved_model", "onnx", "openvino", "litert")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
@@ -682,12 +683,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 input_signature=input_signature,
                 **kwargs,
             )
-        elif format == "lite_rt":
-            from keras.src.export.export_utils import export_model
-            export_model(
+        elif format == "litert":
+            export_litert(
                 self,
                 filepath,
-                format="lite_rt",
                 verbose=verbose,
                 input_signature=input_signature,
                 **kwargs,

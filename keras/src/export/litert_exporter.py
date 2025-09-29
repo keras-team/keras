@@ -1,5 +1,6 @@
 import tensorflow as tf
 from keras.src.export.export_utils import get_input_signature, make_tf_tensor_spec
+from keras.src.utils import io_utils
 import tempfile
 import os
 import numpy as np
@@ -14,26 +15,72 @@ except ImportError:
     LITERT_AVAILABLE = False
 
 
-class LiteRTExporter:
+def export_litert(
+    model,
+    filepath,
+    verbose=None,
+    input_signature=None,
+    aot_compile_targets=None,
+    **kwargs,
+):
+    """Export the model as a Litert artifact for inference.
+
+    Args:
+        model: The Keras model to export.
+        filepath: The path to save the exported artifact.
+        verbose: Optional; whether to log progress messages. Defaults to
+            ``False`` when ``None`` is provided.
+        input_signature: Optional input signature specification. If
+            ``None``, it will be inferred.
+        aot_compile_targets: Optional list of Litert targets for AOT
+            compilation.
+        **kwargs: Additional keyword arguments passed to the exporter.
+
+    Returns:
+        The filepath to the exported artifact, or the compilation result when
+        AOT compilation is requested.
     """
-    Exporter for the LiteRT (TFLite) format that creates a single,
+
+    actual_verbose = bool(verbose) if verbose is not None else False
+    exporter = LitertExporter(
+        model=model,
+        input_signature=input_signature,
+        verbose=actual_verbose,
+        aot_compile_targets=aot_compile_targets,
+        **kwargs,
+    )
+    result = exporter.export(filepath)
+    if actual_verbose:
+        if hasattr(result, "models"):
+            io_utils.print_msg(
+                f"Saved artifact at '{filepath}'. AOT compiled "
+                f"{len(result.models)} variant(s)."
+            )
+        else:
+            io_utils.print_msg(f"Saved artifact at '{result}'.")
+    return result
+
+
+class LitertExporter:
+    """
+    Exporter for the Litert (TFLite) format that creates a single,
     callable signature for `model.call`.
     """
 
-    def __init__(self, model, input_signature=None, verbose=0, 
+    def __init__(self, model, input_signature=None, verbose=False,
                  aot_compile_targets=None, **kwargs):
-        """Initialize the LiteRT exporter.
+        """Initialize the Litert exporter.
         
         Args:
             model: The Keras model to export
             input_signature: Input signature specification
-            verbose: Verbosity level (0=quiet, 1=info)
-            aot_compile_targets: List of LiteRT targets for AOT compilation
+            verbose: Whether to print progress messages during export.
+            aot_compile_targets: List of Litert targets for AOT compilation
             **kwargs: Additional export parameters
         """
         self.model = model
         self.input_signature = input_signature
-        self.verbose = verbose
+        self.verbose = bool(verbose)
         self.aot_compile_targets = aot_compile_targets
         self.kwargs = kwargs
 
@@ -47,7 +94,7 @@ class LiteRTExporter:
             Path to exported model or compiled models if AOT compilation is performed
         """
         if self.verbose:
-            print("Starting LiteRT export...")
+            print("Starting Litert export...")
 
         # 1. Ensure the model is built by calling it if necessary
         self._ensure_model_built()
@@ -79,14 +126,14 @@ class LiteRTExporter:
         compiled_models = None
         if self.aot_compile_targets and LITERT_AVAILABLE:
             if self.verbose:
-                print("Performing AOT compilation for LiteRT targets...")
+                print("Performing AOT compilation for Litert targets...")
             compiled_models = self._aot_compile(filepath)
         elif self.aot_compile_targets and not LITERT_AVAILABLE:
             if self.verbose:
                 print("Warning: AOT compilation requested but LiteRT is not available. Skipping.")
         
         if self.verbose:
-            print(f"LiteRT export completed. Base model: {filepath}")
+            print(f"Litert export completed. Base model: {filepath}")
             if compiled_models:
                 print(f"AOT compiled models: {len(compiled_models.models)} variants")
 
@@ -191,11 +238,14 @@ class LiteRTExporter:
                                         return (1, next_layer.input_dim)
 
                     elif class_name in ['BatchNormalization', 'LayerNormalization']:
-                        # For normalization layers, try to infer from previous layer
+                        # For normalization layers, look at the next layer to infer shape
                         if len(self.model.layers) > 1:
-                            prev_layer = self.model.layers[0]  # The normalization layer itself
-                            if hasattr(prev_layer, 'units'):
-                                return (1, prev_layer.units)
+                            next_layer = self.model.layers[1]
+                            if hasattr(next_layer, '__class__'):
+                                next_class = next_layer.__class__.__name__
+                                if next_class == 'Dense':
+                                    if hasattr(next_layer, 'input_dim') and next_layer.input_dim:
+                                        return (1, next_layer.input_dim)
 
                     # For other layer types, we cannot reliably infer without hardcoded values
                     # Return None to indicate inference failed
@@ -433,16 +483,21 @@ class _KerasModelWrapper(tf.Module):
                 if hasattr(self._model, 'inputs') and len(self._model.inputs) > 1:
                     # Multi-input functional model
                     input_list = []
+                    missing_inputs = []
                     for input_layer in self._model.inputs:
                         input_name = input_layer.name
                         if input_name in kwargs:
                             input_list.append(kwargs[input_name])
                         else:
-                            # Try to match by position
-                            keys = list(kwargs.keys())
-                            idx = len(input_list)
-                            if idx < len(keys):
-                                input_list.append(kwargs[keys[idx]])
+                            missing_inputs.append(input_name)
+                    
+                    if missing_inputs:
+                        raise ValueError(
+                            f"Missing required inputs for multi-input model: {missing_inputs}. "
+                            f"Available kwargs: {list(kwargs.keys())}. "
+                            f"Please provide all inputs by name."
+                        )
+                    
                     return self._model(input_list)
                 else:
                     # Single input model called with named arguments
