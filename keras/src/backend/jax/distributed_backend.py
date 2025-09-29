@@ -65,18 +65,28 @@ class JaxDistributedBackend(DistributedBackend):
     def get_communication_ops(self) -> dict:
         """
         Provides robust JAX communication ops that work both inside and
-        outside a pmap context.
+        outside a pmap context using conditional checks.
         """
 
-        def all_reduce(x, op="sum", axis_name="data"):
+        def _is_in_pmap(axis_name="data") -> bool:
+            """
+            Checks if running inside a pmap by attempting to resolve axis name.
+            This is the standard JAX idiom for context detection.
+            """
             try:
-                jax.lax.axis_index(axis_name)
+                lax.axis_index(axis_name)
+                return True
+            except NameError:
+                return False
+
+        def all_reduce(x, op="sum", axis_name="data"):
+            if _is_in_pmap(axis_name):
                 if op == "sum":
                     return lax.psum(x, axis_name=axis_name)
                 elif op == "mean":
                     return lax.pmean(x, axis_name=axis_name)
                 raise ValueError(f"Unsupported all_reduce op: {op}")
-            except NameError:
+            else:
                 world_size = self.get_device_info()["device_count"]
                 if world_size <= 1:
                     return x
@@ -87,30 +97,29 @@ class JaxDistributedBackend(DistributedBackend):
                 raise ValueError(f"Unsupported all_reduce op: {op}")
 
         def all_gather(x, axis=0, axis_name="data"):
-            try:
-                jax.lax.axis_index(axis_name)
+            if _is_in_pmap(axis_name):
                 return lax.all_gather(x, axis_name=axis_name, axis=axis)
-            except NameError:
+            else:
                 world_size = self.get_device_info()["device_count"]
                 if world_size <= 1:
                     return x
                 return keras.ops.concatenate([x] * world_size, axis=axis)
 
         def broadcast(x, root=0, axis_name="data"):
-            try:
-                jax.lax.axis_index(axis_name)
+            if _is_in_pmap(axis_name):
                 return lax.all_gather(x, axis_name=axis_name, axis=0)[root]
-            except NameError:
+            else:
                 return x
 
         def scatter(x, root=0, axis=0, axis_name="data"):
-            try:
-                jax.lax.axis_index(axis_name)
+            if _is_in_pmap(axis_name):
                 full_tensor = lax.all_gather(x, axis_name=axis_name, axis=0)[
                     root
                 ]
+
                 device_id = lax.axis_index(axis_name=axis_name)
                 num_devices = lax.psum(1, axis_name=axis_name)
+
                 chunk_size = full_tensor.shape[axis] // num_devices
                 start_index = device_id * chunk_size
                 return lax.dynamic_slice_in_dim(
@@ -119,7 +128,7 @@ class JaxDistributedBackend(DistributedBackend):
                     slice_size=chunk_size,
                     axis=axis,
                 )
-            except NameError:
+            else:
                 world_size = self.get_device_info()["device_count"]
                 if world_size <= 1:
                     return x
