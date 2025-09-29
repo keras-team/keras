@@ -1,21 +1,19 @@
 import os
+
 import pytest
 
 os.environ["JAX_NUM_DEVICES"] = "2"
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 
 import jax
+from communications import AllGatherKeras
+from communications import AllReduceKeras
+from communications import BroadcastKeras
+from communications import TensorParallelCommunicator
+
 import keras
 from keras.src import testing
 from keras.src.backend.distributed import backend_resolver
-
-# Import from your now-modified communications.py
-from communications import (
-    AllGatherKeras,
-    AllReduceKeras,
-    BroadcastKeras,
-    TensorParallelCommunicator,
-)
 
 
 @pytest.mark.skipif(
@@ -41,9 +39,15 @@ class TestCollectiveOps(testing.TestCase):
             )
             return all_reduce_op(x, axis_name=self.axis_name)
 
-        data_to_distribute = keras.ops.ones((self.world_size, 4), dtype="float32")
-        result = jax.pmap(parallel_fn, axis_name=self.axis_name)(data_to_distribute)
-        expected_output = keras.ops.full((4,), float(self.world_size), dtype="float32")
+        data_to_distribute = keras.ops.ones(
+            (self.world_size, 4), dtype="float32"
+        )
+        result = jax.pmap(parallel_fn, axis_name=self.axis_name)(
+            data_to_distribute
+        )
+        expected_output = keras.ops.full(
+            (4,), float(self.world_size), dtype="float32"
+        )
         self.assertAllClose(result[0], expected_output)
 
     def test_all_gather(self):
@@ -57,13 +61,13 @@ class TestCollectiveOps(testing.TestCase):
         data_to_distribute = keras.ops.arange(
             self.world_size * 4, dtype="float32"
         ).reshape(self.world_size, 2, 2)
-        result = jax.pmap(parallel_fn, axis_name=self.axis_name)(data_to_distribute)
+        result = jax.pmap(parallel_fn, axis_name=self.axis_name)(
+            data_to_distribute
+        )
         expected_output = keras.ops.arange(
             self.world_size * 4, dtype="float32"
         ).reshape(self.world_size * 2, 2)
-        
-        # FIX: Reshape the result from (num_devices, 2, 2) to (num_devices * 2, 2)
-        # We check the result from the first device (result[0]).
+
         reshaped_result = keras.ops.reshape(result[0], (self.world_size * 2, 2))
         self.assertAllClose(reshaped_result, expected_output)
 
@@ -77,7 +81,10 @@ class TestCollectiveOps(testing.TestCase):
             )
             dist_backend = backend_resolver.get_distributed_backend()
             broadcast_op = BroadcastKeras(
-                world_size=self.world_size, backend=dist_backend, src_rank=0, rank=rank
+                world_size=self.world_size,
+                backend=dist_backend,
+                src_rank=0,
+                rank=rank,
             )
             return broadcast_op(tensor_to_broadcast, axis_name=self.axis_name)
 
@@ -100,9 +107,10 @@ class TestCollectiveOps(testing.TestCase):
         data_to_distribute = keras.ops.arange(
             self.world_size * 4, dtype="float32"
         ).reshape(self.world_size, 2, 2)
-        result = jax.pmap(parallel_fn, axis_name=self.axis_name)(data_to_distribute)
+        result = jax.pmap(parallel_fn, axis_name=self.axis_name)(
+            data_to_distribute
+        )
         expected_output = data_to_distribute.reshape(self.world_size * 2, 2)
-        
-        # FIX: Reshape the result from (num_devices, 2, 2) to (num_devices * 2, 2)
+
         reshaped_result = keras.ops.reshape(result[0], (self.world_size * 2, 2))
         self.assertAllClose(reshaped_result, expected_output)
