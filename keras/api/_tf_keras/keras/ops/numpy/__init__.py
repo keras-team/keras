@@ -107,6 +107,7 @@ from keras.src.ops.numpy import log1p as log1p
 from keras.src.ops.numpy import log2 as log2
 from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import logaddexp as logaddexp
+from keras.src.ops.numpy import logaddexp2 as logaddexp2
 from keras.src.ops.numpy import logical_and as logical_and
 from keras.src.ops.numpy import logical_not as logical_not
 from keras.src.ops.numpy import logical_or as logical_or

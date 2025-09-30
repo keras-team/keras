@@ -237,7 +237,7 @@ BIT64_TO_BIT32_DTYPE = {
     # enable the int64 dtype for TF.
     "int64": "int64" if config.backend() == "tensorflow" else "int32",
     "uint64": "uint32",
-    "float64": "float32",
+    "float64": "float64" if config.backend() == "tensorflow" else "float32",
     "complex128": "complex64",
 }
 

@@ -1043,7 +1043,6 @@ class EinsumDenseTest(testing.TestCase):
     def test_legacy_load_own_variables(self):
         # In previous versions, `load_own_variables` accepted a store with
         # numeric keys.
-        # TODO(JyotinderSingh): add gptq_store test.
         float32_store = {
             "0": np.random.random((3, 8, 32)).astype("float32"),
             "1": np.random.random((32,)).astype("float32"),
@@ -1073,6 +1072,18 @@ class EinsumDenseTest(testing.TestCase):
             "6": np.random.random(()).astype("float32"),
             # outputs_grad_amax_history.
             "7": np.random.random((1024,)).astype("float32"),
+        }
+        gptq_store = {
+            # bias
+            "0": np.random.random((32,)).astype("float32"),
+            # quantized_kernel
+            "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
+            # kernel_scale.
+            "2": np.random.random((32, 3)).astype("float32"),
+            # kernel_zero
+            "3": np.random.random((32, 3)).astype("uint8"),
+            # g_idx
+            "4": np.random.random((24,)).astype("float32"),
         }
         config = dict(
             equation="ab,bcd->acd",
@@ -1115,3 +1126,58 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_amax_history, float8_store["5"])
         self.assertAllClose(layer.outputs_grad_scale, float8_store["6"])
         self.assertAllClose(layer.outputs_grad_amax_history, float8_store["7"])
+
+        # Test gptq-quantized layer.
+        layer = layers.EinsumDense(**config, dtype="gptq/4/8_from_float32")
+        layer.build((None, 3))
+        layer.load_own_variables(gptq_store)
+        self.assertAllClose(layer.bias, gptq_store["0"])
+        self.assertAllClose(layer.quantized_kernel, gptq_store["1"])
+        self.assertAllClose(layer.kernel_scale, gptq_store["2"])
+        self.assertAllClose(layer.kernel_zero, gptq_store["3"])
+        self.assertAllClose(layer.g_idx, gptq_store["4"])
+
+    def test_int4_gptq_kernel_returns_unpacked_form(self):
+        """Test that the `kernel` property returns the unpacked int4 GPTQ
+        kernel."""
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(2,),
+        )
+        layer.build((None, 2))
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+        layer.is_gptq_calibrated = True  # Bypass calibration check
+        packed_kernel = layer.quantized_kernel
+        self.assertAllClose(
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        )
+
+    def test_gptq_kernel_packing(self):
+        """Validates that 4-bit GPTQ packing reduces the kernel size."""
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+
+        original_kernel_params = ops.prod(layer._kernel.shape)
+
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+
+        quantized_kernel_params = ops.prod(layer.quantized_kernel.shape)
+        self.assertEqual(
+            quantized_kernel_params,
+            original_kernel_params // 2,
+        )
