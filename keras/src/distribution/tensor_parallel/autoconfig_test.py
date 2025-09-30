@@ -7,10 +7,10 @@ from keras import Input
 from keras import Model
 from keras import layers
 from keras.src import testing
-from keras.src.distribution.tensor_parallel.autoconfig_keras import (
+from keras.src.distribution.tensor_parallel.autoconfig import (
     analyze_dense_layer_directly,
 )
-from keras.src.distribution.tensor_parallel.autoconfig_keras import (
+from keras.src.distribution.tensor_parallel.autoconfig import (
     get_default_config_keras,
 )
 from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
