@@ -3,7 +3,6 @@ import os
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 
 import jax.numpy as jnp
-import numpy as np
 import optax
 import pytest
 
@@ -31,6 +30,7 @@ class TestJaxDistributedBackend(testing.TestCase):
         self.assertIs(self.backend.get_tensor_lib(), jnp)
 
     def test_compute_gradients_returns_zeros(self):
+        """Test that compute_gradients returns correctly shaped zero tensors."""
         loss = ops.array(10.0)
         trainable_vars = [ops.array([1.0, 2.0]), ops.array(3.0)]
 
@@ -41,6 +41,7 @@ class TestJaxDistributedBackend(testing.TestCase):
         self.assertAllClose(gradients[1], ops.zeros_like(trainable_vars[1]))
 
     def test_apply_gradients(self):
+        """Test the application of gradients to Keras variables."""
         var1 = keras.Variable([1.0, 2.0])
         var2 = keras.Variable(5.0)
         trainable_vars = [var1, var2]
@@ -51,11 +52,13 @@ class TestJaxDistributedBackend(testing.TestCase):
         learning_rate = 0.1
         self.backend.apply_gradients(gradients, trainable_vars, learning_rate)
 
-        expected_var1 = np.array([1.0 - 0.1 * 0.1, 2.0 - 0.1 * 0.2])
-        expected_var2 = 5.0 - 0.1 * 0.5
+        expected_var1 = ops.array([1.0, 2.0]) - ops.multiply(
+            ops.array([0.1, 0.2]), learning_rate
+        )
+        expected_var2 = 5.0 - (0.5 * learning_rate)
 
-        self.assertAllClose(var1.value, expected_var1, atol=1e-6)
-        self.assertAllClose(var2.value, expected_var2, atol=1e-6)
+        self.assertAllClose(var1.value, expected_var1)
+        self.assertAllClose(var2.value, expected_var2)
 
     def test_create_optimizer(self):
         """Test optimizer creation for Adam, SGD, and a default case."""
@@ -94,28 +97,31 @@ class TestJaxDistributedBackend(testing.TestCase):
         if simulated_world_size == 0:
             simulated_world_size = 1
 
+        # Test all_reduce
         x_reduce = ops.array([[1.0, 2.0], [3.0, 4.0]])
         reduced = comm_ops["all_reduce"](x_reduce, op="sum")
-        self.assertAllClose(reduced, x_reduce * simulated_world_size)
+        self.assertAllClose(
+            reduced, ops.multiply(x_reduce, simulated_world_size)
+        )
 
+        # Test all_gather
         x_gather = ops.array([[1.0, 2.0]])
         gathered = comm_ops["all_gather"](x_gather, axis=0)
-        expected_gather = keras.ops.concatenate(
+        expected_gather = ops.concatenate(
             [x_gather] * simulated_world_size, axis=0
         )
         self.assertAllClose(gathered, expected_gather)
 
+        # Test broadcast
         x_broadcast = ops.array([5.0, 6.0])
         broadcasted = comm_ops["broadcast"](x_broadcast)
         self.assertAllClose(broadcasted, x_broadcast)
 
-        scatter_data = np.arange(simulated_world_size * 2).reshape(
-            simulated_world_size, 2
-        )
-        x_scatter = ops.array(scatter_data, dtype="float32")
+        # Test scatter
+        scatter_data = ops.arange(simulated_world_size * 2)
+        scatter_data = ops.reshape(scatter_data, (simulated_world_size, 2))
+        x_scatter = ops.cast(scatter_data, dtype="float32")
         scattered = comm_ops["scatter"](x_scatter)
 
-        expected_scatter = keras.ops.split(
-            x_scatter, simulated_world_size, axis=0
-        )[0]
+        expected_scatter = ops.split(x_scatter, simulated_world_size, axis=0)[0]
         self.assertAllClose(scattered, expected_scatter)

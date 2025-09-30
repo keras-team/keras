@@ -1,8 +1,4 @@
-import logging
-
 from keras.src.backend.distributed.base import DistributedBackend
-
-logger = logging.getLogger(__name__)
 
 
 def get_distributed_backend(
@@ -31,7 +27,6 @@ def get_distributed_backend(
                 JaxDistributedBackend,
             )
 
-            logger.info("Auto-detected JAX for distributed backend.")
             return JaxDistributedBackend()
         except ImportError:
             raise RuntimeError(

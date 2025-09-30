@@ -68,12 +68,11 @@ class SplitKeras(StateActionKeras, _ConcatenateMixin):
         self.dim = dim
         self.sharding_type = sharding_type
 
-        # For 2D tensors, infer axis from sharding type if not specified.
         if dim == -1 and sharding_type != "auto":
             if sharding_type == "row":
-                self.dim = 0  # Typically batch or feature dimension
+                self.dim = 0
             elif sharding_type == "column":
-                self.dim = 1  # Typically feature or hidden unit dimension
+                self.dim = 1
 
     def __call__(self, tensor: Any, rank: int) -> Any:
         """Splits the tensor and returns the shard corresponding to the rank."""
