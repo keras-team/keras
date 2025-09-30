@@ -1,13 +1,9 @@
-import logging
 from typing import Any
 from typing import List
 from typing import Tuple
 
-import keras
-from keras.src.backend.distributed import get_distributed_backend
-from keras.src.backend.distributed.base import BaseDistributedBackend
-
-logger = logging.getLogger(__name__)
+from keras.src.backend.distributed import backend_resolver
+from keras.src.backend.distributed.base import DistributedBackend
 
 
 class CollectiveOpKeras:
@@ -23,7 +19,7 @@ class AllReduceKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        backend: BaseDistributedBackend,
+        backend: DistributedBackend,
         op: str = "sum",
         rank: int = 0,
     ):
@@ -38,16 +34,15 @@ class AllReduceKeras(CollectiveOpKeras):
                 "AllReduce is not supported by the current backend."
             )
 
-    def __call__(self, local_tensor: Any) -> Any:
-        synced_tensor = self.all_reduce_fn(local_tensor, op=self.op)
-        return synced_tensor
+    def __call__(self, local_tensor: Any, axis_name: str) -> Any:
+        return self.all_reduce_fn(local_tensor, op=self.op, axis_name=axis_name)
 
 
 class AllGatherKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        backend: BaseDistributedBackend,
+        backend: DistributedBackend,
         dim: int = -1,
         rank: int = 0,
     ):
@@ -62,16 +57,17 @@ class AllGatherKeras(CollectiveOpKeras):
                 "AllGather is not supported by the current backend."
             )
 
-    def __call__(self, local_tensor: Any) -> Any:
-        full_tensor = self.all_gather_fn(local_tensor, axis=self.dim)
-        return full_tensor
+    def __call__(self, local_tensor: Any, axis_name: str) -> Any:
+        return self.all_gather_fn(
+            local_tensor, axis=self.dim, axis_name=axis_name
+        )
 
 
 class BroadcastKeras(CollectiveOpKeras):
     def __init__(
         self,
         world_size: int,
-        backend: BaseDistributedBackend,
+        backend: DistributedBackend,
         src_rank: int = 0,
         rank: int = 0,
     ):
@@ -86,37 +82,17 @@ class BroadcastKeras(CollectiveOpKeras):
                 "Broadcast is not supported by the current backend."
             )
 
-    def __call__(self, tensor: Any) -> Any:
-        return self.broadcast_fn(tensor, root=self.src_rank)
-
-
-class ScatterKeras(CollectiveOpKeras):
-    def __init__(
-        self,
-        world_size: int,
-        backend: BaseDistributedBackend,
-        dim: int = -1,
-        rank: int = 0,
-    ):
-        super().__init__(world_size, rank)
-        self.dim = dim
-        self.backend = backend
-        self.scatter_fn = self.backend.get_communication_ops().get("scatter")
-        if self.scatter_fn is None:
-            raise NotImplementedError(
-                "Scatter is not supported by the current backend."
-            )
-
-    def __call__(self, tensor: Any) -> Any:
-        return self.scatter_fn(tensor)
+    def __call__(self, tensor: Any, axis_name: str) -> Any:
+        return self.broadcast_fn(
+            tensor, root=self.src_rank, axis_name=axis_name
+        )
 
 
 class TensorParallelCommunicator:
     def __init__(self, world_size: int, rank: int = 0):
         self.world_size = world_size
         self.rank = rank
-        self.backend = get_distributed_backend(keras.backend.backend())
-
+        self.backend = backend_resolver.get_distributed_backend()
         self.allreduce = AllReduceKeras(
             world_size, backend=self.backend, rank=rank
         )
@@ -126,58 +102,39 @@ class TensorParallelCommunicator:
         self.broadcast = BroadcastKeras(
             world_size, backend=self.backend, rank=rank
         )
-        self.scatter = ScatterKeras(world_size, backend=self.backend, rank=rank)
 
-    def forward_column_parallel(self, partial_outputs: List, dim: int = -1):
-        logger.debug(
-            "Forward column-parallel: AllGather %s outputs along dim %s",
-            len(partial_outputs),
-            dim,
-        )
+    def forward_column_parallel(
+        self, local_tensor: Any, dim: int = -1, axis_name: str = "i"
+    ):
         self.allgather.dim = dim
-        local_tensor = partial_outputs[self.rank]
-        return self.allgather(local_tensor)
+        return self.allgather(local_tensor, axis_name=axis_name)
 
     def backward_column_parallel(
-        self, partial_gradients: List, op: str = "sum"
-    ) -> List:
-        logger.debug(
-            "Backward column-parallel: AllReduce %s gradients with op %s",
-            len(partial_gradients),
-            op,
-        )
+        self, local_gradient: Any, op: str = "sum", axis_name: str = "i"
+    ):
         self.allreduce.op = op
-        local_tensor = partial_gradients[self.rank]
-        return self.allreduce(local_tensor)
+        return self.allreduce(local_gradient, axis_name=axis_name)
 
     def forward_row_parallel(
-        self, partial_outputs: List, op: str = "sum"
-    ) -> List:
-        logger.debug(
-            "Forward row-parallel: AllReduce %s outputs with op %s",
-            len(partial_outputs),
-            op,
-        )
+        self, local_output: Any, op: str = "sum", axis_name: str = "i"
+    ):
         self.allreduce.op = op
-        local_tensor = partial_outputs[self.rank]
-        return self.allreduce(local_tensor)
+        return self.allreduce(local_output, axis_name=axis_name)
 
-    def backward_row_parallel(self, partial_gradients: List, dim: int = -1):
-        logger.debug(
-            "Backward row-parallel: AllGather %s gradients along dim %s",
-            len(partial_gradients),
-            dim,
-        )
+    def backward_row_parallel(
+        self, local_gradient: Any, dim: int = -1, axis_name: str = "i"
+    ):
         self.allgather.dim = dim
-        local_tensor = partial_gradients[self.rank]
-        return self.allgather(local_tensor)
+        return self.allgather(local_gradient, axis_name=axis_name)
 
     def handle_mlp_handshake(
         self, up_projection_outputs: List, down_projection_inputs: List
     ) -> Tuple:
-        up_output = self.forward_column_parallel(up_projection_outputs, dim=-1)
+        up_output = self.forward_column_parallel(
+            up_projection_outputs[self.rank], dim=-1
+        )
         down_inputs = self.forward_row_parallel(
-            down_projection_inputs, op="sum"
+            down_projection_inputs[self.rank], op="sum"
         )
         return up_output, down_inputs
 
@@ -193,12 +150,7 @@ class TensorParallelCommunicator:
             slices = [slice(None)] * len(full_gradient.shape)
             slices[dim] = slice(start_idx, end_idx)
             return full_gradient[tuple(slices)]
-        except Exception as e:
-            logger.warning(
-                "Gradient slicing for column-parallel failed: %s, "
-                "returning full gradient",
-                e,
-            )
+        except Exception:
             return full_gradient
 
     def slice_upstream_gradient_for_row_parallel(
@@ -214,17 +166,12 @@ class TensorParallelCommunicator:
             slices = [slice(None)] * len(full_gradient.shape)
             slices[dim] = slice(start_idx, end_idx)
             return full_gradient[tuple(slices)]
-        except Exception as e:
-            logger.warning(
-                "Gradient slicing for row-parallel failed: %s, "
-                "returning full gradient",
-                e,
-            )
+        except Exception:
             return full_gradient
 
 
 def allreduce_gradients(
-    gradients: List, world_size: int, backend: BaseDistributedBackend
+    gradients: List, world_size: int, backend: DistributedBackend
 ) -> List:
     allreduce_op = AllReduceKeras(world_size, backend=backend, op="mean")
     local_gradient = gradients[0] if isinstance(gradients, list) else gradients
@@ -234,7 +181,7 @@ def allreduce_gradients(
 def allgather_outputs(
     outputs: List,
     world_size: int,
-    backend: BaseDistributedBackend,
+    backend: DistributedBackend,
     dim: int = -1,
 ):
     allgather_op = AllGatherKeras(world_size, backend=backend, dim=dim)
@@ -245,7 +192,7 @@ def allgather_outputs(
 def broadcast_parameters(
     parameters: List,
     world_size: int,
-    backend: BaseDistributedBackend,
+    backend: DistributedBackend,
     src_rank: int = 0,
 ) -> List:
     broadcast_op = BroadcastKeras(

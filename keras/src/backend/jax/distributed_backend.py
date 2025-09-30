@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from typing import List
 
@@ -8,21 +7,14 @@ import jax.numpy as jnp
 import optax
 
 import keras
-from keras.src.backend.distributed.base import BaseDistributedBackend
-
-logger = logging.getLogger(__name__)
+from keras.src.backend.distributed.base import DistributedBackend
 
 
-class JaxDistributedBackend(BaseDistributedBackend):
+class JaxDistributedBackend(DistributedBackend):
     """JAX-specific implementation of distributed operations."""
 
     def get_tensor_lib(self):
         return jnp
-
-    def convert_to_backend_tensor(self, tensor: Any) -> Any:
-        if isinstance(tensor, jax.Array):
-            return tensor
-        return jnp.array(tensor)
 
     def compute_gradients(
         self, loss: Any, trainable_vars: List[Any]
@@ -34,11 +26,6 @@ class JaxDistributedBackend(BaseDistributedBackend):
         computation must be done via `jax.grad` on a function that computes
         the loss from the parameters, which requires a different architecture.
         """
-        logger.warning(
-            "JAX backend `compute_gradients` is a fallback and returns "
-            "zero gradients. A functional `jax.grad` approach should be used "
-            "for training."
-        )
         return [jnp.zeros_like(var) for var in trainable_vars]
 
     def apply_gradients(
@@ -52,13 +39,6 @@ class JaxDistributedBackend(BaseDistributedBackend):
                 new_value = var - (learning_rate * grad)
                 if hasattr(var, "assign"):
                     var.assign(new_value)
-                else:
-                    logger.warning(
-                        "Applying gradients to a standard JAX array has no "
-                        "effect as JAX arrays are immutable. This operation "
-                        "only works for mutable objects with an `.assign()` "
-                        "method."
-                    )
 
     def create_optimizer(self, optimizer_class: str, **kwargs):
         if optimizer_class.lower() == "adam":
@@ -74,8 +54,7 @@ class JaxDistributedBackend(BaseDistributedBackend):
         try:
             info["devices"] = [str(d) for d in jax.devices()]
             info["device_count"] = jax.local_device_count()
-        except Exception as e:
-            logger.warning(f"Could not get device info for JAX: {e}")
+        except Exception:
             info["devices"] = ["cpu"]
             info["device_count"] = 1
         return info
@@ -84,89 +63,81 @@ class JaxDistributedBackend(BaseDistributedBackend):
         return self.get_device_info()["device_count"] > 1
 
     def get_communication_ops(self) -> dict:
-        try:
-            if not self.is_multi_device_capable():
-                raise RuntimeError("JAX is not running on multiple devices.")
+        """
+        Provides robust JAX communication ops that work both inside and
+        outside a pmap context using conditional checks.
+        """
 
-            logger.info("Using real JAX collective communication ops.")
+        def _is_in_pmap(axis_name="data") -> bool:
+            """
+            Checks if running inside a pmap by attempting to resolve axis name.
+            This is the standard JAX idiom for context detection.
+            """
+            try:
+                lax.axis_index(axis_name)
+                return True
+            except NameError:
+                return False
 
-            def all_reduce_jax(x, op="sum", axis_name="data"):
+        def all_reduce(x, op="sum", axis_name="data"):
+            if _is_in_pmap(axis_name):
                 if op == "sum":
                     return lax.psum(x, axis_name=axis_name)
                 elif op == "mean":
                     return lax.pmean(x, axis_name=axis_name)
                 raise ValueError(f"Unsupported all_reduce op: {op}")
-
-            def all_gather_jax(x, axis=0, axis_name="model"):
-                return lax.all_gather(x, axis_name=axis_name, axis=axis)
-
-            def broadcast_jax(x, root=0, axis_name="data"):
-                return lax.all_gather(x, axis_name=axis_name, axis=0)[root]
-
-            def scatter_jax(x, root=0):
-                logger.warning(
-                    "Scatter is not a native op in JAX pmap; returning the "
-                    "input tensor as a fallback."
-                )
-                return x
-
-            return {
-                "all_reduce": all_reduce_jax,
-                "all_gather": all_gather_jax,
-                "broadcast": broadcast_jax,
-                "scatter": scatter_jax,
-            }
-        except (ImportError, RuntimeError) as e:
-            logger.warning(
-                "JAX collective ops not available or multiple devices not "
-                f"configured: {e}. Using SIMULATED ops."
-            )
-
-            device_info = self.get_device_info()
-            simulated_world_size = device_info.get("device_count", 1)
-            if simulated_world_size == 0:
-                simulated_world_size = 1
-
-            logger.info(
-                f"Simulating with world_size={simulated_world_size} "
-                "based on available devices."
-            )
-
-            def all_reduce_simulated(x, op="sum"):
-                if simulated_world_size <= 1:
+            else:
+                world_size = self.get_device_info()["device_count"]
+                if world_size <= 1:
                     return x
                 if op == "sum":
-                    return keras.ops.multiply(x, simulated_world_size)
+                    return keras.ops.multiply(x, world_size)
                 elif op == "mean":
                     return x
-                else:
-                    raise ValueError(f"Unsupported all_reduce op: {op}")
+                raise ValueError(f"Unsupported all_reduce op: {op}")
 
-            def all_gather_simulated(x, axis=0):
-                if simulated_world_size <= 1:
+        def all_gather(x, axis=0, axis_name="data"):
+            if _is_in_pmap(axis_name):
+                return lax.all_gather(x, axis_name=axis_name, axis=axis)
+            else:
+                world_size = self.get_device_info()["device_count"]
+                if world_size <= 1:
                     return x
-                return keras.ops.concatenate(
-                    [x] * simulated_world_size, axis=axis
-                )
+                return keras.ops.concatenate([x] * world_size, axis=axis)
 
-            def broadcast_simulated(x, root=0):
+        def broadcast(x, root=0, axis_name="data"):
+            if _is_in_pmap(axis_name):
+                return lax.all_gather(x, axis_name=axis_name, axis=0)[root]
+            else:
                 return x
 
-            def scatter_simulated(x, root=0):
-                if simulated_world_size <= 1:
-                    return x
-                if keras.ops.shape(x)[0] % simulated_world_size != 0:
-                    raise ValueError(
-                        "For simulation, the first dimension of tensor must "
-                        f"be divisible by the simulated world size "
-                        f"({simulated_world_size})."
-                    )
-                chunks = keras.ops.split(x, simulated_world_size, axis=0)
-                return chunks[0]
+        def scatter(x, root=0, axis=0, axis_name="data"):
+            if _is_in_pmap(axis_name):
+                full_tensor = lax.all_gather(x, axis_name=axis_name, axis=0)[
+                    root
+                ]
 
-            return {
-                "all_reduce": all_reduce_simulated,
-                "all_gather": all_gather_simulated,
-                "broadcast": broadcast_simulated,
-                "scatter": scatter_simulated,
-            }
+                device_id = lax.axis_index(axis_name=axis_name)
+                num_devices = lax.psum(1, axis_name=axis_name)
+
+                chunk_size = full_tensor.shape[axis] // num_devices
+                start_index = device_id * chunk_size
+                return lax.dynamic_slice_in_dim(
+                    operand=full_tensor,
+                    start_index=start_index,
+                    slice_size=chunk_size,
+                    axis=axis,
+                )
+            else:
+                world_size = self.get_device_info()["device_count"]
+                if world_size <= 1:
+                    return x
+                chunks = keras.ops.split(x, world_size, axis=axis)
+                return chunks[root]
+
+        return {
+            "all_reduce": all_reduce,
+            "all_gather": all_gather,
+            "broadcast": broadcast,
+            "scatter": scatter,
+        }
