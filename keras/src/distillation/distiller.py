@@ -189,6 +189,37 @@ class Distiller(Model):
         # Validate data type compatibility
         self._validate_dtype_compatibility(teacher, student)
 
+    def _assert_shapes_are_compatible(self, shape1, shape2, context):
+        """Assert that two shapes are compatible (allowing for batch dimension
+        flexibility)."""
+        # Check if they have the same number of dimensions
+        if len(shape1) != len(shape2):
+            raise ValueError(
+                f"Teacher and student {context} shapes have different number "
+                f"of dimensions. Teacher {context} shape: {shape1}, "
+                f"Student {context} shape: {shape2}."
+            )
+
+        # Check all dimensions (including batch dimension for distillation)
+        for dim1, dim2 in zip(shape1, shape2):
+            if dim1 is not None and dim2 is not None and dim1 != dim2:
+                raise ValueError(
+                    f"Teacher and student {context} shapes are incompatible. "
+                    f"Teacher {context} shape: {shape1}, "
+                    f"Student {context} shape: {shape2}. "
+                    f"All dimensions must match for distillation."
+                )
+
+    def _assert_same_dtype(self, teacher_dtype, student_dtype, context):
+        """Assert that teacher and student dtypes are the same."""
+        if teacher_dtype != student_dtype:
+            raise ValueError(
+                f"Teacher and student {context} dtypes are incompatible. "
+                f"Teacher {context} dtype: {teacher_dtype}, "
+                f"Student {context} dtype: {student_dtype}. "
+                f"Both models must use the same data type."
+            )
+
     def _validate_input_compatibility(self, teacher, student):
         """Validate that teacher and student have compatible input shapes."""
         # If symbolic tensors are not available (subclassed models), skip.
@@ -227,16 +258,6 @@ class Distiller(Model):
             student_outputs,
         )
 
-    def _assert_same_dtype(self, teacher_dtype, student_dtype, context):
-        """Assert that teacher and student dtypes are the same."""
-        if teacher_dtype != student_dtype:
-            raise ValueError(
-                f"Teacher and student {context} dtypes are incompatible. "
-                f"Teacher {context} dtype: {teacher_dtype}, "
-                f"Student {context} dtype: {student_dtype}. "
-                f"Both models must use the same data type."
-            )
-
     def _validate_dtype_compatibility(self, teacher, student):
         """Validate that teacher and student have compatible data types."""
         # If symbolic tensors are not available (subclassed models), skip.
@@ -271,27 +292,6 @@ class Distiller(Model):
         models."""
         strategy.validate_model_compatibility(teacher, student)
 
-    def _assert_shapes_are_compatible(self, shape1, shape2, context):
-        """Assert that two shapes are compatible (allowing for batch dimension
-        flexibility)."""
-        # Check if they have the same number of dimensions
-        if len(shape1) != len(shape2):
-            raise ValueError(
-                f"Teacher and student {context} shapes have different number "
-                f"of dimensions. Teacher {context} shape: {shape1}, "
-                f"Student {context} shape: {shape2}."
-            )
-
-        # Check all dimensions (including batch dimension for distillation)
-        for dim1, dim2 in zip(shape1, shape2):
-            if dim1 is not None and dim2 is not None and dim1 != dim2:
-                raise ValueError(
-                    f"Teacher and student {context} shapes are incompatible. "
-                    f"Teacher {context} shape: {shape1}, "
-                    f"Student {context} shape: {shape2}. "
-                    f"All dimensions must match for distillation."
-                )
-
     def _create_multi_feature_extractors(self):
         """Create feature extractors for efficient multi-layer extraction."""
         # Collect all layer names needed for feature extraction
@@ -313,16 +313,11 @@ class Distiller(Model):
                     student_layer_names.append(strategy.student_layer_name)
 
         # Create multi-output feature extractors if needed
-        self._teacher_feature_extractor = (
-            self._create_feature_extractor(self.teacher, teacher_layer_names)
-            if teacher_layer_names
-            else None
+        self._teacher_feature_extractor = self._create_feature_extractor(
+            self.teacher, teacher_layer_names
         )
-
-        self._student_feature_extractor = (
-            self._create_feature_extractor(self.student, student_layer_names)
-            if student_layer_names
-            else None
+        self._student_feature_extractor = self._create_feature_extractor(
+            self.student, student_layer_names
         )
 
     def _create_feature_extractor(self, model, layer_names):
@@ -334,8 +329,12 @@ class Distiller(Model):
 
         Returns:
             keras.Model: Feature extractor that returns a dict of features,
-            or None if extractor creation fails.
+            or None if no layer names provided or extractor creation fails.
         """
+        # Return None if no layer names provided
+        if not layer_names:
+            return None
+
         try:
             # Get model inputs and final output
             if isinstance(model, keras.Sequential):
@@ -578,6 +577,11 @@ class Distiller(Model):
                     # LogitsDistillation or FeatureDistillation (final outputs)
                     strategy_teacher_output = teacher_features["final_output"]
                     strategy_student_output = y_pred
+
+                # Validate outputs are compatible for this strategy
+                strategy.validate_outputs(
+                    strategy_teacher_output, strategy_student_output
+                )
 
                 # Compute loss for this strategy
                 strategy_loss = strategy.compute_loss(

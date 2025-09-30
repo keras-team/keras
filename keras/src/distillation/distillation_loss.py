@@ -48,18 +48,9 @@ class DistillationLoss:
             ValueError: If outputs are not compatible.
         """
         # Default implementation - can be overridden by subclasses
-        if not isinstance(teacher_outputs, (list, tuple)):
-            teacher_outputs = [teacher_outputs]
-        if not isinstance(student_outputs, (list, tuple)):
-            student_outputs = [student_outputs]
-
-        if len(teacher_outputs) != len(student_outputs):
-            raise ValueError(
-                f"Teacher and student must have the same number of "
-                f"outputs. "
-                f"Teacher has {len(teacher_outputs)} outputs, "
-                f"student has {len(student_outputs)} outputs."
-            )
+        # keras.tree.assert_same_structure validates that structures match,
+        # including the number of outputs, so no additional checks needed
+        keras.tree.assert_same_structure(teacher_outputs, student_outputs)
 
     def validate_model_compatibility(self, teacher, student):
         """Validate that teacher and student models are compatible.
@@ -166,59 +157,6 @@ class FeatureDistillation(DistillationLoss):
                 student.get_layer(name=self.student_layer_name)
             except ValueError as e:
                 raise ValueError(f"In student model: {e}")
-
-    def _create_feature_extractor(self, model, layer_name):
-        """Create a feature extractor function for the specified layer.
-
-        Args:
-            model: The model to extract features from.
-            layer_name: Name of the layer to extract features from.
-                       If None, returns the original model.
-
-        Returns:
-            A keras.Model that extracts features from the specified layer.
-        """
-        if layer_name is None:
-            # Return the original model if no layer specified
-            return model
-
-        # Get the layer using Keras built-in method
-        try:
-            target_layer = model.get_layer(name=layer_name)
-        except ValueError as e:
-            raise ValueError(
-                f"Layer '{layer_name}' not found in model '{model.name}'. {e}"
-            )
-
-        # Create a new model that extracts features from the specified layer.
-        try:
-            return keras.Model(
-                inputs=model.inputs,
-                outputs=target_layer.output,
-                name=f"{model.name}_features_{layer_name}",
-            )
-        except (ValueError, AttributeError) as e:
-            # Handle the case where the model doesn't have defined inputs yet
-            error_msg = str(e).lower()
-            if (
-                "no defined inputs" in error_msg
-                or "has no defined inputs" in error_msg
-            ):
-                raise ValueError(
-                    f"Model '{model.name}' has no defined inputs yet. "
-                    f"Please call the model with some input data first to "
-                    f"build it, or use the Functional API to create models "
-                    f"with explicit inputs. For Sequential models, you can "
-                    f"call model(dummy_input) or model.build(input_shape) "
-                    f"before using FeatureDistillation."
-                )
-            else:
-                raise ValueError(
-                    f"Could not create a feature extraction model for layer "
-                    f"'{layer_name}'. This is likely because the model is a "
-                    f"subclassed model that cannot be traversed using the "
-                    f"standard layer API. Error: {e}"
-                )
 
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that outputs are compatible for feature distillation."""
