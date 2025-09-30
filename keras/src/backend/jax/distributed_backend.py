@@ -54,8 +54,7 @@ class JaxDistributedBackend(DistributedBackend):
         """Applies gradients to trainable variables.
 
         This method performs a basic gradient descent update. It is a simplified
-        implementation and does not use a stateful optimizer. For more complex
-        optimization, use an optimizer from a library like `optax`.
+        implementation and does not use a stateful optimizer.
 
         Args:
             gradients: A list of gradient tensors.

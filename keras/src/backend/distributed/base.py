@@ -9,8 +9,7 @@ class DistributedBackend(ABC):
     Abstract Base Class for a distributed backend.
 
     This class defines the interface for backend-specific operations required
-    for distributed training. Tensor conversions should be handled by the
-    backend-agnostic `keras.ops.convert_to_tensor` function.
+    for distributed training.
     """
 
     @abstractmethod

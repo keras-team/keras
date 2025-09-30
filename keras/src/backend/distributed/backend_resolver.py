@@ -14,7 +14,7 @@ def get_distributed_backend(
             or "jax". Other backends are reserved for future implementation.
 
     Returns:
-        An instance of a class that inherits from `BaseDistributedBackend`.
+        An instance of a class that inherits from `DistributedBackend`.
 
     Raises:
         ValueError: If an unknown backend name is provided.

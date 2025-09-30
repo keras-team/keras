@@ -380,7 +380,6 @@ class TensorParallelCommunicator:
             slices[dim] = slice(start_idx, end_idx)
             return full_gradient[tuple(slices)]
         except Exception:
-            # Fallback if slicing is not possible (e.g., shape is unknown)
             return full_gradient
 
     def slice_upstream_gradient_for_row_parallel(
@@ -408,14 +407,12 @@ class TensorParallelCommunicator:
             slice_size = total_size // world_size
             start_idx = rank * slice_size
             end_idx = (rank + 1) * slice_size
-            # Ensure the last rank gets the remainder
             if rank == world_size - 1:
                 end_idx = total_size
             slices = [slice(None)] * len(full_gradient.shape)
             slices[dim] = slice(start_idx, end_idx)
             return full_gradient[tuple(slices)]
         except Exception:
-            # Fallback if slicing is not possible (e.g., shape is unknown)
             return full_gradient
 
 
@@ -438,7 +435,6 @@ def allreduce_gradients(
         Any: The averaged gradient tensor.
     """
     allreduce_op = AllReduceKeras(world_size, backend=backend, op="mean")
-    # Handle cases where gradients might be passed as a single-element list
     local_gradient = gradients[0] if isinstance(gradients, list) else gradients
     return allreduce_op(local_gradient, axis_name="batch")
 
@@ -495,5 +491,4 @@ def broadcast_parameters(
     broadcast_op = BroadcastKeras(
         world_size, backend=backend, src_rank=src_rank
     )
-    # The tensor from the source rank is the one to be broadcast
     return broadcast_op(parameters[src_rank], axis_name="batch")

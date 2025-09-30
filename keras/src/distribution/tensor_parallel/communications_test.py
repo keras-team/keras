@@ -3,6 +3,7 @@ import os
 import pytest
 
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
+os.environ['XLA_FLAGS'] = '--xla_force_host_platform_device_count=4'
 
 import jax
 from communications import AllGatherKeras
@@ -30,7 +31,7 @@ class TestCollectiveOps(testing.TestCase):
             )
         self.axis_name = "i"
 
-    def test_all_reduce_real(self):
+    def test_all_reduce(self):
         def parallel_fn(x):
             dist_backend = backend_resolver.get_distributed_backend()
             all_reduce_op = AllReduceKeras(
