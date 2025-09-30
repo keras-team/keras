@@ -131,7 +131,7 @@ class GPTQTest(testing.TestCase):
         dense_gptq.update_hessian_with_batch(calibration_data)
         dense_gptq.quantize_and_correct_layer()
 
-        self.assertEqual(dense.kernel.dtype, "uint8")
+        self.assertEqual(backend.standardize_dtype(dense.kernel.dtype), "uint8")
 
         dense_gptq.free()
         self.assertIsNone(getattr(dense_gptq, "hessian", None))

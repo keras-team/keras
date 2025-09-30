@@ -1596,6 +1596,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.logaddexp(x, x).shape, (None, 3))
 
+    def test_logaddexp2(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.logaddexp2(x, x).shape, (None, 3))
+
     def test_logical_not(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.logical_not(x).shape, (None, 3))
@@ -2196,6 +2200,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_logaddexp(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.logaddexp(x, x).shape, (2, 3))
+
+    def test_logaddexp2(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.logaddexp2(x, x).shape, (2, 3))
 
     def test_logical_not(self):
         x = KerasTensor((2, 3))
@@ -4395,6 +4403,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.logaddexp(x, y), np.logaddexp(x, y))
         self.assertAllClose(knp.Logaddexp()(x, y), np.logaddexp(x, y))
 
+    def test_logaddexp2(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(knp.logaddexp2(x, y), np.logaddexp2(x, y))
+        self.assertAllClose(knp.Logaddexp2()(x, y), np.logaddexp2(x, y))
+
     def test_logical_not(self):
         x = np.array([[True, False], [False, True]])
         self.assertAllClose(knp.logical_not(x), np.logical_not(x))
@@ -5774,6 +5788,14 @@ class NumpyDtypeTest(testing.TestCase):
     if backend.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
+        # dtypes.result_type(uint32, int*) -> int64 promotion.
+        # Since TF variables require int64 to be placed on the GPU, we
+        # exclusively enable the int64 dtype for TF. However, JAX does not
+        # natively support int64, which prevents us from comparing the dtypes.
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
@@ -6349,8 +6371,10 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.parameters(
-        (10, None, 1, None),
-        (0, 10, 1, None),
+        (10, None, None, None),  # stop
+        (2, 10, None, None),  # start, stop
+        (10, None, 2, None),  # stop, step
+        (0, 10, 2, None),  # start, stop, step
         (0, 10, 0.5, None),
         (10.0, None, 1, None),
         (0, 10.0, 1, None),
@@ -7943,6 +7967,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Logaddexp().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_logaddexp2(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((3, 3), dtype=dtype1)
+        x2 = knp.ones((3, 3), dtype=dtype2)
+        x1_jax = jnp.ones((3, 3), dtype=dtype1)
+        x2_jax = jnp.ones((3, 3), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.logaddexp2(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.logaddexp2(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Logaddexp2().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 
