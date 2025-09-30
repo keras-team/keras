@@ -2,7 +2,10 @@ import os
 
 import numpy as np
 import pytest
-from keras.utils import img_to_array, load_img, save_img
+
+from keras.utils import img_to_array
+from keras.utils import load_img
+from keras.utils import save_img
 
 
 @pytest.mark.parametrize(
