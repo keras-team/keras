@@ -14,11 +14,6 @@ class DistributedBackend(ABC):
     """
 
     @abstractmethod
-    def get_tensor_lib(self):
-        """Get the appropriate tensor library for the backend."""
-        raise NotImplementedError
-
-    @abstractmethod
     def compute_gradients(
         self, loss: Any, trainable_vars: List[Any]
     ) -> List[Any]:

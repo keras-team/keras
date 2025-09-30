@@ -2,7 +2,6 @@ import os
 
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 
-import jax.numpy as jnp
 import optax
 import pytest
 
@@ -24,10 +23,6 @@ class TestJaxDistributedBackend(testing.TestCase):
         """Set up the test case by instantiating the backend."""
         super().setUp()
         self.backend = JaxDistributedBackend()
-
-    def test_get_tensor_lib(self):
-        """Test if the correct tensor library (jnp) is returned."""
-        self.assertIs(self.backend.get_tensor_lib(), jnp)
 
     def test_compute_gradients_returns_zeros(self):
         """Test that compute_gradients returns correctly shaped zero tensors."""

@@ -22,15 +22,6 @@ class JaxDistributedBackend(DistributedBackend):
     communication operations like all-reduce and all-gather.
     """
 
-    def get_tensor_lib(self) -> Any:
-        """Returns the JAX tensor library.
-
-        Returns:
-            The `jax.numpy` module, which serves as the primary tensor
-            manipulation library for JAX.
-        """
-        return jnp
-
     def compute_gradients(
         self, loss: Any, trainable_vars: List[Any]
     ) -> List[Any]:
