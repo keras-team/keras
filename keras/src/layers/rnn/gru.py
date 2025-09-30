@@ -261,7 +261,7 @@ class GRUCell(Layer, DropoutRNNCell):
             matrix_x = ops.matmul(inputs, self.kernel)
             if self.use_bias:
                 # biases: bias_z_i, bias_r_i, bias_h_i
-                matrix_x += input_bias
+                matrix_x = ops.add(matrix_x, input_bias)
 
             x_z, x_r, x_h = ops.split(matrix_x, 3, axis=-1)
 

@@ -1443,7 +1443,7 @@ def depthwise_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
-    if any_symbolic_tensors((inputs,)):
+    if any_symbolic_tensors((inputs, kernel)):
         return DepthwiseConv(
             strides, padding, data_format, dilation_rate
         ).symbolic_call(inputs, kernel)
