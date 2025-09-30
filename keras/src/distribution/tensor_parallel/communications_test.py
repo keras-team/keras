@@ -3,7 +3,7 @@ import os
 import pytest
 
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
-os.environ['XLA_FLAGS'] = '--xla_force_host_platform_device_count=4'
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
 
 import jax
 from communications import AllGatherKeras
