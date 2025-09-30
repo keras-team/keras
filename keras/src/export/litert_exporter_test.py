@@ -1,23 +1,9 @@
-"""Tests for LiteRT exporting utilities."""
-
 import os
 
 import numpy as np
 import pytest
 import tensorflow as tf
 from absl.testing import parameterized
-
-# Try to use AI Edge LiteRT interpreter, fallback to TensorFlow Lite
-try:
-    from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
-
-    litert_available = True
-    print("Using AI Edge LiteRT interpreter")
-except ImportError:
-    # Fallback to TensorFlow Lite interpreter
-    LiteRtInterpreter = tf.lite.Interpreter
-    litert_available = True
-    print("Using TensorFlow Lite interpreter as fallback")
 
 from keras.src import backend
 from keras.src import layers
@@ -27,6 +13,20 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.utils.module_utils import litert
+
+# Use AI Edge LiteRT interpreter if available, fallback to TensorFlow Lite
+if litert.available:
+    try:
+        from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
+
+        print("Using AI Edge LiteRT interpreter")
+    except ImportError:
+        LiteRtInterpreter = tf.lite.Interpreter
+        print("Using TensorFlow Lite interpreter as fallback")
+else:
+    LiteRtInterpreter = tf.lite.Interpreter
+    print("Using TensorFlow Lite interpreter as fallback")
 
 
 class CustomModel(models.Model):
@@ -170,7 +170,9 @@ class ExportLitertTest(testing.TestCase):
         named_product(model_type=["sequential", "functional", "lstm"])
     )
     def test_standard_model_export(self, model_type):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
         model = get_model(model_type)
         batch_size = 1  # TFLite expects batch_size=1
         if model_type == "lstm":
@@ -182,7 +184,7 @@ class ExportLitertTest(testing.TestCase):
 
         # Test with model.export()
         model.export(temp_filepath, format="litert")
-        export_path = f"{temp_filepath}.tflite"
+        export_path = temp_filepath
         self.assertTrue(os.path.exists(export_path))
 
         interpreter = LiteRtInterpreter(model_path=export_path)
@@ -226,14 +228,16 @@ class ExportLitertTest(testing.TestCase):
         else:
             raise AssertionError("Unexpected structure type")
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
         ref_output = _convert_to_numpy(
             model(tree.map_structure(ops.convert_to_tensor, ref_input))
         )
 
         # Test with model.export()
         model.export(temp_filepath, format="litert")
-        export_path = f"{temp_filepath}.tflite"
+        export_path = temp_filepath
         interpreter = LiteRtInterpreter(model_path=export_path)
         interpreter.allocate_tensors()
 
@@ -254,7 +258,9 @@ class ExportLitertTest(testing.TestCase):
         self.assertAllClose(ref_output, revived_output)
 
     def test_model_with_multiple_inputs(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
 
         # Use Functional API for proper Input layer handling
         input_x = layers.Input(shape=(10,), name="x")
@@ -269,7 +275,7 @@ class ExportLitertTest(testing.TestCase):
 
         # Test with model.export()
         model.export(temp_filepath, format="litert")
-        export_path = f"{temp_filepath}.tflite"
+        export_path = temp_filepath
         interpreter = LiteRtInterpreter(model_path=export_path)
         interpreter.allocate_tensors()
 
@@ -300,7 +306,9 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_with_custom_input_signature(self):
         model = get_model("sequential")
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
         input_signature = [layers.InputSpec(shape=(None, 10), dtype="float32")]
 
         # Test with model.export()
@@ -309,7 +317,7 @@ class ExportLitertTest(testing.TestCase):
             format="litert",
             input_signature=input_signature,
         )
-        export_path = f"{temp_filepath}.tflite"
+        export_path = temp_filepath
         self.assertTrue(os.path.exists(export_path))
 
         interpreter = LiteRtInterpreter(model_path=export_path)
@@ -326,10 +334,12 @@ class ExportLitertTest(testing.TestCase):
         ref_input = np.random.normal(size=(3, 10)).astype("float32")
         model(ref_input)
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
         model.export(temp_filepath, format="litert")
 
-        tflite_path = f"{temp_filepath}.tflite"
+        tflite_path = temp_filepath
         self.assertTrue(os.path.exists(tflite_path))
 
         # Test inference
@@ -357,12 +367,14 @@ class ExportLitertTest(testing.TestCase):
         dummy_input = np.random.random((3, 10)).astype(np.float32)
         model(dummy_input)
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
 
         # Export with verbose=True
         model.export(temp_filepath, format="litert", verbose=True)
 
-        tflite_path = f"{temp_filepath}.tflite"
+        tflite_path = temp_filepath
         self.assertTrue(os.path.exists(tflite_path))
 
         # Verify the exported model works
@@ -378,7 +390,9 @@ class ExportLitertTest(testing.TestCase):
         dummy_input = np.random.random((3, 10)).astype(np.float32)
         model(dummy_input)
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
 
         # Test with invalid format
         with self.assertRaises(ValueError):

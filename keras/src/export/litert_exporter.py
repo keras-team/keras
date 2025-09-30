@@ -5,16 +5,7 @@ import tensorflow as tf
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils import io_utils
-
-# Try to import LiteRT AOT compilation if available
-try:
-    from litert.python.aot import aot_compile
-    from litert.python.aot.core import types as litert_types
-    from litert.python.aot.vendors import import_vendor
-
-    LITERT_AVAILABLE = True
-except ImportError:
-    LITERT_AVAILABLE = False
+from keras.src.utils.module_utils import litert
 
 
 def export_litert(
@@ -30,8 +21,9 @@ def export_litert(
     Args:
         model: The Keras model to export.
         filepath: The path to save the exported artifact.
-        verbose: Optional; whether to log progress messages. Defaults to
-            ``False`` when ``None`` is provided.
+        verbose: `bool`. Whether to print a message during export. Defaults to
+            `None`, which uses the default value set by different backends and
+            formats.
         input_signature: Optional input signature specification. If
             ``None``, it will be inferred.
         aot_compile_targets: Optional list of Litert targets for AOT
@@ -43,16 +35,18 @@ def export_litert(
         AOT compilation is requested.
     """
 
-    actual_verbose = bool(verbose) if verbose is not None else False
+    if verbose is None:
+        verbose = True  # Defaults to `True` for all backends.
+
     exporter = LitertExporter(
         model=model,
         input_signature=input_signature,
-        verbose=actual_verbose,
+        verbose=verbose,
         aot_compile_targets=aot_compile_targets,
         **kwargs,
     )
     result = exporter.export(filepath)
-    if actual_verbose:
+    if verbose:
         if hasattr(result, "models"):
             io_utils.print_msg(
                 f"Saved artifact at '{filepath}'. AOT compiled "
@@ -88,7 +82,7 @@ class LitertExporter:
         """
         self.model = model
         self.input_signature = input_signature
-        self.verbose = bool(verbose)
+        self.verbose = verbose
         self.aot_compile_targets = aot_compile_targets
         self.kwargs = kwargs
 
@@ -126,8 +120,10 @@ class LitertExporter:
             )
 
         # 4. Save the initial TFLite model to the specified file path.
-        if not filepath.endswith(".tflite"):
-            filepath += ".tflite"
+        assert filepath.endswith(".tflite"), (
+            "The LiteRT export requires the filepath to end with '.tflite'. "
+            f"Got: {filepath}"
+        )
 
         with open(filepath, "wb") as f:
             f.write(tflite_model)
@@ -138,11 +134,11 @@ class LitertExporter:
         # 5. Perform AOT compilation if targets are specified and LiteRT is
         # available
         compiled_models = None
-        if self.aot_compile_targets and LITERT_AVAILABLE:
+        if self.aot_compile_targets and litert.available:
             if self.verbose:
                 print("Performing AOT compilation for Litert targets...")
             compiled_models = self._aot_compile(filepath)
-        elif self.aot_compile_targets and not LITERT_AVAILABLE:
+        elif self.aot_compile_targets and not litert.available:
             if self.verbose:
                 print(
                     "Warning: AOT compilation requested but LiteRT is not "
@@ -432,12 +428,14 @@ class LitertExporter:
 
     def _aot_compile(self, tflite_filepath):
         """Performs AOT compilation using LiteRT."""
-        if not LITERT_AVAILABLE:
+        if not litert.available:
             raise RuntimeError("LiteRT is not available for AOT compilation")
 
         try:
             # Create a LiteRT model from the TFLite file
-            litert_model = litert_types.Model.create_from_path(tflite_filepath)
+            litert_model = litert.python.aot.core.types.Model.create_from_path(
+                tflite_filepath
+            )
 
             # Determine output directory
             base_dir = os.path.dirname(tflite_filepath)
@@ -449,7 +447,7 @@ class LitertExporter:
                 print(f"Output directory: {output_dir}")
 
             # Perform AOT compilation
-            result = aot_compile.aot_compile(
+            result = litert.python.aot.aot_compile(
                 input_model=litert_model,
                 output_dir=output_dir,
                 target=self.aot_compile_targets,
@@ -486,12 +484,14 @@ class LitertExporter:
 
     def _get_available_litert_targets(self):
         """Get available LiteRT targets for AOT compilation."""
-        if not LITERT_AVAILABLE:
+        if not litert.available:
             return []
 
         try:
             # Get all registered targets
-            targets = import_vendor.AllRegisteredTarget()
+            targets = (
+                litert.python.aot.vendors.import_vendor.AllRegisteredTarget()
+            )
             return targets if isinstance(targets, list) else [targets]
         except Exception as e:
             if self.verbose:
@@ -525,7 +525,7 @@ class LitertExporter:
     @classmethod
     def get_available_targets(cls):
         """Get list of available LiteRT AOT compilation targets."""
-        if not LITERT_AVAILABLE:
+        if not litert.available:
             return []
 
         dummy_exporter = cls(model=None)
