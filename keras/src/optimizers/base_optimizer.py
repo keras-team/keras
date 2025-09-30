@@ -969,10 +969,15 @@ class BaseOptimizer(KerasSaveable):
             ):
                 if average is not None:
                     not_first_step = ops.not_equal(self.iterations, 0)
-                    momentum = (
-                        ops.cast(not_first_step, var.dtype) * self.ema_momentum
+                    momentum = ops.multiply(
+                        ops.cast(not_first_step, var.dtype), self.ema_momentum
                     )
-                    average.assign(momentum * average + (1 - momentum) * var)
+                    average.assign(
+                        ops.add(
+                            ops.multiply(momentum, average),
+                            ops.multiply(ops.subtract(1, momentum), var),
+                        )
+                    )
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables

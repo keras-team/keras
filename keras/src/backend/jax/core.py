@@ -56,7 +56,12 @@ class JaxVariable(KerasVariable):
 
     # Overload native accessor.
     def __jax_array__(self):
-        return self.value
+        # TODO UNDO
+        import traceback
+
+        print("### __jax_array__")
+        traceback.print_stack()
+        raise ValueError("__jax_array__")
 
 
 Variable = JaxVariable

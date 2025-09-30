@@ -160,7 +160,7 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
             sequence = sequence * dp_mask
         h = ops.matmul(sequence, self.kernel)
         if self.bias is not None:
-            h += self.bias
+            h = ops.add(h, self.bias)
 
         if training and rec_dp_mask is not None:
             prev_output = prev_output * rec_dp_mask

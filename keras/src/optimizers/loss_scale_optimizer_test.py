@@ -40,7 +40,9 @@ class LossScaleOptimizerTest(testing.TestCase):
         if stateless:
             optimizer.build(vars)
             vars, _ = optimizer.stateless_apply(
-                optimizer.variables, grads, vars
+                [v.value for v in optimizer.variables],
+                grads,
+                [v.value for v in vars],
             )
         else:
             optimizer.apply(grads, vars)
@@ -60,7 +62,9 @@ class LossScaleOptimizerTest(testing.TestCase):
         if stateless:
             optimizer.build(vars)
             vars, _ = optimizer.stateless_apply(
-                optimizer.variables, grads, vars
+                [v.value for v in optimizer.variables],
+                grads,
+                [v.value for v in vars],
             )
         else:
             optimizer.apply(grads, vars)
@@ -79,7 +83,9 @@ class LossScaleOptimizerTest(testing.TestCase):
         if stateless:
             optimizer.build(vars)
             vars, _ = optimizer.stateless_apply(
-                optimizer.variables, grads, vars
+                [v.value for v in optimizer.variables],
+                grads,
+                [v.value for v in vars],
             )
         else:
             optimizer.apply(grads, vars)
@@ -98,7 +104,9 @@ class LossScaleOptimizerTest(testing.TestCase):
         if stateless:
             optimizer.build(vars)
             vars, _ = optimizer.stateless_apply(
-                optimizer.variables, grads, vars
+                [v.value for v in optimizer.variables],
+                grads,
+                [v.value for v in vars],
             )
         else:
             optimizer.apply(grads, vars)
@@ -112,12 +120,14 @@ class LossScaleOptimizerTest(testing.TestCase):
         optimizer = LossScaleOptimizer(inner_optimizer, initial_scale=400.0)
         vars = [backend.Variable([1.0, 2.0, 3.0, 4.0])]
         optimizer.build(vars)
-        opt_vars = optimizer.variables
+        opt_var_values = [v.value for v in optimizer.variables]
         grads = [ops.array([np.inf, np.inf, np.inf, np.inf])]
         for _ in range(4):
             if stateless:
-                _, opt_vars = optimizer.stateless_apply(opt_vars, grads, vars)
-                for ref_v, v in zip(optimizer.variables, opt_vars):
+                _, opt_var_values = optimizer.stateless_apply(
+                    opt_var_values, grads, [v.value for v in vars]
+                )
+                for ref_v, v in zip(optimizer.variables, opt_var_values):
                     ref_v.assign(v)
             else:
                 optimizer.apply(grads, vars)
@@ -135,12 +145,14 @@ class LossScaleOptimizerTest(testing.TestCase):
         )
         vars = [backend.Variable([1.0, 2.0, 3.0, 4.0])]
         optimizer.build(vars)
-        opt_vars = optimizer.variables
+        opt_var_values = [v.value for v in optimizer.variables]
         grads = [ops.array([1.0, 6.0, 7.0, 2.0])]
         for _ in range(8):
             if stateless:
-                _, opt_vars = optimizer.stateless_apply(opt_vars, grads, vars)
-                for ref_v, v in zip(optimizer.variables, opt_vars):
+                _, opt_var_values = optimizer.stateless_apply(
+                    opt_var_values, grads, [v.value for v in vars]
+                )
+                for ref_v, v in zip(optimizer.variables, opt_var_values):
                     ref_v.assign(v)
             else:
                 optimizer.apply(grads, vars)
@@ -154,15 +166,17 @@ class LossScaleOptimizerTest(testing.TestCase):
         optimizer = LossScaleOptimizer(inner_optimizer)
         vars = [backend.Variable([1.0, 2.0, 3.0, 4.0])]
         optimizer.build(vars)
-        opt_vars = optimizer.variables
+        opt_var_values = [v.value for v in optimizer.variables]
         grads = [ops.array([1.0, 6.0, 7.0, 2.0])]
 
         self.assertEqual(optimizer.iterations.value, 0)
 
         for i in range(3):
             if stateless:
-                _, opt_vars = optimizer.stateless_apply(opt_vars, grads, vars)
-                for ref_v, v in zip(optimizer.variables, opt_vars):
+                _, opt_var_values = optimizer.stateless_apply(
+                    opt_var_values, grads, [v.value for v in vars]
+                )
+                for ref_v, v in zip(optimizer.variables, opt_var_values):
                     ref_v.assign(v)
             else:
                 optimizer.apply(grads, vars)
