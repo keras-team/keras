@@ -8,7 +8,7 @@ from typing import Tuple
 import numpy as np
 
 import keras
-from keras import ops
+from keras.src import ops
 from keras.src import optimizers
 from keras.src.backend.distributed import backend_resolver
 
@@ -502,11 +502,13 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         else:
             resolved_base_optimizer = base_optimizer
 
-        lr_value = float(ops.convert_to_numpy(resolved_base_optimizer.learning_rate))
+        lr_value = float(
+            ops.convert_to_numpy(resolved_base_optimizer.learning_rate)
+        )
 
         super().__init__(
             learning_rate=lr_value,
-            name=f"TensorParallel_{resolved_base_optimizer.name}"
+            name=f"TensorParallel_{resolved_base_optimizer.name}",
         )
 
         self.base_optimizer = resolved_base_optimizer
@@ -545,23 +547,26 @@ class TensorParallelOptimizer(optimizers.Optimizer):
 
     def get_config(self) -> Dict[str, Any]:
         from keras.src import saving
+
         """Returns the serializable configuration of the optimizer."""
         config = super().get_config()
         config.pop("learning_rate", None)
         config.pop("name", None)
-        
+
         config.update(
             {
-                "base_optimizer": saving.serialize_keras_object(self.base_optimizer),
+                "base_optimizer": saving.serialize_keras_object(
+                    self.base_optimizer
+                ),
                 "world_size": self.world_size,
             }
         )
         return config
-    
-    @classmethod
 
+    @classmethod
     def from_config(cls, config: Dict[str, Any]) -> "TensorParallelOptimizer":
         from keras.src import saving
+
         base_optimizer_config = config.pop("base_optimizer")
         base_optimizer = saving.deserialize_keras_object(base_optimizer_config)
 
@@ -570,7 +575,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             "distributed_backend": config.get("distributed_backend", "auto"),
             "tensor_parallel_config": config.get("tensor_parallel_config"),
         }
-        
+
         return cls(base_optimizer=base_optimizer, **init_kwargs)
 
     def build(self, variables: List):
