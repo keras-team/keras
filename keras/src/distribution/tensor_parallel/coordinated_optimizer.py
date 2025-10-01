@@ -57,18 +57,7 @@ class CoordinatedOptimizer:
             if distributed_backend is not None
             else None
         )
-        self._variables = None # Will be set when optimizer is built
-
-    # In class CoordinatedOptimizer:
-
-# In class CoordinatedOptimizer:
-
-# In class CoordinatedOptimizer:
-
-# In class CoordinatedOptimizer:
-
-# In class CoordinatedOptimizer:
-# In class CoordinatedOptimizer:
+        self._variables = None
 
     def _get_optimizer_slot_names(self) -> set:
         """
@@ -76,34 +65,13 @@ class CoordinatedOptimizer:
         created by the base optimizer. This is the most robust method.
         """
         slot_names = set()
-        # The optimizer's variables have paths like 'Adam/m/dense/kernel'.
-        # We can extract the second part as the slot name.
         for var in self.base_optimizer.variables:
-            # Skip the iteration counter
             if "iteration" in var.path.lower():
                 continue
             path_parts = var.path.split('/')
             if len(path_parts) > 1:
                 slot_names.add(path_parts[1])
         return slot_names
-
-# In class CoordinatedOptimizer:
-
-# In class CoordinatedOptimizer:
-
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
-
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
-
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
-
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
-
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
-
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
-
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
 
     def _initialize_sharded_states(self):
         """
@@ -141,7 +109,6 @@ class CoordinatedOptimizer:
                     slot_name = slot_suffix.strip('_')
                     break
 
-            # THE FIX IS HERE: Explicitly check for 'is not None'
             if found_param is not None and slot_name is not None:
                 self._state_variable_to_parameter[state_var.path] = found_param
 
@@ -304,8 +271,6 @@ class CoordinatedOptimizer:
                 local_states[state_name] = state_value[shard_idx]
         return local_states
 
-# In coordinated_optimizer.py -> class CoordinatedOptimizer:
-
     def _update_optimizer_internal_state(self, local_states: dict):
         """Assigns local sharded state values to the optimizer's variables."""
         if not self.base_optimizer.built:
@@ -317,12 +282,9 @@ class CoordinatedOptimizer:
                     var.assign(local_states["iterations"])
                 continue
 
-            # THE FIX IS HERE: Use the variable's path for the lookup.
             param = self._state_variable_to_parameter.get(var.path, None)
             
             if param:
-                # This internal method is the most reliable way to get the
-                # slot name (e.g., "momentum") from the variable object.
                 slot_name = (
                     self.base_optimizer._get_slot_name_from_variable(var)
                 )
@@ -433,8 +395,6 @@ class CoordinatedOptimizer:
         This method is called from `build()`, which is guarded from running
         multiple times. We can assume this should always execute.
         """
-        # The check 'if not self.shard_optimizer_states:' was here and was
-        # incorrectly preventing this code from running. It has been removed.
         self.shard_optimizer_states = True
         self._variables = variables
         self._initialize_sharded_states()
@@ -607,23 +567,16 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         if self.built:
             return
 
-        # First, build the base optimizer with the variables.
         self.base_optimizer.build(variables)
         print(f"Variables after build: {[v.path for v in self.base_optimizer.variables]}")
 
-        # THE FINAL FIX: Force slot variable creation by applying zero gradients.
-        # This is necessary because optimizers create slots lazily on the first
-        # call to apply_gradients.
-        if variables:  # Only run if there are variables to optimize.
+        if variables:
             zero_grads = [ops.zeros_like(v) for v in variables]
             self.base_optimizer.apply_gradients(zip(zero_grads, variables))
 
-            # The dry run increments the iteration counter, so we reset it.
             if self.base_optimizer.iterations is not None:
                 self.base_optimizer.iterations.assign(0)
 
-        # Now that all state variables (m, v, etc.) are guaranteed to exist,
-        # we can safely initialize sharding.
         self.coordinated_optimizer.enable_optimizer_state_sharding(variables)
         super().build(variables)
 

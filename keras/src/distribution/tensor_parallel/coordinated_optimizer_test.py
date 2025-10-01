@@ -108,9 +108,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(base_apply_tracker["called"])
         self.assertFalse(coord_apply_tracker["called"])
 
-# In coordinated_optimizer_test.py
-
-# In coordinated_optimizer_test.py
 
     def test_build_and_state_sharding(self):
         """Tests that the build method correctly initializes sharded states."""
@@ -119,7 +116,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         )
         model = self._get_simple_model()
 
-        # Build the model so its trainable_variables list is populated.
         model.build(input_shape=(None, 10))
 
         self.assertEqual(optimizer.coordinated_optimizer.sharded_states, {})
@@ -127,9 +123,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(optimizer.built)
 
         sharded_states = optimizer.coordinated_optimizer.sharded_states
-        
-        # THE FIX IS HERE:
-        # Keras Adam uses 'momentum' and 'velocity' as its slot names, not 'm' and 'v'.
+
         self.assertIn("momentum", sharded_states)
         self.assertIn("velocity", sharded_states)
         self.assertIn("iterations", sharded_states)
