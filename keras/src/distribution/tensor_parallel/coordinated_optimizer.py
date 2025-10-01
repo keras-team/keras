@@ -201,26 +201,6 @@ class CoordinatedOptimizer:
                 synchronized_gradients, shard_models
             )
 
-    def _apply_gradients_with_sharded_states(
-        self, synchronized_gradients: List[List[tuple]], shard_models: List
-    ):
-        """Applies gradients to each shard using its local optimizer state.
-
-        For each shard, this method loads the corresponding partition of the
-        optimizer state into the base optimizer and then applies the shard's
-        gradients.
-
-        Args:
-            synchronized_gradients: The gradients after synchronization.
-            shard_models: The list of sharded models.
-        """
-        for shard_idx, shard_grads in enumerate(synchronized_gradients):
-            local_states = self._get_local_optimizer_states(shard_idx)
-            self._update_optimizer_internal_state(
-                self.base_optimizer, local_states
-            )
-            self.base_optimizer.apply_gradients(shard_grads)
-
     def _apply_gradients_with_replicated_states(
         self, synchronized_gradients: List[List[tuple]], shard_models: List
     ):
@@ -249,10 +229,12 @@ class CoordinatedOptimizer:
             if not grads_for_var:
                 continue
 
-            summed_grad = grads_for_var[0]
-            for grad in grads_for_var[1:]:
-                summed_grad += grad
-            averaged_grad = summed_grad / len(grads_for_var)
+            if len(grads_for_var) > 1:
+                stacked_grads = ops.stack(grads_for_var, axis=0)
+                averaged_grad = ops.mean(stacked_grads, axis=0)
+            else:
+                averaged_grad = grads_for_var[0]
+
             averaged_grads_and_vars.append((averaged_grad, variable))
 
         if averaged_grads_and_vars:
