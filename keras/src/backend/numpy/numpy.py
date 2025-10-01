@@ -173,15 +173,18 @@ def append(x1, x2, axis=None):
     return np.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [getattr(start, "dtype", type(start))]
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        if step is not None:
+            dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
+    if stop is None:
+        start, stop = 0, start
+    if step is None:
+        step = 1
     return np.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -833,6 +836,13 @@ def logaddexp(x1, x2):
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.logaddexp(x1, x2)
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return np.logaddexp2(x1, x2).astype(dtype)
 
 
 def logical_and(x1, x2):

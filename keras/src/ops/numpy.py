@@ -595,27 +595,28 @@ class Arange(Operation):
         super().__init__(name=name)
         self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def call(self, start, stop=None, step=1):
+    def call(self, start, stop=None, step=None):
         return backend.numpy.arange(start, stop, step=step, dtype=self.dtype)
 
-    def compute_output_spec(self, start, stop=None, step=1):
+    def compute_output_spec(self, start, stop=None, step=None):
         if stop is None:
             start, stop = 0, start
+        if step is None:
+            step = 1
         output_shape = [int(np.ceil((stop - start) / step))]
         dtype = self.dtype
         if dtype is None:
-            dtypes_to_resolve = [
-                getattr(start, "dtype", type(start)),
-                getattr(step, "dtype", type(step)),
-            ]
+            dtypes_to_resolve = [getattr(start, "dtype", type(start))]
             if stop is not None:
                 dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            if step is not None:
+                dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
             dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.arange", "keras.ops.numpy.arange"])
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     """Return evenly spaced values within a given interval.
 
     `arange` can be called with a varying number of positional arguments:
@@ -4238,6 +4239,47 @@ def logaddexp(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Logaddexp().symbolic_call(x1, x2)
     return backend.numpy.logaddexp(x1, x2)
+
+
+class Logaddexp2(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.logaddexp2(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            float,
+        )
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.logaddexp2", "keras.ops.numpy.logaddexp2"])
+def logaddexp2(x1, x2):
+    """Base-2 logarithm of the sum of exponentiations of the inputs.
+
+    Calculates `log2(2**x1 + 2**x2)`.
+
+    Args:
+        x1: Input tensor.
+        x2: Input tensor.
+
+    Returns:
+        Output tensor, element-wise log base 2 of the sum of 2**x1 and 2**x2.
+
+    Example:
+    >>> from keras import ops
+    >>> x1 = ops.array([1, 2, 3])
+    >>> x2 = ops.array([1, 2, 3])
+    >>> ops.logaddexp2(x1, x2)
+    array([2., 3., 4.], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Logaddexp2().symbolic_call(x1, x2)
+    return backend.numpy.logaddexp2(x1, x2)
 
 
 class LogicalAnd(Operation):
