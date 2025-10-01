@@ -29,10 +29,6 @@ def export_litert(
         aot_compile_targets: Optional list of Litert targets for AOT
             compilation.
         **kwargs: Additional keyword arguments passed to the exporter.
-
-    Returns:
-        The filepath to the exported artifact, or the compilation result when
-        AOT compilation is requested.
     """
 
     if verbose is None:
@@ -45,16 +41,9 @@ def export_litert(
         aot_compile_targets=aot_compile_targets,
         **kwargs,
     )
-    result = exporter.export(filepath)
+    exporter.export(filepath)
     if verbose:
-        if hasattr(result, "models"):
-            io_utils.print_msg(
-                f"Saved artifact at '{filepath}'. AOT compiled "
-                f"{len(result.models)} variant(s)."
-            )
-        else:
-            io_utils.print_msg(f"Saved artifact at '{result}'.")
-    return result
+        io_utils.print_msg(f"Saved artifact at '{filepath}'.")
 
 
 class LitertExporter:
