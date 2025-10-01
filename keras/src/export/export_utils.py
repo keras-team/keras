@@ -13,7 +13,7 @@ def get_input_signature(model):
         model: A Keras Model instance.
 
     Returns:
-        Input signature suitable for model export.
+        Input signature suitable for model export (always a tuple or list).
     """
     if not isinstance(model, models.Model):
         raise TypeError(
@@ -30,6 +30,9 @@ def get_input_signature(model):
         input_signature = tree.map_structure(
             make_input_spec, model._inputs_struct
         )
+        # Ensure single inputs are wrapped in a tuple for TensorFlow compatibility
+        if not isinstance(input_signature, (list, tuple)):
+            input_signature = (input_signature,)
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
@@ -48,6 +51,9 @@ def get_input_signature(model):
                     "once before export, or you must provide explicit "
                     "input_signature."
                 )
+        # Ensure single inputs are wrapped in a tuple for TensorFlow compatibility
+        if input_signature and not isinstance(input_signature, (list, tuple)):
+            input_signature = (input_signature,)
     return input_signature
 
 
@@ -59,6 +65,8 @@ def _infer_input_signature_from_model(model):
     def _make_input_spec(structure):
         # We need to turn wrapper structures like TrackingDict or _DictWrapper
         # into plain Python structures because they don't work with jax2tf/JAX.
+        if structure is None:
+            return None
         if isinstance(structure, dict):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
