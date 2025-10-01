@@ -1,0 +1,154 @@
+import numpy as np
+from coordinated_optimizer import CoordinatedOptimizer
+from coordinated_optimizer import TensorParallelOptimizer
+
+import keras
+from keras.src import optimizers
+from keras.src import testing
+
+
+class CoordinatedOptimizerTest(testing.TestCase):
+    def _get_simple_model(self):
+        """Creates a simple, uncompiled Keras model."""
+        inputs = keras.Input(shape=(10,))
+        x = keras.layers.Dense(20, name="dense_1")(inputs)
+        outputs = keras.layers.Dense(5, name="dense_2")(x)
+        return keras.Model(inputs, outputs)
+
+    def _get_mock_gradients_and_vars(self, model, world_size):
+        """Generates mock gradients and variables for N shards."""
+        model.build(input_shape=(None, 10))
+        variables = model.trainable_variables
+        grads_and_vars_per_shard = []
+        for i in range(world_size):
+            multiplier = float(i + 1)
+            gradients = [
+                keras.ops.convert_to_tensor(
+                    np.ones_like(v.numpy()) * multiplier, dtype="float32"
+                )
+                for v in variables
+            ]
+            grads_and_vars_per_shard.append(list(zip(gradients, variables)))
+        return grads_and_vars_per_shard
+
+    def test_initialization(self):
+        """Tests that the optimizer initializes with the correct defaults."""
+        base_optimizer = optimizers.Adam()
+        coord = CoordinatedOptimizer(
+            base_optimizer, world_size=4, distributed_backend=None
+        )
+        self.assertEqual(coord.base_optimizer, base_optimizer)
+        self.assertTrue(coord.shard_optimizer_states)
+        self.assertEqual(coord.sharded_states, {})
+
+    def test_apply_gradients_with_replicated_states(self):
+        """Tests that replicated gradients are averaged and applied once."""
+        class AdamWithCallCounter(optimizers.Adam):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.apply_gradients_call_count = 0
+                self.received_grads = []
+
+            def apply_gradients(self, grads_and_vars, *args, **kwargs):
+                self.apply_gradients_call_count += 1
+                self.received_grads = [g for g, v in grads_and_vars]
+
+        world_size = 4
+        model = self._get_simple_model()
+        optimizer = AdamWithCallCounter()
+        model.build((None, 10))
+        mock_grads = self._get_mock_gradients_and_vars(model, world_size)
+
+        coord = CoordinatedOptimizer(
+            optimizer,
+            world_size,
+            shard_optimizer_states=False,
+            distributed_backend=None,
+        )
+        coord.apply_gradients(mock_grads, [])
+
+        self.assertEqual(optimizer.apply_gradients_call_count, 1)
+        self.assertAllClose(
+            optimizer.received_grads[0],
+            np.ones_like(optimizer.received_grads[0]) * 2.5,
+        )
+
+    def test_init_from_string(self):
+        optimizer = TensorParallelOptimizer(
+            "adam", world_size=4, distributed_backend=None
+        )
+        self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
+
+    def test_apply_gradients_delegation(self):
+        """Tests that apply_gradients correctly delegates."""
+        world_size = 4
+        base_opt = optimizers.Adam()
+        optimizer = TensorParallelOptimizer(
+            base_opt, world_size, distributed_backend=None
+        )
+        model = self._get_simple_model()
+        mock_grads = self._get_mock_gradients_and_vars(model, world_size)
+
+        coord_apply_tracker = {"called": False}
+        optimizer.coordinated_optimizer.apply_gradients = (
+            lambda *a, **kw: coord_apply_tracker.update({"called": True})
+        )
+        base_apply_tracker = {"called": False}
+        optimizer.base_optimizer.apply_gradients = (
+            lambda *a, **kw: base_apply_tracker.update({"called": True})
+        )
+
+        optimizer.apply_gradients(mock_grads, shard_models=[])
+        self.assertTrue(coord_apply_tracker["called"])
+        self.assertFalse(base_apply_tracker["called"])
+
+        coord_apply_tracker["called"] = False
+        unsharded_grads = mock_grads[0]
+        optimizer.apply_gradients(unsharded_grads)
+        self.assertTrue(base_apply_tracker["called"])
+        self.assertFalse(coord_apply_tracker["called"])
+
+# In coordinated_optimizer_test.py
+
+# In coordinated_optimizer_test.py
+
+    def test_build_and_state_sharding(self):
+        """Tests that the build method correctly initializes sharded states."""
+        optimizer = TensorParallelOptimizer(
+            optimizers.Adam(), world_size=4, distributed_backend=None
+        )
+        model = self._get_simple_model()
+
+        # Build the model so its trainable_variables list is populated.
+        model.build(input_shape=(None, 10))
+
+        self.assertEqual(optimizer.coordinated_optimizer.sharded_states, {})
+        optimizer.build(model.trainable_variables)
+        self.assertTrue(optimizer.built)
+
+        sharded_states = optimizer.coordinated_optimizer.sharded_states
+        
+        # THE FIX IS HERE:
+        # Keras Adam uses 'momentum' and 'velocity' as its slot names, not 'm' and 'v'.
+        self.assertIn("momentum", sharded_states)
+        self.assertIn("velocity", sharded_states)
+        self.assertIn("iterations", sharded_states)
+
+        dense_1_kernel_path = model.get_layer("dense_1").kernel.path
+        self.assertIn(dense_1_kernel_path, sharded_states["momentum"])
+        self.assertEqual(len(sharded_states["momentum"][dense_1_kernel_path]), 4)
+
+    def test_serialization(self):
+        world_size = 4
+        base_opt = optimizers.Adam(learning_rate=0.1)
+        optimizer = TensorParallelOptimizer(
+            base_opt, world_size, distributed_backend=None
+        )
+
+        config = optimizer.get_config()
+        recreated = TensorParallelOptimizer.from_config(config)
+
+        self.assertEqual(recreated.world_size, world_size)
+        self.assertIsInstance(recreated.base_optimizer, optimizers.Adam)
+        self.assertIsNone(recreated.coordinated_optimizer.distributed_backend)
+        self.assertAllClose(recreated.base_optimizer.learning_rate, 0.1)
