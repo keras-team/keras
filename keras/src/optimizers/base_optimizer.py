@@ -631,6 +631,20 @@ class BaseOptimizer(KerasSaveable):
             g_acc.assign(n_g_acc)
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
+        """Stateless version of `apply` that returns modified variables.
+
+        Args:
+            optimizer_variables: list of tensors containing the current values
+                for the optimizer variables. These are native tensors and not
+                `keras.Variable`s.
+            grads: list of gradients to apply.
+            trainable_variables: list of tensors containing the current values
+                for the model variables. These are native tensors and not
+                `keras.Variable`s.
+
+        Returns: A tuple containing two list of tensors, the updated
+            `trainable_variables` and the updated `optimizer_variables`.
+        """
         self._check_super_called()
 
         if not self.built:
