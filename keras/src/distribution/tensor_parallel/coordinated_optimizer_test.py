@@ -32,82 +32,60 @@ class CoordinatedOptimizerTest(testing.TestCase):
         return grads_and_vars_per_shard
 
     def test_initialization(self):
+        """Tests that the optimizer initializes with the correct defaults."""
         base_optimizer = optimizers.Adam()
-        coord = CoordinatedOptimizer(base_optimizer, world_size=4)
+        coord = CoordinatedOptimizer(
+            base_optimizer, world_size=4, distributed_backend=None
+        )
         self.assertEqual(coord.base_optimizer, base_optimizer)
-        self.assertFalse(coord.shard_optimizer_states)
-
-    def test_parse_variable_name(self):
-        coord = CoordinatedOptimizer(optimizers.Adam(), world_size=4)
-
-        self.assertEqual(
-            coord._parse_variable_name("dense/kernel/_momentum"),
-            ("momentum", "dense/kernel/"),
-        )
-
-        self.assertEqual(
-            coord._parse_variable_name("dense/bias/_velocity"),
-            (
-                "velocity",
-                "dense/bias/",
-            ),
-        )
-        self.assertEqual(
-            coord._parse_variable_name("dense/bias/_v"),
-            (
-                "v",
-                "dense/bias/",
-            ),
-        )
-        self.assertEqual(
-            coord._parse_variable_name("dense/bias/_m"),
-            (
-                "m",
-                "dense/bias/",
-            ),
-        )
-
-    def test_initialize_sharded_states(self):
-        model = self._get_simple_model()
-        optimizer = optimizers.Adam()
-        model.build((None, 10))
-        optimizer.build(model.trainable_variables)
-
-        coord = CoordinatedOptimizer(optimizer, world_size=4)
         self.assertTrue(coord.shard_optimizer_states)
-        self.assertIn("momentum", coord.sharded_states)
-        self.assertIn("velocity", coord.sharded_states)
+        self.assertEqual(coord.sharded_states, {})
 
     def test_apply_gradients_with_replicated_states(self):
+        """Tests that replicated gradients are averaged and applied once."""
         class AdamWithCallCounter(optimizers.Adam):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.apply_gradients_call_count = 0
+                self.received_grads = []
 
-            def apply_gradients(self, *args, **kwargs):
+            def apply_gradients(self, grads_and_vars, *args, **kwargs):
                 self.apply_gradients_call_count += 1
+                self.received_grads = [g for g, v in grads_and_vars]
 
         world_size = 4
         model = self._get_simple_model()
         optimizer = AdamWithCallCounter()
         model.build((None, 10))
-        optimizer.build(model.trainable_variables)
         mock_grads = self._get_mock_gradients_and_vars(model, world_size)
 
         coord = CoordinatedOptimizer(
-            optimizer, world_size, shard_optimizer_states=False
+            optimizer,
+            world_size,
+            shard_optimizer_states=False,
+            distributed_backend=None,
         )
-        coord._apply_gradients_with_replicated_states(mock_grads, [])
+        coord.apply_gradients(mock_grads, [])
+
         self.assertEqual(optimizer.apply_gradients_call_count, 1)
+        self.assertAllClose(
+            optimizer.received_grads[0],
+            np.ones_like(optimizer.received_grads[0]) * 2.5,
+        )
 
     def test_init_from_string(self):
-        optimizer = TensorParallelOptimizer("adam", world_size=4)
+        optimizer = TensorParallelOptimizer(
+            "adam", world_size=4, distributed_backend=None
+        )
         self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
 
     def test_apply_gradients_delegation(self):
+        """Tests that apply_gradients correctly delegates."""
         world_size = 4
         base_opt = optimizers.Adam()
-        optimizer = TensorParallelOptimizer(base_opt, world_size)
+        optimizer = TensorParallelOptimizer(
+            base_opt, world_size, distributed_backend=None
+        )
         model = self._get_simple_model()
         mock_grads = self._get_mock_gradients_and_vars(model, world_size)
 
@@ -130,23 +108,41 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(base_apply_tracker["called"])
         self.assertFalse(coord_apply_tracker["called"])
 
-    def test_build(self):
-        optimizer = TensorParallelOptimizer(optimizers.Adam(), world_size=4)
+
+    def test_build_and_state_sharding(self):
+        """Tests that the build method correctly initializes sharded states."""
+        optimizer = TensorParallelOptimizer(
+            optimizers.Adam(), world_size=4, distributed_backend=None
+        )
         model = self._get_simple_model()
 
-        optimizer.build(model.trainable_variables)
+        model.build(input_shape=(None, 10))
 
+        self.assertEqual(optimizer.coordinated_optimizer.sharded_states, {})
+        optimizer.build(model.trainable_variables)
         self.assertTrue(optimizer.built)
-        self.assertTrue(optimizer.coordinated_optimizer.shard_optimizer_states)
+
+        sharded_states = optimizer.coordinated_optimizer.sharded_states
+
+        self.assertIn("momentum", sharded_states)
+        self.assertIn("velocity", sharded_states)
+        self.assertIn("iterations", sharded_states)
+
+        dense_1_kernel_path = model.get_layer("dense_1").kernel.path
+        self.assertIn(dense_1_kernel_path, sharded_states["momentum"])
+        self.assertEqual(len(sharded_states["momentum"][dense_1_kernel_path]), 4)
 
     def test_serialization(self):
         world_size = 4
         base_opt = optimizers.Adam(learning_rate=0.1)
-        optimizer = TensorParallelOptimizer(base_opt, world_size)
+        optimizer = TensorParallelOptimizer(
+            base_opt, world_size, distributed_backend=None
+        )
 
         config = optimizer.get_config()
         recreated = TensorParallelOptimizer.from_config(config)
 
         self.assertEqual(recreated.world_size, world_size)
         self.assertIsInstance(recreated.base_optimizer, optimizers.Adam)
-        self.assertAllClose(recreated.base_optimizer.learning_rate.numpy(), 0.1)
+        self.assertIsNone(recreated.coordinated_optimizer.distributed_backend)
+        self.assertAllClose(recreated.base_optimizer.learning_rate, 0.1)

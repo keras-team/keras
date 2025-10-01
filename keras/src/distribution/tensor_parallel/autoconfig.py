@@ -100,17 +100,7 @@ def _traverse_and_shard_layer(
             current_layer, module, full_name
         )
 
-        if mlp_type == "up_projection":
-            state_rules[f"^{full_name}.kernel$"] = SplitKeras(
-                world_size, 1, "column"
-            )
-            if current_layer.use_bias:
-                state_rules[f"^{full_name}.bias$"] = SplitKeras(
-                    world_size, 0, "column"
-                )
-            output_rules[f"^{full_name}$"] = {0: "no_comm"}
-
-        elif mlp_type == "down_projection":
+        if mlp_type == "down_projection":
             state_rules[f"^{full_name}.kernel$"] = SplitKeras(
                 world_size, 0, "row"
             )
@@ -143,7 +133,7 @@ def _traverse_and_shard_layer(
 
         if is_row_parallel:
             state_rules[f"^{full_name}.kernel$"] = SplitKeras(
-                world_size, 1, "row"
+                world_size, 0, "row"
             )
             output_rules[f"^{full_name}$"] = {0: "allreduce"}
         else:
@@ -155,8 +145,8 @@ def _traverse_and_shard_layer(
                 and current_layer.bias is not None
             ):
                 state_rules[f"^{full_name}.bias$"] = SplitKeras(
-                    world_size, -1, "column"
-                )
+                world_size, 0, "column"
+            )
             output_rules[f"^{full_name}$"] = {0: "no_comm"}
         return
 
@@ -180,29 +170,11 @@ def _traverse_and_shard_layer(
         ),
     ):
         return
-
-    if hasattr(current_layer, "layers") and current_layer.layers:
-        for sub_layer in current_layer.layers:
-            _traverse_and_shard_layer(
-                sub_layer,
-                module,
-                world_size,
-                state_rules,
-                output_rules,
-                processed_layers,
-                full_name,
-            )
-
-    for attr_name in dir(current_layer):
-        if attr_name.startswith("__") and attr_name.endswith("__"):
-            continue
-
-        if hasattr(current_layer, attr_name):
-            attr = getattr(current_layer, attr_name)
-
-            if isinstance(attr, layers.Layer) and attr is not current_layer:
+    else:
+        if hasattr(current_layer, "layers"):
+            for sub_layer in current_layer.layers:
                 _traverse_and_shard_layer(
-                    attr,
+                    sub_layer,
                     module,
                     world_size,
                     state_rules,
@@ -210,18 +182,6 @@ def _traverse_and_shard_layer(
                     processed_layers,
                     full_name,
                 )
-            elif isinstance(attr, (list, tuple)):
-                for item in attr:
-                    if isinstance(item, layers.Layer):
-                        _traverse_and_shard_layer(
-                            item,
-                            module,
-                            world_size,
-                            state_rules,
-                            output_rules,
-                            processed_layers,
-                            full_name,
-                        )
 
 
 def get_default_config_keras(
