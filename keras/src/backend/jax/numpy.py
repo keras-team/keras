@@ -3,6 +3,7 @@ import math
 
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
+from jax import export as jax_export
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
@@ -306,14 +307,20 @@ def append(x1, x2, axis=None):
     return jnp.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
+    def get_dtype(x):
+        if hasattr(x, "dtype"):
+            return x.dtype
+        if jax_export.is_symbolic_dim(x):
+            return int
+        return type(x)
+
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [get_dtype(start)]
         if stop is not None:
-            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            dtypes_to_resolve.append(get_dtype(stop))
+        if step is not None:
+            dtypes_to_resolve.append(get_dtype(step))
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = standardize_dtype(dtype)
     return jnp.arange(start, stop, step=step, dtype=dtype)
@@ -886,6 +893,15 @@ def logaddexp(x1, x2):
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return jnp.logaddexp(x1, x2)
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return jnp.logaddexp2(x1, x2)
 
 
 def logical_and(x1, x2):

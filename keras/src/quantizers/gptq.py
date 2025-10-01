@@ -2,6 +2,7 @@ import types
 from functools import partial
 
 from keras.src import ops
+from keras.src import quantizers
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.ops import linalg
@@ -475,6 +476,12 @@ class GPTQ:
         quantized = ops.cast(
             quantized, self.original_layer.quantized_kernel.dtype
         )
+
+        if self.config.weight_bits == 4:
+            # For 4-bit weights, we need to pack them into bytes
+            quantized, _, _ = quantizers.pack_int4(
+                quantized, axis=0, dtype="uint8"
+            )
 
         del self.original_layer._kernel
         self.original_layer.quantized_kernel.assign(quantized)
