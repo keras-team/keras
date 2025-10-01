@@ -60,7 +60,6 @@ class CoordinatedOptimizer:
         self._variables = None
         self._variable_to_slot_name = {}
 
-
     def _get_optimizer_slot_names(self) -> set:
         """
         Deduces the slot names ('m', 'v', etc.) by inspecting the variables
@@ -70,7 +69,7 @@ class CoordinatedOptimizer:
         for var in self.base_optimizer.variables:
             if "iteration" in var.path.lower():
                 continue
-            path_parts = var.path.split('/')
+            path_parts = var.path.split("/")
             if len(path_parts) > 1:
                 slot_names.add(path_parts[1])
         return slot_names
@@ -86,21 +85,21 @@ class CoordinatedOptimizer:
 
         self.sharded_states = {}
         self._state_variable_to_parameter = {}
-        self._variable_to_slot_name = {} # Reset the map
+        self._variable_to_slot_name = {}  # Reset the map
         opt_name = self.base_optimizer.name
 
         normalized_params = [
-            (p.path.replace('/', '_'), p) for p in self._variables
+            (p.path.replace("/", "_"), p) for p in self._variables
         ]
 
         for state_var in self.base_optimizer.variables:
             if state_var is self.base_optimizer.iterations:
                 continue
 
-            path_parts = state_var.path.split('/')
+            path_parts = state_var.path.split("/")
             if len(path_parts) != 2 or path_parts[0] != opt_name:
                 continue
-            
+
             state_suffix = path_parts[1]
 
             found_param = None
@@ -108,8 +107,8 @@ class CoordinatedOptimizer:
             for norm_param_path, param in normalized_params:
                 if state_suffix.startswith(norm_param_path):
                     found_param = param
-                    slot_suffix = state_suffix[len(norm_param_path):]
-                    slot_name = slot_suffix.strip('_')
+                    slot_suffix = state_suffix[len(norm_param_path) :]
+                    slot_name = slot_suffix.strip("_")
                     break
 
             if found_param is not None and slot_name is not None:
@@ -120,13 +119,17 @@ class CoordinatedOptimizer:
                 sharding_dim = 0
                 if self.tensor_parallel_config:
                     norm_param_name = found_param.path.replace("/", ".")
-                    for (p, a) in self.tensor_parallel_config.state_rules.items():
+                    for p, a in self.tensor_parallel_config.state_rules.items():
                         if re.search(p, norm_param_name) and hasattr(a, "dim"):
                             sharding_dim = a.dim
                             break
-                
-                partitioned_state = self._partition_state(state_var, dim=sharding_dim)
-                self.sharded_states.setdefault(slot_name, {})[found_param.path] = partitioned_state
+
+                partitioned_state = self._partition_state(
+                    state_var, dim=sharding_dim
+                )
+                self.sharded_states.setdefault(slot_name, {})[
+                    found_param.path
+                ] = partitioned_state
 
         if self.base_optimizer.iterations is not None:
             self.sharded_states["iterations"] = self._partition_state(
@@ -369,8 +372,7 @@ class CoordinatedOptimizer:
         if not gradients:
             return []
 
-        if (
-            self.distributed_backend is not None):
+        if self.distributed_backend is not None:
             numpy_grad = ops.convert_to_numpy(gradients[0])
             synced_numpy = self.distributed_backend.all_reduce(
                 numpy_grad, op="mean"
@@ -386,7 +388,9 @@ class CoordinatedOptimizer:
 
     def get_weights(self) -> List[np.ndarray]:
         """Returns the weights of the base optimizer."""
-        return [ops.convert_to_numpy(var) for var in self.base_optimizer.variables]
+        return [
+            ops.convert_to_numpy(var) for var in self.base_optimizer.variables
+        ]
 
     def set_weights(self, weights: List[np.ndarray]):
         """Sets the weights of the base optimizer."""
@@ -563,8 +567,6 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             return
 
         self.base_optimizer.build(variables)
-        print(f"Variables after build: {[v.path for v in self.base_optimizer.variables]}")
-
         if variables:
             zero_grads = [ops.zeros_like(v) for v in variables]
             self.base_optimizer.apply_gradients(zip(zero_grads, variables))
@@ -589,7 +591,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
     def learning_rate(self) -> Any:
         """Provides access to the learning rate of the base optimizer."""
         return self.base_optimizer.learning_rate
-        
+
     @property
     def iterations(self):
         """

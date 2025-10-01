@@ -43,6 +43,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
     def test_apply_gradients_with_replicated_states(self):
         """Tests that replicated gradients are averaged and applied once."""
+
         class AdamWithCallCounter(optimizers.Adam):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -108,7 +109,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(base_apply_tracker["called"])
         self.assertFalse(coord_apply_tracker["called"])
 
-
     def test_build_and_state_sharding(self):
         """Tests that the build method correctly initializes sharded states."""
         optimizer = TensorParallelOptimizer(
@@ -130,7 +130,9 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
         dense_1_kernel_path = model.get_layer("dense_1").kernel.path
         self.assertIn(dense_1_kernel_path, sharded_states["momentum"])
-        self.assertEqual(len(sharded_states["momentum"][dense_1_kernel_path]), 4)
+        self.assertEqual(
+            len(sharded_states["momentum"][dense_1_kernel_path]), 4
+        )
 
     def test_serialization(self):
         world_size = 4

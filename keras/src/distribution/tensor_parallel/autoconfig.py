@@ -145,8 +145,8 @@ def _traverse_and_shard_layer(
                 and current_layer.bias is not None
             ):
                 state_rules[f"^{full_name}.bias$"] = SplitKeras(
-                world_size, 0, "column"
-            )
+                    world_size, 0, "column"
+                )
             output_rules[f"^{full_name}$"] = {0: "no_comm"}
         return
 
