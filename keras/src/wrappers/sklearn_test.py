@@ -57,7 +57,7 @@ def wrapped_parametrize_with_checks(
     return parametrize_with_checks(estimators)
 
 
-def dynamic_model(X, y, loss, layers=[10]):
+def dynamic_model(X, y, loss, out_activation_function="softmax", layers=[10]):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
     classification loss and ouput activations.
     """
@@ -69,7 +69,7 @@ def dynamic_model(X, y, loss, layers=[10]):
         hidden = Dense(layer_size, activation="relu")(hidden)
 
     n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-    out = [Dense(n_outputs, activation="softmax")(hidden)]
+    out = [Dense(n_outputs, activation=out_activation_function)(hidden)]
     model = Model(inp, out)
     model.compile(loss=loss, optimizer="rmsprop")
 
@@ -158,3 +158,44 @@ def test_sklearn_estimator_checks(estimator, check):
             pytest.xfail("Backend not implemented")
         else:
             raise
+
+
+@pytest.mark.parametrize(
+    "estimator, has_predict_proba",
+    [
+        (
+            SKLearnClassifier(
+                model=dynamic_model,
+                model_kwargs={
+                    "out_activation_function": "softmax",
+                    "loss": "categorical_crossentropy",
+                },
+                fit_kwargs={"epochs": 1},
+            ),
+            True,
+        ),
+        (
+            SKLearnClassifier(
+                model=dynamic_model,
+                model_kwargs={
+                    "out_activation_function": "linear",
+                    "loss": "categorical_crossentropy",
+                },
+                fit_kwargs={"epochs": 1},
+            ),
+            False,
+        ),
+    ],
+)
+def test_sklearn_estimator_predict_proba(estimator, has_predict_proba):
+    X, y = sklearn.datasets.make_classification(
+        n_samples=100,
+        n_features=10,
+        n_informative=4,
+        n_classes=4,
+        random_state=42,
+    )
+
+    estimator.fit(X, y)
+
+    assert hasattr(estimator, "predict_proba") == has_predict_proba
