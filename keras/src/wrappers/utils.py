@@ -32,6 +32,21 @@ def _check_model(model):
         )
 
 
+def _estimator_has(attr):
+    def check(self):
+        from sklearn.utils.validation import check_is_fitted
+
+        check_is_fitted(self)
+        return (
+            True
+            if self.model_.layers[-1].activation.__name__
+            in ("sigmoid", "softmax")
+            else False
+        )
+
+    return check
+
+
 class TargetReshaper(TransformerMixin, BaseEstimator):
     """Convert 1D targets to 2D and back.
 
