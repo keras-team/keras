@@ -10,6 +10,7 @@ from keras.src.wrappers.fixes import _validate_data
 from keras.src.wrappers.fixes import type_of_target
 from keras.src.wrappers.utils import TargetReshaper
 from keras.src.wrappers.utils import _check_model
+from keras.src.wrappers.utils import _estimator_has
 from keras.src.wrappers.utils import assert_sklearn_installed
 
 try:
@@ -278,6 +279,7 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
     ```
     """
 
+    @sklearn.utils._available_if.available_if(_estimator_has("predict_proba"))
     def predict_proba(self, X):
         """Predict class probabilities of the input samples X."""
         from sklearn.utils.validation import check_is_fitted
