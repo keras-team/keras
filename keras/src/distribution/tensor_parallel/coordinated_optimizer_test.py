@@ -1,10 +1,15 @@
 import numpy as np
-from coordinated_optimizer import CoordinatedOptimizer
-from coordinated_optimizer import TensorParallelOptimizer
 
 import keras
+from keras import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    CoordinatedOptimizer,
+)
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    TensorParallelOptimizer,
+)
 
 
 class CoordinatedOptimizerTest(testing.TestCase):
@@ -23,7 +28,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
         for i in range(world_size):
             multiplier = float(i + 1)
             gradients = [
-                keras.ops.convert_to_tensor(
+                ops.convert_to_tensor(
                     np.ones_like(v.numpy()) * multiplier, dtype="float32"
                 )
                 for v in variables
@@ -91,13 +96,18 @@ class CoordinatedOptimizerTest(testing.TestCase):
         mock_grads = self._get_mock_gradients_and_vars(model, world_size)
 
         coord_apply_tracker = {"called": False}
-        optimizer.coordinated_optimizer.apply_gradients = (
-            lambda *a, **kw: coord_apply_tracker.update({"called": True})
-        )
+
+        def coord_apply_mock(*args, **kwargs):
+            coord_apply_tracker["called"] = True
+
+        optimizer.coordinated_optimizer.apply_gradients = coord_apply_mock
+
         base_apply_tracker = {"called": False}
-        optimizer.base_optimizer.apply_gradients = (
-            lambda *a, **kw: base_apply_tracker.update({"called": True})
-        )
+
+        def base_apply_mock(*args, **kwargs):
+            base_apply_tracker["called"] = True
+
+        optimizer.base_optimizer.apply_gradients = base_apply_mock
 
         optimizer.apply_gradients(mock_grads, shard_models=[])
         self.assertTrue(coord_apply_tracker["called"])
@@ -123,7 +133,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(optimizer.built)
 
         sharded_states = optimizer.coordinated_optimizer.sharded_states
-
         self.assertIn("momentum", sharded_states)
         self.assertIn("velocity", sharded_states)
         self.assertIn("iterations", sharded_states)
