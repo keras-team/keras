@@ -38,6 +38,23 @@ def list_devices(device_type=None):
     """
     return distribution_lib.list_devices(device_type)
 
+@keras_export("keras.distribution.get_best_devices")
+def get_best_devices(count):
+    """Return all the available devices based on the device type.
+
+    Note: in a distributed setting, global devices are returned.
+
+    Args:
+        device_type: string, one of `"cpu"`, `"gpu"` or `"tpu"`.
+            Defaults to `"gpu"` or `"tpu"` if available when
+            `device_type` is not provided. Otherwise
+            will return the `"cpu"` devices.
+
+    Return:
+        List of devices that are available for distribute computation.
+    """
+    return distribution_lib.get_best_devices(count)
+
 
 @keras_export("keras.distribution.initialize")
 def initialize(job_addresses=None, num_processes=None, process_id=None):

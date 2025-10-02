@@ -9,3 +9,4 @@ from keras.src.distribution.distribution_lib import distribution
 from keras.src.distribution.distribution_lib import initialize
 from keras.src.distribution.distribution_lib import list_devices
 from keras.src.distribution.distribution_lib import set_distribution
+from keras.src.distribution.distribution_lib import get_best_devices
