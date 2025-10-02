@@ -188,14 +188,24 @@ def test_sklearn_estimator_checks(estimator, check):
     ],
 )
 def test_sklearn_estimator_predict_proba(estimator, has_predict_proba):
-    X, y = sklearn.datasets.make_classification(
-        n_samples=100,
-        n_features=10,
-        n_informative=4,
-        n_classes=4,
-        random_state=42,
-    )
-
-    estimator.fit(X, y)
-
-    assert hasattr(estimator, "predict_proba") == has_predict_proba
+    """Checks that ``SKLearnClassifier`` exposes the ``predict_proba`` method
+    only when the model outputs probabilities.
+    """
+    try:
+        X, y = sklearn.datasets.make_classification(
+            n_samples=100,
+            n_features=10,
+            n_informative=4,
+            n_classes=4,
+            random_state=42,
+        )
+        estimator.fit(X, y)
+        assert hasattr(estimator, "predict_proba") == has_predict_proba
+    except Exception as exc:
+        if keras.config.backend() in ["numpy", "openvino"] and (
+            isinstance(exc, NotImplementedError)
+            or "NotImplementedError" in str(exc)
+        ):
+            pytest.xfail("Backend not implemented")
+        else:
+            raise
