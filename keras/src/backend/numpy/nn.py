@@ -164,13 +164,14 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = x.dtype
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
             f"Received: x.shape={x.shape} with axis={axis}"
         )
     x1, x2 = np.split(x, 2, axis)
-    return x1 * (1 / (1 + np.exp(-x2)))
+    return (x1 * sigmoid(x2)).astype(dtype)
 
 
 def hard_tanh(x):

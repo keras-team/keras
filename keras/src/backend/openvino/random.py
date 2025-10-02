@@ -22,21 +22,14 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    ov_type = OPENVINO_DTYPES[dtype]
-    seed = draw_seed(seed)
-    if isinstance(seed, OpenVINOKerasTensor):
-        seed1, seed2 = convert_to_numpy(seed)
+    seed_val = draw_seed(seed)
+    if isinstance(seed_val, OpenVINOKerasTensor):
+        seed_data = convert_to_numpy(seed_val)
     else:
-        seed1, seed2 = draw_seed(seed).data
-    minval_const = ov_opset.constant(minval, dtype=dtype)
-    maxval_const = ov_opset.constant(maxval, dtype=dtype)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    output_shape_const = ov_opset.constant(shape, dtype=Type.i32)
-    random_uniform = ov_opset.random_uniform(
-        output_shape_const, minval_const, maxval_const, ov_type, seed1, seed2
-    )
-    return OpenVINOKerasTensor(random_uniform.output(0))
+        seed_data = seed_val.data
+    rng = np.random.default_rng(seed_data)
+    random_values = rng.uniform(minval, maxval, size=shape).astype(dtype)
+    return OpenVINOKerasTensor(ov_opset.constant(random_values).output(0))
 
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
