@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import keras
 from keras import ops
@@ -12,6 +13,10 @@ from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
 )
 
 
+@pytest.mark.skipif(
+    keras.backend.backend() == "openvino",
+    reason="CoordinatedOptimizer is not yet supported on the OpenVINO backend.",
+)
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
         """Creates a simple, uncompiled Keras model."""
@@ -58,6 +63,8 @@ class CoordinatedOptimizerTest(testing.TestCase):
             def apply_gradients(self, grads_and_vars, *args, **kwargs):
                 self.apply_gradients_call_count += 1
                 self.received_grads = [g for g, v in grads_and_vars]
+                # Call the superclass method to ensure variables are updated
+                super().apply_gradients(grads_and_vars, *args, **kwargs)
 
         world_size = 4
         model = self._get_simple_model()
@@ -74,6 +81,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
         coord.apply_gradients(mock_grads, [])
 
         self.assertEqual(optimizer.apply_gradients_call_count, 1)
+        # The average of multipliers 1, 2, 3, 4 is (1+2+3+4)/4 = 10/4 = 2.5
         self.assertAllClose(
             optimizer.received_grads[0],
             np.ones_like(optimizer.received_grads[0]) * 2.5,

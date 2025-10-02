@@ -1,6 +1,6 @@
 import os
 
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 
 from keras import Input
 from keras import Model
@@ -24,7 +24,10 @@ class TestAutoConfigKeras(testing.TestCase):
         device_info = backend.get_device_info()
         self.world_size = device_info["device_count"]
         self.device_ids = [f"device:{i}" for i in range(self.world_size)]
-        self.assertEqual(self.world_size, 4)
+
+        self.assertGreater(
+            self.world_size, 1, "Distribution tests require more than 1 device."
+        )
 
     def _assert_split_keras_equal(self, rule1, rule2):
         """
