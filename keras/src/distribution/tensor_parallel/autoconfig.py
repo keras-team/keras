@@ -1,14 +1,12 @@
 from typing import Sequence
 
-from keras.src import layers
 from keras.src.distribution.tensor_parallel.config import ConfigKeras
 from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
-from keras.src.models import Model
 
 
-def analyze_dense_layer_directly(
-    layer: layers.Dense, module: Model, prefix: str
-) -> str:
+def analyze_dense_layer_directly(layer, module, prefix: str) -> str:
+    from keras.src import layers
+
     """Analyzes a Dense layer to classify it for tensor parallelism sharding.
 
     This function inspects the layer's weight shapes to determine if it's an
@@ -63,14 +61,16 @@ def analyze_dense_layer_directly(
 
 
 def _traverse_and_shard_layer(
-    current_layer: layers.Layer,
-    module: Model,
+    current_layer,
+    module,
     world_size: int,
     state_rules: dict,
     output_rules: dict,
     processed_layers: set,
     prefix: str = "",
 ):
+    from keras.src import layers
+
     """Traverses a layer and its sub-layers to apply sharding rules.
 
     This function navigates through the model's layer hierarchy. For each
@@ -184,9 +184,7 @@ def _traverse_and_shard_layer(
                 )
 
 
-def get_default_config_keras(
-    module: Model, device_ids: Sequence[str]
-) -> ConfigKeras:
+def get_default_config_keras(module, device_ids: Sequence[str]) -> ConfigKeras:
     """Generates a smart, recursive sharding configuration for a Keras model.
 
     This function traverses the layers of a given Keras model and applies a

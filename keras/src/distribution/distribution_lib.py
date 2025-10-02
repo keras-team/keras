@@ -38,6 +38,7 @@ def list_devices(device_type=None):
     """
     return distribution_lib.list_devices(device_type)
 
+
 @keras_export("keras.distribution.get_best_devices")
 def get_best_devices(count):
     """Return all the available devices based on the device type.

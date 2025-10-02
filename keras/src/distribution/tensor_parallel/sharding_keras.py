@@ -4,7 +4,6 @@ from typing import Dict
 from typing import List
 from typing import Sequence
 
-from keras.src import Model
 from keras.src.distribution.tensor_parallel.config import ConfigKeras
 
 
@@ -15,7 +14,7 @@ class ShardedKeras:
 
     def __init__(
         self,
-        model_shards: List[Model],
+        model_shards,
         replicated_param_names: Collection[str],
         tensor_parallel_config: ConfigKeras,
         devices: Sequence[str],
