@@ -1,4 +1,4 @@
-import openvino.runtime.opset14 as ov_opset
+import openvino.opset14 as ov_opset
 from openvino import Type
 
 from keras.src import backend
@@ -486,3 +486,19 @@ def ctc_decode(
 
 def psnr(x1, x2, max_val):
     raise NotImplementedError("`psnr` is not supported with openvino backend")
+
+
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+    attn_logits_soft_cap=None,
+):
+    raise NotImplementedError(
+        "`dot_product_attention` is not supported with openvino backend"
+    )

@@ -105,7 +105,10 @@ class JAXTrainer(base_trainer.Trainer):
             ]
         ) as scope:
             self._loss_tracker.update_state(
-                unscaled_loss, sample_weight=tree.flatten(x)[0].shape[0]
+                unscaled_loss,
+                sample_weight=next(
+                    i for i in tree.flatten(x) if i is not None
+                ).shape[0],
             )
             logs = self.compute_metrics(x, y, y_pred, sample_weight)
 
@@ -153,7 +156,7 @@ class JAXTrainer(base_trainer.Trainer):
             metrics_variables, unscaled_loss, x, y, y_pred, sample_weight
         )
 
-        state = self._enforce_jax_state_sharding(
+        state = (
             trainable_variables,
             non_trainable_variables,
             optimizer_variables,
@@ -185,17 +188,6 @@ class JAXTrainer(base_trainer.Trainer):
             metrics_variables, unscaled_loss, x, y, y_pred, sample_weight
         )
 
-        (
-            trainable_variables,
-            non_trainable_variables,
-            _,
-            metrics_variables,
-        ) = self._enforce_jax_state_sharding(
-            trainable_variables=trainable_variables,
-            non_trainable_variables=non_trainable_variables,
-            optimizer_variables=None,
-            metrics_variables=metrics_variables,
-        )
         state = (
             trainable_variables,
             non_trainable_variables,
@@ -212,17 +204,6 @@ class JAXTrainer(base_trainer.Trainer):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
         outputs, non_trainable_variables = self.stateless_call(
             trainable_variables, non_trainable_variables, x, **kwargs
-        )
-        (
-            _,
-            non_trainable_variables,
-            _,
-            _,
-        ) = self._enforce_jax_state_sharding(
-            trainable_variables=None,
-            non_trainable_variables=non_trainable_variables,
-            optimizer_variables=None,
-            metrics_variables=None,
         )
         return outputs, non_trainable_variables
 
@@ -281,11 +262,15 @@ class JAXTrainer(base_trainer.Trainer):
         if self.train_function is not None and not force:
             return
         if not self.run_eagerly and self.jit_compile:
-            # Note that we mark the state to be donated to jax,
-            # so that jax will reuse the memory buffer for outputs.
-            # This will reduce the memory usage of the training function by
-            # half.
-            train_step = jit(self.train_step, donate_argnums=0)
+            out_shardings = None
+            if distribution_lib.distribution() is not None:
+                state_shardings = self._get_state_sharding_spec()
+                out_shardings = (None, state_shardings)
+            train_step = jit(
+                self.train_step,
+                donate_argnums=0,
+                out_shardings=out_shardings,
+            )
         else:
             train_step = self.train_step
 
@@ -297,12 +282,25 @@ class JAXTrainer(base_trainer.Trainer):
         if self.test_function is not None and not force:
             return
         if not self.run_eagerly and self.jit_compile:
-            # Note that we mark the state to be donated to jax,
-            # so that jax will reuse the memory buffer for outputs.
-            # This will reduce the memory usage of the training function by
-            # half.
-            test_step = jit(self.test_step, donate_argnums=0)
-
+            out_shardings = None
+            if distribution_lib.distribution() is not None:
+                (
+                    trainable_shardings,
+                    non_trainable_shardings,
+                    _,  # optimizer_shardings
+                    metrics_shardings,
+                ) = self._get_state_sharding_spec()
+                state_shardings = (
+                    trainable_shardings,
+                    non_trainable_shardings,
+                    metrics_shardings,
+                )
+                out_shardings = (None, state_shardings)
+            test_step = jit(
+                self.test_step,
+                donate_argnums=0,
+                out_shardings=out_shardings,
+            )
         else:
             test_step = self.test_step
 
@@ -319,7 +317,24 @@ class JAXTrainer(base_trainer.Trainer):
             return outputs, (state[0], non_trainable_variables)
 
         if not self.run_eagerly and self.jit_compile:
-            predict_step = jit(predict_step, donate_argnums=0)
+            out_shardings = None
+            if distribution_lib.distribution() is not None:
+                (
+                    trainable_shardings,
+                    non_trainable_shardings,
+                    _,  # optimizer_shardings
+                    _,  # metrics_shardings
+                ) = self._get_state_sharding_spec()
+                state_shardings = (
+                    trainable_shardings,
+                    non_trainable_shardings,
+                )
+                out_shardings = (None, state_shardings)
+            predict_step = jit(
+                predict_step,
+                donate_argnums=0,
+                out_shardings=out_shardings,
+            )
 
         _step_function = self._make_function(
             predict_step, concatenate_outputs=True
@@ -402,7 +417,6 @@ class JAXTrainer(base_trainer.Trainer):
                 steps=epoch_iterator.num_batches,
                 model=self,
             )
-        self._record_training_state_sharding_spec()
 
         self.make_train_function()
         self.stop_training = False
@@ -493,7 +507,7 @@ class JAXTrainer(base_trainer.Trainer):
                         _use_cached_eval_dataset=True,
                     )
                     val_logs = {
-                        "val_" + name: val for name, val in val_logs.items()
+                        f"val_{name}": val for name, val in val_logs.items()
                     }
                     epoch_logs.update(val_logs)
 
@@ -518,7 +532,6 @@ class JAXTrainer(base_trainer.Trainer):
             if training_finished:
                 callbacks.on_train_end(logs=training_logs)
             self._jax_state = None
-            self._clear_jax_state_sharding()
         return self.history
 
     @traceback_utils.filter_traceback
@@ -568,7 +581,6 @@ class JAXTrainer(base_trainer.Trainer):
                 steps=epoch_iterator.num_batches,
                 model=self,
             )
-        self._record_training_state_sharding_spec()
 
         self.make_test_function()
         self.stop_evaluating = False
@@ -620,9 +632,6 @@ class JAXTrainer(base_trainer.Trainer):
         logs = self._get_metrics_result_or_logs(logs)
         callbacks.on_test_end(logs)
         self._jax_state = None
-        if not use_cached_eval_dataset:
-            # Only clear sharding if evaluate is not called from `fit`.
-            self._clear_jax_state_sharding()
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -664,7 +673,6 @@ class JAXTrainer(base_trainer.Trainer):
                 steps=epoch_iterator.num_batches,
                 model=self,
             )
-        self._record_training_state_sharding_spec()
 
         self.make_predict_function()
         self.stop_predicting = False
@@ -723,7 +731,6 @@ class JAXTrainer(base_trainer.Trainer):
         self.jax_state_sync()
         callbacks.on_predict_end()
         self._jax_state = None
-        self._clear_jax_state_sharding()
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
@@ -752,7 +759,6 @@ class JAXTrainer(base_trainer.Trainer):
 
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
-        self._record_training_state_sharding_spec()
         self.make_train_function()
 
         # Train step
@@ -801,7 +807,6 @@ class JAXTrainer(base_trainer.Trainer):
 
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
-        self._record_training_state_sharding_spec()
         self.make_test_function()
 
         # Test step
@@ -834,7 +839,6 @@ class JAXTrainer(base_trainer.Trainer):
             # Build model
             with backend.StatelessScope():
                 self(x)
-        self._record_training_state_sharding_spec()
         self.make_predict_function()
 
         state = self._get_jax_state(
@@ -884,75 +888,25 @@ class JAXTrainer(base_trainer.Trainer):
                 ref_v.assign(v)
         self._jax_state_synced = True
 
-    def _record_training_state_sharding_spec(self):
-        self._trainable_variable_shardings = [
+    def _get_state_sharding_spec(self):
+        trainable_shardings = [
             v.value.sharding for v in self.trainable_variables
         ]
-        self._non_trainable_variable_shardings = [
+        non_trainable_shardings = [
             v.value.sharding for v in self.non_trainable_variables
         ]
         if hasattr(self, "optimizer") and self.optimizer is not None:
-            self._optimizer_variable_shardings = [
+            optimizer_shardings = [
                 v.value.sharding for v in self.optimizer.variables
             ]
         else:
-            self._optimizer_variable_shardings = []
-        self._metrics_variable_shardings = [
-            v.value.sharding for v in self.metrics_variables
-        ]
-
-    def _clear_jax_state_sharding(self):
-        self._trainable_variable_shardings = None
-        self._non_trainable_variable_shardings = None
-        self._optimizer_variable_shardings = None
-        self._metrics_variable_shardings = None
-
-    def _enforce_jax_state_sharding(
-        self,
-        trainable_variables=None,
-        non_trainable_variables=None,
-        optimizer_variables=None,
-        metrics_variables=None,
-    ):
-        """Enforce the sharding spec constraint for all the training state.
-
-        Since the output of the train/eval step will be used as inputs to next
-        step, we need to ensure that they have the same sharding spec, so that
-        nnx.jit/jax.jit won't have to recompile the train/eval function.
-
-        Note that this function will also rely on the recorded sharding spec
-        for each of states.
-
-        This function is expected to be called within the jitted train/eval
-        function, especially around the end of the function.
-        """
-        trainable_variables = trainable_variables or []
-        non_trainable_variables = non_trainable_variables or []
-        optimizer_variables = optimizer_variables or []
-        metrics_variables = metrics_variables or []
-
-        for i in range(len(trainable_variables)):
-            trainable_variables[i] = jax.lax.with_sharding_constraint(
-                trainable_variables[i], self._trainable_variable_shardings[i]
-            )
-        for i in range(len(non_trainable_variables)):
-            non_trainable_variables[i] = jax.lax.with_sharding_constraint(
-                non_trainable_variables[i],
-                self._non_trainable_variable_shardings[i],
-            )
-        for i in range(len(optimizer_variables)):
-            optimizer_variables[i] = jax.lax.with_sharding_constraint(
-                optimizer_variables[i], self._optimizer_variable_shardings[i]
-            )
-        for i in range(len(metrics_variables)):
-            metrics_variables[i] = jax.lax.with_sharding_constraint(
-                metrics_variables[i], self._metrics_variable_shardings[i]
-            )
+            optimizer_shardings = []
+        metrics_shardings = [v.value.sharding for v in self.metrics_variables]
         return (
-            trainable_variables,
-            non_trainable_variables,
-            optimizer_variables,
-            metrics_variables,
+            trainable_shardings,
+            non_trainable_shardings,
+            optimizer_shardings,
+            metrics_shardings,
         )
 
     def _purge_model_variables(

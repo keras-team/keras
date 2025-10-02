@@ -32,6 +32,7 @@ from keras.src.ops.core import vectorized_map as vectorized_map
 from keras.src.ops.core import while_loop as while_loop
 from keras.src.ops.einops import rearrange as rearrange
 from keras.src.ops.linalg import cholesky as cholesky
+from keras.src.ops.linalg import cholesky_inverse as cholesky_inverse
 from keras.src.ops.linalg import det as det
 from keras.src.ops.linalg import eig as eig
 from keras.src.ops.linalg import eigh as eigh
@@ -186,6 +187,7 @@ from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like
+from keras.src.ops.numpy import gcd as gcd
 from keras.src.ops.numpy import get_item as get_item
 from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
@@ -194,6 +196,7 @@ from keras.src.ops.numpy import hanning as hanning
 from keras.src.ops.numpy import heaviside as heaviside
 from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hstack as hstack
+from keras.src.ops.numpy import hypot as hypot
 from keras.src.ops.numpy import identity as identity
 from keras.src.ops.numpy import imag as imag
 from keras.src.ops.numpy import inner as inner
@@ -202,7 +205,11 @@ from keras.src.ops.numpy import isfinite as isfinite
 from keras.src.ops.numpy import isin as isin
 from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
+from keras.src.ops.numpy import isneginf as isneginf
+from keras.src.ops.numpy import isposinf as isposinf
 from keras.src.ops.numpy import kaiser as kaiser
+from keras.src.ops.numpy import kron as kron
+from keras.src.ops.numpy import lcm as lcm
 from keras.src.ops.numpy import left_shift as left_shift
 from keras.src.ops.numpy import less as less
 from keras.src.ops.numpy import less_equal as less_equal
@@ -212,6 +219,7 @@ from keras.src.ops.numpy import log1p as log1p
 from keras.src.ops.numpy import log2 as log2
 from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import logaddexp as logaddexp
+from keras.src.ops.numpy import logaddexp2 as logaddexp2
 from keras.src.ops.numpy import logical_and as logical_and
 from keras.src.ops.numpy import logical_not as logical_not
 from keras.src.ops.numpy import logical_or as logical_or

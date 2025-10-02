@@ -1,5 +1,6 @@
 import sys
 
+import numpy as np
 import pytest
 from absl.testing import parameterized
 
@@ -8,6 +9,12 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
+from keras.src.quantizers.quantizers import compute_quantization_parameters
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
+from keras.src.quantizers.quantizers import dequantize_with_zero_point
+from keras.src.quantizers.quantizers import quantize_with_sz_map
+from keras.src.quantizers.quantizers import quantize_with_zero_point
+from keras.src.testing.test_utils import named_product
 
 
 class QuantizersTest(testing.TestCase):
@@ -107,49 +114,57 @@ class QuantizersTest(testing.TestCase):
         # A loose assertion due to an expected quantization error
         self.assertAllClose(qdq_values, values, atol=5e-1)
 
+    SHAPE_AXIS_SCENARIOS = [
+        # 1. 2D Tensors
+        # Covers the unpack fast path (rank=2, axis=0) for both parities
+        {"testcase_name": "2d_axis0_odd", "shape": (5, 8), "axis": 0},
+        {"testcase_name": "2d_axis0_even", "shape": (4, 8), "axis": 0},
+        # Covers the general path and a negative axis for 2D tensors
+        {"testcase_name": "2d_axis1_odd", "shape": (8, 7), "axis": 1},
+        {"testcase_name": "2d_axis_neg1_even", "shape": (8, 6), "axis": -1},
+        # 2. Higher-Rank Tensors
+        # Covers a middle axis for a complex shape with both parities
+        {"testcase_name": "4d_axis1_odd", "shape": (2, 5, 4, 6), "axis": 1},
+        {"testcase_name": "4d_axis2_even", "shape": (2, 4, 8, 6), "axis": 2},
+        # Covers the last axis of a complex shape with a negative index
+        {
+            "testcase_name": "4d_axis_neg1_odd",
+            "shape": (2, 4, 6, 7),
+            "axis": -1,
+        },
+    ]
+
+    DTYPE_PARAMS = [
+        {"testcase_name": "int8", "dtype": "int8", "minval": -8, "maxval": 8},
+        {"testcase_name": "uint8", "dtype": "uint8", "minval": 0, "maxval": 16},
+    ]
+
     @parameterized.named_parameters(
-        ("even_rows", (4, 5), 0),
-        ("odd_rows", (5, 5), 0),
-        ("even_rows_axis_0_negative", (4, 5), -1),
-        ("odd_rows_axis_0_negative", (5, 5), -1),
-        ("even_rows_axis_1", (4, 6), 1),
-        ("odd_rows_axis_1", (4, 7), 1),
-        ("3d_even_rows_axis_0", (4, 5, 3), 0),
-        ("3d_odd_rows_axis_0", (5, 5, 3), 0),
-        ("3d_even_rows_axis_1", (4, 6, 3), 1),
-        ("3d_odd_rows_axis_1", (4, 7, 3), 1),
-        ("3d_even_rows_axis_2", (4, 5, 6), 2),
-        ("3d_odd_rows_axis_2", (4, 5, 7), 2),
-        ("4d_odd_rows_axis_0", (2, 3, 5, 4), 0),
-        ("4d_odd_rows_axis_1", (2, 3, 5, 4), 1),
-        ("4d_odd_rows_axis_2", (2, 3, 5, 4), 2),
-        ("4d_odd_rows_axis_3", (2, 3, 5, 4), 3),
-        ("4d_even_rows_axis_0", (2, 4, 5, 4), 0),
-        ("4d_even_rows_axis_1", (2, 4, 5, 4), 1),
-        ("4d_even_rows_axis_2", (2, 4, 5, 4), 2),
-        ("4d_even_rows_axis_3", (2, 4, 5, 4), 3),
-        ("4d_even_rows_axis_0_negative", (2, 4, 5, 4), -1),
-        ("4d_even_rows_axis_1_negative", (2, 4, 5, 4), -2),
-        ("4d_even_rows_axis_2_negative", (2, 4, 5, 4), -3),
-        ("4d_even_rows_axis_3_negative", (2, 4, 5, 4), -4),
+        named_product(SHAPE_AXIS_SCENARIOS, DTYPE_PARAMS)
     )
-    def test_pack_unpack_int4(self, shape, axis):
-        # Create a random tensor with int4 values [-8, 7]
+    def test_pack_unpack_int4(self, shape, axis, dtype, minval, maxval):
+        # Create a random tensor with int4 values in the specified range and
+        # dtype
         arr = ops.cast(
-            ops.floor(random.uniform(shape, minval=-8, maxval=8)), "int8"
+            ops.floor(random.uniform(shape, minval=minval, maxval=maxval)),
+            dtype,
         )
 
-        # Pack the tensor
-        packed, packed_shape, orig_len = quantizers.pack_int4(arr, axis=axis)
+        # Pack the tensor using the specified dtype
+        packed, packed_shape, orig_len = quantizers.pack_int4(
+            arr, axis=axis, dtype=dtype
+        )
 
-        # Unpack the tensor
-        unpacked = quantizers.unpack_int4(packed, orig_len, axis=axis)
+        # Unpack the tensor using the specified dtype
+        unpacked = quantizers.unpack_int4(
+            packed, orig_len, axis=axis, dtype=dtype
+        )
 
-        # Verify that the packed tensor is int8
-        self.assertDType(packed, "int8")
+        # Verify that the packed tensor has the correct dtype
+        self.assertDType(packed, dtype)
 
-        # Verify that the unpacked tensor is int8
-        self.assertDType(unpacked, "int8")
+        # Verify that the unpacked tensor has the correct dtype
+        self.assertDType(unpacked, dtype)
 
         # The unpacked tensor should be the same as the original tensor
         self.assertAllClose(unpacked, arr)
@@ -580,3 +595,338 @@ class QuantizersTest(testing.TestCase):
         )
         self.assertDType(outputs, "float16")
         self.assertAllClose(outputs, expected)
+
+
+class GPTQQuantizerTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("bits_2_sym_False", 2, False),
+        ("bits_4_sym_False", 4, False),
+        ("bits_8_sym_False", 8, False),
+        ("bits_2_sym_True", 2, True),
+        ("bits_4_sym_True", 4, True),
+        ("bits_8_sym_True", 8, True),
+    )
+    def test_quantize_dequantize_roundtrip_error_bound_per_tensor(
+        self, bits, symmetric
+    ):
+        """
+        For finite inputs and positive scales, the reconstruction error
+        |x_hat - clip(x)| is bounded by 0.5 * scale elementwise.
+        """
+        rng = np.random.default_rng(0)
+        x = ops.array(rng.standard_normal((64, 32)), "float32")
+        scale = ops.array(0.05)  # per-tensor scale
+        maxq = ops.array(ops.subtract(ops.power(2, bits), 1), "float32")
+        zero = ops.array(maxq / 2.0 if symmetric else 3.0, "float32")
+
+        quantized = quantize_with_zero_point(x, scale, zero, maxq)
+        dequantized = dequantize_with_zero_point(quantized, scale, zero)
+
+        # Representable dequantization range:
+        # [scale*(0 - zero), scale*(maxq - zero)]
+        lo = ops.multiply(scale, ops.subtract(ops.array(0.0), zero))
+        hi = ops.multiply(scale, ops.subtract(maxq, zero))
+        x_clipped = ops.clip(x, lo, hi)
+
+        err = ops.abs(dequantized - x_clipped)
+        self.assertTrue(
+            ops.all(err <= (ops.add(ops.multiply(0.5, scale), 1e-7)))
+        )
+
+    def test_quantize_clipping_behavior_extremes(self):
+        """
+        Very negative q == 0 ; very positive q == maxq.
+        """
+        maxq = ops.array(15.0)
+        scale = ops.array(0.1)
+        zero = ops.array(7.0)
+
+        x = ops.array([[-1e6, 1e6]], "float32")
+        quantized = quantize_with_zero_point(x, scale, zero, maxq)
+
+        self.assertEqual(quantized.shape, (1, 2))
+        self.assertEqual(quantized[0, 0], 0.0)
+        self.assertEqual(quantized[0, 1], maxq)
+
+    def test_zero_scale_guard_no_nans_for_finite_inputs(self):
+        """
+        If scale == 0, quantize should not produce NaNs (uses epsilon
+        replacement).
+        """
+        x = ops.array([[0.0, 1.0, -2.0]])
+        scale = ops.array(0.0)  # triggers epsilon path
+        zero = ops.array(5.0)
+        maxq = ops.array(15.0)
+
+        q = quantize_with_zero_point(x, scale, zero, maxq)
+        self.assertFalse(ops.any(ops.isnan(q)))
+
+        # Dequantize should also be finite
+        x_hat = dequantize_with_zero_point(q, scale, zero)
+        self.assertTrue(ops.all(ops.isfinite(x_hat)))
+
+    @parameterized.parameters(4, 8)
+    def test_idempotent_quantize_when_input_is_already_levels(self, bits):
+        """
+        If input is already exactly on representable dequantized grid,
+        quantize→dequantize should return the same values (within float eps).
+        """
+        scale = ops.array(0.125)
+        maxq = ops.array(ops.subtract(ops.power(2, bits), 1), "float32")
+        zero = ops.array(ops.divide(maxq, 2.0))
+
+        # Build dequantized grid points: x = scale * (k - zero), k in [0..maxq]
+        ks = ops.arange(0, ops.add(maxq, 1))
+        x_vals = ops.multiply(scale, ops.subtract(ks, zero))
+        x = ops.reshape(x_vals, (1, -1))
+
+        q = quantize_with_zero_point(x, scale, zero, maxq)
+        x_hat = dequantize_with_zero_point(q, scale, zero)
+        self.assertAllClose(x_hat, x, rtol=0, atol=1e-6)
+
+
+class ComputeScaleZeroTest(testing.TestCase):
+    def test_error_when_x_is_none(self):
+        with self.assertRaisesRegex(ValueError, "cannot be None"):
+            compute_quantization_parameters(None, bits=4)
+
+    def test_error_when_x_is_empty(self):
+        x = ops.array([], "float32")
+        with self.assertRaisesRegex(ValueError, "cannot be empty"):
+            compute_quantization_parameters(x, bits=4)
+
+    def test_error_when_weight_rank_too_low(self):
+        x = ops.array([1.0, 2.0], "float32")  # rank-1
+        with self.assertRaisesRegex(ValueError, "rank of at least 2"):
+            compute_quantization_parameters(x, bits=4, weight=True)
+
+    @parameterized.named_parameters(
+        ("bits2_asym", 2, False),
+        ("bits4_asym", 4, False),
+        ("bits8_asym", 8, False),
+        ("bits2_sym", 2, True),
+        ("bits4_sym", 4, True),
+        ("bits8_sym", 8, True),
+    )
+    def test_per_tensor_shapes_and_basic_invariants(self, bits, symmetric):
+        """Test per-tensor shapes and basic invariants."""
+        x = ops.array(
+            np.random.default_rng(0).standard_normal((7, 5), dtype="float32")
+        )
+        scale, zero, maxq = compute_quantization_parameters(
+            x, bits=bits, symmetric=symmetric, per_channel=False, weight=False
+        )
+
+        # Shapes (per-tensor): (1,) for scale/zero
+        self.assertEqual(scale.shape, (1,))
+        self.assertEqual(zero.shape, (1,))
+
+        # Scale must be strictly positive
+        self.assertTrue(ops.all(scale > 0.0))
+
+        if symmetric:
+            # zero should be (maxq + 1)/2 for symmetric
+            expected_zero = ops.divide(ops.add(maxq, 1.0), 2.0)
+            self.assertAllClose(zero, expected_zero)
+        else:
+            # Asymmetric: zero ~ round(-min/scale) on the flattened input
+            flat = ops.reshape(x, (1, -1))
+            min_val = ops.min(flat, axis=1)
+            expected_zero = ops.round(ops.divide(ops.negative(min_val), scale))
+            self.assertAllClose(zero, expected_zero)
+
+    def test_per_tensor_symmetric_on_constant_input_uses_safe_range(self):
+        """Ensures safe range adjustment if entries are equal"""
+        x = ops.array(np.full((3, 4), 0.0, dtype=np.float32))
+        scale, zero, maxq = compute_quantization_parameters(
+            x, bits=4, symmetric=True, per_channel=False, weight=False
+        )
+        # With symmetric=True and constant input, zero = (maxq+1)/2
+        self.assertAllClose(zero, ops.array((float(maxq) + 1.0) / 2.0))
+        self.assertTrue(ops.all(ops.greater(scale, 0.0)))
+
+    def test_weight_per_tensor_tiles_rows(self):
+        """Tests that scales/zeros tensors are properly tiled when
+        per-channel quantization is not used."""
+        x = ops.array(
+            np.random.default_rng(1).standard_normal((8, 16)), "float32"
+        )
+        scale, zero, _ = compute_quantization_parameters(
+            x, bits=4, symmetric=False, per_channel=False, weight=True
+        )
+        # When weight=True and per_channel=False, shapes are (rows, 1)
+        self.assertEqual(scale.shape, (8, 1))
+        self.assertEqual(zero.shape, (8, 1))
+
+        # All elements in the scale and zero tensors must be equal due to
+        # tiling.
+        self.assertTrue(ops.all(scale == scale[0, 0]))
+        self.assertTrue(ops.all(zero == zero[0, 0]))
+
+    def test_weight_per_channel_ungrouped_shapes(self):
+        """Tests that scales/zeros tensors have the correct shape when
+        per-channel quantization is used without grouping."""
+        x = ops.array(
+            np.random.default_rng(2).standard_normal((6, 10)), "float32"
+        )
+        scale, zero, _ = compute_quantization_parameters(
+            x,
+            bits=4,
+            symmetric=False,
+            per_channel=True,
+            group_size=-1,
+            weight=True,
+        )
+        # Per-channel (ungrouped): one scale per output row -> (rows, 1)
+        self.assertEqual(scale.shape, (6, 1))
+        self.assertEqual(zero.shape, (6, 1))
+        self.assertTrue(ops.all(ops.greater(scale, 0.0)))
+
+        # Each channel should have roughly unique scales and zeros
+        self.assertFalse(ops.all(scale == scale[0, 0]))
+        self.assertFalse(ops.all(zero == zero[0, 0]))
+
+    def test_weight_per_channel_grouped_shapes_and_count(self):
+        """Tests that scales/zeros have the correct shape and count when
+        per-channel quantization is used with grouping."""
+        rows, cols, groups = 8, 16, 4
+        x = ops.array(
+            np.random.default_rng(3).standard_normal((rows, cols)), "float32"
+        )
+        scale, zero, _ = compute_quantization_parameters(
+            x,
+            bits=4,
+            symmetric=False,
+            per_channel=True,
+            group_size=groups,
+            weight=True,
+        )
+        # Grouped path reshapes to [-1, group_size]
+        # number of groups = rows*cols / groups
+        num_groups = (rows * cols) // groups
+        self.assertEqual(scale.shape, (num_groups, 1))
+        self.assertEqual(zero.shape, (num_groups, 1))
+        self.assertTrue(ops.all(ops.greater(scale, 0.0)))
+
+    @parameterized.named_parameters(
+        ("sym_true", True),
+        ("sym_false", False),
+    )
+    def test_dtype_and_finiteness(self, symmetric):
+        x = ops.array(
+            np.random.default_rng(4).standard_normal((5, 7)).astype("float32")
+        )
+        scale, zero, maxq = compute_quantization_parameters(
+            x,
+            bits=8,
+            symmetric=symmetric,
+            per_channel=True,
+            group_size=-1,
+            weight=True,
+        )
+        # All outputs should be all finite
+        self.assertTrue(ops.all(ops.isfinite(scale)))
+        self.assertTrue(ops.all(ops.isfinite(zero)))
+        self.assertTrue(ops.all(ops.isfinite(maxq)))
+
+    def test_dequantize_with_sz_map_logic(self):
+        """Validates the vectorized dequantization logic against a
+        manual implementation."""
+        out_features, in_features, group_size = 4, 16, 4
+        n_groups = in_features // group_size
+
+        # Create dummy quantized weights
+        q_weights = ops.cast(
+            ops.array(
+                np.random.randint(0, 15, size=(out_features, in_features))
+            ),
+            "uint8",
+        )
+
+        # Create dummy scales and zeros
+        scale = ops.abs(
+            ops.array(
+                np.random.random((out_features, n_groups)).astype("float32")
+            )
+        )
+        zero = ops.cast(
+            ops.array(np.random.randint(0, 15, size=(out_features, n_groups))),
+            "uint8",
+        )
+
+        # Create group index mapping
+        g_idx = ops.array(np.arange(in_features) // group_size, dtype="int32")
+
+        # Get the result from the function under test
+        dequantized_result = dequantize_with_sz_map(
+            q_weights, scale, zero, g_idx
+        )
+
+        # Manually compute the expected result
+        expected_dequantized = np.zeros(
+            (out_features, in_features), dtype="float32"
+        )
+
+        for i in range(out_features):
+            for j in range(in_features):
+                group = g_idx[j]
+                s = scale[i, group]
+                z = zero[i, group]
+                # Dequantization formula: (q_val - z) * s
+                expected_dequantized[i, j] = ops.multiply(
+                    ops.subtract(q_weights[i, j], ops.cast(z, "float32")), s
+                )
+
+        self.assertAllClose(dequantized_result, expected_dequantized)
+
+    def test_quantize_with_sz_map_logic(self):
+        """Validates the vectorized quantization logic against a
+        manual implementation."""
+        out_features, in_features, group_size = 4, 16, 4
+        n_groups = in_features // group_size
+
+        # Create dummy float weights
+        weights = ops.array(
+            np.random.default_rng(5).standard_normal(
+                (out_features, in_features)
+            ),
+            "float32",
+        )
+
+        # Create dummy scales and zeros
+        scale = ops.abs(
+            ops.array(
+                np.random.random((out_features, n_groups)).astype("float32")
+            )
+        )
+        zero = ops.cast(
+            ops.array(np.random.randint(0, 15, size=(out_features, n_groups))),
+            "uint8",
+        )
+
+        maxq = ops.array(15.0)
+
+        # Create group index mapping
+        g_idx = ops.array(np.arange(in_features) // group_size, dtype="int32")
+
+        # Get the result from the function under test
+        quantized_result = quantize_with_sz_map(
+            weights, scale, zero, g_idx, maxq
+        )
+
+        # Manually compute the expected result
+        expected_quantized = np.zeros(
+            (out_features, in_features), dtype="uint8"
+        )
+
+        for i in range(out_features):
+            for j in range(in_features):
+                group = g_idx[j]
+                s = scale[i, group]
+                z = zero[i, group]
+                # Quantization formula: clip(round(x/s + z), 0, maxq)
+                q_val = ops.round(ops.add(ops.divide(weights[i, j], s), z))
+                q_val_clipped = ops.clip(q_val, 0.0, maxq)
+                expected_quantized[i, j] = ops.cast(q_val_clipped, "uint8")
+
+        self.assertAllClose(quantized_result, expected_quantized)

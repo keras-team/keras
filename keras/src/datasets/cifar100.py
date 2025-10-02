@@ -71,10 +71,10 @@ def load_data(label_mode="fine"):
 
     path = os.path.join(path, "cifar-100-python")
     fpath = os.path.join(path, "train")
-    x_train, y_train = load_batch(fpath, label_key=label_mode + "_labels")
+    x_train, y_train = load_batch(fpath, label_key=f"{label_mode}_labels")
 
     fpath = os.path.join(path, "test")
-    x_test, y_test = load_batch(fpath, label_key=label_mode + "_labels")
+    x_test, y_test = load_batch(fpath, label_key=f"{label_mode}_labels")
 
     y_train = np.reshape(y_train, (len(y_train), 1))
     y_test = np.reshape(y_test, (len(y_test), 1))

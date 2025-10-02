@@ -692,9 +692,11 @@ class CosineDecay(LearningRateSchedule):
 
     def _decay_function(self, step, decay_steps, decay_from_lr, dtype):
         with ops.name_scope(self.name):
-            completed_fraction = step / decay_steps
+            completed_fraction = ops.divide(step, decay_steps)
             pi = ops.array(math.pi, dtype=dtype)
-            cosine_decayed = 0.5 * (1.0 + ops.cos(pi * completed_fraction))
+            cosine_decayed = 0.5 * (
+                1.0 + ops.cos(ops.multiply(pi, completed_fraction))
+            )
             decayed = (1 - self.alpha) * cosine_decayed + self.alpha
             return ops.multiply(decay_from_lr, decayed)
 
@@ -866,10 +868,13 @@ class CosineDecayRestarts(LearningRateSchedule):
                         / ops.log(t_mul)
                     )
 
-                    sum_r = (1.0 - t_mul**i_restart) / (1.0 - t_mul)
-                    completed_fraction = (
-                        completed_fraction - sum_r
-                    ) / t_mul**i_restart
+                    sum_r = ops.divide(
+                        1.0 - ops.power(t_mul, i_restart), (1.0 - t_mul)
+                    )
+                    completed_fraction = ops.divide(
+                        ops.subtract(completed_fraction, sum_r),
+                        ops.power(t_mul, i_restart),
+                    )
 
                 else:
                     i_restart = ops.floor(completed_fraction)
@@ -883,18 +888,20 @@ class CosineDecayRestarts(LearningRateSchedule):
                 lambda: compute_step(completed_fraction, geometric=True),
             )
 
-            m_fac = m_mul**i_restart
+            m_fac = ops.power(m_mul, i_restart)
             cosine_decayed = (
                 0.5
                 * m_fac
                 * (
                     1.0
                     + ops.cos(
-                        ops.array(math.pi, dtype=dtype) * completed_fraction
+                        ops.multiply(
+                            ops.array(math.pi, dtype=dtype), completed_fraction
+                        )
                     )
                 )
             )
-            decayed = (1 - alpha) * cosine_decayed + alpha
+            decayed = ops.add(ops.multiply((1 - alpha), cosine_decayed), alpha)
 
             return ops.multiply(initial_learning_rate, decayed)
 

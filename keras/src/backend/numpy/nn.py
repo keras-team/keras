@@ -164,13 +164,14 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = x.dtype
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
             f"Received: x.shape={x.shape} with axis={axis}"
         )
     x1, x2 = np.split(x, 2, axis)
-    return x1 * (1 / (1 + np.exp(-x2)))
+    return (x1 * sigmoid(x2)).astype(dtype)
 
 
 def hard_tanh(x):
@@ -1163,6 +1164,13 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
+    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    query = cast(query, compute_dtype)
+    key = cast(key, compute_dtype)
+    value = cast(value, compute_dtype)
+    if bias is not None:
+        bias = convert_to_tensor(bias, dtype=compute_dtype)
+
     _, _, _, H = key.shape
     scale = (1.0 / np.sqrt(H)) if scale is None else scale
     return _dot_product_attention_xla(

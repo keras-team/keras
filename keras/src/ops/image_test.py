@@ -1,5 +1,6 @@
 import math
 
+import jax
 import numpy as np
 import pytest
 import scipy.ndimage
@@ -8,8 +9,11 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import image as kimage
+from keras.src.ops import numpy as knp
+from keras.src.ops import random as krandom
 from keras.src.testing.test_utils import named_product
 
 
@@ -202,6 +206,21 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
+
+    def test_scale_and_translate(self):
+        images = KerasTensor([None, 20, 20, 3])
+        output_shape = (None, 25, 25, 3)
+        scale = KerasTensor([2])
+        translation = KerasTensor([2])
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(1, 2),
+            method="linear",
+        )
+        self.assertEqual(out.shape, output_shape)
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
@@ -461,6 +480,21 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([3, 20, 20])
         out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_scale_and_translate(self):
+        images = KerasTensor([20, 20, 3])
+        output_shape = (25, 25, 3)
+        scale = KerasTensor([2])
+        translation = KerasTensor([2])
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method="linear",
+        )
+        self.assertEqual(out.shape, output_shape)
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -1888,6 +1922,218 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(out[:, :1] == 0))
         self.assertTrue(np.all(out[:, -1:] == 0))
         self.assertTrue(np.all(out[1:3, 1:3] == 1))
+
+    @parameterized.named_parameters(
+        named_product(
+            method=["linear", "cubic", "lanczos3", "lanczos5"],
+            antialias=[True, False],
+        )
+    )
+    def test_scale_and_translate(self, method, antialias):
+        images = np.random.random((30, 30, 3)).astype("float32") * 255
+        scale = np.array([2.0, 2.0]).astype("float32")
+        translation = -(scale / 2.0 - 0.5)
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=(15, 15, 3),
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method=method,
+            antialias=antialias,
+        )
+        ref_out = jax.image.scale_and_translate(
+            images,
+            shape=(15, 15, 3),
+            spatial_dims=(0, 1),
+            scale=scale,
+            translation=translation,
+            method=method,
+            antialias=antialias,
+        )
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-4)
+
+
+class ImageOpsDtypeTest(testing.TestCase):
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+
+    if backend.backend() == "torch":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+
+    def setUp(self):
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_affine_transform(self, dtype):
+        images = knp.ones((50, 50, 3), dtype=dtype)
+        transform = knp.ones((8,), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.affine_transform(images, transform), expected_dtype
+        )
+        self.assertDType(
+            kimage.AffineTransform().symbolic_call(images, transform),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_crop_images(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.crop_images(images, 0, 0, 3, 3), expected_dtype)
+        self.assertDType(
+            kimage.CropImages(0, 0, 3, 3).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_elastic_transform(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.elastic_transform(images), expected_dtype)
+        self.assertDType(
+            kimage.ElasticTransform().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.extract_patches(images, (3, 3)), expected_dtype)
+        self.assertDType(
+            kimage.ExtractPatches((3, 3)).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_gaussian_blur(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.gaussian_blur(images), expected_dtype)
+        self.assertDType(
+            kimage.GaussianBlur().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hsv_to_rgb(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.hsv_to_rgb(images), expected_dtype)
+        self.assertDType(
+            kimage.HSVToRGB().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_map_coordinates(self, dtype):
+        inputs = knp.ones((3, 4, 5), dtype=dtype)
+        coordinates = knp.stack([knp.ones((2, 3, 4), dtype=dtype)] * 3)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.map_coordinates(inputs, coordinates, 0), expected_dtype
+        )
+        self.assertDType(
+            kimage.MapCoordinates(0).symbolic_call(inputs, coordinates),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_pad_images(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.pad_images(images, 0, 0, 3, 3), expected_dtype)
+        self.assertDType(
+            kimage.PadImages(0, 0, 3, 3).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_perspective_transform(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        start_points = krandom.uniform((1, 4, 2), dtype=dtype)
+        end_points = krandom.uniform((1, 4, 2), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.perspective_transform(images, start_points, end_points),
+            expected_dtype,
+        )
+        self.assertDType(
+            kimage.PerspectiveTransform().symbolic_call(
+                images, start_points, end_points
+            ),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_resize(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.resize(images, (5, 5)), expected_dtype)
+        self.assertDType(
+            kimage.Resize((5, 5)).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_rgb_to_grayscale(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.rgb_to_grayscale(images), expected_dtype)
+        self.assertDType(
+            kimage.RGBToGrayscale().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_rgb_to_hsv(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.rgb_to_hsv(images), expected_dtype)
+        self.assertDType(
+            kimage.RGBToHSV().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_scale_and_translate(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        scale = knp.ones((2,), dtype=dtype)
+        translation = knp.ones((2,), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.scale_and_translate(
+                images,
+                output_shape=(15, 15, 3),
+                scale=scale,
+                translation=translation,
+                spatial_dims=(0, 1),
+                method="linear",
+            ),
+            expected_dtype,
+        )
+        self.assertDType(
+            kimage.ScaleAndTranslate(
+                spatial_dims=(0, 1), method="linear"
+            ).symbolic_call(images, (15, 15, 3), scale, translation),
+            expected_dtype,
+        )
 
 
 class ImageOpsBehaviorTests(testing.TestCase):

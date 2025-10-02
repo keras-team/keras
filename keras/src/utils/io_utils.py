@@ -93,7 +93,7 @@ def print_msg(message, line_break=True):
     """Print the message to absl logging or stdout."""
     message = str(message)
     if is_interactive_logging_enabled():
-        message = message + "\n" if line_break else message
+        message = f"{message}\n" if line_break else message
         try:
             sys.stdout.write(message)
         except UnicodeEncodeError:

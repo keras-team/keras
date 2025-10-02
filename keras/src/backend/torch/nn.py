@@ -9,7 +9,6 @@ from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.numpy import expand_dims
-from keras.src.backend.torch.numpy import maximum
 from keras.src.backend.torch.numpy import where
 from keras.src.utils.argument_validation import standardize_tuple
 
@@ -668,7 +667,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     # manual handling for negatives in the input to one_hot by using max(x, 0).
     # The output will have some invalid results, so we set them back to 0 using
     # `where` afterwards.
-    output = tnn.one_hot(maximum(x, 0), num_classes)
+    output = tnn.one_hot(torch.clamp(x, min=0), num_classes)
     output = where(expand_dims(x, axis=-1) >= 0, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
@@ -1043,6 +1042,11 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
+    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    query = cast(query, compute_dtype)
+    key = cast(key, compute_dtype)
+    value = cast(value, compute_dtype)
+
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         # Explicit set `is_causal` to `False` when `mask` is not `None`.

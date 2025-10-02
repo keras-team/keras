@@ -3,6 +3,7 @@ import math
 
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
+from jax import export as jax_export
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
@@ -39,17 +40,17 @@ def add(x1, x2):
 
 def bartlett(x):
     x = convert_to_tensor(x)
-    return jnp.bartlett(x)
+    return cast(jnp.bartlett(x), config.floatx())
 
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return jnp.hamming(x)
+    return cast(jnp.hamming(x), config.floatx())
 
 
 def hanning(x):
     x = convert_to_tensor(x)
-    return jnp.hanning(x)
+    return cast(jnp.hanning(x), config.floatx())
 
 
 def heaviside(x1, x2):
@@ -58,9 +59,15 @@ def heaviside(x1, x2):
     return jnp.heaviside(x1, x2)
 
 
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.hypot(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
-    return jnp.kaiser(x, beta)
+    return cast(jnp.kaiser(x, beta), config.floatx())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -300,14 +307,20 @@ def append(x1, x2, axis=None):
     return jnp.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
+    def get_dtype(x):
+        if hasattr(x, "dtype"):
+            return x.dtype
+        if jax_export.is_symbolic_dim(x):
+            return int
+        return type(x)
+
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [get_dtype(start)]
         if stop is not None:
-            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            dtypes_to_resolve.append(get_dtype(stop))
+        if step is not None:
+            dtypes_to_resolve.append(get_dtype(step))
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = standardize_dtype(dtype)
     return jnp.arange(start, stop, step=step, dtype=dtype)
@@ -497,7 +510,7 @@ def right_shift(x, y):
 
 def blackman(x):
     x = convert_to_tensor(x)
-    return jnp.blackman(x)
+    return cast(jnp.blackman(x), config.floatx())
 
 
 def broadcast_to(x, shape):
@@ -730,6 +743,12 @@ def full_like(x, fill_value, dtype=None):
     return jnp.full_like(x, fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.gcd(x1, x2)
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -769,10 +788,10 @@ def isfinite(x):
     return jnp.isfinite(x)
 
 
-def isin(x1, x2):
+def isin(x1, x2, assume_unique=False, invert=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.isin(x1, x2)
+    return jnp.isin(x1, x2, assume_unique=assume_unique, invert=invert)
 
 
 @sparse.elementwise_unary(linear=False)
@@ -785,6 +804,28 @@ def isinf(x):
 def isnan(x):
     x = convert_to_tensor(x)
     return jnp.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return jnp.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return jnp.isposinf(x)
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.kron(x1, x2)
+
+
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.lcm(x1, x2)
 
 
 def less(x1, x2):
@@ -852,6 +893,15 @@ def logaddexp(x1, x2):
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return jnp.logaddexp(x1, x2)
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return jnp.logaddexp2(x1, x2)
 
 
 def logical_and(x1, x2):

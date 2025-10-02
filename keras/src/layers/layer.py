@@ -1268,7 +1268,7 @@ class Layer(BackendLayer, Operation):
     def quantized_build(self, input_shape, mode):
         raise self._not_implemented_error(self.quantized_build)
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         raise self._not_implemented_error(self.quantize)
 
     def _check_quantize_args(self, mode, compute_dtype):
@@ -1318,6 +1318,8 @@ class Layer(BackendLayer, Operation):
             return self._float8_call(*args, **kwargs)
         elif self.quantization_mode == "int4":
             return self._int4_call(*args, **kwargs)
+        elif self.quantization_mode == "gptq":
+            return self._gptq_call(*args, **kwargs)
         else:
             raise self._quantization_mode_error(self.quantization_mode)
 
@@ -1330,6 +1332,9 @@ class Layer(BackendLayer, Operation):
     def _float8_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._float8_call)
 
+    def _gptq_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._gptq_call)
+
     def _not_implemented_error(self, attr, msg=None):
         if callable(attr):
             attr_name = attr.__name__
@@ -1337,7 +1342,7 @@ class Layer(BackendLayer, Operation):
         else:
             attr_name = str(attr)
             attr_type = "attribute"
-        msg = " " + msg if msg is not None else ""
+        msg = f" {msg}" if msg is not None else ""
         return NotImplementedError(
             f"Layer {self.__class__.__name__} does not have a `{attr_name}` "
             f"{attr_type} implemented.{msg}"

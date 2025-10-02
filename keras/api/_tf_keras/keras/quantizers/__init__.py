@@ -7,6 +7,7 @@ since your modifications would be overwritten.
 from keras.src.quantizers import deserialize as deserialize
 from keras.src.quantizers import get as get
 from keras.src.quantizers import serialize as serialize
+from keras.src.quantizers.gptq_config import GPTQConfig as GPTQConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer as AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer as Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize as abs_max_quantize

@@ -1,5 +1,6 @@
 from unittest import mock
 
+import jax
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -17,12 +18,17 @@ from keras.src import testing
 from keras.src.backend import config
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
+from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.optimizers.rmsprop import RMSprop
+from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
 if backend.backend() == "jax":
     from keras.src.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.distribution import DataParallel
+    from keras.src.distribution import DeviceMesh
 elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "tensorflow":
@@ -1863,6 +1869,11 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_on_batch_methods(self, run_eagerly, jit_compile):
+        if backend.backend() == "torch" and jit_compile:
+            self.skipTest(
+                "test_on_batch with jit_compile=True not supported in torch "
+                "backend yet."
+            )
         model = ExampleModel(units=3)
         x = np.ones((100, 4))
         y = np.zeros((100, 3))
@@ -1919,6 +1930,11 @@ class TestTrainer(testing.TestCase):
         ]
     )
     def test_on_batch_methods_without_training(self, run_eagerly, jit_compile):
+        if backend.backend() == "torch" and jit_compile:
+            self.skipTest(
+                "test_on_batch with jit_compile=True not supported in torch "
+                "backend yet."
+            )
         model = ExampleModel(units=3)
         x = np.ones((100, 4))
         y = np.zeros((100, 3))
@@ -2857,3 +2873,53 @@ class TestTrainer(testing.TestCase):
             verbose=0,
         )
         self.assertLessEqual(tracing_count[0], 2)
+
+
+class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
+    @parameterized.named_parameters(
+        ("single_device", False),
+        ("distributed", True),
+    )
+    def test_jit_fit_with_out_shardings_logic(self, distributed):
+        if keras.backend.backend() != "jax":
+            self.skipTest("This test requires the JAX backend.")
+        x = np.random.rand(64, 8).astype("float32")
+        y = np.random.rand(64, 1).astype("float32")
+
+        distribution = None
+        if distributed:
+            if len(jax.local_devices()) < 2:
+                self.skipTest(
+                    "Distributed test requires at least 2 JAX devices."
+                )
+
+            devices = jax.local_devices()
+            mesh = DeviceMesh(
+                shape=(len(devices),), axis_names=("batch",), devices=devices
+            )
+            distribution = DataParallel(mesh)
+
+        scope = distribution.scope() if distribution else mock.MagicMock()
+
+        with scope:
+            model = models.Sequential(
+                [
+                    layers.Dense(4, activation="relu", input_shape=(8,)),
+                    layers.Dense(1),
+                ]
+            )
+            model.compile(optimizer="adam", loss="mse", jit_compile=True)
+
+            if distribution:
+                expected_shardings = [
+                    v.value.sharding for v in model.trainable_variables
+                ]
+                self.assertNotEqual(len(set(expected_shardings)), 1)
+
+            model.fit(x, y, epochs=2, batch_size=32, verbose=0)
+
+            if distribution:
+                actual_shardings = [
+                    v.value.sharding for v in model.trainable_variables
+                ]
+                self.assertListEqual(actual_shardings, expected_shardings)

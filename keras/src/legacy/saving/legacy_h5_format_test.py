@@ -158,8 +158,13 @@ class LegacyH5WholeModelTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "lambda_model.h5")
         legacy_h5_format.save_model_to_hdf5(model, temp_filepath)
-        loaded = legacy_h5_format.load_model_from_hdf5(temp_filepath)
 
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            legacy_h5_format.load_model_from_hdf5(temp_filepath)
+
+        loaded = legacy_h5_format.load_model_from_hdf5(
+            temp_filepath, safe_mode=False
+        )
         self.assertAllClose(mean, loaded.layers[1].arguments["mu"])
         self.assertAllClose(std, loaded.layers[1].arguments["std"])
 
@@ -353,8 +358,13 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "lambda_model.h5")
         tf_keras_model.save(temp_filepath)
-        loaded = legacy_h5_format.load_model_from_hdf5(temp_filepath)
 
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            legacy_h5_format.load_model_from_hdf5(temp_filepath)
+
+        loaded = legacy_h5_format.load_model_from_hdf5(
+            temp_filepath, safe_mode=False
+        )
         self.assertAllClose(mean, loaded.layers[1].arguments["mu"])
         self.assertAllClose(std, loaded.layers[1].arguments["std"])
 

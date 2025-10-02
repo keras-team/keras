@@ -704,7 +704,15 @@ class Glu(Operation):
         return backend.nn.glu(x, axis=self.axis)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        output_shape = list(x.shape)
+        if output_shape[self.axis] is not None:
+            if output_shape[self.axis] % 2 != 0:
+                raise ValueError(
+                    "axis size must be divisible by 2. "
+                    f"Received: x.shape={x.shape} with axis={self.axis}"
+                )
+            output_shape[self.axis] = output_shape[self.axis] // 2
+        return KerasTensor(output_shape, dtype=x.dtype)
 
 
 @keras_export(["keras.ops.glu", "keras.ops.nn.glu"])
@@ -2641,7 +2649,8 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
     ):
-        return KerasTensor(query.shape, dtype=query.dtype)
+        dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+        return KerasTensor(query.shape, dtype=dtype)
 
 
 @keras_export(

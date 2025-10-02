@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -12,40 +13,30 @@ from keras.src.testing.test_utils import named_product
 class DtypesTest(test_case.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
+    ALL_DTYPES = [
+        x
+        for x in dtypes.ALLOWED_DTYPES
+        if x
+        not in (
+            "string",
+            "complex128",
+            "float64",
+            "uint64",
+            "int64",
+        )
+        + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
+    ] + [None]
     if backend.backend() == "torch":
-        from keras.src.backend.torch.core import to_torch_dtype
-
-        # TODO: torch doesn't support uint64.
-        ALL_DTYPES = []
-        for x in dtypes.ALLOWED_DTYPES:
-            if x not in ["string", "uint64"]:
-                x = str(to_torch_dtype(x)).split(".")[-1]
-                if x not in ALL_DTYPES:  # skip duplicates created by remapping
-                    ALL_DTYPES.append(x)
-        ALL_DTYPES += [None]
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
+        # dtypes.result_type(uint32, int*) -> int64 promotion.
+        # Since TF variables require int64 to be placed on the GPU, we
+        # exclusively enable the int64 dtype for TF. However, JAX does not
+        # natively support int64, which prevents us from comparing the dtypes.
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
     elif backend.backend() == "openvino":
-        ALL_DTYPES = [
-            x
-            for x in dtypes.ALLOWED_DTYPES
-            if x not in ["string", "complex64", "complex128"]
-        ] + [None]
-    else:
-        ALL_DTYPES = [x for x in dtypes.ALLOWED_DTYPES if x != "string"] + [
-            None
-        ]
-    # Remove float8 dtypes for the following tests
-    ALL_DTYPES = [x for x in ALL_DTYPES if x not in dtypes.FLOAT8_TYPES]
-
-    def setUp(self):
-        from jax.experimental import enable_x64
-
-        self.jax_enable_x64 = enable_x64()
-        self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
 
     @parameterized.named_parameters(
         named_product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])
@@ -71,6 +62,56 @@ class DtypesTest(test_case.TestCase):
         out = backend.result_type(x1.dtype, x2.dtype)
         expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=[
+                "int8",
+                "int16",
+                "int32",
+                "int64",
+                "uint8",
+                "uint16",
+                "uint32",
+            ]
+        )
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_result_type_with_int64(self, dtype):
+        # https://github.com/keras-team/keras/issues/21677
+        x1 = ops.ones((1,), dtype="int64")
+        x2 = ops.ones((1,), dtype=dtype)
+        out = backend.result_type(x1.dtype, x2.dtype)
+        self.assertEqual(out, "int64")
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=[
+                "float16",
+                "bfloat16",
+                "float32",
+                "float64",
+                "int8",
+                "int16",
+                "int32",
+                "int64",
+                "uint8",
+                "uint16",
+            ]
+        )
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_result_type_with_float64(self, dtype):
+        # Float types have a similar issue as int64 in TF.:
+        # https://github.com/keras-team/keras/issues/21677
+        x1 = ops.ones((1,), dtype="float64")
+        x2 = ops.ones((1,), dtype=dtype)
+        out = backend.result_type(x1.dtype, x2.dtype)
+        self.assertEqual(out, "float64")
 
     def test_result_type_with_none(self):
         import jax.numpy as jnp

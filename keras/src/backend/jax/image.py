@@ -14,6 +14,34 @@ RESIZE_INTERPOLATIONS = (
     "lanczos5",
     "bicubic",
 )
+AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
+    "nearest": 0,
+    "bilinear": 1,
+}
+AFFINE_TRANSFORM_FILL_MODES = {
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
+}
+MAP_COORDINATES_FILL_MODES = {
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
+}
+SCALE_AND_TRANSLATE_METHODS = {
+    "linear",
+    "bilinear",
+    "trilinear",
+    "cubic",
+    "bicubic",
+    "tricubic",
+    "lanczos3",
+    "lanczos5",
+}
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -372,19 +400,6 @@ def resize(
     )
 
 
-AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
-    "nearest": 0,
-    "bilinear": 1,
-}
-AFFINE_TRANSFORM_FILL_MODES = {
-    "constant",
-    "nearest",
-    "wrap",
-    "mirror",
-    "reflect",
-}
-
-
 def affine_transform(
     images,
     transform,
@@ -483,15 +498,6 @@ def affine_transform(
     return affined
 
 
-MAP_COORDINATES_FILL_MODES = {
-    "constant",
-    "nearest",
-    "wrap",
-    "mirror",
-    "reflect",
-}
-
-
 def perspective_transform(
     images,
     start_points,
@@ -545,7 +551,7 @@ def perspective_transform(
     if data_format == "channels_first":
         images = jnp.transpose(images, (0, 2, 3, 1))
 
-    batch_size, height, width, channels = images.shape
+    _, height, width, _ = images.shape
     transforms = compute_homography_matrix(
         jnp.asarray(start_points, dtype="float32"),
         jnp.asarray(end_points, dtype="float32"),
@@ -676,7 +682,9 @@ def gaussian_blur(
 ):
     def _create_gaussian_kernel(kernel_size, sigma, dtype):
         def _get_gaussian_kernel1d(size, sigma):
-            x = jnp.arange(size, dtype=dtype) - (size - 1) / 2
+            x = jnp.arange(size, dtype=dtype) - jnp.array(
+                (size - 1) / 2, dtype=dtype
+            )
             kernel1d = jnp.exp(-0.5 * (x / sigma) ** 2)
             return kernel1d / jnp.sum(kernel1d)
 
@@ -691,8 +699,8 @@ def gaussian_blur(
         return kernel
 
     images = convert_to_tensor(images)
-    sigma = convert_to_tensor(sigma)
-    dtype = images.dtype
+    dtype = backend.standardize_dtype(images.dtype)
+    sigma = convert_to_tensor(sigma, dtype=dtype)
 
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -859,3 +867,31 @@ def elastic_transform(
     transformed_images = transformed_images.astype(input_dtype)
 
     return transformed_images
+
+
+def scale_and_translate(
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
+):
+    if method not in SCALE_AND_TRANSLATE_METHODS:
+        raise ValueError(
+            "Invalid value for argument `method`. Expected of one "
+            f"{SCALE_AND_TRANSLATE_METHODS}. Received: method={method}"
+        )
+    images = convert_to_tensor(images)
+    scale = convert_to_tensor(scale)
+    translation = convert_to_tensor(translation)
+    return jax.image.scale_and_translate(
+        images,
+        output_shape,
+        spatial_dims,
+        scale,
+        translation,
+        method,
+        antialias,
+    )
