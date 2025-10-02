@@ -1,12 +1,22 @@
 import numpy as np
-from coordinated_optimizer import CoordinatedOptimizer
-from coordinated_optimizer import TensorParallelOptimizer
+import pytest
 
 import keras
+from keras import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    CoordinatedOptimizer,
+)
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    TensorParallelOptimizer,
+)
 
 
+@pytest.mark.skipif(
+    keras.backend.backend() == "openvino",
+    reason="CoordinatedOptimizer is not yet supported on the OpenVINO backend.",
+)
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
         """Creates a simple, uncompiled Keras model."""
@@ -23,7 +33,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
         for i in range(world_size):
             multiplier = float(i + 1)
             gradients = [
-                keras.ops.convert_to_tensor(
+                ops.convert_to_tensor(
                     np.ones_like(v.numpy()) * multiplier, dtype="float32"
                 )
                 for v in variables
@@ -43,6 +53,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
     def test_apply_gradients_with_replicated_states(self):
         """Tests that replicated gradients are averaged and applied once."""
+
         class AdamWithCallCounter(optimizers.Adam):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -52,6 +63,8 @@ class CoordinatedOptimizerTest(testing.TestCase):
             def apply_gradients(self, grads_and_vars, *args, **kwargs):
                 self.apply_gradients_call_count += 1
                 self.received_grads = [g for g, v in grads_and_vars]
+                # Call the superclass method to ensure variables are updated
+                super().apply_gradients(grads_and_vars, *args, **kwargs)
 
         world_size = 4
         model = self._get_simple_model()
@@ -68,6 +81,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
         coord.apply_gradients(mock_grads, [])
 
         self.assertEqual(optimizer.apply_gradients_call_count, 1)
+        # The average of multipliers 1, 2, 3, 4 is (1+2+3+4)/4 = 10/4 = 2.5
         self.assertAllClose(
             optimizer.received_grads[0],
             np.ones_like(optimizer.received_grads[0]) * 2.5,
@@ -90,13 +104,18 @@ class CoordinatedOptimizerTest(testing.TestCase):
         mock_grads = self._get_mock_gradients_and_vars(model, world_size)
 
         coord_apply_tracker = {"called": False}
-        optimizer.coordinated_optimizer.apply_gradients = (
-            lambda *a, **kw: coord_apply_tracker.update({"called": True})
-        )
+
+        def coord_apply_mock(*args, **kwargs):
+            coord_apply_tracker["called"] = True
+
+        optimizer.coordinated_optimizer.apply_gradients = coord_apply_mock
+
         base_apply_tracker = {"called": False}
-        optimizer.base_optimizer.apply_gradients = (
-            lambda *a, **kw: base_apply_tracker.update({"called": True})
-        )
+
+        def base_apply_mock(*args, **kwargs):
+            base_apply_tracker["called"] = True
+
+        optimizer.base_optimizer.apply_gradients = base_apply_mock
 
         optimizer.apply_gradients(mock_grads, shard_models=[])
         self.assertTrue(coord_apply_tracker["called"])
@@ -107,7 +126,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         optimizer.apply_gradients(unsharded_grads)
         self.assertTrue(base_apply_tracker["called"])
         self.assertFalse(coord_apply_tracker["called"])
-
 
     def test_build_and_state_sharding(self):
         """Tests that the build method correctly initializes sharded states."""
@@ -123,14 +141,15 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(optimizer.built)
 
         sharded_states = optimizer.coordinated_optimizer.sharded_states
-
         self.assertIn("momentum", sharded_states)
         self.assertIn("velocity", sharded_states)
         self.assertIn("iterations", sharded_states)
 
         dense_1_kernel_path = model.get_layer("dense_1").kernel.path
         self.assertIn(dense_1_kernel_path, sharded_states["momentum"])
-        self.assertEqual(len(sharded_states["momentum"][dense_1_kernel_path]), 4)
+        self.assertEqual(
+            len(sharded_states["momentum"][dense_1_kernel_path]), 4
+        )
 
     def test_serialization(self):
         world_size = 4

@@ -1,12 +1,12 @@
 import os
 
-if "WORLD_SIZE" not in os.environ:
-    os.environ["WORLD_SIZE"] = "4"
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 
 from keras import Input
 from keras import Model
 from keras import layers
 from keras.src import testing
+from keras.src.backend.distributed import backend_resolver
 from keras.src.distribution.tensor_parallel.autoconfig import (
     analyze_dense_layer_directly,
 )
@@ -20,13 +20,18 @@ class TestAutoConfigKeras(testing.TestCase):
     def setUp(self):
         """Set up the test case and common variables."""
         super().setUp()
-        self.world_size = int(os.environ["WORLD_SIZE"])
+        backend = backend_resolver.get_distributed_backend()
+        device_info = backend.get_device_info()
+        self.world_size = device_info["device_count"]
         self.device_ids = [f"device:{i}" for i in range(self.world_size)]
+
+        self.assertGreater(
+            self.world_size, 1, "Distribution tests require more than 1 device."
+        )
 
     def _assert_split_keras_equal(self, rule1, rule2):
         """
         Helper to compare two SplitKeras objects by their attributes.
-        MODIFIED: Use vars() for robust comparison without knowing attr names.
         """
         self.assertIsInstance(rule1, SplitKeras)
         self.assertIsInstance(rule2, SplitKeras)
