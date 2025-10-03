@@ -32,17 +32,26 @@ class TestCollectiveOpsSimulated(testing.TestCase):
         self.axis_name = "data"
 
     def test_all_reduce_simulation(self):
-        """Tests the simulated all-reduce operation."""
-        all_reduce_op = AllReduceKeras(world_size=self.world_size, op="sum")
+        """Tests the simulated all-reduce operation from multiple ranks."""
+        
+        local_tensors = [
+            keras.ops.array([float(i + 1), float(i + 2), float(i + 3)])
+            for i in range(self.world_size)
+        ]
+        expected_output = keras.ops.zeros_like(local_tensors[0])
+        for tensor in local_tensors:
+            expected_output = keras.ops.add(expected_output, tensor)
 
-        local_tensor = keras.ops.array([1.0, 2.0, 3.0], dtype="float32")
-        result = all_reduce_op(local_tensor, axis_name=self.axis_name)
+        results = []
+        for rank in range(self.world_size):
+            all_reduce_op = AllReduceKeras(
+                world_size=self.world_size, op="sum", rank=rank
+            )
+            result = all_reduce_op(local_tensors[rank], axis_name=self.axis_name)
+            results.append(result)
 
-        expected_output = keras.ops.multiply(
-            local_tensor, float(self.world_size)
-        )
-
-        self.assertAllClose(result, expected_output)
+        for result in results:
+            self.assertAllClose(result, expected_output)
 
     def test_all_gather_simulation(self):
         all_gather_op = AllGatherKeras(world_size=self.world_size, dim=0)
@@ -69,17 +78,25 @@ class TestCollectiveOpsSimulated(testing.TestCase):
 
     def test_tensor_parallel_communicator_simulation(self):
         """Tests the communicator's use of simulated collective ops."""
-        communicator = TensorParallelCommunicator(
-            world_size=self.world_size, rank=0
-        )
 
-        local_slice = keras.ops.arange(6, dtype="float32").reshape((2, 3))
-        result = communicator.forward_column_parallel(
-            local_slice, dim=0, axis_name=self.axis_name
-        )
+        local_slices = [
+            keras.ops.array(
+                [[float(rank), float(rank + 1)], [float(rank + 2), float(rank + 3)]]
+            )
+            for rank in range(self.world_size)
+        ]
+        expected_output = keras.ops.concatenate(local_slices, axis=0)
 
-        expected_output = keras.ops.concatenate(
-            [local_slice] * self.world_size, axis=0
-        )
+        results = []
+        for rank in range(self.world_size):
+            communicator = TensorParallelCommunicator(
+                world_size=self.world_size, rank=rank
+            )
 
-        self.assertAllClose(result, expected_output)
+            result = communicator.forward_column_parallel(
+                partial_outputs=local_slices, dim=0, axis_name=self.axis_name
+            )
+            results.append(result)
+
+        for result in results:
+            self.assertAllClose(result, expected_output)
