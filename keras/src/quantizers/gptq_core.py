@@ -6,10 +6,13 @@ from absl import logging
 
 from keras.src import ops
 from keras.src import utils as keras_utils
+from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
+from keras.src.quantizers.gptq_config import GPTQConfig
 
 
 @contextmanager
@@ -190,21 +193,6 @@ def get_dataloader(
     return samples.astype(np.int32)[:, None, :]
 
 
-def _find_layers_recursive(layer, prefix, found_layers):
-    """
-    Recursively search for Dense and EinsumDense layers and record them.
-    """
-    for sub_layer in layer._layers:
-        # Construct a unique name for the layer based on its hierarchy
-        layer_name = f"{prefix}.{sub_layer.name}"
-        if isinstance(sub_layer, (Dense, EinsumDense)):
-            found_layers[layer_name] = sub_layer
-
-        # Recurse into nested layers that are not the target types
-        elif hasattr(sub_layer, "_layers") and sub_layer._layers:
-            _find_layers_recursive(sub_layer, layer_name, found_layers)
-
-
 def _get_backbone_layers(model):
     """Extract embedding and transformer layers from a KerasHub model."""
     backbone = model.backbone
@@ -216,14 +204,11 @@ def _get_backbone_layers(model):
         )
     transformer_blocks = backbone.transformer_layers
 
+    embedding_layer = None
     if hasattr(backbone, "token_embedding"):
         embedding_layer = backbone.token_embedding
     elif hasattr(backbone, "embedding"):
         embedding_layer = backbone.embedding
-    else:
-        raise ValueError(
-            "Could not automatically find an embedding layer in the model."
-        )
     return embedding_layer, transformer_blocks
 
 
@@ -242,12 +227,18 @@ def _get_custom_layers(model):
 
 def find_layers_in_block(block):
     """
-    A pluggable, generic function to find all Dense and EinsumDense layers
-    within any transformer block by using a recursive search.
+    Finds all Dense and EinsumDense layers in a transformer block.
+
+    Args:
+        block: A Keras layer representing a transformer block.
+    Returns:
+        A dict mapping layer paths to the corresponding Dense or EinsumDense
     """
     found_layers = {}
-    # Start the recursive search from the block itself
-    _find_layers_recursive(block, "block", found_layers)
+    for sub_layer in block._flatten_layers():
+        if len(list(sub_layer._flatten_layers())) == 1:
+            if isinstance(sub_layer, (Dense, EinsumDense)):
+                found_layers[sub_layer.path] = sub_layer
     return found_layers
 
 
@@ -386,3 +377,86 @@ def gptq_quantize(model, config):
     calibration_dataloader = dataloader[: config.num_samples]
 
     apply_gptq_layerwise(model, calibration_dataloader, config)
+
+
+def get_group_size_for_layer(layer, config):
+    """Determine the group size for GPTQ quantization.
+
+    The group size can be specified either through the `config` argument
+    or through the `dtype_policy` if it is of type `GPTQDTypePolicy`.
+
+    The config argument is usually available when quantizing the layer
+    via the `quantize` method. If the layer was deserialized from a
+    saved model, the group size should be specified in the `dtype_policy`.
+
+    Args:
+        config: An optional configuration object that may contain the
+            `group_size` attribute.
+    Returns:
+        int. The determined group size for GPTQ quantization.
+    Raises:
+        ValueError: If the group size is not specified in either the
+            `config` or the `dtype_policy`.
+    """
+    if config and isinstance(config, GPTQConfig):
+        return config.group_size
+    elif isinstance(layer.dtype_policy, GPTQDTypePolicy):
+        return layer.dtype_policy.group_size
+    elif isinstance(layer.dtype_policy, DTypePolicyMap):
+        policy = layer.dtype_policy[layer.path]
+        if not isinstance(policy, GPTQDTypePolicy):
+            # This should never happen based on how we set the
+            # quantization mode, but we check just in case.
+            raise ValueError(
+                "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
+                f"Got: {type(policy)}"
+            )
+        return policy.group_size
+    else:
+        raise ValueError(
+            "For GPTQ quantization, the group_size must be specified"
+            "either through a `dtype_policy` of type "
+            "`GPTQDTypePolicy` or the `config` argument."
+        )
+
+
+def get_weight_bits_for_layer(layer, config):
+    """Determine the number of weight bits for GPTQ quantization.
+
+    The number of weight bits can be specified either through the `config`
+    argument or through the `dtype_policy` if it is of type
+    `GPTQDTypePolicy`.
+
+    The config argument is usually available when quantizing the layer
+    via the `quantize` method. If the layer was deserialized from a
+    saved model, the weight bits should be specified in the `dtype_policy`.
+
+    Args:
+        config: An optional configuration object that may contain the
+            `weight_bits` attribute.
+    Returns:
+        int. The determined number of weight bits for GPTQ quantization.
+    Raises:
+        ValueError: If the weight bits is not specified in either the
+            `config` or the `dtype_policy`.
+    """
+    if config and isinstance(config, GPTQConfig):
+        return config.weight_bits
+    elif isinstance(layer.dtype_policy, GPTQDTypePolicy):
+        return layer.dtype_policy.weight_bits
+    elif isinstance(layer.dtype_policy, DTypePolicyMap):
+        policy = layer.dtype_policy[layer.path]
+        if not isinstance(policy, GPTQDTypePolicy):
+            # This should never happen based on how we set the
+            # quantization mode, but we check just in case.
+            raise ValueError(
+                "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
+                f"Got: {type(policy)}"
+            )
+        return policy.weight_bits
+    else:
+        raise ValueError(
+            "For GPTQ quantization, the weight_bits must be specified"
+            "either through a `dtype_policy` of type "
+            "`GPTQDTypePolicy` or the `config` argument."
+        )

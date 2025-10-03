@@ -340,6 +340,18 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertAllClose(output._keras_mask, [[1, 1, 1, 1]])
 
+    def test_concatenate_with_mask_symbolic(self):
+        input1 = layers.Input((4, 2))
+        input2 = layers.Input((4, 2))
+        mask = layers.Masking()
+        output = layers.Concatenate(axis=1)([mask(input1), input2])
+        model = models.Model(
+            inputs=[input1, input2], outputs=output._keras_mask
+        )
+        x1 = backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        self.assertAllClose(model([x1, x2]), [[0, 1, 0, 1, 1, 1, 1, 1]])
+
     def test_concatenate_errors(self):
         # This should work
         x1 = np.ones((1, 1, 1, 1, 5))

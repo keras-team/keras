@@ -250,6 +250,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.kron(x, y).shape, (None, None))
 
+    def test_lcm(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.lcm(x, y).shape, (2, 3))
+
     def test_less(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -336,6 +341,14 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
             knp.quantile(x, q, axis=1, keepdims=True).shape,
             (2, None, 1),
         )
+
+    def test_searchsorted(self):
+        a = KerasTensor((None,))
+        v = KerasTensor((2, 3))
+
+        output = knp.searchsorted(a, v)
+        self.assertEqual(output.shape, v.shape)
+        self.assertEqual(output.dtype, "int64")
 
     def test_take(self):
         x = KerasTensor((None, 3))
@@ -819,6 +832,11 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.kron(x, y).shape, (4, 9))
+
+    def test_lcm(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.lcm(x, y).shape, (2, 3))
 
     def test_less(self):
         x = KerasTensor((2, 3))
@@ -1578,6 +1596,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.logaddexp(x, x).shape, (None, 3))
 
+    def test_logaddexp2(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.logaddexp2(x, x).shape, (None, 3))
+
     def test_logical_not(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.logical_not(x).shape, (None, 3))
@@ -2178,6 +2200,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_logaddexp(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.logaddexp(x, x).shape, (2, 3))
+
+    def test_logaddexp2(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.logaddexp2(x, x).shape, (2, 3))
 
     def test_logical_not(self):
         x = KerasTensor((2, 3))
@@ -3006,6 +3032,22 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([[4, 5, 6], [3, 2, 1]])
         self.assertAllClose(knp.kron(x, y), np.kron(x, y))
         self.assertAllClose(knp.Kron()(x, y), np.kron(x, y))
+
+    def test_lcm(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
+        self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array(4)
+        self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
+        self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([4])
+        self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
+        self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
 
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4360,6 +4402,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.logaddexp(x, y), np.logaddexp(x, y))
         self.assertAllClose(knp.Logaddexp()(x, y), np.logaddexp(x, y))
+
+    def test_logaddexp2(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(knp.logaddexp2(x, y), np.logaddexp2(x, y))
+        self.assertAllClose(knp.Logaddexp2()(x, y), np.logaddexp2(x, y))
 
     def test_logical_not(self):
         x = np.array([[True, False], [False, True]])
@@ -5740,6 +5788,14 @@ class NumpyDtypeTest(testing.TestCase):
     if backend.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
+        # dtypes.result_type(uint32, int*) -> int64 promotion.
+        # Since TF variables require int64 to be placed on the GPU, we
+        # exclusively enable the int64 dtype for TF. However, JAX does not
+        # natively support int64, which prevents us from comparing the dtypes.
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
@@ -6315,8 +6371,10 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.parameters(
-        (10, None, 1, None),
-        (0, 10, 1, None),
+        (10, None, None, None),  # stop
+        (2, 10, None, None),  # start, stop
+        (10, None, 2, None),  # stop, step
+        (0, 10, 2, None),  # start, stop, step
         (0, 10, 0.5, None),
         (10.0, None, 1, None),
         (0, 10.0, 1, None),
@@ -7726,6 +7784,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+    )
+    def test_lcm(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.lcm(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.lcm(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Lcm().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_less(self, dtypes):
@@ -7888,6 +7967,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Logaddexp().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_logaddexp2(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((3, 3), dtype=dtype1)
+        x2 = knp.ones((3, 3), dtype=dtype2)
+        x1_jax = jnp.ones((3, 3), dtype=dtype1)
+        x2_jax = jnp.ones((3, 3), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.logaddexp2(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.logaddexp2(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Logaddexp2().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 

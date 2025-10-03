@@ -209,6 +209,7 @@ from keras.src.ops.numpy import isneginf as isneginf
 from keras.src.ops.numpy import isposinf as isposinf
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import kron as kron
+from keras.src.ops.numpy import lcm as lcm
 from keras.src.ops.numpy import left_shift as left_shift
 from keras.src.ops.numpy import less as less
 from keras.src.ops.numpy import less_equal as less_equal
@@ -218,6 +219,7 @@ from keras.src.ops.numpy import log1p as log1p
 from keras.src.ops.numpy import log2 as log2
 from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import logaddexp as logaddexp
+from keras.src.ops.numpy import logaddexp2 as logaddexp2
 from keras.src.ops.numpy import logical_and as logical_and
 from keras.src.ops.numpy import logical_not as logical_not
 from keras.src.ops.numpy import logical_or as logical_or

@@ -1,10 +1,15 @@
 import warnings
 
 from keras.src.api_export import keras_export
+from keras.src.backend.config import backend
 from keras.src.utils.module_utils import dmtree
 from keras.src.utils.module_utils import optree
 
-if optree.available:
+if backend() == "torch":
+    # torchtree_impl is especially used for Torch backend, as it works better
+    # with torch.compile.
+    from keras.src.tree import torchtree_impl as tree_impl
+elif optree.available:
     from keras.src.tree import optree_impl as tree_impl
 elif dmtree.available:
     from keras.src.tree import dmtree_impl as tree_impl
