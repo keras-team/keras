@@ -7,7 +7,6 @@ from typing import Literal
 import jax
 import jax.lax as lax
 import jax.numpy as jnp
-import optax
 
 import keras
 
@@ -54,30 +53,25 @@ def apply_gradients(
 
 def create_optimizer(
     optimizer_class: str, **kwargs
-) -> optax.GradientTransformation:
-    """Creates an Optax optimizer instance from a string identifier.
+) -> Dict[str, Any]:
+    """Creates a configuration dictionary for an optimizer.
+
+    This function returns a dictionary containing the optimizer's configuration,
+    removing the need for a specific optimizer library like Optax.
 
     Args:
         optimizer_class (str): The name of the optimizer to create (e.g.,
-            `"adam"`, `"sgd"`). Defaults to `"adam"` if the name is not
-            recognized.
+            `"adam"`, `"sgd"`).
         **kwargs: Keyword arguments to be passed to the optimizer's
             constructor (e.g., `learning_rate`).
 
     Returns:
-        optax.GradientTransformation: An instance of an Optax optimizer.
+        Dict[str, Any]: A dictionary representing the optimizer configuration.
     """
-    optimizer_map = {
-        "adam": optax.adam,
-        "sgd": optax.sgd,
-    }
-    optimizer_fn = optimizer_map.get(optimizer_class.lower())
-
-    if optimizer_fn:
-        return optimizer_fn(**kwargs)
-    else:
-        kwargs.setdefault("learning_rate", 0.001)
-        return optax.adam(**kwargs)
+    config = kwargs.copy()
+    config["name"] = optimizer_class.lower()
+    config.setdefault("learning_rate", 0.001)
+    return config
 
 
 def get_device_info() -> Dict[str, Any]:
@@ -192,7 +186,6 @@ def get_communication_ops() -> Dict[str, Callable]:
             jnp.ndarray: The tensor received from the root device.
         """
         if _is_in_pmap(axis_name):
-            # A simple implementation of broadcast using all_gather.
             return lax.all_gather(x, axis_name=axis_name, axis=0)[root]
         else:
             return x

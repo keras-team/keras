@@ -3,10 +3,14 @@ from keras.src import testing
 from keras.src.distribution.tensor_parallel.state_action_keras import (
     GatherKeras,
 )
+import pytest
 from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
 from keras.src.distribution.tensor_parallel.state_action_keras import SumKeras
 
-
+@pytest.mark.skipif(
+    keras.backend.backend() != "jax",
+    reason="This test suite requires a real JAX distributed backend.",
+)
 class TestStateActions(testing.TestCase):
     """Test suite for tensor distribution state actions."""
 

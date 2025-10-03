@@ -2,7 +2,6 @@ import os
 
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 
-import optax
 import pytest
 
 import keras
@@ -48,19 +47,28 @@ class TestJaxDistributedFunctions(testing.TestCase):
         self.assertAllClose(var2.value, expected_var2)
 
     def test_create_optimizer(self):
-        """Test optimizer creation for Adam, SGD, and a default case."""
-        adam_optimizer = distributed_backend.create_optimizer(
+        """Test optimizer configuration creation."""
+        adam_config = distributed_backend.create_optimizer(
             "adam", learning_rate=0.01
         )
-        self.assertIsInstance(adam_optimizer, optax.GradientTransformation)
-        sgd_optimizer = distributed_backend.create_optimizer(
-            "sgd", learning_rate=0.01
+        self.assertIsInstance(adam_config, dict)
+        self.assertEqual(adam_config["name"], "adam")
+        self.assertEqual(adam_config["learning_rate"], 0.01)
+
+        sgd_config = distributed_backend.create_optimizer(
+            "sgd", learning_rate=0.1, momentum=0.9
         )
-        self.assertIsInstance(sgd_optimizer, optax.GradientTransformation)
-        default_optimizer = distributed_backend.create_optimizer(
+        self.assertIsInstance(sgd_config, dict)
+        self.assertEqual(sgd_config["name"], "sgd")
+        self.assertEqual(sgd_config["learning_rate"], 0.1)
+        self.assertEqual(sgd_config["momentum"], 0.9)
+
+        unknown_config = distributed_backend.create_optimizer(
             "some_unknown_optimizer"
         )
-        self.assertIsInstance(default_optimizer, optax.GradientTransformation)
+        self.assertIsInstance(unknown_config, dict)
+        self.assertEqual(unknown_config["name"], "some_unknown_optimizer")
+        self.assertEqual(unknown_config["learning_rate"], 0.001)
 
     def test_get_device_info(self):
         """Test retrieving device information from the JAX backend."""
