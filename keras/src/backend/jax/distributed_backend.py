@@ -135,14 +135,18 @@ def get_communication_ops() -> Dict[str, Callable]:
             jnp.ndarray: The reduced tensor. Returns the input tensor `x` if
             not in a `pmap` context.
         """
-        if _is_in_pmap(axis_name):
-            if op == "sum":
-                return lax.psum(x, axis_name=axis_name)
-            elif op == "mean":
-                return lax.pmean(x, axis_name=axis_name)
-            raise ValueError(f"Unsupported all_reduce op: {op}")
-        else:
+        if not _is_in_pmap(axis_name):
             return x
+
+        reduce_ops = {
+            "sum": lax.psum,
+            "mean": lax.pmean,
+        }
+        reduce_fn = reduce_ops.get(op)
+
+        if reduce_fn is None:
+            raise ValueError(f"Unsupported all_reduce op: {op}")
+        return reduce_fn(x, axis_name=axis_name)
 
     def all_gather(
         x: jnp.ndarray, axis: int = 0, axis_name: str = "data"

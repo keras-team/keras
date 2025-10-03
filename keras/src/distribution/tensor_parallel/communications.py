@@ -308,17 +308,18 @@ class TensorParallelCommunicator:
         Returns:
             Any: The sliced portion of the gradient for the current device.
         """
-        try:
-            total_size = full_gradient.shape[dim]
-            slice_size = total_size // world_size
-            remainder = total_size % world_size
-            start_idx = rank * slice_size + min(rank, remainder)
-            end_idx = start_idx + slice_size + (1 if rank < remainder else 0)
-            slices = [slice(None)] * len(full_gradient.shape)
-            slices[dim] = slice(start_idx, end_idx)
-            return full_gradient[tuple(slices)]
-        except Exception:
+        shape = getattr(full_gradient, "shape", None)
+        if shape is None or not (-len(shape) <= dim < len(shape)):
             return full_gradient
+
+        total_size = shape[dim]
+        slice_size = total_size // world_size
+        remainder = total_size % world_size
+        start_idx = rank * slice_size + min(rank, remainder)
+        end_idx = start_idx + slice_size + (1 if rank < remainder else 0)
+        slices = [slice(None)] * len(shape)
+        slices[dim] = slice(start_idx, end_idx)
+        return full_gradient[tuple(slices)]
 
     def slice_upstream_gradient_for_row_parallel(
         self, full_gradient: Any, rank: int, world_size: int, dim: int = 0
@@ -338,18 +339,19 @@ class TensorParallelCommunicator:
         Returns:
             Any: The sliced portion of the gradient for the current device.
         """
-        try:
-            total_size = full_gradient.shape[dim]
-            slice_size = total_size // world_size
-            start_idx = rank * slice_size
-            end_idx = (rank + 1) * slice_size
-            if rank == world_size - 1:
-                end_idx = total_size
-            slices = [slice(None)] * len(full_gradient.shape)
-            slices[dim] = slice(start_idx, end_idx)
-            return full_gradient[tuple(slices)]
-        except Exception:
+        shape = getattr(full_gradient, "shape", None)
+        if shape is None or not (-len(shape) <= dim < len(shape)):
             return full_gradient
+
+        total_size = shape[dim]
+        slice_size = total_size // world_size
+        start_idx = rank * slice_size
+        end_idx = (rank + 1) * slice_size
+        if rank == world_size - 1:
+            end_idx = total_size
+        slices = [slice(None)] * len(shape)
+        slices[dim] = slice(start_idx, end_idx)
+        return full_gradient[tuple(slices)]
 
 
 def allreduce_gradients(gradients: Any, world_size: int) -> Any:
