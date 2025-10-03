@@ -38,10 +38,7 @@ def _estimator_has(attr):
 
         check_is_fitted(self)
         return (
-            True
-            if self.model_.layers[-1].activation.__name__
-            in ("sigmoid", "softmax")
-            else False
+            self.model_.layers[-1].activation.__name__ in ("sigmoid", "softmax")
         )
 
     return check
