@@ -374,18 +374,33 @@ class EinsumDense(Layer):
     def _legacy_load_own_variables(self, store):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        mode = self.quantization_mode
-        targets = []
-        if mode != "gptq":
-            targets.append(self._kernel)
-        if self.bias is not None:
-            targets.append(self.bias)
-        targets.extend(
-            getattr(self, name)
-            for name in self.quantization_variable_spec[mode]
-        )
-        for i, variable in enumerate(targets):
-            variable.assign(store[str(i)])
+        if self.quantization_mode == "gptq":
+            # GPTQ: bias first, then quantized_kernel
+            target_variables = [self.bias] if self.bias is not None else []
+            target_variables.append(self.quantized_kernel)
+        else:
+            target_variables = [self._kernel]
+        if self.bias is not None and self.quantization_mode != "gptq":
+            target_variables.append(self.bias)
+        if self.quantization_mode is not None:
+            if self.quantization_mode in ("int8", "int4"):
+                target_variables.append(self.kernel_scale)
+            elif self.quantization_mode == "float8":
+                target_variables.append(self.inputs_scale)
+                target_variables.append(self.inputs_amax_history)
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_amax_history)
+                target_variables.append(self.outputs_grad_scale)
+                target_variables.append(self.outputs_grad_amax_history)
+            elif self.quantization_mode == "gptq":
+                target_variables.append(self.kernel_scale)
+                target_variables.append(self.kernel_zero)
+                target_variables.append(self.g_idx)
+            else:
+                raise self._quantization_mode_error(self.quantization_mode)
+        for i, variable in enumerate(target_variables):
+            weight_data = store[str(i)]
+            variable._direct_assign(weight_data)
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
