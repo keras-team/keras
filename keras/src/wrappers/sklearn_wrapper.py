@@ -279,7 +279,7 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
     ```
     """
 
-    @sklearn.utils._available_if.available_if(_estimator_has("predict_proba"))
+    @sklearn.utils.metaestimators.available_if(_estimator_has("predict_proba"))
     def predict_proba(self, X):
         """Predict class probabilities of the input samples X."""
         from sklearn.utils.validation import check_is_fitted
