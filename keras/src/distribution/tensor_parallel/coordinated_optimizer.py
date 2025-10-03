@@ -39,7 +39,6 @@ class CoordinatedOptimizer:
         base_optimizer: optimizers.Optimizer,
         world_size: int,
         distributed_backend: str = "auto",
-        rank: int = 0,
         shard_optimizer_states: bool = True,
         tensor_parallel_config=None,
     ):
