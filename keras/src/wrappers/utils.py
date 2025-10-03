@@ -32,16 +32,11 @@ def _check_model(model):
         )
 
 
-def _estimator_has(attr):
-    def check(self):
-        from sklearn.utils.validation import check_is_fitted
-
-        check_is_fitted(self)
-        return (
-            self.model_.layers[-1].activation.__name__ in ("sigmoid", "softmax")
-        )
-
-    return check
+def _estimator_has_proba(self):
+    return self.model_.layers[-1].activation.__name__ in (
+        "sigmoid",
+        "softmax",
+    )
 
 
 class TargetReshaper(TransformerMixin, BaseEstimator):
