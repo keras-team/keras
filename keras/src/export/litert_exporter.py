@@ -146,90 +146,79 @@ class LitertExporter:
 
     def _ensure_model_built(self):
         """
-        Ensures the model is fully traced by performing a forward pass.
+        Ensures the model is built by calling model.build() if necessary.
 
-        This is critical because `model.built` can be True even if the model
-        has not been traced with concrete input shapes, which is required for
-        TFLite conversion. This method guarantees a forward pass happens.
+        This is critical because model.built can be True even if the model
+        has not been properly initialized with input shapes, which is required
+        for TFLite conversion. This method uses model.build() which is simpler
+        and more reliable than generating dummy inputs.
         """
+        if self.model.built:
+            if self.verbose:
+                print("Model is already built.")
+            return
+
         if self.verbose:
-            print("Ensuring model is traced by performing a forward pass...")
+            print("Building model with inferred input shapes...")
 
         try:
-            # Generate dummy inputs based on the model's specification
-            dummy_inputs = []
-            # Prioritize `model.inputs` as it's the most reliable source
+            # Infer input shape(s) and build the model
             if hasattr(self.model, "inputs") and self.model.inputs:
+                # Functional/Sequential with Input layer
+                input_shapes = [inp.shape for inp in self.model.inputs]
                 if self.verbose:
                     print(
-                        f"Generating inputs from `model.inputs` "
-                        f"({len(self.model.inputs)} input(s))."
+                        f"Building model from model.inputs "
+                        f"({len(input_shapes)} input(s)): {input_shapes}"
                     )
-                for input_layer in self.model.inputs:
-                    shape = [
-                        1 if dim is None else dim for dim in input_layer.shape
-                    ]
-                    dummy_input = tf.zeros(
-                        shape, dtype=input_layer.dtype or tf.float32
-                    )
-                    dummy_inputs.append(dummy_input)
+                if len(input_shapes) == 1:
+                    self.model.build(input_shapes[0])
+                else:
+                    self.model.build(input_shapes)
             else:
-                # Fallback for pure Sequential models without an Input layer
+                # Sequential without Input layer or subclassed model
                 if self.verbose:
                     print(
-                        "Model has no `inputs` attribute. Assuming pure "
-                        "Sequential and inferring shape."
+                        "Model has no inputs attribute. Inferring shape for "
+                        "Sequential model."
                     )
                 input_shape = self._infer_sequential_input_shape()
-                if input_shape:
-                    if self.verbose:
-                        print(
-                            f"Inferred input shape for Sequential model: "
-                            f"{input_shape}"
-                        )
-                    dummy_inputs.append(tf.zeros(input_shape, dtype=tf.float32))
-                else:
+                if input_shape is None:
                     raise ValueError(
-                        "Cannot build Sequential model: unable to infer input "
-                        "shape. Please add an `Input` layer or specify "
-                        "`input_shape` in the first layer."
+                        "Cannot build model: unable to infer input shape. "
+                        "Please add an Input layer or specify input_shape "
+                        "in the first layer."
                     )
-
-            # Perform a direct call in inference mode to trace the model.
-            if len(dummy_inputs) == 1:
-                self.model(dummy_inputs[0], training=False)
-            else:
-                self.model(dummy_inputs, training=False)
+                if self.verbose:
+                    print(f"Building model with inferred shape: {input_shape}")
+                self.model.build(input_shape)
 
             if self.verbose:
-                print(
-                    "Model successfully traced via direct call with "
-                    "training=False."
-                )
+                print("Model successfully built.")
 
         except Exception as e:
             if self.verbose:
-                print(f"Error during model call: {e}")
-            raise ValueError(f"Failed to trace model with error: {e}")
+                print(f"Error during model.build(): {e}")
+            raise ValueError(f"Failed to build model with error: {e}")
 
-        # Final, critical check
+        # Final check
         if not self.model.built:
             raise ValueError(
-                "Model could not be built even after a direct call. "
-                "Please check the model's definition and input specification."
+                "Model could not be built. Please check the model's "
+                "definition and input specification."
             )
 
     def _infer_sequential_input_shape(self):
         """Infer input shape for Sequential models.
         
-        Returns the input shape with flexible batch dimension (None) for export,
-        allowing dynamic batch sizes during inference.
+        Returns the input shape with flexible batch dimension (None) suitable
+        for model.build(), allowing dynamic batch sizes during inference.
         """
         try:
             # For Sequential models, input_shape should be available directly
             if hasattr(self.model, 'input_shape') and self.model.input_shape:
                 input_shape = self.model.input_shape
-                # For export, always use None batch dimension to allow dynamic batching
+                # Always use None batch dimension for model.build()
                 return (None,) + input_shape[1:]
             
             # Fallback: try to get from first layer's batch_shape
@@ -237,7 +226,7 @@ class LitertExporter:
                 first_layer = self.model._layers[0]
                 if hasattr(first_layer, 'batch_shape') and first_layer.batch_shape:
                     input_shape = first_layer.batch_shape
-                    # For export, always use None batch dimension to allow dynamic batching
+                    # Always use None batch dimension for model.build()
                     return (None,) + input_shape[1:]
                     
         except Exception as e:
