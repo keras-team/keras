@@ -197,9 +197,7 @@ class JaxVariable(KerasVariable):
             elif hasattr(value, "addressable_shards"):
                 # For sharded arrays, hold references to the shards' data.
                 shard_data = [shard.data for shard in value.addressable_shards]
-                if not hasattr(self, "_shard_references"):
-                    self._shard_references = []
-                self._shard_references.append(shard_data)
+                self._shard_references = [shard_data]
             else:
                 # For non-sharded arrays, hold a ref to the array itself.
                 self._strong_reference = value
