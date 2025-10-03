@@ -11,16 +11,13 @@ from typing import Any
 from typing import Dict
 from typing import Sequence
 
-from keras.src.backend.distributed.backend_resolver import (
-    get_distributed_backend,
-)
 from keras.src.distribution.tensor_parallel.communications import AllGatherKeras
 from keras.src.distribution.tensor_parallel.communications import AllReduceKeras
 from keras.src.distribution.tensor_parallel.communications import BroadcastKeras
 
 
 def _create_ops_from_rules(
-    rules: Dict[str, Any], world_size: int, backend: Any
+    rules: Dict[str, Any], world_size: int
 ) -> Dict[str, Any]:
     """Parses a rules dictionary to create collective op instances.
 
@@ -32,7 +29,6 @@ def _create_ops_from_rules(
     Args:
         rules (Dict[str, Any]): The dictionary of rules to process.
         world_size (int): The total number of devices in the distributed setup.
-        backend (Any): The distributed backend instance used to create the ops.
 
     Returns:
         Dict[str, Any]: A new dictionary with string identifiers replaced by
@@ -51,14 +47,14 @@ def _create_ops_from_rules(
                 continue
 
             if action == "sum":
-                op = AllReduceKeras(world_size, backend=backend, op="sum")
+                op = AllReduceKeras(world_size, op="sum")
             elif action == "mean":
-                op = AllReduceKeras(world_size, backend=backend, op="mean")
+                op = AllReduceKeras(world_size, op="mean")
             elif action.startswith("gather"):
                 dim = int(action.split(" ")[1]) if " " in action else -1
-                op = AllGatherKeras(world_size, backend=backend, dim=dim)
+                op = AllGatherKeras(world_size, dim=dim)
             elif action == "broadcast":
-                op = BroadcastKeras(world_size, backend=backend)
+                op = BroadcastKeras(world_size)
             else:
                 op = action
             processed_rules[pattern][key] = op
@@ -96,11 +92,7 @@ class ConfigKeras:
             populated with instantiated collective op objects.
         """
         world_size = len(devices)
-        backend = get_distributed_backend()
-
-        new_output_rules = _create_ops_from_rules(
-            self.output_rules, world_size, backend
-        )
+        new_output_rules = _create_ops_from_rules(self.output_rules, world_size)
 
         return dataclasses.replace(
             self,

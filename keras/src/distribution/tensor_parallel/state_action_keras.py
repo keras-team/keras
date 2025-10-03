@@ -44,14 +44,13 @@ class _ConcatenateMixin:
     def undo(self, tensors: Sequence[Any]) -> Any:
         """Concatenate a sequence of tensors along the specified dimension."""
         if self.dim == -1:
-            # Resolve dim=-1 to the last dimension of the input tensors
             dim = keras.ops.ndim(tensors[0]) - 1
         else:
             dim = self.dim
         return keras.ops.concatenate(tensors, axis=dim)
 
 
-class SplitKeras(StateActionKeras, _ConcatenateMixin):
+class SplitKeras(_ConcatenateMixin, StateActionKeras):
     """
     Splits a tensor into shards along a specified dimension for each worker.
 
@@ -93,7 +92,7 @@ class SplitKeras(StateActionKeras, _ConcatenateMixin):
         return tensor[tuple(slices)]
 
 
-class GatherKeras(StateActionKeras, _ConcatenateMixin):
+class GatherKeras(_ConcatenateMixin, StateActionKeras):
     """
     Represents a gather operation, where tensors are collected from all ranks.
 
