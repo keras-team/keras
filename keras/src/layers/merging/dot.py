@@ -363,7 +363,7 @@ def dot(inputs, axes=-1, **kwargs):
         inputs: A list of input tensors (at least 2).
         axes: Integer or tuple of integers,
             axis or axes along which to take the dot product.
-            In which `0` should not be included.
+            Note that axis `0` (the batch axis) cannot be included.
         normalize: Whether to L2-normalize samples along the
             dot product axis before taking the dot product.
             If set to `True`, then the output of the dot product
