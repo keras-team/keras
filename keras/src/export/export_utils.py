@@ -27,33 +27,23 @@ def get_input_signature(model):
         )
 
     if isinstance(model, models.Functional):
-        input_signature = tree.map_structure(
-            make_input_spec, model._inputs_struct
-        )
-        # Ensure single inputs are wrapped in a tuple for TensorFlow compatibility
-        if not isinstance(input_signature, (list, tuple)):
-            input_signature = (input_signature,)
+        # Functional models expect a single positional argument `inputs`
+        # containing the full nested input structure. We keep the
+        # original behavior of returning a single-element list that
+        # wraps the mapped structure so that downstream exporters
+        # build a tf.function with one positional argument.
+        input_signature = [
+            tree.map_structure(make_input_spec, model._inputs_struct)
+        ]
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
-        # For subclassed models, try multiple approaches
+        # Subclassed models: rely on recorded shapes from the first call.
         input_signature = _infer_input_signature_from_model(model)
-        if not input_signature:
-            # Fallback: Try to get from model.inputs if available
-            if hasattr(model, "inputs") and model.inputs:
-                input_signature = tree.map_structure(
-                    make_input_spec, model.inputs
-                )
-            elif not model._called:
-                raise ValueError(
-                    "The model provided has never been called and has no "
-                    "detectable input structure. It must be called at least "
-                    "once before export, or you must provide explicit "
-                    "input_signature."
-                )
-        # Ensure single inputs are wrapped in a tuple for TensorFlow compatibility
-        if input_signature and not isinstance(input_signature, (list, tuple)):
-            input_signature = (input_signature,)
+        if not input_signature or not model._called:
+            raise ValueError(
+                "The model provided has never called. It must be called at least once before export."
+            )
     return input_signature
 
 
@@ -71,39 +61,18 @@ def _infer_input_signature_from_model(model):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                # Keep batch dimension unbounded, keep other dimensions as they
-                # are
-                bounded_shape = []
-
-                for i, dim in enumerate(structure):
-                    if dim is None and i == 0:
-                        # Always keep batch dimension as None
-                        bounded_shape.append(None)
-                    else:
-                        # Keep other dimensions as they are (None or specific
-                        # size)
-                        bounded_shape.append(dim)
-
+                # For export, force batch dimension to None for flexible batching
+                shape = (None,) + structure[1:] if len(structure) > 0 else structure
                 return layers.InputSpec(
-                    shape=tuple(bounded_shape), dtype=model.input_dtype
+                    shape=shape, dtype=model.input_dtype
                 )
             return tuple(_make_input_spec(v) for v in structure)
         elif isinstance(structure, list):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                # Keep batch dimension unbounded, keep other dimensions as they
-                # are
-                bounded_shape = []
-
-                for i, dim in enumerate(structure):
-                    if dim is None and i == 0:
-                        # Always keep batch dimension as None
-                        bounded_shape.append(None)
-                    else:
-                        # Keep other dimensions as they are
-                        bounded_shape.append(dim)
-
+                # For export, force batch dimension to None for flexible batching
+                shape = (None,) + tuple(structure[1:]) if len(structure) > 0 else tuple(structure)
                 return layers.InputSpec(
-                    shape=bounded_shape, dtype=model.input_dtype
+                    shape=shape, dtype=model.input_dtype
                 )
             return [_make_input_spec(v) for v in structure]
         else:
@@ -111,16 +80,8 @@ def _infer_input_signature_from_model(model):
                 f"Unsupported type {type(structure)} for {structure}"
             )
 
-    # Try to reconstruct the input structure from build shapes
-    if len(shapes_dict) == 1:
-        # Single input case
-        return _make_input_spec(list(shapes_dict.values())[0])
-    else:
-        # Multiple inputs - try to determine if it's a dict or list structure
-        # Return as dictionary by default to preserve input names
-        return {
-            key: _make_input_spec(shape) for key, shape in shapes_dict.items()
-        }
+    # Always return a flat list preserving the order of shapes_dict values
+    return [_make_input_spec(value) for value in shapes_dict.values()]
 
 
 def make_input_spec(x):

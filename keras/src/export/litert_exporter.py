@@ -220,100 +220,30 @@ class LitertExporter:
             )
 
     def _infer_sequential_input_shape(self):
-        """Infer input shape for Sequential models."""
+        """Infer input shape for Sequential models.
+        
+        Returns the input shape with flexible batch dimension (None) for export,
+        allowing dynamic batch sizes during inference.
+        """
         try:
-            # First, look for Input layer
-            for layer in self.model.layers:
-                if (
-                    hasattr(layer, "__class__")
-                    and layer.__class__.__name__ == "InputLayer"
-                ):
-                    if (
-                        hasattr(layer, "batch_input_shape")
-                        and layer.batch_input_shape
-                    ):
-                        input_shape = layer.batch_input_shape
-                        return (
-                            (1,) + input_shape[1:]
-                            if input_shape[0] is None
-                            else input_shape
-                        )
-
-            # If no Input layer, try to get from first layer
-            if hasattr(self.model, "layers") and self.model.layers:
-                first_layer = self.model.layers[0]
-
-                # Check various ways to get input shape
-                for attr in [
-                    "input_shape",
-                    "batch_input_shape",
-                    "_batch_input_shape",
-                ]:
-                    if hasattr(first_layer, attr):
-                        input_shape = getattr(first_layer, attr)
-                        if input_shape:
-                            return (
-                                (1,) + input_shape[1:]
-                                if input_shape[0] is None
-                                else input_shape
-                            )
-
-                # Try to infer from layer configuration without hardcoded
-                # fallbacks
-                if hasattr(first_layer, "__class__"):
-                    class_name = first_layer.__class__.__name__
-
-                    if class_name == "Dense":
-                        # For Dense layers, try to infer from input_dim
-                        if (
-                            hasattr(first_layer, "input_dim")
-                            and first_layer.input_dim
-                        ):
-                            return (1, first_layer.input_dim)
-
-                    elif class_name == "Dropout":
-                        # For Dropout, look at the next layer to infer shape
-                        if len(self.model.layers) > 1:
-                            next_layer = self.model.layers[1]
-                            if hasattr(next_layer, "__class__"):
-                                next_class = next_layer.__class__.__name__
-                                if next_class == "Dense":
-                                    if (
-                                        hasattr(next_layer, "input_dim")
-                                        and next_layer.input_dim
-                                    ):
-                                        return (1, next_layer.input_dim)
-
-                    elif class_name in [
-                        "BatchNormalization",
-                        "LayerNormalization",
-                    ]:
-                        # For normalization layers, look at the next layer to
-                        # infer shape
-                        if len(self.model.layers) > 1:
-                            next_layer = self.model.layers[1]
-                            if hasattr(next_layer, "__class__"):
-                                next_class = next_layer.__class__.__name__
-                                if next_class == "Dense":
-                                    if (
-                                        hasattr(next_layer, "input_dim")
-                                        and next_layer.input_dim
-                                    ):
-                                        return (1, next_layer.input_dim)
-
-                    # For other layer types, we cannot reliably infer without
-                    # hardcoded values
-                    # Return None to indicate inference failed
-                    if self.verbose:
-                        print(
-                            f"Cannot infer input shape for layer type: "
-                            f"{class_name}"
-                        )
-
+            # For Sequential models, input_shape should be available directly
+            if hasattr(self.model, 'input_shape') and self.model.input_shape:
+                input_shape = self.model.input_shape
+                # For export, always use None batch dimension to allow dynamic batching
+                return (None,) + input_shape[1:]
+            
+            # Fallback: try to get from first layer's batch_shape
+            if hasattr(self.model, "_layers") and self.model._layers:
+                first_layer = self.model._layers[0]
+                if hasattr(first_layer, 'batch_shape') and first_layer.batch_shape:
+                    input_shape = first_layer.batch_shape
+                    # For export, always use None batch dimension to allow dynamic batching
+                    return (None,) + input_shape[1:]
+                    
         except Exception as e:
             if self.verbose:
                 print(f"Warning: Could not infer Sequential input shape: {e}")
-
+        
         return None
 
     def _convert_to_tflite(self, input_signature):
@@ -458,7 +388,7 @@ class LitertExporter:
                     if report:
                         print("Compilation Report:")
                         print(report)
-                except:
+                except Exception:
                     pass
 
             return result
