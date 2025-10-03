@@ -189,18 +189,24 @@ class JaxVariable(KerasVariable):
     def _maybe_create_strong_reference(self, value):
         """Create a strong ref to a JAX array to prevent GC."""
         if isinstance(value, jax.Array):
-            # Check if this is a JAX tracer (during compilation/tracing)
-            if _is_jax_tracer(value):
-                # During tracing, we can't access addressable_shards
-                # Just hold a reference to the tracer itself
-                self._strong_reference = value
-            elif hasattr(value, "addressable_shards"):
-                # For sharded arrays, hold references to the shards' data.
-                shard_data = [shard.data for shard in value.addressable_shards]
-                self._shard_references = [shard_data]
-            else:
-                # For non-sharded arrays, hold a ref to the array itself.
-                self._strong_reference = value
+            try:
+                # Check if this is a JAX tracer (during compilation/tracing)
+                if _is_jax_tracer(value):
+                    # During tracing, we can't access addressable_shards
+                    # Just hold a reference to the tracer itself
+                    self._strong_reference = value
+                elif hasattr(value, "addressable_shards"):
+                    # For sharded arrays, hold references to the shards' data.
+                    shard_data = [
+                        shard.data for shard in value.addressable_shards
+                    ]
+                    self._shard_references = [shard_data]
+                else:
+                    # For non-sharded arrays, hold a ref to the array itself.
+                    self._strong_reference = value
+            except Exception:
+                # If we can't set attributes (e.g., during tracing), skip
+                pass
 
     @property
     def value(self):
