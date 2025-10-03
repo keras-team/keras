@@ -86,23 +86,25 @@ class TestJaxDistributedFunctions(testing.TestCase):
             distributed_backend.is_multi_device_capable(), bool
         )
 
-    def test_get_communication_ops_simulated(self):
+    def test_communication_ops_simulation_logic(self):
         """Test the simulated communication ops in a single-device context."""
         comm_ops = distributed_backend.get_communication_ops()
         device_info = distributed_backend.get_device_info()
-        simulated_world_size = device_info.get("device_count", 1)
+        world_size = device_info.get("device_count", 1)
 
         # Test all_reduce
         x_reduce = ops.array([[1.0, 2.0], [3.0, 4.0]])
         reduced = comm_ops["all_reduce"](x_reduce, op="sum")
-        self.assertAllClose(reduced, x_reduce)
+        if world_size > 1:
+            expected_reduce = ops.multiply(x_reduce, float(world_size))
+        else:
+            expected_reduce = x_reduce
+        self.assertAllClose(reduced, expected_reduce)
 
         # Test all_gather
         x_gather = ops.array([[1.0, 2.0]])
         gathered = comm_ops["all_gather"](x_gather, axis=0)
-        expected_gather = ops.concatenate(
-            [x_gather] * simulated_world_size, axis=0
-        )
+        expected_gather = ops.concatenate([x_gather] * world_size, axis=0)
         self.assertAllClose(gathered, expected_gather)
 
         # Test broadcast
@@ -111,12 +113,9 @@ class TestJaxDistributedFunctions(testing.TestCase):
         self.assertAllClose(broadcasted, x_broadcast)
 
         # Test scatter
-        if simulated_world_size > 0:
-            scatter_data = ops.arange(simulated_world_size * 2)
-            scatter_data = ops.reshape(scatter_data, (simulated_world_size, 2))
-            x_scatter = ops.cast(scatter_data, dtype="float32")
+        if world_size > 0:
+            scatter_data = ops.arange(world_size * 2, dtype="float32")
+            x_scatter = ops.reshape(scatter_data, (world_size, 2))
             scattered = comm_ops["scatter"](x_scatter)
-            expected_scatter = ops.split(
-                x_scatter, simulated_world_size, axis=0
-            )[0]
+            expected_scatter = ops.split(x_scatter, world_size, axis=0)[0]
             self.assertAllClose(scattered, expected_scatter)
