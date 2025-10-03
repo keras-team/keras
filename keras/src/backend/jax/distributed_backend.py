@@ -35,20 +35,16 @@ def apply_gradients(
     gradients: List[jnp.ndarray],
     trainable_vars: List[jnp.ndarray],
     learning_rate: float = 0.001,
-) -> None:
-    """Applies gradients to trainable variables using basic SGD.
-
-    Args:
-        gradients (List[jnp.ndarray]): A list of gradients.
-        trainable_vars (List[jnp.ndarray]): A list of variables to be updated.
-        learning_rate (float, optional): The learning rate for the update step.
-            Defaults to 0.001.
-    """
+) -> List[jnp.ndarray]:
+    """Applies gradients and returns the updated variables."""
+    updated_vars = []
     for grad, var in zip(gradients, trainable_vars):
         if grad is not None:
-            new_value = var - (learning_rate * grad)
-            if hasattr(var, "assign"):
-                var.assign(new_value)
+            new_var = var - (learning_rate * grad)
+            updated_vars.append(new_var)
+        else:
+            updated_vars.append(var)
+    return updated_vars
 
 
 def create_optimizer(optimizer_class: str, **kwargs) -> Dict[str, Any]:
@@ -135,18 +131,26 @@ def get_communication_ops() -> Dict[str, Callable]:
             jnp.ndarray: The reduced tensor. Returns the input tensor `x` if
             not in a `pmap` context.
         """
-        if not _is_in_pmap(axis_name):
-            return x
+        if _is_in_pmap(axis_name):
+            reduce_ops = {
+                "sum": lax.psum,
+                "mean": lax.pmean,
+            }
+            reduce_fn = reduce_ops.get(op)
 
-        reduce_ops = {
-            "sum": lax.psum,
-            "mean": lax.pmean,
-        }
-        reduce_fn = reduce_ops.get(op)
-
-        if reduce_fn is None:
-            raise ValueError(f"Unsupported all_reduce op: {op}")
-        return reduce_fn(x, axis_name=axis_name)
+            if reduce_fn is None:
+                raise ValueError(f"Unsupported all_reduce op: {op}")
+            return reduce_fn(x, axis_name=axis_name)
+        else:
+            world_size = jax.local_device_count()
+            if world_size <= 1:
+                return x
+            if op == "sum":
+                return keras.ops.multiply(x, float(world_size))
+            elif op == "mean":
+                return x
+            else:
+                raise ValueError(f"Unsupported all_reduce op: {op}")
 
     def all_gather(
         x: jnp.ndarray, axis: int = 0, axis_name: str = "data"

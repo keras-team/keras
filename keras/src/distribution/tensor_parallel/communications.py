@@ -2,6 +2,7 @@ from typing import Any
 from typing import List
 from typing import Tuple
 
+from keras.src import ops
 from keras.src.distribution import distributed_backend
 
 
@@ -66,7 +67,15 @@ class AllReduceKeras(CollectiveOpKeras):
         Returns:
             Any: The reduced tensor, which is identical on all devices.
         """
-        return self.all_reduce_fn(local_tensor, op=self.op, axis_name=axis_name)
+        result = self.all_reduce_fn(
+            local_tensor, op=self.op, axis_name=axis_name
+        )
+        if id(result) == id(local_tensor) and self.world_size > 1:
+            if self.op == "sum":
+                return ops.multiply(local_tensor, float(self.world_size))
+            elif self.op == "mean":
+                return local_tensor
+        return result
 
 
 class AllGatherKeras(CollectiveOpKeras):

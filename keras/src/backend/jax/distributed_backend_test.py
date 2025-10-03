@@ -36,15 +36,16 @@ class TestJaxDistributedFunctions(testing.TestCase):
         grad2 = ops.array(0.5)
         gradients = [grad1, grad2]
         learning_rate = 0.1
-        distributed_backend.apply_gradients(
+
+        updated_vars = distributed_backend.apply_gradients(
             gradients, trainable_vars, learning_rate
         )
         expected_var1 = ops.array([1.0, 2.0]) - ops.multiply(
             ops.array([0.1, 0.2]), learning_rate
         )
         expected_var2 = 5.0 - (0.5 * learning_rate)
-        self.assertAllClose(var1.value, expected_var1)
-        self.assertAllClose(var2.value, expected_var2)
+        self.assertAllClose(updated_vars[0], expected_var1)
+        self.assertAllClose(updated_vars[1], expected_var2)
 
     def test_create_optimizer(self):
         """Test optimizer configuration creation."""
