@@ -27,22 +27,14 @@ def load_variable_with_sharded_support(variable, weight_data):
     if hasattr(variable, "_layout") and variable._layout is not None:
         # Use _direct_assign for sharded variables to avoid OOM
         logging.info(
-            f"load_own_variables: Loading sharded variable "
-            f"({variable.name}) with _direct_assign"
+            f"Loading sharded variable ({variable.name}) with _direct_assign"
         )
         variable._direct_assign(weight_data)
-        logging.info(
-            f"load_own_variables: Variable ({variable.name}) "
-            "loaded successfully"
-        )
+        logging.info(f"Variable ({variable.name}) loaded successfully")
     else:
         # Use normal assign for non-sharded variables
         logging.info(
-            f"load_own_variables: Loading non-sharded variable "
-            f"({variable.name}) with assign"
+            f"Loading non-sharded variable ({variable.name}) with assign"
         )
         variable.assign(weight_data)
-        logging.info(
-            f"load_own_variables: Variable ({variable.name}) "
-            "loaded successfully"
-        )
+        logging.info(f"Variable ({variable.name}) loaded successfully")

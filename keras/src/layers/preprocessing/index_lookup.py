@@ -8,6 +8,7 @@ from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.utils.variable_loading import load_variable_with_sharded_support
 
 
 class IndexLookup(Layer):
@@ -807,18 +808,7 @@ class IndexLookup(Layer):
     def load_own_variables(self, store):
         if self.output_mode == "tf_idf":
             weight_data = store["idf_weights"]
-
-            # Check if variable has a layout (is sharded)
-            # and use chunked loading
-            if (
-                hasattr(self.idf_weights, "_layout")
-                and self.idf_weights._layout is not None
-            ):
-                # Use _direct_assign for sharded variables to avoid OOM
-                self.idf_weights._direct_assign(weight_data)
-            else:
-                # Use normal assign for non-sharded variables
-                self.idf_weights.assign(weight_data)
+            load_variable_with_sharded_support(self.idf_weights, weight_data)
             self.idf_weights_const = self.idf_weights.value()
 
     def save_assets(self, dir_path):

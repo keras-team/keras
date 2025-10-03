@@ -70,6 +70,115 @@ class _ProtectedShardedArray:
         return f"_ProtectedShardedArray({self._array})"
 
 
+def _initialize_variable_with_sharding(
+    variable, value, log_prefix="_initialize"
+):
+    """Shared helper for variable initialization with sharding support.
+
+    This function handles the common logic for both JaxVariable and NnxVariable
+    initialization, including layout detection, logging, and tensor
+    distribution.
+
+    Args:
+        variable: The variable instance being initialized
+        value: The initial value
+        log_prefix: Prefix for logging messages
+
+    Returns:
+        The processed value ready for assignment
+    """
+    import numpy as np
+
+    # Validate shape first
+    variable._shape = variable._validate_shape(value.shape)
+
+    # Detect layout from distribution if needed
+    distribution = global_state.get_global_attribute("distribution")
+    if variable._layout is None and distribution is not None:
+        logging.debug(
+            f"{log_prefix}: Getting layout for variable "
+            f"'{variable.path}' from distribution"
+        )
+        tensor_layout = distribution.get_variable_layout(variable)
+        logging.debug(
+            f"{log_prefix}: Distribution returned layout: {tensor_layout}"
+        )
+        from keras.src.distribution import TensorLayout
+
+        if isinstance(tensor_layout, TensorLayout):
+            variable._layout = tensor_layout.backend_layout
+            logging.debug(
+                f"{log_prefix}: Using backend_layout: {variable._layout}"
+            )
+        else:
+            variable._layout = tensor_layout
+            logging.debug(
+                f"{log_prefix}: Using layout directly: {variable._layout}"
+            )
+
+    # Log initialization details
+    total_elements = np.prod(variable._shape)
+    element_size = 4  # float32 = 4 bytes
+    total_size_mb = (total_elements * element_size) / (1024 * 1024)
+
+    logging.info(f"{log_prefix}: Creating variable '{variable.path}'")
+    logging.debug(
+        f"{log_prefix}: Shape: {variable._shape}, Size: {total_size_mb:.2f} MB"
+    )
+    logging.debug(f"{log_prefix}: Has layout: {variable._layout is not None}")
+
+    # If we have a layout, distribute the tensor to avoid OOM
+    if variable._layout is not None:
+        logging.info(
+            f"{log_prefix}: Sharded initialization (layout: {variable._layout})"
+        )
+
+        # Ensure value is on host (numpy array)
+        if not isinstance(value, np.ndarray):
+            value = np.array(value)
+            logging.debug(
+                f"{log_prefix}: Converted to numpy array (host memory)"
+            )
+        else:
+            logging.debug(
+                f"{log_prefix}: Value already numpy array (host memory)"
+            )
+
+        # Distribute to devices - this shards the tensor
+        value = distribution_lib.distribute_tensor(value, variable._layout)
+        logging.debug(f"{log_prefix}: Tensor distributed across devices")
+
+        # Log sharding info
+        if hasattr(value, "sharding") and _safe_has_addressable_shards(value):
+            shards = value.addressable_shards
+            num_devices = len(shards)
+            shard_0_elements = np.prod(shards[0].data.shape)
+            shard_0_size_mb = (shard_0_elements * element_size) / (1024 * 1024)
+
+            logging.debug(f"{log_prefix}: Sharded across {num_devices} devices")
+            logging.debug(
+                f"{log_prefix}: Device 0 shard: {shards[0].data.shape}, "
+                f"{shard_0_size_mb:.2f} MB"
+            )
+            # Calculate memory reduction percentage
+            mem_reduction = (
+                (total_size_mb - shard_0_size_mb) / total_size_mb * 100
+            )
+            logging.debug(
+                f"{log_prefix}: Memory reduction: {mem_reduction:.1f}%"
+            )
+    else:
+        logging.debug(f"{log_prefix}: NORMAL (non-sharded) initialization")
+        # Convert to tensor using normal path
+        value = variable._convert_to_tensor(value)
+
+    # Block until value is fully materialized to prevent GC
+    value = jax.block_until_ready(value)
+    variable._maybe_create_strong_reference(value)
+
+    return value
+
+
 class JaxVariable(KerasVariable):
     def __init__(self, *args, layout=None, **kwargs):
         # Intercept layout parameter so that it is available
@@ -117,100 +226,7 @@ class JaxVariable(KerasVariable):
         When a layout is present, it distributes the tensor across devices
         during initialization to avoid OOM on device 0.
         """
-        import numpy as np
-
-        # Validate shape first
-        self._shape = self._validate_shape(value.shape)
-
-        # Detect layout from distribution if needed
-        distribution = global_state.get_global_attribute("distribution")
-        if self._layout is None and distribution is not None:
-            logging.debug(
-                f"_initialize: Getting layout for variable "
-                f"'{self.path}' from distribution"
-            )
-            tensor_layout = distribution.get_variable_layout(self)
-            logging.debug(
-                f"initialize: Distribution returned layout: {tensor_layout}"
-            )
-            from keras.src.distribution import TensorLayout
-
-            if isinstance(tensor_layout, TensorLayout):
-                self._layout = tensor_layout.backend_layout
-                logging.debug(
-                    f"_initialize: Using backend_layout: {self._layout}"
-                )
-            else:
-                self._layout = tensor_layout
-                logging.debug(
-                    f"_initialize: Using layout directly: {self._layout}"
-                )
-
-        # Log initialization details
-        total_elements = np.prod(self._shape)
-        element_size = 4  # float32 = 4 bytes
-        total_size_mb = (total_elements * element_size) / (1024 * 1024)
-
-        logging.info(f"_initialize: Creating variable '{self.path}'")
-        logging.debug(
-            f"_initialize: Shape: {self._shape}, Size: {total_size_mb:.2f} MB"
-        )
-        logging.debug(f"_initialize: Has layout: {self._layout is not None}")
-
-        # If we have a layout, distribute the tensor to avoid OOM
-        if self._layout is not None:
-            logging.info(
-                f"_initialize: Sharded initialization (layout: {self._layout})"
-            )
-
-            # Ensure value is on host (numpy array)
-            if not isinstance(value, np.ndarray):
-                value = np.array(value)
-                logging.debug(
-                    "_initialize: Converted to numpy array (host memory)"
-                )
-            else:
-                logging.debug(
-                    "_initialize: Value already numpy array (host memory)"
-                )
-
-            # Distribute to devices - this shards the tensor
-            value = distribution_lib.distribute_tensor(value, self._layout)
-            logging.debug("_initialize: Tensor distributed across devices")
-
-            # Log sharding info
-            if hasattr(value, "sharding") and _safe_has_addressable_shards(
-                value
-            ):
-                shards = value.addressable_shards
-                num_devices = len(shards)
-                shard_0_elements = np.prod(shards[0].data.shape)
-                shard_0_size_mb = (shard_0_elements * element_size) / (
-                    1024 * 1024
-                )
-
-                logging.debug(
-                    f"_initialize: Sharded across {num_devices} devices"
-                )
-                logging.debug(
-                    f"_initialize: Device 0 shard: {shards[0].data.shape}, "
-                    f"{shard_0_size_mb:.2f} MB"
-                )
-                # Calculate memory reduction percentage
-                mem_reduction = (
-                    (total_size_mb - shard_0_size_mb) / total_size_mb * 100
-                )
-                logging.debug(
-                    f"_initialize: Memory reduction: {mem_reduction:.1f}%"
-                )
-        else:
-            logging.debug("_initialize: NORMAL (non-sharded) initialization")
-            # Convert to tensor using normal path
-            value = self._convert_to_tensor(value)
-
-        # Block until value is fully materialized to prevent GC
-        value = jax.block_until_ready(value)
-        self._maybe_create_strong_reference(value)
+        value = _initialize_variable_with_sharding(self, value)
 
         # Set the value (this is the critical part!)
         if hasattr(self, "raw_value"):
@@ -408,66 +424,10 @@ if config.is_nnx_enabled():
 
         def _initialize(self, value):
             """Initialize NNX variable with sharding support."""
-            import numpy as np
-
-            # Validate shape first
-            self._shape = self._validate_shape(value.shape)
-
-            # Detect layout from distribution if needed
-            distribution = global_state.get_global_attribute("distribution")
-            if self._layout is None and distribution is not None:
-                logging.debug(
-                    f"_initialize (NNX): Getting layout for '{self.path}'"
-                )
-                tensor_layout = distribution.get_variable_layout(self)
-                logging.debug(
-                    f"_initialize (NNX): Layout from distribution: "
-                    f"{tensor_layout}"
-                )
-                from keras.src.distribution import TensorLayout
-
-                if isinstance(tensor_layout, TensorLayout):
-                    self._layout = tensor_layout.backend_layout
-                    logging.debug(
-                        f"_initialize (NNX): Using backend_layout: "
-                        f"{self._layout}"
-                    )
-                else:
-                    self._layout = tensor_layout
-                    logging.debug(
-                        f"_initialize (NNX): Using layout directly: "
-                        f"{self._layout}"
-                    )
-
-            # Log initialization
-            total_elements = np.prod(self._shape)
-            element_size = 4
-            total_size_mb = (total_elements * element_size) / (1024 * 1024)
-
-            logging.info(f"_initialize (NNX): Creating variable '{self.path}'")
-            logging.debug(
-                f"_initialize (NNX): Shape: {self._shape}, "
-                f"Size: {total_size_mb:.2f} MB"
+            value = _initialize_variable_with_sharding(
+                self, value, "_initialize (NNX)"
             )
 
-            # Handle sharded initialization
-            if self._layout is not None:
-                logging.info("_initialize (NNX): SHARDED initialization")
-
-                # Ensure on host
-                if not isinstance(value, np.ndarray):
-                    value = np.array(value)
-
-                # Distribute
-                value = distribution_lib.distribute_tensor(value, self._layout)
-                logging.debug("_initialize (NNX): Tensor distributed")
-            else:
-                logging.info("_initialize (NNX): NORMAL initialization")
-                value = self._convert_to_tensor(value)
-
-            # Block and keep reference to ALL shards
-            value = jax.block_until_ready(value)
-            self._maybe_create_strong_reference(value)
             # Set value for NNX
             object.__setattr__(self, "raw_value", value)
 
