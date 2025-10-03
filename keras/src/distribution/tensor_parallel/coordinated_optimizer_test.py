@@ -5,17 +5,19 @@ import keras
 from keras import ops
 from keras.src import optimizers
 from keras.src import testing
-from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-    CoordinatedOptimizer,
-)
-from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-    TensorParallelOptimizer,
-)
+
+if keras.backend.backend() == "jax":
+    from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+        CoordinatedOptimizer,
+    )
+    from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+        TensorParallelOptimizer,
+    )
 
 
 @pytest.mark.skipif(
-    keras.backend.backend() == "openvino",
-    reason="CoordinatedOptimizer is not yet supported on the OpenVINO backend.",
+    keras.backend.backend() != "jax",
+    reason="This test is JAX-specific.",
 )
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
@@ -44,9 +46,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
     def test_initialization(self):
         """Tests that the optimizer initializes with the correct defaults."""
         base_optimizer = optimizers.Adam()
-        coord = CoordinatedOptimizer(
-            base_optimizer, world_size=4, distributed_backend=None
-        )
+        coord = CoordinatedOptimizer(base_optimizer, world_size=4)
         self.assertEqual(coord.base_optimizer, base_optimizer)
         self.assertTrue(coord.shard_optimizer_states)
         self.assertEqual(coord.sharded_states, {})
@@ -63,7 +63,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
             def apply_gradients(self, grads_and_vars, *args, **kwargs):
                 self.apply_gradients_call_count += 1
                 self.received_grads = [g for g, v in grads_and_vars]
-                # Call the superclass method to ensure variables are updated
                 super().apply_gradients(grads_and_vars, *args, **kwargs)
 
         world_size = 4
@@ -76,30 +75,24 @@ class CoordinatedOptimizerTest(testing.TestCase):
             optimizer,
             world_size,
             shard_optimizer_states=False,
-            distributed_backend=None,
         )
         coord.apply_gradients(mock_grads, [])
 
         self.assertEqual(optimizer.apply_gradients_call_count, 1)
-        # The average of multipliers 1, 2, 3, 4 is (1+2+3+4)/4 = 10/4 = 2.5
         self.assertAllClose(
             optimizer.received_grads[0],
             np.ones_like(optimizer.received_grads[0]) * 2.5,
         )
 
     def test_init_from_string(self):
-        optimizer = TensorParallelOptimizer(
-            "adam", world_size=4, distributed_backend=None
-        )
+        optimizer = TensorParallelOptimizer("adam", world_size=4)
         self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
 
     def test_apply_gradients_delegation(self):
         """Tests that apply_gradients correctly delegates."""
         world_size = 4
         base_opt = optimizers.Adam()
-        optimizer = TensorParallelOptimizer(
-            base_opt, world_size, distributed_backend=None
-        )
+        optimizer = TensorParallelOptimizer(base_opt, world_size)
         model = self._get_simple_model()
         mock_grads = self._get_mock_gradients_and_vars(model, world_size)
 
@@ -129,11 +122,8 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
     def test_build_and_state_sharding(self):
         """Tests that the build method correctly initializes sharded states."""
-        optimizer = TensorParallelOptimizer(
-            optimizers.Adam(), world_size=4, distributed_backend=None
-        )
+        optimizer = TensorParallelOptimizer(optimizers.Adam(), world_size=4)
         model = self._get_simple_model()
-
         model.build(input_shape=(None, 10))
 
         self.assertEqual(optimizer.coordinated_optimizer.sharded_states, {})
@@ -163,5 +153,28 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
         self.assertEqual(recreated.world_size, world_size)
         self.assertIsInstance(recreated.base_optimizer, optimizers.Adam)
-        self.assertIsNone(recreated.coordinated_optimizer.distributed_backend)
+        self.assertIsNone(recreated.distributed_backend)
         self.assertAllClose(recreated.base_optimizer.learning_rate, 0.1)
+
+    def test_sharding_with_prefixed_variable_names(self):
+        """Tests that state is correctly mapped with prefixed variable names."""
+        inputs = keras.Input(shape=(10,))
+        x = keras.layers.Dense(4, name="dense")(inputs)
+        outputs = keras.layers.Dense(2, name="dense_output")(x)
+        model = keras.Model(inputs, outputs)
+        model.build(input_shape=(None, 10))
+
+        optimizer = TensorParallelOptimizer(optimizers.Adam(), world_size=2)
+        optimizer.build(model.trainable_variables)
+
+        state_to_param = (
+            optimizer.coordinated_optimizer._state_variable_to_parameter
+        )
+        self.assertGreater(len(state_to_param), 0)
+
+        dense_output_kernel = model.get_layer("dense_output").kernel
+        optimizer_name = optimizer.base_optimizer.name
+        kernel_path = dense_output_kernel.path.replace("/", "_")
+        momentum_path = f"{optimizer_name}/{kernel_path}_momentum"
+
+        self.assertIs(state_to_param[momentum_path], dense_output_kernel)

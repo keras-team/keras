@@ -52,12 +52,9 @@ class ShardedKeras:
         shard = self.model_shards[shard_index]
         params = {}
 
-        for layer in shard.layers:
-            name = layer.name
-            if hasattr(layer, "weights") and layer.weights:
-                for i, weight in enumerate(layer.weights):
-                    param_name = f"{name}.weight_{i}"
-                    params[param_name] = weight
+        for weight in shard.weights:
+            param_name = weight.path.replace("/", ".")
+            params[param_name] = weight
 
         return params
 

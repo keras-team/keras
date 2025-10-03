@@ -6,7 +6,7 @@ from keras import Input
 from keras import Model
 from keras import layers
 from keras.src import testing
-from keras.src.backend.distributed import backend_resolver
+from keras.src.distribution import distributed_backend
 from keras.src.distribution.tensor_parallel.autoconfig import (
     analyze_dense_layer_directly,
 )
@@ -20,8 +20,7 @@ class TestAutoConfigKeras(testing.TestCase):
     def setUp(self):
         """Set up the test case and common variables."""
         super().setUp()
-        backend = backend_resolver.get_distributed_backend()
-        device_info = backend.get_device_info()
+        device_info = distributed_backend.get_device_info()
         self.world_size = device_info["device_count"]
         self.device_ids = [f"device:{i}" for i in range(self.world_size)]
 
@@ -78,19 +77,19 @@ class TestAutoConfigKeras(testing.TestCase):
         config = get_default_config_keras(model, self.device_ids)
 
         expected_state_rules = {
-            r"^up_projection_layer.kernel$": SplitKeras(
+            r"^simple_mlp.up_projection_layer.kernel$": SplitKeras(
                 self.world_size, 1, "column"
             ),
-            r"^up_projection_layer.bias$": SplitKeras(
+            r"^simple_mlp.up_projection_layer.bias$": SplitKeras(
                 self.world_size, 0, "column"
             ),
-            r"^down_projection_layer.kernel$": SplitKeras(
+            r"^simple_mlp.down_projection_layer.kernel$": SplitKeras(
                 self.world_size, 0, "row"
             ),
         }
         expected_output_rules = {
-            r"^up_projection_layer$": {0: "no_comm"},
-            r"^down_projection_layer$": {0: "allreduce"},
+            r"^simple_mlp.up_projection_layer$": {0: "no_comm"},
+            r"^simple_mlp.down_projection_layer$": {0: "allreduce"},
         }
 
         self._assert_rules_equal(config.state_rules, expected_state_rules)
@@ -107,11 +106,13 @@ class TestAutoConfigKeras(testing.TestCase):
         config = get_default_config_keras(model, self.device_ids)
 
         expected_state_rules = {
-            r"^token_embedding\.embeddings$": SplitKeras(
+            r"^embed_model.token_embedding\.embeddings$": SplitKeras(
                 self.world_size, 1, "column"
             )
         }
-        expected_output_rules = {r"^token_embedding$": {0: "no_comm"}}
+        expected_output_rules = {
+            r"^embed_model.token_embedding$": {0: "no_comm"}
+        }
 
         self._assert_rules_equal(config.state_rules, expected_state_rules)
         self._assert_rules_equal(config.output_rules, expected_output_rules)
@@ -134,17 +135,19 @@ class TestAutoConfigKeras(testing.TestCase):
         config = get_default_config_keras(outer_model, self.device_ids)
 
         expected_state_rules = {
-            r"^inner_block.inner_dense.kernel$": SplitKeras(
+            r"^outer_model.inner_block.inner_dense.kernel$": SplitKeras(
                 self.world_size, 1, "column"
             ),
-            r"^inner_block.inner_dense.bias$": SplitKeras(
+            r"^outer_model.inner_block.inner_dense.bias$": SplitKeras(
                 self.world_size, 0, "column"
             ),
-            r"^outer_dense.kernel$": SplitKeras(self.world_size, 0, "row"),
+            r"^outer_model.outer_dense.kernel$": SplitKeras(
+                self.world_size, 0, "row"
+            ),
         }
         expected_output_rules = {
-            r"^inner_block.inner_dense$": {0: "no_comm"},
-            r"^outer_dense$": {0: "allreduce"},
+            r"^outer_model.inner_block.inner_dense$": {0: "no_comm"},
+            r"^outer_model.outer_dense$": {0: "allreduce"},
         }
 
         self._assert_rules_equal(config.state_rules, expected_state_rules)

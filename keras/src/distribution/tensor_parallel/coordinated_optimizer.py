@@ -1,14 +1,12 @@
 import re
 from typing import Any
-from typing import Dict
-from typing import List
 
 import numpy as np
 
 import keras
 from keras.src import ops
 from keras.src import optimizers
-from keras.src.backend.distributed import backend_resolver
+from keras.src.distribution import distributed_backend
 
 
 class CoordinatedOptimizer:
@@ -47,50 +45,31 @@ class CoordinatedOptimizer:
     ):
         self.base_optimizer = base_optimizer
         self.world_size = world_size
-        self.rank = rank
         self.shard_optimizer_states = shard_optimizer_states
         self.tensor_parallel_config = tensor_parallel_config
         self.sharded_states = {}
         self._state_variable_to_parameter = {}
-        self.distributed_backend = (
-            backend_resolver.get_distributed_backend(distributed_backend)
-            if distributed_backend is not None
-            else None
-        )
         self._variables = None
         self._variable_to_slot_name = {}
-
-    def _get_optimizer_slot_names(self) -> set:
-        """
-        Deduces the slot names ('m', 'v', etc.) by inspecting the variables
-        created by the base optimizer. This is the most robust method.
-        """
-        slot_names = set()
-        for var in self.base_optimizer.variables:
-            if "iteration" in var.path.lower():
-                continue
-            path_parts = var.path.split("/")
-            if len(path_parts) > 1:
-                slot_names.add(path_parts[1])
-        return slot_names
 
     def _initialize_sharded_states(self):
         """
         Partitions the optimizer's state variables across shards by inspecting
-        the variables created by the base optimizer. This version correctly
-        parses variable paths like 'optimizer/param_name_slot_name'.
+        the variables created by the base optimizer.
         """
         if not self.shard_optimizer_states or not self.base_optimizer.built:
             return
 
         self.sharded_states = {}
         self._state_variable_to_parameter = {}
-        self._variable_to_slot_name = {}  # Reset the map
+        self._variable_to_slot_name = {}
         opt_name = self.base_optimizer.name
 
-        normalized_params = [
-            (p.path.replace("/", "_"), p) for p in self._variables
-        ]
+        normalized_params = sorted(
+            [(p.path.replace("/", "_"), p) for p in self._variables],
+            key=lambda x: len(x[0]),
+            reverse=True,
+        )
 
         for state_var in self.base_optimizer.variables:
             if state_var is self.base_optimizer.iterations:
@@ -113,7 +92,6 @@ class CoordinatedOptimizer:
 
             if found_param is not None and slot_name is not None:
                 self._state_variable_to_parameter[state_var.path] = found_param
-                # MODIFIED: Store the mapping from variable path to slot name
                 self._variable_to_slot_name[state_var.path] = slot_name
 
                 sharding_dim = 0
@@ -138,7 +116,7 @@ class CoordinatedOptimizer:
 
     def _partition_state(
         self, state_variable: any, dim: int
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """Splits a single state variable numpy array into chunks.
 
         If the variable cannot be split along the given dimension, it is
@@ -158,7 +136,7 @@ class CoordinatedOptimizer:
         else:
             return [np.copy(state_array) for _ in range(self.world_size)]
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         return {
             "base_optimizer": self.base_optimizer.get_config(),
             "world_size": self.world_size,
@@ -166,7 +144,7 @@ class CoordinatedOptimizer:
         }
 
     def apply_gradients(
-        self, gradients_and_vars: List[List[tuple]], shard_models: List
+        self, gradients_and_vars: list[list[tuple]], shard_models: list
     ):
         """Coordinates gradient synchronization and application.
 
@@ -202,7 +180,7 @@ class CoordinatedOptimizer:
             )
 
     def _apply_gradients_with_replicated_states(
-        self, synchronized_gradients: List[List[tuple]], shard_models: List
+        self, synchronized_gradients: list[list[tuple]], shard_models: list
     ):
         """Averages gradients across all shards and applies them once.
 
@@ -240,16 +218,23 @@ class CoordinatedOptimizer:
         if averaged_grads_and_vars:
             self.base_optimizer.apply_gradients(averaged_grads_and_vars)
 
-    def _get_local_optimizer_states(self, shard_idx: int) -> Dict[str, Any]:
-        """Constructs the state dictionary for a single shard.
+    def _apply_gradients_with_sharded_states(
+        self, synchronized_gradients: list[list[tuple]], shard_models: list
+    ):
+        """Applies gradients to each shard using its local optimizer state."""
+        for shard_idx in range(self.world_size):
+            local_states = self._get_local_optimizer_states(shard_idx)
+            shard_optimizer = shard_models[shard_idx].optimizer
 
-        Args:
-            shard_idx: The index of the shard for which to retrieve the state.
+            self._update_optimizer_internal_state(shard_optimizer, local_states)
 
-        Returns:
-            A dictionary containing the optimizer state variables specific to
-            the given shard index.
-        """
+            shard_grads_and_vars = synchronized_gradients[shard_idx]
+            shard_optimizer.apply_gradients(shard_grads_and_vars)
+
+            self._update_global_sharded_states(shard_optimizer, shard_idx)
+
+    def _get_local_optimizer_states(self, shard_idx: int) -> dict[str, Any]:
+        """Constructs the state dictionary for a single shard."""
         local_states = {}
         for state_name, state_value in self.sharded_states.items():
             if isinstance(state_value, dict):
@@ -286,9 +271,34 @@ class CoordinatedOptimizer:
                 if var.shape == local_param_state.shape:
                     ops.assign(var, local_param_state)
 
+    def _update_global_sharded_states(self, optimizer, shard_idx: int):
+        """Updates the main sharded_states dictionary after a gradient step."""
+        if not optimizer.built:
+            return
+
+        for var in optimizer.variables:
+            if var is optimizer.iterations:
+                self.sharded_states["iterations"][shard_idx] = (
+                    ops.convert_to_numpy(var)
+                )
+                continue
+
+            param = self._state_variable_to_parameter.get(var.path, None)
+            slot_name = self._variable_to_slot_name.get(var.path)
+
+            if (
+                param
+                and slot_name
+                and slot_name in self.sharded_states
+                and param.path in self.sharded_states[slot_name]
+            ):
+                self.sharded_states[slot_name][param.path][shard_idx] = (
+                    ops.convert_to_numpy(var)
+                )
+
     def _synchronize_gradients(
-        self, gradients_and_vars: List[List[tuple]]
-    ) -> List[List[tuple]]:
+        self, gradients_and_vars: list[list[tuple]]
+    ) -> list[list[tuple]]:
         """Synchronizes gradients across shards based on tensor parallel rules.
 
         Specifically, it performs an all-reduce operation on gradients of
@@ -339,7 +349,7 @@ class CoordinatedOptimizer:
                         )
         return gradients_and_vars
 
-    def _allreduce_gradients(self, gradients: List[Any]) -> List[Any]:
+    def _allreduce_gradients(self, gradients: list[Any]) -> list[Any]:
         """Performs a mean all-reduce operation on a list of gradients.
 
         If a distributed backend is available, it uses it. Otherwise, it
@@ -354,11 +364,12 @@ class CoordinatedOptimizer:
         if not gradients:
             return []
 
-        if self.distributed_backend is not None:
+        if distributed_backend.is_multi_device_capable():
+            all_reduce_fn = distributed_backend.get_communication_ops()[
+                "all_reduce"
+            ]
             numpy_grad = ops.convert_to_numpy(gradients[0])
-            synced_numpy = self.distributed_backend.all_reduce(
-                numpy_grad, op="mean"
-            )
+            synced_numpy = all_reduce_fn(numpy_grad, op="mean")
             synced_tensor = ops.convert_to_tensor(synced_numpy)
             return [synced_tensor for _ in range(self.world_size)]
 
@@ -368,17 +379,17 @@ class CoordinatedOptimizer:
         mean_grad = ops.mean(stacked_grads, axis=0)
         return [mean_grad for _ in range(len(gradients))]
 
-    def get_weights(self) -> List[np.ndarray]:
+    def get_weights(self) -> list[np.ndarray]:
         """Returns the weights of the base optimizer."""
         return [
             ops.convert_to_numpy(var) for var in self.base_optimizer.variables
         ]
 
-    def set_weights(self, weights: List[np.ndarray]):
+    def set_weights(self, weights: list[np.ndarray]):
         """Sets the weights of the base optimizer."""
         self.base_optimizer.set_weights(weights)
 
-    def enable_optimizer_state_sharding(self, variables: List):
+    def enable_optimizer_state_sharding(self, variables: list):
         """Enables and initializes optimizer state sharding.
 
         This method is called from `build()`, which is guarded from running
@@ -426,7 +437,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
     import keras
 
     # Assume model variables and gradients from 4 shards exist.
-    # The structure is: List[List[Tuple[gradient, variable]]]
+    # The structure is: list[list[tuple[gradient, variable]]]
     trainable_vars = [keras.Variable(1.0), keras.Variable(2.0)]
     sharded_grads_and_vars = [
         [(keras.ops.ones_like(v), v) for v in trainable_vars]
@@ -477,7 +488,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             tensor_parallel_config=tensor_parallel_config,
         )
 
-    def apply_gradients(self, grads_and_vars: List, **kwargs):
+    def apply_gradients(self, grads_and_vars: list, **kwargs):
         """Applies gradients to the model variables.
 
         If `grads_and_vars` is a list of lists, it's assumed to be from
@@ -490,11 +501,12 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             **kwargs: Additional arguments. `shard_models` can be passed to
                 provide the list of model shards.
         """
-        if (
+        is_sharded_grads = (
             isinstance(grads_and_vars, list)
             and grads_and_vars
             and isinstance(grads_and_vars[0], list)
-        ):
+        )
+        if is_sharded_grads:
             shard_models = kwargs.get("shard_models", [])
             self.coordinated_optimizer.apply_gradients(
                 grads_and_vars, shard_models
@@ -502,7 +514,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         else:
             self.base_optimizer.apply_gradients(grads_and_vars)
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         from keras.src import saving
 
         config = super().get_config()
@@ -521,7 +533,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         return config
 
     @classmethod
-    def from_config(cls, config: Dict[str, Any]) -> "TensorParallelOptimizer":
+    def from_config(cls, config: dict[str, Any]) -> "TensorParallelOptimizer":
         from keras.src import saving
 
         base_optimizer_config = config.pop("base_optimizer")
@@ -535,7 +547,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
 
         return cls(base_optimizer=base_optimizer, **init_kwargs)
 
-    def build(self, variables: List):
+    def build(self, variables: list):
         """Builds the optimizer and initializes sharded states.
 
         This method is called the first time the optimizer is used. It builds
@@ -556,16 +568,16 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         self.coordinated_optimizer.enable_optimizer_state_sharding(variables)
         super().build(variables)
 
-    def get_weights(self) -> List[np.ndarray]:
+    def get_weights(self) -> list[np.ndarray]:
         """Returns the weights of the base optimizer."""
         return self.coordinated_optimizer.get_weights()
 
-    def set_weights(self, weights: List[np.ndarray]):
+    def set_weights(self, weights: list[np.ndarray]):
         """Sets the weights of the base optimizer."""
         self.coordinated_optimizer.set_weights(weights)
 
     @property
-    def variables(self) -> List:
+    def variables(self) -> list:
         """Returns the list of variables from the base optimizer."""
         return self.base_optimizer.variables
 
@@ -573,6 +585,10 @@ class TensorParallelOptimizer(optimizers.Optimizer):
     def learning_rate(self) -> Any:
         """Provides access to the learning rate of the base optimizer."""
         return self.base_optimizer.learning_rate
+
+    @learning_rate.setter
+    def learning_rate(self, value):
+        self.base_optimizer.learning_rate = value
 
     @property
     def iterations(self):

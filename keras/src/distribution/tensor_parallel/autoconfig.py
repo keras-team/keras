@@ -206,15 +206,14 @@ def get_default_config_keras(module, device_ids: Sequence[str]) -> ConfigKeras:
     output_rules = {}
     processed_layers = set()
 
-    for layer in module.layers:
-        _traverse_and_shard_layer(
-            current_layer=layer,
-            module=module,
-            world_size=world_size,
-            state_rules=state_rules,
-            output_rules=output_rules,
-            processed_layers=processed_layers,
-            prefix="",
-        )
+    _traverse_and_shard_layer(
+        current_layer=module,
+        module=module,
+        world_size=world_size,
+        state_rules=state_rules,
+        output_rules=output_rules,
+        processed_layers=processed_layers,
+        prefix="",
+    )
 
     return ConfigKeras(state_rules=state_rules, output_rules=output_rules)
