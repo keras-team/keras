@@ -1,11 +1,13 @@
+import pytest
+
 import keras
 from keras.src import testing
 from keras.src.distribution.tensor_parallel.state_action_keras import (
     GatherKeras,
 )
-import pytest
 from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
 from keras.src.distribution.tensor_parallel.state_action_keras import SumKeras
+
 
 @pytest.mark.skipif(
     keras.backend.backend() != "jax",

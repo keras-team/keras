@@ -51,9 +51,7 @@ def apply_gradients(
                 var.assign(new_value)
 
 
-def create_optimizer(
-    optimizer_class: str, **kwargs
-) -> Dict[str, Any]:
+def create_optimizer(optimizer_class: str, **kwargs) -> Dict[str, Any]:
     """Creates a configuration dictionary for an optimizer.
 
     This function returns a dictionary containing the optimizer's configuration,
