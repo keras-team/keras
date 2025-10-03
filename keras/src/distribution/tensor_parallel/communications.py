@@ -231,46 +231,48 @@ class TensorParallelCommunicator:
         return self.allreduce(local_gradient, axis_name=axis_name)
 
     def forward_row_parallel(
-        self, local_output: Any, op: str = "sum", axis_name: str = "i"
+        self, local_input: Any, axis_name: str = "i"
     ) -> Any:
-        """Communication for the forward pass of a row-parallel layer.
+        """Forward pass communication for a row-parallel layer (identity).
 
-        In a row-parallel layer, the local outputs from each device are
-        summed together (AllReduce) to produce the final output.
+        In a row-parallel layer, the input is already sharded across devices.
+        This function serves as an identity operation, passing the input
+        through. The summation of the final outputs is handled separately,
+        typically after the layer's computation.
 
         Args:
-            local_output (Any): The local output from the row-parallel layer.
+            local_input (Any): The local shard of the input tensor.
+            axis_name (str, optional): The communication axis name.
+                Defaults to "i".
+
+        Returns:
+            Any: The unchanged local input tensor.
+        """
+        return local_input
+
+    def backward_row_parallel(
+        self, local_gradient: Any, op: str = "sum", axis_name: str = "i"
+    ) -> Any:
+        """Backward pass communication for a row-parallel layer.
+
+        The forward pass of a row-parallel layer produces sharded local outputs
+        that are then summed (`AllReduce`) to get the final result. The backward
+        pass of that `AllReduce` operation is an identity, so the gradient is
+        simply passed through to all devices. This function handles that.
+
+        Args:
+            output_gradient (Any): The gradient with respect to the layer's
+                final output.
             op (str, optional): The reduction operation ("sum" or "mean").
                 Defaults to "sum".
             axis_name (str, optional): The communication axis name.
                 Defaults to "i".
 
         Returns:
-            Any: The final, reduced output tensor.
+            Any: The gradient, which is now identical on all devices.
         """
         self.allreduce.op = op
-        return self.allreduce(local_output, axis_name=axis_name)
-
-    def backward_row_parallel(
-        self, local_gradient: Any, dim: int = -1, axis_name: str = "i"
-    ) -> Any:
-        """Communication for the backward pass of a row-parallel layer.
-
-        In the backward pass, the gradients with respect to the input are
-        gathered from all devices.
-
-        Args:
-            local_gradient (Any): The local gradient computed on the device.
-            dim (int, optional): The dimension to concatenate the gradients
-                along. Defaults to -1.
-            axis_name (str, optional): The communication axis name.
-                Defaults to "i".
-
-        Returns:
-            Any: The full, gathered gradient tensor.
-        """
-        self.allgather.dim = dim
-        return self.allgather(local_gradient, axis_name=axis_name)
+        return self.allreduce(local_gradient, axis_name=axis_name)
 
     def handle_mlp_handshake(
         self, up_projection_outputs: List, down_projection_inputs: List
