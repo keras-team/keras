@@ -33,7 +33,7 @@ class TestCollectiveOpsSimulated(testing.TestCase):
 
     def test_all_reduce_simulation(self):
         """Tests the simulated all-reduce operation from multiple ranks."""
-        
+
         local_tensors = [
             keras.ops.array([float(i + 1), float(i + 2), float(i + 3)])
             for i in range(self.world_size)
@@ -47,7 +47,9 @@ class TestCollectiveOpsSimulated(testing.TestCase):
             all_reduce_op = AllReduceKeras(
                 world_size=self.world_size, op="sum", rank=rank
             )
-            result = all_reduce_op(local_tensors[rank], axis_name=self.axis_name)
+            result = all_reduce_op(
+                local_tensors[rank], axis_name=self.axis_name
+            )
             results.append(result)
 
         for result in results:
@@ -81,7 +83,10 @@ class TestCollectiveOpsSimulated(testing.TestCase):
 
         local_slices = [
             keras.ops.array(
-                [[float(rank), float(rank + 1)], [float(rank + 2), float(rank + 3)]]
+                [
+                    [float(rank), float(rank + 1)],
+                    [float(rank + 2), float(rank + 3)],
+                ]
             )
             for rank in range(self.world_size)
         ]

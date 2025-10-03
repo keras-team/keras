@@ -59,7 +59,7 @@ class AllReduceKeras(CollectiveOpKeras):
             world_size (int): The total number of participating processes.
             op (str, optional): The reduction operation. Supported values are
                 "sum" and "mean". Defaults to "sum".
-            rank (int, optional): The rank of the current process. Defaults to 0.
+            rank (int, optional): The rank of current process. Defaults to 0.
         """
         super().__init__(world_size, rank)
         self.op = op
@@ -110,7 +110,7 @@ class AllGatherKeras(CollectiveOpKeras):
             world_size (int): The total number of participating processes.
             dim (int, optional): The dimension along which to concatenate the
                 gathered tensors. Defaults to -1.
-            rank (int, optional): The rank of the current process. Defaults to 0.
+            rank (int, optional): The rank of current process. Defaults to 0.
         """
         super().__init__(world_size, rank)
         self.dim = dim
@@ -162,7 +162,7 @@ class BroadcastKeras(CollectiveOpKeras):
             world_size (int): The total number of participating processes.
             src_rank (int, optional): The rank of the source process that is
                 broadcasting the tensor. Defaults to 0.
-            rank (int, optional): The rank of the current process. Defaults to 0.
+            rank (int, optional): The rank of current process. Defaults to 0.
         """
         super().__init__(world_size, rank)
         self.src_rank = src_rank
@@ -311,7 +311,7 @@ class TensorParallelCommunicator:
         """
         self.allgather.dim = dim
         return self.allgather(partial_gradients[self.rank], axis_name=axis_name)
-    
+
     def handle_mlp_handshake(
         self, up_projection_outputs: List, down_projection_inputs: List
     ) -> Tuple:
