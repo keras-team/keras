@@ -136,7 +136,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         keras.Input(shape=(None, None, 3)),
         keras.layers.Conv2D(filters=32, kernel_size=3),
     ])
-    ```
     """
 
     def __new__(cls, *args, **kwargs):
@@ -569,8 +568,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"` and `"onnx"`.  Defaults to
-                `"tf_saved_model"`.
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.
+                Defaults to `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
                 backends and formats.
@@ -593,6 +592,18 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     provided, they will be automatically computed.
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
+                - `allow_custom_ops`: Optional `bool`. Specific to
+                `format="litert"`.
+                    Whether to allow custom operations during conversion.
+                    Defaults to `False`.
+                - `enable_select_tf_ops`: Optional `bool`. Specific to
+                `format="litert"`.
+                    Whether to enable TensorFlow Select ops for unsupported
+                    operations. Defaults to `False`.
+                - `optimizations`: Optional `list`. Specific to
+                `format="litert"`.
+                    List of optimizations to apply (e.g.,
+                    `[tf.lite.Optimize.DEFAULT]`).
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -627,12 +638,31 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         }
         predictions = ort_session.run(None, ort_inputs)
         ```
+
+        Here's how to export a LiteRT (TFLite) for inference.
+
+        ```python
+        # Export the model as a LiteRT artifact
+        model.export("path/to/location", format="litert")
+
+        # Load the artifact in a different process/environment
+        interpreter = tf.lite.Interpreter(model_path="path/to/location")
+        interpreter.allocate_tensors()
+        interpreter.set_tensor(
+            interpreter.get_input_details()[0]['index'], input_data
+        )
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(
+            interpreter.get_output_details()[0]['index']
+        )
+        ```
         """
+        from keras.src.export import export_litert
         from keras.src.export import export_onnx
         from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx", "openvino")
+        available_formats = ("tf_saved_model", "onnx", "openvino", "litert")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
@@ -660,6 +690,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 self,
                 filepath,
                 verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "litert":
+            export_litert(
+                self,
+                filepath,
+                verbose=verbose,
                 input_signature=input_signature,
                 **kwargs,
             )

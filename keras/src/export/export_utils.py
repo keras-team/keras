@@ -7,6 +7,14 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 
 def get_input_signature(model):
+    """Get input signature for model export.
+
+    Args:
+        model: A Keras Model instance.
+
+    Returns:
+        Input signature suitable for model export (always a tuple or list).
+    """
     if not isinstance(model, models.Model):
         raise TypeError(
             "The model must be a `keras.Model`. "
@@ -17,18 +25,24 @@ def get_input_signature(model):
             "The model provided has not yet been built. It must be built "
             "before export."
         )
+
     if isinstance(model, models.Functional):
+        # Functional models expect a single positional argument `inputs`
+        # containing the full nested input structure. We keep the
+        # original behavior of returning a single-element list that
+        # wraps the mapped structure so that downstream exporters
+        # build a tf.function with one positional argument.
         input_signature = [
             tree.map_structure(make_input_spec, model._inputs_struct)
         ]
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:
+        # Subclassed models: rely on recorded shapes from the first call.
         input_signature = _infer_input_signature_from_model(model)
         if not input_signature or not model._called:
             raise ValueError(
-                "The model provided has never called. "
-                "It must be called at least once before export."
+                "The model provided has never called. It must be called at least once before export."
             )
     return input_signature
 
@@ -41,18 +55,24 @@ def _infer_input_signature_from_model(model):
     def _make_input_spec(structure):
         # We need to turn wrapper structures like TrackingDict or _DictWrapper
         # into plain Python structures because they don't work with jax2tf/JAX.
+        if structure is None:
+            return None
         if isinstance(structure, dict):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
             if all(isinstance(d, (int, type(None))) for d in structure):
+                # For export, force batch dimension to None for flexible batching
+                shape = (None,) + structure[1:] if len(structure) > 0 else structure
                 return layers.InputSpec(
-                    shape=(None,) + structure[1:], dtype=model.input_dtype
+                    shape=shape, dtype=model.input_dtype
                 )
             return tuple(_make_input_spec(v) for v in structure)
         elif isinstance(structure, list):
             if all(isinstance(d, (int, type(None))) for d in structure):
+                # For export, force batch dimension to None for flexible batching
+                shape = (None,) + tuple(structure[1:]) if len(structure) > 0 else tuple(structure)
                 return layers.InputSpec(
-                    shape=[None] + structure[1:], dtype=model.input_dtype
+                    shape=shape, dtype=model.input_dtype
                 )
             return [_make_input_spec(v) for v in structure]
         else:
@@ -60,6 +80,7 @@ def _infer_input_signature_from_model(model):
                 f"Unsupported type {type(structure)} for {structure}"
             )
 
+    # Always return a flat list preserving the order of shapes_dict values
     return [_make_input_spec(value) for value in shapes_dict.values()]
 
 
@@ -105,3 +126,38 @@ def convert_spec_to_tensor(spec, replace_none_number=None):
             s if s is not None else replace_none_number for s in shape
         )
     return ops.ones(shape, spec.dtype)
+
+
+# Registry for export formats
+EXPORT_FORMATS = {
+    "tf_saved_model": "keras.src.export.saved_model:export_saved_model",
+    "litert": "keras.src.export.litert_exporter:export_litert",
+    # Add other formats as needed
+}
+
+
+def _get_exporter(format_name):
+    """Lazy import exporter to avoid circular imports."""
+    if format_name not in EXPORT_FORMATS:
+        raise ValueError(f"Unknown export format: {format_name}")
+
+    exporter = EXPORT_FORMATS[format_name]
+    if isinstance(exporter, str):
+        # Lazy import for string references
+        module_path, attr_name = exporter.split(":")
+        module = __import__(module_path, fromlist=[attr_name])
+        return getattr(module, attr_name)
+    else:
+        # Direct reference
+        return exporter
+
+
+def export_model(model, filepath, format="tf_saved_model", **kwargs):
+    """Export a model to the specified format."""
+    exporter = _get_exporter(format)
+
+    if isinstance(exporter, type):
+        exporter_instance = exporter(model, **kwargs)
+        return exporter_instance.export(filepath)
+
+    return exporter(model, filepath, **kwargs)
