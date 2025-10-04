@@ -676,8 +676,9 @@ class QrOpTest(testing.TestCase):
         def f(x):
             return backend.numpy.sin(x), x**2
 
-
-        primals_out, tangents_out, aux = linalg.jvp(f, (a1,), (a2,), has_aux=True)
+        primals_out, tangents_out, aux = linalg.jvp(
+            f, (a1,), (a2,), has_aux=True
+        )
         self.assertAllClose(primals_out, 0.0998, atol=1e-4)
         self.assertAllClose(tangents_out, 0.1990, atol=1e-4)
         self.assertAllClose(aux, 0.01, atol=1e-4)
