@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -663,3 +664,18 @@ class QrOpTest(testing.TestCase):
         q, r = qr_op.call(test_input)
         self.assertEqual(q.shape, (10, 10))
         self.assertEqual(r.shape, (10, 10))
+
+    def test_jvp(self):
+        if backend.backend() in ["openvino", "numpy"]:
+            pytest.skip("Backend does not support unfold operation")
+        a1, a2 = ops.convert_to_tensor(0.1), ops.convert_to_tensor(0.2)
+        primals, tangents = linalg.jvp(backend.numpy.sin, (a1,), (a2,))
+        self.assertAllClose(primals, 0.0998, atol=1e-4)
+        self.assertAllClose(tangents, 0.1990, atol=1e-4)
+
+        def f(x):
+            return backend.numpy.sin(x), x**2
+
+        _, result = linalg.jvp(f, (a1,), (a2,), True)
+        self.assertAllClose(result[0], 0.1990, atol=1e-4)
+        self.assertAllClose(result[1], 0.04, atol=1e-4)

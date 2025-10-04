@@ -96,3 +96,7 @@ def lstsq(a, b, rcond=None):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return np.linalg.lstsq(a, b, rcond=rcond)[0]
+
+
+def jvp(fun, primals, tangents, has_aux=False):
+    raise NotImplementedError("JVP is not supported by the Numpy backend.")
