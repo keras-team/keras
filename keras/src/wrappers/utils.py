@@ -32,6 +32,13 @@ def _check_model(model):
         )
 
 
+def _estimator_has_proba(self):
+    return self.model_.layers[-1].activation.__name__ in (
+        "sigmoid",
+        "softmax",
+    )
+
+
 class TargetReshaper(TransformerMixin, BaseEstimator):
     """Convert 1D targets to 2D and back.
 
