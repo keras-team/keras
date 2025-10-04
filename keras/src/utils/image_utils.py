@@ -176,7 +176,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
     """
     data_format = backend.standardize_data_format(data_format)
 
-    # Normalize jpg → jpeg 
+    # Normalize jpg → jpeg
     if file_format is not None and file_format.lower() == "jpg":
         file_format = "jpeg"
 
