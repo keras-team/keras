@@ -148,7 +148,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
             mapping = list(zip(self.variables, optimizer_variables))
             with backend.StatelessScope(state_mapping=mapping) as scope:
                 self.step_counter.assign(0)
-                self.dynamic_scale.assign(self.dynamic_scale * 2.0)
+                self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 2.0))
             return [scope.get_current_value(v) for v in self._variables]
 
         def increment():
@@ -192,7 +192,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         mapping = list(zip(self.variables, optimizer_variables))
         with backend.StatelessScope(state_mapping=mapping) as scope:
             self.step_counter.assign(0)
-            self.dynamic_scale.assign(self.dynamic_scale / 2.0)
+            self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 0.5))
         new_optimizer_variables = []
         for v in self.variables:
             new_optimizer_variables.append(scope.get_current_value(v))
@@ -226,7 +226,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
         def upscale():
             self.step_counter.assign(0)
-            self.dynamic_scale.assign(self.dynamic_scale * 2.0)
+            self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 2.0))
 
         def increment():
             self.step_counter.assign_add(1)
@@ -241,7 +241,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
     def _stateful_handle_non_finite_grads(self):
         # If any inf or nan in grads, downscale loss and reset counter.
         self.step_counter.assign(0)
-        self.dynamic_scale.assign(self.dynamic_scale / 2.0)
+        self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 0.5))
 
     def _common_apply(self, grads, trainable_variables=None):
         finite = self.check_finite(grads)
@@ -314,7 +314,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
     def scale_loss(self, loss):
         scale = self.dynamic_scale if self.built else self.initial_scale
-        return loss * scale
+        return ops.multiply(loss, scale)
 
     def finalize_variable_values(self, var_list):
         self.inner_optimizer.finalize_variable_values(var_list)
