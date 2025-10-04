@@ -1413,3 +1413,46 @@ def dot_product_attention(
     )
     encoded = vmapped_fn(query, key, value, bias, mask, is_causal, scale)
     return jnp.reshape(encoded, output_shape)
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """JAX implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = jnp.pad(input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])))
+
+    patches = lax.conv_general_dilated_patches(
+        input,
+        filter_shape=k,
+        window_strides=s,
+        padding="VALID",  # has padde
+        rhs_dilation=d,
+        dimension_numbers=("NCHW", "OIHW", "NCHW"),  # only support 'NCHW'
+    )  # shape: (N, C*kH*kW, oH, oW)
+
+    # ---- reshape -> (N, C*kH*kW, L) ----
+    _, CKK, oH, oW = patches.shape
+    return patches.reshape(N, CKK, oH * oW)
