@@ -667,7 +667,7 @@ class QrOpTest(testing.TestCase):
 
     def test_jvp(self):
         if backend.backend() in ["openvino", "numpy"]:
-            pytest.skip("Backend does not support unfold operation")
+            pytest.skip("Backend does not support jvp operation")
         a1, a2 = ops.convert_to_tensor(0.1), ops.convert_to_tensor(0.2)
         primals, tangents = linalg.jvp(backend.numpy.sin, (a1,), (a2,))
         self.assertAllClose(primals, 0.0998, atol=1e-4)
@@ -676,6 +676,8 @@ class QrOpTest(testing.TestCase):
         def f(x):
             return backend.numpy.sin(x), x**2
 
-        _, result = linalg.jvp(f, (a1,), (a2,), True)
-        self.assertAllClose(result[0], 0.1990, atol=1e-4)
-        self.assertAllClose(result[1], 0.04, atol=1e-4)
+
+        primals_out, tangents_out, aux = linalg.jvp(f, (a1,), (a2,), has_aux=True)
+        self.assertAllClose(primals_out, 0.0998, atol=1e-4)
+        self.assertAllClose(tangents_out, 0.1990, atol=1e-4)
+        self.assertAllClose(aux, 0.01, atol=1e-4)

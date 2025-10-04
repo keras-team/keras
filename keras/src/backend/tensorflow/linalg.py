@@ -260,7 +260,6 @@ def jvp(fun, primals, tangents, has_aux=False):
         else:
             primals_out = fun(*primals)
 
-        # 确保所有 JVP 计算在 `with` 块内完成
         primals_out_flat = tf.nest.flatten(primals_out)
         tangents_out_flat = [acc.jvp(po) for po in primals_out_flat]
 

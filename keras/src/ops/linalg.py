@@ -774,4 +774,4 @@ def jvp(fun, primals, tangents, has_aux=False):
     >>> print(tangents)
     0.19900084
     """
-    return backend.linalg.jvp(fun, primals, tangents)
+    return backend.linalg.jvp(fun, primals, tangents, has_aux=has_aux)
