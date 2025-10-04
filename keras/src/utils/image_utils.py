@@ -176,34 +176,20 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
     """
     data_format = backend.standardize_data_format(data_format)
 
-    # Determine output format
-    _format = file_format
-    if _format is None and isinstance(path, (str, pathlib.Path)):
-        suffix = pathlib.Path(path).suffix.lower()
-        if suffix.startswith("."):
-            suffix = suffix[1:]
-        _format = suffix
-
-    # Normalize jpg → jpeg for both file_format and _format
+    # Normalize jpg → jpeg 
     if file_format is not None and file_format.lower() == "jpg":
         file_format = "jpeg"
-    if _format is not None and _format.lower() == "jpg":
-        _format = "jpeg"
 
     # Convert array to PIL Image
     img = array_to_img(x, data_format=data_format, scale=scale)
 
     # Handle RGBA → RGB if saving to JPEG
-    if img.mode == "RGBA" and (_format in ("jpeg", "jpg")):
+    if img.mode == "RGBA" and file_format in ("jpeg", "jpg"):
         warnings.warn(
             "The JPEG format does not support RGBA images, converting to RGB."
         )
         img = img.convert("RGB")
-
-    # Finalize save format (explicit file_format wins)
-    save_format = file_format if file_format is not None else _format
-
-    img.save(path, format=save_format, **kwargs)
+    img.save(path, format=file_format, **kwargs)
 
 
 @keras_export(["keras.utils.load_img", "keras.preprocessing.image.load_img"])
