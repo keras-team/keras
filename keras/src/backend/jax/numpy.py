@@ -3,6 +3,7 @@ import math
 
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
+from jax import export as jax_export
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
@@ -306,14 +307,20 @@ def append(x1, x2, axis=None):
     return jnp.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
+    def get_dtype(x):
+        if hasattr(x, "dtype"):
+            return x.dtype
+        if jax_export.is_symbolic_dim(x):
+            return int
+        return type(x)
+
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [get_dtype(start)]
         if stop is not None:
-            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            dtypes_to_resolve.append(get_dtype(stop))
+        if step is not None:
+            dtypes_to_resolve.append(get_dtype(step))
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = standardize_dtype(dtype)
     return jnp.arange(start, stop, step=step, dtype=dtype)
@@ -536,15 +543,18 @@ def clip(x, x_min, x_max):
 
 def concatenate(xs, axis=0):
     bcoo_count = builtins.sum(isinstance(x, jax_sparse.BCOO) for x in xs)
-    if bcoo_count:
-        if bcoo_count == len(xs):
-            axis = canonicalize_axis(axis, len(xs[0].shape))
-            return jax_sparse.bcoo_concatenate(xs, dimension=axis)
-        else:
-            xs = [
-                x.todense() if isinstance(x, jax_sparse.JAXSparse) else x
-                for x in xs
-            ]
+    if bcoo_count == len(xs):
+        axis = canonicalize_axis(axis, len(xs[0].shape))
+        return jax_sparse.bcoo_concatenate(xs, dimension=axis)
+    elif bcoo_count:
+        xs = [
+            x.todense()
+            if isinstance(x, jax_sparse.JAXSparse)
+            else convert_to_tensor(x)
+            for x in xs
+        ]
+    else:
+        xs = [convert_to_tensor(x) for x in xs]
     return jnp.concatenate(xs, axis=axis)
 
 
@@ -888,6 +898,15 @@ def logaddexp(x1, x2):
     return jnp.logaddexp(x1, x2)
 
 
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return jnp.logaddexp2(x1, x2)
+
+
 def logical_and(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1071,6 +1090,7 @@ def reshape(x, newshape):
         if None not in output_shape:
             newshape = output_shape
         return jax_sparse.bcoo_reshape(x, new_sizes=newshape)
+    x = convert_to_tensor(x)
     return jnp.reshape(x, newshape)
 
 
@@ -1133,10 +1153,12 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
 def stack(x, axis=0):
+    x = [convert_to_tensor(t) for t in x]
     return jnp.stack(x, axis=axis)
 
 
@@ -1322,6 +1344,7 @@ def squeeze(x, axis=None):
             axis = tuple(i for i, d in enumerate(x.shape) if d == 1)
         axis = to_tuple_or_list(axis)
         return jax_sparse.bcoo_squeeze(x, dimensions=axis)
+    x = convert_to_tensor(x)
     return jnp.squeeze(x, axis=axis)
 
 

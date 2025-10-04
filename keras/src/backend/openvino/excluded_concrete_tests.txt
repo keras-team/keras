@@ -39,12 +39,10 @@ NumpyDtypeTest::test_isnan
 NumpyDtypeTest::test_isposinf
 NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
-NumpyDtypeTest::test_linspace
-NumpyDtypeTest::test_logspace
+NumpyDtypeTest::test_logaddexp2
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_max
 NumpyDtypeTest::test_mean
-NumpyDtypeTest::test_median
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_power
@@ -53,7 +51,6 @@ NumpyDtypeTest::test_roll
 NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
-NumpyDtypeTest::test_sort
 NumpyDtypeTest::test_sqrt
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
@@ -95,9 +92,9 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
 NumpyOneInputOpsCorrectnessTest::test_isposinf
+NumpyOneInputOpsCorrectnessTest::test_logaddexp2
 NumpyOneInputOpsCorrectnessTest::test_max
 NumpyOneInputOpsCorrectnessTest::test_mean
-NumpyOneInputOpsCorrectnessTest::test_median
 NumpyOneInputOpsCorrectnessTest::test_pad_float16_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float32_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float64_constant_2
@@ -114,7 +111,6 @@ NumpyOneInputOpsCorrectnessTest::test_select
 NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_size
 NumpyOneInputOpsCorrectnessTest::test_slogdet
-NumpyOneInputOpsCorrectnessTest::test_sort
 NumpyOneInputOpsCorrectnessTest::test_sqrt_int32
 NumpyOneInputOpsCorrectnessTest::test_squeeze
 NumpyOneInputOpsCorrectnessTest::test_std
@@ -144,8 +140,6 @@ NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_isin
 NumpyTwoInputOpsCorrectnessTest::test_kron
 NumpyTwoInputOpsCorrectnessTest::test_lcm
-NumpyTwoInputOpsCorrectnessTest::test_linspace
-NumpyTwoInputOpsCorrectnessTest::test_logspace
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
 NumpyTwoInputOpsCorrectnessTest::test_vdot

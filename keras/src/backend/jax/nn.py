@@ -396,6 +396,8 @@ def depthwise_conv(
     feature_group_count = (
         inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
     )
+    kernel = convert_to_tensor(kernel)
+    inputs = convert_to_tensor(inputs)
     kernel = jnp.reshape(
         kernel,
         kernel.shape[:-2] + (1, feature_group_count * kernel.shape[-1]),

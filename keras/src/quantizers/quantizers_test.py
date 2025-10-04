@@ -14,6 +14,7 @@ from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
+from keras.src.testing.test_utils import named_product
 
 
 class QuantizersTest(testing.TestCase):
@@ -113,49 +114,57 @@ class QuantizersTest(testing.TestCase):
         # A loose assertion due to an expected quantization error
         self.assertAllClose(qdq_values, values, atol=5e-1)
 
+    SHAPE_AXIS_SCENARIOS = [
+        # 1. 2D Tensors
+        # Covers the unpack fast path (rank=2, axis=0) for both parities
+        {"testcase_name": "2d_axis0_odd", "shape": (5, 8), "axis": 0},
+        {"testcase_name": "2d_axis0_even", "shape": (4, 8), "axis": 0},
+        # Covers the general path and a negative axis for 2D tensors
+        {"testcase_name": "2d_axis1_odd", "shape": (8, 7), "axis": 1},
+        {"testcase_name": "2d_axis_neg1_even", "shape": (8, 6), "axis": -1},
+        # 2. Higher-Rank Tensors
+        # Covers a middle axis for a complex shape with both parities
+        {"testcase_name": "4d_axis1_odd", "shape": (2, 5, 4, 6), "axis": 1},
+        {"testcase_name": "4d_axis2_even", "shape": (2, 4, 8, 6), "axis": 2},
+        # Covers the last axis of a complex shape with a negative index
+        {
+            "testcase_name": "4d_axis_neg1_odd",
+            "shape": (2, 4, 6, 7),
+            "axis": -1,
+        },
+    ]
+
+    DTYPE_PARAMS = [
+        {"testcase_name": "int8", "dtype": "int8", "minval": -8, "maxval": 8},
+        {"testcase_name": "uint8", "dtype": "uint8", "minval": 0, "maxval": 16},
+    ]
+
     @parameterized.named_parameters(
-        ("even_rows", (4, 5), 0),
-        ("odd_rows", (5, 5), 0),
-        ("even_rows_axis_0_negative", (4, 5), -1),
-        ("odd_rows_axis_0_negative", (5, 5), -1),
-        ("even_rows_axis_1", (4, 6), 1),
-        ("odd_rows_axis_1", (4, 7), 1),
-        ("3d_even_rows_axis_0", (4, 5, 3), 0),
-        ("3d_odd_rows_axis_0", (5, 5, 3), 0),
-        ("3d_even_rows_axis_1", (4, 6, 3), 1),
-        ("3d_odd_rows_axis_1", (4, 7, 3), 1),
-        ("3d_even_rows_axis_2", (4, 5, 6), 2),
-        ("3d_odd_rows_axis_2", (4, 5, 7), 2),
-        ("4d_odd_rows_axis_0", (2, 3, 5, 4), 0),
-        ("4d_odd_rows_axis_1", (2, 3, 5, 4), 1),
-        ("4d_odd_rows_axis_2", (2, 3, 5, 4), 2),
-        ("4d_odd_rows_axis_3", (2, 3, 5, 4), 3),
-        ("4d_even_rows_axis_0", (2, 4, 5, 4), 0),
-        ("4d_even_rows_axis_1", (2, 4, 5, 4), 1),
-        ("4d_even_rows_axis_2", (2, 4, 5, 4), 2),
-        ("4d_even_rows_axis_3", (2, 4, 5, 4), 3),
-        ("4d_even_rows_axis_0_negative", (2, 4, 5, 4), -1),
-        ("4d_even_rows_axis_1_negative", (2, 4, 5, 4), -2),
-        ("4d_even_rows_axis_2_negative", (2, 4, 5, 4), -3),
-        ("4d_even_rows_axis_3_negative", (2, 4, 5, 4), -4),
+        named_product(SHAPE_AXIS_SCENARIOS, DTYPE_PARAMS)
     )
-    def test_pack_unpack_int4(self, shape, axis):
-        # Create a random tensor with int4 values [-8, 7]
+    def test_pack_unpack_int4(self, shape, axis, dtype, minval, maxval):
+        # Create a random tensor with int4 values in the specified range and
+        # dtype
         arr = ops.cast(
-            ops.floor(random.uniform(shape, minval=-8, maxval=8)), "int8"
+            ops.floor(random.uniform(shape, minval=minval, maxval=maxval)),
+            dtype,
         )
 
-        # Pack the tensor
-        packed, packed_shape, orig_len = quantizers.pack_int4(arr, axis=axis)
+        # Pack the tensor using the specified dtype
+        packed, packed_shape, orig_len = quantizers.pack_int4(
+            arr, axis=axis, dtype=dtype
+        )
 
-        # Unpack the tensor
-        unpacked = quantizers.unpack_int4(packed, orig_len, axis=axis)
+        # Unpack the tensor using the specified dtype
+        unpacked = quantizers.unpack_int4(
+            packed, orig_len, axis=axis, dtype=dtype
+        )
 
-        # Verify that the packed tensor is int8
-        self.assertDType(packed, "int8")
+        # Verify that the packed tensor has the correct dtype
+        self.assertDType(packed, dtype)
 
-        # Verify that the unpacked tensor is int8
-        self.assertDType(unpacked, "int8")
+        # Verify that the unpacked tensor has the correct dtype
+        self.assertDType(unpacked, dtype)
 
         # The unpacked tensor should be the same as the original tensor
         self.assertAllClose(unpacked, arr)

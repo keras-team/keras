@@ -13,11 +13,8 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
-from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
-from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
-from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
@@ -136,6 +133,7 @@ class EinsumDense(Layer):
         bias_constraint=None,
         lora_rank=None,
         lora_alpha=None,
+        gptq_unpacked_column_size=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -155,6 +153,7 @@ class EinsumDense(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
+        self.gptq_unpacked_column_size = gptq_unpacked_column_size
 
     def build(self, input_shape):
         shape_data = _analyze_einsum_string(
@@ -205,20 +204,52 @@ class EinsumDense(Layer):
 
     @property
     def kernel(self):
+        from keras.src.quantizers import gptq_core
+
         if not self.built:
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
-        if (
-            getattr(self, "is_gptq_calibrated", False)
-            and self.quantization_mode == "gptq"
-        ):
-            return self.quantized_kernel
+
+        mode = self.quantization_mode
+        is_gptq = mode == "gptq"
+        is_int4 = mode == "int4"
+        calibrated = bool(getattr(self, "is_gptq_calibrated", False))
+        gptq_bits = (
+            gptq_core.get_weight_bits_for_layer(self, None) if is_gptq else None
+        )
+
+        # Decide the source tensor first (packed vs already-quantized vs plain
+        # kernel)
+        if is_gptq and calibrated and gptq_bits != 4:
+            # calibrated GPTQ, not 4-bit, no unpacking needed
+            kernel = self.quantized_kernel
+        else:
+            # Start with the stored kernel
+            kernel = getattr(self, "_kernel", None)
+
+            # Handle int4 unpacking cases in one place
+            if is_int4:
+                kernel = quantizers.unpack_int4(
+                    kernel,
+                    self._orig_length_along_pack_axis,
+                    self._int4_pack_axis,
+                )
+            elif is_gptq and calibrated and gptq_bits == 4:
+                kernel = quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.gptq_unpacked_column_size,
+                    axis=0,
+                    dtype="uint8",
+                )
+
+        # Apply LoRA if enabled
         if self.lora_enabled:
-            return self._kernel + (
-                self.lora_alpha / self.lora_rank
-            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
-        return self._kernel
+            kernel = kernel + (self.lora_alpha / self.lora_rank) * ops.matmul(
+                self.lora_kernel_a, self.lora_kernel_b
+            )
+
+        return kernel
 
     def compute_output_shape(self, _):
         return self.full_output_shape
@@ -294,52 +325,26 @@ class EinsumDense(Layer):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
-        # The keys of the `store` will be saved as determined because the
-        # default ordering will change after quantization
         mode = self.quantization_mode
-
-        # For int4/int8, the merged LoRA scale (if any) comes from
-        # `_get_kernel_with_merged_lora()` and is appended below.
-        MODE_SPEC = {
-            None: [],
-            "int4": [],
-            "int8": [],
-            "float8": [
-                "inputs_scale",
-                "inputs_amax_history",
-                "kernel_scale",
-                "kernel_amax_history",
-                "outputs_grad_scale",
-                "outputs_grad_amax_history",
-            ],
-            "gptq": [
-                "quantized_kernel",
-                "kernel_scale",
-                "kernel_zero",
-                "g_idx",
-            ],
-        }
-
-        if mode not in MODE_SPEC:
+        if mode not in self.quantization_variable_spec:
             raise self._quantization_mode_error(mode)
 
         # Kernel plus optional merged LoRA-aware scale (returns (kernel, None)
         # for None/gptq)
         kernel_value, merged_kernel_scale = self._get_kernel_with_merged_lora()
 
-        targets = []
+        # Save the variables using the name as the key.
         if mode != "gptq":
-            targets.append(kernel_value)
+            store["kernel"] = kernel_value
         if self.bias is not None:
-            targets.append(self.bias)
-        if merged_kernel_scale is not None and mode in ("int4", "int8"):
-            targets.append(merged_kernel_scale)
-
-        # Append per-mode attributes (order matters)
-        targets.extend(getattr(self, name) for name in MODE_SPEC[mode])
-
-        for i, var in enumerate(targets):
-            store[str(i)] = var
+            store["bias"] = self.bias
+        for name in self.quantization_variable_spec[mode]:
+            if name == "kernel_scale" and mode in ("int4", "int8"):
+                # For int4/int8, the merged LoRA scale (if any) comes from
+                # `_get_kernel_with_merged_lora()`
+                store[name] = merged_kernel_scale
+            else:
+                store[name] = getattr(self, name)
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -347,42 +352,38 @@ class EinsumDense(Layer):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
+        mode = self.quantization_mode
+        if mode not in self.quantization_variable_spec:
+            raise self._quantization_mode_error(mode)
+
+        # Determine whether to use the legacy loading method.
+        if "0" in store:
+            return self._legacy_load_own_variables(store)
+
+        # Load the variables using the name as the key.
+        if mode != "gptq":
+            self._kernel.assign(store["kernel"])
+        if self.bias is not None:
+            self.bias.assign(store["bias"])
+        for name in self.quantization_variable_spec[mode]:
+            getattr(self, name).assign(store[name])
+        if self.lora_enabled:
+            self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
+            self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
+
+    def _legacy_load_own_variables(self, store):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
         mode = self.quantization_mode
-
-        # Per-mode variable spec (order matters).
-        MODE_SPEC = {
-            None: [],
-            "int8": ["kernel_scale"],
-            "int4": ["kernel_scale"],
-            "float8": [
-                "inputs_scale",
-                "inputs_amax_history",
-                "kernel_scale",
-                "kernel_amax_history",
-                "outputs_grad_scale",
-                "outputs_grad_amax_history",
-            ],
-            "gptq": [
-                "quantized_kernel",
-                "kernel_scale",
-                "kernel_zero",
-                "g_idx",
-            ],
-        }
-
-        if mode not in MODE_SPEC:
-            raise self._quantization_mode_error(mode)
-
         targets = []
-
         if mode != "gptq":
             targets.append(self._kernel)
         if self.bias is not None:
             targets.append(self.bias)
-        targets.extend(getattr(self, name) for name in MODE_SPEC[mode])
-
+        targets.extend(
+            getattr(self, name)
+            for name in self.quantization_variable_spec[mode]
+        )
         for i, variable in enumerate(targets):
             variable.assign(store[str(i)])
         if self.lora_enabled:
@@ -413,6 +414,8 @@ class EinsumDense(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
             config["lora_alpha"] = self.lora_alpha
+        if self.gptq_unpacked_column_size:
+            config["gptq_unpacked_column_size"] = self.gptq_unpacked_column_size
         return {**base_config, **config}
 
     def _check_load_own_variables(self, store):
@@ -448,6 +451,34 @@ class EinsumDense(Layer):
                 f"{len(store.keys())} variables during loading. "
                 f"Expected: {[v.name for v in all_vars]}"
             )
+
+    @property
+    def quantization_variable_spec(self):
+        """Returns a dict mapping quantization modes to variable names.
+
+        This spec is used by `save_own_variables` and `load_own_variables` to
+        determine which variables should be saved/loaded for each quantization
+        mode.
+        """
+        return {
+            None: [],
+            "int8": ["kernel_scale"],
+            "int4": ["kernel_scale"],
+            "float8": [
+                "inputs_scale",
+                "inputs_amax_history",
+                "kernel_scale",
+                "kernel_amax_history",
+                "outputs_grad_scale",
+                "outputs_grad_amax_history",
+            ],
+            "gptq": [
+                "quantized_kernel",
+                "kernel_scale",
+                "kernel_zero",
+                "g_idx",
+            ],
+        }
 
     def quantized_build(self, kernel_shape, mode, config=None):
         if mode == "int8":
@@ -492,6 +523,8 @@ class EinsumDense(Layer):
             group_size: int; contiguous input-group size for quantization
                 (=-1 means per-output-channel with no grouping).
         """
+        from keras.src.quantizers import gptq_core
+
         # Ensures the forward pass uses the original high-precision kernel
         # until calibration has been performed.
         self.is_gptq_calibrated = False
@@ -524,18 +557,21 @@ class EinsumDense(Layer):
             else:
                 raise ValueError("Could not determine row/column split.")
 
-        group_size = self._get_gptq_group_size(config)
-        if group_size == -1:
-            n_groups = 1
-        else:
-            n_groups = math.ceil(rows / group_size)
+        group_size = gptq_core.get_group_size_for_layer(self, config)
+        n_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
+
+        self.gptq_unpacked_column_size = columns
+
+        weight_bits = gptq_core.get_weight_bits_for_layer(self, config)
+        # For 4-bit weights, we pack two values per byte.
+        kernel_columns = (columns + 1) // 2 if weight_bits == 4 else columns
 
         if hasattr(self, "_set_quantization_info"):
             self._set_quantization_info()
 
         self.quantized_kernel = self.add_weight(
             name="kernel",
-            shape=(columns, rows),
+            shape=(kernel_columns, rows),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
@@ -564,11 +600,26 @@ class EinsumDense(Layer):
         )
 
     def _gptq_call(self, inputs, training=False):
+        from keras.src.quantizers import gptq_core
+
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
+            should_unpack = (
+                gptq_core.get_weight_bits_for_layer(self, config=None) == 4
+            )
+            W = (
+                quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.gptq_unpacked_column_size,
+                    axis=0,
+                    dtype="uint8",
+                )
+                if should_unpack
+                else self.quantized_kernel
+            )
             W = dequantize_with_sz_map(
-                self.quantized_kernel,
+                W,
                 self.kernel_scale,
                 self.kernel_zero,
                 self.g_idx,
@@ -1161,46 +1212,6 @@ class EinsumDense(Layer):
             self._custom_gradient_equation,
             self._kernel_reverse_transpose_axes,
         ) = _analyze_quantization_info(self.equation, self.input_spec.ndim)
-
-    def _get_gptq_group_size(self, config):
-        """Determine the group size for GPTQ quantization.
-
-        The group size can be specified either through the `config` argument
-        or through the `dtype_policy` if it is of type `GPTQDTypePolicy`.
-
-        The config argument is usually available when quantizing the layer
-        via the `quantize` method. If the layer was deserialized from a
-        saved model, the group size should be specified in the `dtype_policy`.
-
-        Args:
-            config: An optional configuration object that may contain the
-                `group_size` attribute.
-        Returns:
-            int. The determined group size for GPTQ quantization.
-        Raises:
-            ValueError: If the group size is not specified in either the
-                `config` or the `dtype_policy`.
-        """
-        if config and isinstance(config, GPTQConfig):
-            return config.group_size
-        elif isinstance(self.dtype_policy, GPTQDTypePolicy):
-            return self.dtype_policy.group_size
-        elif isinstance(self.dtype_policy, DTypePolicyMap):
-            policy = self.dtype_policy[self.path]
-            if not isinstance(policy, GPTQDTypePolicy):
-                # This should never happen based on how we set the
-                # quantization mode, but we check just in case.
-                raise ValueError(
-                    "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
-                    f"Got: {type(policy)}"
-                )
-            return policy.group_size
-        else:
-            raise ValueError(
-                "For GPTQ quantization, the group_size must be specified"
-                "either through a `dtype_policy` of type "
-                "`GPTQDTypePolicy` or the `config` argument."
-            )
 
 
 def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):

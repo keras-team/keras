@@ -36,13 +36,14 @@ class JaxOptimizer(base_optimizer.BaseOptimizer):
             new_g_accs = jax.lax.cond(
                 is_update_step,
                 lambda: [jnp.zeros(g.shape, dtype=g.dtype) for g in acc_grads],
-                lambda: [g + acc_g for g, acc_g in zip(grads, acc_grads)],
+                lambda: [g + acc_g.value for g, acc_g in zip(grads, acc_grads)],
             )
 
             grads = jax.lax.cond(
                 is_update_step,
                 lambda: [
-                    (g + acc_g) / steps for g, acc_g in zip(grads, acc_grads)
+                    (g + acc_g.value) / steps
+                    for g, acc_g in zip(grads, acc_grads)
                 ],
                 lambda: list(grads),
             )

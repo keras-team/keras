@@ -704,7 +704,15 @@ class Glu(Operation):
         return backend.nn.glu(x, axis=self.axis)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        output_shape = list(x.shape)
+        if output_shape[self.axis] is not None:
+            if output_shape[self.axis] % 2 != 0:
+                raise ValueError(
+                    "axis size must be divisible by 2. "
+                    f"Received: x.shape={x.shape} with axis={self.axis}"
+                )
+            output_shape[self.axis] = output_shape[self.axis] // 2
+        return KerasTensor(output_shape, dtype=x.dtype)
 
 
 @keras_export(["keras.ops.glu", "keras.ops.nn.glu"])
@@ -1435,7 +1443,7 @@ def depthwise_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
-    if any_symbolic_tensors((inputs,)):
+    if any_symbolic_tensors((inputs, kernel)):
         return DepthwiseConv(
             strides, padding, data_format, dilation_rate
         ).symbolic_call(inputs, kernel)
