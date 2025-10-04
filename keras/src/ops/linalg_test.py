@@ -682,3 +682,32 @@ class QrOpTest(testing.TestCase):
         self.assertAllClose(primals_out, 0.0998, atol=1e-4)
         self.assertAllClose(tangents_out, 0.1990, atol=1e-4)
         self.assertAllClose(aux, 0.01, atol=1e-4)
+
+    def test_jvp_symbolic_has_aux_false(self):
+        primals = KerasTensor((None, 7))
+        tangents = KerasTensor((None, 7))
+
+        def fun(x):
+            # simple non-linear transformation
+            return ops.sin(x) + ops.cos(x)
+
+        primals_out, tangents_out = linalg.jvp(fun, (primals,), (tangents,))
+        # output shapes must match input shapes
+        self.assertEqual(primals_out.shape, primals.shape)
+        self.assertEqual(tangents_out.shape, tangents.shape)
+
+        """Symbolic JVP test – has_aux=True."""
+
+        def fun(x):
+            y = ops.exp(x)
+            aux = ops.mean(y, axis=-1, keepdims=True)  # auxiliary output
+            return y, aux
+
+        primals_out, tangents_out, aux = linalg.jvp(
+            fun, (primals,), (tangents,), has_aux=True
+        )
+        # main output shapes
+        self.assertEqual(primals_out.shape, primals.shape)
+        self.assertEqual(tangents_out.shape, tangents.shape)
+        # auxiliary shape: (batch, 1)
+        self.assertEqual(aux.shape, (None, 1))
