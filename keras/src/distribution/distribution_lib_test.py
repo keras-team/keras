@@ -1,13 +1,16 @@
 """Test for distribution_lib.py."""
 
 import os
+import tempfile
 from unittest import mock
 
 import numpy as np
 import pytest
 import tensorflow as tf
 
+import keras
 from keras.src import backend
+from keras.src import layers
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
@@ -360,6 +363,366 @@ class ModelParallelDistributionTest(testing.TestCase):
         )
         distributed_dataset = distribution.distribute_dataset(dataset)
         self.assertIs(dataset, distributed_dataset)
+
+    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
+    def test_model_parallel_sharded_variable_loading(self):
+        """
+        Test that all layer types can load variables with sharding support.
+
+        This test specifically validates:
+        1. Variables are sharded across devices using ModelParallel
+        2. Each device receives the correct shard shape
+        3. Weight loading preserves sharding and correctness
+        """
+        import os
+
+        import jax
+        from absl import logging
+
+        # Ensure we have JAX devices
+        jax_devices = jax.devices()
+        logging.debug(f"JAX devices available: {len(jax_devices)}")
+        for i, device in enumerate(jax_devices):
+            logging.debug(f"  Device {i}: {device}")
+
+        # Use available devices instead of the setUp device mesh
+        devices = keras.distribution.list_devices()
+        num_devices = min(len(devices), len(jax_devices))
+
+        # Create device mesh for model parallelism across available devices
+        device_mesh = distribution_lib.DeviceMesh(
+            shape=(num_devices,),
+            axis_names=["model"],
+            devices=devices[:num_devices],
+        )
+
+        # Create layout map to shard Dense layer kernels across devices
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        layout_map[".*einsum_dense.*kernel"] = (
+            "model",
+            None,
+        )  # Shard EinsumDense
+        layout_map[".*(?<!einsum_)dense.*kernel"] = (
+            "model",
+            None,
+        )  # Shard Dense
+        layout_map[".*conv1d.*kernel"] = (None, "model", None)  # Shard conv
+        layout_map[".*embedding.*embeddings"] = ("model", None)  # Shard emb
+        layout_map[".*bias"] = ("model",)  # Shard all biases
+        layout_map[".*batch_normalization.*gamma"] = ("model",)  # Shard BN
+        layout_map[".*batch_normalization.*beta"] = ("model",)  # Shard BN
+
+        # Set up ModelParallel distribution
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map,
+            batch_dim_name="batch",
+        )
+
+        # Apply distribution globally
+        with distribution.scope():
+            model = keras.Sequential(
+                [
+                    layers.Input(shape=(32,)),
+                    # Core layers that were modified
+                    layers.Dense(128, activation="relu", name="dense_1"),
+                    layers.Dense(64, activation="relu", name="dense_2"),
+                    # EinsumDense layer (also uses kernel/bias like Dense)
+                    layers.EinsumDense(
+                        "ab,bc->ac", output_shape=32, name="einsum_dense"
+                    ),
+                    # Embedding layer (modified in commit)
+                    layers.Embedding(
+                        input_dim=100, output_dim=32, name="embedding"
+                    ),
+                    layers.Flatten(),
+                    # Convolutional layer (modified in commit)
+                    layers.Reshape((64, 16)),  # Reshape for conv: 64*16 = 1024
+                    layers.Conv1D(
+                        32, kernel_size=3, activation="relu", name="conv1d"
+                    ),
+                    layers.Flatten(),
+                    # Normalization layer (modified in commit)
+                    layers.BatchNormalization(name="batch_norm"),
+                    # Output
+                    layers.Dense(10, name="output"),
+                ]
+            )
+
+            # Build the model to trigger variable creation and sharding
+            model.build((None, 32))
+
+            # Initialize weights with some values
+            test_input = np.random.randn(4, 32)
+            _ = model(test_input)  # Forward pass to initialize variables
+
+            # Verify that variables are actually sharded
+            sharded_vars_info = []
+            for var in model.weights:
+                if hasattr(var, "_layout") and var._layout is not None:
+                    # This variable is sharded
+                    layout = var._layout
+                    full_shape = (
+                        var._full_shape
+                        if hasattr(var, "_full_shape")
+                        else var.shape
+                    )
+                    sharded_vars_info.append(
+                        {
+                            "name": var.name,
+                            "full_shape": full_shape,
+                            "layout": layout,
+                            "shards": (
+                                len(var._shard_references)
+                                if hasattr(var, "_shard_references")
+                                else 0
+                            ),
+                        }
+                    )
+
+            self.assertGreater(
+                len(sharded_vars_info),
+                0,
+                "No variables were sharded - ModelParallel may not be working",
+            )
+
+            logging.debug(f"Found {len(sharded_vars_info)} sharded variables:")
+            for info in sharded_vars_info:
+                logging.debug(
+                    f"  {info['name']}: full_shape={info['full_shape']}, "
+                    f"layout={info['layout']}"
+                )
+
+            # Store original weights for comparison (accessing sharded values)
+            original_weights = []
+            for var in model.weights:
+                if hasattr(var, "_layout") and var._layout is not None:
+                    # For sharded variables, get the full distributed value
+                    original_weights.append(var.value.copy())
+                else:
+                    original_weights.append(var.numpy().copy())
+
+            # Save model weights to temporary file
+            with tempfile.TemporaryDirectory() as temp_dir:
+                weights_path = os.path.join(temp_dir, "model.weights.h5")
+
+                # Save weights
+                model.save_weights(weights_path)
+
+                new_model = keras.Sequential(
+                    [
+                        layers.Input(shape=(32,)),
+                        layers.Dense(128, activation="relu", name="dense_1"),
+                        layers.Dense(64, activation="relu", name="dense_2"),
+                        layers.EinsumDense(
+                            "ab,bc->ac", output_shape=32, name="einsum_dense"
+                        ),
+                        layers.Embedding(
+                            input_dim=100, output_dim=32, name="embedding"
+                        ),
+                        layers.Flatten(),
+                        layers.Reshape(
+                            (64, 16)
+                        ),  # Reshape for conv: 64*16 = 1024
+                        layers.Conv1D(
+                            32, kernel_size=3, activation="relu", name="conv1d"
+                        ),
+                        layers.Flatten(),
+                        layers.BatchNormalization(name="batch_norm"),
+                        layers.Dense(10, name="output"),
+                    ]
+                )
+
+                # Build the new model (this should trigger sharding)
+                new_model.build((None, 32))
+
+                # Load weights - this should use the new sharded loading logic
+                new_model.load_weights(weights_path)
+
+                # Verify that loaded variables are also sharded
+                loaded_sharded_vars_info = []
+                for var in new_model.weights:
+                    if hasattr(var, "_layout") and var._layout is not None:
+                        layout = var._layout
+                        full_shape = (
+                            var._full_shape
+                            if hasattr(var, "_full_shape")
+                            else var.shape
+                        )
+                        loaded_sharded_vars_info.append(
+                            {
+                                "name": var.name,
+                                "full_shape": full_shape,
+                                "layout": layout,
+                                "shards": (
+                                    len(var._shard_references)
+                                    if hasattr(var, "_shard_references")
+                                    else 0
+                                ),
+                            }
+                        )
+
+                self.assertEqual(
+                    len(sharded_vars_info),
+                    len(loaded_sharded_vars_info),
+                    "Number of sharded variables changed after loading",
+                )
+
+                # Verify weights were loaded correctly
+                loaded_weights = []
+                for var in new_model.weights:
+                    if hasattr(var, "_layout") and var._layout is not None:
+                        # For sharded variables, get the full distributed value
+                        loaded_weights.append(var.value.copy())
+                    else:
+                        loaded_weights.append(var.numpy().copy())
+
+                # Compare original and loaded weights
+                self.assertEqual(len(original_weights), len(loaded_weights))
+                for i, (orig, loaded) in enumerate(
+                    zip(original_weights, loaded_weights)
+                ):
+                    np.testing.assert_array_almost_equal(
+                        orig,
+                        loaded,
+                        decimal=5,
+                        err_msg=f"Weight {i} mismatch after loading",
+                    )
+
+                # Test that inference works with loaded weights
+                test_output_original = model(test_input)
+                test_output_loaded = new_model(test_input)
+
+                # Outputs should be identical
+                np.testing.assert_array_almost_equal(
+                    np.asarray(test_output_original),
+                    np.asarray(test_output_loaded),
+                    decimal=5,
+                    err_msg="Inference output mismatch after weight loading",
+                )
+
+                # Validate shard shapes on each device
+                for i, (orig_info, loaded_info) in enumerate(
+                    zip(sharded_vars_info, loaded_sharded_vars_info)
+                ):
+                    self.assertEqual(
+                        orig_info["full_shape"],
+                        loaded_info["full_shape"],
+                        f"Full shape mismatch for {orig_info['name']}",
+                    )
+                    self.assertEqual(
+                        orig_info["layout"],
+                        loaded_info["layout"],
+                        f"Layout mismatch for {orig_info['name']}",
+                    )
+                    self.assertEqual(
+                        orig_info["shards"],
+                        loaded_info["shards"],
+                        f"Shard count mismatch for {orig_info['name']}",
+                    )
+                logging.debug("Validating shard shapes and device assignments:")
+                for var_name in [info["name"] for info in sharded_vars_info]:
+                    orig_var = next(
+                        v for v in model.weights if v.name == var_name
+                    )
+                    loaded_var = next(
+                        v for v in new_model.weights if v.name == var_name
+                    )
+
+                    logging.debug(f"Variable: {var_name}")
+                    logging.debug(f"  Full shape: {orig_var.shape}")
+
+                    # Get expected shard shapes from layout
+                    try:
+                        expected_shard_shape = orig_var._layout.shard_shape(
+                            orig_var.shape
+                        )
+                        logging.debug(
+                            f"  Expected shard shape: {expected_shard_shape}"
+                        )
+                    except Exception as e:
+                        logging.debug(
+                            f"  Could not determine expected shard shape: {e}"
+                        )
+                        expected_shard_shape = None
+
+                    # Basic validation that sharding structure exists
+                    has_shard_refs_orig = (
+                        hasattr(orig_var, "_shard_references")
+                        and orig_var._shard_references
+                    )
+                    has_shard_refs_loaded = (
+                        hasattr(loaded_var, "_shard_references")
+                        and loaded_var._shard_references
+                    )
+
+                    logging.debug(
+                        f"  Original has shard references: "
+                        f"{has_shard_refs_orig}"
+                    )
+                    logging.debug(
+                        f"  Loaded has shard references: "
+                        f"{has_shard_refs_loaded}"
+                    )
+
+                    self.assertTrue(
+                        has_shard_refs_orig,
+                        f"Original {var_name} should have shard references",
+                    )
+                    self.assertTrue(
+                        has_shard_refs_loaded,
+                        f"Loaded {var_name} should have shard references",
+                    )
+
+                    self.assertGreater(
+                        len(orig_var._shard_references),
+                        0,
+                        f"Original {var_name} has empty shard references",
+                    )
+                    self.assertGreater(
+                        len(loaded_var._shard_references),
+                        0,
+                        f"Loaded {var_name} has empty shard references",
+                    )
+
+                    if has_shard_refs_orig and expected_shard_shape is not None:
+                        first_shard = orig_var._shard_references[0]
+                        if (
+                            isinstance(first_shard, (list, tuple))
+                            and len(first_shard) > 0
+                        ):
+                            shard_data = first_shard[0]
+                            self.assertEqual(
+                                shard_data.shape,
+                                expected_shard_shape,
+                                f"Incorrect shard shape for {var_name}. "
+                                f"Expected {expected_shard_shape}, "
+                                f"got {shard_data.shape}",
+                            )
+
+                    if (
+                        has_shard_refs_loaded
+                        and expected_shard_shape is not None
+                    ):
+                        first_shard = loaded_var._shard_references[0]
+                        if (
+                            isinstance(first_shard, (list, tuple))
+                            and len(first_shard) > 0
+                        ):
+                            shard_data = first_shard[0]
+                            self.assertEqual(
+                                shard_data.shape,
+                                expected_shard_shape,
+                                f"Incorrect shard shape for loaded "
+                                f"{var_name}. "
+                                f"Expected {expected_shard_shape}, "
+                                f"got {shard_data.shape}",
+                            )
+
+                logging.debug(
+                    f"ModelParallel test passed: {len(sharded_vars_info)} "
+                    f"variables "
+                    f"sharded across {num_devices} devices"
+                )
 
 
 class LayoutMapTest(testing.TestCase):

@@ -49,6 +49,7 @@ from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
+from keras.src.utils.variable_loading import load_variable_with_sharded_support
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -1410,7 +1411,8 @@ class Layer(BackendLayer, Operation):
                 f"Expected: {[v.name for v in all_vars]}"
             )
         for i, v in enumerate(all_vars):
-            v.assign(store[f"{i}"])
+            weight_data = store[f"{i}"]
+            load_variable_with_sharded_support(v, weight_data)
 
     def _track_variable(self, variable):
         if variable.trainable:

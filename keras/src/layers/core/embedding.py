@@ -10,6 +10,7 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
+from keras.src.utils.variable_loading import load_variable_with_sharded_support
 
 
 @keras_export("keras.layers.Embedding")
@@ -266,14 +267,16 @@ class Embedding(Layer):
     def _legacy_load_own_variables(self, store):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        mode = self.quantization_mode
-        targets = [self._embeddings]
-        targets.extend(
-            getattr(self, name)
-            for name in self.quantization_variable_spec[mode]
-        )
-        for i, variable in enumerate(targets):
-            variable.assign(store[str(i)])
+        target_variables = [self._embeddings]
+        if self.quantization_mode is not None:
+            if self.quantization_mode in ("int8", "int4"):
+                target_variables.append(self.embeddings_scale)
+            else:
+                raise self._quantization_mode_error(self.quantization_mode)
+        for i, variable in enumerate(target_variables):
+            weight_data = store[str(i)]
+            load_variable_with_sharded_support(variable, weight_data)
+
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
                 ops.zeros(self.lora_embeddings_a.shape)

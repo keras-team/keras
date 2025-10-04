@@ -11,6 +11,7 @@ from keras.src.layers.layer import Layer
 from keras.src.ops.operation_utils import compute_conv_output_shape
 from keras.src.utils.argument_validation import standardize_padding
 from keras.src.utils.argument_validation import standardize_tuple
+from keras.src.utils.variable_loading import load_variable_with_sharded_support
 
 
 class BaseConv(Layer):
@@ -334,7 +335,8 @@ class BaseConv(Layer):
         if self.use_bias:
             target_variables.append(self.bias)
         for i, variable in enumerate(target_variables):
-            variable.assign(store[str(i)])
+            weight_data = store[str(i)]
+            load_variable_with_sharded_support(variable, weight_data)
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))

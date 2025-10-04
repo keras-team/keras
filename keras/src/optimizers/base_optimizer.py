@@ -9,6 +9,7 @@ from keras.src.saving import serialization_lib
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import tracking
 from keras.src.utils.naming import auto_name
+from keras.src.utils.variable_loading import load_variable_with_sharded_support
 
 
 class BaseOptimizer(KerasSaveable):
@@ -780,7 +781,8 @@ class BaseOptimizer(KerasSaveable):
             warnings.warn(msg, stacklevel=2)
             return
         for i, variable in enumerate(self.variables):
-            variable.assign(store[str(i)])
+            weight_data = store[str(i)]
+            load_variable_with_sharded_support(variable, weight_data)
 
     def _get_current_learning_rate(self):
         if isinstance(
