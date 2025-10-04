@@ -1,14 +1,14 @@
 # Tensorflow.
-tensorflow-cpu~=2.18.1;sys_platform != 'darwin'
-tensorflow~=2.18.1;sys_platform == 'darwin'
+tensorflow-cpu~=2.20.0;sys_platform != 'darwin'
+tensorflow~=2.20.0;sys_platform == 'darwin'
 tf_keras
 tf2onnx
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0;sys_platform != 'darwin'
+torch==2.8.0+cpu;sys_platform != 'darwin'
 torch==2.6.0;sys_platform == 'darwin'
-torch-xla==2.6.0;sys_platform != 'darwin'
+torch-xla==2.8.1;sys_platform != 'darwin'
 
 # Jax.
 # Pinned to 0.5.0 on CPU. JAX 0.5.1 requires Tensorflow 2.19 for saved_model_test.
