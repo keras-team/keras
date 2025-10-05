@@ -378,7 +378,17 @@ class MultiHeadAttention(Layer):
         if self._attention_axes is None:
             self._attention_axes = tuple(range(1, rank - 2))
         else:
-            self._attention_axes = tuple(self._attention_axes)
+            # Normalize negative indices relative to INPUT rank (rank - 1)
+            input_rank = rank - 1
+            normalized_axes = []
+            for ax in self._attention_axes:
+                if ax < 0:
+                    # Normalize relative to input rank
+                    normalized_ax = input_rank + ax
+                else:
+                    normalized_ax = ax
+                normalized_axes.append(normalized_ax)
+            self._attention_axes = tuple(normalized_axes)
         (
             self._dot_product_equation,
             self._combine_equation,
@@ -760,6 +770,12 @@ def _build_attention_equation(rank, attn_axes):
     Returns:
         Einsum equations.
     """
+    # Normalize negative indices to positive indices
+    if isinstance(attn_axes, (list, tuple)):
+        attn_axes = tuple(ax % rank if ax < 0 else ax for ax in attn_axes)
+    else:
+        attn_axes = (attn_axes % rank if attn_axes < 0 else attn_axes,)
+
     target_notation = ""
     for i in range(rank):
         target_notation += _index_to_einsum_variable(i)
