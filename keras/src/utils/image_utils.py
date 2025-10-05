@@ -354,7 +354,7 @@ def smart_resize(
             `"lanczos3"`, `"lanczos5"`.
             Defaults to `"bilinear"`.
         data_format: `"channels_last"` or `"channels_first"`.
-        Backend module to use (if different from the default
+        backend_module: Backend module to use (if different from the default
             backend). This parameter is for internal use and should typically
             be left as None. When None, defaults to `keras.src.backend`.
             Note: This does NOT allow switching between TensorFlow/JAX/PyTorch
