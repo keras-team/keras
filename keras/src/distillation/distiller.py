@@ -1,6 +1,7 @@
 import keras
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.distillation.distillation_loss import _convert_loss_to_function
 from keras.src.models.model import Model
 from keras.src.saving import serialization_lib
 
@@ -124,9 +125,9 @@ class Distiller(Model):
         # Handle strategies configuration
         if strategies is None:
             raise ValueError(
-                "Must specify 'strategies'. "
-                "Please provide a valid distillation strategy such as "
-                "LogitsDistillation, FeatureDistillation, or a list."
+                "'strategies' cannot be None. Provide a distillation "
+                "strategy (e.g., LogitsDistillation or FeatureDistillation) "
+                "or a list of strategies."
             )
 
         # Convert single strategy to list for uniform handling
@@ -164,7 +165,6 @@ class Distiller(Model):
 
     def _validate_models(self, teacher, student):
         """Validate that teacher and student models are compatible."""
-        # Basic model type validation
         if not isinstance(teacher, keras.Model):
             raise ValueError(
                 f"Teacher must be a keras.Model, got {type(teacher)}"
@@ -174,55 +174,36 @@ class Distiller(Model):
                 f"Student must be a keras.Model, got {type(student)}"
             )
 
-        # Check if models are built
-        # Subclassed models may not be built at this point and may not expose
-        # symbolic `inputs`/`outputs`. We avoid hard failures here and rely on
-        # runtime checks during the first call/fit. When symbolic tensors are
-        # available, we perform full compatibility validation below.
-
-        # Validate input compatibility
         self._validate_input_compatibility(teacher, student)
-
-        # Validate output compatibility
         self._validate_output_compatibility(teacher, student)
-
-        # Validate data type compatibility
         self._validate_dtype_compatibility(teacher, student)
 
     def _assert_shapes_are_compatible(self, shape1, shape2, context):
-        """Assert that two shapes are compatible (allowing for batch dimension
-        flexibility)."""
-        # Check if they have the same number of dimensions
+        """Assert that two shapes are compatible."""
         if len(shape1) != len(shape2):
             raise ValueError(
-                f"Teacher and student {context} shapes have different number "
-                f"of dimensions. Teacher {context} shape: {shape1}, "
-                f"Student {context} shape: {shape2}."
+                f"Teacher and student {context} shapes have different "
+                f"dimensions. Teacher: {shape1}, Student: {shape2}."
             )
 
-        # Check all dimensions (including batch dimension for distillation)
         for dim1, dim2 in zip(shape1, shape2):
             if dim1 is not None and dim2 is not None and dim1 != dim2:
                 raise ValueError(
                     f"Teacher and student {context} shapes are incompatible. "
-                    f"Teacher {context} shape: {shape1}, "
-                    f"Student {context} shape: {shape2}. "
-                    f"All dimensions must match for distillation."
+                    f"Teacher: {shape1}, Student: {shape2}. "
+                    f"All dimensions must match."
                 )
 
     def _assert_same_dtype(self, teacher_dtype, student_dtype, context):
         """Assert that teacher and student dtypes are the same."""
         if teacher_dtype != student_dtype:
             raise ValueError(
-                f"Teacher and student {context} dtypes are incompatible. "
-                f"Teacher {context} dtype: {teacher_dtype}, "
-                f"Student {context} dtype: {student_dtype}. "
-                f"Both models must use the same data type."
+                f"Teacher and student {context} dtypes must match. "
+                f"Teacher: {teacher_dtype}, Student: {student_dtype}."
             )
 
     def _validate_input_compatibility(self, teacher, student):
         """Validate that teacher and student have compatible input shapes."""
-        # If symbolic tensors are not available (subclassed models), skip.
         if not hasattr(teacher, "inputs") or not hasattr(student, "inputs"):
             return
         teacher_inputs = getattr(teacher, "inputs")
@@ -230,7 +211,6 @@ class Distiller(Model):
         if teacher_inputs is None or student_inputs is None:
             return
 
-        # Validate input structures and shapes
         tree.map_structure(
             lambda ti, si: self._assert_shapes_are_compatible(
                 ti.shape, si.shape, "input"
@@ -241,7 +221,6 @@ class Distiller(Model):
 
     def _validate_output_compatibility(self, teacher, student):
         """Validate that teacher and student have compatible output shapes."""
-        # If symbolic tensors are not available (subclassed models), skip.
         if not hasattr(teacher, "outputs") or not hasattr(student, "outputs"):
             return
         teacher_outputs = getattr(teacher, "outputs")
@@ -249,7 +228,6 @@ class Distiller(Model):
         if teacher_outputs is None or student_outputs is None:
             return
 
-        # Validate output structures and shapes
         tree.map_structure(
             lambda to, so: self._assert_shapes_are_compatible(
                 to.shape, so.shape, "output"
@@ -260,20 +238,17 @@ class Distiller(Model):
 
     def _validate_dtype_compatibility(self, teacher, student):
         """Validate that teacher and student have compatible data types."""
-        # If symbolic tensors are not available (subclassed models), skip.
         if not hasattr(teacher, "inputs") or not hasattr(student, "inputs"):
             return
         if teacher.inputs is None or student.inputs is None:
             return
 
-        # Check input dtypes
         tree.map_structure(
             lambda ti, si: self._assert_same_dtype(ti.dtype, si.dtype, "input"),
             teacher.inputs,
             student.inputs,
         )
 
-        # Check output dtypes
         if not hasattr(teacher, "outputs") or not hasattr(student, "outputs"):
             return
         if teacher.outputs is None or student.outputs is None:
@@ -294,7 +269,6 @@ class Distiller(Model):
 
     def _create_multi_feature_extractors(self):
         """Create feature extractors for efficient multi-layer extraction."""
-        # Collect all layer names needed for feature extraction
         teacher_layer_names = []
         student_layer_names = []
 
@@ -312,7 +286,6 @@ class Distiller(Model):
                 if strategy.student_layer_name not in student_layer_names:
                     student_layer_names.append(strategy.student_layer_name)
 
-        # Create multi-output feature extractors if needed
         self._teacher_feature_extractor = self._create_feature_extractor(
             self.teacher, teacher_layer_names
         )
@@ -328,90 +301,52 @@ class Distiller(Model):
             layer_names: List of layer names to extract features from.
 
         Returns:
-            keras.Model: Feature extractor that returns a dict of features,
-            or None if no layer names provided or extractor creation fails.
+            Feature extractor model or None if no layer names provided.
+
+        Raises:
+            ValueError: If model has no symbolic inputs/outputs.
         """
-        # Return None if no layer names provided
         if not layer_names:
             return None
 
-        try:
-            # Get model inputs and final output
-            if isinstance(model, keras.Sequential):
-                final_output = model.layers[-1].output
-                inputs = model.layers[0].input
-            else:
-                if not hasattr(model, "inputs") or model.inputs is None:
-                    raise ValueError(
-                        f"{model.name} model has no defined inputs"
-                    )
-                if not hasattr(model, "output") or model.output is None:
-                    raise ValueError(
-                        f"{model.name} model has no defined output"
-                    )
-                final_output = model.output
-                inputs = model.inputs
-
-            # Collect outputs
-            outputs = {"final_output": final_output}
-            for layer_name in layer_names:
-                layer = model.get_layer(name=layer_name)
-                outputs[layer_name] = layer.output
-
-            # Create and return extractor
-            return keras.Model(
-                inputs=inputs,
-                outputs=outputs,
-                name=f"{model.name}_multi_feature_extractor",
+        if not hasattr(model, "inputs") or model.inputs is None:
+            raise ValueError(
+                f"Cannot create feature extractor for {model.name}. "
+                f"The model has no symbolic inputs attribute."
             )
-        except (ValueError, AttributeError):
-            # Fallback for subclassed models
-            return None
+
+        if isinstance(model, keras.Sequential):
+            final_output = model.layers[-1].output
+        else:
+            final_output = model.output
+
+        outputs = {"final_output": final_output}
+        for layer_name in layer_names:
+            layer = model.get_layer(name=layer_name)
+            outputs[layer_name] = layer.output
+
+        return keras.Model(
+            inputs=model.inputs,
+            outputs=outputs,
+            name=f"{model.name}_multi_feature_extractor",
+        )
 
     def _extract_all_teacher_features(self, x):
-        """Extract all teacher features in a single forward pass.
-
-        Args:
-            x: Input data.
-
-        Returns:
-            Dict mapping layer names to their outputs.
-        """
+        """Extract all teacher features in a single forward pass."""
         if self._teacher_feature_extractor is not None:
-            # Use efficient multi-output extractor (returns dict directly)
             return self._teacher_feature_extractor(x, training=False)
         else:
-            # Fallback: just get final output for LogitsDistillation
             return {"final_output": self.teacher(x, training=False)}
 
     def _extract_all_student_features(self, x, y_pred):
-        """Extract all student features in a single forward pass.
-
-        Args:
-            x: Input data.
-            y_pred: Student predictions from forward pass.
-
-        Returns:
-            Dict mapping layer names to their outputs.
-        """
+        """Extract all student features in a single forward pass."""
         if self._student_feature_extractor is not None:
-            # Use efficient multi-output extractor (returns dict directly)
             return self._student_feature_extractor(x, training=True)
         else:
-            # Fallback: use y_pred for final output to avoid recomputation
             return {"final_output": y_pred}
 
     def _get_strategy_features(self, strategy, all_features, is_teacher):
-        """Get the specific features needed by a strategy.
-
-        Args:
-            strategy: The FeatureDistillation strategy.
-            all_features: Dict of all extracted features.
-            is_teacher: Whether these are teacher features.
-
-        Returns:
-            The specific features needed by this strategy.
-        """
+        """Get the specific features needed by a strategy."""
         if is_teacher:
             layer_name = strategy.teacher_layer_name or "final_output"
         else:
@@ -419,8 +354,8 @@ class Distiller(Model):
 
         if layer_name not in all_features:
             raise ValueError(
-                f"Layer '{layer_name}' features not found in extracted "
-                f"features. Available features: {list(all_features.keys())}"
+                f"Layer '{layer_name}' not found in extracted features. "
+                f"Available: {list(all_features.keys())}"
             )
 
         return all_features[layer_name]
@@ -435,41 +370,20 @@ class Distiller(Model):
             metrics: Additional metrics to track during training.
             **kwargs: Additional arguments passed to parent compile.
         """
-        # Validate and convert student loss
         if loss is None:
-            raise ValueError(
-                "Student loss function cannot be None. "
-                "Please provide a valid 'loss' parameter."
-            )
+            raise ValueError("'loss' cannot be None.")
 
-        # Convert string loss to function using tree.map_structure
-        def convert_loss_to_function(loss_item):
-            if isinstance(loss_item, str):
-                loss_fn = keras.losses.get(loss_item)
-                if loss_fn is None:
-                    raise ValueError(
-                        f"Unknown loss function: '{loss_item}'. "
-                        "Please provide a valid loss function name or instance."
-                    )
-                return loss_fn
-            else:
-                return loss_item
-
-        self._student_loss = tree.map_structure(convert_loss_to_function, loss)
-
-        # Store the student loss for serialization
+        self._student_loss = tree.map_structure(_convert_loss_to_function, loss)
         self._student_loss_for_serialization = loss
 
-        # Validate metrics parameter
         if metrics is not None and not isinstance(metrics, (list, tuple)):
             raise ValueError(
                 f"metrics must be a list or tuple, got {type(metrics)}"
             )
 
-        # Compile with a dummy loss since we override compute_loss
         super().compile(
             optimizer=optimizer,
-            loss=None,  # We handle loss in compute_loss
+            loss=None,
             metrics=metrics,
             **kwargs,
         )
@@ -561,16 +475,12 @@ class Distiller(Model):
                             strategy, student_features, is_teacher=False
                         )
                     except ValueError as e:
-                        # Provide more helpful error message for feature
-                        # extraction failures
+                        # Re-raise with context about which strategy failed
                         raise RuntimeError(
-                            f"FeatureDistillation failed for strategy "
-                            f"targeting teacher layer "
+                            f"Failed to extract features for "
+                            f"FeatureDistillation targeting teacher layer "
                             f"'{strategy.teacher_layer_name}' and student "
-                            f"layer '{strategy.student_layer_name}'. This can "
-                            f"happen with subclassed models that haven't "
-                            f"been built properly. Consider using only "
-                            f"LogitsDistillation for such models. "
+                            f"layer '{strategy.student_layer_name}'. "
                             f"Original error: {e}"
                         ) from e
                 else:
@@ -588,14 +498,21 @@ class Distiller(Model):
                     strategy_teacher_output, strategy_student_output
                 )
 
+                # Validate that strategy returns a scalar
+                if (
+                    hasattr(strategy_loss, "shape")
+                    and len(strategy_loss.shape) > 0
+                ):
+                    raise ValueError(
+                        f"Strategy {strategy.__class__.__name__} returned a "
+                        f"non-scalar loss with shape {strategy_loss.shape}. "
+                        f"The compute_loss method must return a scalar tensor."
+                    )
+
                 # Apply weight and add to total
                 distillation_loss = keras.ops.add(
                     distillation_loss, keras.ops.multiply(weight, strategy_loss)
                 )
-
-            # Ensure distillation_loss is a scalar
-            if len(distillation_loss.shape) > 0:
-                distillation_loss = keras.ops.mean(distillation_loss)
 
         # Combine losses
         total_loss = keras.ops.add(
