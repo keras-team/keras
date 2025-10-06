@@ -39,6 +39,7 @@ class CoordinatedOptimizer:
         base_optimizer: optimizers.Optimizer,
         world_size: int,
         distributed_backend: str = "auto",
+        rank: int = 0,
         shard_optimizer_states: bool = True,
         tensor_parallel_config=None,
     ):
@@ -530,6 +531,19 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             }
         )
         return config
+
+    def update_step(self, gradient, variable, *args, **kwargs):
+        if hasattr(self.base_optimizer, "update_step"):
+            try:
+                return self.base_optimizer.update_step(
+                    gradient, variable, *args, **kwargs
+                )
+            except TypeError:
+                return self.base_optimizer.update_step(gradient, variable)
+        try:
+            return super().update_step(gradient, variable, *args, **kwargs)
+        except TypeError:
+            return super().update_step(gradient, variable)
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> "TensorParallelOptimizer":

@@ -1,12 +1,13 @@
+from typing import Any
+from typing import Dict
 from typing import Sequence
+from typing import Set
 
 from keras.src.distribution.tensor_parallel.config import ConfigKeras
 from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
 
 
 def analyze_dense_layer_directly(layer, module, prefix: str) -> str:
-    from keras.src import layers
-
     """Analyzes a Dense layer to classify it for tensor parallelism sharding.
 
     This function inspects the layer's weight shapes to determine if it's an
@@ -23,20 +24,24 @@ def analyze_dense_layer_directly(layer, module, prefix: str) -> str:
         A string indicating the layer's classification: 'up_projection',
         'down_projection', or 'generic_dense'.
     """
+    from keras.src import layers
+
     if not isinstance(layer, layers.Dense):
         return "generic_dense"
 
     input_dim = None
     output_dim = None
 
-    if hasattr(layer, "kernel"):
+    if hasattr(layer, "kernel") and layer.kernel is not None:
         kernel_shape = layer.kernel.shape
         if len(kernel_shape) == 2:
-            input_dim = kernel_shape[0]
-            output_dim = kernel_shape[1]
-    else:
+            input_dim, output_dim = kernel_shape
+
+    if input_dim is None or output_dim is None:
         if hasattr(layer, "units"):
             output_dim = layer.units
+        else:
+            return "generic_dense"
 
         if (
             hasattr(layer, "input_shape")
@@ -44,6 +49,8 @@ def analyze_dense_layer_directly(layer, module, prefix: str) -> str:
             and len(layer.input_shape) > 1
         ):
             input_dim = layer.input_shape[-1]
+        else:
+            return "generic_dense"
 
     if not input_dim or not output_dim:
         return "generic_dense"
@@ -60,34 +67,33 @@ def analyze_dense_layer_directly(layer, module, prefix: str) -> str:
         return "generic_dense"
 
 
-def _traverse_and_shard_layer(
+def _find_and_shard_layers(
     current_layer,
+    prefix: str,
     module,
     world_size: int,
-    state_rules: dict,
-    output_rules: dict,
-    processed_layers: set,
-    prefix: str = "",
+    state_rules: Dict[str, Any],
+    output_rules: Dict[str, Any],
+    processed_layers: Set[int],
 ):
-    from keras.src import layers
+    """Recursively traverses a Keras model to generate sharding rules.
 
-    """Traverses a layer and its sub-layers to apply sharding rules.
-
-    This function navigates through the model's layer hierarchy. For each
-    layer, it identifies its type and applies appropriate sharding logic,
-    populating the `state_rules` and `output_rules` dictionaries.
+    This is an internal helper function that navigates through all layers of a
+    model, including nested ones. For each supported layer, it determines the
+    appropriate sharding strategy and populates the `state_rules` and
+    `output_rules` dictionaries. These dictionaries are modified in place.
 
     Args:
-        current_layer: The current keras.Layer object to be processed.
-        module: The top-level Keras Model, used for context analysis.
-        world_size: The total number of devices for sharding.
-        state_rules: The dictionary of state sharding rules to populate.
-        output_rules: The dictionary of output sharding rules to populate.
-        processed_layers: A set of layer IDs that have already been processed
-            to avoid redundant computation and infinite loops.
-        prefix: The hierarchical name prefix from parent layers, used to
-            construct the full unique name for the current layer.
+        current_layer: The Keras layer to be processed in the current step.
+        prefix: The hierarchical name prefix for the `current_layer`.
+        module: The top-level Keras model being analyzed.
+        world_size: The total number of devices to shard the model across.
+        state_rules: A dictionary with sharding rules for weights.
+        output_rules: A dictionary with communication rules for outputs.
+        processed_layers: A set of layer IDs to prevent infinite loops.
     """
+    from keras.src import layers
+
     if id(current_layer) in processed_layers:
         return
     processed_layers.add(id(current_layer))
@@ -100,10 +106,24 @@ def _traverse_and_shard_layer(
             current_layer, module, full_name
         )
 
-        if mlp_type == "down_projection":
+        if mlp_type == "up_projection":
+            state_rules[f"^{full_name}.kernel$"] = SplitKeras(
+                world_size, 1, "column"
+            )
+            if current_layer.use_bias:
+                state_rules[f"^{full_name}.bias$"] = SplitKeras(
+                    world_size, 0, "column"
+                )
+            output_rules[f"^{full_name}$"] = {0: "gather"}
+
+        elif mlp_type == "down_projection":
             state_rules[f"^{full_name}.kernel$"] = SplitKeras(
                 world_size, 0, "row"
             )
+            if current_layer.use_bias:
+                state_rules[f"^{full_name}.bias$"] = SplitKeras(
+                    world_size, -1, "replicated"
+                )
             output_rules[f"^{full_name}$"] = {0: "allreduce"}
 
         else:
@@ -114,27 +134,21 @@ def _traverse_and_shard_layer(
                 state_rules[f"^{full_name}.bias$"] = SplitKeras(
                     world_size, 0, "column"
                 )
-            output_rules[f"^{full_name}$"] = {0: "no_comm"}
+            output_rules[f"^{full_name}$"] = {0: "gather -1"}
         return
 
     elif isinstance(current_layer, layers.EinsumDense):
-        is_row_parallel = False
-        if "->" in current_layer.equation:
-            equation_parts = current_layer.equation.split("->")
-            if len(equation_parts) == 2:
-                input_spec = equation_parts[0].split(",")[0].strip()
-                output_spec = equation_parts[1].strip()
-                if (
-                    input_spec
-                    and output_spec
-                    and len(output_spec) < len(input_spec)
-                ):
-                    is_row_parallel = True
-
-        if is_row_parallel:
+        if "attention_output" in full_name or "out_proj" in full_name:
             state_rules[f"^{full_name}.kernel$"] = SplitKeras(
                 world_size, 0, "row"
             )
+            if (
+                hasattr(current_layer, "bias")
+                and current_layer.bias is not None
+            ):
+                state_rules[f"^{full_name}.bias$"] = SplitKeras(
+                    world_size, -1, "replicated"
+                )
             output_rules[f"^{full_name}$"] = {0: "allreduce"}
         else:
             state_rules[f"^{full_name}.kernel$"] = SplitKeras(
@@ -147,18 +161,45 @@ def _traverse_and_shard_layer(
                 state_rules[f"^{full_name}.bias$"] = SplitKeras(
                     world_size, 0, "column"
                 )
-            output_rules[f"^{full_name}$"] = {0: "no_comm"}
+            output_rules[f"^{full_name}$"] = {0: "gather -1"}
         return
 
     elif isinstance(current_layer, layers.Embedding):
-        weight_name = (
-            "embeddings" if hasattr(current_layer, "embeddings") else None
+        state_rules[f"^{full_name}.embeddings$"] = SplitKeras(
+            world_size, 0, "vocab_parallel"
         )
-        if weight_name:
-            state_rules[f"^{full_name}\.{weight_name}$"] = SplitKeras(
-                world_size, 1, "column"
+        output_rules[f"^{full_name}$"] = {0: "allreduce"}
+        return
+
+    elif isinstance(current_layer, layers.MultiHeadAttention):
+        for proj in ["query", "key", "value"]:
+            proj_dense_name = f"_{proj}_dense"
+            if hasattr(current_layer, proj_dense_name):
+                state_rules[f"^{full_name}\.{proj_dense_name}\.kernel$"] = (
+                    SplitKeras(world_size, 1, "column")
+                )
+                if getattr(current_layer, proj_dense_name).use_bias:
+                    state_rules[f"^{full_name}\.{proj_dense_name}\.bias$"] = (
+                        SplitKeras(world_size, 0, "column")
+                    )
+
+        output_dense_name = "_output_dense"
+        if hasattr(current_layer, output_dense_name):
+            state_rules[f"^{full_name}\.{output_dense_name}\.kernel$"] = (
+                SplitKeras(world_size, 0, "row")
             )
-            output_rules[f"^{full_name}$"] = {0: "no_comm"}
+            if getattr(current_layer, output_dense_name).use_bias:
+                state_rules[f"^{full_name}\.{output_dense_name}\.bias$"] = (
+                    SplitKeras(world_size, -1, "replicated")
+                )
+
+        output_rules[f"^{full_name}$"] = {0: "allreduce"}
+        return
+
+    elif isinstance(current_layer, layers.Dropout):
+        if "rng_rules" not in state_rules:
+            state_rules["rng_rules"] = {}
+        state_rules["rng_rules"][full_name] = {"type": "parallel"}
         return
 
     elif isinstance(
@@ -170,50 +211,80 @@ def _traverse_and_shard_layer(
         ),
     ):
         return
-    else:
-        if hasattr(current_layer, "layers"):
-            for sub_layer in current_layer.layers:
-                _traverse_and_shard_layer(
-                    sub_layer,
+
+    if hasattr(current_layer, "layers") and current_layer.layers:
+        for sub_layer in current_layer.layers:
+            _find_and_shard_layers(
+                sub_layer,
+                full_name,
+                module,
+                world_size,
+                state_rules,
+                output_rules,
+                processed_layers,
+            )
+
+    for attr_name in dir(current_layer):
+        if attr_name.startswith("_"):
+            continue
+        try:
+            attr = getattr(current_layer, attr_name)
+            if isinstance(attr, layers.Layer) and attr is not current_layer:
+                _find_and_shard_layers(
+                    attr,
+                    full_name,
                     module,
                     world_size,
                     state_rules,
                     output_rules,
                     processed_layers,
-                    full_name,
                 )
+            elif isinstance(attr, (list, tuple)):
+                for item in attr:
+                    if isinstance(item, layers.Layer):
+                        _find_and_shard_layers(
+                            item,
+                            full_name,
+                            module,
+                            world_size,
+                            state_rules,
+                            output_rules,
+                            processed_layers,
+                        )
+        except Exception:
+            continue
 
 
 def get_default_config_keras(module, device_ids: Sequence[str]) -> ConfigKeras:
-    """Generates a smart, recursive sharding configuration for a Keras model.
+    """Generates a default sharding configuration for a Keras model.
 
-    This function traverses the layers of a given Keras model and applies a
-    set of heuristics to automatically determine how each layer's weights
-    and outputs should be sharded for tensor parallelism. It uses a helper
-    function to perform the recursive traversal.
+    This function serves as the main entry point for automatically creating a
+    tensor parallel sharding configuration. It traverses the model and applies
+    standard sharding patterns for common layer types like Dense, Embedding, and
+    MultiHeadAttention.
 
     Args:
-        module: The Keras Model to generate a sharding configuration for.
-        device_ids: A sequence of device identifiers, used to determine the
-            world size (number of devices) for sharding.
+        module: The Keras model or layer to be configured for sharding.
+        device_ids: A sequence of device IDs (e.g., `['gpu:0', 'gpu:1']`)
+            to shard across. The number of devices determines the `world_size`.
 
     Returns:
-        A ConfigKeras object containing the generated 'state_rules' (for model
-        parameters) and 'output_rules' (for layer outputs).
+        A `ConfigKeras` object containing the generated `state_rules` for
+        sharding weights and `output_rules` for handling communications.
     """
     world_size = len(device_ids)
     state_rules = {}
     output_rules = {}
     processed_layers = set()
 
-    _traverse_and_shard_layer(
+    _find_and_shard_layers(
         current_layer=module,
+        prefix="",
         module=module,
         world_size=world_size,
         state_rules=state_rules,
         output_rules=output_rules,
         processed_layers=processed_layers,
-        prefix="",
     )
 
     return ConfigKeras(state_rules=state_rules, output_rules=output_rules)
