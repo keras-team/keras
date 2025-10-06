@@ -668,7 +668,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"Unrecognized format={format}. Supported formats are: "
                 f"{list(available_formats)}."
             )
-        
+
         # Check if LiteRT export is available (requires TensorFlow)
         if format == "litert" and export_litert is None:
             raise ImportError(

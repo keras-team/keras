@@ -17,6 +17,7 @@ from keras.src.utils.module_utils import litert
 # Conditional import of TensorFlow for LiteRT tests
 try:
     import tensorflow as tf
+
     TENSORFLOW_AVAILABLE = True
 except ImportError:
     tf = None
