@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -15,8 +14,16 @@ from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.module_utils import litert
 
+# Conditional import of TensorFlow for LiteRT tests
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    tf = None
+    TENSORFLOW_AVAILABLE = False
+
 # Use AI Edge LiteRT interpreter if available, fallback to TensorFlow Lite
-if litert.available:
+if litert.available and TENSORFLOW_AVAILABLE:
     try:
         from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
 
@@ -24,9 +31,12 @@ if litert.available:
     except ImportError:
         LiteRtInterpreter = tf.lite.Interpreter
         print("Using TensorFlow Lite interpreter as fallback")
-else:
+elif TENSORFLOW_AVAILABLE:
     LiteRtInterpreter = tf.lite.Interpreter
     print("Using TensorFlow Lite interpreter as fallback")
+else:
+    LiteRtInterpreter = None
+    print("TensorFlow not available, LiteRT tests will be skipped")
 
 
 class CustomModel(models.Model):
@@ -155,6 +165,10 @@ def _get_interpreter_outputs(interpreter):
     return outputs[0] if len(outputs) == 1 else outputs
 
 
+@pytest.mark.skipif(
+    not TENSORFLOW_AVAILABLE,
+    reason="TensorFlow is required for LiteRT export tests.",
+)
 @pytest.mark.skipif(
     backend.backend() != "tensorflow",
     reason="`export_litert` currently supports the tensorflow backend only.",

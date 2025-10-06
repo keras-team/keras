@@ -668,6 +668,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"Unrecognized format={format}. Supported formats are: "
                 f"{list(available_formats)}."
             )
+        
+        # Check if LiteRT export is available (requires TensorFlow)
+        if format == "litert" and export_litert is None:
+            raise ImportError(
+                "LiteRT export requires TensorFlow to be installed. "
+                "Please install TensorFlow: `pip install tensorflow`"
+            )
 
         if format == "tf_saved_model":
             export_saved_model(
