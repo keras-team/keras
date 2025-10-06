@@ -121,7 +121,7 @@ class Attention(Layer):
         if self.score_mode == "dot":
             scores = ops.matmul(query, ops.transpose(key, axes=[0, 2, 1]))
             if self.scale is not None:
-                scores *= self.scale
+                scores = ops.multiply(scores, self.scale)
         elif self.score_mode == "concat":
             # Reshape tensors to enable broadcasting.
             # Reshape into [batch_size, Tq, 1, dim].

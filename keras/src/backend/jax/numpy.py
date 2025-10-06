@@ -543,15 +543,18 @@ def clip(x, x_min, x_max):
 
 def concatenate(xs, axis=0):
     bcoo_count = builtins.sum(isinstance(x, jax_sparse.BCOO) for x in xs)
-    if bcoo_count:
-        if bcoo_count == len(xs):
-            axis = canonicalize_axis(axis, len(xs[0].shape))
-            return jax_sparse.bcoo_concatenate(xs, dimension=axis)
-        else:
-            xs = [
-                x.todense() if isinstance(x, jax_sparse.JAXSparse) else x
-                for x in xs
-            ]
+    if bcoo_count == len(xs):
+        axis = canonicalize_axis(axis, len(xs[0].shape))
+        return jax_sparse.bcoo_concatenate(xs, dimension=axis)
+    elif bcoo_count:
+        xs = [
+            x.todense()
+            if isinstance(x, jax_sparse.JAXSparse)
+            else convert_to_tensor(x)
+            for x in xs
+        ]
+    else:
+        xs = [convert_to_tensor(x) for x in xs]
     return jnp.concatenate(xs, axis=axis)
 
 
@@ -1087,6 +1090,7 @@ def reshape(x, newshape):
         if None not in output_shape:
             newshape = output_shape
         return jax_sparse.bcoo_reshape(x, new_sizes=newshape)
+    x = convert_to_tensor(x)
     return jnp.reshape(x, newshape)
 
 
@@ -1149,10 +1153,12 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
 def stack(x, axis=0):
+    x = [convert_to_tensor(t) for t in x]
     return jnp.stack(x, axis=axis)
 
 
@@ -1338,6 +1344,7 @@ def squeeze(x, axis=None):
             axis = tuple(i for i, d in enumerate(x.shape) if d == 1)
         axis = to_tuple_or_list(axis)
         return jax_sparse.bcoo_squeeze(x, dimensions=axis)
+    x = convert_to_tensor(x)
     return jnp.squeeze(x, axis=axis)
 
 
