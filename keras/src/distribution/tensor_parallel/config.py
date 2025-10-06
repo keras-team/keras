@@ -1,11 +1,3 @@
-"""
-Configuration and collective operations setup for Keras Tensor Parallelism.
-
-This module defines the ConfigKeras dataclass and a helper function to
-instantiate collective communication operations (e.g., AllReduce, AllGather)
-based on a set of string-based rules.
-"""
-
 import dataclasses
 from typing import Any
 from typing import Dict
