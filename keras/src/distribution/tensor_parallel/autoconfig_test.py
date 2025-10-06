@@ -1,4 +1,5 @@
 import os
+
 import pytest
 
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
@@ -9,9 +10,10 @@ from keras import layers
 from keras.src import backend
 from keras.src import testing
 from keras.src.distribution import distributed_backend
-
 from keras.src.distribution.tensor_parallel.autoconfig import (
     analyze_dense_layer_directly,
+)
+from keras.src.distribution.tensor_parallel.autoconfig import (
     get_default_config_keras,
 )
 from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
@@ -19,7 +21,7 @@ from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
 
 @pytest.mark.skipif(
     backend.backend() != "jax",
-    reason="Tensor Parallelism autoconfig tests are only for the JAX backend."
+    reason="Tensor Parallelism autoconfig tests are only for the JAX backend.",
 )
 class TestAutoConfigKeras(testing.TestCase):
     def setUp(self):
@@ -41,7 +43,9 @@ class TestAutoConfigKeras(testing.TestCase):
 
     def _assert_rules_equal(self, actual_rules, expected_rules):
         """Helper to compare two dictionaries of sharding rules."""
-        self.assertSetEqual(set(actual_rules.keys()), set(expected_rules.keys()))
+        self.assertSetEqual(
+            set(actual_rules.keys()), set(expected_rules.keys())
+        )
         for key in expected_rules:
             actual_val = actual_rules[key]
             expected_val = expected_rules[key]
@@ -55,26 +59,31 @@ class TestAutoConfigKeras(testing.TestCase):
         up_proj_layer = layers.Dense(32)
         up_proj_layer.build(input_shape=(None, 16))
         self.assertEqual(
-            analyze_dense_layer_directly(up_proj_layer, None, ""), "up_projection"
+            analyze_dense_layer_directly(up_proj_layer, None, ""),
+            "up_projection",
         )
 
         down_proj_layer = layers.Dense(16)
         down_proj_layer.build(input_shape=(None, 32))
         self.assertEqual(
-            analyze_dense_layer_directly(down_proj_layer, None, ""), "down_projection"
+            analyze_dense_layer_directly(down_proj_layer, None, ""),
+            "down_projection",
         )
 
         generic_layer = layers.Dense(20)
         generic_layer.build(input_shape=(None, 16))
         self.assertEqual(
-            analyze_dense_layer_directly(generic_layer, None, ""), "generic_dense"
+            analyze_dense_layer_directly(generic_layer, None, ""),
+            "generic_dense",
         )
 
     def test_simple_mlp_sharding(self):
         """Tests a simple MLP with up and down projection layers."""
         inputs = Input(shape=(64,))
         x = layers.Dense(256, name="up_projection_layer", use_bias=True)(inputs)
-        outputs = layers.Dense(64, name="down_projection_layer", use_bias=True)(x)
+        outputs = layers.Dense(64, name="down_projection_layer", use_bias=True)(
+            x
+        )
         model = Model(inputs=inputs, outputs=outputs, name="simple_mlp")
 
         config = get_default_config_keras(model, self.device_ids)
@@ -136,7 +145,9 @@ class TestAutoConfigKeras(testing.TestCase):
                 self.world_size, 1, "column"
             )
         }
-        expected_output_rules = {r"^embed_model.token_embedding$": {0: "no_comm"}}
+        expected_output_rules = {
+            r"^embed_model.token_embedding$": {0: "no_comm"}
+        }
 
         self._assert_rules_equal(config.state_rules, expected_state_rules)
         self._assert_rules_equal(config.output_rules, expected_output_rules)
@@ -176,9 +187,7 @@ class TestAutoConfigKeras(testing.TestCase):
         x = layers.Dense(64, name="dense1", use_bias=True)(inputs)
         x = layers.LayerNormalization(name="layernorm")(x)
         outputs = layers.Dense(64, name="dense2", use_bias=True)(x)
-        model = Model(
-            inputs=inputs, outputs=outputs, name="norm_model"
-        )
+        model = Model(inputs=inputs, outputs=outputs, name="norm_model")
 
         config = get_default_config_keras(model, self.device_ids)
 
@@ -195,7 +204,9 @@ class TestAutoConfigKeras(testing.TestCase):
     def test_nested_model_sharding(self):
         """Tests that the traversal logic correctly handles nested models."""
         inner_inputs = Input(shape=(32,))
-        inner_outputs = layers.Dense(128, name="inner_dense", use_bias=True)(inner_inputs)
+        inner_outputs = layers.Dense(128, name="inner_dense", use_bias=True)(
+            inner_inputs
+        )
         inner_model = Model(
             inputs=inner_inputs, outputs=inner_outputs, name="inner_block"
         )
@@ -208,7 +219,7 @@ class TestAutoConfigKeras(testing.TestCase):
         )
 
         config = get_default_config_keras(outer_model, self.device_ids)
-        
+
         expected_state_rules = {
             r"^outer_model.inner_block.inner_dense.kernel$": SplitKeras(
                 self.world_size, 1, "column"
@@ -224,7 +235,7 @@ class TestAutoConfigKeras(testing.TestCase):
             r"^outer_model.inner_block.inner_dense$": {0: "gather"},
             r"^outer_model.outer_dense$": {0: "allreduce"},
         }
-        
+
         self.maxDiff = None
         self._assert_rules_equal(config.state_rules, expected_state_rules)
         self._assert_rules_equal(config.output_rules, expected_output_rules)
