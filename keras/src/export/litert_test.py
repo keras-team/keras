@@ -12,32 +12,25 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
-from keras.src.utils.module_utils import litert
+from keras.src.utils.module_utils import tensorflow
 
-# Conditional import of TensorFlow for LiteRT tests
+# Check if AI Edge LiteRT interpreter is available and set it up
+AI_EDGE_LITERT_AVAILABLE = False
+LiteRtInterpreter = None
+
 try:
-    import tensorflow as tf
+    from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
 
-    TENSORFLOW_AVAILABLE = True
+    AI_EDGE_LITERT_AVAILABLE = True
 except ImportError:
-    tf = None
-    TENSORFLOW_AVAILABLE = False
+    # Fallback to TensorFlow Lite if available
+    if tensorflow.available:
+        LiteRtInterpreter = tensorflow.lite.Interpreter
 
-# Use AI Edge LiteRT interpreter if available, fallback to TensorFlow Lite
-if litert.available and TENSORFLOW_AVAILABLE:
-    try:
-        from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
-
-        print("Using AI Edge LiteRT interpreter")
-    except ImportError:
-        LiteRtInterpreter = tf.lite.Interpreter
-        print("Using TensorFlow Lite interpreter as fallback")
-elif TENSORFLOW_AVAILABLE:
-    LiteRtInterpreter = tf.lite.Interpreter
-    print("Using TensorFlow Lite interpreter as fallback")
-else:
-    LiteRtInterpreter = None
-    print("TensorFlow not available, LiteRT tests will be skipped")
+# Model types to test (LSTM only if AI Edge LiteRT is available)
+model_types = ["sequential", "functional"]
+if AI_EDGE_LITERT_AVAILABLE:
+    model_types.append("lstm")
 
 
 class CustomModel(models.Model):
@@ -167,7 +160,7 @@ def _get_interpreter_outputs(interpreter):
 
 
 @pytest.mark.skipif(
-    not TENSORFLOW_AVAILABLE,
+    not tensorflow.available,
     reason="TensorFlow is required for LiteRT export tests.",
 )
 @pytest.mark.skipif(
@@ -178,13 +171,15 @@ def _get_interpreter_outputs(interpreter):
     testing.tensorflow_uses_gpu(),
     reason="LiteRT export tests are only run on CPU to avoid CI issues.",
 )
+
 # Note: Tests use AI Edge LiteRT interpreter when available,
 # fallback to TensorFlow Lite interpreter otherwise
 class ExportLitertTest(testing.TestCase):
-    @parameterized.named_parameters(
-        named_product(model_type=["sequential", "functional", "lstm"])
-    )
+    @parameterized.named_parameters(named_product(model_type=model_types))
     def test_standard_model_export(self, model_type):
+        if model_type == "lstm" and not AI_EDGE_LITERT_AVAILABLE:
+            self.skipTest("LSTM models require AI Edge LiteRT interpreter.")
+
         temp_filepath = os.path.join(
             self.get_temp_dir(), "exported_model.tflite"
         )
@@ -412,6 +407,45 @@ class ExportLitertTest(testing.TestCase):
         # Test with invalid format
         with self.assertRaises(ValueError):
             model.export(temp_filepath, format="invalid_format")
+
+    def test_export_invalid_filepath(self):
+        """Test that export fails with invalid file extension."""
+        model = get_model("sequential")
+        dummy_input = np.random.random((3, 10)).astype(np.float32)
+        model(dummy_input)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.txt")
+
+        # Should raise AssertionError for wrong extension
+        with self.assertRaises(AssertionError):
+            model.export(temp_filepath, format="litert")
+
+    def test_export_subclass_model(self):
+        """Test exporting subclass models (uses wrapper conversion path)."""
+        if LiteRtInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        model = get_model("subclass")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
+
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        # Export subclass model - this tests wrapper-based conversion
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify inference
+        interpreter = LiteRtInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        _set_interpreter_inputs(interpreter, ref_input)
+        interpreter.invoke()
+        litert_output = _get_interpreter_outputs(interpreter)
+
+        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":
