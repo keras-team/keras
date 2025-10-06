@@ -2,6 +2,7 @@ import os
 
 import tensorflow as tf
 
+from keras.src import tree
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils import io_utils
@@ -146,94 +147,48 @@ class LitertExporter:
 
     def _ensure_model_built(self):
         """
-        Ensures the model is built by calling model.build() if necessary.
+        Ensures the model is built before conversion.
 
-        This is critical because model.built can be True even if the model
-        has not been properly initialized with input shapes, which is required
-        for TFLite conversion. This method uses model.build() which is simpler
-        and more reliable than generating dummy inputs.
+        For models that are not yet built, this attempts to build them
+        using the input signature or model.inputs.
         """
         if self.model.built:
-            if self.verbose:
-                print("Model is already built.")
             return
 
         if self.verbose:
-            print("Building model with inferred input shapes...")
+            print("Building model before conversion...")
 
         try:
-            # Infer input shape(s) and build the model
-            if hasattr(self.model, "inputs") and self.model.inputs:
-                # Functional/Sequential with Input layer
+            # Try to build using input_signature if available
+            if self.input_signature:
+                input_shapes = tree.map_structure(
+                    lambda spec: spec.shape, self.input_signature
+                )
+                self.model.build(input_shapes)
+            # Fall back to model.inputs for Functional/Sequential models
+            elif hasattr(self.model, "inputs") and self.model.inputs:
                 input_shapes = [inp.shape for inp in self.model.inputs]
-                if self.verbose:
-                    print(
-                        f"Building model from model.inputs "
-                        f"({len(input_shapes)} input(s)): {input_shapes}"
-                    )
                 if len(input_shapes) == 1:
                     self.model.build(input_shapes[0])
                 else:
                     self.model.build(input_shapes)
             else:
-                # Sequential without Input layer or subclassed model
-                if self.verbose:
-                    print(
-                        "Model has no inputs attribute. Inferring shape for "
-                        "Sequential model."
-                    )
-                input_shape = self._infer_sequential_input_shape()
-                if input_shape is None:
-                    raise ValueError(
-                        "Cannot build model: unable to infer input shape. "
-                        "Please add an Input layer or specify input_shape "
-                        "in the first layer."
-                    )
-                if self.verbose:
-                    print(f"Building model with inferred shape: {input_shape}")
-                self.model.build(input_shape)
+                raise ValueError(
+                    "Cannot build model: no input_signature provided and "
+                    "model has no inputs attribute. Please provide an "
+                    "input_signature or ensure the model is already built."
+                )
 
             if self.verbose:
-                print("Model successfully built.")
+                print("Model built successfully.")
 
         except Exception as e:
             if self.verbose:
-                print(f"Error during model.build(): {e}")
-            raise ValueError(f"Failed to build model with error: {e}")
-
-        # Final check
-        if not self.model.built:
+                print(f"Error building model: {e}")
             raise ValueError(
-                "Model could not be built. Please check the model's "
-                "definition and input specification."
+                f"Failed to build model: {e}. Please ensure the model is "
+                "properly defined or provide an input_signature."
             )
-
-    def _infer_sequential_input_shape(self):
-        """Infer input shape for Sequential models.
-        
-        Returns the input shape with flexible batch dimension (None) suitable
-        for model.build(), allowing dynamic batch sizes during inference.
-        """
-        try:
-            # For Sequential models, input_shape should be available directly
-            if hasattr(self.model, 'input_shape') and self.model.input_shape:
-                input_shape = self.model.input_shape
-                # Always use None batch dimension for model.build()
-                return (None,) + input_shape[1:]
-            
-            # Fallback: try to get from first layer's batch_shape
-            if hasattr(self.model, "_layers") and self.model._layers:
-                first_layer = self.model._layers[0]
-                if hasattr(first_layer, 'batch_shape') and first_layer.batch_shape:
-                    input_shape = first_layer.batch_shape
-                    # Always use None batch dimension for model.build()
-                    return (None,) + input_shape[1:]
-                    
-        except Exception as e:
-            if self.verbose:
-                print(f"Warning: Could not infer Sequential input shape: {e}")
-        
-        return None
 
     def _convert_to_tflite(self, input_signature):
         """Converts the Keras model to a TFLite model."""

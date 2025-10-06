@@ -1,5 +1,5 @@
-from keras.src.export.litert_exporter import LitertExporter
-from keras.src.export.litert_exporter import export_litert
+from keras.src.export.litert import LitertExporter
+from keras.src.export.litert import export_litert
 from keras.src.export.onnx import export_onnx
 from keras.src.export.openvino import export_openvino
 from keras.src.export.saved_model import ExportArchive
