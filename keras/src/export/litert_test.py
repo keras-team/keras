@@ -12,6 +12,7 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.utils.module_utils import litert
 from keras.src.utils.module_utils import tensorflow
 
 # Check if AI Edge LiteRT interpreter is available and set it up
@@ -19,9 +20,10 @@ AI_EDGE_LITERT_AVAILABLE = False
 LiteRtInterpreter = None
 
 try:
-    from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
+    if litert.available:
+        from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
 
-    AI_EDGE_LITERT_AVAILABLE = True
+        AI_EDGE_LITERT_AVAILABLE = True
 except ImportError:
     # Fallback to TensorFlow Lite if available
     if tensorflow.available:
