@@ -173,8 +173,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertGreater(len(state_to_param), 0)
 
         dense_output_kernel = model.get_layer("dense_output").kernel
-        optimizer_name = optimizer.base_optimizer.name
-        kernel_path = dense_output_kernel.path.replace("/", "_")
-        momentum_path = f"{optimizer_name}/{kernel_path}_momentum"
+        momentum_path = f"{optimizer.base_optimizer.name}/{dense_output_kernel.path.replace('/', '_')}_momentum"
 
         self.assertIs(state_to_param[momentum_path], dense_output_kernel)
