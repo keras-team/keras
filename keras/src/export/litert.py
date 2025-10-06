@@ -96,6 +96,7 @@ class LitertExporter:
             if self.verbose:
                 print("Inferring input signature from model.")
             from keras.src.export.export_utils import get_input_signature
+
             self.input_signature = get_input_signature(self.model)
 
         # 3. Convert the model to TFLite.
@@ -234,6 +235,7 @@ class LitertExporter:
             input_signature = [input_signature]
 
         from keras.src.export.export_utils import make_tf_tensor_spec
+
         tensor_specs = [make_tf_tensor_spec(spec) for spec in input_signature]
 
         # Pass tensor specs as positional arguments to get the concrete
