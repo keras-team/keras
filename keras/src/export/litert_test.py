@@ -15,7 +15,9 @@ from keras.src.testing.test_utils import named_product
 from keras.src.utils.module_utils import litert
 from keras.src.utils.module_utils import tensorflow
 
-# Check if AI Edge LiteRT interpreter is available and set it up
+# Set up LiteRT interpreter with fallback logic:
+# 1. Try AI Edge LiteRT interpreter (preferred)
+# 2. Fall back to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
 AI_EDGE_LITERT_AVAILABLE = False
 LiteRtInterpreter = None
 
@@ -25,7 +27,7 @@ try:
 
         AI_EDGE_LITERT_AVAILABLE = True
 except ImportError:
-    # Fallback to TensorFlow Lite if available
+    # Fallback to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
     if tensorflow.available:
         LiteRtInterpreter = tensorflow.lite.Interpreter
 
@@ -167,18 +169,22 @@ def _get_interpreter_outputs(interpreter):
 )
 @pytest.mark.skipif(
     backend.backend() != "tensorflow",
-    reason="`export_litert` currently supports the tensorflow backend only.",
+    reason="`export_litert` currently supports the TensorFlow backend only.",
 )
 @pytest.mark.skipif(
     testing.tensorflow_uses_gpu(),
     reason="LiteRT export tests are only run on CPU to avoid CI issues.",
 )
-
-# Note: Tests use AI Edge LiteRT interpreter when available,
-# fallback to TensorFlow Lite interpreter otherwise
 class ExportLitertTest(testing.TestCase):
+    """Test suite for LiteRT (TFLite) model export functionality.
+
+    Tests use AI Edge LiteRT interpreter when available, otherwise fall back
+    to TensorFlow Lite interpreter for validation.
+    """
+
     @parameterized.named_parameters(named_product(model_type=model_types))
     def test_standard_model_export(self, model_type):
+        """Test exporting standard model types to LiteRT format."""
         if model_type == "lstm" and not AI_EDGE_LITERT_AVAILABLE:
             self.skipTest("LSTM models require AI Edge LiteRT interpreter.")
 
@@ -186,7 +192,7 @@ class ExportLitertTest(testing.TestCase):
             self.get_temp_dir(), "exported_model.tflite"
         )
         model = get_model(model_type)
-        batch_size = 1  # TFLite expects batch_size=1
+        batch_size = 1  # LiteRT expects batch_size=1
         if model_type == "lstm":
             ref_input = np.random.normal(size=(batch_size, 4, 10))
         else:
@@ -211,7 +217,8 @@ class ExportLitertTest(testing.TestCase):
         named_product(struct_type=["tuple", "array", "dict"])
     )
     def test_model_with_input_structure(self, struct_type):
-        batch_size = 1  # TFLite expects batch_size=1
+        """Test exporting models with structured inputs (tuple/array/dict)."""
+        batch_size = 1  # LiteRT expects batch_size=1
         base_input = np.random.normal(size=(batch_size, 10)).astype("float32")
 
         if struct_type == "tuple":
@@ -270,6 +277,7 @@ class ExportLitertTest(testing.TestCase):
         self.assertAllClose(ref_output, revived_output)
 
     def test_model_with_multiple_inputs(self):
+        """Test exporting models with multiple inputs and batch resizing."""
         temp_filepath = os.path.join(
             self.get_temp_dir(), "exported_model.tflite"
         )
@@ -280,7 +288,7 @@ class ExportLitertTest(testing.TestCase):
         output = layers.Add()([input_x, input_y])
         model = models.Model(inputs=[input_x, input_y], outputs=output)
 
-        batch_size = 1  # TFLite expects batch_size=1
+        batch_size = 1  # LiteRT expects batch_size=1
         ref_input_x = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = _convert_to_numpy(model([ref_input_x, ref_input_y]))
@@ -317,6 +325,7 @@ class ExportLitertTest(testing.TestCase):
         )
 
     def test_export_with_custom_input_signature(self):
+        """Test exporting with custom input signature specification."""
         model = get_model("sequential")
         temp_filepath = os.path.join(
             self.get_temp_dir(), "exported_model.tflite"
