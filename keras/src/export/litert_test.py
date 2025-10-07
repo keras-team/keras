@@ -21,12 +21,16 @@ from keras.src.utils.module_utils import tensorflow
 AI_EDGE_LITERT_AVAILABLE = False
 LiteRtInterpreter = None
 
-try:
-    if litert.available:
+if litert.available:
+    try:
         from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
 
         AI_EDGE_LITERT_AVAILABLE = True
-except ImportError:
+    except ImportError:
+        # Fallback to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
+        if tensorflow.available:
+            LiteRtInterpreter = tensorflow.lite.Interpreter
+else:
     # Fallback to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
     if tensorflow.available:
         LiteRtInterpreter = tensorflow.lite.Interpreter
