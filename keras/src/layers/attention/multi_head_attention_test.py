@@ -204,7 +204,8 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
     def test_attention_axes_negative_indexing(self):
-        """Test that negative attention_axes indexing matches positive indexing."""
+        """Test that negative attention_axes indexing matches
+        positive indexing."""
         x = np.random.normal(size=(2, 3, 8, 4))
 
         # Create two layers with equivalent positive and negative indices
