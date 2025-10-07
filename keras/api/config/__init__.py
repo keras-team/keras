@@ -5,15 +5,20 @@ since your modifications would be overwritten.
 """
 
 from keras.src.backend.config import backend as backend
+from keras.src.backend.config import disable_debug_mode as disable_debug_mode
 from keras.src.backend.config import (
     disable_flash_attention as disable_flash_attention,
 )
+from keras.src.backend.config import enable_debug_mode as enable_debug_mode
 from keras.src.backend.config import (
     enable_flash_attention as enable_flash_attention,
 )
 from keras.src.backend.config import epsilon as epsilon
 from keras.src.backend.config import floatx as floatx
 from keras.src.backend.config import image_data_format as image_data_format
+from keras.src.backend.config import (
+    is_debug_mode_enabled as is_debug_mode_enabled,
+)
 from keras.src.backend.config import (
     is_flash_attention_enabled as is_flash_attention_enabled,
 )

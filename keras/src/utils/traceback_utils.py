@@ -8,6 +8,7 @@ from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.config import is_debug_mode_enabled
 
 _EXCLUDED_PATHS = (
     os.path.abspath(os.path.join(__file__, "..", "..")),
@@ -113,6 +114,8 @@ def filter_traceback(fn):
             return fn(*args, **kwargs)
 
         filtered_tb = None
+        if is_debug_mode_enabled():
+            return fn(*args, **kwargs)
         try:
             return fn(*args, **kwargs)
         except Exception as e:
@@ -152,6 +155,8 @@ def inject_argument_info_in_traceback(fn, object_name=None):
 
         signature = None
         bound_signature = None
+        if is_debug_mode_enabled():
+            return fn(*args, **kwargs)
         try:
             return fn(*args, **kwargs)
         except Exception as e:

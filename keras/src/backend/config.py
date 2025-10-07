@@ -22,6 +22,8 @@ _NNX_ENABLED = False
 _MAX_EPOCHS = None
 _MAX_STEPS_PER_EPOCH = None
 
+_DEBUG_MODE = False
+
 
 @keras_export(["keras.config.floatx", "keras.backend.floatx"])
 def floatx():
@@ -172,6 +174,42 @@ def set_image_data_format(data_format):
             f"Received: data_format={data_format}"
         )
     _IMAGE_DATA_FORMAT = data_format
+
+
+@keras_export("keras.config.enable_debug_mode")
+def enable_debug_mode():
+    """Enable raw-backend error propagation.
+
+    When enabled, any exception raised by the underlying backend
+    (TensorFlow, JAX or PyTorch) is re-raised **without** Keras-level
+    wrapping or simplification, making full trace-backs visible for
+    debugging.
+
+    The default is off (``False``).
+    """
+    global _DEBUG_MODE
+    _DEBUG_MODE = True
+
+
+@keras_export("keras.config.disable_debug_mode")
+def disable_debug_mode():
+    """Disable raw-backend error propagation.
+
+    Restores the default behaviour where Keras may wrap or simplify
+    backend exceptions.
+    """
+    global _DEBUG_MODE
+    _DEBUG_MODE = False
+
+
+@keras_export("keras.config.is_debug_mode_enabled")
+def is_debug_mode_enabled():
+    """Query whether raw-backend error propagation is active.
+
+    Returns:
+        bool: ``True`` if debug mode is on, ``False`` otherwise.
+    """
+    return _DEBUG_MODE
 
 
 @keras_export("keras.config.enable_flash_attention")
