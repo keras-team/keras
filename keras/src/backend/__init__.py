@@ -37,6 +37,8 @@ from keras.src.backend.config import standardize_data_format
 if backend() == "tensorflow":
     from keras.src.backend.tensorflow import *  # noqa: F403
     from keras.src.backend.tensorflow.core import Variable as BackendVariable
+
+    distributed_backend = None
 elif backend() == "jax":
     from keras.src.backend.jax import *  # noqa: F403
     from keras.src.backend.jax.core import Variable as BackendVariable
@@ -50,11 +52,13 @@ elif backend() == "numpy":
     from keras.src.backend.numpy.core import Variable as BackendVariable
 
     distribution_lib = None
+    distributed_backend = None
 elif backend() == "openvino":
     from keras.src.backend.openvino import *  # noqa: F403
     from keras.src.backend.openvino.core import Variable as BackendVariable
 
     distribution_lib = None
+    distributed_backend = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
 
