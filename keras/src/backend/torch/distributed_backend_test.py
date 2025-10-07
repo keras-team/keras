@@ -1,7 +1,3 @@
-import os
-
-os.environ["JAX_PLATFORM_NAME"] = "cpu"
-
 import pytest
 import torch
 

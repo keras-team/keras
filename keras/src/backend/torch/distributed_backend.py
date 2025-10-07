@@ -118,17 +118,9 @@ def get_communication_ops() -> Dict[str, Callable]:
     def all_reduce(
         x: torch.Tensor,
         op: Literal["sum", "mean"] = "sum",
+        axis_name: str = None,
     ) -> torch.Tensor:
-        """Reduces a tensor across all devices.
-
-        Args:
-            x (torch.Tensor): The tensor to reduce.
-            op (Literal["sum", "mean"], optional): The reduction operation.
-                Defaults to "sum".
-
-        Returns:
-            torch.Tensor: The reduced tensor.
-        """
+        """Reduces a tensor across all devices."""
         if not _is_distributed():
             world_size = (
                 torch.cuda.device_count() if torch.cuda.is_available() else 1
@@ -152,17 +144,10 @@ def get_communication_ops() -> Dict[str, Callable]:
         dist.all_reduce(result, op=reduce_op)
         return result
 
-    def all_gather(x: torch.Tensor, axis: int = 0) -> torch.Tensor:
-        """Gathers tensors from all devices and concatenates them.
-
-        Args:
-            x (torch.Tensor): The local tensor to gather.
-            axis (int, optional): The axis along which to concatenate.
-            Defaults to 0.
-
-        Returns:
-            torch.Tensor: The concatenated tensor from all devices.
-        """
+    def all_gather(
+        x: torch.Tensor, axis: int = 0, axis_name: str = None
+    ) -> torch.Tensor:
+        """Gathers tensors from all devices and concatenates them."""
         if not _is_distributed():
             world_size = (
                 torch.cuda.device_count() if torch.cuda.is_available() else 1
@@ -176,20 +161,13 @@ def get_communication_ops() -> Dict[str, Callable]:
         dist.all_gather(tensor_list, x)
         return torch.cat(tensor_list, dim=axis)
 
-    def broadcast(x: torch.Tensor, root: int = 0) -> torch.Tensor:
-        """Broadcasts a tensor from a root device to all other devices.
-
-        Args:
-            x (torch.Tensor): The tensor to broadcast.
-            root (int, optional): The rank of the source device. Defaults to 0.
-
-        Returns:
-            torch.Tensor: The tensor received from the root device.
-        """
+    def broadcast(
+        x: torch.Tensor, root: int = 0, axis_name: str = None
+    ) -> torch.Tensor:
+        """Broadcasts a tensor from a root device to all other devices."""
         if not _is_distributed():
             return x
 
-        # `dist.broadcast` is in-place.
         dist.broadcast(x, src=root)
         return x
 
@@ -197,24 +175,9 @@ def get_communication_ops() -> Dict[str, Callable]:
         x: torch.Tensor,
         root: int = 0,
         axis: int = 0,
+        axis_name: str = None,
     ) -> torch.Tensor:
-        """Scatters a tensor from a root device to all devices.
-
-        Note: The current implementation of `dist.scatter` requires the input
-        tensor `x` to be organized differently for the root process. This
-        wrapper simplifies it by handling the splitting automatically on the
-        root process.
-
-        Args:
-            x (torch.Tensor): The tensor on the root device to be scattered.
-            root (int, optional): The rank of the device holding the tensor.
-                Defaults to 0.
-            axis (int, optional): The axis along which to split the tensor.
-                Defaults to 0.
-
-        Returns:
-            torch.Tensor: The chunk of the tensor for the local device.
-        """
+        """Scatters a tensor from a root device to all devices."""
         if not _is_distributed():
             world_size = (
                 torch.cuda.device_count() if torch.cuda.is_available() else 1

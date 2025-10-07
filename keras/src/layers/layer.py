@@ -39,7 +39,8 @@ from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
-from keras.src.distribution import distribution_lib
+
+# from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
@@ -942,6 +943,8 @@ class Layer(BackendLayer, Operation):
                 # Change the layout for the layer output if needed.
                 # This is useful for relayout intermediate tensor in the model
                 # to achieve the optimal performance.
+                from keras.src.distribution import distribution_lib
+
                 distribution = distribution_lib.distribution()
                 if distribution is not None:
                     current_layer_path = current_path()

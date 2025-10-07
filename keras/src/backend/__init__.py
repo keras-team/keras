@@ -46,7 +46,6 @@ elif backend() == "torch":
     from keras.src.backend.torch import *  # noqa: F403
     from keras.src.backend.torch.core import Variable as BackendVariable
 
-    distribution_lib = None
 elif backend() == "numpy":
     from keras.src.backend.numpy import *  # noqa: F403
     from keras.src.backend.numpy.core import Variable as BackendVariable
