@@ -379,7 +379,7 @@ class MultiHeadAttention(Layer):
             self._attention_axes = tuple(range(1, rank - 2))
         else:
             self._attention_axes = tuple(
-                axis if axis >= 0 else (rank - 1) + axis 
+                axis if axis >= 0 else (rank - 1) + axis
                 for axis in self._attention_axes
             )
         (

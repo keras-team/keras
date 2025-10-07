@@ -183,6 +183,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
         img = img.convert("RGB")
     img.save(path, format=file_format, **kwargs)
 
+
 @keras_export(["keras.utils.load_img", "keras.preprocessing.image.load_img"])
 def load_img(
     path,
