@@ -15,7 +15,7 @@ jobs:
       matrix:
         python-version: ["3.10"]
         backend: [tensorflow, jax, torch, numpy]
-    name: Run tests (Python 3.10)
+    name: Run tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     env:
       PYTHON: ${{ matrix.python-version }}
@@ -61,16 +61,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-      python-version: ["3.13"]
-      backend: [tensorflow, jax, torch, numpy]
-    name: Run tests (Python 3.13)
+        python-version: ["3.13"]
+        backend: [tensorflow, jax, torch, numpy]
+    name: Run tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_BACKEND: ${{ matrix.backend }}
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.13
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
