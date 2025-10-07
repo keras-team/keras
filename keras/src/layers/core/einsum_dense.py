@@ -16,6 +16,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
+from keras.src.utils.variable_loading import get_quantized_variable_load_order
 
 
 @keras_export("keras.layers.EinsumDense")
@@ -374,30 +375,8 @@ class EinsumDense(Layer):
     def _legacy_load_own_variables(self, store):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        if self.quantization_mode == "gptq":
-            # GPTQ: bias first, then quantized_kernel
-            target_variables = [self.bias] if self.bias is not None else []
-            target_variables.append(self.quantized_kernel)
-        else:
-            target_variables = [self._kernel]
-        if self.bias is not None and self.quantization_mode != "gptq":
-            target_variables.append(self.bias)
-        if self.quantization_mode is not None:
-            if self.quantization_mode in ("int8", "int4"):
-                target_variables.append(self.kernel_scale)
-            elif self.quantization_mode == "float8":
-                target_variables.append(self.inputs_scale)
-                target_variables.append(self.inputs_amax_history)
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_amax_history)
-                target_variables.append(self.outputs_grad_scale)
-                target_variables.append(self.outputs_grad_amax_history)
-            elif self.quantization_mode == "gptq":
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_zero)
-                target_variables.append(self.g_idx)
-            else:
-                raise self._quantization_mode_error(self.quantization_mode)
+        target_variables = get_quantized_variable_load_order(self)
+
         for i, variable in enumerate(target_variables):
             weight_data = store[str(i)]
             variable._direct_assign(weight_data)
