@@ -125,14 +125,16 @@ def _initialize_variable_with_sharding(
             f"{log_prefix}: Sharded initialization (layout: {variable._layout})"
         )
 
-        # Ensure value is on host (numpy array)
         if isinstance(value, (jnp.ndarray, jax.Array)):
-            # Move JAX array to CPU first, then convert to numpy
-            value = np.array(jax.device_get(value))
-            logging.debug(
-                f"{log_prefix}: Moved JAX array to CPU and converted to "
-                f"numpy array (host memory)"
-            )
+            if hasattr(value, "device") and value.device.platform == "cpu":
+                logging.debug(
+                    f"{log_prefix}: JAX array already on CPU (host memory)"
+                )
+            else:
+                value = jax.device_put(value, jax.devices("cpu")[0])
+                logging.debug(
+                    f"{log_prefix}: Moved JAX array to CPU (host memory)"
+                )
         elif not isinstance(value, np.ndarray):
             value = np.array(value)
             logging.debug(
@@ -171,8 +173,6 @@ def _initialize_variable_with_sharding(
         # Convert to tensor using normal path
         value = variable._convert_to_tensor(value)
 
-    # Block until value is fully materialized to prevent GC
-    value = jax.block_until_ready(value)
     variable._maybe_create_strong_reference(value)
 
     return value
@@ -297,8 +297,6 @@ class JaxVariable(KerasVariable):
                     f"_direct_assign: Sharded across {num_devices} devices"
                 )
 
-        # Block until value is ready and keep strong reference to ALL shards
-        value = jax.block_until_ready(value)
         self._maybe_create_strong_reference(value)
 
         # Assign the value - protect sharded arrays from deletion
@@ -461,7 +459,11 @@ if config.is_nnx_enabled():
             )
 
         def _direct_assign(self, value):
-            """Assign value to NNX variable with sharding support."""
+            """Assign value to NNX variable with sharding support.
+
+            Used during weight loading for sharded variables.
+            Accepts both NumPy arrays and JAX arrays.
+            """
             import numpy as np
 
             if self._layout is not None:
@@ -469,9 +471,10 @@ if config.is_nnx_enabled():
                     f"_direct_assign (NNX): Distributing '{self.path}'"
                 )
 
-                # Check if numpy
                 if isinstance(value, np.ndarray):
-                    logging.debug("_direct_assign (NNX): Value is numpy (HOST)")
+                    logging.debug("_direct_assign (NNX): Value is numpy array")
+                elif isinstance(value, (jnp.ndarray, jax.Array)):
+                    logging.debug("_direct_assign (NNX): Value is JAX array")
 
                 # Distribute
                 value = distribution_lib.distribute_variable(
@@ -486,8 +489,7 @@ if config.is_nnx_enabled():
             ):
                 value = self._var_metadata["on_set_value"](self, value)
 
-            # Block and keep reference to ALL shards
-            value = jax.block_until_ready(value)
+            # JAX automatically blocks when array properties are accessed
             self._maybe_create_strong_reference(value)
             # Set value for NNX
             object.__setattr__(self, "raw_value", value)
