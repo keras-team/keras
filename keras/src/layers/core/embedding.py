@@ -266,16 +266,15 @@ class Embedding(Layer):
     def _legacy_load_own_variables(self, store):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        target_variables = [self._embeddings]
-        if self.quantization_mode is not None:
-            if self.quantization_mode in ("int8", "int4"):
-                target_variables.append(self.embeddings_scale)
-            else:
-                raise self._quantization_mode_error(self.quantization_mode)
-        for i, variable in enumerate(target_variables):
+        mode = self.quantization_mode
+        targets = [self._embeddings]
+        targets.extend(
+            getattr(self, name)
+            for name in self.quantization_variable_spec[mode]
+        )
+        for i, variable in enumerate(targets):
             weight_data = store[str(i)]
             variable._direct_assign(weight_data)
-
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
                 ops.zeros(self.lora_embeddings_a.shape)
