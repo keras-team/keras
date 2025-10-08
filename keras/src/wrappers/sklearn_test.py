@@ -161,46 +161,43 @@ def test_sklearn_estimator_checks(estimator, check):
 
 
 @pytest.mark.parametrize(
-    "estimator, has_predict_proba",
+    "estimator",
     [
-        (
-            SKLearnClassifier(
-                model=dynamic_model,
-                model_kwargs={
-                    "out_activation_function": "softmax",
-                    "loss": "categorical_crossentropy",
-                },
-                fit_kwargs={"epochs": 1},
-            ),
-            True,
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "softmax",
+                "loss": "categorical_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
         ),
-        (
-            SKLearnClassifier(
-                model=dynamic_model,
-                model_kwargs={
-                    "out_activation_function": "linear",
-                    "loss": "categorical_crossentropy",
-                },
-                fit_kwargs={"epochs": 1},
-            ),
-            False,
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "linear",
+                "loss": "categorical_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
         ),
     ],
 )
-def test_sklearn_estimator_predict_proba(estimator, has_predict_proba):
-    """Checks that ``SKLearnClassifier`` exposes the ``predict_proba`` method
-    only when the model outputs probabilities.
+def test_sklearn_estimator_decision_function(estimator):
+    """Checks that the argmax of ``decision_function`` is the same as that of
+    ``predict`` for classifiers.
     """
     try:
         X, y = sklearn.datasets.make_classification(
-            n_samples=100,
+            n_samples=10,
             n_features=10,
             n_informative=4,
             n_classes=4,
             random_state=42,
         )
         estimator.fit(X, y)
-        assert hasattr(estimator, "predict_proba") == has_predict_proba
+        assert (
+            estimator.decision_function(X[:1]).argmax(axis=-1)
+            == estimator.predict(X[:1]).flatten()
+        )
     except Exception as exc:
         if keras.config.backend() in ["numpy", "openvino"] and (
             isinstance(exc, NotImplementedError)

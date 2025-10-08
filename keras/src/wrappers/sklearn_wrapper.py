@@ -10,7 +10,6 @@ from keras.src.wrappers.fixes import _validate_data
 from keras.src.wrappers.fixes import type_of_target
 from keras.src.wrappers.utils import TargetReshaper
 from keras.src.wrappers.utils import _check_model
-from keras.src.wrappers.utils import _estimator_has_proba
 from keras.src.wrappers.utils import assert_sklearn_installed
 
 try:
@@ -19,7 +18,6 @@ try:
     from sklearn.base import ClassifierMixin
     from sklearn.base import RegressorMixin
     from sklearn.base import TransformerMixin
-    from sklearn.utils.metaestimators import available_if
 except ImportError:
     sklearn = None
 
@@ -280,9 +278,8 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
     ```
     """
 
-    @available_if(_estimator_has_proba)
-    def predict_proba(self, X):
-        """Predict class probabilities of the input samples X."""
+    def decision_function(self, X):
+        """Get raw model outputs."""
         from sklearn.utils.validation import check_is_fitted
 
         check_is_fitted(self)
