@@ -2522,3 +2522,66 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "Invalid images rank: expected rank 3"
         ):
             kimage.elastic_transform(invalid_image)
+
+class ExtractVolumePatchesTest(testing.TestCase):
+
+    def test_extract_volume_patches_basic(self):
+        volume = np.ones((1, 96, 96, 96, 4))
+        patches = kimage.extract_volume_patches(volume, size=(4, 4, 4), strides=(4, 4, 4))
+        self.assertEqual(patches.shape, (1, 24, 24, 24, 256))
+
+    def test_extract_volume_patches_valid_padding(self):
+        volume = np.random.rand(2, 32, 32, 32, 3)
+        patches = kimage.extract_volume_patches(volume, size=(8, 8, 8), strides=(8, 8, 8), padding="valid")
+        self.assertEqual(patches.shape, (2, 4, 4, 4, 1536))
+
+    def test_extract_volume_patches_same_padding(self):
+        volume = np.random.rand(1, 33, 33, 33, 1)
+        patches = kimage.extract_volume_patches(volume, size=(4, 4, 4), strides=(4, 4, 4), padding="same")
+        expected_patches = (33 + 3) // 4  # = 9
+        self.assertEqual(patches.shape, (1, expected_patches, expected_patches, expected_patches, 64))
+  
+    def test_extract_volume_patches_with_dilation(self):
+        volume = np.random.rand(1, 64, 64, 64, 2)
+        # TensorFlow backend does not support dilation > 1
+        with self.assertRaises(NotImplementedError):
+            kimage.extract_volume_patches(volume, size=(3, 3, 3), strides=(8, 8, 8), dilation_rate=(2, 2, 2))
+
+    def test_extract_volume_patches_overlapping(self):
+        volume = np.random.rand(1, 16, 16, 16, 1)
+        patches = kimage.extract_volume_patches(volume, size=(4, 4, 4), strides=(2, 2, 2))
+        expected_patches = (16 - 4) // 2 + 1  # = 7
+        self.assertEqual(patches.shape, (1, expected_patches, expected_patches, expected_patches, 64))
+
+    def test_extract_volume_patches_channels_first(self):
+        volume = np.random.rand(1, 3, 32, 32, 32).astype(np.float32)
+        patches = kimage.extract_volume_patches(
+        volume,
+        size=(4, 4, 4),
+        strides=(4, 4, 4),
+        data_format="channels_first",
+        )
+        self.assertEqual(patches.shape, (1, 192, 8, 8, 8))
+
+
+    def test_extract_volume_patches_int_size(self):
+        volume = np.random.rand(1, 24, 24, 24, 2)
+        patches = kimage.extract_volume_patches(volume, size=6, strides=6)
+        self.assertEqual(patches.shape, (1, 4, 4, 4, 432))
+
+    def test_extract_volume_patches_value_check(self):
+        volume = np.arange(8*8*8).reshape(1, 8, 8, 8, 1)
+        patches = kimage.extract_volume_patches(volume, size=(2, 2, 2), strides=(2, 2, 2))
+        first_patch = patches[0, 0, 0, 0, :]
+        expected = volume[0, 0:2, 0:2, 0:2, 0].flatten()
+        np.testing.assert_array_equal(first_patch, expected)
+
+    def test_extract_volume_patches_invalid_size(self):
+        volume = np.random.rand(1, 32, 32, 32, 1)
+        with self.assertRaises(ValueError):
+            kimage.extract_volume_patches(volume, size=(4, 4))
+
+    def test_extract_volume_patches_invalid_strides(self):
+        volume = np.random.rand(1, 32, 32, 32, 1)
+        with self.assertRaises(ValueError):
+            kimage.extract_volume_patches(volume, size=(4, 4, 4), strides=(2, 2))

@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -1712,3 +1714,217 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+class ExtractVolumePatches(Operation):
+    def __init__(
+        self,
+        size,
+        strides=None,
+        dilation_rate=1,
+        padding="valid",
+        data_format=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        if isinstance(size, int):
+            size = (size, size, size)
+        self.size = size
+        self.strides = strides
+        self.dilation_rate = dilation_rate
+        self.padding = padding
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, volumes):
+        return backend.image.extract_volume_patches(
+            volumes,
+            self.size,
+            self.strides,
+            self.dilation_rate,
+            self.padding,
+            self.data_format,
+        )
+
+    def compute_output_spec(self, volumes):
+        volumes_shape = list(volumes.shape)
+        original_ndim = len(volumes_shape)
+        
+        # Validate input shape (must be 5D for volumes)
+        if original_ndim != 5:
+            raise ValueError(
+                "Invalid volumes rank: expected rank 5 "
+                "(batch of volumes). "
+                f"Received: volumes.shape={volumes_shape}"
+            )
+        
+        if not self.strides:
+            strides = self.size
+        else:
+            strides = self.strides
+        
+        if self.data_format == "channels_last":
+            channels_in = volumes_shape[-1]
+            depth, height, width = volumes_shape[1:4]
+        else:
+            channels_in = volumes_shape[1]
+            depth, height, width = volumes_shape[2:5]
+        
+        # Calculate output dimensions
+        pd, ph, pw = self.size
+        sd, sh, sw = strides if isinstance(strides, tuple) else (strides, strides, strides)
+        dd, dh, dw = (self.dilation_rate if isinstance(self.dilation_rate, tuple) 
+                      else (self.dilation_rate, self.dilation_rate, self.dilation_rate))
+        
+        # Effective patch size with dilation
+        eff_pd = pd + (pd - 1) * (dd - 1)
+        eff_ph = ph + (ph - 1) * (dh - 1)
+        eff_pw = pw + (pw - 1) * (dw - 1)
+        
+        if self.padding == "valid":
+            out_d = (depth - eff_pd) // sd + 1
+            out_h = (height - eff_ph) // sh + 1
+            out_w = (width - eff_pw) // sw + 1
+        else:  # same
+            out_d = (depth + sd - 1) // sd
+            out_h = (height + sh - 1) // sh
+            out_w = (width + sw - 1) // sw
+        
+        filters = pd * ph * pw * channels_in
+        
+        if self.data_format == "channels_last":
+            out_shape = [volumes_shape[0], out_d, out_h, out_w, filters]
+        else:
+            out_shape = [volumes_shape[0], out_d, out_h, out_w, filters]
+        
+        return KerasTensor(shape=out_shape, dtype=volumes.dtype)
+
+
+@keras_export("keras.ops.image.extract_volume_patches")
+def extract_volume_patches(
+    volumes,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    """Extracts patches from 3D volumes.
+    
+    Args:
+        volumes: Input tensor of shape:
+            - If `data_format="channels_last"`: 
+              `(batch, depth, height, width, channels)`
+            - If `data_format="channels_first"`: 
+              `(batch, channels, depth, height, width)`
+        size: An integer or tuple of 3 integers `(patch_depth, patch_height, 
+            patch_width)`, specifying the size of the patches to extract.
+        strides: An integer or tuple of 3 integers, specifying the strides
+            of the sliding window along each dimension. If `None` (default),
+            it defaults to `size`.
+        dilation_rate: An integer or tuple of 3 integers, specifying the
+            dilation rate along each dimension. Default is 1.
+        padding: Either `"valid"` or `"same"`. Default is `"valid"`.
+        data_format: String, either `"channels_last"` or `"channels_first"`.
+            Defaults to the value set in your Keras config.
+            
+    Returns:
+        A tensor of extracted patches with shape:
+        - If `data_format="channels_last"`:
+          `(batch, patch_d, patch_h, patch_w, 
+            size[0] * size[1] * size[2] * channels)`
+        - If `data_format="channels_first"`:
+          `(batch, patch_d, patch_h, patch_w,
+            channels * size[0] * size[1] * size[2])`
+            
+    Examples:
+    
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> volume = np.random.random((2, 96, 96, 96, 4))  # batch of 2 volumes
+    >>> patches = ops.image.extract_volume_patches(volume, (4, 4, 4))
+    >>> patches.shape
+    (2, 24, 24, 24, 256)
+    
+    >>> volume = np.random.random((1, 32, 32, 32, 3))  # single volume
+    >>> patches = ops.image.extract_volume_patches(
+    ...     volume, (8, 8, 8), strides=(8, 8, 8)
+    ... )
+    >>> patches.shape
+    (1, 4, 4, 4, 1536)
+    """
+    if any_symbolic_tensors((volumes,)):
+        return ExtractVolumePatches(
+            size=size,
+            strides=strides,
+            dilation_rate=dilation_rate,
+            padding=padding,
+            data_format=data_format,
+        ).symbolic_call(volumes)
+
+    return _extract_volume_patches(
+        volumes, size, strides, dilation_rate, padding, data_format=data_format
+    )
+def _extract_volume_patches(volumes, size, strides=None, dilation_rate=1,
+                            padding="valid", data_format=None):
+    if isinstance(size, int):
+        size = (size, size, size)
+    if len(size) != 3:
+        raise ValueError(f"Invalid `size` argument. Got: {size}")
+    patch_d, patch_h, patch_w = size
+
+    if strides is None:
+        strides = size
+    if isinstance(strides, int):
+        strides = (strides, strides, strides)
+    if len(strides) != 3:
+        raise ValueError(f"Invalid `strides` argument. Got: {strides}")
+    stride_d, stride_h, stride_w = strides
+
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate, dilation_rate, dilation_rate)
+    if any(d > 1 for d in dilation_rate):
+        raise NotImplementedError(
+            "dilation_rate > 1 is not supported for extract_volume_patches."
+        )
+
+    data_format = backend.standardize_data_format(data_format)
+    transpose_back = False
+    if data_format == "channels_first":
+        volumes = tf.transpose(volumes, [0, 2, 3, 4, 1])
+        transpose_back = True
+
+    volumes = tf.convert_to_tensor(volumes, dtype=tf.float32)
+    batch, depth, height, width, channels = tf.unstack(tf.shape(volumes))
+
+    # Padding for "same"
+    if padding.lower() == "same":
+        pad_d = tf.maximum((depth - 1) // stride_d * stride_d + patch_d - depth, 0)
+        pad_h = tf.maximum((height - 1) // stride_h * stride_h + patch_h - height, 0)
+        pad_w = tf.maximum((width - 1) // stride_w * stride_w + patch_w - width, 0)
+        volumes = tf.pad(volumes,
+                         [[0, 0],
+                          [pad_d // 2, pad_d - pad_d // 2],
+                          [pad_h // 2, pad_h - pad_h // 2],
+                          [pad_w // 2, pad_w - pad_w // 2],
+                          [0, 0]])
+
+    # Compute number of patches
+    out_d = (depth - patch_d) // stride_d + 1 if padding == "valid" else (depth + stride_d - 1) // stride_d
+    out_h = (height - patch_h) // stride_h + 1 if padding == "valid" else (height + stride_h - 1) // stride_h
+    out_w = (width - patch_w) // stride_w + 1 if padding == "valid" else (width + stride_w - 1) // stride_w
+
+    # Extract patches manually
+    patches = []
+    for z in range(0, depth - patch_d + 1 if padding=="valid" else depth, stride_d):
+        for y in range(0, height - patch_h + 1 if padding=="valid" else height, stride_h):
+            for x in range(0, width - patch_w + 1 if padding=="valid" else width, stride_w):
+                patch = volumes[:, z:z+patch_d, y:y+patch_h, x:x+patch_w, :]
+                patches.append(tf.reshape(patch, [batch, 1, 1, 1, patch_d*patch_h*patch_w*channels]))
+
+    patches = tf.concat(patches, axis=1)
+    patches = tf.reshape(patches, [batch, out_d, out_h, out_w, patch_d*patch_h*patch_w*channels])
+
+    if transpose_back:
+        patches = tf.transpose(patches, [0, 4, 1, 2, 3])
+
+    return patches
