@@ -182,7 +182,7 @@ def test_sklearn_estimator_checks(estimator, check):
     ],
 )
 def test_sklearn_estimator_decision_function(estimator):
-    """Checks that the argmax of ``decision_function`` is the same as that of
+    """Checks that the argmax of ``decision_function`` is the same as
     ``predict`` for classifiers.
     """
     try:
