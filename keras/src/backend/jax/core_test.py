@@ -11,9 +11,6 @@ from keras.src import testing
 from keras.src.backend.config import is_nnx_enabled
 
 if is_nnx_enabled():
-    from keras.src.backend.jax.core import NnxVariable
-
-if is_nnx_enabled():
     from flax import nnx
 
     from keras.src.backend.jax.core import NnxVariable
