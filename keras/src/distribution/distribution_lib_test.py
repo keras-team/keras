@@ -1,16 +1,36 @@
 """Test for distribution_lib.py."""
 
 import os
+
+# FILE: keras/src/distribution/distribution_lib_test.py
+
+
+# --- TOP-LEVEL ENVIRONMENT SETUP ---
+# This MUST be at the top of the file, before any Keras/TF imports.
+# It configures the environment for all tests in this file.
+os.environ["KERAS_BACKEND"] = "jax"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+
+# --- Now continue with the rest of the imports ---
+# ... and so on
 from unittest import mock
 
 import numpy as np
 import pytest
 import tensorflow as tf
 
+import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
+from keras.src.distribution.distribution_lib import AutoTPDistribution
+
+try:
+    import keras_hub
+except ImportError:
+    keras_hub = None
 
 
 @pytest.mark.skipif(
@@ -535,3 +555,129 @@ class LayoutMapTest(testing.TestCase):
 #             ValueError, "Cannot create sharding when device mesh is not set"
 #         ):
 #             backend_dlib._to_dtensor_layout(layout)
+
+
+# Add this test class to the end of:
+# keras/src/distribution/distribution_lib_test.py
+
+from keras.src import layers
+from keras.src import testing
+
+# Import your new distribution class and the other necessary components
+from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.distribution.tensor_parallel.tensor_parallel_keras import (
+    TensorParallelKeras,
+)
+
+# Import your new distribution class and the other necessary components
+
+
+class AutoTPDistributionTest(testing.TestCase):
+    def test_sharding_correctness_for_all_param_types(self):
+        """
+        Tests that all parameter types (column-parallel, row-parallel,
+        and replicated) are sharded correctly.
+        """
+        # 1. ARRANGE
+        devices = ["cpu:0", "cpu:1"]
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("model",), devices=devices
+        )
+        distribution = AutoTPDistribution(device_mesh=device_mesh)
+
+        original_model = keras.Sequential(
+            [
+                layers.Input(shape=(20,)),
+                layers.Dense(16, name="dense_1"),  # Column-parallel
+                layers.Dense(8, name="dense_2"),  # Row-parallel
+            ],
+            name="my_model",
+        )
+        original_model.build(input_shape=(None, 20))
+
+        # 2. ACT
+        sharded_model = distribution.shard(original_model)
+
+        # 3. ASSERT
+        self.assertIsInstance(sharded_model, TensorParallelKeras)
+        self.assertEqual(sharded_model.world_size, 2)
+        shard_strategy = sharded_model.model_shards[0].sharding_strategy
+
+        # --- Check Column-Parallel Layer (dense_1) ---
+        # Kernel should be sharded on the output dim (1)
+        orig_k1_shape = original_model.get_layer("dense_1").kernel.shape
+        shard_k1_info = shard_strategy.get_weight_info(
+            "my_model.dense_1.kernel"
+        )
+        self.assertIsNotNone(shard_k1_info)
+        self.assertEqual(shard_k1_info["sharded_shape"][0], orig_k1_shape[0])
+        self.assertEqual(
+            shard_k1_info["sharded_shape"][1], orig_k1_shape[1] // 2
+        )
+
+        # Bias should also be sharded
+        orig_b1_shape = original_model.get_layer("dense_1").bias.shape
+        shard_b1_info = shard_strategy.get_weight_info("my_model.dense_1.bias")
+        self.assertIsNotNone(shard_b1_info)
+        self.assertEqual(
+            shard_b1_info["sharded_shape"][0], orig_b1_shape[0] // 2
+        )
+
+        # --- Check Row-Parallel Layer (dense_2) ---
+        # Kernel should be sharded on the input dim (0)
+        orig_k2_shape = original_model.get_layer("dense_2").kernel.shape
+        shard_k2_info = shard_strategy.get_weight_info(
+            "my_model.dense_2.kernel"
+        )
+        self.assertIsNotNone(shard_k2_info)
+        self.assertEqual(
+            shard_k2_info["sharded_shape"][0], orig_k2_shape[0] // 2
+        )
+        self.assertEqual(shard_k2_info["sharded_shape"][1], orig_k2_shape[1])
+
+        # Bias should be replicated (not sharded)
+        shard_b2_info = shard_strategy.get_weight_info("my_model.dense_2.bias")
+        self.assertIsNone(shard_b2_info)  # Correctly not found in sharded map
+
+    def test_uneven_sharding_splits_correctly(self):
+        """
+        Tests that weights are sharded correctly when the dimension is not
+        perfectly divisible by the number of devices.
+        """
+        # 1. ARRANGE: Use 3 devices for an uneven split
+        devices = ["cpu:0", "cpu:1", "cpu:2"]
+        device_mesh = DeviceMesh(
+            shape=(3,), axis_names=("model",), devices=devices
+        )
+        distribution = AutoTPDistribution(device_mesh=device_mesh)
+
+        # Create a model with a dimension not divisible by 3 (e.g., 17)
+        original_model = keras.Sequential(
+            [layers.Dense(17, input_shape=(10,), name="dense_uneven")],
+            name="uneven_model",
+        )
+        original_model.build()
+
+        # 2. ACT
+        sharded_model = distribution.shard(original_model)
+
+        # 3. ASSERT
+        # For a dimension of 17 split across 3 devices, the expected
+        # sharded shapes are (6, 5, 5).
+        strategy_shard0 = sharded_model.model_shards[0].sharding_strategy
+        strategy_shard1 = sharded_model.model_shards[1].sharding_strategy
+        strategy_shard2 = sharded_model.model_shards[2].sharding_strategy
+
+        shape_shard0 = strategy_shard0.get_weight_info(
+            "uneven_model.dense_uneven.kernel"
+        )["sharded_shape"]
+        shape_shard1 = strategy_shard1.get_weight_info(
+            "uneven_model.dense_uneven.kernel"
+        )["sharded_shape"]
+        shape_shard2 = strategy_shard2.get_weight_info(
+            "uneven_model.dense_uneven.kernel"
+        )["sharded_shape"]
+
+        self.assertEqual(shape_shard0, (10, 6))
+        self.assertEqual(shape_shard1, (10, 6))  # ✅ CORRECTED
+        self.assertEqual(shape_shard2, (10, 5))

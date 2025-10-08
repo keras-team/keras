@@ -17,6 +17,11 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import distribution_lib
 from keras.src.backend.common import global_state
 
+# Add these imports at the top of keras/src/distribution/distribution_lib.py
+# from keras.src.distribution.tensor_parallel.tensor_parallel_keras import (
+#     TensorParallelKeras,
+# )
+
 DEFAULT_BATCH_DIM_NAME = "batch"
 GLOBAL_ATTRIBUTE_NAME = "distribution"
 
@@ -37,6 +42,24 @@ def list_devices(device_type=None):
         List of devices that are available for distribute computation.
     """
     return distribution_lib.list_devices(device_type)
+
+
+@keras_export("keras.distribution.get_best_devices")
+def get_best_devices(count):
+    """Return all the available devices based on the device type.
+
+    Note: in a distributed setting, global devices are returned.
+
+    Args:
+        device_type: string, one of `"cpu"`, `"gpu"` or `"tpu"`.
+            Defaults to `"gpu"` or `"tpu"` if available when
+            `device_type` is not provided. Otherwise
+            will return the `"cpu"` devices.
+
+    Return:
+        List of devices that are available for distribute computation.
+    """
+    return distribution_lib.get_best_devices(count)
 
 
 @keras_export("keras.distribution.initialize")
@@ -532,6 +555,129 @@ class DataParallel(Distribution):
             num_replicas=self._num_process,
         )
         return distributed_dataset.prefetch(tf.data.AUTOTUNE)
+
+
+# Place this in keras/src/distribution/distribution_lib.py
+
+
+@keras_export("keras.distribution.AutoTPDistribution")
+class AutoTPDistribution(Distribution):
+    """Distribution for automatic tensor parallelism.
+
+    This strategy uses a set of heuristics to automatically analyze a model and
+    apply tensor parallelism.
+
+    This distribution acts as a factory to create a sharded version of a
+    Keras model. The standard workflow is to:
+    1. Create an instance of this distribution with a `DeviceMesh`.
+    2. Pass your original model to the `shard()` method.
+    3. Compile and train the new, sharded model that is returned.
+
+    Example:
+    ```python
+    # Define the hardware topology (e.g., 4 devices for model parallelism)
+    device_mesh = DeviceMesh(shape=(4,), axis_names=('model',))
+
+    # Create an instance of the strategy
+    distribution = AutoTPDistribution(device_mesh=device_mesh)
+
+    # Define the original model
+    model = keras.applications.ResNet50()
+
+    # Use the distribution to create the sharded, tensor-parallel model
+    sharded_model = distribution.shard(model)
+
+    # Compile and fit the new sharded model
+    sharded_model.compile(...)
+    sharded_model.fit(...)
+    ```
+
+    Args:
+        device_mesh: `DeviceMesh` instance that describes the hardware
+            topology.
+        batch_dim_name: Optional string, the axis name in the `device_mesh`
+            that will be used for data parallelism. Defaults to the first
+            axis name in the mesh.
+    """
+
+    def __init__(
+        self,
+        device_mesh=None,
+        batch_dim_name=None,
+        auto_shard_dataset=True,
+    ):
+        if device_mesh is None:
+            # Auto-create a 1D mesh with all available devices
+            devices = list_devices()
+            device_mesh = DeviceMesh(
+                shape=(len(devices),),
+                axis_names=("model",),
+                devices=devices,
+            )
+        batch_dim_name = batch_dim_name or device_mesh.axis_names[0]
+        super().__init__(device_mesh, batch_dim_name, auto_shard_dataset)
+
+    def shard(self, model: "keras.Model") -> "TensorParallelKeras":
+        from keras.src.distribution.tensor_parallel.tensor_parallel_keras import (
+            TensorParallelKeras,
+        )
+
+        """
+        Applies automatic tensor parallelism to a Keras model.
+
+        This method takes a standard Keras model, analyzes its layers,
+        and returns a new `TensorParallelKeras` model instance where the
+        weights have been sharded across the devices specified in the
+        `DeviceMesh`.
+
+        Args:
+            model: The original `keras.Model` instance to be sharded.
+
+        Returns:
+            A `TensorParallelKeras` model instance ready for distributed
+            training.
+        """
+        print(f"INFO: Sharding model `{model.name}` for Tensor Parallelism...")
+        world_size = np.prod(self.device_mesh.shape)
+        device_ids = np.ravel(self.device_mesh.devices).tolist()
+
+        # The `TensorParallelKeras` class contains all the sharding logic.
+        # This distribution strategy is a clean, high-level entry point to it.
+        sharded_model = TensorParallelKeras(
+            model, world_size=world_size, device_ids=device_ids
+        )
+        print(f"INFO: Model `{model.name}` has been successfully sharded.")
+        return sharded_model
+
+    def get_data_layout(self, data_shape):
+        """Returns the layout for data, sharding across the batch dimension."""
+        data_shard_spec = [None] * len(data_shape)
+        if self.batch_dim_name in self.device_mesh.axis_names:
+            data_shard_spec[0] = self.batch_dim_name
+        return TensorLayout(data_shard_spec, self.device_mesh)
+
+    def get_variable_layout(self, variable):
+        """Returns the layout for a variable (replicated by default)."""
+        # In this pattern, the sharding logic is self-contained within the
+        # TensorParallelKeras model. The global distribution mechanism is
+        # primarily for data sharding. Variables outside the model are replicated.
+        return TensorLayout([None] * len(variable.shape), self.device_mesh)
+
+    def get_tensor_layout(self, path):
+        return (
+            None  # Not needed as communication is handled by the model's call()
+        )
+
+    def distribute_dataset(self, dataset):
+        if distribution_lib.num_processes() <= 1 or not self.auto_shard_dataset:
+            return dataset
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        if not tf.available or not isinstance(dataset, tf.data.Dataset):
+            raise ValueError(
+                "Only `tf.data.Dataset` is supported for auto-sharding."
+            )
+        return dataset.with_options(tf.data.Options())
 
 
 @keras_export("keras.distribution.ModelParallel")
