@@ -18,6 +18,7 @@ try:
     from sklearn.base import ClassifierMixin
     from sklearn.base import RegressorMixin
     from sklearn.base import TransformerMixin
+    from sklearn.utils._array_api import get_namespace
 except ImportError:
     sklearn = None
 
@@ -283,8 +284,15 @@ class SKLearnClassifier(ClassifierMixin, SKLBase):
         from sklearn.utils.validation import check_is_fitted
 
         check_is_fitted(self)
+        xp, _ = get_namespace(X)
+
         X = _validate_data(self, X, reset=False)
-        return self.model_.predict(X)
+        scores = self.model_.predict(X)
+        return (
+            xp.reshape(scores, (-1,))
+            if (scores.ndim > 1 and scores.shape[1] == 1)
+            else scores
+        )
 
     def _process_target(self, y, reset=False):
         """Classifiers do OHE."""
