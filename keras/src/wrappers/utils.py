@@ -32,13 +32,6 @@ def _check_model(model):
         )
 
 
-def _estimator_has_proba(self):
-    return self.model_.layers[-1].activation.__name__ in (
-        "sigmoid",
-        "softmax",
-    )
-
-
 class TargetReshaper(TransformerMixin, BaseEstimator):
     """Convert 1D targets to 2D and back.
 
@@ -87,7 +80,7 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
                 If the transformer was fit to a 1D numpy array,
                 and a 2D numpy array with a singleton second dimension
                 is passed, it will be squeezed back to 1D. Otherwise, it
-                will eb left untouched.
+                will be left untouched.
         """
         from sklearn.utils.validation import check_is_fitted
 
