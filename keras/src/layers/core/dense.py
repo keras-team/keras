@@ -12,7 +12,6 @@ from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
-from keras.src.utils.variable_loading import get_quantized_variable_load_order
 
 
 @keras_export("keras.layers.Dense")
@@ -307,11 +306,18 @@ class Dense(Layer):
     def _legacy_load_own_variables(self, store):
         # The keys of the `store` will be saved as determined because the
         # default ordering will change after quantization
-        target_variables = get_quantized_variable_load_order(self)
-
-        for i, variable in enumerate(target_variables):
-            weight_data = store[str(i)]
-            variable._direct_assign(weight_data)
+        mode = self.quantization_mode
+        targets = []
+        if mode != "gptq":
+            targets.append(self._kernel)
+        if self.bias is not None:
+            targets.append(self.bias)
+        targets.extend(
+            getattr(self, name)
+            for name in self.quantization_variable_spec[mode]
+        )
+        for i, variable in enumerate(targets):
+            variable.assign(store[str(i)])
 
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
