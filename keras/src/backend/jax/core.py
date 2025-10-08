@@ -3,7 +3,6 @@ import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np
-from absl import logging
 from jax import export as jax_export
 
 from keras.src import tree
@@ -18,164 +17,10 @@ from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
-from keras.src.utils import jax_utils
 
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = False
 IS_THREAD_SAFE = True
-
-
-def _safe_has_addressable_shards(x):
-    """Safely check if x has addressable_shards without tracer errors."""
-    return (
-        isinstance(x, jax.Array)
-        and not jax_utils.is_in_jax_tracing_scope(x)
-        and hasattr(x, "addressable_shards")
-    )
-
-
-class _ProtectedShardedArray:
-    """Wrapper that prevents deletion of sharded JAX arrays.
-
-    This wrapper intercepts delete() calls from jax_memory_cleanup
-    and prevents deletion of sharded arrays that are needed for inference.
-    """
-
-    def __init__(self, array):
-        self._array = array
-        self._is_sharded = _safe_has_addressable_shards(array)
-
-    def __getattr__(self, name):
-        # Delegate all attribute access to the wrapped array
-        return getattr(self._array, name)
-
-    def delete(self):
-        """Intercept delete() calls and prevent deletion of sharded arrays."""
-        if self._is_sharded:
-            # Don't actually delete sharded arrays
-            return
-        else:
-            # Allow deletion of non-sharded arrays
-            self._array.delete()
-
-    def __repr__(self):
-        return f"_ProtectedShardedArray({self._array})"
-
-
-def _initialize_variable_with_sharding(
-    variable, value, log_prefix="_initialize"
-):
-    """Shared helper for variable initialization with sharding support.
-
-    This function handles the common logic for both JaxVariable and NnxVariable
-    initialization, including layout detection, logging, and tensor
-    distribution.
-
-    Args:
-        variable: The variable instance being initialized
-        value: The initial value
-        log_prefix: Prefix for logging messages
-
-    Returns:
-        The processed value ready for assignment
-    """
-    import numpy as np
-
-    # Validate shape first
-    variable._shape = variable._validate_shape(value.shape)
-
-    # Detect layout from distribution if needed
-    distribution = global_state.get_global_attribute("distribution")
-    if variable._layout is None and distribution is not None:
-        logging.debug(
-            f"{log_prefix}: Getting layout for variable "
-            f"'{variable.path}' from distribution"
-        )
-        tensor_layout = distribution.get_variable_layout(variable)
-        logging.debug(
-            f"{log_prefix}: Distribution returned layout: {tensor_layout}"
-        )
-        from keras.src.distribution import TensorLayout
-
-        if isinstance(tensor_layout, TensorLayout):
-            variable._layout = tensor_layout.backend_layout
-            logging.debug(
-                f"{log_prefix}: Using backend_layout: {variable._layout}"
-            )
-        else:
-            variable._layout = tensor_layout
-            logging.debug(
-                f"{log_prefix}: Using layout directly: {variable._layout}"
-            )
-
-    # Log initialization details
-    total_elements = np.prod(variable._shape)
-    element_size = np.dtype(variable.dtype).itemsize
-    total_size_mb = (total_elements * element_size) / (1024 * 1024)
-
-    logging.info(f"{log_prefix}: Creating variable '{variable.path}'")
-    logging.debug(
-        f"{log_prefix}: Shape: {variable._shape}, Size: {total_size_mb:.2f} MB"
-    )
-    logging.debug(f"{log_prefix}: Has layout: {variable._layout is not None}")
-
-    # If we have a layout, distribute the tensor to avoid OOM
-    if variable._layout is not None:
-        logging.info(
-            f"{log_prefix}: Sharded initialization (layout: {variable._layout})"
-        )
-
-        if isinstance(value, (jnp.ndarray, jax.Array)):
-            if hasattr(value, "device") and value.device.platform == "cpu":
-                logging.debug(
-                    f"{log_prefix}: JAX array already on CPU (host memory)"
-                )
-            else:
-                value = jax.device_put(value, jax.devices("cpu")[0])
-                logging.debug(
-                    f"{log_prefix}: Moved JAX array to CPU (host memory)"
-                )
-        elif not isinstance(value, np.ndarray):
-            value = np.array(value)
-            logging.debug(
-                f"{log_prefix}: Converted to numpy array (host memory)"
-            )
-        else:
-            logging.debug(
-                f"{log_prefix}: Value already numpy array (host memory)"
-            )
-
-        # Distribute to devices - this shards the tensor
-        value = distribution_lib.distribute_tensor(value, variable._layout)
-        logging.debug(f"{log_prefix}: Tensor distributed across devices")
-
-        # Log sharding info
-        if hasattr(value, "sharding") and _safe_has_addressable_shards(value):
-            shards = value.addressable_shards
-            num_devices = len(shards)
-            shard_0_elements = np.prod(shards[0].data.shape)
-            shard_0_size_mb = (shard_0_elements * element_size) / (1024 * 1024)
-
-            logging.debug(f"{log_prefix}: Sharded across {num_devices} devices")
-            logging.debug(
-                f"{log_prefix}: Device 0 shard: {shards[0].data.shape}, "
-                f"{shard_0_size_mb:.2f} MB"
-            )
-            # Calculate memory reduction percentage
-            mem_reduction = (
-                (total_size_mb - shard_0_size_mb) / total_size_mb * 100
-            )
-            logging.debug(
-                f"{log_prefix}: Memory reduction: {mem_reduction:.1f}%"
-            )
-    else:
-        logging.debug(f"{log_prefix}: NORMAL (non-sharded) initialization")
-        # Convert to tensor using normal path
-        value = variable._convert_to_tensor(value)
-
-    variable._maybe_create_strong_reference(value)
-
-    return value
 
 
 class JaxVariable(KerasVariable):
@@ -185,129 +30,26 @@ class JaxVariable(KerasVariable):
         self._layout = layout
         super().__init__(*args, **kwargs)
 
-    def _maybe_create_strong_reference(self, value):
-        """Create a strong ref to a JAX array to prevent GC."""
-        # Skip creating references for NNX variables during symbolic computation
-        # as NNX doesn't allow mutation during tracing
-        if hasattr(self, "_trace_state") and SymbolicScope():
-            return
-
-        if isinstance(value, jax.Array):
-            try:
-                # Check if this is a JAX tracer (during compilation/tracing)
-                if jax_utils.is_in_jax_tracing_scope(value):
-                    # During tracing, we can't access addressable_shards
-                    # Just hold a reference to the tracer itself
-                    self._strong_reference = value
-                elif hasattr(value, "addressable_shards"):
-                    # For sharded arrays, hold references to the shards' data.
-                    shard_data = [
-                        shard.data for shard in value.addressable_shards
-                    ]
-                    self._shard_references = [shard_data]
-                else:
-                    # For non-sharded arrays, hold a ref to the array itself.
-                    self._strong_reference = value
-            except (AttributeError, TypeError):
-                # If we can't set attributes (e.g., during tracing), skip
-                pass
-
-    @property
-    def value(self):
-        var_name = (
-            getattr(self, "path", None)
-            or getattr(self, "name", None)
-            or str(self)
-        )
-        logging.debug(f" JaxVariable.value for {var_name}")
-        current_value = super().value
-        # Unwrap protected arrays
-        if isinstance(current_value, _ProtectedShardedArray):
-            current_value = current_value._array
-        self._maybe_create_strong_reference(current_value)
-        return current_value
-
     def _initialize(self, value):
-        """Initialize variable with sharding support.
+        # Note that variable.shape is needed by distribution_lib
+        self._shape = self._validate_shape(value.shape)
+        # We can't import the keras/distribution/distribution_lib
+        # due to circular dependency.
+        distribution = global_state.get_global_attribute("distribution")
+        if self._layout is None and distribution is not None:
+            tensor_layout = distribution.get_variable_layout(self)
+            from keras.src.distribution import TensorLayout
 
-        This method handles both regular and sharded variable initialization.
-        When a layout is present, it distributes the tensor across devices
-        during initialization to avoid OOM on device 0.
-        """
-        value = _initialize_variable_with_sharding(self, value)
-
-        # Set the value (this is the critical part!)
-        if hasattr(self, "raw_value"):
-            # NNX variable
-            object.__setattr__(self, "raw_value", value)
-        else:
-            # Regular JAX variable - protect sharded arrays from deletion
-            if _safe_has_addressable_shards(value):
-                self._value = _ProtectedShardedArray(value)
+            if isinstance(tensor_layout, TensorLayout):
+                self._layout = tensor_layout.backend_layout
             else:
-                self._value = value
-
-        logging.info(
-            f"_initialize: Variable '{self.path}' initialized successfully"
-        )
-
-    def _initialize_with_initializer(self, initializer):
-        """Initialize variable with initializer, running on CPU if sharding
-        is needed."""
-        if self._layout is not None:
-            # For sharded variables, run initializer on CPU to avoid device
-            # placement issues
-            with jax.default_device(jax.devices("cpu")[0]):
-                value = self._convert_to_tensor(
-                    initializer(self._shape, dtype=self._dtype)
-                )
-        else:
-            # For non-sharded variables, use the default behavior
-            value = self._convert_to_tensor(
-                initializer(self._shape, dtype=self._dtype)
-            )
-        self._initialize(value)
+                self._layout = tensor_layout
+        self._direct_assign(value)
 
     def _direct_assign(self, value):
-        """Assign value to variable with sharding support.
-
-        This is used during weight loading. For sharded variables,
-        it distributes the weight data across devices to avoid OOM.
-        """
-
         if self._layout is not None:
-            logging.debug(
-                f"_direct_assign: Distributing variable '{self.path}' "
-                f"with layout"
-            )
-            logging.debug(
-                f"_direct_assign: Original value shape: {value.shape}"
-            )
-            # Distribute the value (this shards it)
             value = distribution_lib.distribute_variable(value, self._layout)
-            logging.debug("_direct_assign: Value distributed successfully")
-
-            # Log sharding details
-            if hasattr(value, "sharding") and _safe_has_addressable_shards(
-                value
-            ):
-                shards = value.addressable_shards
-                num_devices = len(shards)
-                logging.debug(
-                    f"_direct_assign: Sharded across {num_devices} devices"
-                )
-
-        self._maybe_create_strong_reference(value)
-
-        # Assign the value - protect sharded arrays from deletion
-        if _safe_has_addressable_shards(value):
-            self._value = _ProtectedShardedArray(value)
-        else:
-            self._value = value
-
-        logging.info(
-            f"_direct_assign: Variable '{self.path}' assigned successfully"
-        )
+        self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype, sparse=False)
@@ -445,58 +187,23 @@ if config.is_nnx_enabled():
                 # Fallback if shape isn't immediately available.
                 self._ndim = len(self.raw_value.shape)
 
-        def _initialize(self, value):
-            """Initialize NNX variable with sharding support."""
-            value = _initialize_variable_with_sharding(
-                self, value, "_initialize (NNX)"
-            )
-
-            # Set value for NNX
-            object.__setattr__(self, "raw_value", value)
-
-            logging.info(
-                f"_initialize (NNX): Variable '{self.path}' initialized"
-            )
-
         def _direct_assign(self, value):
-            """Assign value to NNX variable with sharding support.
-
-            Used during weight loading for sharded variables.
-            Accepts both NumPy arrays and JAX arrays.
-            """
-            import numpy as np
-
+            # Apply JAX-specific distribution if layout is present
             if self._layout is not None:
-                logging.debug(
-                    f"_direct_assign (NNX): Distributing '{self.path}'"
-                )
-
-                if isinstance(value, np.ndarray):
-                    logging.debug("_direct_assign (NNX): Value is numpy array")
-                elif isinstance(value, (jnp.ndarray, jax.Array)):
-                    logging.debug("_direct_assign (NNX): Value is JAX array")
-
-                # Distribute
                 value = distribution_lib.distribute_variable(
                     value, self._layout
                 )
-                logging.debug("_direct_assign (NNX): Distributed successfully")
 
-            # Apply on_set_value hook if exists
+            # Apply on_set_value hook if it exists
             if (
                 hasattr(self, "_var_metadata")
                 and "on_set_value" in self._var_metadata
             ):
                 value = self._var_metadata["on_set_value"](self, value)
 
-            # JAX automatically blocks when array properties are accessed
-            self._maybe_create_strong_reference(value)
-            # Set value for NNX
+            # Set the value for both Keras and NNX parts
+            # This ensures both systems see the same value
             object.__setattr__(self, "raw_value", value)
-
-            logging.info(
-                f"_direct_assign (NNX): Variable '{self.path}' assigned"
-            )
 
         @property
         def value(self):
@@ -516,8 +223,6 @@ if config.is_nnx_enabled():
                         "missing) and has no initializer."
                     )
             current_value = self.raw_value
-            self._maybe_create_strong_reference(current_value)
-
             if (
                 hasattr(self, "_var_metadata")
                 and "on_get_value" in self._var_metadata
@@ -578,8 +283,6 @@ def is_tensor(x):
 
 
 def shape(x):
-    # This will work as long as we disallow
-    # dynamic shapes in JAX.
     return x.shape
 
 
@@ -611,6 +314,9 @@ def compute_output_spec(fn, *args, **kwargs):
             else:
                 maybe_symbolic_kwargs[k] = v
 
+        # Create a _DimExpr instance for one dimension by creating a symbolic
+        # shape with one dimension and extracting it.
+        #
         # We create a single dynamic dimension and reuse it instead of creating
         # N dynamic dimensions. This is for backwards compatibility. Previously
         # we would fill all dynamic dimensions with the same concrete value.

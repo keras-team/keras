@@ -470,11 +470,7 @@ class ModelParallelDistributionTest(testing.TestCase):
                             "name": var.name,
                             "full_shape": full_shape,
                             "layout": layout,
-                            "shards": (
-                                len(var._shard_references)
-                                if hasattr(var, "_shard_references")
-                                else 0
-                            ),
+                            "shards": 0,  # Shard count no longer tracked
                         }
                     )
 
@@ -542,11 +538,7 @@ class ModelParallelDistributionTest(testing.TestCase):
                             "name": var.name,
                             "full_shape": full_shape,
                             "layout": layout,
-                            "shards": (
-                                len(var._shard_references)
-                                if hasattr(var, "_shard_references")
-                                else 0
-                            ),
+                            "shards": 0,  # Shard count no longer tracked
                         }
                     )
 
@@ -603,74 +595,28 @@ class ModelParallelDistributionTest(testing.TestCase):
                     loaded_info["layout"],
                     f"Layout mismatch for {orig_info['name']}",
                 )
-                self.assertEqual(
-                    orig_info["shards"],
-                    loaded_info["shards"],
-                    f"Shard count mismatch for {orig_info['name']}",
-                )
+                # Shard count no longer tracked in simplified implementation
 
+            # Basic validation that sharding works (without reference tracking)
             for var_name in [info["name"] for info in sharded_vars_info]:
                 orig_var = next(v for v in model.weights if v.name == var_name)
                 loaded_var = next(
                     v for v in new_model.weights if v.name == var_name
                 )
 
-                # Get expected shard shapes from layout
-                try:
-                    expected_shard_shape = orig_var._layout.shard_shape(
-                        orig_var.shape
-                    )
-                except Exception:
-                    expected_shard_shape = None
-
-                # Basic validation that sharding structure exists
-                has_shard_refs_loaded = (
-                    hasattr(loaded_var, "_shard_references")
-                    and loaded_var._shard_references
+                # Verify both variables have the same layout (sharding)
+                self.assertEqual(
+                    orig_var._layout,
+                    loaded_var._layout,
+                    f"Layout mismatch for {var_name} after loading",
                 )
 
-                self.assertLen(orig_var._shard_references, 1)
-                self.assertTrue(
-                    has_shard_refs_loaded,
-                    f"Loaded {var_name} should have shard references",
+                # Verify shapes are consistent
+                self.assertEqual(
+                    orig_var.shape,
+                    loaded_var.shape,
+                    f"Shape mismatch for {var_name} after loading",
                 )
-
-                self.assertGreater(
-                    len(loaded_var._shard_references),
-                    0,
-                    f"Loaded {var_name} has empty shard references",
-                )
-
-                if expected_shard_shape is not None:
-                    first_shard = orig_var._shard_references[0]
-                    if (
-                        isinstance(first_shard, (list, tuple))
-                        and len(first_shard) > 0
-                    ):
-                        shard_data = first_shard[0]
-                        self.assertEqual(
-                            shard_data.shape,
-                            expected_shard_shape,
-                            f"Incorrect shard shape for {var_name}. "
-                            f"Expected {expected_shard_shape}, "
-                            f"got {shard_data.shape}",
-                        )
-
-                if has_shard_refs_loaded and expected_shard_shape is not None:
-                    first_shard = loaded_var._shard_references[0]
-                    if (
-                        isinstance(first_shard, (list, tuple))
-                        and len(first_shard) > 0
-                    ):
-                        shard_data = first_shard[0]
-                        self.assertEqual(
-                            shard_data.shape,
-                            expected_shard_shape,
-                            f"Incorrect shard shape for loaded "
-                            f"{var_name}. "
-                            f"Expected {expected_shard_shape}, "
-                            f"got {shard_data.shape}",
-                        )
 
 
 class LayoutMapTest(testing.TestCase):
