@@ -10,6 +10,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.src import backend
+from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_int_dtype
@@ -39,7 +40,6 @@ class NumPyTestRot90(testing.TestCase):
         rotated = knp.rot90(array, k=k)
         expected = np.array(expected)
         self.assertAllClose(rotated, expected)
-        print(k)
 
     @parameterized.named_parameters(
         ("axes_0_1", (0, 1)), ("axes_1_2", (1, 2)), ("axes_0_2", (0, 2))
@@ -9460,3 +9460,42 @@ class HistogramTest(testing.TestCase):
             ValueError, "Input tensor must be 1-dimensional"
         ):
             hist_op(input_tensor)
+
+    def test_histogram_values_on_edges(self):
+        hist_op = knp.histogram
+        input_tensor = np.array([0.0, 2.0, 4.0, 8.0, 10.0])
+        bins = 5
+
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=bins)
+        counts, edges = hist_op(input_tensor, bins=bins)
+
+        self.assertAllClose(counts, expected_counts)
+        self.assertAllClose(edges, expected_edges)
+
+    # TODO: Fix predict for NumPy.
+    @parameterized.named_parameters(
+        ("jit_compile_false", False),
+        ("jit_compile_true", True),
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason=(
+            "`predict` errors out with 'autodetected range of [nan, nan] is "
+            "not finite' on the NumPy backend. To be fixed."
+        ),
+    )
+    def test_histogram_predict(self, jit_compile):
+        class HistogramLayer(keras.layers.Layer):
+            def call(self, x):
+                shape = ops.shape(x)
+
+                # Flatten, because the op does not work with >1-dim inputs.
+                x = ops.reshape(x, (shape[0] * shape[1],))
+                return knp.histogram(x, bins=5)
+
+        inputs = keras.Input(shape=(8,))
+        counts, edges = HistogramLayer()(inputs)
+        model = keras.Model(inputs, (counts, edges))
+        model.compile(jit_compile=jit_compile)
+
+        model.predict(np.random.randn(1, 8))
