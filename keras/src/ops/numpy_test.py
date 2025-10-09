@@ -9477,7 +9477,7 @@ class HistogramTest(testing.TestCase):
         backend.backend() == "numpy",
         reason=(
             "`predict` errors out with 'autodetected range of [nan, nan] is "
-            "not finite' on the NumPy backend. To be fixed.",
+            "not finite' on the NumPy backend. To be fixed."
         ),
     )
     def test_histogram_predict(self):
