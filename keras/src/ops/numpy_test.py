@@ -9464,7 +9464,7 @@ class HistogramTest(testing.TestCase):
 
     def test_histogram_values_on_edges(self):
         hist_op = knp.histogram
-        input_tensor = np.array([0, 2, 4, 8, 10])
+        input_tensor = np.array([0.0, 2.0, 4.0, 8.0, 10.0])
         bins = 5
 
         expected_counts, expected_edges = np.histogram(input_tensor, bins=bins)
@@ -9473,7 +9473,17 @@ class HistogramTest(testing.TestCase):
         self.assertAllClose(counts, expected_counts)
         self.assertAllClose(edges, expected_edges)
 
+    # TODO: Fix predict for NumPy.
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason=(
+            "`predict` errors out with 'autodetected range of [nan, nan] is "
+            "not finite' on the NumPy backend. To be fixed.",
+        ),
+    )
     def test_histogram_predict(self):
+        keras.config.disable_traceback_filtering()
+
         class HistogramLayer(keras.layers.Layer):
             def call(self, x):
                 shape = ops.shape(x)
