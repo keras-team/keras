@@ -252,9 +252,9 @@ class Embedding(Layer):
             return self._legacy_load_own_variables(store)
 
         # Load the variables using the name as the key.
-        self._embeddings.assign(store["embeddings"])
+        self._embeddings._direct_assign(store["embeddings"])
         for name in self.quantization_variable_spec[mode]:
-            getattr(self, name).assign(store[name])
+            getattr(self, name)._direct_assign(store[name])
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
                 ops.zeros(self.lora_embeddings_a.shape)

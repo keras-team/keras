@@ -362,11 +362,11 @@ class EinsumDense(Layer):
 
         # Load the variables using the name as the key.
         if mode != "gptq":
-            self._kernel.assign(store["kernel"])
+            self._kernel._direct_assign(store["kernel"])
         if self.bias is not None:
-            self.bias.assign(store["bias"])
+            self.bias._direct_assign(store["bias"])
         for name in self.quantization_variable_spec[mode]:
-            getattr(self, name).assign(store[name])
+            getattr(self, name)._direct_assign(store[name])
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
