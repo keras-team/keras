@@ -9473,16 +9473,16 @@ class HistogramTest(testing.TestCase):
         self.assertAllClose(edges, expected_edges)
 
     # TODO: Fix predict for NumPy.
+    @parameterized.named_parameters(
+        ("jit_false", False),
+        ("jit_true", True),
+    )
     @pytest.mark.skipif(
         backend.backend() == "numpy",
         reason=(
             "`predict` errors out with 'autodetected range of [nan, nan] is "
             "not finite' on the NumPy backend. To be fixed."
         ),
-    )
-    @parameterized.named_parameters(
-        ("jit_false", False),
-        ("jit_true", True),
     )
     def test_histogram_predict(self, jit_compile):
         class HistogramLayer(keras.layers.Layer):
