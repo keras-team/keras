@@ -3166,9 +3166,9 @@ def histogram(x, bins=10, range=None):
 
     # tf.math.bincount does not work with XLA in this case. So, we use
     # `tensor_scatter_nd_add`.
-    bin_counts = tf.tensor_scatter_nd_add(
-        tf.zeros((bins,), dtype=x.dtype),
+    bin_counts = tf.scatter_nd(
         indices=tf.expand_dims(bin_indices, axis=-1),
         updates=tf.ones_like(bin_indices, dtype=x.dtype),
+        shape=(bins,),
     )
     return bin_counts, bin_edges
