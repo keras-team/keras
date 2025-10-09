@@ -40,7 +40,6 @@ class NumPyTestRot90(testing.TestCase):
         rotated = knp.rot90(array, k=k)
         expected = np.array(expected)
         self.assertAllClose(rotated, expected)
-        print(k)
 
     @parameterized.named_parameters(
         ("axes_0_1", (0, 1)), ("axes_1_2", (1, 2)), ("axes_0_2", (0, 2))
@@ -9482,8 +9481,6 @@ class HistogramTest(testing.TestCase):
         ),
     )
     def test_histogram_predict(self):
-        keras.config.disable_traceback_filtering()
-
         class HistogramLayer(keras.layers.Layer):
             def call(self, x):
                 shape = ops.shape(x)
