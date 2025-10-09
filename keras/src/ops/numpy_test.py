@@ -10,6 +10,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.src import backend
+from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_int_dtype
@@ -9460,3 +9461,29 @@ class HistogramTest(testing.TestCase):
             ValueError, "Input tensor must be 1-dimensional"
         ):
             hist_op(input_tensor)
+
+    def test_histogram_values_on_edges(self):
+        hist_op = knp.histogram
+        input_tensor = np.array([0, 2, 4, 8, 10])
+        bins = 5
+
+        expected_counts, expected_edges = np.histogram(input_tensor, bins=bins)
+        counts, edges = hist_op(input_tensor, bins=bins)
+
+        self.assertAllClose(counts, expected_counts)
+        self.assertAllClose(edges, expected_edges)
+
+    def test_histogram_predict(self):
+        class HistogramLayer(keras.layers.Layer):
+            def call(self, x):
+                shape = ops.shape(x)
+
+                # Flatten, because the op does not work with >1-dim inputs.
+                x = ops.reshape(x, (shape[0] * shape[1],))
+                return knp.histogram(x, bins=5)
+
+        inputs = keras.Input(shape=(8,))
+        counts, edges = HistogramLayer()(inputs)
+        model = keras.Model(inputs, (counts, edges))
+
+        model.predict(np.random.randn(1, 8))
