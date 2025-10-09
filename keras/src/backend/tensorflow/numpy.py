@@ -3164,7 +3164,11 @@ def histogram(x, bins=10, range=None):
     bin_edges = tf.cast(bin_edges, x.dtype)
     bin_indices = tf.searchsorted(bin_edges[1:-1], x, side="right")
 
-    bin_counts = tf.math.bincount(
-        bin_indices, minlength=bins, maxlength=bins, dtype=x.dtype
+    # tf.math.bincount does not work with XLA in this case. So, we use
+    # `tensor_scatter_nd_add`.
+    bin_counts = tf.tensor_scatter_nd_add(
+        tf.zeros([bins], dtype=x.dtype),
+        indices=tf.expand_dims(bin_indices, axis=-1),
+        updates=tf.ones_like(bin_indices, dtype=x.dtype),
     )
     return bin_counts, bin_edges

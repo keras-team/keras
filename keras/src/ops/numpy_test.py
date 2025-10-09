@@ -9480,7 +9480,11 @@ class HistogramTest(testing.TestCase):
             "not finite' on the NumPy backend. To be fixed."
         ),
     )
-    def test_histogram_predict(self):
+    @parameterized.named_parameters(
+        ("jit_false", False),
+        ("jit_true", True),
+    )
+    def test_histogram_predict(self, jit_compile):
         class HistogramLayer(keras.layers.Layer):
             def call(self, x):
                 shape = ops.shape(x)
@@ -9492,5 +9496,6 @@ class HistogramTest(testing.TestCase):
         inputs = keras.Input(shape=(8,))
         counts, edges = HistogramLayer()(inputs)
         model = keras.Model(inputs, (counts, edges))
+        model.compile(jit_compile=jit_compile)
 
         model.predict(np.random.randn(1, 8))
