@@ -9474,8 +9474,8 @@ class HistogramTest(testing.TestCase):
 
     # TODO: Fix predict for NumPy.
     @parameterized.named_parameters(
-        ("jit_false", False),
-        ("jit_true", True),
+        ("jit_compile_false", False),
+        ("jit_compile_true", True),
     )
     @pytest.mark.skipif(
         backend.backend() == "numpy",
