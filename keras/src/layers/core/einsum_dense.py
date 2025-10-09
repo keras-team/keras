@@ -13,6 +13,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.common.variables import shape_equal
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -362,11 +363,49 @@ class EinsumDense(Layer):
 
         # Load the variables using the name as the key.
         if mode != "gptq":
-            self._kernel._direct_assign(store["kernel"])
+            kernel_data = store["kernel"]
+            kernel_data = self._kernel._convert_to_tensor(
+                kernel_data, dtype=self._kernel.dtype
+            )
+            if not shape_equal(kernel_data.shape, self._kernel.shape):
+                raise ValueError(
+                    "The shape of the target variable and "
+                    "the shape of the target value in "
+                    "`variable.assign(value)` must match. "
+                    f"variable.shape={self._kernel.shape}, "
+                    f"Received: value.shape={kernel_data.shape}. "
+                    f"Target variable: {self._kernel}"
+                )
+            self._kernel._direct_assign(kernel_data)
         if self.bias is not None:
-            self.bias._direct_assign(store["bias"])
+            bias_data = store["bias"]
+            bias_data = self.bias._convert_to_tensor(
+                bias_data, dtype=self.bias.dtype
+            )
+            if not shape_equal(bias_data.shape, self.bias.shape):
+                raise ValueError(
+                    "The shape of the target variable and "
+                    "the shape of the target value in "
+                    "`variable.assign(value)` must match. "
+                    f"variable.shape={self.bias.shape}, "
+                    f"Received: value.shape={bias_data.shape}. "
+                    f"Target variable: {self.bias}"
+                )
+            self.bias._direct_assign(bias_data)
         for name in self.quantization_variable_spec[mode]:
-            getattr(self, name)._direct_assign(store[name])
+            var = getattr(self, name)
+            var_data = store[name]
+            var_data = var._convert_to_tensor(var_data, dtype=var.dtype)
+            if not shape_equal(var_data.shape, var.shape):
+                raise ValueError(
+                    "The shape of the target variable and "
+                    "the shape of the target value in "
+                    "`variable.assign(value)` must match. "
+                    f"variable.shape={var.shape}, "
+                    f"Received: value.shape={var_data.shape}. "
+                    f"Target variable: {var}"
+                )
+            var._direct_assign(var_data)
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))

@@ -9,6 +9,7 @@ from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend.common.variables import shape_equal
 from keras.src.layers.layer import Layer
 
 
@@ -252,9 +253,34 @@ class Embedding(Layer):
             return self._legacy_load_own_variables(store)
 
         # Load the variables using the name as the key.
-        self._embeddings._direct_assign(store["embeddings"])
+        embeddings_data = store["embeddings"]
+        embeddings_data = self._embeddings._convert_to_tensor(
+            embeddings_data, dtype=self._embeddings.dtype
+        )
+        if not shape_equal(embeddings_data.shape, self._embeddings.shape):
+            raise ValueError(
+                "The shape of the target variable and "
+                "the shape of the target value in "
+                "`variable.assign(value)` must match. "
+                f"variable.shape={self._embeddings.shape}, "
+                f"Received: value.shape={embeddings_data.shape}. "
+                f"Target variable: {self._embeddings}"
+            )
+        self._embeddings._direct_assign(embeddings_data)
         for name in self.quantization_variable_spec[mode]:
-            getattr(self, name)._direct_assign(store[name])
+            var = getattr(self, name)
+            var_data = store[name]
+            var_data = var._convert_to_tensor(var_data, dtype=var.dtype)
+            if not shape_equal(var_data.shape, var.shape):
+                raise ValueError(
+                    "The shape of the target variable and "
+                    "the shape of the target value in "
+                    "`variable.assign(value)` must match. "
+                    f"variable.shape={var.shape}, "
+                    f"Received: value.shape={var_data.shape}. "
+                    f"Target variable: {var}"
+                )
+            var._direct_assign(var_data)
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
                 ops.zeros(self.lora_embeddings_a.shape)
