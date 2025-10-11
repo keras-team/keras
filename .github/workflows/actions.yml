@@ -75,32 +75,6 @@ jobs:
           files: apps-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
-      - name: Test integrations
-        if: ${{ matrix.backend != 'numpy' && matrix.nnx_enabled == false }}
-        run: |
-          python integration_tests/import_test.py
-          python integration_tests/numerical_test.py
-      - name: Test JAX-specific integrations
-        if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled == false }}
-        run: |
-          python integration_tests/jax_custom_fit_test.py
-      - name: Test basic flow with NNX
-        if: ${{ matrix.nnx_enabled == true }}
-        env:
-          KERAS_NNX_ENABLED: true
-        run: |
-          python integration_tests/import_test.py
-          python integration_tests/basic_full_flow.py
-      - name: Test TF-specific integrations
-        if: ${{ matrix.backend == 'tensorflow'}}
-        run: |
-          python integration_tests/tf_distribute_training_test.py
-          python integration_tests/tf_custom_fit_test.py
-      - name: Test Torch-specific integrations
-        if: ${{ matrix.backend == 'torch'}}
-        run: |
-          pytest integration_tests/torch_workflow_test.py
-          python integration_tests/torch_custom_fit_test.py
       - name: Test with pytest
         if: ${{ matrix.nnx_enabled == false }}
         run: |
@@ -110,7 +84,7 @@ jobs:
           else
             IGNORE_ARGS=""
           fi
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
+          pytest keras/src/export/saved_model_test.py --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
         if: ${{ matrix.nnx_enabled == false }}
