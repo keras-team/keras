@@ -806,7 +806,8 @@ class IndexLookup(Layer):
 
     def load_own_variables(self, store):
         if self.output_mode == "tf_idf":
-            self.idf_weights.assign(store["idf_weights"])
+            weight_data = store["idf_weights"]
+            self.idf_weights._direct_assign(weight_data)
             self.idf_weights_const = self.idf_weights.value()
 
     def save_assets(self, dir_path):

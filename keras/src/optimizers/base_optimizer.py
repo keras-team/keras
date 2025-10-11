@@ -780,7 +780,8 @@ class BaseOptimizer(KerasSaveable):
             warnings.warn(msg, stacklevel=2)
             return
         for i, variable in enumerate(self.variables):
-            variable.assign(store[str(i)])
+            weight_data = store[str(i)]
+            variable._direct_assign(weight_data)
 
     def _get_current_learning_rate(self):
         if isinstance(

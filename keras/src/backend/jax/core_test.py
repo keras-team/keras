@@ -16,6 +16,16 @@ if is_nnx_enabled():
     from keras.src.backend.jax.core import NnxVariable
 
 
+class JaxCoreTest(testing.TestCase):
+    def _require_min_devices(self, min_devices):
+        """Skip test if fewer than min_devices are available."""
+        if len(jax.devices()) < min_devices:
+            pytest.skip(
+                f"Test requires at least {min_devices} devices, "
+                f"but only {len(jax.devices())} available"
+            )
+
+
 @pytest.mark.skipif(
     backend.backend() != "jax",
     reason="JAX backend specific test for core Variable integration with NNX.",
@@ -25,8 +35,8 @@ if is_nnx_enabled():
     reason="Test requires NNX backend to be enabled by default for setup.",
 )
 class NnxVariableTest(testing.TestCase):
-    def setup(self):
-        super().setup()
+    def setUp(self):
+        super().setUp()
 
         class NNXModel(nnx.Module):
             def __init__(self, rngs):

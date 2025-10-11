@@ -33,6 +33,14 @@ if backend.backend() == "jax":
     reason="Backend specific test",
 )
 class JaxDistributionLibTest(testing.TestCase):
+    def _require_min_devices(self, min_devices):
+        """Skip test if fewer than min_devices are available."""
+        if len(jax.devices()) < min_devices:
+            pytest.skip(
+                f"Test requires at least {min_devices} devices, "
+                f"but only {len(jax.devices())} available"
+            )
+
     def _create_jax_layout(self, sharding):
         # Use jax_layout.Format or jax_layout.Layout if available.
         if hasattr(jax_layout, "Format"):
@@ -43,6 +51,7 @@ class JaxDistributionLibTest(testing.TestCase):
         return sharding
 
     def test_list_devices(self):
+        self._require_min_devices(8)
         self.assertEqual(len(distribution_lib.list_devices()), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
@@ -77,6 +86,7 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
     def test_distribute_tensor(self):
+        self._require_min_devices(8)
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
         )
@@ -101,6 +111,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
     def test_distribute_variable(self):
+        self._require_min_devices(8)
         # This test only verify the single worker/process behavior.
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
@@ -118,6 +129,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
     def test_distribute_input_data(self):
+        self._require_min_devices(8)
         # This test only verify the single worker/process behavior.
         # The multi-process test lives in g3.
         jax_mesh = jax.sharding.Mesh(
@@ -136,6 +148,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
     def test_distribute_tensor_with_jax_layout(self):
+        self._require_min_devices(8)
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
         )
@@ -166,6 +179,7 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
     def test_distribute_variable_with_jax_layout(self):
+        self._require_min_devices(8)
         # This test only verify the single worker/process behavior.
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
@@ -187,6 +201,7 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
     def test_distribute_input_data_with_jax_layout(self):
+        self._require_min_devices(8)
         # This test only verify the single worker/process behavior.
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
@@ -212,6 +227,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(backend_dlib.num_processes(), 1)
 
     def test_to_backend_mesh(self):
+        self._require_min_devices(8)
         devices = [f"cpu:{i}" for i in range(8)]
         shape = (4, 2)
         axis_names = ["batch", "model"]
@@ -224,6 +240,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(jax_mesh.axis_names, ("batch", "model"))
 
     def test_to_backend_layout(self):
+        self._require_min_devices(8)
         axes = ["data", None]
         mesh = distribution_lib.DeviceMesh(
             (4, 2), ["data", "model"], [f"cpu:{i}" for i in range(8)]
@@ -248,6 +265,7 @@ class JaxDistributionLibTest(testing.TestCase):
             backend_dlib._to_backend_layout(layout)
 
     def test_variable_assignment_reuse_layout(self):
+        self._require_min_devices(8)
         shape = (4, 2)
         axis_names = ["batch", "model"]
         device_mesh = distribution_lib.DeviceMesh(
@@ -310,6 +328,7 @@ class JaxDistributionLibTest(testing.TestCase):
             model.fit(inputs, labels)
 
     def test_e2e_model_parallel_model(self):
+        self._require_min_devices(8)
         shape = (4, 2)
         axis_names = ["batch", "model"]
         device_mesh = distribution_lib.DeviceMesh(
@@ -349,6 +368,7 @@ class JaxDistributionLibTest(testing.TestCase):
             model.fit(inputs, labels)
 
     def test_e2e_model_parallel_with_output_sharding(self):
+        self._require_min_devices(8)
         shape = (4, 2)
         axis_names = ["batch", "model"]
         device_mesh = distribution_lib.DeviceMesh(
@@ -405,6 +425,7 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
     def test_distribute_data_input(self):
+        self._require_min_devices(4)
         per_process_batch = jax.numpy.arange(24).reshape(
             6, 4
         )  # Example input array
