@@ -428,12 +428,14 @@ class Dense(Layer):
             dtype="int8",
             trainable=False,
         )
+        self._kernel._is_quantized = True
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=(self.units,),
             initializer="ones",
             trainable=False,
         )
+        self.kernel_scale._is_quantized = True
 
     def _gptq_build(self, kernel_shape, config):
         from keras.src.quantizers import gptq_core
@@ -542,6 +544,7 @@ class Dense(Layer):
             dtype="int8",
             trainable=False,
         )
+        self._kernel._is_quantized = True
         # One scale per output unit (per-channel).
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
@@ -549,6 +552,7 @@ class Dense(Layer):
             initializer="ones",
             trainable=False,
         )
+        self.kernel_scale._is_quantized = True
         # Record original input_dim for unpacking at runtime.
         self._orig_input_dim = input_dim
 
@@ -581,19 +585,25 @@ class Dense(Layer):
             "overwrite_with_gradient": True,
         }
         self.inputs_scale = self.add_weight(name="inputs_scale", **scale_kwargs)
+        self.inputs_scale._is_quantized = True
         self.inputs_amax_history = self.add_weight(
             name="inputs_amax_history", **amax_history_kwargs
         )
+        self.inputs_amax_history._is_quantized = True
         self.kernel_scale = self.add_weight(name="kernel_scale", **scale_kwargs)
+        self.kernel_scale._is_quantized = True
         self.kernel_amax_history = self.add_weight(
             name="kernel_amax_history", **amax_history_kwargs
         )
+        self.kernel_amax_history._is_quantized = True
         self.outputs_grad_scale = self.add_weight(
             name="outputs_grad_scale", **scale_kwargs
         )
+        self.outputs_grad_scale._is_quantized = True
         self.outputs_grad_amax_history = self.add_weight(
             name="outputs_grad_amax_history", **amax_history_kwargs
         )
+        self.outputs_grad_amax_history._is_quantized = True
 
     def _int8_call(self, inputs, training=None):
         @ops.custom_gradient
