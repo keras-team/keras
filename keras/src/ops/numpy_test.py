@@ -20,6 +20,18 @@ from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
 
 
+@contextlib.contextmanager
+def jax_disable_x64_context():
+    try:
+        # JAX v0.8.0 and newer
+        from jax import enable_x64
+    except ImportError:
+        # JAX v0.7.2 and older
+        from jax.experimental import enable_x64
+    with enable_x64(False):
+        yield
+
+
 class NumPyTestRot90(testing.TestCase):
     def test_basic_rotation(self):
         array = np.array([[1, 2, 3], [4, 5, 6]])
@@ -5821,13 +5833,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_add_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.add doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((1,), dtype=dtype)
             x_jax = jnp.ones((1,), dtype=dtype)
 
@@ -6014,13 +6025,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_subtract_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.subtract doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((1,), dtype=dtype)
             x_jax = jnp.ones((1,), dtype=dtype)
 
@@ -6109,13 +6119,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_multiply_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.multiply doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((1,), dtype=dtype)
             x_jax = jnp.ones((1,), dtype=dtype)
 
@@ -6550,9 +6559,7 @@ class NumpyDtypeTest(testing.TestCase):
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit.
         if backend.backend() == "jax":
-            import jax.experimental
-
-            jax_disable_x64 = jax.experimental.disable_x64()
+            jax_disable_x64 = jax_disable_x64_context()
             expected_dtype = expected_dtype.replace("64", "32")
         else:
             jax_disable_x64 = contextlib.nullcontext()
@@ -7051,13 +7058,12 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_divide(self, dtypes):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.divide doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             dtype1, dtype2 = dtypes
             x1 = knp.ones((1,), dtype=dtype1)
             x2 = knp.ones((1,), dtype=dtype2)
@@ -7078,13 +7084,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_divide_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.divide doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((), dtype=dtype)
             x_jax = jnp.ones((), dtype=dtype)
 
@@ -7427,13 +7432,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_floor_divide_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.floor_divide doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((), dtype=dtype)
             x_jax = jnp.ones((), dtype=dtype)
 
@@ -8130,12 +8134,11 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_maximum_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.maximum doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((), dtype=dtype)
             x_jax = jnp.ones((), dtype=dtype)
 
@@ -8259,12 +8262,11 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_minimum_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.minimum doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((), dtype=dtype)
             x_jax = jnp.ones((), dtype=dtype)
 
@@ -8472,13 +8474,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_power_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.power doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((1,), dtype=dtype)
             x_jax = jnp.ones((1,), dtype=dtype)
 
@@ -9028,13 +9029,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_trace(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.trace doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             x = knp.ones((1, 1, 1), dtype=dtype)
             x_jax = jnp.ones((1, 1, 1), dtype=dtype)
             expected_dtype = standardize_dtype(jnp.trace(x_jax).dtype)
@@ -9121,13 +9121,12 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_true_divide(self, dtypes):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.true_divide doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             dtype1, dtype2 = dtypes
             x1 = knp.ones((1,), dtype=dtype1)
             x2 = knp.ones((1,), dtype=dtype2)
@@ -9261,13 +9260,12 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_where_python_types(self, dtype):
-        import jax.experimental
         import jax.numpy as jnp
 
         # We have to disable x64 for jax since jnp.power doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with jax_disable_x64_context():
             condition = knp.ones((10,), dtype="bool")
             x = knp.ones((10,), dtype=dtype)
             condition_jax = jnp.ones((10,), dtype="bool")

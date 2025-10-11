@@ -969,13 +969,19 @@ class VariableOpsDTypeTest(test_case.TestCase):
         named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_truediv(self, dtypes):
-        import jax.experimental
         import jax.numpy as jnp
+
+        try:
+            # JAX v0.8.0 and newer
+            from jax import enable_x64
+        except ImportError:
+            # JAX v0.7.2 and older
+            from jax.experimental import enable_x64
 
         # We have to disable x64 for jax since jnp.true_divide doesn't respect
         # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
         # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
+        with enable_x64(False):
             dtype1, dtype2 = dtypes
             x1 = backend.Variable(
                 "ones", shape=(1,), dtype=dtype1, trainable=False
