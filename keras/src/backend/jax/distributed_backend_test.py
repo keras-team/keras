@@ -1,7 +1,7 @@
 import os
 
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
 import jax
 import jax.numpy as jnp
@@ -25,7 +25,7 @@ class TestJaxDistributedFunctions(testing.TestCase):
         info = distributed_backend.get_device_info()
         self.assertEqual(info["backend"], "jax")
         self.assertIsInstance(info["devices"], list)
-        self.assertEqual(info["device_count"], 2)
+        self.assertEqual(info["device_count"], 8)
 
     def test_is_multi_device_capable(self):
         """Test the boolean check for multi-device capability."""
