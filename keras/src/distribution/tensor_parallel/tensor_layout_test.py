@@ -1,10 +1,17 @@
+import pytest
+
 import keras
+from keras.src import backend
 from keras.src import testing
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutAction
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
 from keras.src.distribution.tensor_parallel.tensor_layout import Split
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Test requires JAX backend",
+)
 class LayoutTest(testing.TestCase):
     """Test suite for tensor layout actions and mappings."""
 
