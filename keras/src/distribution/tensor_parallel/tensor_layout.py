@@ -1,12 +1,14 @@
 import keras
 
+
 class LayoutAction:
     """Abstract base class for actions that transform tensors for distribution.
 
     A LayoutAction defines a rule for how a single tensor should be physically
-    represented across multiple devices. It includes a forward operation (`__call__`)
-    to shard the tensor and a reverse operation (`undo`) to reconstruct it.
-    """
+    represented across multiple devices. It includes forward operation
+    (`__call__`) to shard the tensor and a reverse operation (`undo`)
+    to reconstruct it."""
+
     def __call__(self, tensor, rank):
         """Applies the distribution action to a tensor for a specific worker.
 
@@ -46,8 +48,9 @@ class _ConcatenateMixin:
     This class is intended to be used as a mixin for `LayoutAction` subclasses
     that can be undone by simple concatenation.
     """
+
     def undo(self, tensors):
-        """Concatenates a sequence of tensors to reconstruct the original tensor.
+        """Concatenates sequence of tensors to reconstruct the original tensor.
 
         Args:
             tensors: A sequence of tensor shards, one from each worker.
@@ -81,6 +84,7 @@ class Split(_ConcatenateMixin, LayoutAction):
             'column' (dim=1) to infer the split axis for 2D tensors.
             Defaults to "auto".
     """
+
     def __init__(self, world_size, dim, sharding_type="auto"):
         """Initializes the Split action.
 
@@ -144,6 +148,7 @@ class LayoutMap:
         output_rules (dict): A dictionary mapping layer output names or
             patterns to `LayoutAction` instances.
     """
+
     def __init__(self, state_rules, output_rules):
         """Initializes the LayoutMap.
 

@@ -3,11 +3,10 @@ import os
 os.environ["JAX_PLATFORM_NAME"] = "cpu"
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 
-import pytest
 import jax
 import jax.numpy as jnp
+import pytest
 
-import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
@@ -44,7 +43,7 @@ class TestJaxDistributedFunctions(testing.TestCase):
         reason="Communication ops require a multi-device environment.",
     )
     def test_communication_ops_in_pmap(self):
-        """Test the communication ops work correctly inside a jax.pmap context."""
+        """Test the communication ops work correctly inside jax.pmap context."""
         comm_ops = distributed_backend.get_communication_ops()
         world_size = distributed_backend.get_device_info()["device_count"]
 

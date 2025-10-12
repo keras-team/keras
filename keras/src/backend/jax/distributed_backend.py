@@ -1,8 +1,12 @@
-from typing import Any, Callable, Dict, Literal
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Literal
 
 import jax
 import jax.lax as lax
 import jax.numpy as jnp
+
 
 def get_device_info() -> Dict[str, Any]:
     """Retrieves information about the available JAX devices."""
@@ -12,6 +16,7 @@ def get_device_info() -> Dict[str, Any]:
         "devices": [str(d) for d in available_devices],
         "device_count": len(available_devices),
     }
+
 
 def is_multi_device_capable() -> bool:
     """Checks if more than one JAX device is available."""
@@ -92,7 +97,6 @@ def get_communication_ops() -> Dict[str, Callable]:
         Returns:
             jnp.ndarray: The tensor received from the root device.
         """
-        # A common JAX pattern for broadcast is to all-gather and then index.
         return lax.all_gather(x, axis_name=axis_name, axis=0)[root]
 
     def scatter(
@@ -114,10 +118,8 @@ def get_communication_ops() -> Dict[str, Callable]:
         Returns:
             jnp.ndarray: The chunk of the tensor for the local device.
         """
-        # First, ensure all devices have the full tensor from the root.
         full_tensor = broadcast(x, root=root, axis_name=axis_name)
 
-        # Then, each device calculates its own slice.
         device_id = lax.axis_index(axis_name=axis_name)
         num_devices = lax.psum(1, axis_name=axis_name)
 
