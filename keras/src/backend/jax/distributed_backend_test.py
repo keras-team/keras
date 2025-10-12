@@ -14,8 +14,8 @@ from keras.src.backend import distributed_backend
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Jax Backend specific test",
+    backend.backend() != "jax" or jax.device_count() < 2,
+    reason="Test requires JAX backend and at least 2 devices",
 )
 class TestJaxDistributedFunctions(testing.TestCase):
     """Unit tests for the JAX distributed backend standalone functions."""
@@ -38,10 +38,6 @@ class TestJaxDistributedFunctions(testing.TestCase):
         with self.assertRaisesRegex(NameError, "unbound axis name: data"):
             comm_ops["all_reduce"](x)
 
-    @pytest.mark.skipif(
-        not distributed_backend.is_multi_device_capable(),
-        reason="Communication ops require a multi-device environment.",
-    )
     def test_communication_ops_in_pmap(self):
         """Test the communication ops work correctly inside jax.pmap context."""
         comm_ops = distributed_backend.get_communication_ops()
