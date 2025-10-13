@@ -2371,9 +2371,7 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
-    raise NotImplementedError(
-        "`floor_divide` is not supported with openvino backend"
-    )
+    return floor(divide(x1, x2))
 
 
 def logical_xor(x1, x2):
