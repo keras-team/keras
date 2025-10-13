@@ -3846,6 +3846,29 @@ def isposinf(x):
     return backend.numpy.isposinf(x)
 
 
+class Isreal(Operation):
+    def call(self, x):
+        return backend.numpy.isreal(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isreal", "keras.ops.numpy.isreal"])
+def isreal(x):
+    """Test element-wise for real numbers.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+    """
+    if any_symbolic_tensors((x,)):
+        return Isreal().symbolic_call(x)
+    return backend.numpy.isreal(x)
+
+
 class Kron(Operation):
     def call(self, x1, x2):
         return backend.numpy.kron(x1, x2)
