@@ -1003,6 +1003,10 @@ def isposinf(x):
     )
 
 
+def isreal(x):
+    raise NotImplementedError("`isreal` is not supported with openvino backend")
+
+
 def kron(x1, x2):
     raise NotImplementedError("`kron` is not supported with openvino backend")
 
