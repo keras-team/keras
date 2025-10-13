@@ -819,6 +819,11 @@ def isposinf(x):
     return jnp.isposinf(x)
 
 
+def isreal(x):
+    x = convert_to_tensor(x)
+    return jnp.isreal(x)
+
+
 def kron(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

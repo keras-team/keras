@@ -2898,6 +2898,51 @@ def true_divide(x1, x2):
     return divide(x1, x2)
 
 
+def poly(x):
+    x = convert_to_tensor(x)
+    if x.dtype.is_integer or x.dtype.is_bool:
+        x = tf.cast(x, tf.float32)
+
+    # Get rank and shape
+    rank = tf.rank(x)
+
+    # Handle square 2D matrix
+    def matrix_case():
+        eigvals, _ = tf.linalg.eig(tf.cast(x, tf.complex64))
+        return eigvals
+
+    # Handle 1D vector
+    def vector_case():
+        return tf.reshape(x, [-1])
+
+    # Safe check: is x a square 2D matrix?
+    is_square_matrix = tf.logical_and(
+        tf.equal(rank, 2), tf.equal(tf.shape(x)[0], tf.shape(x)[1])
+    )
+
+    # Conditionally choose
+    x_vec = tf.cond(is_square_matrix, true_fn=matrix_case, false_fn=vector_case)
+
+    # If empty, return [1]
+    if tf.size(x_vec) == 0:
+        return tf.ones((1,), dtype=x_vec.dtype)
+
+    # Iteratively build polynomial coefficients via convolution
+    a = tf.ones((1,), dtype=x_vec.dtype)
+    for k in range(tf.shape(x_vec)[0]):
+        root = x_vec[k]
+        conv_kernel = tf.stack([1.0, -root], axis=0)
+        # 1D convolution requires 3D tensors
+        a = tf.nn.convolution(
+            tf.reshape(a, [1, -1, 1]),
+            tf.reshape(conv_kernel, [-1, 1, 1]),
+            padding="VALID",
+        )
+        a = tf.reshape(a, [-1])
+
+    return a
+
+
 def power(x1, x2):
     if not isinstance(x1, (int, float)):
         x1 = convert_to_tensor(x1)
