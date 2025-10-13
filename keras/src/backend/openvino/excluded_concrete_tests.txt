@@ -1,5 +1,4 @@
 NumPyTestRot90
-NumpyArrayCreateOpsCorrectnessTest::test_eye
 NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_all

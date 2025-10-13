@@ -2367,7 +2367,16 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    raise NotImplementedError("`eye` is not supported with openvino backend")
+    k = ov_opset.constant([k], Type.i32).output(0)
+    N = ov_opset.constant([N], Type.i32).output(0)
+    if M is None:
+        M = N
+
+    return OpenVINOKerasTensor(
+        ov_opset.eye(
+            N, M, k, output_type=OPENVINO_DTYPES[dtype] if dtype else Type.i32
+        ).output(0)
+    )
 
 
 def floor_divide(x1, x2):
