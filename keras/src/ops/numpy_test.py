@@ -5235,10 +5235,16 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
             knp.eye(3.0)
         with self.assertRaises(ValueError):
             knp.eye(3.0, 2.0)
-        with self.assertRaises(ValueError):
-            v = knp.max(knp.arange(4.0))
-            knp.eye(v)
-        if backend.backend() != "numpy":
+
+        # Note: Torch raises a TypeError here, as it does not permit Tensor args
+        # with torch.eye. However, np.eye and tf.eye do support these, and
+        # per the thread in https://github.com/keras-team/keras/issues/20616,
+        # we will use np.eye as the guide
+        if backend.backend() != "torch":
+            with self.assertRaises((ValueError, TypeError)):
+                v = knp.max(knp.arange(4.0))
+                knp.eye(v)
+        if backend.backend() not in ("numpy", "torch"):
             with self.assertRaises(ValueError):
                 knp.eye(knp.array(3, dtype="bfloat16"))
 
