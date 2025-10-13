@@ -5238,6 +5238,9 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises(ValueError):
             v = knp.max(knp.arange(4.0))
             knp.eye(v)
+        if backend.backend() != "numpy":
+            with self.assertRaises(ValueError):
+                knp.eye(knp.array(3, dtype="bfloat16"))
 
     def test_arange(self):
         self.assertAllClose(knp.arange(3), np.arange(3))
