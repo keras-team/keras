@@ -5231,22 +5231,15 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.eye(4, 3, k=-2), np.eye(4, 3, k=-2))
 
     def test_eye_raises_error_with_floats(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             knp.eye(3.0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             knp.eye(3.0, 2.0)
-
-        # Note: Torch raises a TypeError here, as it does not permit Tensor args
-        # with torch.eye. However, np.eye and tf.eye do support these, and
-        # per the thread in https://github.com/keras-team/keras/issues/20616,
-        # we will use np.eye as the guide
-        if backend.backend() != "torch":
-            with self.assertRaises((ValueError, TypeError)):
-                v = knp.max(knp.arange(4.0))
-                knp.eye(v)
-        if backend.backend() not in ("numpy", "torch"):
-            with self.assertRaises(ValueError):
-                knp.eye(knp.array(3, dtype="bfloat16"))
+        with self.assertRaises(TypeError):
+            v = knp.max(knp.arange(4.0))
+            knp.eye(v)
+        with self.assertRaises(TypeError):
+            knp.eye(knp.array(3, dtype="bfloat16"))
 
     def test_arange(self):
         self.assertAllClose(knp.arange(3), np.arange(3))
