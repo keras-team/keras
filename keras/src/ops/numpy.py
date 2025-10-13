@@ -7229,15 +7229,15 @@ def eye(N, M=None, k=0, dtype=None):
         Tensor with ones on the k-th diagonal and zeros elsewhere.
     """
 
-    def is_float(v):
+    def is_floating_type(v):
         return (
             isinstance(v, float)
             or getattr(v, "dtype", None) in dtypes.FLOAT_TYPES
         )
 
-    if is_float(N):
+    if is_floating_type(N):
         raise TypeError("Argument `N` must be an integer or an integer tensor.")
-    if is_float(M):
+    if is_floating_type(M):
         raise TypeError(
             "Argument `M` must be an integer, an integer tensor, or `None`."
         )
