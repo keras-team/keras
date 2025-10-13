@@ -5230,6 +5230,15 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         # Test k < 0 and M < N and M - k > N
         self.assertAllClose(knp.eye(4, 3, k=-2), np.eye(4, 3, k=-2))
 
+    def test_eye_raises_error_with_floats(self):
+        with self.assertRaises(ValueError):
+            knp.eye(3.0)
+        with self.assertRaises(ValueError):
+            knp.eye(3.0, 2.0)
+        with self.assertRaises(ValueError):
+            v = knp.max(knp.arange(4.0))
+            knp.eye(v)
+
     def test_arange(self):
         self.assertAllClose(knp.arange(3), np.arange(3))
         self.assertAllClose(knp.arange(3, 7), np.arange(3, 7))
