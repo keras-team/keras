@@ -2367,14 +2367,16 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    k = ov_opset.constant([k], Type.i32).output(0)
-    N = ov_opset.constant([N], Type.i32).output(0)
+    dtype = standardize_dtype(dtype) or config.floatx()
+    ov_type = OPENVINO_DTYPES[dtype]
     if M is None:
         M = N
-
     return OpenVINOKerasTensor(
         ov_opset.eye(
-            N, M, k, output_type=OPENVINO_DTYPES[dtype] if dtype else Type.i32
+            ov_opset.constant(N, Type.i32),
+            ov_opset.constant(M, Type.i32),
+            ov_opset.constant(k, Type.i32),
+            output_type=ov_type,
         ).output(0)
     )
 
