@@ -603,18 +603,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                         operations. Defaults to `False`.
                     - `optimizations`: Optional `list`. List of optimizations
                         to apply (e.g., `[tf.lite.Optimize.DEFAULT]`).
-                - `allow_custom_ops`: Optional `bool`. Specific to
-                `format="litert"`.
-                    Whether to allow custom operations during conversion.
-                    Defaults to `False`.
-                - `enable_select_tf_ops`: Optional `bool`. Specific to
-                `format="litert"`.
-                    Whether to enable TensorFlow Select ops for unsupported
-                    operations. Defaults to `False`.
-                - `optimizations`: Optional `list`. Specific to
-                `format="litert"`.
-                    List of optimizations to apply (e.g.,
-                    `[tf.lite.Optimize.DEFAULT]`).
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
