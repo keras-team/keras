@@ -1443,7 +1443,7 @@ def depthwise_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
-    if any_symbolic_tensors((inputs,)):
+    if any_symbolic_tensors((inputs, kernel)):
         return DepthwiseConv(
             strides, padding, data_format, dilation_rate
         ).symbolic_call(inputs, kernel)
@@ -3055,3 +3055,93 @@ def _polar(abs_, angle):
     result = backend.math._get_complex_tensor_from_tuple((real, imaginary))
 
     return result
+
+
+class Unfold(Operation):
+    def __init__(
+        self, kernel_size, dilation=1, padding=0, stride=1, *, name=None
+    ):
+        super().__init__(name=name)
+        self.kernel_size = kernel_size
+        self.dilation = dilation
+        self.padding = padding
+        self.stride = stride
+
+    def compute_output_spec(self, x):
+        N, C, H, W = x.shape
+
+        def _pair(x):
+            return (x, x) if isinstance(x, int) else x
+
+        kH, kW = _pair(self.kernel_size)
+        dH, dW = _pair(self.dilation)
+        pH, pW = _pair(self.padding)
+        sH, sW = _pair(self.stride)
+
+        def out_size(L, k, d, p, s):
+            return (L + 2 * p - d * (k - 1) - 1) // s + 1
+
+        outH = out_size(H, kH, dH, pH, sH)
+        outW = out_size(W, kW, dW, pW, sW)
+        return KerasTensor(shape=(N, C * kH * kW, outH * outW), dtype=x.dtype)
+
+    def call(self, x):
+        return _unfold(
+            x, self.kernel_size, self.dilation, self.padding, self.stride
+        )
+
+
+@keras_export(["keras.ops.unfold", "keras.ops.nn.unfold"])
+def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
+    """Extract sliding local blocks from a 4-D input (batched image).
+
+    This operation is known as **im2col** when used with convolution.
+    It rearranges the image into overlapping or non-overlapping patches
+    and returns a tensor whose *depth* (last axis) contains the flattened
+    patches.
+
+    Args:
+        x: A 4-D tensor of shape `(N, C, H, W)` (**channels-first** format).
+        kernel_size: int or tuple of two ints, the size of the sliding window
+            `(kH, kW)`.  If a single int is given, it is used for both
+            dimensions.
+        dilation: int or tuple of two ints, the spacing between kernel points
+            (a.k.a. **dilation** or **atrous** convolution). Default: 1.
+        padding: int or tuple of two ints, the amount of zero-padding to apply
+            to both spatial dimensions. Default: 0.
+        stride: int or tuple of two ints, the step size of the sliding window.
+            Default: 1.
+
+    Returns:
+        A 3-D tensor of shape `(N, C * kH * kW, L)` where
+        `L = num_patches_H * num_patches_W` is the total number of patches
+        extracted.
+
+    Example:
+
+    >>> x = keras.ops.ones((1, 2, 4, 4))
+    >>> patches = keras.ops.unfold(x, kernel_size=2, stride=2)
+    >>> patches.shape
+    (1, 8, 4)
+
+    """
+    input_shape = x.shape
+    ndims = len(input_shape)
+    if ndims != 4:
+        raise ValueError(
+            f"Input must be a 4D tensor. Received: input.shape={input_shape}"
+        )
+    if any_symbolic_tensors((x,)):
+        return Unfold(kernel_size, dilation, padding, stride).symbolic_call(x)
+    return _unfold(x, kernel_size, dilation, padding, stride)
+
+
+def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
+    """Internal implementation of unfold."""
+    return backend.nn.unfold(
+        x,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )

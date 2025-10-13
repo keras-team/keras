@@ -38,10 +38,12 @@ class RMSNormalizationTest(testing.TestCase):
         inputs = ops.convert_to_tensor(inputs)
 
         out = layer(inputs)
-        expected = (
-            inputs
-            * ops.rsqrt(ops.mean(ops.square(inputs), axis=-1, keepdims=True))
-            * layer.scale
+        expected = ops.multiply(
+            ops.multiply(
+                inputs,
+                ops.rsqrt(ops.mean(ops.square(inputs), axis=-1, keepdims=True)),
+            ),
+            layer.scale,
         )
 
         self.assertAllClose(out, expected, atol=1e-1)
