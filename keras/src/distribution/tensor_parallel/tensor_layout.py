@@ -5,7 +5,7 @@ class LayoutAction:
     """Abstract base class for actions that transform tensors for distribution.
 
     A LayoutAction defines a rule for how a single tensor should be physically
-    represented across multiple devices. It includes forward operation
+    represented across multiple devices. It includes a forward operation
     (`__call__`) to shard the tensor and a reverse operation (`undo`)
     to reconstruct it."""
 
@@ -30,7 +30,7 @@ class LayoutAction:
         """Reverses the distribution action, reconstructing the original tensor.
 
         Args:
-            tensors: A sequence of tensor shards from all workers.
+            tensors: A sequence of tensor shards, one from each worker.
 
         Raises:
             NotImplementedError: This is an abstract method and must be
@@ -46,11 +46,11 @@ class _ConcatenateMixin:
     """A mixin class providing a common `undo` method via concatenation.
 
     This class is intended to be used as a mixin for `LayoutAction` subclasses
-    that can be undone by simple concatenation.
+    that can be undone by simple concatenation along a specified axis.
     """
 
     def undo(self, tensors):
-        """Concatenates sequence of tensors to reconstruct the original tensor.
+        """Concatenates a sequence of tensors to reconstruct original tensor.
 
         Args:
             tensors: A sequence of tensor shards, one from each worker.
@@ -66,33 +66,27 @@ class _ConcatenateMixin:
 
 
 class Split(_ConcatenateMixin, LayoutAction):
-    """Splits a tensor into shards along a specified dimension for each worker.
+    """Splits a tensor into shards along a specified dimension.
 
-    This action implements sharding by slicing a tensor along one of its axes.
+    This is an internal utility used by a higher-level distribution API.
+    It implements sharding by slicing a tensor along one of its axes.
     It handles cases where the dimension size is not perfectly divisible by the
     number of workers by distributing the remainder elements one by one to the
     first few workers.
 
-    The `undo` operation is handled by the `_ConcatenateMixin`, which
-    concatenates the shards back together.
-
-    Args:
-        world_size (int): The total number of workers/shards.
-        dim (int): The dimension along which to split the tensor. If -1, the
-            last dimension is used.
-        sharding_type (str): If `dim` is -1, this can be 'row' (dim=0) or
-            'column' (dim=1) to infer the split axis for 2D tensors.
-            Defaults to "auto".
+    The `undo` operation is provided by the `_ConcatenateMixin`.
     """
 
     def __init__(self, world_size, dim, sharding_type="auto"):
         """Initializes the Split action.
 
         Args:
-            world_size (int): The total number of workers/shards.
-            dim (int): The dimension along which to split the tensor.
-            sharding_type (str): A hint for inferring the dimension if `dim`
-                is -1.
+            world_size: The total number of workers/shards.
+            dim: The dimension along which to split the tensor. If -1, the
+                last dimension is used.
+            sharding_type: If `dim` is -1, this can be 'row' (dim=0) or
+                'column' (dim=1) to infer the split axis for 2D tensors.
+                Defaults to "auto".
         """
         super().__init__()
         self.world_size = world_size
@@ -113,7 +107,7 @@ class Split(_ConcatenateMixin, LayoutAction):
 
         Args:
             tensor: The full tensor to be sharded.
-            rank (int): The rank of the worker for which to get the shard.
+            rank: The rank of the worker for which to get the shard.
 
         Returns:
             A tensor shard corresponding to the given rank.
@@ -138,14 +132,14 @@ class Split(_ConcatenateMixin, LayoutAction):
 class LayoutMap:
     """A mapping that defines layout rules for model states and outputs.
 
-    This class acts as a configuration object that holds dictionaries of
-    `LayoutAction` instances. These rules specify how model variables (states)
-    and layer outputs should be distributed across a set of devices.
+    This is an internal configuration object used to hold layout rules for
+    how model variables and layer outputs should be distributed across a set
+    of devices. It acts as a container for `LayoutAction` instances.
 
     Attributes:
-        state_rules (dict): A dictionary mapping variable names or patterns to
+        state_rules: A dictionary mapping variable names or patterns to
             `LayoutAction` instances.
-        output_rules (dict): A dictionary mapping layer output names or
+        output_rules: A dictionary mapping layer output names or
             patterns to `LayoutAction` instances.
     """
 
@@ -153,8 +147,8 @@ class LayoutMap:
         """Initializes the LayoutMap.
 
         Args:
-            state_rules (dict): A dictionary of rules for model states.
-            output_rules (dict): A dictionary of rules for model outputs.
+            state_rules: A dictionary of distribution rules for model states.
+            output_rules: A dictionary of distribution rules for model outputs.
         """
         self.state_rules = state_rules
         self.output_rules = output_rules
@@ -162,10 +156,14 @@ class LayoutMap:
     def create_collective_ops(self, devices):
         """Creates the necessary collective communication operations.
 
+        This method is a placeholder for backend-specific logic that would
+        translate the layout rules into actual communication primitives
+        (e.g., all-gather, reduce-scatter).
+
         Args:
             devices: A sequence of device identifiers.
 
         Returns:
-            The `LayoutMap` instance itself.
+            The `LayoutMap` instance itself, allowing for method chaining.
         """
         return self

@@ -1,22 +1,14 @@
-import pytest
-
 import keras
-from keras.src import backend
 from keras.src import testing
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutAction
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
 from keras.src.distribution.tensor_parallel.tensor_layout import Split
 
 
-@pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Test requires JAX backend",
-)
 class LayoutTest(testing.TestCase):
     """Test suite for tensor layout actions and mappings."""
 
     def test_layout_action_abstract_methods_raise_error(self):
-        """Ensures the base class methods raise NotImplementedError."""
         action = LayoutAction()
         with self.assertRaises(NotImplementedError):
             action(tensor=None, rank=0)
@@ -47,7 +39,7 @@ class LayoutTest(testing.TestCase):
         self.assertEqual(shard_0.shape, (2, 2))
 
     def test_split_with_uneven_division(self):
-        """Tests splitting where the remainder is distributed correctly."""
+        """Tests splitting a tensor where remainder is distributed correctly."""
         world_size = 3
         # Create a tensor of shape (10, 1). 10 / 3 = 3 with remainder 1.
         tensor = keras.ops.reshape(
@@ -73,7 +65,7 @@ class LayoutTest(testing.TestCase):
         self.assertAllClose(shard_2, keras.ops.array([[7.0], [8.0], [9.0]]))
 
     def test_split_and_undo_cycle_even(self):
-        """Tests splitting and reconstructing evenly divisible tensor."""
+        """Tests the splitting and reconstructing of evenly divisible tensor."""
         world_size = 2
         original_tensor = keras.ops.reshape(
             keras.ops.arange(12, dtype="float32"), (6, 2)
@@ -89,7 +81,7 @@ class LayoutTest(testing.TestCase):
         self.assertAllClose(original_tensor, reconstructed_tensor)
 
     def test_split_and_undo_cycle_uneven(self):
-        """Tests the full cycle for an unevenly distributed tensor."""
+        """Tests full cycle for an unevenly distributed tensor."""
         world_size = 4
         # 11 / 4 = 2 with a remainder of 3.
         original_tensor = keras.ops.reshape(
