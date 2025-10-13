@@ -377,6 +377,7 @@ class Embedding(Layer):
             dtype="int8",
             trainable=False,
         )
+        self._embeddings._is_quantized = True
         # We choose to reduce the axis of `output_dim` because, typically,
         # `input_dim` is larger than `output_dim`. This reduces quantization
         # error.
@@ -386,6 +387,7 @@ class Embedding(Layer):
             initializer="ones",
             trainable=False,
         )
+        self.embeddings_scale._is_quantized = True
 
     def _int4_build(self, embeddings_shape):
         input_dim, output_dim = embeddings_shape
