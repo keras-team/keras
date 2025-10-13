@@ -5236,6 +5236,8 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises(TypeError):
             knp.eye(3.0, 2.0)
         with self.assertRaises(TypeError):
+            knp.eye(3, 2.0)
+        with self.assertRaises(TypeError):
             v = knp.max(knp.arange(4.0))
             knp.eye(v)
         with self.assertRaises(TypeError):
