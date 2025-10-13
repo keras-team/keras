@@ -3863,6 +3863,12 @@ def isreal(x):
 
     Returns:
         Output boolean tensor.
+
+    Example:
+        >>> from keras import ops
+        >>> x = ops.array([1+1j, 1+0j, 4.5, 3, 2, 2j], dtype="complex64")
+        >>> ops.isreal(x)
+        array([False,  True,  True,  True,  True, False])
     """
     if any_symbolic_tensors((x,)):
         return Isreal().symbolic_call(x)

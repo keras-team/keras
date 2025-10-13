@@ -2193,6 +2193,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.isneginf(x).shape, (2, 3))
 
+    def test_isposinf(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.isposinf(x).shape, (2, 3))
+
     def test_isreal(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.isreal(x).shape, (2, 3))
