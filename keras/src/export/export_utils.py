@@ -56,8 +56,6 @@ def _infer_input_signature_from_model(model):
     def _make_input_spec(structure):
         # We need to turn wrapper structures like TrackingDict or _DictWrapper
         # into plain Python structures because they don't work with jax2tf/JAX.
-        if structure is None:
-            return None
         if isinstance(structure, dict):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
