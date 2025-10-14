@@ -382,6 +382,25 @@ class RNN(Layer):
                 initial_state = self.get_initial_state(
                     batch_size=ops.shape(sequences)[0]
                 )
+        if self.stateful:
+            actual_batch_size = ops.shape(sequences)[0]
+            expected_batch_size = (
+                ops.shape(tree.flatten(self.states)[0])[0]
+                if self.states
+                else None
+            )
+            if (
+                expected_batch_size is not None
+                and actual_batch_size != expected_batch_size
+            ):
+                raise ValueError(
+                    "If an RNN is stateful, the batch size of the "
+                    "input sequences must be the same as the batch "
+                    "size of the initial state. \n"
+                    f"- Expected batch size: {expected_batch_size}\n"
+                    f"- Received batch size: {actual_batch_size}"
+                )
+
         # RNN expect the states in a list, even if single state.
         if not tree.is_nested(initial_state):
             initial_state = [initial_state]
