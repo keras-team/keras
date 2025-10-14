@@ -27,7 +27,6 @@ NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
-NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor
 NumpyDtypeTest::test_inner
