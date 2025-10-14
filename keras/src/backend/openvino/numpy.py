@@ -838,6 +838,12 @@ def flip(x, axis=None):
 
 def floor(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        dtype = OPENVINO_DTYPES[config.floatx()]
+    else:
+        dtype = x_type
+    x = ov_opset.convert(x, dtype)
     return OpenVINOKerasTensor(ov_opset.floor(x).output(0))
 
 
