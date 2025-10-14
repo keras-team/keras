@@ -1,10 +1,9 @@
 import os
 
-import tensorflow as tf
-
 from keras.src import tree
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import litert
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 def export_litert(
@@ -227,8 +226,88 @@ class LitertExporter:
 
     def _convert_with_wrapper(self, input_signature):
         """Converts the model to TFLite using the tf.Module wrapper."""
+
+        # Define wrapper class dynamically to avoid module-level
+        # tf.Module inheritance
+        class KerasModelWrapper(tf.Module):
+            """A tf.Module wrapper for a Keras model.
+
+            This wrapper is designed to be a clean, serializable
+            interface for TFLite conversion. It holds the Keras model
+            and exposes a single `__call__` method that is decorated
+            with `tf.function`. Crucially, it also ensures all variables
+            from the Keras model are tracked by the SavedModel format,
+            which is key to including them in the final TFLite model.
+            """
+
+            def __init__(self, model):
+                super().__init__()
+                # Store the model reference in a way that TensorFlow
+                # won't try to track it. This prevents the _DictWrapper
+                # error during SavedModel serialization
+                object.__setattr__(self, "_model", model)
+
+                # Track all variables from the Keras model using proper
+                # tf.Module methods. This ensures proper variable
+                # handling for stateful layers like BatchNorm
+                with self.name_scope:
+                    for i, var in enumerate(model.variables):
+                        # Use a different attribute name to avoid
+                        # conflicts with tf.Module's variables property
+                        setattr(self, f"model_var_{i}", var)
+
+            @tf.function
+            def __call__(self, *args, **kwargs):
+                """The single entry point for the exported model."""
+                # Handle both single and multi-input cases
+                if args and not kwargs:
+                    # Called with positional arguments
+                    if len(args) == 1:
+                        return self._model(args[0])
+                    else:
+                        return self._model(list(args))
+                elif kwargs and not args:
+                    # Called with keyword arguments
+                    if len(kwargs) == 1 and "inputs" in kwargs:
+                        # Single input case
+                        return self._model(kwargs["inputs"])
+                    else:
+                        # Multi-input case - convert to list/dict format
+                        # expected by model
+                        if (
+                            hasattr(self._model, "inputs")
+                            and len(self._model.inputs) > 1
+                        ):
+                            # Multi-input functional model
+                            input_list = []
+                            missing_inputs = []
+                            for input_layer in self._model.inputs:
+                                input_name = input_layer.name
+                                if input_name in kwargs:
+                                    input_list.append(kwargs[input_name])
+                                else:
+                                    missing_inputs.append(input_name)
+
+                            if missing_inputs:
+                                raise ValueError(
+                                    "Missing required inputs for "
+                                    f"multi-input model: {missing_inputs}. "
+                                    f"Available kwargs: "
+                                    f"{list(kwargs.keys())}. Please provide "
+                                    "all inputs by name."
+                                )
+
+                            return self._model(input_list)
+                        else:
+                            # Single input model called with named
+                            # arguments
+                            return self._model(list(kwargs.values())[0])
+                else:
+                    # Fallback to original call
+                    return self._model(*args, **kwargs)
+
         # 1. Wrap the Keras model in our clean tf.Module.
-        wrapper = _KerasModelWrapper(self.model)
+        wrapper = KerasModelWrapper(self.model)
 
         # 2. Get a concrete function from the wrapper.
         if not isinstance(input_signature, (list, tuple)):
@@ -395,80 +474,3 @@ class LitertExporter:
 
         dummy_exporter = cls(model=None)
         return dummy_exporter._get_available_litert_targets()
-
-
-class _KerasModelWrapper(tf.Module):
-    """
-    A tf.Module wrapper for a Keras model.
-
-    This wrapper is designed to be a clean, serializable interface for TFLite
-    conversion. It holds the Keras model and exposes a single `__call__`
-    method that is decorated with `tf.function`. Crucially, it also ensures
-    all variables from the Keras model are tracked by the SavedModel format,
-    which is key to including them in the final TFLite model.
-    """
-
-    def __init__(self, model):
-        super().__init__()
-        # Store the model reference in a way that TensorFlow won't try to
-        # track it
-        # This prevents the _DictWrapper error during SavedModel serialization
-        object.__setattr__(self, "_model", model)
-
-        # Track all variables from the Keras model using proper tf.Module
-        # methods
-        # This ensures proper variable handling for stateful layers like
-        # BatchNorm
-        with self.name_scope:
-            for i, var in enumerate(model.variables):
-                # Use a different attribute name to avoid conflicts with
-                # tf.Module's variables property
-                setattr(self, f"model_var_{i}", var)
-
-    @tf.function
-    def __call__(self, *args, **kwargs):
-        """The single entry point for the exported model."""
-        # Handle both single and multi-input cases
-        if args and not kwargs:
-            # Called with positional arguments
-            if len(args) == 1:
-                return self._model(args[0])
-            else:
-                return self._model(list(args))
-        elif kwargs and not args:
-            # Called with keyword arguments
-            if len(kwargs) == 1 and "inputs" in kwargs:
-                # Single input case
-                return self._model(kwargs["inputs"])
-            else:
-                # Multi-input case - convert to list/dict format expected by
-                # model
-                if (
-                    hasattr(self._model, "inputs")
-                    and len(self._model.inputs) > 1
-                ):
-                    # Multi-input functional model
-                    input_list = []
-                    missing_inputs = []
-                    for input_layer in self._model.inputs:
-                        input_name = input_layer.name
-                        if input_name in kwargs:
-                            input_list.append(kwargs[input_name])
-                        else:
-                            missing_inputs.append(input_name)
-
-                    if missing_inputs:
-                        raise ValueError(
-                            f"Missing required inputs for multi-input model: "
-                            f"{missing_inputs}. Available kwargs: "
-                            f"{list(kwargs.keys())}. Please provide all inputs "
-                            f"by name."
-                        )
-
-                    return self._model(input_list)
-                else:
-                    # Single input model called with named arguments
-                    return self._model(list(kwargs.values())[0])
-        else:
-            # Fallback to original call
-            return self._model(*args, **kwargs)

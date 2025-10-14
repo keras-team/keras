@@ -21,18 +21,17 @@ from keras.src.utils.module_utils import tensorflow
 AI_EDGE_LITERT_AVAILABLE = False
 LiteRtInterpreter = None
 
-if litert.available:
-    try:
-        from ai_edge_litert.interpreter import Interpreter as LiteRtInterpreter
+if backend.backend() == "tensorflow":
+    if litert.available:
+        try:
+            from ai_edge_litert.interpreter import (
+                Interpreter as LiteRtInterpreter,
+            )
 
-        AI_EDGE_LITERT_AVAILABLE = True
-    except ImportError:
-        # Fallback to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
-        if tensorflow.available:
+            AI_EDGE_LITERT_AVAILABLE = True
+        except (ImportError, OSError):
             LiteRtInterpreter = tensorflow.lite.Interpreter
-else:
-    # Fallback to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
-    if tensorflow.available:
+    else:
         LiteRtInterpreter = tensorflow.lite.Interpreter
 
 # Model types to test (LSTM only if AI Edge LiteRT is available)
@@ -168,16 +167,8 @@ def _get_interpreter_outputs(interpreter):
 
 
 @pytest.mark.skipif(
-    not tensorflow.available,
-    reason="TensorFlow is required for LiteRT export tests.",
-)
-@pytest.mark.skipif(
     backend.backend() != "tensorflow",
     reason="`export_litert` currently supports the TensorFlow backend only.",
-)
-@pytest.mark.skipif(
-    testing.tensorflow_uses_gpu(),
-    reason="LiteRT export tests are only run on CPU to avoid CI issues.",
 )
 class ExportLitertTest(testing.TestCase):
     """Test suite for LiteRT (TFLite) model export functionality.
