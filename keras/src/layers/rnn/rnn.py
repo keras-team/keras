@@ -394,9 +394,9 @@ class RNN(Layer):
                 and actual_batch_size != expected_batch_size
             ):
                 raise ValueError(
-                    "If an RNN is stateful, the batch size of the "
-                    "input sequences must be the same as the batch "
-                    "size of the initial state. \n"
+                    f"If an RNN is stateful, the batch size of the "
+                    f"input sequences must be the same as the batch "
+                    f"size of the initial state. \n"
                     f"- Expected batch size: {expected_batch_size}\n"
                     f"- Received batch size: {actual_batch_size}"
                 )
