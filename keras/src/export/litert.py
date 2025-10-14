@@ -1,3 +1,4 @@
+import logging
 import os
 
 from keras.src import tree
@@ -85,7 +86,7 @@ class LitertExporter:
             performed
         """
         if self.verbose:
-            print("Starting Litert export...")
+            io_utils.print_msg("Starting Litert export...")
 
         # 1. Ensure the model is built by calling it if necessary
         self._ensure_model_built()
@@ -93,7 +94,7 @@ class LitertExporter:
         # 2. Resolve / infer input signature
         if self.input_signature is None:
             if self.verbose:
-                print("Inferring input signature from model.")
+                io_utils.print_msg("Inferring input signature from model.")
             from keras.src.export.export_utils import get_input_signature
 
             self.input_signature = get_input_signature(self.model)
@@ -103,7 +104,7 @@ class LitertExporter:
 
         if self.verbose:
             final_size_mb = len(tflite_model) / (1024 * 1024)
-            print(
+            io_utils.print_msg(
                 f"TFLite model converted successfully. Size: "
                 f"{final_size_mb:.2f} MB"
             )
@@ -118,26 +119,29 @@ class LitertExporter:
             f.write(tflite_model)
 
         if self.verbose:
-            print(f"TFLite model saved to {filepath}")
+            io_utils.print_msg(f"TFLite model saved to {filepath}")
 
         # 5. Perform AOT compilation if targets are specified and LiteRT is
         # available
         compiled_models = None
         if self.aot_compile_targets and litert.available:
             if self.verbose:
-                print("Performing AOT compilation for Litert targets...")
+                io_utils.print_msg(
+                    "Performing AOT compilation for Litert targets..."
+                )
             compiled_models = self._aot_compile(filepath)
         elif self.aot_compile_targets and not litert.available:
-            if self.verbose:
-                print(
-                    "Warning: AOT compilation requested but LiteRT is not "
-                    "available. Skipping."
-                )
+            logging.warning(
+                "AOT compilation requested but LiteRT is not available. "
+                "Skipping AOT compilation."
+            )
 
         if self.verbose:
-            print(f"Litert export completed. Base model: {filepath}")
+            io_utils.print_msg(
+                f"Litert export completed. Base model: {filepath}"
+            )
             if compiled_models:
-                print(
+                io_utils.print_msg(
                     f"AOT compiled models: {len(compiled_models.models)} "
                     "variants"
                 )
@@ -155,7 +159,7 @@ class LitertExporter:
             return
 
         if self.verbose:
-            print("Building model before conversion...")
+            io_utils.print_msg("Building model before conversion...")
 
         try:
             # Try to build using input_signature if available
@@ -173,17 +177,18 @@ class LitertExporter:
                     self.model.build(input_shapes)
             else:
                 raise ValueError(
-                    "Cannot build model: no input_signature provided and "
-                    "model has no inputs attribute. Please provide an "
-                    "input_signature or ensure the model is already built."
+                    "Cannot export model to the litert format as the "
+                    "input_signature could not be inferred. Either pass an "
+                    "`input_signature` to `model.export()` or ensure that the "
+                    "model is already built (called once on real inputs)."
                 )
 
             if self.verbose:
-                print("Model built successfully.")
+                io_utils.print_msg("Model built successfully.")
 
         except Exception as e:
             if self.verbose:
-                print(f"Error building model: {e}")
+                io_utils.print_msg(f"Error building model: {e}")
             raise ValueError(
                 f"Failed to build model: {e}. Please ensure the model is "
                 "properly defined or provide an input_signature."
@@ -197,7 +202,7 @@ class LitertExporter:
         try:
             if self.verbose:
                 model_type = "Sequential" if is_sequential else "Functional"
-                print(
+                io_utils.print_msg(
                     f"{model_type} model detected. Trying direct conversion..."
                 )
 
@@ -210,50 +215,55 @@ class LitertExporter:
             tflite_model = converter.convert()
 
             if self.verbose:
-                print("Direct conversion successful.")
+                io_utils.print_msg("Direct conversion successful.")
             return tflite_model
 
         except Exception as direct_error:
             if self.verbose:
                 model_type = "Sequential" if is_sequential else "Functional"
-                print(
+                io_utils.print_msg(
                     f"Direct conversion failed for {model_type} model: "
                     f"{direct_error}"
                 )
-                print("Falling back to wrapper-based conversion...")
+                io_utils.print_msg(
+                    "Falling back to wrapper-based conversion..."
+                )
 
             return self._convert_with_wrapper(input_signature)
 
     def _convert_with_wrapper(self, input_signature):
         """Converts the model to TFLite using the tf.Module wrapper."""
 
-        # Define wrapper class dynamically to avoid module-level
+        # Define the wrapper class dynamically to avoid module-level
         # tf.Module inheritance
         class KerasModelWrapper(tf.Module):
-            """A tf.Module wrapper for a Keras model.
+            """
+            A tf.Module wrapper for a Keras model.
 
-            This wrapper is designed to be a clean, serializable
-            interface for TFLite conversion. It holds the Keras model
-            and exposes a single `__call__` method that is decorated
-            with `tf.function`. Crucially, it also ensures all variables
-            from the Keras model are tracked by the SavedModel format,
-            which is key to including them in the final TFLite model.
+            This wrapper is designed to be a clean, serializable interface
+            for TFLite conversion. It holds the Keras model and exposes a
+            single `__call__` method that is decorated with `tf.function`.
+            Crucially, it also ensures all variables from the Keras model
+            are tracked by the SavedModel format, which is key to including
+            them in the final TFLite model.
             """
 
             def __init__(self, model):
                 super().__init__()
-                # Store the model reference in a way that TensorFlow
-                # won't try to track it. This prevents the _DictWrapper
-                # error during SavedModel serialization
+                # Store the model reference in a way that TensorFlow won't
+                # try to track it
+                # This prevents the _DictWrapper error during SavedModel
+                # serialization
                 object.__setattr__(self, "_model", model)
 
                 # Track all variables from the Keras model using proper
-                # tf.Module methods. This ensures proper variable
-                # handling for stateful layers like BatchNorm
+                # tf.Module methods
+                # This ensures proper variable handling for stateful layers
+                # like BatchNorm
                 with self.name_scope:
                     for i, var in enumerate(model.variables):
-                        # Use a different attribute name to avoid
-                        # conflicts with tf.Module's variables property
+                        # Use a different attribute name to avoid conflicts with
+                        # tf.Module's variables property
                         setattr(self, f"model_var_{i}", var)
 
             @tf.function
@@ -289,18 +299,17 @@ class LitertExporter:
                                     missing_inputs.append(input_name)
 
                             if missing_inputs:
+                                available = list(kwargs.keys())
                                 raise ValueError(
-                                    "Missing required inputs for "
-                                    f"multi-input model: {missing_inputs}. "
-                                    f"Available kwargs: "
-                                    f"{list(kwargs.keys())}. Please provide "
-                                    "all inputs by name."
+                                    f"Missing required inputs for multi-input "
+                                    f"model: {missing_inputs}. "
+                                    f"Available kwargs: {available}. "
+                                    f"Please provide all inputs by name."
                                 )
 
                             return self._model(input_list)
                         else:
-                            # Single input model called with named
-                            # arguments
+                            # Single input model called with named arguments
                             return self._model(list(kwargs.values())[0])
                 else:
                     # Fallback to original call
@@ -323,7 +332,9 @@ class LitertExporter:
 
         # 3. Convert from the concrete function.
         if self.verbose:
-            print("Converting concrete function to TFLite format...")
+            io_utils.print_msg(
+                "Converting concrete function to TFLite format..."
+            )
 
         # Try multiple conversion strategies for better inference compatibility
         conversion_strategies = [
@@ -351,18 +362,24 @@ class LitertExporter:
                 ]
 
                 if self.verbose:
-                    print(f"Trying conversion {strategy['name']}...")
+                    io_utils.print_msg(
+                        f"Trying conversion {strategy['name']}..."
+                    )
 
                 tflite_model = converter.convert()
 
                 if self.verbose:
-                    print(f"Conversion successful {strategy['name']}!")
+                    io_utils.print_msg(
+                        f"Conversion successful {strategy['name']}!"
+                    )
 
                 return tflite_model
 
             except Exception as e:
                 if self.verbose:
-                    print(f"Conversion failed {strategy['name']}: {e}")
+                    io_utils.print_msg(
+                        f"Conversion failed {strategy['name']}: {e}"
+                    )
                 continue
 
         # If all strategies fail, raise the last error
@@ -387,8 +404,10 @@ class LitertExporter:
             output_dir = os.path.join(base_dir, f"{model_name}_compiled")
 
             if self.verbose:
-                print(f"AOT compiling for targets: {self.aot_compile_targets}")
-                print(f"Output directory: {output_dir}")
+                io_utils.print_msg(
+                    f"AOT compiling for targets: {self.aot_compile_targets}"
+                )
+                io_utils.print_msg(f"Output directory: {output_dir}")
 
             # Perform AOT compilation
             result = litert.python.aot.aot_compile(
@@ -399,20 +418,22 @@ class LitertExporter:
             )
 
             if self.verbose:
-                print(
+                io_utils.print_msg(
                     f"AOT compilation completed: {len(result.models)} "
                     f"successful, {len(result.failed_backends)} failed"
                 )
                 if result.failed_backends:
                     for backend, error in result.failed_backends:
-                        print(f"  Failed: {backend.id()} - {error}")
+                        io_utils.print_msg(
+                            f"  Failed: {backend.id()} - {error}"
+                        )
 
                 # Print compilation report if available
                 try:
                     report = result.compilation_report()
                     if report:
-                        print("Compilation Report:")
-                        print(report)
+                        io_utils.print_msg("Compilation Report:")
+                        io_utils.print_msg(report)
                 except Exception:
                     pass
 
@@ -420,7 +441,7 @@ class LitertExporter:
 
         except Exception as e:
             if self.verbose:
-                print(f"AOT compilation failed: {e}")
+                io_utils.print_msg(f"AOT compilation failed: {e}")
                 import traceback
 
                 traceback.print_exc()
@@ -439,7 +460,7 @@ class LitertExporter:
             return targets if isinstance(targets, list) else [targets]
         except Exception as e:
             if self.verbose:
-                print(f"Failed to get available targets: {e}")
+                io_utils.print_msg(f"Failed to get available targets: {e}")
             return []
 
     @classmethod
