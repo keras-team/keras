@@ -9,23 +9,18 @@ import pytest
 import keras
 from keras import distribution
 from keras.src import backend
-from keras.src.distribution.tensor_parallel.config import ConfigKeras
 from keras.src.distribution.tensor_parallel.parameter_sharding import (
     ShardedWeight,
 )
 from keras.src.distribution.tensor_parallel.parameter_sharding import (
     make_parameter_sharded_model,
 )
-from keras.src.distribution.tensor_parallel.state_action_keras import SplitKeras
+from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
+from keras.src.distribution.tensor_parallel.tensor_layout import Split
 from keras.src.testing import TestCase
 
 
-@pytest.mark.skipif(
-    backend.backend() not in ("torch", "jax"),
-    reason="This test is for JAX/PyTorch backends.",
-)
 def _create_simple_mlp():
-    """Creates a simple, unsharded Keras MLP model for testing."""
     inputs = keras.Input(shape=(16,), name="input")
     x = keras.layers.Dense(32, use_bias=True, name="up_proj")(inputs)
     x = keras.layers.Activation("relu")(x)
@@ -33,6 +28,10 @@ def _create_simple_mlp():
     return keras.Model(inputs=inputs, outputs=outputs, name="simple_mlp")
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="This test is for the JAX backend only.",
+)
 class ParameterShardingTest(TestCase):
     def setUp(self):
         super().setUp()
@@ -52,12 +51,12 @@ class ParameterShardingTest(TestCase):
         self.original_model = _create_simple_mlp()
         self.original_model.build(input_shape=(None, 16))
 
-        self.tp_config = ConfigKeras(
+        self.tp_config = LayoutMap(
             state_rules={
-                re.escape("simple_mlp.up_proj.kernel"): SplitKeras(
+                re.escape("simple_mlp.up_proj.kernel"): Split(
                     self.world_size, dim=1
                 ),
-                re.escape("simple_mlp.down_proj.kernel"): SplitKeras(
+                re.escape("simple_mlp.down_proj.kernel"): Split(
                     self.world_size, dim=0
                 ),
             },
