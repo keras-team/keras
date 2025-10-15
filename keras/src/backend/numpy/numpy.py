@@ -1177,8 +1177,10 @@ def trace(x, offset=0, axis1=0, axis2=1):
     axis2 = standardize_axis_for_numpy(axis2)
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype not in ("int64", "uint32", "uint64"):
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
     return np.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
