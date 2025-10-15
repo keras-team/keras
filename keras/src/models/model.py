@@ -481,6 +481,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.train_function = None
             self.test_function = None
             self.predict_function = None
+            # Required for KerasHub CausalLM models
+            self.generate_function = None
             self._post_quantize(mode, **kwargs)
 
     def _post_quantize(self, mode, **kwargs):
