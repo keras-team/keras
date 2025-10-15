@@ -76,25 +76,81 @@ def multiply(x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
-    x = get_ov_output(x)
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
-    mean_ops = ov_opset.reduce_mean(x, axis_const, keepdims)
-    return OpenVINOKerasTensor(mean_ops.output(0))
+    x_ov = get_ov_output(x)
+    x_shape = x_ov.get_partial_shape().to_shape()
+    x_type = x_ov.get_element_type()
+
+    was_axis_none = axis is None
+    x_resolved, axis_resolved = _resolve_axis(x_ov, axis)
+
+    if axis_resolved is None:
+        return OpenVINOKerasTensor(x_ov)
+
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x_resolved = ov_opset.convert(x_resolved, ov_type).output(0)
+
+    result = ov_opset.reduce_mean(x_resolved, axis_resolved, keepdims).output(0)
+
+    if keepdims and was_axis_none:
+        result_shape = [1] * len(x_shape)
+        result = ov_opset.reshape(
+            result,
+            ov_opset.constant(result_shape, Type.i32).output(0),
+            False,
+        ).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    assert initial is None, (
-        "`max` with not None initial is not supported by openvino backend"
-    )
+    return _compute_extrema(x, "max", axis, keepdims, initial)
+
+
+def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
+    if operation == "min":
+        reduction_op = ov_opset.reduce_min
+        elementwise_op = ov_opset.minimum
+    elif operation == "max":
+        reduction_op = ov_opset.reduce_max
+        elementwise_op = ov_opset.maximum
+    else:
+        raise ValueError(
+            f"Operation must be 'min' or 'max', received {operation}"
+        )
+
     x = get_ov_output(x)
-    reduce_axis = ov_opset.constant(axis, Type.i32).output(0)
-    return OpenVINOKerasTensor(
-        ov_opset.reduce_max(x, reduce_axis, keepdims).output(0)
-    )
+    x_type = x.get_element_type()
+    x_for_rank = x
+
+    is_bool = x_type == Type.boolean
+    if is_bool:
+        x = ov_opset.convert(x, Type.i32).output(0)
+        x_type = Type.i32
+
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return OpenVINOKerasTensor(x)
+
+    was_axis_none = axis is None
+    x, axis = _resolve_axis(x, axis)
+
+    result = reduction_op(x, axis, keepdims).output(0)
+
+    if initial is not None:
+        initial_tensor = ov_opset.constant(initial, x_type).output(0)
+        result = elementwise_op(result, initial_tensor).output(0)
+
+    if keepdims and was_axis_none:
+        orig_shape = ov_opset.shape_of(x_for_rank, Type.i32).output(0)
+        orig_rank_shape = ov_opset.shape_of(orig_shape, Type.i32).output(0)
+        one = ov_opset.constant(1, Type.i32).output(0)
+        result_shape = ov_opset.broadcast(one, orig_rank_shape).output(0)
+        result = ov_opset.reshape(result, result_shape, False).output(0)
+
+    if is_bool:
+        result = ov_opset.convert(result, Type.boolean).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def ones(shape, dtype=None):
@@ -162,17 +218,11 @@ def any(x, axis=None, keepdims=False):
 
 
 def amax(x, axis=None, keepdims=False):
-    if axis == () or axis == []:
-        return x
     x = get_ov_output(x)
     x_type = x.get_element_type()
+    x, axis = _resolve_axis(x, axis)
     if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    if isinstance(axis, tuple):
-        axis = list(axis)
-    axis = ov_opset.constant(axis, Type.i32).output(0)
+        return OpenVINOKerasTensor(x)
     if x_type == Type.boolean:
         return OpenVINOKerasTensor(
             ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
@@ -181,10 +231,21 @@ def amax(x, axis=None, keepdims=False):
 
 
 def amin(x, axis=None, keepdims=False):
-    if axis == () or axis == []:
-        return x
     x = get_ov_output(x)
     x_type = x.get_element_type()
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+    if x_type == Type.boolean:
+        return OpenVINOKerasTensor(
+            ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
+        )
+    return OpenVINOKerasTensor(ov_opset.reduce_min(x, axis, keepdims).output(0))
+
+
+def _resolve_axis(x, axis):
+    if axis == () or axis == []:
+        return x, None
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
@@ -192,11 +253,7 @@ def amin(x, axis=None, keepdims=False):
     if isinstance(axis, tuple):
         axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
-    if x_type == Type.boolean:
-        return OpenVINOKerasTensor(
-            ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
-        )
-    return OpenVINOKerasTensor(ov_opset.reduce_min(x, axis, keepdims).output(0))
+    return x, axis
 
 
 def append(x1, x2, axis=None):
@@ -651,6 +708,8 @@ def cumsum(x, axis=None, dtype=None):
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
     axis = ov_opset.constant(axis, Type.i32).output(0)
+    if x.get_element_type() == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.cumsum(x, axis).output(0))
 
 
@@ -838,6 +897,9 @@ def flip(x, axis=None):
 
 def floor(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()])
     return OpenVINOKerasTensor(ov_opset.floor(x).output(0))
 
 
@@ -1509,46 +1571,7 @@ def meshgrid(*x, indexing="xy"):
 
 
 def min(x, axis=None, keepdims=False, initial=None):
-    x = get_ov_output(x)
-    original_type = x.get_element_type()
-    x_type = original_type
-    x_shape = x.get_partial_shape().to_shape()
-
-    is_bool = x_type == Type.boolean
-    if is_bool:
-        x = ov_opset.convert(x, Type.i32).output(0)
-        x_type = Type.i32
-
-    if isinstance(axis, tuple) and len(axis) == 0:
-        return OpenVINOKerasTensor(x)
-
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-
-    if isinstance(axis, tuple):
-        axis = list(axis)
-
-    axis_const = ov_opset.constant(axis, Type.i32).output(0)
-    min_result = ov_opset.reduce_min(x, axis_const, keepdims).output(0)
-
-    if initial is not None:
-        initial_tensor = ov_opset.constant(initial, x_type).output(0)
-        min_result = ov_opset.minimum(min_result, initial_tensor).output(0)
-
-    if keepdims:
-        result_shape = [1] * len(x_shape)
-        min_result = ov_opset.reshape(
-            min_result,
-            ov_opset.constant(result_shape, Type.i32).output(0),
-            False,
-        ).output(0)
-
-    if is_bool:
-        min_result = ov_opset.convert(min_result, Type.boolean).output(0)
-
-    return OpenVINOKerasTensor(min_result)
+    return _compute_extrema(x, "min", axis, keepdims, initial)
 
 
 def minimum(x1, x2):
