@@ -76,16 +76,31 @@ def multiply(x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
-    x = get_ov_output(x)
-    x_type = x.get_element_type()
-    x, axis = _resolve_axis(x, axis)
-    if axis is None:
-        return OpenVINOKerasTensor(x)
+    x_ov = get_ov_output(x)
+    x_shape = x_ov.get_partial_shape().to_shape()
+    x_type = x_ov.get_element_type()
+
+    was_axis_none = axis is None
+    x_resolved, axis_resolved = _resolve_axis(x_ov, axis)
+
+    if axis_resolved is None:
+        return OpenVINOKerasTensor(x_ov)
+
     if x_type.is_integral():
         ov_type = OPENVINO_DTYPES[config.floatx()]
-        x = ov_opset.convert(x, ov_type).output(0)
-    mean_ops = ov_opset.reduce_mean(x, axis, keepdims)
-    return OpenVINOKerasTensor(mean_ops.output(0))
+        x_resolved = ov_opset.convert(x_resolved, ov_type).output(0)
+
+    result = ov_opset.reduce_mean(x_resolved, axis_resolved, keepdims).output(0)
+
+    if keepdims and was_axis_none:
+        result_shape = [1] * len(x_shape)
+        result = ov_opset.reshape(
+            result,
+            ov_opset.constant(result_shape, Type.i32).output(0),
+            False,
+        ).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -117,22 +132,15 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
     if isinstance(axis, tuple) and len(axis) == 0:
         return OpenVINOKerasTensor(x)
 
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-
-    if isinstance(axis, tuple):
-        axis = list(axis)
-
-    axis_const = ov_opset.constant(axis, Type.i32).output(0)
-    result = reduction_op(x, axis_const, keepdims).output(0)
+    was_axis_none = axis is None
+    x, axis = _resolve_axis(x, axis)
+    result = reduction_op(x, axis, keepdims).output(0)
 
     if initial is not None:
         initial_tensor = ov_opset.constant(initial, x_type).output(0)
         result = elementwise_op(result, initial_tensor).output(0)
 
-    if keepdims:
+    if keepdims and was_axis_none:
         result_shape = [1] * len(x_shape)
         result = ov_opset.reshape(
             result,
