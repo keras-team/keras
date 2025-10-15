@@ -1,25 +1,25 @@
 import os
-os.environ["KERAS_BACKEND"]="jax"
+
+os.environ["KERAS_BACKEND"] = "jax"
 
 import numpy as np
 import pytest
 
 import keras
 from keras import ops
+from keras.src import backend
 from keras.src import optimizers
 from keras.src import testing
-
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
     CoordinatedOptimizer,
 )
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-    TensorParallelOptimizer
+    TensorParallelOptimizer,
 )
-from keras.src import backend
+
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="This test is only for the JAX backend."
+    backend.backend() != "jax", reason="This test is only for the JAX backend."
 )
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):

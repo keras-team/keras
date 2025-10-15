@@ -1,6 +1,7 @@
 import jax
 import jax.lax as lax
 
+
 def get_device_info():
     """Retrieves information about the available JAX devices.
 
@@ -72,10 +73,10 @@ def get_communication_ops():
         This function assumes it is called within a `pjit` context. It takes
         the local shard `x` from each device along the `axis_name` of the mesh
         and concatenates them along the specified tensor `axis` to form a
-        single, larger tensor that is then replicated on all participating devices.
+        single, larger tensor that is then replicated on participating devices.
 
         Args:
-            x (jax.Array): The input JAX array (tensor) shard on the local device.
+            x (jax.Array): The input JAX array (tensor) shard on local device.
             axis (int): The tensor axis along which to concatenate the gathered
                 shards.
             axis_name (str, optional): The name of the mesh axis to gather

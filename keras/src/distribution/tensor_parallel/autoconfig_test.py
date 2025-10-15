@@ -1,8 +1,10 @@
+from autoconfig import analyze_dense_layer_directly
+from autoconfig import get_default_config_keras
+
 import keras
 from keras.src import layers
 from keras.src import testing
 
-from autoconfig import analyze_dense_layer_directly, get_default_config_keras
 
 class AutoConfigTest(testing.TestCase):
     def test_analyze_dense_layer_directly(self):
@@ -10,7 +12,8 @@ class AutoConfigTest(testing.TestCase):
         up_proj_layer = layers.Dense(64, name="up")
         up_proj_layer.build(input_shape=(None, 16))
         self.assertEqual(
-            analyze_dense_layer_directly(up_proj_layer, None, ""), "up_projection"
+            analyze_dense_layer_directly(up_proj_layer, None, ""),
+            "up_projection",
         )
         down_proj_layer = layers.Dense(16, name="down")
         down_proj_layer.build(input_shape=(None, 64))
@@ -21,15 +24,17 @@ class AutoConfigTest(testing.TestCase):
         generic_layer = layers.Dense(32, name="generic")
         generic_layer.build(input_shape=(None, 28))
         self.assertEqual(
-            analyze_dense_layer_directly(generic_layer, None, ""), "generic_dense"
+            analyze_dense_layer_directly(generic_layer, None, ""),
+            "generic_dense",
         )
         non_dense_layer = layers.LayerNormalization()
         self.assertEqual(
-            analyze_dense_layer_directly(non_dense_layer, None, ""), "generic_dense"
+            analyze_dense_layer_directly(non_dense_layer, None, ""),
+            "generic_dense",
         )
 
     def test_simple_mlp_model(self):
-        """Tests rule generation for a standard MLP block (like in a Transformer)."""
+        """Tests rule generation for a standard MLP block."""
         world_size = 2
         devices = [f"gpu:{i}" for i in range(world_size)]
 
@@ -56,7 +61,6 @@ class AutoConfigTest(testing.TestCase):
         self.assertEqual(down_kernel_rule.dim, 0)
 
         # Assertions for Output Communication Rules
-        # --- FIX: Removed trailing space. The source code generates "{0: 'gather'}" ---
         self.assertEqual(output_rules["^mlp_block.mlp_up$"], {0: "gather"})
         self.assertEqual(output_rules["^mlp_block.mlp_down$"], {0: "allreduce"})
 
@@ -68,7 +72,6 @@ class AutoConfigTest(testing.TestCase):
         class SimpleTransformer(layers.Layer):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
-                # --- FIX: Add explicit `name` arguments to ensure layer names are predictable ---
                 self.embedding = layers.Embedding(
                     input_dim=1000, output_dim=64, name="embedding"
                 )
@@ -84,7 +87,7 @@ class AutoConfigTest(testing.TestCase):
                     bias_axes="c",
                     name="attention_output",
                 )
-            
+
             def call(self, inputs):
                 x = self.embedding(inputs)
                 x = self.qkv_proj(x)
@@ -97,15 +100,12 @@ class AutoConfigTest(testing.TestCase):
         layout_map = get_default_config_keras(model, devices)
         state_rules = layout_map.state_rules
 
-        # --- Assertions ---
-        # --- FIX: The regex key must match what the provided autoconfig.py generates ---
         expected_key = "^transformer.embedding\\..*embeddings$"
         self.assertIn(expected_key, state_rules)
         emb_rule = state_rules[expected_key]
         self.assertEqual(emb_rule.world_size, world_size)
         self.assertEqual(emb_rule.dim, 1)
 
-        # These assertions are now correct because the layers are explicitly named
         qkv_rule = state_rules["^transformer.qkv_proj.kernel$"]
         self.assertEqual(qkv_rule.world_size, world_size)
         self.assertEqual(qkv_rule.dim, 1)
@@ -116,7 +116,6 @@ class AutoConfigTest(testing.TestCase):
 
     def test_nested_model(self):
         """Tests that the recursive traversal finds layers in nested models."""
-        # This test is correct and requires no changes.
         world_size = 2
         devices = [f"gpu:{i}" for i in range(world_size)]
         inner_model = keras.Sequential(
