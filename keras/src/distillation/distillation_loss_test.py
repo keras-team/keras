@@ -57,7 +57,7 @@ class TestEndToEndDistillation(TestCase):
     def setUp(self):
         """Set up models and test data for all tests."""
         super().setUp()
-        
+
         # Create teacher model
         self.teacher = keras.Sequential(
             [
