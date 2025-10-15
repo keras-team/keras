@@ -120,8 +120,8 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
         )
 
     x = get_ov_output(x)
-    original_type = x.get_element_type()
-    x_type = original_type
+    x_type = x.get_element_type()
+    x_for_rank = x
 
     is_bool = x_type == Type.boolean
     if is_bool:
@@ -133,6 +133,7 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
 
     was_axis_none = axis is None
     x, axis = _resolve_axis(x, axis)
+
     result = reduction_op(x, axis, keepdims).output(0)
 
     if initial is not None:
@@ -140,10 +141,10 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
         result = elementwise_op(result, initial_tensor).output(0)
 
     if keepdims and was_axis_none:
-        shape = ov_opset.shape_of(x, Type.i32).output(0)
-        shape_of_shape = ov_opset.shape_of(shape, Type.i32).output(0)
-        ones_scalar = ov_opset.constant(1, Type.i32).output(0)
-        result_shape = ov_opset.broadcast(ones_scalar, shape_of_shape).output(0)
+        orig_shape = ov_opset.shape_of(x_for_rank, Type.i32).output(0)
+        orig_rank_shape = ov_opset.shape_of(orig_shape, Type.i32).output(0)
+        one = ov_opset.constant(1, Type.i32).output(0)
+        result_shape = ov_opset.broadcast(one, orig_rank_shape).output(0)
         result = ov_opset.reshape(result, result_shape, False).output(0)
 
     if is_bool:
