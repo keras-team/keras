@@ -8841,11 +8841,8 @@ class NumpyDtypeTest(testing.TestCase):
         # for bool inputs
         if dtype == "bool":
             expected_dtype = "int32"
-        # TODO: Remove the condition of uint8 and uint16 once we have
-        # jax>=0.4.27 for both CPU & GPU environments.
-        # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to
-        # int32 otherwise.
-        elif dtype in ("uint8", "uint16"):
+        if dtype == "uint8" and backend.backend() == "torch":
+            # Torch backend doesn't support uint32 dtype.
             expected_dtype = "int32"
 
         self.assertDType(knp.trace(x), expected_dtype)

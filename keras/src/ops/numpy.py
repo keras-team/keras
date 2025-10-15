@@ -6336,8 +6336,13 @@ class Trace(Operation):
         x_shape[self.axis2] = -1
         output_shape = list(filter((-1).__ne__, x_shape))
         output_dtype = backend.standardize_dtype(x.dtype)
-        if output_dtype not in ("int64", "uint32", "uint64"):
-            output_dtype = dtypes.result_type(output_dtype, "int32")
+        if output_dtype in ("bool", "int8", "int16"):
+            output_dtype = "int32"
+        elif output_dtype in ("uint8", "uint16"):
+            output_dtype = "uint32"
+        if output_dtype == "uint32" and backend.backend() == "torch":
+            # Torch backend doesn't support uint32 dtype.
+            output_dtype = "int32"
         return KerasTensor(output_shape, dtype=output_dtype)
 
 
