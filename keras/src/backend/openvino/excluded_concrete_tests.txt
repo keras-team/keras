@@ -41,8 +41,7 @@ NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_logaddexp2
 NumpyDtypeTest::test_matmul_
-NumpyDtypeTest::test_max
-NumpyDtypeTest::test_mean
+NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_power
@@ -93,8 +92,6 @@ NumpyOneInputOpsCorrectnessTest::test_isfinite
 NumpyOneInputOpsCorrectnessTest::test_isinf
 NumpyOneInputOpsCorrectnessTest::test_isposinf
 NumpyOneInputOpsCorrectnessTest::test_logaddexp2
-NumpyOneInputOpsCorrectnessTest::test_max
-NumpyOneInputOpsCorrectnessTest::test_mean
 NumpyOneInputOpsCorrectnessTest::test_pad_float16_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float32_constant_2
 NumpyOneInputOpsCorrectnessTest::test_pad_float64_constant_2
