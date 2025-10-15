@@ -410,44 +410,21 @@ class Distiller(Model):
         # Handle case where y_pred is not provided
         if y_pred is None:
             y_pred = self(x, training=training)
-        # Compute student loss using tree operations for dicts, manual for lists
+        # Compute student loss
         student_loss = 0.0
         if self.student_loss_weight > 0.0 and y is not None:
-            # Use tree.map_structure for cleaner loss computation
-            try:
-                loss_values = tree.map_structure(
-                    lambda l, o, o_pred: l(o, o_pred),
-                    self._student_loss,
-                    y,
-                    y_pred,
-                )
-                flat_losses = tree.flatten(loss_values)
-                student_loss = (
-                    keras.ops.sum(keras.ops.stack(flat_losses))
-                    if len(flat_losses) > 1
-                    else flat_losses[0]
-                )
-            except (ValueError, TypeError):
-                # Fallback for TrackedDict compatibility issues
-                if isinstance(self._student_loss, dict):
-                    loss_values = {
-                        key: self._student_loss[key](y[key], y_pred[key])
-                        for key in self._student_loss.keys()
-                    }
-                    flat_losses = tree.flatten(loss_values)
-                    student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
-                elif isinstance(self._student_loss, (list, tuple)):
-                    loss_values = [
-                        loss_fn(y_true, y_pred_i)
-                        for loss_fn, y_true, y_pred_i in zip(
-                            self._student_loss, y, y_pred
-                        )
-                    ]
-                    flat_losses = tree.flatten(loss_values)
-                    student_loss = keras.ops.sum(keras.ops.stack(flat_losses))
-                else:
-                    # Single output case
-                    student_loss = self._student_loss(y, y_pred)
+            loss_values = tree.map_structure(
+                lambda l, o, o_pred: l(o, o_pred),
+                self._student_loss,
+                y,
+                y_pred,
+            )
+            flat_losses = tree.flatten(loss_values)
+            student_loss = (
+                keras.ops.sum(keras.ops.stack(flat_losses))
+                if len(flat_losses) > 1
+                else flat_losses[0]
+            )
 
             # Ensure student_loss is a scalar
             if hasattr(student_loss, "shape") and len(student_loss.shape) > 0:
@@ -478,9 +455,9 @@ class Distiller(Model):
                         # Re-raise with context about which strategy failed
                         raise RuntimeError(
                             f"Failed to extract features for "
-                            f"FeatureDistillation targeting teacher layer "
-                            f"'{strategy.teacher_layer_name}' and student "
-                            f"layer '{strategy.student_layer_name}'. "
+                            f"{type(strategy).__name__} targeting teacher "
+                            f"layer '{strategy.teacher_layer_name}' and "
+                            f"student layer '{strategy.student_layer_name}'. "
                             f"Original error: {e}"
                         ) from e
                 else:

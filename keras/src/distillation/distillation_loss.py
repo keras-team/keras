@@ -2,6 +2,7 @@ import keras
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.saving import serialization_lib
+from keras.src.utils import tracking
 
 
 def _convert_loss_to_function(loss_item):
@@ -140,6 +141,7 @@ class FeatureDistillation(DistillationLoss):
     ```
     """
 
+    @tracking.no_automatic_dependency_tracking
     def __init__(
         self, loss="mse", teacher_layer_name=None, student_layer_name=None
     ):
@@ -310,6 +312,7 @@ class LogitsDistillation(DistillationLoss):
     ```
     """
 
+    @tracking.no_automatic_dependency_tracking
     def __init__(
         self,
         temperature=3.0,
