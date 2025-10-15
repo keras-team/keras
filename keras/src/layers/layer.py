@@ -1368,15 +1368,7 @@ class Layer(BackendLayer, Operation):
         for i, v in enumerate(all_vars):
             store[f"{i}"] = v
 
-    def load_own_variables(self, store):
-        """Loads the state of the layer.
-
-        You can override this method to take full control of how the state of
-        the layer is loaded upon calling `keras.models.load_model()`.
-
-        Args:
-            store: Dict from which the state of the model will be loaded.
-        """
+    def _check_load_own_variables(self, store):
         all_vars = self._trainable_variables + self._non_trainable_variables
         if len(store.keys()) != len(all_vars):
             if len(all_vars) == 0 and not self.built:
@@ -1409,6 +1401,18 @@ class Layer(BackendLayer, Operation):
                 f"{len(store.keys())} variables during loading. "
                 f"Expected: {[v.name for v in all_vars]}"
             )
+
+    def load_own_variables(self, store):
+        """Loads the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is loaded upon calling `keras.models.load_model()`.
+
+        Args:
+            store: Dict from which the state of the model will be loaded.
+        """
+        self._check_load_own_variables(store)
+        all_vars = self._trainable_variables + self._non_trainable_variables
         for i, v in enumerate(all_vars):
             v.assign(store[f"{i}"])
 

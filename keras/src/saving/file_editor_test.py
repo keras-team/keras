@@ -42,7 +42,7 @@ class SavingTest(testing.TestCase):
         out = editor.compare(target_model)  # Fails
 
         editor.add_object(
-            "layers/dense_3", weights={"kernel": np.random.random((3, 3))}
+            "layers/dense_3", weights={"0": np.random.random((3, 3))}
         )
         out = editor.compare(target_model)  # Fails
         self.assertEqual(out["status"], "error")
@@ -50,7 +50,7 @@ class SavingTest(testing.TestCase):
 
         editor.rename_object("dense_3", "dense_4")
         editor.rename_object("layers/dense_4", "dense_2")
-        editor.add_weights("dense_2", weights={"bias": np.random.random((3,))})
+        editor.add_weights("dense_2", weights={"1": np.random.random((3,))})
         out = editor.compare(target_model)  # Succeeds
         self.assertEqual(out["status"], "success")
 
@@ -75,18 +75,18 @@ class SavingTest(testing.TestCase):
         out = editor.compare(target_model)  # Succeeds
         self.assertEqual(out["status"], "success")
 
-        editor.delete_weight("dense_2", "bias")
+        editor.delete_weight("dense_2", "1")
         out = editor.compare(target_model)  # Fails
         self.assertEqual(out["status"], "error")
         self.assertEqual(out["error_count"], 1)
 
-        editor.add_weights("dense_2", {"bias": np.zeros((7,))})
+        editor.add_weights("dense_2", {"1": np.zeros((7,))})
         out = editor.compare(target_model)  # Fails
         self.assertEqual(out["status"], "error")
         self.assertEqual(out["error_count"], 1)
 
-        editor.delete_weight("dense_2", "bias")
-        editor.add_weights("dense_2", {"bias": np.zeros((3,))})
+        editor.delete_weight("dense_2", "1")
+        editor.add_weights("dense_2", {"1": np.zeros((3,))})
         out = editor.compare(target_model)  # Succeeds
         self.assertEqual(out["status"], "success")
 
