@@ -6196,7 +6196,7 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(knp.Max().symbolic_call(x).dtype, expected_dtype)
 
         # Test with initial
-        initial = 1 if backend.backend() != "openvino" else None
+        initial = 1
         expected_dtype = standardize_dtype(
             jnp.max(x_jax, initial=initial).dtype
         )
