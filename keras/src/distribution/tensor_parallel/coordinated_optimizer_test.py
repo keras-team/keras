@@ -1,3 +1,6 @@
+import os
+os.environ["KERAS_BACKEND"]="jax"
+
 import numpy as np
 import pytest
 
@@ -6,18 +9,17 @@ from keras import ops
 from keras.src import optimizers
 from keras.src import testing
 
-if keras.backend.backend() == "jax":
-    from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-        CoordinatedOptimizer,
-    )
-    from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-        TensorParallelOptimizer,
-    )
-
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    CoordinatedOptimizer,
+)
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    TensorParallelOptimizer
+)
+from keras.src import backend
 
 @pytest.mark.skipif(
-    keras.backend.backend() != "jax",
-    reason="This test is JAX-specific.",
+    backend.backend() != "jax",
+    reason="This test is only for the JAX backend."
 )
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
@@ -79,9 +81,10 @@ class CoordinatedOptimizerTest(testing.TestCase):
         coord.apply_gradients(mock_grads, [])
 
         self.assertEqual(optimizer.apply_gradients_call_count, 1)
+        grad_numpy = ops.convert_to_numpy(optimizer.received_grads[0])
         self.assertAllClose(
-            optimizer.received_grads[0],
-            np.ones_like(optimizer.received_grads[0]) * 2.5,
+            grad_numpy,
+            np.ones_like(grad_numpy) * 2.5,
         )
 
     def test_init_from_string(self):
