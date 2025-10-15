@@ -956,7 +956,7 @@ def isfinite(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type.is_integral():
-        x = ov_opset.convert(x, Type.f32).output(0)
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
     return OpenVINOKerasTensor(ov_opset.is_finite(x).output(0))
 
 
@@ -968,7 +968,7 @@ def isinf(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type.is_integral():
-        x = ov_opset.convert(x, Type.f32).output(0)
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
     return OpenVINOKerasTensor(ov_opset.is_inf(x).output(0))
 
 
@@ -976,7 +976,7 @@ def isnan(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type.is_integral():
-        x = ov_opset.convert(x, Type.f32).output(0)
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
     return OpenVINOKerasTensor(ov_opset.is_nan(x).output(0))
 
 
