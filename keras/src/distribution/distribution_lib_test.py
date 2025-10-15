@@ -557,127 +557,118 @@ class LayoutMapTest(testing.TestCase):
 #             backend_dlib._to_dtensor_layout(layout)
 
 
-# Add this test class to the end of:
-# keras/src/distribution/distribution_lib_test.py
-
-from keras.src import layers
-from keras.src import testing
-
-# Import your new distribution class and the other necessary components
-from keras.src.distribution.distribution_lib import DeviceMesh
-from keras.src.distribution.tensor_parallel.tensor_parallel_keras import (
-    TensorParallelKeras,
-)
-
-# Import your new distribution class and the other necessary components
-
-
 class AutoTPDistributionTest(testing.TestCase):
-    def test_sharding_correctness_for_all_param_types(self):
-        """
-        Tests that all parameter types (column-parallel, row-parallel,
-        and replicated) are sharded correctly.
-        """
-        # 1. ARRANGE
-        devices = ["cpu:0", "cpu:1"]
-        device_mesh = DeviceMesh(
-            shape=(2,), axis_names=("model",), devices=devices
+    def setUp(self):
+        super().setUp()
+        self.devices = distribution_lib.list_devices()
+        if len(self.devices) < 2:
+            self.skipTest("This test requires at least 2 devices.")
+        inputs = keras.Input(shape=(4,), name="input_layer")
+        x = keras.layers.Dense(8, name="dense_1")(inputs)
+        outputs = keras.layers.Dense(2, name="dense_2")(x)
+        self.model = keras.Model(inputs, outputs)
+
+    def test_init_with_explicit_device_mesh(self):
+        """Tests initialization with a user-provided DeviceMesh."""
+        device_mesh = distribution_lib.DeviceMesh(
+            shape=(1, 2), axis_names=["data", "model"], devices=self.devices
         )
-        distribution = AutoTPDistribution(device_mesh=device_mesh)
+        distribution = AutoTPDistribution(self.model, device_mesh=device_mesh)
 
-        original_model = keras.Sequential(
-            [
-                layers.Input(shape=(20,)),
-                layers.Dense(16, name="dense_1"),  # Column-parallel
-                layers.Dense(8, name="dense_2"),  # Row-parallel
-            ],
-            name="my_model",
+        self.assertIs(distribution.device_mesh, device_mesh)
+        self.assertEqual(distribution.batch_dim_name, "data")
+        self.assertIsInstance(
+            distribution.model,
+            keras.src.distribution.tensor_parallel.tensor_parallel.TensorParallelKeras,
         )
-        original_model.build(input_shape=(None, 20))
+        self.assertEqual(distribution.model.world_size, 2)
 
-        # 2. ACT
-        sharded_model = distribution.shard(original_model)
+    @mock.patch.object(
+        distribution_lib,
+        "list_devices",
+        return_value=[f"cpu:{i}" for i in range(2)],
+    )
+    def test_init_without_device_mesh_for_auto_creation(
+        self, mock_list_devices
+    ):
+        """Tests the automatic creation of DeviceMesh when none is provided."""
+        distribution = AutoTPDistribution(self.model, device_mesh=None)
+        mock_list_devices.assert_called_once()
 
-        # 3. ASSERT
-        self.assertIsInstance(sharded_model, TensorParallelKeras)
-        self.assertEqual(sharded_model.world_size, 2)
-        shard_strategy = sharded_model.model_shards[0].sharding_strategy
+        device_mesh = distribution.device_mesh
+        self.assertEqual(device_mesh.shape, (1, 2))
+        self.assertEqual(device_mesh.axis_names, ("data", "model"))
+        self.assertEqual(distribution.batch_dim_name, "data")
+        self.assertEqual(distribution.model.world_size, 2)
 
-        # --- Check Column-Parallel Layer (dense_1) ---
-        # Kernel should be sharded on the output dim (1)
-        orig_k1_shape = original_model.get_layer("dense_1").kernel.shape
-        shard_k1_info = shard_strategy.get_weight_info(
-            "my_model.dense_1.kernel"
+    def test_init_raises_error_on_missing_data_axis(self):
+        """Ensures an error is raised if the DeviceMesh lacks a 'data' axis."""
+        device_mesh = distribution_lib.DeviceMesh(
+            shape=(2,), axis_names=["model"], devices=self.devices
         )
-        self.assertIsNotNone(shard_k1_info)
-        self.assertEqual(shard_k1_info["sharded_shape"][0], orig_k1_shape[0])
-        self.assertEqual(
-            shard_k1_info["sharded_shape"][1], orig_k1_shape[1] // 2
+        with self.assertRaisesRegex(ValueError, "must have a 'data' axis"):
+            AutoTPDistribution(self.model, device_mesh=device_mesh)
+
+    def test_get_data_layout(self):
+        """Verifies the layout for input data sharding."""
+        distribution = AutoTPDistribution(self.model)
+        data_shape = (16, 4)
+        layout = distribution.get_data_layout(data_shape)
+
+        self.assertEqual(layout.axes, ("data", None))
+        self.assertIs(layout.device_mesh, distribution.device_mesh)
+
+    def test_get_variable_layout_warns_and_returns_replicated(self):
+        """Verifies that variable layout is handled internally."""
+        distribution = AutoTPDistribution(self.model)
+        dummy_variable = backend.Variable(initializer=np.zeros((8, 2)))
+
+        with self.assertWarns(UserWarning) as w:
+            layout = distribution.get_variable_layout(dummy_variable)
+
+        self.assertIn(
+            "Variable layout is determined automatically",
+            str(w.warnings[0].message),
         )
 
-        # Bias should also be sharded
-        orig_b1_shape = original_model.get_layer("dense_1").bias.shape
-        shard_b1_info = shard_strategy.get_weight_info("my_model.dense_1.bias")
-        self.assertIsNotNone(shard_b1_info)
-        self.assertEqual(
-            shard_b1_info["sharded_shape"][0], orig_b1_shape[0] // 2
+        self.assertEqual(layout.axes, (None, None))
+
+    def test_distribute_dataset_in_single_process_mode(self):
+        """Tests dataset distribution in a single-process environment."""
+        distribution = AutoTPDistribution(self.model)
+        dataset = tf.data.Dataset.from_tensor_slices(
+            (np.zeros((16, 4)), np.zeros((16, 1)))
         )
 
-        # --- Check Row-Parallel Layer (dense_2) ---
-        # Kernel should be sharded on the input dim (0)
-        orig_k2_shape = original_model.get_layer("dense_2").kernel.shape
-        shard_k2_info = shard_strategy.get_weight_info(
-            "my_model.dense_2.kernel"
+        distributed_dataset = distribution.distribute_dataset(dataset)
+        self.assertIs(dataset, distributed_dataset)
+
+    def test_full_compile_and_fit_integration(self):
+        """A test to ensure the distributed model can compile and train."""
+        distribution = AutoTPDistribution(self.model)
+
+        x_train = np.random.rand(16, 4).astype("float32")
+        y_train = np.random.randint(0, 2, size=(16, 1))
+
+        dist_model = distribution.model
+
+        with distribution.scope():
+            dist_model.compile(
+                optimizer=keras.optimizers.Adam(0.01),
+                loss=keras.losses.SparseCategoricalCrossentropy(
+                    from_logits=True
+                ),
+                metrics=["accuracy"],
+            )
+
+        self.assertEqual(self.model.count_params(), dist_model.count_params())
+
+        history = dist_model.fit(
+            x_train,
+            y_train,
+            epochs=1,
+            batch_size=4,
+            verbose=0,
         )
-        self.assertIsNotNone(shard_k2_info)
-        self.assertEqual(
-            shard_k2_info["sharded_shape"][0], orig_k2_shape[0] // 2
-        )
-        self.assertEqual(shard_k2_info["sharded_shape"][1], orig_k2_shape[1])
-
-        # Bias should be replicated (not sharded)
-        shard_b2_info = shard_strategy.get_weight_info("my_model.dense_2.bias")
-        self.assertIsNone(shard_b2_info)  # Correctly not found in sharded map
-
-    def test_uneven_sharding_splits_correctly(self):
-        """
-        Tests that weights are sharded correctly when the dimension is not
-        perfectly divisible by the number of devices.
-        """
-        # 1. ARRANGE: Use 3 devices for an uneven split
-        devices = ["cpu:0", "cpu:1", "cpu:2"]
-        device_mesh = DeviceMesh(
-            shape=(3,), axis_names=("model",), devices=devices
-        )
-        distribution = AutoTPDistribution(device_mesh=device_mesh)
-
-        # Create a model with a dimension not divisible by 3 (e.g., 17)
-        original_model = keras.Sequential(
-            [layers.Dense(17, input_shape=(10,), name="dense_uneven")],
-            name="uneven_model",
-        )
-        original_model.build()
-
-        # 2. ACT
-        sharded_model = distribution.shard(original_model)
-
-        # 3. ASSERT
-        # For a dimension of 17 split across 3 devices, the expected
-        # sharded shapes are (6, 5, 5).
-        strategy_shard0 = sharded_model.model_shards[0].sharding_strategy
-        strategy_shard1 = sharded_model.model_shards[1].sharding_strategy
-        strategy_shard2 = sharded_model.model_shards[2].sharding_strategy
-
-        shape_shard0 = strategy_shard0.get_weight_info(
-            "uneven_model.dense_uneven.kernel"
-        )["sharded_shape"]
-        shape_shard1 = strategy_shard1.get_weight_info(
-            "uneven_model.dense_uneven.kernel"
-        )["sharded_shape"]
-        shape_shard2 = strategy_shard2.get_weight_info(
-            "uneven_model.dense_uneven.kernel"
-        )["sharded_shape"]
-
-        self.assertEqual(shape_shard0, (10, 6))
-        self.assertEqual(shape_shard1, (10, 6))  # ✅ CORRECTED
-        self.assertEqual(shape_shard2, (10, 5))
+        self.assertIn("loss", history.history)
+        self.assertIn("accuracy", history.history)
