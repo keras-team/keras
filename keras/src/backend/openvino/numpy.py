@@ -122,7 +122,6 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
     x = get_ov_output(x)
     original_type = x.get_element_type()
     x_type = original_type
-    x_shape = x.get_partial_shape().to_shape()
 
     is_bool = x_type == Type.boolean
     if is_bool:
@@ -141,12 +140,11 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
         result = elementwise_op(result, initial_tensor).output(0)
 
     if keepdims and was_axis_none:
-        result_shape = [1] * len(x_shape)
-        result = ov_opset.reshape(
-            result,
-            ov_opset.constant(result_shape, Type.i32).output(0),
-            False,
-        ).output(0)
+        shape = ov_opset.shape_of(x, Type.i32).output(0)
+        shape_of_shape = ov_opset.shape_of(shape, Type.i32).output(0)
+        ones_scalar = ov_opset.constant(1, Type.i32).output(0)
+        result_shape = ov_opset.broadcast(ones_scalar, shape_of_shape).output(0)
+        result = ov_opset.reshape(result, result_shape, False).output(0)
 
     if is_bool:
         result = ov_opset.convert(result, Type.boolean).output(0)
