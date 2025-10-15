@@ -7,7 +7,7 @@ from keras.src.backend import distributed_backend
 
 @pytest.mark.skipif(
     backend.backend() != "torch",
-    reason="Jax Backend specific test",
+    reason="Torch Backend specific test",
 )
 class TestPytorchDistributedFunctions:
     """Unit tests for the PyTorch distributed backend standalone functions."""

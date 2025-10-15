@@ -42,6 +42,7 @@ if backend() == "tensorflow":
 elif backend() == "jax":
     from keras.src.backend.jax import *  # noqa: F403
     from keras.src.backend.jax.core import Variable as BackendVariable
+
 elif backend() == "torch":
     from keras.src.backend.torch import *  # noqa: F403
     from keras.src.backend.torch.core import Variable as BackendVariable

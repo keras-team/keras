@@ -11,10 +11,6 @@ from keras.src.distribution import DeviceMesh
 from keras.src.distribution import TensorLayout
 
 
-@pytest.mark.skipif(
-    backend.backend() != "torch",
-    reason="Backend specific test",
-)
 def setup_torch_distributed():
     """
     A fixture to initialize the distributed process group if not already done.
@@ -32,8 +28,8 @@ def setup_torch_distributed():
 
 
 @pytest.mark.skipif(
-    not torch.distributed.is_available(),
-    reason="PyTorch distributed components are not available.",
+    backend.backend() != "torch",
+    reason="Backend specific test",
 )
 class TestTorchDistributionLibLive:
     """
