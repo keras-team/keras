@@ -26,7 +26,7 @@ def add(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "add()")
-    return OpenVINOKerasTensor(ov_opset.add(x1, x2).output(0))
+    return OpenVINOKerasTensor(ov_opset.addƒ(x1, x2).output(0))
 
 
 def einsum(subscripts, *operands, **kwargs):
@@ -701,6 +701,8 @@ def cumsum(x, axis=None, dtype=None):
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
     axis = ov_opset.constant(axis, Type.i32).output(0)
+    if x.get_element_type() == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.cumsum(x, axis).output(0))
 
 

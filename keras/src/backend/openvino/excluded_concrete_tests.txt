@@ -23,7 +23,6 @@ NumpyDtypeTest::test_corrcoef
 NumpyDtypeTest::test_correlate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
-NumpyDtypeTest::test_cumsum_bool
 NumpyDtypeTest::test_diag
 NumpyDtypeTest::test_digitize
 NumpyDtypeTest::test_einsum
