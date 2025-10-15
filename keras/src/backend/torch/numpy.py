@@ -946,6 +946,11 @@ def isposinf(x):
     return torch.isposinf(x)
 
 
+def isreal(x):
+    x = convert_to_tensor(x)
+    return torch.isreal(x)
+
+
 def kron(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

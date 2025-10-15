@@ -1712,6 +1712,14 @@ def isposinf(x):
     return tf.math.equal(x, tf.constant(float("inf"), dtype=x.dtype))
 
 
+def isreal(x):
+    x = convert_to_tensor(x)
+    if x.dtype.is_complex:
+        return tf.equal(tf.math.imag(x), 0)
+    else:
+        return tf.ones_like(x, dtype=tf.bool)
+
+
 def kron(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

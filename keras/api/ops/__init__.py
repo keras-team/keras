@@ -209,6 +209,7 @@ from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
 from keras.src.ops.numpy import isneginf as isneginf
 from keras.src.ops.numpy import isposinf as isposinf
+from keras.src.ops.numpy import isreal as isreal
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import kron as kron
 from keras.src.ops.numpy import lcm as lcm
