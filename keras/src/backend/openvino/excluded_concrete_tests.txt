@@ -30,11 +30,9 @@ NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_eye
 NumpyDtypeTest::test_flip
+NumpyDtypeTest::test_floor_divide
 NumpyDtypeTest::test_inner
-NumpyDtypeTest::test_isfinite
-NumpyDtypeTest::test_isin
-NumpyDtypeTest::test_isinf
-NumpyDtypeTest::test_isnan
+NumpyDtypeTest::test_isin_
 NumpyDtypeTest::test_isposinf
 NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
@@ -87,8 +85,6 @@ NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_imag
-NumpyOneInputOpsCorrectnessTest::test_isfinite
-NumpyOneInputOpsCorrectnessTest::test_isinf
 NumpyOneInputOpsCorrectnessTest::test_isposinf
 NumpyOneInputOpsCorrectnessTest::test_logaddexp2
 NumpyOneInputOpsCorrectnessTest::test_max

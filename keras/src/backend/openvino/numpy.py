@@ -957,6 +957,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 def isfinite(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x = ov_opset.convert(x, Type.f32).output(0)
     return OpenVINOKerasTensor(ov_opset.is_finite(x).output(0))
 
 
@@ -966,11 +969,17 @@ def isin(x1, x2, assume_unique=False, invert=False):
 
 def isinf(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x = ov_opset.convert(x, Type.f32).output(0)
     return OpenVINOKerasTensor(ov_opset.is_inf(x).output(0))
 
 
 def isnan(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x = ov_opset.convert(x, Type.f32).output(0)
     return OpenVINOKerasTensor(ov_opset.is_nan(x).output(0))
 
 
