@@ -4402,6 +4402,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.isreal(x), np.isreal(x))
         self.assertAllClose(knp.Isreal()(x), np.isreal(x))
 
+        x = np.array([1.0, 2.0, 3.0])
+        self.assertAllClose(knp.isreal(x), np.isreal(x))
+        self.assertAllClose(knp.Isreal()(x), np.isreal(x))
+
     def test_log(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.log(x), np.log(x))
