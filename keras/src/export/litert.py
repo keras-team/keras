@@ -24,7 +24,7 @@ def export_litert(
             `None`, which uses the default value set by different backends and
             formats.
         input_signature: Optional input signature specification. If
-            ``None``, it will be inferred.
+            `None`, it will be inferred.
         aot_compile_targets: Optional list of Litert targets for AOT
             compilation.
         **kwargs: Additional keyword arguments passed to the exporter.
