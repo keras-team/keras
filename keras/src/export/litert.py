@@ -10,7 +10,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 def export_litert(
     model,
     filepath,
-    verbose=None,
+    verbose=True,
     input_signature=None,
     aot_compile_targets=None,
     **kwargs,
@@ -29,9 +29,6 @@ def export_litert(
             compilation.
         **kwargs: Additional keyword arguments passed to the exporter.
     """
-
-    if verbose is None:
-        verbose = True  # Defaults to `True` for all backends.
 
     exporter = LitertExporter(
         model=model,
