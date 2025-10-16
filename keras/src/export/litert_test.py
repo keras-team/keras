@@ -197,10 +197,9 @@ class ExportLitertTest(testing.TestCase):
 
         # Test with model.export()
         model.export(temp_filepath, format="litert")
-        export_path = temp_filepath
-        self.assertTrue(os.path.exists(export_path))
+        self.assertTrue(os.path.exists(temp_filepath))
 
-        interpreter = LiteRtInterpreter(model_path=export_path)
+        interpreter = LiteRtInterpreter(model_path=temp_filepath)
         interpreter.allocate_tensors()
         _set_interpreter_inputs(interpreter, ref_input)
         interpreter.invoke()
