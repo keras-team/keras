@@ -2984,6 +2984,44 @@ def transpose(x, axes=None):
     return tf.transpose(x, perm=axes)
 
 
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    dtype = y.dtype
+
+    if not dtype.is_floating and not dtype.is_complex:
+        dtype = tf.float32
+        y = tf.cast(y, dtype)
+
+    if x is None:
+        dx_array = tf.cast(dx, dtype)
+    else:
+        x = convert_to_tensor(x, dtype=dtype)
+
+        dx_array = (
+            x[..., 1:] - x[..., :-1] if axis == -1 else diff(x, axis=axis)
+        )
+        if x.shape.rank > 1 and axis != -1:
+            perm = list(range(x.shape.rank))
+            perm.pop(axis)
+            perm.append(axis)
+            dx_array = tf.transpose(dx_array, perm)
+
+    if axis != -1:
+        perm = list(range(y.shape.rank))
+        perm.pop(axis)
+        perm.append(axis)
+        y = tf.transpose(y, perm)
+
+    avg_heights = 0.5 * (y[..., 1:] + y[..., :-1])
+
+    if x is not None:
+        result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
+    else:
+        result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
+
+    return result
+
+
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     compute_dtype = dtypes.result_type(x.dtype, "float32")

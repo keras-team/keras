@@ -1336,6 +1336,14 @@ def transpose(x, axes=None):
     return np.transpose(x, axes=axes)
 
 
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    if x is not None:
+        x = convert_to_tensor(x)
+    dx = convert_to_tensor(dx)
+    return np.trapezoid(y, x, dx=dx, axis=axis)
+
+
 def var(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
