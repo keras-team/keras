@@ -93,7 +93,7 @@ class DatasetHandler(ABC):
         self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
     ): ...
 
-    def _get_type_spec(self, dataset):
+    def get_type_spec(self, dataset):
         """Get the type spec of the dataset."""
         if isinstance(dataset, tuple):
             return tuple
@@ -105,15 +105,21 @@ class DatasetHandler(ABC):
             from grain import MapDataset
 
             return MapDataset
+        elif isinstance(dataset, self.dataset_type):
+            return self.dataset_type
         else:
             return None
 
-    @abstractmethod
-    def is_valid_dataset_spec(self, dataset_spec): ...
+    def is_valid_dataset_spec(self, dataset_spec):
+        return dataset_spec in [tuple, list, self.dataset_type]
 
     @property
     @abstractmethod
     def tensor_type(self): ...
+
+    @property
+    @abstractmethod
+    def dataset_type(self): ...
 
     def convert_dataset_to_list(
         self,
@@ -254,12 +260,18 @@ class TensorflowDatasetHandler(DatasetHandler):
 
         return tf.Tensor
 
+    @property
+    def dataset_type(self):
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        return tf.data.Dataset
+
     def split_dataset(
         self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
     ):
         from keras.src.utils.module_utils import tensorflow as tf
 
-        dataset_type_spec = self._get_type_spec(dataset)
+        dataset_type_spec = self.get_type_spec(dataset)
 
         if dataset_type_spec is None:
             raise TypeError(
@@ -314,19 +326,6 @@ class TensorflowDatasetHandler(DatasetHandler):
         right_split = right_split.prefetch(tf.data.AUTOTUNE)
         return left_split, right_split
 
-    def is_valid_dataset_spec(self, dataset_spec):
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        return dataset_spec in [tuple, list, tf.data.Dataset]
-
-    def _get_type_spec(self, dataset):
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        if isinstance(dataset, tf.data.Dataset):
-            return tf.data.Dataset
-        else:
-            return super()._get_type_spec(dataset)
-
     def restore_dataset_from_list(
         self, dataset_as_list, dataset_type_spec, original_dataset
     ):
@@ -362,9 +361,7 @@ class TensorflowDatasetHandler(DatasetHandler):
         data_size_warning_flag=True,
         ensure_shape_similarity=True,
     ):
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        if dataset_type_spec is tf.data.Dataset:
+        if isinstance(dataset, self.dataset_type):
             if is_batched(dataset):
                 dataset = dataset.unbatch()
             return iter(dataset)
@@ -385,8 +382,11 @@ class TorchDatasetHandler(DatasetHandler):
 
         return torch.Tensor
 
-    def is_valid_dataset_spec(self, dataset_spec):
-        pass
+    @property
+    def dataset_type(self):
+        import torch
+
+        return torch.utils.data.Dataset
 
     def split_dataset(
         self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
@@ -395,7 +395,7 @@ class TorchDatasetHandler(DatasetHandler):
         from torch.utils.data import random_split
 
         # Ensure the dataset is a valid PyTorch dataset
-        dataset_type_spec = self._get_type_spec(dataset)
+        dataset_type_spec = self.get_type_spec(dataset)
         if dataset_type_spec is None:
             raise TypeError(
                 "The `dataset` argument must be a `torch.utils.data.Dataset`"
@@ -431,14 +431,6 @@ class TorchDatasetHandler(DatasetHandler):
 
         return left_split, right_split
 
-    def _get_type_spec(self, dataset):
-        import torch
-
-        if isinstance(dataset, torch.utils.data.Dataset):
-            return torch.utils.data.Dataset
-        else:
-            return super()._get_type_spec(dataset)
-
     def convert_dataset_to_list(
         self,
         dataset,
@@ -446,9 +438,7 @@ class TorchDatasetHandler(DatasetHandler):
         data_size_warning_flag=True,
         ensure_shape_similarity=True,
     ):
-        import torch
-
-        if isinstance(dataset, torch.utils.data.Dataset):
+        if isinstance(dataset, self.dataset_type):
             return iter(dataset)
         else:
             return super().convert_dataset_to_list(
