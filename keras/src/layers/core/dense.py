@@ -112,6 +112,10 @@ class Dense(Layer):
         kernel_shape = (input_shape[-1], self.units)
         if self.quantization_mode:
             self.quantized_build(kernel_shape, mode=self.quantization_mode)
+            if self.quantization_mode == "gptq":
+                # This line only runs when loading a saved Keras model.
+                # A saved quantized model will always be calibrated.
+                self.is_gptq_calibrated = True
         if self.quantization_mode not in ("int8", "int4", "gptq"):
             # If the layer is quantized to int8 or int4, `self._kernel` will be
             # added in `self._int8_build` or `_int4_build`. Therefore, we skip

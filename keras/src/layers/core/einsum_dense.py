@@ -170,6 +170,10 @@ class EinsumDense(Layer):
                 kernel_shape,
                 mode=self.quantization_mode,
             )
+            if self.quantization_mode == "gptq":
+                # This line only runs when loading a saved Keras model.
+                # A saved quantized model will always be calibrated.
+                self.is_gptq_calibrated = True
         # Skip creating a duplicate kernel variable when the layer is already
         # quantized to int8 or int4, because `quantized_build` has created the
         # appropriate kernel variable. For other modes (e.g., float8 or no
