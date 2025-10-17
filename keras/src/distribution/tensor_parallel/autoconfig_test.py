@@ -1,18 +1,18 @@
+from autoconfig import analyze_dense_layer
+from autoconfig import get_default_config_keras
+
 import keras
 from keras.src import layers
 from keras.src import testing
 
-from autoconfig import analyze_dense_layer, get_default_config_keras
 
 class AutoConfigTest(testing.TestCase):
     def test_analyze_dense_layer_directly(self):
         """Tests the heuristic for classifying Dense layers."""
-        
+
         up_proj_layer = layers.Dense(64, name="up")
         up_proj_layer.build(input_shape=(None, 16))
-        self.assertEqual(
-            analyze_dense_layer(up_proj_layer), "up_projection"
-        )
+        self.assertEqual(analyze_dense_layer(up_proj_layer), "up_projection")
         down_proj_layer = layers.Dense(16, name="down")
         down_proj_layer.build(input_shape=(None, 64))
         self.assertEqual(
@@ -21,16 +21,12 @@ class AutoConfigTest(testing.TestCase):
         )
         generic_layer = layers.Dense(32, name="generic")
         generic_layer.build(input_shape=(None, 28))
-        self.assertEqual(
-            analyze_dense_layer(generic_layer), "dense"
-        )
+        self.assertEqual(analyze_dense_layer(generic_layer), "dense")
         non_dense_layer = layers.LayerNormalization()
-        self.assertEqual(
-            analyze_dense_layer(non_dense_layer), "dense"
-        )
+        self.assertEqual(analyze_dense_layer(non_dense_layer), "dense")
 
     def test_simple_mlp_model(self):
-        """Tests rule generation for a standard MLP block (like in a Transformer)."""
+        """Tests rule generation for a standard MLP block."""
         device_count = 2
         devices = [f"gpu:{i}" for i in range(device_count)]
 
@@ -83,7 +79,7 @@ class AutoConfigTest(testing.TestCase):
                     bias_axes="c",
                     name="attention_output",
                 )
-            
+
             def call(self, inputs):
                 x = self.embedding(inputs)
                 x = self.qkv_proj(x)
@@ -129,7 +125,7 @@ class AutoConfigTest(testing.TestCase):
         )
         layout_map = get_default_config_keras(outer_model, devices)
         state_rules = layout_map.state_rules
-        
+
         expected_key = "outer_block.inner_block.inner_dense.kernel"
         self.assertIn(expected_key, state_rules)
         inner_rule = state_rules[expected_key]

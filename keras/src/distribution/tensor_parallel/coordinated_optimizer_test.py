@@ -3,16 +3,16 @@ import pytest
 
 import keras
 from keras import ops
+from keras.src import backend
 from keras.src import optimizers
 from keras.src import testing
-
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
     CoordinatedOptimizer,
 )
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-    TensorParallelOptimizer
+    TensorParallelOptimizer,
 )
-from keras.src import backend
+
 
 @pytest.mark.skipif(
     backend.backend() != "jax",
@@ -85,11 +85,14 @@ class CoordinatedOptimizerTest(testing.TestCase):
         )
 
     def test_init_from_string(self):
+        """Tests initialization from a string."""
         optimizer = TensorParallelOptimizer("adam", device_count=4)
         self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
 
     def test_apply_gradients_delegation(self):
-        """Tests that apply_gradients correctly delegates."""
+        """Tests that apply_gradients correctly delegates to the appropriate
+        optimizer (base or coordinated) based on input format.
+        """
         device_count = 4
         base_opt = optimizers.Adam()
         optimizer = TensorParallelOptimizer(base_opt, device_count)
@@ -142,11 +145,10 @@ class CoordinatedOptimizerTest(testing.TestCase):
         )
 
     def test_serialization(self):
+        """Tests serialization and deserialization of the optimizer."""
         device_count = 4
         base_opt = optimizers.Adam(learning_rate=0.1)
-        optimizer = TensorParallelOptimizer(
-            base_opt, device_count
-        ) 
+        optimizer = TensorParallelOptimizer(base_opt, device_count)
 
         config = optimizer.get_config()
         recreated = TensorParallelOptimizer.from_config(config)
@@ -156,7 +158,9 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertAllClose(recreated.base_optimizer.learning_rate, 0.1)
 
     def test_sharding_with_prefixed_variable_names(self):
-        """Tests that state is correctly mapped with prefixed variable names."""
+        """Tests that state is correctly mapped to model variables with Keras
+        V2-style prefixed names (slot variables).
+        """
         inputs = keras.Input(shape=(10,))
         x = keras.layers.Dense(4, name="dense")(inputs)
         outputs = keras.layers.Dense(2, name="dense_output")(x)
@@ -172,6 +176,9 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertGreater(len(state_to_param), 0)
 
         dense_output_kernel = model.get_layer("dense_output").kernel
-        momentum_path = f"{optimizer.base_optimizer.name}/{dense_output_kernel.path.replace('/', '_')}_momentum"
+        momentum_path = (
+            f"{optimizer.base_optimizer.name}/"
+            f"{dense_output_kernel.path.replace('/', '_')}_momentum"
+        )
 
         self.assertIs(state_to_param[momentum_path], dense_output_kernel)
