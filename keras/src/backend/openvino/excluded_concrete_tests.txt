@@ -27,9 +27,7 @@ NumpyDtypeTest::test_floor_divide
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isin
-NumpyDtypeTest::test_isinf
 NumpyDtypeTest::test_isnan
-NumpyDtypeTest::test_isposinf
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
@@ -77,8 +75,6 @@ NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isfinite
-NumpyOneInputOpsCorrectnessTest::test_isinf
-NumpyOneInputOpsCorrectnessTest::test_isposinf
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_logaddexp2
 NumpyOneInputOpsCorrectnessTest::test_pad_float16_constant_2

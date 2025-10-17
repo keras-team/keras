@@ -1040,8 +1040,10 @@ def isin(x1, x2, assume_unique=False, invert=False):
 
 
 def isinf(x):
-    x = get_ov_output(x)
-    return OpenVINOKerasTensor(ov_opset.is_inf(x).output(0))
+    pos_inf = get_ov_output(isposinf(x))
+    neg_inf = get_ov_output(isneginf(x))
+    inf = ov_opset.logical_or(pos_inf, neg_inf).output(0)
+    return OpenVINOKerasTensor(inf)
 
 
 def isnan(x):
@@ -1050,6 +1052,15 @@ def isnan(x):
 
 
 def isneginf(x):
+    return _is_inf(x, pos=False)
+
+
+def isposinf(x):
+    return _is_inf(x)
+
+
+def _is_inf(x, pos=True):
+    inf_value = np.inf if pos else -np.inf
     x = get_ov_output(x)
     x_type = x.get_element_type()
 
@@ -1062,26 +1073,19 @@ def isneginf(x):
 
     if x_type == Type.bf16:
         x_f32 = ov_opset.convert(x, Type.f32).output(0)
-        neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
-        is_neg_inf = ov_opset.equal(x_f32, neg_inf).output(0)
+        inf = ov_opset.constant(inf_value, Type.f32).output(0)
+        is_inf = ov_opset.equal(x_f32, inf).output(0)
     else:
         if x_type == Type.f16:
-            neg_inf = ov_opset.constant(-np.inf, Type.f16).output(0)
+            inf = ov_opset.constant(inf_value, Type.f16).output(0)
         elif x_type == Type.f32:
-            neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
+            inf = ov_opset.constant(inf_value, Type.f32).output(0)
         elif x_type == Type.f64:
-            neg_inf = ov_opset.constant(-np.inf, Type.f64).output(0)
+            inf = ov_opset.constant(inf_value, Type.f64).output(0)
         else:
-            neg_inf = ov_opset.constant(-np.inf, Type.f32).output(0)
-        is_neg_inf = ov_opset.equal(x, neg_inf).output(0)
-
-    return OpenVINOKerasTensor(is_neg_inf)
-
-
-def isposinf(x):
-    raise NotImplementedError(
-        "`isposinf` is not supported with openvino backend"
-    )
+            inf = ov_opset.constant(inf_value, Type.f32).output(0)
+        is_inf = ov_opset.equal(x, inf).output(0)
+    return OpenVINOKerasTensor(is_inf)
 
 
 def isreal(x):
