@@ -381,4 +381,26 @@ class RNNTest(testing.TestCase):
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         self.run_class_serialization_test(layer)
 
+    def test_stateful_batch_size_mismatch_raises(self):
+        from keras.src.models import Functional
+
+        batch_size = 4
+        timesteps = 5
+        features = 3
+
+        layer = layers.RNN(TwoStatesRNNCell(2), stateful=True)
+        inputs = layers.Input(
+            shape=(timesteps, features), batch_size=batch_size
+        )
+        model = Functional(inputs, layer(inputs))
+
+        # Call once with correct batch size
+        x = ops.random.uniform(shape=(batch_size, timesteps, features))
+        _ = model(x)
+
+        # Expect ValueError when called with incorrect batch size
+        with self.assertRaisesRegex(ValueError, "batch size"):
+            x_bad = ops.random.uniform(shape=(1, timesteps, features))
+            model(x_bad)
+
     # TODO: test masking
