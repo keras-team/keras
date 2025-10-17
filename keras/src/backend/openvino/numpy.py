@@ -257,6 +257,17 @@ def _resolve_axis(x, axis):
     return x, axis
 
 
+def _upcast_type_if_needed(x):
+    x_type = x.get_element_type()
+    if x_type == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
+    elif x_type in (Type.i8, Type.i16):
+        x = ov_opset.convert(x, Type.i32).output(0)
+    elif x_type in (Type.u8, Type.u16):
+        x = ov_opset.convert(x, Type.u32).output(0)
+    return x
+
+
 def append(x1, x2, axis=None):
     x1, x2 = get_ov_output(x1), get_ov_output(x2)
     x1, x2 = _align_operand_types(x1, x2, "append()")
@@ -626,6 +637,9 @@ def ceil(x):
 
 def clip(x, x_min, x_max):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
     x_min = get_ov_output(x_min, x.get_element_type())
     x_max = get_ov_output(x_max, x.get_element_type())
     clip_by_min = ov_opset.maximum(x, x_min).output(0)
@@ -1751,23 +1765,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         x = ov_opset.convert(x, ov_dtype).output(0)
     # Otherwise, apply dtype promotion rules before reduction.
     else:
-        x_type = x.get_element_type()
-        if x_type == Type.boolean:
-            x = ov_opset.convert(x, Type.i32).output(0)
-        elif x_type in (Type.i8, Type.i16):
-            x = ov_opset.convert(x, Type.i32).output(0)
-        elif x_type in (Type.u8, Type.u16):
-            x = ov_opset.convert(x, Type.u32).output(0)
-
+        x = _upcast_type_if_needed(x)
+    x, axis = _resolve_axis(x, axis)
     if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-
-    if isinstance(axis, tuple):
-        axis = list(axis)
-    axis = ov_opset.constant(axis, Type.i32).output(0)
-
+        return OpenVINOKerasTensor(x)
     # Compute the product
     result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
 
@@ -2328,6 +2329,9 @@ def negative(x):
 
 def square(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
     const_two = ov_opset.constant(2, x.get_element_type()).output(0)
     return OpenVINOKerasTensor(ov_opset.power(x, const_two).output(0))
 
@@ -2394,12 +2398,12 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     x = get_ov_output(x)
+    x, axis = _resolve_axis(x, axis)
     if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    axis = ov_opset.constant(axis, Type.i32).output(0)
-    return OpenVINOKerasTensor(ov_opset.reduce_sum(x, axis, keepdims).output(0))
+        return OpenVINOKerasTensor(x)
+    x = _upcast_type_if_needed(x)
+    summed_value = ov_opset.reduce_sum(x, axis, keepdims).output(0)
+    return OpenVINOKerasTensor(summed_value)
 
 
 def eye(N, M=None, k=0, dtype=None):

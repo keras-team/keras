@@ -44,10 +44,8 @@ NumpyDtypeTest::test_roll
 NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
-NumpyDtypeTest::test_sqrt
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
-NumpyDtypeTest::test_sum
 NumpyDtypeTest::test_swapaxes
 NumpyDtypeTest::test_tensordot_
 NumpyDtypeTest::test_tile
@@ -57,8 +55,6 @@ NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_vdot
 NumpyDtypeTest::test_vstack
-NumpyDtypeTest::test_clip_bool
-NumpyDtypeTest::test_square_bool
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_argpartition
@@ -103,7 +99,6 @@ NumpyOneInputOpsCorrectnessTest::test_size
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_squeeze
 NumpyOneInputOpsCorrectnessTest::test_std
-NumpyOneInputOpsCorrectnessTest::test_sum
 NumpyOneInputOpsCorrectnessTest::test_swapaxes
 NumpyOneInputOpsCorrectnessTest::test_tile
 NumpyOneInputOpsCorrectnessTest::test_trace
