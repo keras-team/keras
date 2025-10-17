@@ -1,25 +1,22 @@
-import os
-
-os.environ["KERAS_BACKEND"] = "jax"
-
 import numpy as np
 import pytest
 
 import keras
 from keras import ops
-from keras.src import backend
 from keras.src import optimizers
 from keras.src import testing
+
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
     CoordinatedOptimizer,
 )
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-    TensorParallelOptimizer,
+    TensorParallelOptimizer
 )
-
+from keras.src import backend
 
 @pytest.mark.skipif(
-    backend.backend() != "jax", reason="This test is only for the JAX backend."
+    backend.backend() != "jax",
+    reason="This test is for the JAX backend only.",
 )
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
@@ -29,12 +26,12 @@ class CoordinatedOptimizerTest(testing.TestCase):
         outputs = keras.layers.Dense(5, name="dense_2")(x)
         return keras.Model(inputs, outputs)
 
-    def _get_mock_gradients_and_vars(self, model, world_size):
+    def _get_mock_gradients_and_vars(self, model, device_count):
         """Generates mock gradients and variables for N shards."""
         model.build(input_shape=(None, 10))
         variables = model.trainable_variables
         grads_and_vars_per_shard = []
-        for i in range(world_size):
+        for i in range(device_count):
             multiplier = float(i + 1)
             gradients = [
                 ops.convert_to_tensor(
@@ -48,7 +45,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
     def test_initialization(self):
         """Tests that the optimizer initializes with the correct defaults."""
         base_optimizer = optimizers.Adam()
-        coord = CoordinatedOptimizer(base_optimizer, world_size=4)
+        coord = CoordinatedOptimizer(base_optimizer, device_count=4)
         self.assertEqual(coord.base_optimizer, base_optimizer)
         self.assertTrue(coord.shard_optimizer_states)
         self.assertEqual(coord.sharded_states, {})
@@ -67,15 +64,15 @@ class CoordinatedOptimizerTest(testing.TestCase):
                 self.received_grads = [g for g, v in grads_and_vars]
                 super().apply_gradients(grads_and_vars, *args, **kwargs)
 
-        world_size = 4
+        device_count = 4
         model = self._get_simple_model()
         optimizer = AdamWithCallCounter()
         model.build((None, 10))
-        mock_grads = self._get_mock_gradients_and_vars(model, world_size)
+        mock_grads = self._get_mock_gradients_and_vars(model, device_count)
 
         coord = CoordinatedOptimizer(
             optimizer,
-            world_size,
+            device_count,
             shard_optimizer_states=False,
         )
         coord.apply_gradients(mock_grads, [])
@@ -88,16 +85,16 @@ class CoordinatedOptimizerTest(testing.TestCase):
         )
 
     def test_init_from_string(self):
-        optimizer = TensorParallelOptimizer("adam", world_size=4)
+        optimizer = TensorParallelOptimizer("adam", device_count=4)
         self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
 
     def test_apply_gradients_delegation(self):
         """Tests that apply_gradients correctly delegates."""
-        world_size = 4
+        device_count = 4
         base_opt = optimizers.Adam()
-        optimizer = TensorParallelOptimizer(base_opt, world_size)
+        optimizer = TensorParallelOptimizer(base_opt, device_count)
         model = self._get_simple_model()
-        mock_grads = self._get_mock_gradients_and_vars(model, world_size)
+        mock_grads = self._get_mock_gradients_and_vars(model, device_count)
 
         coord_apply_tracker = {"called": False}
 
@@ -125,7 +122,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
     def test_build_and_state_sharding(self):
         """Tests that the build method correctly initializes sharded states."""
-        optimizer = TensorParallelOptimizer(optimizers.Adam(), world_size=4)
+        optimizer = TensorParallelOptimizer(optimizers.Adam(), device_count=4)
         model = self._get_simple_model()
         model.build(input_shape=(None, 10))
 
@@ -145,18 +142,17 @@ class CoordinatedOptimizerTest(testing.TestCase):
         )
 
     def test_serialization(self):
-        world_size = 4
+        device_count = 4
         base_opt = optimizers.Adam(learning_rate=0.1)
         optimizer = TensorParallelOptimizer(
-            base_opt, world_size, distributed_backend=None
-        )
+            base_opt, device_count
+        ) 
 
         config = optimizer.get_config()
         recreated = TensorParallelOptimizer.from_config(config)
 
-        self.assertEqual(recreated.world_size, world_size)
+        self.assertEqual(recreated.device_count, device_count)
         self.assertIsInstance(recreated.base_optimizer, optimizers.Adam)
-        self.assertIsNone(recreated.distributed_backend)
         self.assertAllClose(recreated.base_optimizer.learning_rate, 0.1)
 
     def test_sharding_with_prefixed_variable_names(self):
@@ -167,7 +163,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
         model = keras.Model(inputs, outputs)
         model.build(input_shape=(None, 10))
 
-        optimizer = TensorParallelOptimizer(optimizers.Adam(), world_size=2)
+        optimizer = TensorParallelOptimizer(optimizers.Adam(), device_count=2)
         optimizer.build(model.trainable_variables)
 
         state_to_param = (
@@ -176,8 +172,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertGreater(len(state_to_param), 0)
 
         dense_output_kernel = model.get_layer("dense_output").kernel
-        optimizer_name = optimizer.base_optimizer.name
-        kernel_path = dense_output_kernel.path.replace("/", "_")
-        momentum_path = f"{optimizer_name}/{kernel_path}_momentum"
+        momentum_path = f"{optimizer.base_optimizer.name}/{dense_output_kernel.path.replace('/', '_')}_momentum"
 
         self.assertIs(state_to_param[momentum_path], dense_output_kernel)
