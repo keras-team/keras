@@ -3846,6 +3846,35 @@ def isposinf(x):
     return backend.numpy.isposinf(x)
 
 
+class Isreal(Operation):
+    def call(self, x):
+        return backend.numpy.isreal(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isreal", "keras.ops.numpy.isreal"])
+def isreal(x):
+    """Test element-wise for real numbers.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+
+    Example:
+        >>> from keras import ops
+        >>> x = ops.array([1+1j, 1+0j, 4.5, 3, 2, 2j], dtype="complex64")
+        >>> ops.isreal(x)
+        array([False,  True,  True,  True,  True, False])
+    """
+    if any_symbolic_tensors((x,)):
+        return Isreal().symbolic_call(x)
+    return backend.numpy.isreal(x)
+
+
 class Kron(Operation):
     def call(self, x1, x2):
         return backend.numpy.kron(x1, x2)
@@ -6336,8 +6365,13 @@ class Trace(Operation):
         x_shape[self.axis2] = -1
         output_shape = list(filter((-1).__ne__, x_shape))
         output_dtype = backend.standardize_dtype(x.dtype)
-        if output_dtype not in ("int64", "uint32", "uint64"):
-            output_dtype = dtypes.result_type(output_dtype, "int32")
+        if output_dtype in ("bool", "int8", "int16"):
+            output_dtype = "int32"
+        elif output_dtype in ("uint8", "uint16"):
+            output_dtype = "uint32"
+        if output_dtype == "uint32" and backend.backend() == "torch":
+            # Torch backend doesn't support uint32 dtype.
+            output_dtype = "int32"
         return KerasTensor(output_shape, dtype=output_dtype)
 
 
@@ -7228,6 +7262,19 @@ def eye(N, M=None, k=0, dtype=None):
     Returns:
         Tensor with ones on the k-th diagonal and zeros elsewhere.
     """
+
+    def is_floating_type(v):
+        return (
+            isinstance(v, float)
+            or getattr(v, "dtype", None) in dtypes.FLOAT_TYPES
+        )
+
+    if is_floating_type(N):
+        raise TypeError("Argument `N` must be an integer or an integer tensor.")
+    if is_floating_type(M):
+        raise TypeError(
+            "Argument `M` must be an integer, an integer tensor, or `None`."
+        )
     return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
 
 

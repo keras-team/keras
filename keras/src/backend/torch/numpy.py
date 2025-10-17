@@ -946,6 +946,11 @@ def isposinf(x):
     return torch.isposinf(x)
 
 
+def isreal(x):
+    x = convert_to_tensor(x)
+    return torch.isreal(x)
+
+
 def kron(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1641,8 +1646,9 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype != "int64":
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16", "uint8"):
+        # Torch backend doesn't support uint32 dtype.
+        dtype = "int32"
     return torch.sum(
         torch.diagonal(x, offset, axis1, axis2),
         dim=-1,
