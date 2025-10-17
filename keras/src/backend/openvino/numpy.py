@@ -2352,6 +2352,8 @@ def squeeze(x, axis=None):
         for idx, dim in enumerate(x.get_partial_shape()):
             if dim == 1:
                 axis.append(idx)
+    if isinstance(axis, tuple):
+        axis = list(axis)
     axis = ov_opset.constant(axis, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.squeeze(x, axis).output(0))
 

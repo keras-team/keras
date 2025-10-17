@@ -97,7 +97,6 @@ NumpyOneInputOpsCorrectnessTest::test_select
 NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_size
 NumpyOneInputOpsCorrectnessTest::test_slogdet
-NumpyOneInputOpsCorrectnessTest::test_squeeze
 NumpyOneInputOpsCorrectnessTest::test_std
 NumpyOneInputOpsCorrectnessTest::test_swapaxes
 NumpyOneInputOpsCorrectnessTest::test_tile
