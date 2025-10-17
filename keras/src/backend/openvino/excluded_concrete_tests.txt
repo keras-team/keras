@@ -13,7 +13,6 @@ NumpyDtypeTest::test_hypot
 NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_cbrt
-NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_corrcoef
 NumpyDtypeTest::test_correlate

@@ -621,7 +621,11 @@ def cbrt(x):
 
 def ceil(x):
     x = get_ov_output(x)
-    return OpenVINOKerasTensor(ov_opset.ceil(x).output(0))
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
+    ceiling = ov_opset.ceil(x).output(0)
+    return OpenVINOKerasTensor(ceiling)
 
 
 def clip(x, x_min, x_max):
