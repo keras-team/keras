@@ -1,7 +1,7 @@
 """Utilities for distribution strategy with JAX backend."""
 
 import jax
-import jax.lax as lax  # <-- Added import
+import jax.lax as lax
 import numpy as np
 
 from keras.src.backend.common import global_state
