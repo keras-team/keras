@@ -1791,10 +1791,13 @@ def transpose(x, axes=None):
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
     y = convert_to_tensor(y)
+    if standardize_dtype(y.dtype) == "bool":
+        y = cast(y, config.floatx())
     if x is not None:
         x = convert_to_tensor(x)
         return torch.trapz(y, x=x, dim=axis)
     else:
+        dx = convert_to_tensor(dx)
         return torch.trapz(y, dx=dx, dim=axis)
 
 

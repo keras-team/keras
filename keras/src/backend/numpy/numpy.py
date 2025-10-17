@@ -1338,10 +1338,11 @@ def transpose(x, axes=None):
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
     y = convert_to_tensor(y)
+    result_dtype = dtypes.result_type(y.dtype, float)
     if x is not None:
         x = convert_to_tensor(x)
     dx = convert_to_tensor(dx)
-    return np.trapezoid(y, x, dx=dx, axis=axis)
+    return np.trapezoid(y, x, dx=dx, axis=axis).astype(result_dtype)
 
 
 def var(x, axis=None, keepdims=False):

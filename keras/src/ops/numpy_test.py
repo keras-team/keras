@@ -3604,6 +3604,21 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.any(x, axis=1, keepdims=True),
         )
 
+    def test_trapezoid(self):
+        y = np.random.random((3, 3, 3))
+        x = np.random.random((3, 3, 3))
+        dx = np.random.random((3, 3, 3))
+
+        self.assertAllClose(knp.trapezoid(y), np.trapezoid(y))
+        self.assertAllClose(knp.trapezoid(y, x), np.trapezoid(y, x))
+        self.assertAllClose(
+            knp.trapezoid(y, x, dx=dx), np.trapezoid(y, x, dx=dx)
+        )
+        self.assertAllClose(
+            knp.trapezoid(y, x, dx=dx, axis=1),
+            np.trapezoid(y, x, dx=dx, axis=1),
+        )
+
     def test_var(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.var(x), np.var(x))
@@ -8965,6 +8980,24 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.trunc(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Trunc().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_trapezoid(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2,), dtype=dtype)
+        x_jax = jnp.ones((2,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.trapezoid(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(
+            standardize_dtype(knp.trapezoid(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Trapezoid().symbolic_call(x).dtype),
             expected_dtype,
         )
 

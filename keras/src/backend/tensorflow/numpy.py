@@ -2994,7 +2994,8 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         return tensor
 
     y = convert_to_tensor(y)
-    dtype = y.dtype
+    dtype = dtypes.result_type(y.dtype, float)
+    y = tf.cast(y, dtype)
 
     if x is None:
         dx_array = tf.cast(dx, dtype)
