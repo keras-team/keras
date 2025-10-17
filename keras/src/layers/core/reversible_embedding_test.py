@@ -154,10 +154,19 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
     @parameterized.named_parameters(
-        ("tie_weights", True),
-        ("untie_weights", False),
+        ("int8_tie_weights", "int8_from_mixed_bfloat16", True, 0, 2),
+        ("int8_untie_weights", "int8_from_mixed_bfloat16", False, 0, 4),
+        ("int4_tie_weights", "int4_from_mixed_bfloat16", True, 0, 2),
+        ("int4_untie_weights", "int4_from_mixed_bfloat16", False, 0, 4),
     )
-    def test_quantize_dtype_argument(self, tie_weights):
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_dtype_argument(
+        self,
+        dtype,
+        tie_weights,
+        num_trainable_weights,
+        num_non_trainable_weights,
+    ):
         self.run_layer_test(
             layers.ReversibleEmbedding,
             init_kwargs={
@@ -165,11 +174,11 @@ class ReversibleEmbeddingTest(test_case.TestCase):
                 "output_dim": 32,
                 "tie_weights": tie_weights,
                 "embeddings_initializer": "HeNormal",
-                "dtype": "int8_from_float32",
+                "dtype": dtype,
             },
             input_data=np.random.randint(low=0, high=100, size=(4, 10)),
             expected_output_shape=(4, 10, 32),
-            expected_num_trainable_weights=0,
-            expected_num_non_trainable_weights=2 if tie_weights else 4,
-            expected_num_non_trainable_variables=2 if tie_weights else 4,
+            expected_num_trainable_weights=num_trainable_weights,
+            expected_num_non_trainable_weights=num_non_trainable_weights,
+            expected_num_non_trainable_variables=num_non_trainable_weights,
         )
