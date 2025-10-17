@@ -1,9 +1,6 @@
 NumPyTestRot90
-NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
-NumpyDtypeTest::test_all
 NumpyDtypeTest::test_angle
-NumpyDtypeTest::test_any
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_bartlett

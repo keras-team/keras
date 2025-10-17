@@ -181,6 +181,9 @@ def zeros(shape, dtype=None):
 
 def absolute(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type == Type.boolean:
+        return OpenVINOKerasTensor(x)
     return OpenVINOKerasTensor(ov_opset.absolute(x).output(0))
 
 
@@ -196,6 +199,7 @@ def all(x, axis=None, keepdims=False):
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
     axis = ov_opset.constant(axis, Type.i32).output(0)
+    x = ov_opset.convert(x, Type.boolean).output(0)
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     )
@@ -212,6 +216,7 @@ def any(x, axis=None, keepdims=False):
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
     axis = ov_opset.constant(axis, Type.i32).output(0)
+    x = ov_opset.convert(x, Type.boolean).output(0)
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
     )
