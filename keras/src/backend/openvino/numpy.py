@@ -1031,6 +1031,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 
 def isfinite(x):
+    # NOTE: openvino has an is_finite operation but it does not properly
+    # catch np.inf and -np.inf as not finite values. Hence we bootstrap here. If
+    # that ever changes, we could simplify this to just call that operation.
     inf_values = get_ov_output(isinf(x))
     nan_values = get_ov_output(isnan(x))
     all_non_finite_values = ov_opset.logical_or(inf_values, nan_values).output(
@@ -1068,6 +1071,11 @@ def isposinf(x):
 
 
 def _is_inf(x, pos=True):
+    # NOTE: there is an ov_opset.is_inf but it does not catch
+    # numpy infinite values like np.inf and -np.inf, hence why we have this
+    # if this ever changes in OpenVINO, we can do this instead:
+    # ov_opset.is_inf(x, {"detect_positive": pos, "detect_negative": not pos})
+    # for each infinite sign
     inf_value = np.inf if pos else -np.inf
     x = get_ov_output(x)
     x_type = x.get_element_type()
