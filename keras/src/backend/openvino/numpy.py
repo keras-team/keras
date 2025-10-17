@@ -2334,6 +2334,10 @@ def square(x):
 
 def sqrt(x):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
     return OpenVINOKerasTensor(ov_opset.sqrt(x).output(0))
 
 
