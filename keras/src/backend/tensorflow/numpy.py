@@ -2985,39 +2985,28 @@ def transpose(x, axes=None):
 
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
+    def _move_axis_to_last(tensor, axis):
+        if axis != -1 and tensor.shape.rank is not None:
+            perm = list(range(tensor.shape.rank))
+            perm.pop(axis)
+            perm.append(axis)
+            tensor = tf.transpose(tensor, perm)
+        return tensor
+
     y = convert_to_tensor(y)
     dtype = y.dtype
-
-    if not dtype.is_floating and not dtype.is_complex:
-        dtype = tf.float32
-        y = tf.cast(y, dtype)
 
     if x is None:
         dx_array = tf.cast(dx, dtype)
     else:
         x = convert_to_tensor(x, dtype=dtype)
+        dx_array = diff(x, axis=axis)
+        dx_array = _move_axis_to_last(dx_array, axis)
 
-        dx_array = (
-            x[..., 1:] - x[..., :-1] if axis == -1 else diff(x, axis=axis)
-        )
-        if x.shape.rank > 1 and axis != -1:
-            perm = list(range(x.shape.rank))
-            perm.pop(axis)
-            perm.append(axis)
-            dx_array = tf.transpose(dx_array, perm)
-
-    if axis != -1:
-        perm = list(range(y.shape.rank))
-        perm.pop(axis)
-        perm.append(axis)
-        y = tf.transpose(y, perm)
+    y = _move_axis_to_last(y, axis)
 
     avg_heights = 0.5 * (y[..., 1:] + y[..., :-1])
-
-    if x is not None:
-        result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
-    else:
-        result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
+    result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
 
     return result
 
