@@ -18,7 +18,6 @@ try:
     from sklearn.base import ClassifierMixin
     from sklearn.base import RegressorMixin
     from sklearn.base import TransformerMixin
-    from sklearn.utils._array_api import get_namespace
 except ImportError:
     sklearn = None
 
