@@ -60,9 +60,7 @@ NumpyDtypeTest::test_vstack
 NumpyDtypeTest::test_clip_bool
 NumpyDtypeTest::test_square_bool
 HistogramTest
-NumpyOneInputOpsCorrectnessTest::test_all
 NumpyOneInputOpsCorrectnessTest::test_angle
-NumpyOneInputOpsCorrectnessTest::test_any
 NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_bartlett

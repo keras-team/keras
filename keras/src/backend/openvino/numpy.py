@@ -194,11 +194,9 @@ def abs(x):
 
 def all(x, axis=None, keepdims=False):
     x = get_ov_output(x)
+    x, axis = _resolve_axis(x, axis)
     if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    axis = ov_opset.constant(axis, Type.i32).output(0)
+        return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
@@ -211,11 +209,9 @@ def angle(x):
 
 def any(x, axis=None, keepdims=False):
     x = get_ov_output(x)
+    x, axis = _resolve_axis(x, axis)
     if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    axis = ov_opset.constant(axis, Type.i32).output(0)
+        return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
