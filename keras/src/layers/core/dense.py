@@ -288,6 +288,10 @@ class Dense(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
+        if mode == "gptq":
+            # A saved quantized model will always be calibrated.
+            self.is_gptq_calibrated = True
+
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
