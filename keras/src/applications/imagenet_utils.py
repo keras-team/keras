@@ -295,7 +295,9 @@ def _preprocess_tensor_input(x, data_format, mode):
             elif ndim == 4:
                 std_tensor = ops.reshape(std_tensor, (1, 3, 1, 1))
             else:
-                raise ValueError(f"Unsupported shape for channels_first: {x.shape}")
+                raise ValueError(
+                    f"Unsupported shape for channels_first: {x.shape}"
+                )
         else:
             std_tensor = ops.reshape(std_tensor, (1,) * (ndim - 1) + (3,))
         x /= std_tensor
