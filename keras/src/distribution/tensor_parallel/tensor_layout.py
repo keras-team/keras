@@ -1,71 +1,9 @@
+import collections
+
 import keras
 
 
-class LayoutAction:
-    """Abstract base class for actions that transform tensors for distribution.
-
-    A LayoutAction defines a rule for how a single tensor should be physically
-    represented across multiple devices. It includes a forward operation
-    (`__call__`) to shard the tensor and a reverse operation (`undo`)
-    to reconstruct it."""
-
-    def __call__(self, tensor, rank):
-        """Applies the distribution action to a tensor for a specific worker.
-
-        Args:
-            tensor: The input tensor to be distributed.
-            rank: The integer rank of the current worker/device.
-
-        Raises:
-            NotImplementedError: This is an abstract method and must be
-                implemented by subclasses.
-
-        Returns:
-            A shard or transformation of the input tensor specific to the given
-            rank.
-        """
-        raise NotImplementedError
-
-    def undo(self, tensors):
-        """Reverses the distribution action, reconstructing the original tensor.
-
-        Args:
-            tensors: A sequence of tensor shards, one from each worker.
-
-        Raises:
-            NotImplementedError: This is an abstract method and must be
-                implemented by subclasses.
-
-        Returns:
-            The reconstructed, single tensor.
-        """
-        raise NotImplementedError
-
-
-class _ConcatenateMixin:
-    """A mixin class providing a common `undo` method via concatenation.
-
-    This class is intended to be used as a mixin for `LayoutAction` subclasses
-    that can be undone by simple concatenation along a specified axis.
-    """
-
-    def undo(self, tensors):
-        """Concatenates a sequence of tensors to reconstruct original tensor.
-
-        Args:
-            tensors: A sequence of tensor shards, one from each worker.
-
-        Returns:
-            The single tensor reconstructed by concatenating the shards.
-        """
-        if self.dim == -1:
-            dim = keras.ops.ndim(tensors[0]) - 1
-        else:
-            dim = self.dim
-        return keras.ops.concatenate(tensors, axis=dim)
-
-
-class Split(_ConcatenateMixin, LayoutAction):
+class Split:
     """Splits a tensor into shards along a specified dimension.
 
     This is an internal utility used by a higher-level distribution API.
@@ -73,23 +11,20 @@ class Split(_ConcatenateMixin, LayoutAction):
     It handles cases where the dimension size is not perfectly divisible by the
     number of workers by distributing the remainder elements one by one to the
     first few workers.
-
-    The `undo` operation is provided by the `_ConcatenateMixin`.
     """
 
-    def __init__(self, world_size, dim, sharding_type="auto"):
+    def __init__(self, device_count, dim, sharding_type="auto"):
         """Initializes the Split action.
 
         Args:
-            world_size: The total number of workers/shards.
+            device_count: The total number of workers/shards.
             dim: The dimension along which to split the tensor. If -1, the
                 last dimension is used.
             sharding_type: If `dim` is -1, this can be 'row' (dim=0) or
                 'column' (dim=1) to infer the split axis for 2D tensors.
                 Defaults to "auto".
         """
-        super().__init__()
-        self.world_size = world_size
+        self.device_count = device_count
         self.dim = dim
         self.sharding_type = sharding_type
 
@@ -118,8 +53,8 @@ class Split(_ConcatenateMixin, LayoutAction):
             dim = self.dim
 
         total_size = tensor.shape[dim]
-        split_size = total_size // self.world_size
-        remainder = total_size % self.world_size
+        split_size = total_size // self.device_count
+        remainder = total_size % self.device_count
 
         start_idx = rank * split_size + min(rank, remainder)
         end_idx = start_idx + split_size + (1 if rank < remainder else 0)
@@ -129,41 +64,4 @@ class Split(_ConcatenateMixin, LayoutAction):
         return tensor[tuple(slices)]
 
 
-class LayoutMap:
-    """A mapping that defines layout rules for model states and outputs.
-
-    This is an internal configuration object used to hold layout rules for
-    how model variables and layer outputs should be distributed across a set
-    of devices. It acts as a container for `LayoutAction` instances.
-
-    Attributes:
-        state_rules: A dictionary mapping variable names or patterns to
-            `LayoutAction` instances.
-        output_rules: A dictionary mapping layer output names or
-            patterns to `LayoutAction` instances.
-    """
-
-    def __init__(self, state_rules, output_rules):
-        """Initializes the LayoutMap.
-
-        Args:
-            state_rules: A dictionary of distribution rules for model states.
-            output_rules: A dictionary of distribution rules for model outputs.
-        """
-        self.state_rules = state_rules
-        self.output_rules = output_rules
-
-    def create_collective_ops(self, devices):
-        """Creates the necessary collective communication operations.
-
-        This method is a placeholder for backend-specific logic that would
-        translate the layout rules into actual communication primitives
-        (e.g., all-gather, reduce-scatter).
-
-        Args:
-            devices: A sequence of device identifiers.
-
-        Returns:
-            The `LayoutMap` instance itself, allowing for method chaining.
-        """
-        return self
+LayoutMap = collections.namedtuple("LayoutMap", ["state_rules", "output_rules"])

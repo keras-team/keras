@@ -10,7 +10,6 @@ from keras.src.utils import jax_utils
 from keras.src.utils import rng_utils
 
 
-
 def list_devices(device_type=None):
     """Return all the available devices based on the device type.
 
@@ -32,38 +31,11 @@ def list_devices(device_type=None):
 def get_device_count():
     """Returns the number of local JAX devices.
 
-    This function is based on the reviewer's suggestion to replace
-    `is_multi_device_capable` with a function that returns the actual count.
-
     Returns:
-        int: The total count of local JAX devices.
+        int: The total number of devices configured in the current distribution
+             strategy.
     """
     return jax.local_device_count()
-
-
-def get_device_info(device_id):
-    """
-    Get detailed information about a specific device.
-
-    Args:
-        device_id: Device identifier (e.g., 'gpu:0', 'tpu:0', 'cpu:0')
-
-    Returns:
-        Dictionary containing device information
-    """
-    device_info = {
-        "id": device_id,
-        "type": None,
-        "index": None,
-        "memory": None,
-        "capabilities": None,
-    }
-
-    device_type, device_index = device_id.split(":")
-    device_info["type"] = device_type.upper()
-    device_info["index"] = int(device_index)
-
-    return device_info
 
 
 def get_best_devices(count=1):
@@ -85,103 +57,6 @@ def get_best_devices(count=1):
         count = len(all_devices)
 
     return all_devices[:count]
-
-
-def get_device_backend(device_type):
-    """
-    Get the recommended backend for a device type.
-
-    Args:
-        device_type: Device type ('tpu', 'gpu', 'cpu')
-
-    Returns:
-        Recommended backend name
-    """
-    backend_mapping = {"tpu": "jax", "gpu": "jax", "cpu": "jax"}
-
-    return backend_mapping.get(device_type.lower(), "jax")
-
-
-def validate_device_placement(device_id):
-    """
-    Validate if a device can be used for tensor operations.
-
-    Args:
-        device_id: Device identifier
-
-    Returns:
-        True if device is valid and available
-    """
-    all_devices = list_devices()
-    return device_id in all_devices
-
-
-def get_device_memory_info(device_id):
-    """
-    Get memory information for a device (if available).
-
-    Args:
-        device_id: Device identifier
-
-    Returns:
-        Memory information dictionary or None if not available
-    """
-    if device_id.startswith("gpu:"):
-        return {
-            "type": "GPU",
-            "index": int(device_id.split(":")[1]),
-            "memory": "Available",
-        }
-    elif device_id.startswith("tpu:"):
-        return {
-            "type": "TPU",
-            "index": int(device_id.split(":")[1]),
-            "memory": "TPU Memory",
-        }
-    elif device_id.startswith("cpu:"):
-        return {
-            "type": "CPU",
-            "index": int(device_id.split(":")[1]),
-            "memory": "System RAM",
-        }
-
-    return None
-
-
-def auto_configure_tensor_parallel(
-    world_size, backend
-):
-    """
-    Automatically configure tensor parallelism with the best available devices.
-
-    Args:
-        world_size: Number of devices to use (if None, uses all available)
-        backend: Backend to use (if None, will be set to 'jax')
-
-    Returns:
-        Configuration dictionary with devices, backend, and other settings
-    """
-    all_devices = list_devices()
-
-    if not all_devices:
-        raise RuntimeError("No devices available for tensor parallelism")
-
-    if world_size is None:
-        world_size = len(all_devices)
-    else:
-        world_size = min(world_size, len(all_devices))
-
-    selected_devices = all_devices[:world_size]
-
-    recommended_backend = "jax"
-
-    config = {
-        "devices": selected_devices,
-        "world_size": world_size,
-        "backend": recommended_backend,
-    }
-
-    return config
 
 
 def distribute_variable(value, layout):
@@ -355,18 +230,31 @@ def process_id():
     return jax.process_index()
 
 
-# --- ADDED COLLECTIVE OPS ---
+def all_reduce(x, op="sum", axis_name="model"):
+    """
+    Performs an **all-reduce** operation across all replicas in the specified
+    distribution axis.
 
+    The all-reduce operation computes a reduction (like sum, mean, or product)
+    of the input tensor `x` across all devices/replicas in the `axis_name`
+    group, and then broadcasts the result back to all participating devices.
 
-def all_reduce(x, op="sum", axis_name="model"):  # <-- ADDED
-    """Reduces a tensor across a device mesh axis using a collective."""
+    Args:
+        x: The tensor to reduce.
+        op: The reduction operation to perform. Common options include "sum",
+            "mean", or "product". Defaults to "sum".
+        axis_name: The name of the distribution axis (e.g., "model",
+            "data") over which to perform the reduction. Defaults to "model".
+
+    Returns:
+        The result of the all-reduce operation, with the same shape as the
+        input `x`.
+    """
     if op == "sum":
         return lax.psum(x, axis_name=axis_name)
     elif op == "mean":
-        # FIX: Manual mean calculation using psum(x) / psum(1) for reliability
         sum_val = lax.psum(x, axis_name=axis_name)
-        # Calculates the size of the axis reliably within the traced context
-        axis_size = lax.psum(1, axis_name=axis_name) 
+        axis_size = lax.psum(1, axis_name=axis_name)
         return sum_val / axis_size
     else:
         raise ValueError(
@@ -375,29 +263,28 @@ def all_reduce(x, op="sum", axis_name="model"):  # <-- ADDED
         )
 
 
-def all_gather(x, axis, axis_name="model"):  # <-- ADDED
-    """Gathers and concatenates tensors from all devices across a mesh axis.
+def all_gather(x, axis, axis_name="model"):
+    """
+    Performs an all-gather operation across all replicas in the specified
+    distribution axis.
 
-    This function assumes it is called within a `pjit` context. It takes
-    the local shard `x` from each device along the `axis_name` of the mesh
-    and concatenates them along the specified tensor `axis` to form a
-    single, larger tensor that is then replicated on all participating devices.
+    The all-gather operation collects the input tensor `x` from all devices
+    in the `axis_name` group and concatenates them along the specified `axis`.
+    This is often used in tensor parallelism to combine parts of a tensor
+    distributed across devices.
 
     Args:
-        x (jax.Array): The input JAX array (tensor) shard on the local device.
-        axis (int): The tensor axis along which to concatenate the gathered
-            shards.
-        axis_name (str, optional): The name of the mesh axis to gather
-            from. Defaults to 'model'.
+        x: The tensor to gather.
+        axis: The dimension along which to concatenate the gathered tensors.
+        axis_name: The name of the distribution axis (e.g., "model",
+                                   "data") over which to perform the gather.
+                                   Defaults to "model".
 
     Returns:
-        jax.Array: The full, gathered JAX array, which is identical across
-        all devices participating in the gather.
+        The gathered tensor, which will have a larger size along `axis`
+        dimension.
     """
     return lax.all_gather(x, axis_name=axis_name, axis=axis, tiled=True)
-
-
-# --- END ADDED COLLECTIVE OPS ---
 
 
 def _to_backend_device(device_name):
