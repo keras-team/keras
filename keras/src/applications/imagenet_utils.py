@@ -280,7 +280,7 @@ def _preprocess_tensor_input(x, data_format, mode):
     if data_format == "channels_first":
         if ndim == 3:
             mean_tensor = ops.reshape(mean_tensor, (3, 1, 1))
-        elif ndim ==4:
+        elif ndim == 4:
             mean_tensor = ops.reshape(mean_tensor, (1, 3, 1, 1))
         else:
             raise ValueError(f"Unsupported shape for channels_first: {x.shape}")
@@ -290,7 +290,14 @@ def _preprocess_tensor_input(x, data_format, mode):
     if std is not None:
         std_tensor = ops.convert_to_tensor(np.array(std), dtype=x.dtype)
         if data_format == "channels_first":
-            std_tensor = ops.reshape(std_tensor, (-1, 1, 1))
+            if ndim == 3:
+                std_tensor = ops.reshape(std_tensor, (3, 1, 1))
+            elif ndim == 4:
+                std_tensor = ops.reshape(std_tensor, (1, 3, 1, 1))
+            else:
+                raise ValueError(f"Unsupported shape for channels_first: {x.shape}")
+        else:
+            std_tensor = ops.reshape(std_tensor, (1,) * (ndim - 1) + (3,))
         x /= std_tensor
     return x
 
