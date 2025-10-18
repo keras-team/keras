@@ -492,7 +492,7 @@ def split_dataset(
         type of the returned objects depends on the input dataset and the
         active backend. For example, with a TensorFlow backend,
         `tf.data.Dataset` objects are returned. With a PyTorch backend,
-        `torch.utils.data.Subset` objects are returned when splitting a
+        `torch.utils.data.Dataset` objects are returned when splitting a
         `torch.utils.data.Dataset`.
 
     Example:
