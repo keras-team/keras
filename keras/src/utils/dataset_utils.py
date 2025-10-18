@@ -385,7 +385,7 @@ class TensorflowDatasetHandler(DatasetHandler):
 @DatasetHandlerRegistry.register("torch")
 class TorchDatasetHandler(DatasetHandler):
     """
-    A TensorFlow-specific dataset handler which implements
+    A PyTorch-specific dataset handler which implements
     the DatasetHandler interface and defines required
     dataset operations.
     """
