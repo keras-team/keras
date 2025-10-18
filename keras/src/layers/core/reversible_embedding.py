@@ -319,7 +319,11 @@ class ReversibleEmbedding(layers.Embedding):
             if not self.tie_weights:
                 reverse_embeddings_value, reverse_embeddings_scale = (
                     quantizers.abs_max_quantize(
-                        self.reverse_embeddings, axis=0, to_numpy=True
+                        self.reverse_embeddings,
+                        axis=0,
+                        value_range=(-8, 7),
+                        dtype="int8",
+                        to_numpy=True,
                     )
                 )
                 reverse_embeddings_scale = ops.squeeze(

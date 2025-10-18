@@ -125,11 +125,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
             ops.square(y_reverse_float - y_reverse_quantized)
         )
         self.assertLess(mse, 1e-3)  # A weak correctness test
-        if mode == "int4" and not tie_weights:
-            # int4 with untied weights has larger errors.
-            self.assertLess(mse_reverse, 1e-2)  # A weak correctness test
-        else:
-            self.assertLess(mse_reverse, 1e-3)  # A weak correctness test
+        self.assertLess(mse_reverse, 1e-3)  # A weak correctness test
 
         # Check model save / load round-trip.
         model = models.Sequential([layer])
