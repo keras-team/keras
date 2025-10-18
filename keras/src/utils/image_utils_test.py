@@ -4,9 +4,10 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import testing
-from keras.utils import img_to_array
-from keras.utils import load_img
-from keras.utils import save_img
+
+from .image_utils import img_to_array
+from .image_utils import load_img
+from .image_utils import save_img
 
 
 class SaveImgJpgTest(testing.TestCase, parameterized.TestCase):
@@ -22,8 +23,8 @@ class SaveImgJpgTest(testing.TestCase, parameterized.TestCase):
         save_img(path, img, file_format="jpg")
         self.assertTrue(os.path.exists(path))
 
-        # Check that the image was saved correctly
-        # and converted to RGB if needed.
+        # Check that the image was saved correctly and 
+        # converted to RGB if needed.
         loaded_img = load_img(path)
         loaded_array = img_to_array(loaded_img)
         self.assertEqual(loaded_array.shape, (50, 50, 3))
