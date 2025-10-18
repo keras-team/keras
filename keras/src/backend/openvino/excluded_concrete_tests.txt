@@ -1,9 +1,6 @@
 NumPyTestRot90
-NumpyDtypeTest::test_absolute_bool
 NumpyDtypeTest::test_add_
-NumpyDtypeTest::test_all
 NumpyDtypeTest::test_angle
-NumpyDtypeTest::test_any
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_bartlett
@@ -16,7 +13,6 @@ NumpyDtypeTest::test_hypot
 NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_cbrt
-NumpyDtypeTest::test_ceil
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_corrcoef
 NumpyDtypeTest::test_correlate
@@ -29,11 +25,7 @@ NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_floor_divide
 NumpyDtypeTest::test_inner
-NumpyDtypeTest::test_isfinite
 NumpyDtypeTest::test_isin
-NumpyDtypeTest::test_isinf
-NumpyDtypeTest::test_isnan
-NumpyDtypeTest::test_isposinf
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
@@ -48,10 +40,8 @@ NumpyDtypeTest::test_roll
 NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
-NumpyDtypeTest::test_sqrt
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
-NumpyDtypeTest::test_sum
 NumpyDtypeTest::test_swapaxes
 NumpyDtypeTest::test_tensordot_
 NumpyDtypeTest::test_tile
@@ -61,12 +51,8 @@ NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_vdot
 NumpyDtypeTest::test_vstack
-NumpyDtypeTest::test_clip_bool
-NumpyDtypeTest::test_square_bool
 HistogramTest
-NumpyOneInputOpsCorrectnessTest::test_all
 NumpyOneInputOpsCorrectnessTest::test_angle
-NumpyOneInputOpsCorrectnessTest::test_any
 NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_bartlett
@@ -86,9 +72,6 @@ NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_floor_divide
 NumpyOneInputOpsCorrectnessTest::test_imag
-NumpyOneInputOpsCorrectnessTest::test_isfinite
-NumpyOneInputOpsCorrectnessTest::test_isinf
-NumpyOneInputOpsCorrectnessTest::test_isposinf
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_logaddexp2
 NumpyOneInputOpsCorrectnessTest::test_pad_float16_constant_2
@@ -107,10 +90,7 @@ NumpyOneInputOpsCorrectnessTest::test_select
 NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_size
 NumpyOneInputOpsCorrectnessTest::test_slogdet
-NumpyOneInputOpsCorrectnessTest::test_sqrt_int32
-NumpyOneInputOpsCorrectnessTest::test_squeeze
 NumpyOneInputOpsCorrectnessTest::test_std
-NumpyOneInputOpsCorrectnessTest::test_sum
 NumpyOneInputOpsCorrectnessTest::test_swapaxes
 NumpyOneInputOpsCorrectnessTest::test_tile
 NumpyOneInputOpsCorrectnessTest::test_trace
