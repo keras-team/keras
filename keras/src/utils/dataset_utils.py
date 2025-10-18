@@ -343,9 +343,7 @@ class TensorflowDatasetHandler(DatasetHandler):
         right_split = right_split.prefetch(tf.data.AUTOTUNE)
         return left_split, right_split
 
-    def restore_dataset_from_list(
-        self, dataset_as_list, dataset_type_spec, original_dataset
-    ):
+    def restore_dataset_from_list(self, dataset_as_list, dataset_type_spec):
         """Restore the dataset from the list of arrays."""
         if self.is_valid_dataset_spec(dataset_type_spec):
             # Save structure by taking the first element.
