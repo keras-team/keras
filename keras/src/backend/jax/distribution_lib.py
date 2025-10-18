@@ -27,6 +27,37 @@ def list_devices(device_type=None):
     return [f"{device.platform}:{device.id}" for device in jax_devices]
 
 
+def get_device_count():
+    """Returns the number of local JAX devices.
+
+    Returns:
+        int: The total number of devices configured in the current distribution
+             strategy.
+    """
+    return jax.local_device_count()
+
+
+def get_best_devices(count=1):
+    """
+    Get the best available devices for tensor parallelism.
+
+    Args:
+        count: Number of devices needed
+
+    Returns:
+        List of best device identifiers
+    """
+    all_devices = list_devices()
+
+    if count <= 0:
+        return []
+
+    if count > len(all_devices):
+        count = len(all_devices)
+
+    return all_devices[:count]
+
+
 def distribute_variable(value, layout):
     """Create a distributed variable for JAX.
 
