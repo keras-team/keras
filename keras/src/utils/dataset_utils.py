@@ -132,7 +132,8 @@ class DatasetHandler(ABC):
             raise ValueError(
                 "Received an empty dataset. Argument `dataset` must "
                 "be a non-empty list/tuple of `numpy.ndarray` objects "
-                "or `tf.data.Dataset` objects."
+                "or other backend specific "
+                "(e.g., `tf.data.Dataset`, `torch.utils.data.Dataset`) objects."
             )
 
         for i, sample in enumerate(dataset_iterator):
@@ -386,9 +387,9 @@ class TorchDatasetHandler(DatasetHandler):
         self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
     ):
         import torch
+        from torch.utils.data import TensorDataset
         from torch.utils.data import random_split
 
-        # Ensure the dataset is a valid PyTorch dataset
         dataset_type_spec = self.get_type_spec(dataset)
         if dataset_type_spec is None:
             raise TypeError(
@@ -396,6 +397,13 @@ class TorchDatasetHandler(DatasetHandler):
                 " object, or a list/tuple of arrays."
                 f" Received: dataset={dataset} of type {type(dataset)}"
             )
+
+        if not isinstance(dataset, self.dataset_type):
+            if dataset_type_spec is np.ndarray:
+                dataset = TensorDataset(torch.from_numpy(dataset))
+            elif dataset_type_spec in (list, tuple):
+                tensors = [torch.from_numpy(x) for x in dataset]
+                dataset = TensorDataset(*tensors)
 
         if right_size is None and left_size is None:
             raise ValueError(
