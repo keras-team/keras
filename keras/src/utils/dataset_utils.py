@@ -475,17 +475,23 @@ def split_dataset(
         seed: A random seed for shuffling.
 
     Returns:
-        A tuple of two `tf.data.Dataset` objects:
-        the left and right splits.
+        A tuple of two dataset objects, the left and right splits. The exact
+        type of the returned objects depends on the input dataset and the
+        active backend. For example, with a TensorFlow backend,
+        `tf.data.Dataset` objects are returned. With a PyTorch backend,
+        `torch.utils.data.Subset` objects are returned when splitting a
+        `torch.utils.data.Dataset`.
 
     Example:
 
     >>> data = np.random.random(size=(1000, 4))
     >>> left_ds, right_ds = keras.utils.split_dataset(data, left_size=0.8)
-    >>> int(left_ds.cardinality())
-    800
-    >>> int(right_ds.cardinality())
-    200
+    >>> # For a tf.data.Dataset, you can use .cardinality()
+    >>> # >>> int(left_ds.cardinality())
+    >>> # 800
+    >>> # For a torch.utils.data.Dataset, you can use len()
+    >>> # >>> len(left_ds)
+    >>> # 800
     """
     if is_torch_dataset(dataset):
         # included for backwards compatibility,
