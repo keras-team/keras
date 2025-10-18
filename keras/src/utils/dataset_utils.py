@@ -265,6 +265,12 @@ class DatasetHandlerRegistry:
 
 @DatasetHandlerRegistry.register("tensorflow")
 class TensorflowDatasetHandler(DatasetHandler):
+    """
+    A TensorFlow-specific dataset handler which implements
+    the DatasetHandler interface and defines required
+    dataset operations.
+    """
+
     @property
     def tensor_type(self):
         from keras.src.utils.module_utils import tensorflow as tf
@@ -378,6 +384,12 @@ class TensorflowDatasetHandler(DatasetHandler):
 
 @DatasetHandlerRegistry.register("torch")
 class TorchDatasetHandler(DatasetHandler):
+    """
+    A TensorFlow-specific dataset handler which implements
+    the DatasetHandler interface and defines required
+    dataset operations.
+    """
+
     @property
     def tensor_type(self):
         import torch
