@@ -250,8 +250,8 @@ class DatasetHandlerRegistry:
     @classmethod
     def register(cls, key: str):
         def decorator(
-            dataset_handler_class: Callable[[], DatasetHandler],
-        ) -> Callable[[], DatasetHandler]:
+            dataset_handler_class: Type[DatasetHandler],
+        ) -> Type[DatasetHandler]:
             cls.dataset_handlers[key] = dataset_handler_class()
             return dataset_handler_class
 
