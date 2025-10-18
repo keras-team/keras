@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
 
-import keras
-from keras import ops
+from keras.src import Model
 from keras.src import backend
+from keras.src import layers
+from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
@@ -21,10 +22,10 @@ from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
         """Creates a simple, uncompiled Keras model."""
-        inputs = keras.Input(shape=(10,))
-        x = keras.layers.Dense(20, name="dense_1")(inputs)
-        outputs = keras.layers.Dense(5, name="dense_2")(x)
-        return keras.Model(inputs, outputs)
+        inputs = layers.Input(shape=(10,))
+        x = layers.Dense(20, name="dense_1")(inputs)
+        outputs = layers.Dense(5, name="dense_2")(x)
+        return Model(inputs, outputs)
 
     def _get_mock_gradients_and_vars(self, model, device_count):
         """Generates mock gradients and variables for N shards."""
@@ -161,10 +162,10 @@ class CoordinatedOptimizerTest(testing.TestCase):
         """Tests that state is correctly mapped to model variables with Keras
         V2-style prefixed names (slot variables).
         """
-        inputs = keras.Input(shape=(10,))
-        x = keras.layers.Dense(4, name="dense")(inputs)
-        outputs = keras.layers.Dense(2, name="dense_output")(x)
-        model = keras.Model(inputs, outputs)
+        inputs = layers.Input(shape=(10,))
+        x = layers.Dense(4, name="dense")(inputs)
+        outputs = layers.Dense(2, name="dense_output")(x)
+        model = Model(inputs, outputs)
         model.build(input_shape=(None, 10))
 
         optimizer = TensorParallelOptimizer(optimizers.Adam(), device_count=2)

@@ -4,6 +4,7 @@ import numpy as np
 
 from keras.src import ops
 from keras.src import optimizers
+from keras.src.backend import core
 from keras.src.backend import distribution_lib
 
 
@@ -366,7 +367,6 @@ class CoordinatedOptimizer:
                     if g_and_v[i][0] is not None
                 ]
                 if grads_to_reduce:
-                    # Only the first element is list containing the synced grad
                     synced_grad = self._allreduce_gradients(grads_to_reduce)[0]
                     for shard_idx in range(self.device_count):
                         if gradients_and_vars[shard_idx][i][0] is not None:
@@ -396,8 +396,7 @@ class CoordinatedOptimizer:
 
         if distribution_lib.get_device_count() > 1:
             local_grad = gradients[0]
-            # Use on-device all-reduce (e.g., JAX pmean)
-            synced_tensor = distribution_lib.all_reduce(
+            synced_tensor = core.all_reduce(
                 local_grad, op="mean", axis_name="model"
             )
             return [synced_tensor for _ in range(self.device_count)]

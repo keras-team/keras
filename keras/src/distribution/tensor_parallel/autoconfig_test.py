@@ -1,8 +1,9 @@
 from autoconfig import analyze_dense_layer
 from autoconfig import get_default_config_keras
 
-import keras
 from keras.src import layers
+from keras.src import models
+from keras.src import ops
 from keras.src import testing
 
 
@@ -30,9 +31,9 @@ class AutoConfigTest(testing.TestCase):
         device_count = 2
         devices = [f"gpu:{i}" for i in range(device_count)]
 
-        model = keras.Sequential(
+        model = models.Sequential(
             [
-                keras.Input(shape=(32,)),
+                layers.Input(shape=(32,)),
                 layers.Dense(128, name="mlp_up"),
                 layers.Dense(32, name="mlp_down"),
             ],
@@ -87,7 +88,7 @@ class AutoConfigTest(testing.TestCase):
                 return x
 
         model = SimpleTransformer(name="transformer")
-        model(keras.ops.zeros((1, 10)))
+        model(ops.zeros((1, 10)))
 
         layout_map = get_default_config_keras(model, devices)
         state_rules = layout_map.state_rules
@@ -112,12 +113,12 @@ class AutoConfigTest(testing.TestCase):
         """Tests that the recursive traversal finds layers in nested models."""
         device_count = 2
         devices = [f"gpu:{i}" for i in range(device_count)]
-        inner_model = keras.Sequential(
+        inner_model = models.Sequential(
             [layers.Dense(64, name="inner_dense")], name="inner_block"
         )
-        outer_model = keras.Sequential(
+        outer_model = models.Sequential(
             [
-                keras.Input(shape=(32,)),
+                layers.Input(shape=(32,)),
                 layers.Dense(32, name="outer_dense_1"),
                 inner_model,
             ],
