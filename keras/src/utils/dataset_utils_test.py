@@ -67,7 +67,13 @@ class MyTorchDataset(TorchDataset):
 class DatasetUtilsTest(test_case.TestCase):
     @parameterized.named_parameters(
         named_product(
-            dataset_type=["list", "tuple", backend.backend()],
+            dataset_type=[
+                "list",
+                "tuple",
+                backend.backend()
+                if backend.backend() in ["tensorflow", "torch"]
+                else "tensorflow",
+            ],
             features_shape=[(2,), (100, 2), (10, 10, 2)],
         )
     )

@@ -264,6 +264,9 @@ class DatasetHandlerRegistry:
 
 
 @DatasetHandlerRegistry.register("tensorflow")
+@DatasetHandlerRegistry.register("numpy")
+@DatasetHandlerRegistry.register("jax")
+@DatasetHandlerRegistry.register("openvino")
 class TensorflowDatasetHandler(DatasetHandler):
     """
     A TensorFlow-specific dataset handler which implements
