@@ -1,12 +1,15 @@
 import os
+
 import numpy as np
 from absl.testing import parameterized
+
 from keras.src import testing
-from keras.utils import img_to_array, load_img, save_img
+from keras.utils import img_to_array
+from keras.utils import load_img
+from keras.utils import save_img
 
 
 class SaveImgJpgTest(testing.TestCase, parameterized.TestCase):
-
     @parameterized.parameters(
         ((50, 50, 3), "rgb.jpg"),
         ((50, 50, 4), "rgba.jpg"),
