@@ -47,11 +47,15 @@ class DatasetUtilsTest(test_case.TestCase):
         dataset_left, dataset_right = split_dataset(
             dataset, left_size=left_size, right_size=right_size
         )
+        if dataset_type == "torch":
+            cardinality_function = len
+        else:
+            cardinality_function = tf.data.Dataset.cardinality
         self.assertEqual(
-            int(dataset_left.cardinality()), int(n_sample * left_size)
+            int(cardinality_function(dataset_left)), int(n_sample * left_size)
         )
         self.assertEqual(
-            int(dataset_right.cardinality()), int(n_sample * right_size)
+            int(cardinality_function(dataset_right)), int(n_sample * right_size)
         )
         for sample in itertools.chain(dataset_left, dataset_right):
             self.assertEqual(sample[0].shape, features_shape)

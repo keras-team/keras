@@ -19,74 +19,6 @@ from keras.src.utils import io_utils
 from keras.src.utils.module_utils import grain
 
 
-def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
-    """Get the iterator from a dataset.
-
-    Args:
-        dataset: A `tf.data.Dataset`, a `torch.utils.data.Dataset` object,
-            or a list/tuple of arrays.
-        dataset_type_spec: The type of the dataset.
-
-    Returns:
-        iterator: An `iterator` object.
-    """
-    if dataset_type_spec is list:
-        if len(dataset) == 0:
-            raise ValueError(
-                "Received an empty list dataset. "
-                "Please provide a non-empty list of arrays."
-            )
-
-        expected_shape = None
-        for i, element in enumerate(dataset):
-            if not isinstance(element, np.ndarray):
-                raise ValueError(
-                    "Expected a list of `numpy.ndarray` objects,"
-                    f"Received: {type(element)} at index {i}."
-                )
-            if expected_shape is None:
-                expected_shape = element.shape
-            elif element.shape[0] != expected_shape[0]:
-                raise ValueError(
-                    "Received a list of NumPy arrays with different lengths."
-                    f"Mismatch found at index {i}, "
-                    f"Expected shape={expected_shape} "
-                    f"Received shape={np.array(element).shape}."
-                    "Please provide a list of NumPy arrays of the same length."
-                )
-
-        return iter(zip(*dataset))
-    elif dataset_type_spec is tuple:
-        if len(dataset) == 0:
-            raise ValueError(
-                "Received an empty list dataset."
-                "Please provide a non-empty tuple of arrays."
-            )
-
-        expected_shape = None
-        for i, element in enumerate(dataset):
-            if not isinstance(element, np.ndarray):
-                raise ValueError(
-                    "Expected a tuple of `numpy.ndarray` objects,"
-                    f"Received: {type(element)} at index {i}."
-                )
-            if expected_shape is None:
-                expected_shape = element.shape
-            elif element.shape[0] != expected_shape[0]:
-                raise ValueError(
-                    "Received a tuple of NumPy arrays with different lengths."
-                    f"Mismatch found at index {i}, "
-                    f"Expected shape={expected_shape} "
-                    f"Received shape={np.array(element).shape}."
-                    "Please provide a tuple of NumPy arrays of the same length."
-                )
-
-        return iter(zip(*dataset))
-    elif dataset_type_spec is np.ndarray:
-        return iter(dataset)
-    raise ValueError(f"Invalid dataset_type_spec: {dataset_type_spec}")
-
-
 class DatasetHandler(ABC):
     @abstractmethod
     def split_dataset(
@@ -146,7 +78,7 @@ class DatasetHandler(ABC):
         Returns:
             List: A list of samples.
         """
-        dataset_iterator = _get_data_iterator_from_dataset(
+        dataset_iterator = self.get_data_iterator_from_dataset(
             dataset, dataset_type_spec
         )
         dataset_as_list = []
@@ -232,6 +164,77 @@ class DatasetHandler(ABC):
                         )
                         data_size_warning_flag = False
             yield sample
+
+    def get_data_iterator_from_dataset(self, dataset, dataset_type_spec):
+        """Get the iterator from a dataset.
+
+        Args:
+            dataset: A `tf.data.Dataset`, a `torch.utils.data.Dataset` object,
+                or a list/tuple of arrays.
+            dataset_type_spec: The type of the dataset.
+
+        Returns:
+            iterator: An `iterator` object.
+        """
+        if dataset_type_spec is list:
+            if len(dataset) == 0:
+                raise ValueError(
+                    "Received an empty list dataset. "
+                    "Please provide a non-empty list of arrays."
+                )
+
+            expected_shape = None
+            for i, element in enumerate(dataset):
+                if not isinstance(element, np.ndarray):
+                    raise ValueError(
+                        "Expected a list of `numpy.ndarray` objects,"
+                        f"Received: {type(element)} at index {i}."
+                    )
+                if expected_shape is None:
+                    expected_shape = element.shape
+                elif element.shape[0] != expected_shape[0]:
+                    raise ValueError(
+                        "Received a list of NumPy arrays with "
+                        "different lengths."
+                        f"Mismatch found at index {i}, "
+                        f"Expected shape={expected_shape} "
+                        f"Received shape={np.array(element).shape}."
+                        "Please provide a list of NumPy arrays of the "
+                        "same length."
+                    )
+
+            return iter(zip(*dataset))
+        elif dataset_type_spec is tuple:
+            if len(dataset) == 0:
+                raise ValueError(
+                    "Received an empty list dataset."
+                    "Please provide a non-empty tuple of arrays."
+                )
+
+            expected_shape = None
+            for i, element in enumerate(dataset):
+                if not isinstance(element, np.ndarray):
+                    raise ValueError(
+                        "Expected a tuple of `numpy.ndarray` objects,"
+                        f"Received: {type(element)} at index {i}."
+                    )
+                if expected_shape is None:
+                    expected_shape = element.shape
+                elif element.shape[0] != expected_shape[0]:
+                    raise ValueError(
+                        "Received a tuple of NumPy arrays with "
+                        "different lengths."
+                        f"Mismatch found at index {i}, "
+                        f"Expected shape={expected_shape} "
+                        f"Received shape={np.array(element).shape}."
+                        "Please provide a tuple of NumPy arrays "
+                        "of the same length."
+                    )
+
+            return iter(zip(*dataset))
+        elif dataset_type_spec is np.ndarray:
+            return iter(dataset)
+        raise ValueError(f"Invalid dataset_type_spec: {dataset_type_spec}")
 
 
 class DatasetHandlerRegistry:
@@ -354,23 +357,14 @@ class TensorflowDatasetHandler(DatasetHandler):
 
         return dataset_as_list
 
-    def convert_dataset_to_list(
-        self,
-        dataset,
-        dataset_type_spec,
-        data_size_warning_flag=True,
-        ensure_shape_similarity=True,
-    ):
+    def get_data_iterator_from_dataset(self, dataset, dataset_type_spec):
         if isinstance(dataset, self.dataset_type):
             if is_batched(dataset):
                 dataset = dataset.unbatch()
             return iter(dataset)
         else:
-            return super().convert_dataset_to_list(
-                dataset,
-                dataset_type_spec,
-                data_size_warning_flag,
-                ensure_shape_similarity,
+            return super().get_data_iterator_from_dataset(
+                dataset, dataset_type_spec
             )
 
 
@@ -431,21 +425,12 @@ class TorchDatasetHandler(DatasetHandler):
 
         return left_split, right_split
 
-    def convert_dataset_to_list(
-        self,
-        dataset,
-        dataset_type_spec,
-        data_size_warning_flag=True,
-        ensure_shape_similarity=True,
-    ):
+    def get_data_iterator_from_dataset(self, dataset, dataset_type_spec):
         if isinstance(dataset, self.dataset_type):
             return iter(dataset)
         else:
-            return super().convert_dataset_to_list(
-                dataset,
-                dataset_type_spec,
-                data_size_warning_flag,
-                ensure_shape_similarity,
+            return super().get_data_iterator_from_dataset(
+                dataset, dataset_type_spec
             )
 
 
@@ -486,7 +471,14 @@ def split_dataset(
     >>> int(right_ds.cardinality())
     200
     """
-    keras_backend = backend.backend()
+    if is_torch_dataset(dataset):
+        # included for backwards compatibility,
+        # to ensure someone calling `split_dataset`
+        # doesn't have a sudden exception raised
+        # if they're supplying a torch dataset
+        keras_backend = "torch"
+    else:
+        keras_backend = backend.backend()
     dataset_handler = DatasetHandlerRegistry.get_handler(keras_backend)
     return dataset_handler.split_dataset(
         dataset, left_size, right_size, shuffle, seed
@@ -500,6 +492,16 @@ def is_grain_dataset(dataset):
                 "MapDataset",
                 "IterDataset",
             ) and str(parent.__module__).startswith("grain._src.python"):
+                return True
+    return False
+
+
+def is_torch_dataset(dataset):
+    if hasattr(dataset, "__class__"):
+        for parent in dataset.__class__.__mro__:
+            if parent.__name__ == "Dataset" and str(
+                parent.__module__
+            ).startswith("torch.utils.data"):
                 return True
     return False
 
