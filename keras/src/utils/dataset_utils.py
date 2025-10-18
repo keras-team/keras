@@ -20,6 +20,13 @@ from keras.src.utils.module_utils import grain
 
 
 class DatasetHandler(ABC):
+    """A class for backend-specific dataset handling.
+
+    This class provides an interface for backend-specific dataset operations,
+    such as splitting. It is designed to be subclassed by backend-specific
+    handlers like `TensorflowDatasetHandler` and `TorchDatasetHandler`.
+    """
+
     @abstractmethod
     def split_dataset(
         self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
@@ -208,7 +215,7 @@ class DatasetHandler(ABC):
         elif dataset_type_spec is tuple:
             if len(dataset) == 0:
                 raise ValueError(
-                    "Received an empty list dataset."
+                    "Received an empty tuple dataset."
                     "Please provide a non-empty tuple of arrays."
                 )
 
@@ -280,7 +287,7 @@ class TensorflowDatasetHandler(DatasetHandler):
         if dataset_type_spec is None:
             raise TypeError(
                 "The `dataset` argument must be a"
-                "vald `tf.data.Dataset` object, or a list/tuple of arrays. "
+                "valid `tf.data.Dataset` object, or a list/tuple of arrays. "
                 f"Received: dataset={dataset} of type {type(dataset)}"
             )
 
