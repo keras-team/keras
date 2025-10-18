@@ -1,5 +1,7 @@
 import collections
+
 from keras.src import ops
+
 
 class Split:
     """Splits a tensor into shards along a specified dimension.
