@@ -437,69 +437,6 @@ class JaxDistributionLibTest(testing.TestCase):
         for shard in result.addressable_shards:
             self.assertEqual(shard.data.shape, (3, 4))
 
-    def test_all_reduce_sum(self):
-        num_devices = backend_dlib.get_device_count()
-        local_value = 10.0
-
-        local_inputs = jax.numpy.array([local_value] * num_devices)
-
-        @functools.partial(
-            jax.pmap, axis_name="all", devices=jax.devices("cpu")
-        )
-        def reduce_sum_fn(x):
-            return backend_dlib.all_reduce(x, op="sum", axis_name="all")
-
-        result = reduce_sum_fn(local_inputs)
-        expected_sum = local_value * num_devices
-
-        self.assertTrue(np.allclose(result, expected_sum))
-        self.assertEqual(result.shape, (num_devices,))
-
-    def test_all_reduce_mean(self):
-        num_devices = backend_dlib.get_device_count()
-        local_value = 10.0
-
-        local_inputs = jax.numpy.array([local_value] * num_devices)
-
-        @functools.partial(
-            jax.pmap, axis_name="all", devices=jax.devices("cpu")
-        )
-        def reduce_mean_fn(x):
-            return backend_dlib.all_reduce(x, op="mean", axis_name="all")
-
-        result = reduce_mean_fn(local_inputs)
-        expected_mean = local_value
-
-        self.assertTrue(np.allclose(result, expected_mean))
-        self.assertEqual(result.shape, (num_devices,))
-
-    def test_all_gather(self):
-        num_devices = backend_dlib.get_device_count()
-
-        local_data = np.arange(5)
-
-        local_inputs = jax.numpy.stack(
-            [local_data + (i * 5) for i in range(num_devices)]
-        )
-
-        @functools.partial(
-            jax.pmap, axis_name="all", devices=jax.devices("cpu")
-        )
-        def gather_fn(x):
-            return backend_dlib.all_gather(x, axis=0, axis_name="all")
-
-        result_array_on_devices = gather_fn(local_inputs)
-
-        expected_shape = (num_devices, num_devices * 5)
-        self.assertEqual(result_array_on_devices.shape, expected_shape)
-
-        expected_gathered_data = np.arange(num_devices * 5)
-
-        for i in range(num_devices):
-            self.assertTrue(
-                np.allclose(result_array_on_devices[i], expected_gathered_data)
-            )
-
 
 class ShardingCaptureLayer(layers.Layer):
     def __init__(self, **kwargs):

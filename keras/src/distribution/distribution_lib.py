@@ -39,6 +39,7 @@ def list_devices(device_type=None):
     return distribution_lib.list_devices(device_type)
 
 
+@keras_export("keras.distribution.get_device_count")
 def get_device_count():
     """
     Returns the total number of devices (e.g., GPUs, TPUs) available for the
@@ -51,6 +52,7 @@ def get_device_count():
     return distribution_lib.get_device_count()
 
 
+@keras_export("keras.distribution.get_best_devices")
 def get_best_devices(count):
     """
     Returns a list of the 'best' available devices for computation, up to the
@@ -65,53 +67,6 @@ def get_best_devices(count):
         list: A list of device names (e.g., '/GPU:0', '/TPU:0').
     """
     return distribution_lib.get_best_devices(count)
-
-
-def all_reduce(x, op="sum", axis_name="model"):
-    """
-    Performs an **all-reduce** operation across all replicas in the specified
-    distribution axis.
-
-    The all-reduce operation computes a reduction (like sum, mean, or product)
-    of the input tensor `x` across all devices/replicas in the `axis_name`
-    group, and then broadcasts the result back to all participating devices.
-
-    Args:
-        x: The tensor to reduce.
-        op: The reduction operation to perform. Common options include "sum",
-            "mean", or "product". Defaults to "sum".
-        axis_name: The name of the distribution axis (e.g., "model",
-            "data") over which to perform the reduction. Defaults to "model".
-
-    Returns:
-        The result of the all-reduce operation, with the same shape as the
-        input `x`.
-    """
-    return distribution_lib.all_reduce(x, op, axis_name)
-
-
-def all_gather(x, axis, axis_name="model"):
-    """
-    Performs an all-gather operation across all replicas in the specified
-    distribution axis.
-
-    The all-gather operation collects the input tensor `x` from all devices
-    in the `axis_name` group and concatenates them along the specified `axis`.
-    This is often used in tensor parallelism to combine parts of a tensor
-    distributed across devices.
-
-    Args:
-        x: The tensor to gather.
-        axis: The dimension along which to concatenate the gathered tensors.
-        axis_name: The name of the distribution axis (e.g., "model",
-                                   "data") over which to perform the gather.
-                                   Defaults to "model".
-
-    Returns:
-        The gathered tensor, which will have a larger size along `axis`
-        dimension.
-    """
-    return distribution_lib.all_gather(x, axis, axis_name)
 
 
 @keras_export("keras.distribution.initialize")

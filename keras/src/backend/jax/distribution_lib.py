@@ -1,7 +1,6 @@
 """Utilities for distribution strategy with JAX backend."""
 
 import jax
-import jax.lax as lax
 import numpy as np
 
 from keras.src.backend.common import global_state
@@ -228,63 +227,6 @@ def num_processes():
 def process_id():
     """Return the current process ID for the distribution setting."""
     return jax.process_index()
-
-
-def all_reduce(x, op="sum", axis_name="model"):
-    """
-    Performs an **all-reduce** operation across all replicas in the specified
-    distribution axis.
-
-    The all-reduce operation computes a reduction (like sum, mean, or product)
-    of the input tensor `x` across all devices/replicas in the `axis_name`
-    group, and then broadcasts the result back to all participating devices.
-
-    Args:
-        x: The tensor to reduce.
-        op: The reduction operation to perform. Common options include "sum",
-            "mean", or "product". Defaults to "sum".
-        axis_name: The name of the distribution axis (e.g., "model",
-            "data") over which to perform the reduction. Defaults to "model".
-
-    Returns:
-        The result of the all-reduce operation, with the same shape as the
-        input `x`.
-    """
-    if op == "sum":
-        return lax.psum(x, axis_name=axis_name)
-    elif op == "mean":
-        sum_val = lax.psum(x, axis_name=axis_name)
-        axis_size = lax.psum(1, axis_name=axis_name)
-        return sum_val / axis_size
-    else:
-        raise ValueError(
-            f"Unsupported reduction operation: {op}. "
-            "Supported options are 'sum' and 'mean'."
-        )
-
-
-def all_gather(x, axis, axis_name="model"):
-    """
-    Performs an all-gather operation across all replicas in the specified
-    distribution axis.
-
-    The all-gather operation collects the input tensor `x` from all devices
-    in the `axis_name` group and concatenates them along the specified `axis`.
-    This is often used in tensor parallelism to combine parts of a tensor
-    distributed across devices.
-
-    Args:
-        x: The tensor to gather.
-        axis: The dimension along which to concatenate the gathered tensors.
-        axis_name: The name of the distribution axis (e.g., "model",
-                                   "data") over which to perform the gather.
-                                   Defaults to "model".
-
-    Returns:
-        The gathered tensor, which will have a larger size along `axis`
-        dimension.
-    """
-    return lax.all_gather(x, axis_name=axis_name, axis=axis, tiled=True)
 
 
 def _to_backend_device(device_name):
