@@ -32,10 +32,6 @@ if backend.backend() == "jax":
     backend.backend() != "jax",
     reason="Backend specific test",
 )
-@pytest.mark.skipif(
-    backend.backend() == "jax" and jax.local_device_count() != 8,
-    reason="JaxDistributionLibTest requires 8 JAX devices to run.",
-)
 class JaxDistributionLibTest(testing.TestCase):
     def _create_jax_layout(self, sharding):
         # Use jax_layout.Format or jax_layout.Layout if available.
