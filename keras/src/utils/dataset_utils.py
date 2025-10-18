@@ -415,7 +415,8 @@ class TorchDatasetHandler(DatasetHandler):
         if right_size is None and left_size is None:
             raise ValueError(
                 "At least one of the `left_size` or `right_size` "
-                "must be specified.Received: left_size=None and right_size=None"
+                "must be specified. "
+                "Received: left_size=None and right_size=None"
             )
 
         # Calculate total length and rescale split sizes
