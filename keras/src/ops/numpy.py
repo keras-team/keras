@@ -7119,6 +7119,11 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
 
     Returns:
         The approximate integral of `y` along the given axis.
+
+    Example:
+    >>> y = keras.ops.convert_to_tensor([[1, 2, 3], [4, 5, 6]])
+    >>> keras.ops.trapezoid(y, axis=1)
+    array([ 4., 10.], dtype=float32)
     """
     if any_symbolic_tensors((y,)):
         return Trapezoid(x=x, dx=dx, axis=axis).symbolic_call(y)

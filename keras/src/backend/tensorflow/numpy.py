@@ -2986,12 +2986,20 @@ def transpose(x, axes=None):
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
     def _move_axis_to_last(tensor, axis):
-        if axis != -1 and tensor.shape.rank is not None:
-            perm = list(range(tensor.shape.rank))
-            perm.pop(axis)
-            perm.append(axis)
-            tensor = tf.transpose(tensor, perm)
-        return tensor
+        if axis == -1:
+            return tensor
+        rank = tf.rank(tensor)
+        if axis < 0:
+            axis = rank + axis
+        perm = tf.concat(
+            [
+                tf.range(axis, dtype=tf.int32),
+                tf.range(axis + 1, rank, dtype=tf.int32),
+                tf.constant([axis], dtype=tf.int32),
+            ],
+            axis=0,
+        )
+        return tf.transpose(tensor, perm=perm)
 
     y = convert_to_tensor(y)
     dtype = dtypes.result_type(y.dtype, float)

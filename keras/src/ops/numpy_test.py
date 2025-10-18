@@ -3618,16 +3618,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_trapezoid(self):
         y = np.random.random((3, 3, 3))
         x = np.random.random((3, 3, 3))
-        dx = np.random.random((3, 3, 3))
+        dx = 2.0
 
         self.assertAllClose(knp.trapezoid(y), np.trapezoid(y))
-        self.assertAllClose(knp.trapezoid(y, x), np.trapezoid(y, x))
+        self.assertAllClose(knp.trapezoid(y, x=x), np.trapezoid(y, x=x))
+        self.assertAllClose(knp.trapezoid(y, dx=dx), np.trapezoid(y, dx=dx))
         self.assertAllClose(
-            knp.trapezoid(y, x, dx=dx), np.trapezoid(y, x, dx=dx)
-        )
-        self.assertAllClose(
-            knp.trapezoid(y, x, dx=dx, axis=1),
-            np.trapezoid(y, x, dx=dx, axis=1),
+            knp.trapezoid(y, x=x, axis=1),
+            np.trapezoid(y, x=x, axis=1),
         )
 
     def test_var(self):
