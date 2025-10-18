@@ -323,10 +323,10 @@ class TensorflowDatasetHandler(DatasetHandler):
         right_split = list(dataset_as_list[-right_size:])
 
         left_split = self.restore_dataset_from_list(
-            left_split, dataset_type_spec, dataset
+            left_split, dataset_type_spec
         )
         right_split = self.restore_dataset_from_list(
-            right_split, dataset_type_spec, dataset
+            right_split, dataset_type_spec
         )
 
         left_split = tf.data.Dataset.from_tensor_slices(left_split)

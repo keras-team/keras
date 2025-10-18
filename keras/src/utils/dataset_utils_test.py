@@ -2,9 +2,11 @@ import collections
 import itertools
 
 import numpy as np
+import torch
 from absl.testing import parameterized
 from torch.utils.data import Dataset as TorchDataset
 
+from keras.src import backend
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.dataset_utils import split_dataset
@@ -12,21 +14,60 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 
 class MyTorchDataset(TorchDataset):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    def __init__(self, x, y=None):
+        # Convert NumPy → Torch tensors if needed
+        def to_tensor(v):
+            if isinstance(v, torch.Tensor):
+                return v
+            if hasattr(v, "shape"):
+                return torch.as_tensor(v, dtype=torch.float32)
+            return v
+
+        # Convert structured input recursively
+        def map_structure(obj):
+            if isinstance(obj, (dict, collections.OrderedDict)):
+                return {k: map_structure(v) for k, v in obj.items()}
+            if isinstance(obj, (tuple, list)):
+                typ = type(obj)
+                return typ(map_structure(v) for v in obj)
+            return to_tensor(obj)
+
+        self.x = map_structure(x)
+        self.y = None if y is None else map_structure(y)
+
+        # Infer dataset length from the first tensor in x
+        def first_tensor(obj):
+            if isinstance(obj, (dict, collections.OrderedDict)):
+                return first_tensor(next(iter(obj.values())))
+            if isinstance(obj, (tuple, list)):
+                return first_tensor(obj[0])
+            return obj
+
+        self.length = len(first_tensor(self.x))
 
     def __len__(self):
-        return len(self.x)
+        return self.length
 
-    def __getitem__(self, index):
-        return self.x[index], self.y[index]
+    def __getitem__(self, idx):
+        def index_structure(obj):
+            if isinstance(obj, (dict, collections.OrderedDict)):
+                return obj.__class__(
+                    (k, index_structure(v)) for k, v in obj.items()
+                )
+            if isinstance(obj, (tuple, list)):
+                typ = type(obj)
+                return typ(index_structure(v) for v in obj)
+            return obj[idx]
+
+        if self.y is None:
+            return index_structure(self.x)
+        return index_structure(self.x), index_structure(self.y)
 
 
 class DatasetUtilsTest(test_case.TestCase):
     @parameterized.named_parameters(
         named_product(
-            dataset_type=["list", "tuple", "tensorflow", "torch"],
+            dataset_type=["list", "tuple", backend.backend()],
             features_shape=[(2,), (100, 2), (10, 10, 2)],
         )
     )
@@ -47,7 +88,7 @@ class DatasetUtilsTest(test_case.TestCase):
         dataset_left, dataset_right = split_dataset(
             dataset, left_size=left_size, right_size=right_size
         )
-        if dataset_type == "torch":
+        if backend.backend() == "torch":
             cardinality_function = len
         else:
             cardinality_function = tf.data.Dataset.cardinality
@@ -70,16 +111,21 @@ class DatasetUtilsTest(test_case.TestCase):
         features2 = np.random.sample((n_sample, 10, 2))
         labels = np.random.sample((n_sample, 1))
 
+        if backend.backend() != "torch":
+            create_dataset_function = tf.data.Dataset.from_tensor_slices
+            cardinality_function = tf.data.Dataset.cardinality
+        else:
+            create_dataset_function = MyTorchDataset
+            cardinality_function = len
+
         if structure_type == "tuple":
-            dataset = tf.data.Dataset.from_tensor_slices(
-                ((features1, features2), labels)
-            )
+            dataset = create_dataset_function(((features1, features2), labels))
         if structure_type == "dict":
-            dataset = tf.data.Dataset.from_tensor_slices(
+            dataset = create_dataset_function(
                 {"y": features2, "x": features1, "labels": labels}
             )
         if structure_type == "OrderedDict":
-            dataset = tf.data.Dataset.from_tensor_slices(
+            dataset = create_dataset_function(
                 collections.OrderedDict(
                     [("y", features2), ("x", features1), ("labels", labels)]
                 )
@@ -89,10 +135,10 @@ class DatasetUtilsTest(test_case.TestCase):
             dataset, left_size=left_size, right_size=right_size
         )
         self.assertEqual(
-            int(dataset_left.cardinality()), int(n_sample * left_size)
+            int(cardinality_function(dataset_left)), int(n_sample * left_size)
         )
         self.assertEqual(
-            int(dataset_right.cardinality()), int(n_sample * right_size)
+            int(cardinality_function(dataset_right)), int(n_sample * right_size)
         )
         for sample in itertools.chain(dataset_left, dataset_right):
             if structure_type in ("dict", "OrderedDict"):
