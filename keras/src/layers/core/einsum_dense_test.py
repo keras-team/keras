@@ -1131,6 +1131,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="gptq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(gptq_store)
+        self.assertTrue(layer.is_gptq_calibrated)
         self.assertAllClose(layer.bias, gptq_store["0"])
         self.assertAllClose(layer.quantized_kernel, gptq_store["1"])
         self.assertAllClose(layer.kernel_scale, gptq_store["2"])
