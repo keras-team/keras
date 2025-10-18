@@ -4,6 +4,7 @@ import numpy as np
 
 from keras.src import ops
 from keras.src import optimizers
+from keras.src import saving
 from keras.src.backend import core
 from keras.src.backend import distribution_lib
 
@@ -39,9 +40,9 @@ class CoordinatedOptimizer:
         self.shard_optimizer_states = shard_optimizer_states
         self.tensor_parallel_config = tensor_parallel_config
         self.sharded_states = {}
-        self._state_variable_to_parameter = {}
-        self._variables = None
+        self._slot_path_to_parameter = {}
         self._variable_to_slot_name = {}
+        self._variables = None
 
     def _initialize_sharded_states(self):
         """Partitions the optimizer's state variables across shards.
@@ -50,48 +51,23 @@ class CoordinatedOptimizer:
         like 'momentum', 'velocity', etc.) and partitions them across the
         available devices if `shard_optimizer_states` is True.
 
-        It infers the mapping between a model parameter and its corresponding
-        optimizer state variable by matching their internal path/name strings.
-        Tensor parallelism rules are used to determine the sharding dimension.
+        It relies on the pre-calculated mapping between a model
+        parameter and its corresponding optimizer state variable to
+        determine the sharding dimension from the tensor parallelism rules.
         """
         if not self.shard_optimizer_states or not self.base_optimizer.built:
             return
 
         self.sharded_states = {}
-        self._state_variable_to_parameter = {}
-        self._variable_to_slot_name = {}
-        opt_name = self.base_optimizer.name
-
-        normalized_params = sorted(
-            [(p.path.replace("/", "_"), p) for p in self._variables],
-            key=lambda x: len(x[0]),
-            reverse=True,
-        )
 
         for state_var in self.base_optimizer.variables:
             if state_var is self.base_optimizer.iterations:
                 continue
 
-            path_parts = state_var.path.split("/")
-            if len(path_parts) != 2 or path_parts[0] != opt_name:
-                continue
-
-            state_suffix = path_parts[1]
-
-            found_param = None
-            slot_name = None
-
-            for norm_param_path, param in normalized_params:
-                if state_suffix.startswith(norm_param_path):
-                    found_param = param
-                    slot_suffix = state_suffix[len(norm_param_path) :]
-                    slot_name = slot_suffix.strip("_")
-                    break
+            found_param = self._slot_path_to_parameter.get(state_var.path, None)
+            slot_name = self._variable_to_slot_name.get(state_var.path, None)
 
             if found_param is not None and slot_name is not None:
-                self._state_variable_to_parameter[state_var.path] = found_param
-                self._variable_to_slot_name[state_var.path] = slot_name
-
                 sharding_dim = 0
                 if self.tensor_parallel_config:
                     norm_param_name = found_param.path.replace("/", ".")
@@ -276,7 +252,7 @@ class CoordinatedOptimizer:
                     var.assign(local_states["iterations"])
                 continue
 
-            param = self._state_variable_to_parameter.get(var.path, None)
+            param = self._slot_path_to_parameter.get(var.path, None)
             slot_name = self._variable_to_slot_name.get(var.path)
 
             if (
@@ -310,7 +286,7 @@ class CoordinatedOptimizer:
                 )
                 continue
 
-            param = self._state_variable_to_parameter.get(var.path, None)
+            param = self._slot_path_to_parameter.get(var.path, None)
             slot_name = self._variable_to_slot_name.get(var.path)
 
             if (
@@ -380,9 +356,9 @@ class CoordinatedOptimizer:
         """Performs a mean all-reduce operation on a list of gradients.
 
         If multiple devices are detected by the backend, this uses the efficient
-        on-device communication primitive (`distribution_lib.all_reduce`) to
-        average gradients without transferring data to the CPU, crucial for
-        performance. Otherwise, it performs the mean reduction on the host.
+        on-device communication primitive (`core.all_reduce`) to
+        average gradients. Otherwise, it performs the mean reduction on the host
+        using Keras backend operations.
 
         Args:
             gradients: A list of gradient tensors, one from each device.
@@ -399,14 +375,13 @@ class CoordinatedOptimizer:
             synced_tensor = core.all_reduce(
                 local_grad, op="mean", axis_name="model"
             )
+
             return [synced_tensor for _ in range(self.device_count)]
 
         if len(gradients) == 1:
-            mean_grad = ops.convert_to_tensor(gradients[0])
+            mean_grad = gradients[0]
         else:
-            stacked_grads = ops.stack(
-                [ops.convert_to_tensor(g) for g in gradients], axis=0
-            )
+            stacked_grads = ops.stack(gradients, axis=0)
             mean_grad = ops.mean(stacked_grads, axis=0)
 
         return [mean_grad for _ in range(len(gradients))]
@@ -437,13 +412,43 @@ class CoordinatedOptimizer:
         """Enables and initializes optimizer state sharding.
 
         This method is typically called after the model variables have been
-        created and the base optimizer has been built.
+        created and the base optimizer has been built. It establishes the
+        necessary mapping between optimizer state variables (slots) and model
+        parameters.
 
         Args:
             variables: The list of model variables/parameters.
         """
         self.shard_optimizer_states = True
         self._variables = variables
+
+        self._slot_path_to_parameter = {}
+        self._variable_to_slot_name = {}
+
+        for slot_var in self.base_optimizer.variables:
+            if slot_var is self.base_optimizer.iterations:
+                continue
+
+            slot_path_clean = slot_var.path.replace("/", "_")
+
+            best_match_param = None
+
+            for param in variables:
+                param_path_clean = param.path.replace("/", "_")
+
+                if param_path_clean in slot_path_clean:
+                    if best_match_param is None or len(param_path_clean) > len(
+                        best_match_param.path.replace("/", "_")
+                    ):
+                        best_match_param = param
+
+            if best_match_param is not None:
+                path_without_suffix = slot_var.path.rsplit(":", 1)[0]
+                slot_name = path_without_suffix.rsplit("/", 1)[-1]
+
+                self._slot_path_to_parameter[slot_var.path] = best_match_param
+                self._variable_to_slot_name[slot_var.path] = slot_name
+
         self._initialize_sharded_states()
 
 
@@ -560,6 +565,20 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             return super().update_step(gradient, variable, *args, **kwargs)
         except TypeError:
             return super().update_step(gradient, variable)
+
+    def get_config(self):
+        config = super().get_config()
+
+        config["base_optimizer"] = saving.serialize_keras_object(
+            self.base_optimizer
+        )
+
+        config["device_count"] = self.device_count
+        config["tensor_parallel_config"] = (
+            self.coordinated_optimizer.tensor_parallel_config
+        )
+
+        return config
 
     @classmethod
     def from_config(cls, config):

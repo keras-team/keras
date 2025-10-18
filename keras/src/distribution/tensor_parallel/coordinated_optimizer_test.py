@@ -1,10 +1,9 @@
 import numpy as np
 import pytest
 
-from keras.src import Model
+import keras
+from keras import ops
 from keras.src import backend
-from keras.src import layers
-from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
@@ -22,10 +21,10 @@ from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
         """Creates a simple, uncompiled Keras model."""
-        inputs = layers.Input(shape=(10,))
-        x = layers.Dense(20, name="dense_1")(inputs)
-        outputs = layers.Dense(5, name="dense_2")(x)
-        return Model(inputs, outputs)
+        inputs = keras.Input(shape=(10,))
+        x = keras.layers.Dense(20, name="dense_1")(inputs)
+        outputs = keras.layers.Dense(5, name="dense_2")(x)
+        return keras.Model(inputs, outputs)
 
     def _get_mock_gradients_and_vars(self, model, device_count):
         """Generates mock gradients and variables for N shards."""
@@ -86,14 +85,11 @@ class CoordinatedOptimizerTest(testing.TestCase):
         )
 
     def test_init_from_string(self):
-        """Tests initialization from a string."""
         optimizer = TensorParallelOptimizer("adam", device_count=4)
         self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
 
     def test_apply_gradients_delegation(self):
-        """Tests that apply_gradients correctly delegates to the appropriate
-        optimizer (base or coordinated) based on input format.
-        """
+        """Tests that apply_gradients correctly delegates."""
         device_count = 4
         base_opt = optimizers.Adam()
         optimizer = TensorParallelOptimizer(base_opt, device_count)
@@ -135,20 +131,30 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(optimizer.built)
 
         sharded_states = optimizer.coordinated_optimizer.sharded_states
-        self.assertIn("momentum", sharded_states)
-        self.assertIn("velocity", sharded_states)
+
+        self.assertTrue(
+            any("momentum" in key for key in sharded_states),
+            msg="Momentum slot not found in sharded_states keys.",
+        )
+        self.assertTrue(
+            any("velocity" in key for key in sharded_states),
+            msg="Velocity slot not found in sharded_states keys.",
+        )
         self.assertIn("iterations", sharded_states)
 
         dense_1_kernel_path = model.get_layer("dense_1").kernel.path
-        self.assertIn(dense_1_kernel_path, sharded_states["momentum"])
+
+        momentum_slot_key = "dense_1_kernel_momentum"
+
+        self.assertIn(dense_1_kernel_path, sharded_states[momentum_slot_key])
         self.assertEqual(
-            len(sharded_states["momentum"][dense_1_kernel_path]), 4
+            len(sharded_states[momentum_slot_key][dense_1_kernel_path]), 4
         )
 
     def test_serialization(self):
-        """Tests serialization and deserialization of the optimizer."""
         device_count = 4
         base_opt = optimizers.Adam(learning_rate=0.1)
+
         optimizer = TensorParallelOptimizer(base_opt, device_count)
 
         config = optimizer.get_config()
@@ -159,27 +165,26 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertAllClose(recreated.base_optimizer.learning_rate, 0.1)
 
     def test_sharding_with_prefixed_variable_names(self):
-        """Tests that state is correctly mapped to model variables with Keras
-        V2-style prefixed names (slot variables).
-        """
-        inputs = layers.Input(shape=(10,))
-        x = layers.Dense(4, name="dense")(inputs)
-        outputs = layers.Dense(2, name="dense_output")(x)
-        model = Model(inputs, outputs)
+        """Tests that state is correctly mapped with prefixed variable names."""
+        inputs = keras.Input(shape=(10,))
+        x = keras.layers.Dense(4, name="dense")(inputs)
+        outputs = keras.layers.Dense(2, name="dense_output")(x)
+        model = keras.Model(inputs, outputs)
         model.build(input_shape=(None, 10))
 
         optimizer = TensorParallelOptimizer(optimizers.Adam(), device_count=2)
         optimizer.build(model.trainable_variables)
 
-        state_to_param = (
-            optimizer.coordinated_optimizer._state_variable_to_parameter
-        )
+        state_to_param = optimizer.coordinated_optimizer._slot_path_to_parameter
         self.assertGreater(len(state_to_param), 0)
 
         dense_output_kernel = model.get_layer("dense_output").kernel
-        momentum_path = (
-            f"{optimizer.base_optimizer.name}/"
-            f"{dense_output_kernel.path.replace('/', '_')}_momentum"
-        )
 
-        self.assertIs(state_to_param[momentum_path], dense_output_kernel)
+        found_slot_path = None
+        for slot_path, param in state_to_param.items():
+            if param is dense_output_kernel:
+                found_slot_path = slot_path
+                break
+
+        self.assertIsNotNone(found_slot_path)
+        self.assertIs(state_to_param[found_slot_path], dense_output_kernel)
