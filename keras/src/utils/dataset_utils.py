@@ -6,8 +6,7 @@ from abc import ABC
 from abc import abstractmethod
 from copy import copy
 from multiprocessing.pool import ThreadPool
-from typing import Callable
-from typing import Dict
+from typing import Callable, Dict, Type
 
 import numpy as np
 
