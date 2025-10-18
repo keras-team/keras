@@ -1361,6 +1361,14 @@ def transpose(x, axes=None):
     return jnp.transpose(x, axes=axes)
 
 
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    if x is not None:
+        x = convert_to_tensor(x)
+    dx = convert_to_tensor(dx)
+    return jnp.trapezoid(y, x, dx=dx, axis=axis)
+
+
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     # `jnp.var` does not handle low precision (e.g., float16) overflow

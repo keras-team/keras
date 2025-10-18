@@ -2398,6 +2398,12 @@ def transpose(x, axes=None):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 
 
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    raise NotImplementedError(
+        "`trapezoid` is not supported with openvino backend"
+    )
+
+
 def var(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     if axis is None:
