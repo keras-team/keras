@@ -1133,6 +1133,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.any(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.any(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
+    def test_trapezoid(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.trapezoid(x).shape, (None,))
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.trapezoid(x, axis=1).shape, (None, 3))
+
     def test_var(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.var(x).shape, ())
@@ -1864,6 +1871,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_any(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.any(x).shape, ())
+
+    def test_trapezoid(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.trapezoid(x).shape, (2,))
 
     def test_var(self):
         x = KerasTensor((2, 3))
@@ -8990,8 +9001,6 @@ class NumpyDtypeTest(testing.TestCase):
         x = knp.ones((2,), dtype=dtype)
         x_jax = jnp.ones((2,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.trapezoid(x_jax).dtype)
-        if dtype == "int64":
-            expected_dtype = backend.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.trapezoid(x).dtype), expected_dtype
