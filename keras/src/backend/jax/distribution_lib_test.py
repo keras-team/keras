@@ -29,8 +29,7 @@ if backend.backend() == "jax":
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax" or 
-    len(jax.devices()) != 8,
+    backend.backend() != "jax" or len(jax.devices()) != 8,
     reason="Backend specific test and requires 8 devices",
 )
 class JaxDistributionLibTest(testing.TestCase):
