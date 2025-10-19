@@ -67,11 +67,8 @@ def split_dataset(
     >>> # >>> len(left_ds)
     >>> # 800
     """
-    if preferred_backend:
-        keras_backend = preferred_backend
-    else:
-        keras_backend = _infer_backend(dataset)
-    if keras_backend != "torch":
+    preferred_backend = preferred_backend or _infer_preferred_backend(dataset)
+    if preferred_backend != "torch":
         return _split_dataset_tf(
             dataset,
             left_size=left_size,
@@ -258,7 +255,7 @@ def _split_dataset_torch(
     return left_split, right_split
 
 
-def _infer_backend(dataset):
+def _infer_preferred_backend(dataset):
     """Infer the backend from the dataset type."""
     if isinstance(dataset, (list, tuple, np.ndarray)):
         return backend.backend()
