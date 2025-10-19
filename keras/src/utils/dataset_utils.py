@@ -42,11 +42,20 @@ def split_dataset(
             Defaults to `None`.
         shuffle: Boolean, whether to shuffle the data before splitting it.
         seed: A random seed for shuffling.
+        preferred_backend: String, specifying which backend
+            (e.g.; "tensorflow", "torch") to use. If `None`, the
+            backend is inferred from the type of `dataset` - if
+            `dataset` is a `tf.data.Dataset`, "tensorflow" backend
+            is used, if `dataset` is a `torch.utils.data.Dataset`,
+            "torch" backend is used, and if `dataset` is a list/tuple/np.array
+            the current Keras backend is used. Defaults to `None`.
 
     Returns:
-        A tuple of two `tf.data.Dataset` objects:
-        the left and right splits.
-
+        A tuple of two dataset objects, the left and right splits. The exact
+        type of the returned objects depends on the `preferred_backend`.
+        For example, with a "tensorflow" backend,
+        `tf.data.Dataset` objects are returned. With a "torch" backend,
+        `torch.utils.data.Dataset` objects are returned.
     Example:
 
     >>> data = np.random.random(size=(1000, 4))
