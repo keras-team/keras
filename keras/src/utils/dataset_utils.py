@@ -2,12 +2,7 @@ import os
 import random
 import time
 import warnings
-from abc import ABC
-from abc import abstractmethod
-from copy import copy
 from multiprocessing.pool import ThreadPool
-from typing import Dict
-from typing import Type
 
 import numpy as np
 
@@ -19,452 +14,71 @@ from keras.src.utils import io_utils
 from keras.src.utils.module_utils import grain
 
 
-class DatasetHandler(ABC):
-    """A class for backend-specific dataset handling.
-
-    This class provides an interface for backend-specific dataset operations,
-    such as splitting. It is designed to be subclassed by backend-specific
-    handlers like `TensorflowDatasetHandler` and `TorchDatasetHandler`.
-    """
-
-    @abstractmethod
-    def split_dataset(
-        self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
-    ): ...
-
-    def get_type_spec(self, dataset):
-        """Get the type spec of the dataset."""
-        if isinstance(dataset, tuple):
-            return tuple
-        elif isinstance(dataset, list):
-            return list
-        elif isinstance(dataset, np.ndarray):
-            return np.ndarray
-        elif is_grain_dataset(dataset):
-            from grain import MapDataset
-
-            return MapDataset
-        elif isinstance(dataset, self.dataset_type):
-            return self.dataset_type
-        else:
-            return None
-
-    def is_valid_dataset_spec(self, dataset_spec):
-        return dataset_spec in [tuple, list, self.dataset_type]
-
-    @property
-    @abstractmethod
-    def tensor_type(self): ...
-
-    @property
-    @abstractmethod
-    def dataset_type(self): ...
-
-    def convert_dataset_to_list(
-        self,
-        dataset,
-        dataset_type_spec,
-        data_size_warning_flag=True,
-        ensure_shape_similarity=True,
-    ):
-        """Convert `dataset` object to a list of samples.
-
-        Args:
-            dataset: A `tf.data.Dataset`, a `torch.utils.data.Dataset` object,
-                or a list/tuple of arrays.
-            dataset_type_spec: the type of the dataset.
-            data_size_warning_flag: If set to `True`, a warning will
-                be issued if the dataset takes longer than
-                10 seconds to iterate.
-                Defaults to `True`.
-            ensure_shape_similarity: If set to `True`, the shape of
-                the first sample will be used to validate
-                the shape of rest of the samples.
-                 Defaults to `True`.
-
-        Returns:
-            List: A list of samples.
-        """
-        dataset_iterator = self.get_data_iterator_from_dataset(
-            dataset, dataset_type_spec
-        )
-        dataset_as_list = []
-
-        start_time = time.time()
-        for sample in self.get_next_sample(
-            dataset_iterator,
-            ensure_shape_similarity,
-            data_size_warning_flag,
-            start_time,
-        ):
-            dataset_as_list.append(sample)
-
-        return dataset_as_list
-
-    def get_next_sample(
-        self,
-        dataset_iterator,
-        ensure_shape_similarity,
-        data_size_warning_flag,
-        start_time,
-    ):
-        """Yield data samples from the `dataset_iterator`.
-
-        Args:
-            dataset_iterator: An `iterator` object.
-            ensure_shape_similarity: If set to `True`, the shape of
-                the first sample will be used to validate the shape of
-                rest of the samples. Defaults to `True`.
-            data_size_warning_flag: If set to `True`, a warning will
-                be issued if the dataset takes longer
-                than 10 seconds to iterate.
-                Defaults to `True`.
-            start_time (float): the start time of the dataset iteration. this is
-                used only if `data_size_warning_flag` is set to true.
-
-        Yields:
-            data_sample: The next sample.
-        """
-
-        try:
-            dataset_iterator = iter(dataset_iterator)
-            first_sample = next(dataset_iterator)
-            if isinstance(first_sample, (self.tensor_type, np.ndarray)):
-                first_sample_shape = np.array(first_sample).shape
-            else:
-                first_sample_shape = None
-                ensure_shape_similarity = False
-            yield first_sample
-        except StopIteration:
-            raise ValueError(
-                "Received an empty dataset. Argument `dataset` must "
-                "be a non-empty list/tuple of `numpy.ndarray` objects "
-                "or other backend specific "
-                "(e.g., `tf.data.Dataset`, `torch.utils.data.Dataset`) objects."
-            )
-
-        for i, sample in enumerate(dataset_iterator):
-            if ensure_shape_similarity:
-                if first_sample_shape != np.array(sample).shape:
-                    raise ValueError(
-                        "All `dataset` samples must have same shape, "
-                        f"Expected shape: {np.array(first_sample).shape} "
-                        f"Received shape: {np.array(sample).shape} at index "
-                        f"{i}."
-                    )
-            if data_size_warning_flag:
-                if i % 10 == 0:
-                    cur_time = time.time()
-                    # warns user if the dataset is too large
-                    # to iterate within 10s
-                    if (
-                        int(cur_time - start_time) > 10
-                        and data_size_warning_flag
-                    ):
-                        warnings.warn(
-                            "The dataset is taking longer than 10 seconds to "
-                            "iterate over. This may be due to the size of the "
-                            "dataset. Keep in mind that the `split_dataset` "
-                            "utility is only for small in-memory dataset "
-                            "(e.g. < 10,000 samples).",
-                            category=ResourceWarning,
-                            source="split_dataset",
-                        )
-                        data_size_warning_flag = False
-            yield sample
-
-    def get_data_iterator_from_dataset(self, dataset, dataset_type_spec):
-        """Get the iterator from a dataset.
-
-        Args:
-            dataset: A `tf.data.Dataset`, a `torch.utils.data.Dataset` object,
-                or a list/tuple of arrays.
-            dataset_type_spec: The type of the dataset.
-
-        Returns:
-            iterator: An `iterator` object.
-        """
-        if dataset_type_spec is list:
-            if len(dataset) == 0:
-                raise ValueError(
-                    "Received an empty list dataset. "
-                    "Please provide a non-empty list of arrays."
-                )
-
-            expected_shape = None
-            for i, element in enumerate(dataset):
-                if not isinstance(element, np.ndarray):
-                    raise ValueError(
-                        "Expected a list of `numpy.ndarray` objects,"
-                        f"Received: {type(element)} at index {i}."
-                    )
-                if expected_shape is None:
-                    expected_shape = element.shape
-                elif element.shape[0] != expected_shape[0]:
-                    raise ValueError(
-                        "Received a list of NumPy arrays with "
-                        "different lengths."
-                        f"Mismatch found at index {i}, "
-                        f"Expected shape={expected_shape} "
-                        f"Received shape={np.array(element).shape}."
-                        "Please provide a list of NumPy arrays of the "
-                        "same length."
-                    )
-
-            return iter(zip(*dataset))
-        elif dataset_type_spec is tuple:
-            if len(dataset) == 0:
-                raise ValueError(
-                    "Received an empty tuple dataset."
-                    "Please provide a non-empty tuple of arrays."
-                )
-
-            expected_shape = None
-            for i, element in enumerate(dataset):
-                if not isinstance(element, np.ndarray):
-                    raise ValueError(
-                        "Expected a tuple of `numpy.ndarray` objects,"
-                        f"Received: {type(element)} at index {i}."
-                    )
-                if expected_shape is None:
-                    expected_shape = element.shape
-                elif element.shape[0] != expected_shape[0]:
-                    raise ValueError(
-                        "Received a tuple of NumPy arrays with "
-                        "different lengths."
-                        f"Mismatch found at index {i}, "
-                        f"Expected shape={expected_shape} "
-                        f"Received shape={np.array(element).shape}."
-                        "Please provide a tuple of NumPy arrays "
-                        "of the same length."
-                    )
-
-            return iter(zip(*dataset))
-        elif dataset_type_spec is np.ndarray:
-            return iter(dataset)
-        raise ValueError(f"Invalid dataset_type_spec: {dataset_type_spec}")
-
-
-class DatasetHandlerRegistry:
-    dataset_handlers: Dict[str, DatasetHandler] = {}
-
-    @classmethod
-    def register(cls, key: str):
-        def decorator(
-            dataset_handler_class: Type[DatasetHandler],
-        ) -> Type[DatasetHandler]:
-            cls.dataset_handlers[key] = dataset_handler_class()
-            return dataset_handler_class
-
-        return decorator
-
-    @classmethod
-    def get_handler(cls, key: str) -> DatasetHandler:
-        return copy(cls.dataset_handlers[key])
-
-
-@DatasetHandlerRegistry.register("tensorflow")
-@DatasetHandlerRegistry.register("numpy")
-@DatasetHandlerRegistry.register("jax")
-@DatasetHandlerRegistry.register("openvino")
-class TensorflowDatasetHandler(DatasetHandler):
-    """
-    A TensorFlow-specific dataset handler which implements
-    the DatasetHandler interface and defines required
-    dataset operations.
-    """
-
-    @property
-    def tensor_type(self):
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        return tf.Tensor
-
-    @property
-    def dataset_type(self):
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        return tf.data.Dataset
-
-    def split_dataset(
-        self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
-    ):
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        dataset_type_spec = self.get_type_spec(dataset)
-
-        if dataset_type_spec is None:
-            raise TypeError(
-                "The `dataset` argument must be a"
-                "valid `tf.data.Dataset` object, or a list/tuple of arrays. "
-                f"Received: dataset={dataset} of type {type(dataset)}"
-            )
-
-        if right_size is None and left_size is None:
-            raise ValueError(
-                "At least one of the `left_size` or `right_size` "
-                "must be specified. Received: left_size=None and "
-                "right_size=None"
-            )
-
-        dataset_as_list = self.convert_dataset_to_list(
-            dataset, dataset_type_spec
-        )
-
-        if shuffle:
-            if seed is None:
-                seed = random.randint(0, int(1e6))
-            random.seed(seed)
-            random.shuffle(dataset_as_list)
-
-        total_length = len(dataset_as_list)
-
-        left_size, right_size = _rescale_dataset_split_sizes(
-            left_size, right_size, total_length
-        )
-        left_split = list(dataset_as_list[:left_size])
-        right_split = list(dataset_as_list[-right_size:])
-
-        left_split = self.restore_dataset_from_list(
-            left_split, dataset_type_spec
-        )
-        right_split = self.restore_dataset_from_list(
-            right_split, dataset_type_spec
-        )
-
-        left_split = tf.data.Dataset.from_tensor_slices(left_split)
-        right_split = tf.data.Dataset.from_tensor_slices(right_split)
-
-        # apply batching to the splits if the dataset is batched
-        if dataset_type_spec is tf.data.Dataset and is_batched(dataset):
-            batch_size = get_batch_size(dataset)
-            if batch_size is not None:
-                left_split = left_split.batch(batch_size)
-                right_split = right_split.batch(batch_size)
-
-        left_split = left_split.prefetch(tf.data.AUTOTUNE)
-        right_split = right_split.prefetch(tf.data.AUTOTUNE)
-        return left_split, right_split
-
-    def restore_dataset_from_list(self, dataset_as_list, dataset_type_spec):
-        """Restore the dataset from the list of arrays."""
-        if self.is_valid_dataset_spec(dataset_type_spec):
-            # Save structure by taking the first element.
-            element_spec = dataset_as_list[0]
-            # Flatten each element.
-            dataset_as_list = [
-                tree.flatten(sample) for sample in dataset_as_list
-            ]
-            # Combine respective elements at all indices.
-            dataset_as_list = [
-                np.array(sample) for sample in zip(*dataset_as_list)
-            ]
-            # Recreate the original structure of elements.
-            dataset_as_list = tree.pack_sequence_as(
-                element_spec, dataset_as_list
-            )
-            # Turn lists to tuples as tf.data will fail on lists.
-            return tree.traverse(
-                lambda x: tuple(x) if isinstance(x, list) else x,
-                dataset_as_list,
-                top_down=False,
-            )
-
-        return dataset_as_list
-
-    def get_data_iterator_from_dataset(self, dataset, dataset_type_spec):
-        if isinstance(dataset, self.dataset_type):
-            if is_batched(dataset):
-                dataset = dataset.unbatch()
-            return iter(dataset)
-        else:
-            return super().get_data_iterator_from_dataset(
-                dataset, dataset_type_spec
-            )
-
-
-@DatasetHandlerRegistry.register("torch")
-class TorchDatasetHandler(DatasetHandler):
-    """
-    A PyTorch-specific dataset handler which implements
-    the DatasetHandler interface and defines required
-    dataset operations.
-    """
-
-    @property
-    def tensor_type(self):
-        import torch
-
-        return torch.Tensor
-
-    @property
-    def dataset_type(self):
-        import torch
-
-        return torch.utils.data.Dataset
-
-    def split_dataset(
-        self, dataset, left_size=None, right_size=None, shuffle=False, seed=None
-    ):
-        import torch
-        from torch.utils.data import TensorDataset
-        from torch.utils.data import random_split
-
-        dataset_type_spec = self.get_type_spec(dataset)
-        if dataset_type_spec is None:
-            raise TypeError(
-                "The `dataset` argument must be a `torch.utils.data.Dataset`"
-                " object, or a list/tuple of arrays."
-                f" Received: dataset={dataset} of type {type(dataset)}"
-            )
-
-        if not isinstance(dataset, self.dataset_type):
-            if dataset_type_spec is np.ndarray:
-                dataset = TensorDataset(torch.from_numpy(dataset))
-            elif dataset_type_spec in (list, tuple):
-                tensors = [torch.from_numpy(x) for x in dataset]
-                dataset = TensorDataset(*tensors)
-
-        if right_size is None and left_size is None:
-            raise ValueError(
-                "At least one of the `left_size` or `right_size` "
-                "must be specified. "
-                "Received: left_size=None and right_size=None"
-            )
-
-        # Calculate total length and rescale split sizes
-        total_length = len(dataset)
-        left_size, right_size = _rescale_dataset_split_sizes(
-            left_size, right_size, total_length
-        )
-
-        # Shuffle the dataset if required
-        if shuffle:
-            generator = torch.Generator()
-            if seed is not None:
-                generator.manual_seed(seed)
-            else:
-                generator.seed()
-        else:
-            generator = None
-
-        left_split, right_split = random_split(
-            dataset, [left_size, right_size], generator=generator
-        )
-
-        return left_split, right_split
-
-    def get_data_iterator_from_dataset(self, dataset, dataset_type_spec):
-        if isinstance(dataset, self.dataset_type):
-            return iter(dataset)
-        else:
-            return super().get_data_iterator_from_dataset(
-                dataset, dataset_type_spec
-            )
-
-
 @keras_export("keras.utils.split_dataset")
 def split_dataset(
+    dataset,
+    left_size=None,
+    right_size=None,
+    shuffle=False,
+    seed=None,
+    preferred_backend=None,
+):
+    """Splits a dataset into a left half and a right half (e.g. train / test).
+
+    Args:
+        dataset:
+            A `tf.data.Dataset`, a `torch.utils.data.Dataset` object,
+            or a list/tuple of arrays with the same length.
+        left_size: If float (in the range `[0, 1]`), it signifies
+            the fraction of the data to pack in the left dataset. If integer, it
+            signifies the number of samples to pack in the left dataset. If
+            `None`, defaults to the complement to `right_size`.
+            Defaults to `None`.
+        right_size: If float (in the range `[0, 1]`), it signifies
+            the fraction of the data to pack in the right dataset.
+            If integer, it signifies the number of samples to pack
+            in the right dataset.
+            If `None`, defaults to the complement to `left_size`.
+            Defaults to `None`.
+        shuffle: Boolean, whether to shuffle the data before splitting it.
+        seed: A random seed for shuffling.
+
+    Returns:
+        A tuple of two `tf.data.Dataset` objects:
+        the left and right splits.
+
+    Example:
+
+    >>> data = np.random.random(size=(1000, 4))
+    >>> left_ds, right_ds = keras.utils.split_dataset(data, left_size=0.8)
+    >>> int(left_ds.cardinality())
+    800
+    >>> int(right_ds.cardinality())
+    200
+    """
+    if preferred_backend:
+        keras_backend = preferred_backend
+    else:
+        keras_backend = _infer_backend(dataset)
+    if keras_backend != "torch":
+        return split_dataset_tf(
+            dataset,
+            left_size=left_size,
+            right_size=right_size,
+            shuffle=shuffle,
+            seed=seed,
+        )
+    else:
+        return split_dataset_torch(
+            dataset,
+            left_size=left_size,
+            right_size=right_size,
+            shuffle=shuffle,
+            seed=seed,
+        )
+
+
+def split_dataset_tf(
     dataset, left_size=None, right_size=None, shuffle=False, seed=None
 ):
     """Splits a dataset into a left half and a right half (e.g. train / test).
@@ -488,35 +102,360 @@ def split_dataset(
         seed: A random seed for shuffling.
 
     Returns:
-        A tuple of two dataset objects, the left and right splits. The exact
-        type of the returned objects depends on the input dataset and the
-        active backend. For example, with a TensorFlow backend,
-        `tf.data.Dataset` objects are returned. With a PyTorch backend,
-        `torch.utils.data.Dataset` objects are returned when splitting a
-        `torch.utils.data.Dataset`.
+        A tuple of two `tf.data.Dataset` objects:
+        the left and right splits.
 
     Example:
 
     >>> data = np.random.random(size=(1000, 4))
     >>> left_ds, right_ds = keras.utils.split_dataset(data, left_size=0.8)
-    >>> # For a tf.data.Dataset, you can use .cardinality()
-    >>> # >>> int(left_ds.cardinality())
-    >>> # 800
-    >>> # For a torch.utils.data.Dataset, you can use len()
-    >>> # >>> len(left_ds)
-    >>> # 800
+    >>> int(left_ds.cardinality())
+    800
+    >>> int(right_ds.cardinality())
+    200
     """
-    if is_torch_dataset(dataset):
-        # included for backwards compatibility,
-        # to ensure someone calling `split_dataset`
-        # doesn't have a sudden exception raised
-        # if they're supplying a torch dataset
-        keras_backend = "torch"
+    from keras.src.utils.module_utils import tensorflow as tf
+
+    dataset_type_spec = _get_type_spec(dataset)
+
+    if dataset_type_spec is None:
+        raise TypeError(
+            "The `dataset` argument must be either"
+            "a `tf.data.Dataset` object, or"
+            "a list/tuple of arrays. "
+            f"Received: dataset={dataset} of type {type(dataset)}"
+        )
+
+    if right_size is None and left_size is None:
+        raise ValueError(
+            "At least one of the `left_size` or `right_size` "
+            "must be specified. Received: left_size=None and "
+            "right_size=None"
+        )
+
+    dataset_as_list = _convert_dataset_to_list(dataset, dataset_type_spec)
+
+    if shuffle:
+        if seed is None:
+            seed = random.randint(0, int(1e6))
+        random.seed(seed)
+        random.shuffle(dataset_as_list)
+
+    total_length = len(dataset_as_list)
+
+    left_size, right_size = _rescale_dataset_split_sizes(
+        left_size, right_size, total_length
+    )
+    left_split = list(dataset_as_list[:left_size])
+    right_split = list(dataset_as_list[-right_size:])
+
+    left_split = _restore_dataset_from_list(
+        left_split, dataset_type_spec, dataset
+    )
+    right_split = _restore_dataset_from_list(
+        right_split, dataset_type_spec, dataset
+    )
+
+    left_split = tf.data.Dataset.from_tensor_slices(left_split)
+    right_split = tf.data.Dataset.from_tensor_slices(right_split)
+
+    # apply batching to the splits if the dataset is batched
+    if dataset_type_spec is tf.data.Dataset and is_batched(dataset):
+        batch_size = get_batch_size(dataset)
+        if batch_size is not None:
+            left_split = left_split.batch(batch_size)
+            right_split = right_split.batch(batch_size)
+
+    left_split = left_split.prefetch(tf.data.AUTOTUNE)
+    right_split = right_split.prefetch(tf.data.AUTOTUNE)
+    return left_split, right_split
+
+
+def split_dataset_torch(
+    dataset, left_size=None, right_size=None, shuffle=False, seed=None
+):
+    import torch
+    from torch.utils.data import TensorDataset
+    from torch.utils.data import random_split
+
+    dataset_type_spec = _get_type_spec(dataset)
+    if dataset_type_spec is None:
+        raise TypeError(
+            "The `dataset` argument must be a `torch.utils.data.Dataset`"
+            " object, or a list/tuple of arrays."
+            f" Received: dataset={dataset} of type {type(dataset)}"
+        )
+
+    if not isinstance(dataset, torch.utils.data.Dataset):
+        if dataset_type_spec is np.ndarray:
+            dataset = TensorDataset(torch.from_numpy(dataset))
+        elif dataset_type_spec in (list, tuple):
+            tensors = [torch.from_numpy(x) for x in dataset]
+            dataset = TensorDataset(*tensors)
+
+    if right_size is None and left_size is None:
+        raise ValueError(
+            "At least one of the `left_size` or `right_size` "
+            "must be specified. "
+            "Received: left_size=None and right_size=None"
+        )
+
+    # Calculate total length and rescale split sizes
+    total_length = len(dataset)
+    left_size, right_size = _rescale_dataset_split_sizes(
+        left_size, right_size, total_length
+    )
+
+    # Shuffle the dataset if required
+    if shuffle:
+        generator = torch.Generator()
+        if seed is not None:
+            generator.manual_seed(seed)
+        else:
+            generator.seed()
     else:
-        keras_backend = backend.backend()
-    dataset_handler = DatasetHandlerRegistry.get_handler(keras_backend)
-    return dataset_handler.split_dataset(
-        dataset, left_size, right_size, shuffle, seed
+        generator = None
+
+    left_split, right_split = random_split(
+        dataset, [left_size, right_size], generator=generator
+    )
+
+    return left_split, right_split
+
+
+def _infer_backend(dataset):
+    """Infer the backend from the dataset type."""
+    if isinstance(dataset, (list, tuple, np.ndarray)):
+        return backend.backend()
+    if is_tf_dataset(dataset):
+        return "tensorflow"
+    elif is_torch_dataset(dataset):
+        return "torch"
+    else:
+        raise TypeError(f"Unsupported dataset type: {type(dataset)}")
+
+
+def _convert_dataset_to_list(
+    dataset,
+    dataset_type_spec,
+    data_size_warning_flag=True,
+    ensure_shape_similarity=True,
+):
+    """Convert `dataset` object to a list of samples.
+
+    Args:
+        dataset: A `tf.data.Dataset`, a `torch.utils.data.Dataset` object,
+            or a list/tuple of arrays.
+        dataset_type_spec: the type of the dataset.
+        data_size_warning_flag: If set to `True`, a warning will
+            be issued if the dataset takes longer than 10 seconds to iterate.
+            Defaults to `True`.
+        ensure_shape_similarity: If set to `True`, the shape of
+            the first sample will be used to validate the shape of rest of the
+            samples. Defaults to `True`.
+
+    Returns:
+        List: A list of samples.
+    """
+    dataset_iterator = _get_data_iterator_from_dataset(
+        dataset, dataset_type_spec
+    )
+    dataset_as_list = []
+
+    start_time = time.time()
+    for sample in _get_next_sample(
+        dataset_iterator,
+        ensure_shape_similarity,
+        data_size_warning_flag,
+        start_time,
+    ):
+        dataset_as_list.append(sample)
+
+    return dataset_as_list
+
+
+def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
+    """Get the iterator from a dataset.
+
+    Args:
+        dataset: A `tf.data.Dataset`, a `torch.utils.data.Dataset` object,
+            or a list/tuple of arrays.
+        dataset_type_spec: The type of the dataset.
+
+    Returns:
+        iterator: An `iterator` object.
+    """
+    if dataset_type_spec is list:
+        if len(dataset) == 0:
+            raise ValueError(
+                "Received an empty list dataset. "
+                "Please provide a non-empty list of arrays."
+            )
+
+        expected_shape = None
+        for i, element in enumerate(dataset):
+            if not isinstance(element, np.ndarray):
+                raise ValueError(
+                    "Expected a list of `numpy.ndarray` objects,"
+                    f"Received: {type(element)} at index {i}."
+                )
+            if expected_shape is None:
+                expected_shape = element.shape
+            elif element.shape[0] != expected_shape[0]:
+                raise ValueError(
+                    "Received a list of NumPy arrays with different lengths."
+                    f"Mismatch found at index {i}, "
+                    f"Expected shape={expected_shape} "
+                    f"Received shape={np.array(element).shape}."
+                    "Please provide a list of NumPy arrays of the same length."
+                )
+
+        return iter(zip(*dataset))
+    elif dataset_type_spec is tuple:
+        if len(dataset) == 0:
+            raise ValueError(
+                "Received an empty list dataset."
+                "Please provide a non-empty tuple of arrays."
+            )
+
+        expected_shape = None
+        for i, element in enumerate(dataset):
+            if not isinstance(element, np.ndarray):
+                raise ValueError(
+                    "Expected a tuple of `numpy.ndarray` objects,"
+                    f"Received: {type(element)} at index {i}."
+                )
+            if expected_shape is None:
+                expected_shape = element.shape
+            elif element.shape[0] != expected_shape[0]:
+                raise ValueError(
+                    "Received a tuple of NumPy arrays with different lengths."
+                    f"Mismatch found at index {i}, "
+                    f"Expected shape={expected_shape} "
+                    f"Received shape={np.array(element).shape}."
+                    "Please provide a tuple of NumPy arrays of the same length."
+                )
+
+        return iter(zip(*dataset))
+    elif is_tf_dataset(dataset):
+        if is_batched(dataset):
+            dataset = dataset.unbatch()
+        return iter(dataset)
+
+    elif is_torch_dataset(dataset):
+        return iter(dataset)
+    elif dataset_type_spec is np.ndarray:
+        return iter(dataset)
+    raise ValueError(f"Invalid dataset_type_spec: {dataset_type_spec}")
+
+
+def _get_next_sample(
+    dataset_iterator,
+    ensure_shape_similarity,
+    data_size_warning_flag,
+    start_time,
+):
+    """Yield data samples from the `dataset_iterator`.
+
+    Args:
+        dataset_iterator: An `iterator` object.
+        ensure_shape_similarity: If set to `True`, the shape of
+            the first sample will be used to validate the shape of rest of the
+            samples. Defaults to `True`.
+        data_size_warning_flag: If set to `True`, a warning will
+            be issued if the dataset takes longer than 10 seconds to iterate.
+            Defaults to `True`.
+        start_time (float): the start time of the dataset iteration. this is
+            used only if `data_size_warning_flag` is set to true.
+
+    Yields:
+        data_sample: The next sample.
+    """
+    from keras.src.trainers.data_adapters.data_adapter_utils import (
+        is_tensorflow_tensor,
+    )
+    from keras.src.trainers.data_adapters.data_adapter_utils import (
+        is_torch_tensor,
+    )
+
+    try:
+        dataset_iterator = iter(dataset_iterator)
+        first_sample = next(dataset_iterator)
+        if (
+            isinstance(first_sample, np.ndarray)
+            or is_tensorflow_tensor(first_sample)
+            or is_torch_tensor(first_sample)
+        ):
+            first_sample_shape = np.array(first_sample).shape
+        else:
+            first_sample_shape = None
+            ensure_shape_similarity = False
+        yield first_sample
+    except StopIteration:
+        raise ValueError(
+            "Received an empty dataset. Argument `dataset` must "
+            "be a non-empty list/tuple of `numpy.ndarray` objects "
+            "or `tf.data.Dataset` objects."
+        )
+
+    for i, sample in enumerate(dataset_iterator):
+        if ensure_shape_similarity:
+            if first_sample_shape != np.array(sample).shape:
+                raise ValueError(
+                    "All `dataset` samples must have same shape, "
+                    f"Expected shape: {np.array(first_sample).shape} "
+                    f"Received shape: {np.array(sample).shape} at index "
+                    f"{i}."
+                )
+        if data_size_warning_flag:
+            if i % 10 == 0:
+                cur_time = time.time()
+                # warns user if the dataset is too large to iterate within 10s
+                if int(cur_time - start_time) > 10 and data_size_warning_flag:
+                    warnings.warn(
+                        "The dataset is taking longer than 10 seconds to "
+                        "iterate over. This may be due to the size of the "
+                        "dataset. Keep in mind that the `split_dataset` "
+                        "utility is only for small in-memory dataset "
+                        "(e.g. < 10,000 samples).",
+                        category=ResourceWarning,
+                        source="split_dataset",
+                    )
+                    data_size_warning_flag = False
+        yield sample
+
+
+def is_torch_dataset(dataset):
+    if hasattr(dataset, "__class__"):
+        for parent in dataset.__class__.__mro__:
+            if parent.__name__ == "Dataset" and str(
+                parent.__module__
+            ).startswith("torch.utils.data"):
+                return True
+    return False
+
+
+def _mro_matches(dataset, class_names, module_prefixes):
+    if not hasattr(dataset, "__class__"):
+        return False
+    for parent in dataset.__class__.__mro__:
+        if parent.__name__ in class_names:
+            mod = str(parent.__module__)
+            if any(mod.startswith(pref) for pref in module_prefixes):
+                return True
+    return False
+
+
+def is_tf_dataset(dataset):
+    # Works without importing tensorflow.
+    # Dataset classes are typically DatasetV2 / Dataset from TF.
+    return _mro_matches(
+        dataset,
+        class_names=("DatasetV2", "Dataset"),
+        module_prefixes=(
+            "tensorflow.python.data",  # TF classic
+            "tensorflow.data",  # newer TF paths
+        ),
     )
 
 
@@ -527,16 +466,6 @@ def is_grain_dataset(dataset):
                 "MapDataset",
                 "IterDataset",
             ) and str(parent.__module__).startswith("grain._src.python"):
-                return True
-    return False
-
-
-def is_torch_dataset(dataset):
-    if hasattr(dataset, "__class__"):
-        for parent in dataset.__class__.__mro__:
-            if parent.__name__ == "Dataset" and str(
-                parent.__module__
-            ).startswith("torch.utils.data"):
                 return True
     return False
 
@@ -666,6 +595,33 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     return left_size, right_size
 
 
+def _restore_dataset_from_list(
+    dataset_as_list, dataset_type_spec, original_dataset
+):
+    """Restore the dataset from the list of arrays."""
+    if (
+        dataset_type_spec in [tuple, list]
+        or is_tf_dataset(original_dataset)
+        or is_torch_dataset(original_dataset)
+    ):
+        # Save structure by taking the first element.
+        element_spec = dataset_as_list[0]
+        # Flatten each element.
+        dataset_as_list = [tree.flatten(sample) for sample in dataset_as_list]
+        # Combine respective elements at all indices.
+        dataset_as_list = [np.array(sample) for sample in zip(*dataset_as_list)]
+        # Recreate the original structure of elements.
+        dataset_as_list = tree.pack_sequence_as(element_spec, dataset_as_list)
+        # Turn lists to tuples as tf.data will fail on lists.
+        return tree.traverse(
+            lambda x: tuple(x) if isinstance(x, list) else x,
+            dataset_as_list,
+            top_down=False,
+        )
+
+    return dataset_as_list
+
+
 def is_batched(dataset):
     """Check if the `tf.data.Dataset` is batched."""
     return hasattr(dataset, "_batch_size")
@@ -675,6 +631,30 @@ def get_batch_size(dataset):
     """Get the batch size of the dataset."""
     if is_batched(dataset):
         return dataset._batch_size
+    else:
+        return None
+
+
+def _get_type_spec(dataset):
+    """Get the type spec of the dataset."""
+    if isinstance(dataset, tuple):
+        return tuple
+    elif isinstance(dataset, list):
+        return list
+    elif isinstance(dataset, np.ndarray):
+        return np.ndarray
+    elif is_tf_dataset(dataset):
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        return tf.data.Dataset
+    elif is_torch_dataset(dataset):
+        from torch.utils.data import Dataset as TorchDataset
+
+        return TorchDataset
+    elif is_grain_dataset(dataset):
+        from grain import MapDataset
+
+        return MapDataset
     else:
         return None
 
