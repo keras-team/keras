@@ -46,6 +46,7 @@ NumpyDtypeTest::test_swapaxes
 NumpyDtypeTest::test_tensordot_
 NumpyDtypeTest::test_tile
 NumpyDtypeTest::test_trace
+NumpyDtypeTest::test_trapezoid
 NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
@@ -95,6 +96,7 @@ NumpyOneInputOpsCorrectnessTest::test_swapaxes
 NumpyOneInputOpsCorrectnessTest::test_tile
 NumpyOneInputOpsCorrectnessTest::test_trace
 NumpyOneInputOpsCorrectnessTest::test_transpose
+NumpyOneInputOpsCorrectnessTest::test_trapezoid
 NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_unravel_index
 NumpyOneInputOpsCorrectnessTest::test_var
