@@ -457,30 +457,7 @@ def _get_next_sample(
         yield sample
 
 
-def is_torch_dataset(dataset):
-    if hasattr(dataset, "__class__"):
-        for parent in dataset.__class__.__mro__:
-            if parent.__name__ == "Dataset" and str(
-                parent.__module__
-            ).startswith("torch.utils.data"):
-                return True
-    return False
-
-
-def _mro_matches(dataset, class_names, module_prefixes):
-    if not hasattr(dataset, "__class__"):
-        return False
-    for parent in dataset.__class__.__mro__:
-        if parent.__name__ in class_names:
-            mod = str(parent.__module__)
-            if any(mod.startswith(pref) for pref in module_prefixes):
-                return True
-    return False
-
-
 def is_tf_dataset(dataset):
-    # Works without importing tensorflow.
-    # Dataset classes are typically DatasetV2 / Dataset from TF.
     return _mro_matches(
         dataset,
         class_names=("DatasetV2", "Dataset"),
@@ -492,12 +469,24 @@ def is_tf_dataset(dataset):
 
 
 def is_grain_dataset(dataset):
-    if hasattr(dataset, "__class__"):
-        for parent in dataset.__class__.__mro__:
-            if parent.__name__ in (
-                "MapDataset",
-                "IterDataset",
-            ) and str(parent.__module__).startswith("grain._src.python"):
+    return _mro_matches(
+        dataset,
+        class_names=("MapDataset", "IterDataset"),
+        module_prefixes=("grain._src.python",),
+    )
+
+
+def is_torch_dataset(dataset):
+    return _mro_matches(dataset, ("Dataset",), ("torch.utils.data",))
+
+
+def _mro_matches(dataset, class_names, module_prefixes):
+    if not hasattr(dataset, "__class__"):
+        return False
+    for parent in dataset.__class__.__mro__:
+        if parent.__name__ in class_names:
+            mod = str(parent.__module__)
+            if any(mod.startswith(pref) for pref in module_prefixes):
                 return True
     return False
 
