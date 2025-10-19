@@ -69,14 +69,19 @@ class DatasetUtilsTest(test_case.TestCase):
         named_product(
             dataset_type=["list", "tuple", "tensorflow", "torch"],
             features_shape=[(2,), (100, 2), (10, 10, 2)],
+            preferred_backend=[None, "tensorflow", "torch"],
         )
     )
-    def test_split_dataset(self, dataset_type, features_shape):
+    def test_split_dataset(
+        self, dataset_type, features_shape, preferred_backend
+    ):
         n_sample, left_size, right_size = 100, 0.2, 0.8
         features = np.random.sample((n_sample,) + features_shape)
         labels = np.random.sample((n_sample, 1))
         cardinality_function = (
-            tf.data.Dataset.cardinality if backend.backend() != "torch" else len
+            tf.data.Dataset.cardinality
+            if (backend.backend() != "torch" and preferred_backend != "torch")
+            else len
         )
 
         if dataset_type == "list":
@@ -92,7 +97,10 @@ class DatasetUtilsTest(test_case.TestCase):
             raise ValueError(f"Unknown dataset_type: {dataset_type}")
 
         dataset_left, dataset_right = split_dataset(
-            dataset, left_size=left_size, right_size=right_size
+            dataset,
+            left_size=left_size,
+            right_size=right_size,
+            preferred_backend=preferred_backend,
         )
         self.assertEqual(
             int(cardinality_function(dataset_left)), int(n_sample * left_size)
