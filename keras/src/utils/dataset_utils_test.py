@@ -67,13 +67,7 @@ class MyTorchDataset(TorchDataset):
 class DatasetUtilsTest(test_case.TestCase):
     @parameterized.named_parameters(
         named_product(
-            dataset_type=[
-                "list",
-                "tuple",
-                backend.backend()
-                if backend.backend() in ["tensorflow", "torch"]
-                else "tensorflow",
-            ],
+            dataset_type=["list", "tuple", "tensorflow", "torch"],
             features_shape=[(2,), (100, 2), (10, 10, 2)],
         )
     )
@@ -81,6 +75,9 @@ class DatasetUtilsTest(test_case.TestCase):
         n_sample, left_size, right_size = 100, 0.2, 0.8
         features = np.random.sample((n_sample,) + features_shape)
         labels = np.random.sample((n_sample, 1))
+        cardinality_function = (
+            tf.data.Dataset.cardinality if backend.backend() != "torch" else len
+        )
 
         if dataset_type == "list":
             dataset = [features, labels]
@@ -90,14 +87,13 @@ class DatasetUtilsTest(test_case.TestCase):
             dataset = tf.data.Dataset.from_tensor_slices((features, labels))
         elif dataset_type == "torch":
             dataset = MyTorchDataset(features, labels)
+            cardinality_function = len
+        else:
+            raise ValueError(f"Unknown dataset_type: {dataset_type}")
 
         dataset_left, dataset_right = split_dataset(
             dataset, left_size=left_size, right_size=right_size
         )
-        if backend.backend() == "torch":
-            cardinality_function = len
-        else:
-            cardinality_function = tf.data.Dataset.cardinality
         self.assertEqual(
             int(cardinality_function(dataset_left)), int(n_sample * left_size)
         )
