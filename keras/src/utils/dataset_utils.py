@@ -72,7 +72,7 @@ def split_dataset(
     else:
         keras_backend = _infer_backend(dataset)
     if keras_backend != "torch":
-        return split_dataset_tf(
+        return _split_dataset_tf(
             dataset,
             left_size=left_size,
             right_size=right_size,
@@ -80,7 +80,7 @@ def split_dataset(
             seed=seed,
         )
     else:
-        return split_dataset_torch(
+        return _split_dataset_torch(
             dataset,
             left_size=left_size,
             right_size=right_size,
@@ -89,7 +89,7 @@ def split_dataset(
         )
 
 
-def split_dataset_tf(
+def _split_dataset_tf(
     dataset, left_size=None, right_size=None, shuffle=False, seed=None
 ):
     """Splits a dataset into a left half and a right half (e.g. train / test).
@@ -173,7 +173,7 @@ def split_dataset_tf(
     return left_split, right_split
 
 
-def split_dataset_torch(
+def _split_dataset_torch(
     dataset, left_size=None, right_size=None, shuffle=False, seed=None
 ):
     """Splits a dataset into a left half and a right half (e.g. train / test).
@@ -217,6 +217,15 @@ def split_dataset_torch(
             dataset = TensorDataset(torch.from_numpy(dataset))
         elif dataset_type_spec in (list, tuple):
             tensors = [torch.from_numpy(x) for x in dataset]
+            dataset = TensorDataset(*tensors)
+        elif is_tf_dataset(dataset):
+            dataset_as_list = _convert_dataset_to_list(
+                dataset, dataset_type_spec
+            )
+            tensors = [
+                torch.from_numpy(np.array(sample))
+                for sample in zip(*dataset_as_list)
+            ]
             dataset = TensorDataset(*tensors)
 
     if right_size is None and left_size is None:
