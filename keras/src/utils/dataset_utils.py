@@ -60,10 +60,12 @@ def split_dataset(
 
     >>> data = np.random.random(size=(1000, 4))
     >>> left_ds, right_ds = keras.utils.split_dataset(data, left_size=0.8)
-    >>> int(left_ds.cardinality())
-    800
-    >>> int(right_ds.cardinality())
-    200
+    >>> # For a tf.data.Dataset, you can use .cardinality()
+    >>> # >>> int(left_ds.cardinality())
+    >>> # 800
+    >>> # For a torch.utils.data.Dataset, you can use len()
+    >>> # >>> len(left_ds)
+    >>> # 800
     """
     if preferred_backend:
         keras_backend = preferred_backend
