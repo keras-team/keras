@@ -777,9 +777,9 @@ def _extract_volume_patches(
     data_format=None,
 ):
     if isinstance(size, int):
-        patch_h = patch_w = patch_d = size
+        patch_d = patch_h = patch_w = size
     elif len(size) == 3:
-        patch_h, patch_w, patch_d = size
+        patch_d, patch_h, patch_w, patch_d = size
     else:
         raise TypeError(
             "Invalid `size` argument. Expected an "
