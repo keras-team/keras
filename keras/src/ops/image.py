@@ -842,10 +842,10 @@ def extract_volume_patches(
         data_format: A string specifying the data format of the input tensor.
             It can be either `"channels_last"` or `"channels_first"`.
             `"channels_last"` corresponds to inputs with shape
-            `(batch, height, width, channels)`, while `"channels_first"`
-            corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will default to
-            `keras.config.image_data_format`.
+            `(batch, depth, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape
+            `(batch, channels, depth, height, width)`. If not specified,
+             the value will default to `keras.config.image_data_format`.
 
     Returns:
         Extracted patches 4D (if not batched) or 5D (if batched)
