@@ -733,7 +733,7 @@ class ExtractVolumePatches(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, volumes):
-        return backend.image.extract_volume_patches(
+        return _extract_volume_patches(
             volumes,
             self.size,
             self.strides,
@@ -852,16 +852,20 @@ def extract_volume_patches(
 
     Examples:
 
-    >>> image = np.random.random(
-    ...     (2, 20, 20, 3)
-    ... ).astype("float32") # batch of 2 RGB images
-    >>> patches = keras.ops.image.extract_patches(image, (5, 5))
+    >>> import numpy as np
+    >>> import keras
+    >>> # Batched case
+    >>> volumes = np.random.random(
+    ...     (2, 10, 10, 10, 3)
+    ... ).astype("float32") # batch of 2 volumes
+    >>> patches = keras.ops.image.extract_volume_patches(volumes, (3, 3, 3))
     >>> patches.shape
-    (2, 4, 4, 75)
-    >>> image = np.random.random((20, 20, 3)).astype("float32") # 1 RGB image
-    >>> patches = keras.ops.image.extract_patches(image, (3, 3), (1, 1))
+    (2, 3, 3, 3, 81)
+    >>> # Unbatched case
+    >>> volume = np.random.random((10, 10, 10, 3)).astype("float32") # 1 volume
+    >>> patches = keras.ops.image.extract_volume_patches(volume, (3, 3, 3))
     >>> patches.shape
-    (18, 18, 27)
+    (8, 8, 8, 81)
     """
     if any_symbolic_tensors((volumes,)):
         return ExtractVolumePatches(
