@@ -2573,14 +2573,15 @@ class ExtractVolumePatchesTest(testing.TestCase):
         )
     )
     def test_extract_volume_patches_basic(self, dtype, data_format):
-        volume = np.ones((1, 96, 96, 96, 4), dtype=dtype)
+        if data_format == "channels_last":
+            volume = np.ones((1, 96, 96, 96, 4), dtype=dtype)
+            expected_shape = (1, 24, 24, 24, 256)
+        else:
+            volume = np.ones((1, 4, 96, 96, 96), dtype=dtype)
+            expected_shape = (1, 256, 24, 24, 24)
         patches = kimage.extract_volume_patches(
             volume, size=(4, 4, 4), strides=(4, 4, 4), data_format=data_format
         )
-        if data_format == "channels_last":
-            expected_shape = (1, 24, 24, 24, 256)
-        else:
-            expected_shape = (1, 6144, 24, 24, 1)
 
         self.assertEqual(patches.shape, expected_shape)
 
