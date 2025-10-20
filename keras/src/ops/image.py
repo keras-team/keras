@@ -726,6 +726,20 @@ class ExtractVolumePatches(Operation):
         super().__init__(name=name)
         if isinstance(size, int):
             size = (size, size, size)
+        elif len(size) != 3:
+            raise TypeError(
+                "Invalid `size` argument. Expected an "
+                f"int or a tuple of length 3. Received: size={size}"
+            )
+        self.size = size
+        if strides is not None:
+            if isinstance(strides, int):
+                strides = (strides, strides, strides)
+            elif len(strides) != 3:
+                raise ValueError(f"Invalid `strides` argument. Got: {strides}")
+        else:
+            strides = size
+        self.strides = strides
         self.size = size
         self.strides = strides
         self.dilation_rate = dilation_rate
