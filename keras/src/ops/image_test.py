@@ -2612,7 +2612,12 @@ class ExtractVolumePatchesTest(testing.TestCase):
         )
     )
     def test_extract_volume_patches_with_dilation(self, dtype, data_format):
-        volume = np.random.rand(1, 64, 64, 64, 2).astype(dtype)
+        # Shape input according to data_format
+        if data_format == "channels_last":
+            volume = np.random.rand(1, 64, 64, 64, 2).astype(dtype)
+        else:
+            volume = np.random.rand(1, 2, 64, 64, 64).astype(dtype)
+
         if backend.backend() == "tensorflow":
             # TensorFlow backend does not support dilation > 1 and strides > 1
             with self.assertRaises(ValueError):
@@ -2621,14 +2626,16 @@ class ExtractVolumePatchesTest(testing.TestCase):
                     size=(3, 3, 3),
                     strides=(8, 8, 8),
                     dilation_rate=(2, 2, 2),
+                    data_format=data_format,
                 )
         else:
-            # Test that it runs without error on other backends and check shape
+            # Runs without error; check shape
             patches = kimage.extract_volume_patches(
                 volume,
                 size=(3, 3, 3),
                 strides=(8, 8, 8),
                 dilation_rate=(2, 2, 2),
+                data_format=data_format,
             )
             # eff_p = 3 + (3 - 1) * (2 - 1) = 5
             # out = (64 - 5) // 8 + 1 = 8
@@ -2639,12 +2646,12 @@ class ExtractVolumePatchesTest(testing.TestCase):
                     expected_patches,
                     expected_patches,
                     expected_patches,
-                    54,
+                    54,  # 2*3*3*3
                 )
             else:
                 expected_shape = (
                     1,
-                    54,
+                    54,  # 2*3*3*3
                     expected_patches,
                     expected_patches,
                     expected_patches,
