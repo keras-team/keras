@@ -835,9 +835,9 @@ def extract_volume_patches(
         strides: strides along depth, height, and width. If not specified, or
             if `None`, it defaults to the same value as `size`.
         dilation_rate: This is the input stride, specifying how far two
-            consecutive patch samples are in the input. For value other than 1,
-            strides must be 1. NOTE: `strides > 1` is not supported in
-            conjunction with `dilation_rate > 1`
+            consecutive patch samples are in the input. Note that using
+            `dilation_rate > 1` is not supported in conjunction with
+            `strides > 1` on the TensorFlow backend.
         padding: The type of padding algorithm to use: `"same"` or `"valid"`.
         data_format: A string specifying the data format of the input tensor.
             It can be either `"channels_last"` or `"channels_first"`.
