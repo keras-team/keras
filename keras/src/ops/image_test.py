@@ -2666,6 +2666,21 @@ class ExtractVolumePatchesTest(testing.TestCase):
         self.assertEqual(patches.shape, (1, 4, 4, 4, 432))
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_no_stride_provided(self, dtype):
+        volume = np.random.rand(1, 24, 24, 24, 2)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_volume_patches(volume, size=6)
+        # should default to strides = size - same results as above test
+        self.assertEqual(patches.shape, (1, 4, 4, 4, 432))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_unbatched(self, dtype):
+        volume = np.random.rand(24, 24, 24, 2)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_volume_patches(volume, size=6)
+        self.assertEqual(patches.shape, (4, 4, 4, 432))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_volume_patches_value_check(self, dtype):
         if dtype == "bfloat16" and backend.backend() == "openvino":
             self.skipTest(
