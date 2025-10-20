@@ -2712,3 +2712,11 @@ class ExtractVolumePatchesTest(testing.TestCase):
             kimage.extract_volume_patches(
                 volume, size=(4, 4, 4), strides=(2, 2)
             )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_non_cubic(self, dtype):
+        volume = np.ones((1, 10, 12, 14, 1), dtype=dtype)
+        patches = kimage.extract_volume_patches(
+            volume, size=(2, 3, 4), strides=(2, 3, 4)
+        )
+        self.assertEqual(patches.shape, (1, 5, 4, 3, 24))

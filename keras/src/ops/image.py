@@ -779,7 +779,7 @@ def _extract_volume_patches(
     if isinstance(size, int):
         patch_d = patch_h = patch_w = size
     elif len(size) == 3:
-        patch_d, patch_h, patch_w, patch_d = size
+        patch_d, patch_h, patch_w = size
     else:
         raise TypeError(
             "Invalid `size` argument. Expected an "
@@ -796,10 +796,10 @@ def _extract_volume_patches(
         channels_in = volumes.shape[-1]
     elif data_format == "channels_first":
         channels_in = volumes.shape[-4]
-    out_dim = patch_h * patch_w * patch_d * channels_in
+    out_dim = patch_d * patch_w * patch_h * channels_in
     kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
     kernel = backend.numpy.reshape(
-        kernel, (patch_h, patch_w, patch_d, channels_in, out_dim)
+        kernel, (patch_d, patch_h, patch_w, channels_in, out_dim)
     )
     _unbatched = False
     if len(volumes.shape) == 4:
