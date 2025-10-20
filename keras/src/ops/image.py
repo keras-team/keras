@@ -759,7 +759,7 @@ class ExtractVolumePatches(Operation):
     def compute_output_spec(self, volumes):
         volumes_shape = list(volumes.shape)
         original_ndim = len(volumes_shape)
-        strides = self.size if not self.strides else self.strides
+        strides = self.strides
         if self.data_format == "channels_last":
             channels_in = volumes_shape[-1]
         else:
