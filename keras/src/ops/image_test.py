@@ -2597,7 +2597,7 @@ class ExtractVolumePatchesTest(testing.TestCase):
     def test_extract_volume_patches_with_dilation(self, dtype):
         volume = np.random.rand(1, 64, 64, 64, 2).astype(dtype)
         if backend.backend() == "tensorflow":
-            # TensorFlow backend does not support dilation > 1
+            # TensorFlow backend does not support dilation > 1 and strides > 1
             with self.assertRaises(ValueError):
                 kimage.extract_volume_patches(
                     volume,
