@@ -712,6 +712,171 @@ def _extract_patches(
     return patches
 
 
+class ExtractVolumePatches(Operation):
+    def __init__(
+        self,
+        size,
+        strides=None,
+        dilation_rate=1,
+        padding="valid",
+        data_format=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        if isinstance(size, int):
+            size = (size, size, size)
+        self.size = size
+        self.strides = strides
+        self.dilation_rate = dilation_rate
+        self.padding = padding
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, volumes):
+        return backend.image.extract_volume_patches(
+            volumes,
+            self.size,
+            self.strides,
+            self.dilation_rate,
+            self.padding,
+            self.data_format,
+        )
+
+    def compute_output_spec(self, volumes):
+        volumes_shape = list(volumes.shape)
+        original_ndim = len(volumes_shape)
+        strides = self.size if not self.strides else self.strides
+        if self.data_format == "channels_last":
+            channels_in = volumes_shape[-1]
+        else:
+            channels_in = volumes_shape[-4]
+        if original_ndim == 4:
+            volumes_shape = [1] + volumes_shape
+        filters = self.size[0] * self.size[1] * self.size[2] * channels_in
+        kernel_size = (self.size[0], self.size[1], self.size[2])
+        out_shape = compute_conv_output_shape(
+            volumes_shape,
+            filters,
+            kernel_size,
+            strides=strides,
+            padding=self.padding,
+            data_format=self.data_format,
+            dilation_rate=self.dilation_rate,
+        )
+        if original_ndim == 4:
+            out_shape = out_shape[1:]
+        return KerasTensor(shape=out_shape, dtype=volumes.dtype)
+
+
+def _extract_volume_patches(
+    volumes,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    if isinstance(size, int):
+        patch_h = patch_w = patch_d = size
+    elif len(size) == 3:
+        patch_h, patch_w, patch_d = size
+    else:
+        raise TypeError(
+            "Invalid `size` argument. Expected an "
+            f"int or a tuple of length 3. Received: size={size}"
+        )
+    if strides is None:
+        strides = size
+    if isinstance(strides, int):
+        strides = (strides, strides, strides)
+    if len(strides) != 3:
+        raise ValueError(f"Invalid `strides` argument. Got: {strides}")
+    data_format = backend.standardize_data_format(data_format)
+    if data_format == "channels_last":
+        channels_in = volumes.shape[-1]
+    elif data_format == "channels_first":
+        channels_in = volumes.shape[-4]
+    out_dim = patch_h * patch_w * patch_d * channels_in
+    kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
+    kernel = backend.numpy.reshape(
+        kernel, (patch_h, patch_w, patch_d, channels_in, out_dim)
+    )
+    _unbatched = False
+    if len(volumes.shape) == 4:
+        _unbatched = True
+        volumes = backend.numpy.expand_dims(volumes, axis=0)
+    patches = backend.nn.conv(
+        inputs=volumes,
+        kernel=kernel,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+    )
+    if _unbatched:
+        patches = backend.numpy.squeeze(patches, axis=0)
+    return patches
+
+
+@keras_export("keras.ops.image.extract_volume_patches")
+def extract_volume_patches(
+    volumes,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    """Extracts patches from the volume(s).
+
+    Args:
+        volumes: Input volume or batch of volumes. Must be 4D or 5D.
+        size: Patch size int or tuple (patch_height, patch_width, patch depth)
+        strides: strides along height, width, and depth. If not specified, or
+            if `None`, it defaults to the same value as `size`.
+        dilation_rate: This is the input stride, specifying how far two
+            consecutive patch samples are in the input. For value other than 1,
+            strides must be 1. NOTE: `strides > 1` is not supported in
+            conjunction with `dilation_rate > 1`
+        padding: The type of padding algorithm to use: `"same"` or `"valid"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        Extracted patches 4D (if not batched) or 5D (if batched)
+
+    Examples:
+
+    >>> image = np.random.random(
+    ...     (2, 20, 20, 3)
+    ... ).astype("float32") # batch of 2 RGB images
+    >>> patches = keras.ops.image.extract_patches(image, (5, 5))
+    >>> patches.shape
+    (2, 4, 4, 75)
+    >>> image = np.random.random((20, 20, 3)).astype("float32") # 1 RGB image
+    >>> patches = keras.ops.image.extract_patches(image, (3, 3), (1, 1))
+    >>> patches.shape
+    (18, 18, 27)
+    """
+    if any_symbolic_tensors((volumes,)):
+        return ExtractVolumePatches(
+            size=size,
+            strides=strides,
+            dilation_rate=dilation_rate,
+            padding=padding,
+            data_format=data_format,
+        ).symbolic_call(volumes)
+
+    return _extract_volume_patches(
+        volumes, size, strides, dilation_rate, padding, data_format=data_format
+    )
+
+
 class MapCoordinates(Operation):
     def __init__(self, order, fill_mode="constant", fill_value=0, *, name=None):
         super().__init__(name=name)

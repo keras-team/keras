@@ -116,6 +116,24 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (None, 75, 4, 4))
 
+    def test_extract_volume_patches(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 20, 3])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_volume_patches(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (None, 4, 4, 4, 375))
+        out = kimage.extract_volume_patches(x, 5)
+        self.assertEqual(out.shape, (None, 4, 4, 4, 375))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20, 20])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_volume_patches(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (None, 375, 4, 4, 4))
+        out = kimage.extract_volume_patches(x, 5)
+        self.assertEqual(out.shape, (None, 375, 4, 4, 4))
+
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, None])
         coordinates = KerasTensor([3, 15, 15, None])
@@ -313,6 +331,24 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (75, 4, 4))
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (75, 4, 4))
+
+    def test_extract_volume_patches(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 20, 3])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_volume_patches(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (4, 4, 4, 375))
+        out = kimage.extract_volume_patches(x, 5)
+        self.assertEqual(out.shape, (4, 4, 4, 375))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20, 20])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_volume_patches(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (375, 4, 4, 4))
+        out = kimage.extract_volume_patches(x, 5)
+        self.assertEqual(out.shape, (375, 4, 4, 4))
 
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, 3])
@@ -2522,3 +2558,145 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "Invalid images rank: expected rank 3"
         ):
             kimage.elastic_transform(invalid_image)
+
+
+class ExtractVolumePatchesTest(testing.TestCase):
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_basic(self, dtype):
+        volume = np.ones((1, 96, 96, 96, 4), dtype=dtype)
+        if backend.backend() == "torch":
+            # torch backend requires the input to be float32
+            volume = volume.astype(np.float32)
+        patches = kimage.extract_volume_patches(
+            volume, size=(4, 4, 4), strides=(4, 4, 4)
+        )
+        self.assertEqual(patches.shape, (1, 24, 24, 24, 256))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_valid_padding(self, dtype):
+        volume = np.random.rand(2, 32, 32, 32, 3)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_volume_patches(
+            volume, size=(8, 8, 8), strides=(8, 8, 8), padding="valid"
+        )
+        self.assertEqual(patches.shape, (2, 4, 4, 4, 1536))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_same_padding(self, dtype):
+        volume = np.random.rand(1, 33, 33, 33, 1)
+        volume = volume.astype(np.float32)
+        patches = kimage.extract_volume_patches(
+            volume, size=(4, 4, 4), strides=(4, 4, 4), padding="same"
+        )
+        expected_patches = (33 + 3) // 4  # = 9
+        self.assertEqual(
+            patches.shape,
+            (1, expected_patches, expected_patches, expected_patches, 64),
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_with_dilation(self, dtype):
+        volume = np.random.rand(1, 64, 64, 64, 2).astype(dtype)
+        if backend.backend() == "tensorflow":
+            # TensorFlow backend does not support dilation > 1
+            with self.assertRaises(ValueError):
+                kimage.extract_volume_patches(
+                    volume,
+                    size=(3, 3, 3),
+                    strides=(8, 8, 8),
+                    dilation_rate=(2, 2, 2),
+                )
+        else:
+            # Test that it runs without error on other backends and check shape
+            patches = kimage.extract_volume_patches(
+                volume,
+                size=(3, 3, 3),
+                strides=(8, 8, 8),
+                dilation_rate=(2, 2, 2),
+            )
+            # eff_p = 3 + (3 - 1) * (2 - 1) = 5
+            # out = (64 - 5) // 8 + 1 = 8
+            expected_patches = 8
+            if backend.image_data_format() == "channels_last":
+                expected_shape = (
+                    1,
+                    expected_patches,
+                    expected_patches,
+                    expected_patches,
+                    54,
+                )  # 2*3*3*3
+            else:
+                expected_shape = (
+                    1,
+                    54,
+                    expected_patches,
+                    expected_patches,
+                    expected_patches,
+                )
+            self.assertEqual(patches.shape, expected_shape)
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_overlapping(self, dtype):
+        volume = np.random.rand(1, 16, 16, 16, 1)
+        volume = volume.astype(np.float32)
+        patches = kimage.extract_volume_patches(
+            volume, size=(4, 4, 4), strides=(2, 2, 2)
+        )
+        expected_patches = (16 - 4) // 2 + 1  # = 7
+        self.assertEqual(
+            patches.shape,
+            (1, expected_patches, expected_patches, expected_patches, 64),
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_channels_first(self, dtype):
+        volume = np.random.rand(1, 3, 32, 32, 32).astype(dtype)
+        patches = kimage.extract_volume_patches(
+            volume,
+            size=(4, 4, 4),
+            strides=(4, 4, 4),
+            data_format="channels_first",
+        )
+        self.assertEqual(patches.shape, (1, 192, 8, 8, 8))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_int_size(self, dtype):
+        volume = np.random.rand(1, 24, 24, 24, 2)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_volume_patches(volume, size=6, strides=6)
+        self.assertEqual(patches.shape, (1, 4, 4, 4, 432))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_value_check(self, dtype):
+        if dtype == "bfloat16" and backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO's bfloat16 fails this test, "
+                "possibly due to precision. "
+                "Should be revisited."
+            )
+        volume = np.arange(8 * 8 * 8).reshape(1, 8, 8, 8, 1)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_volume_patches(
+            volume, size=(2, 2, 2), strides=(2, 2, 2)
+        )
+        first_patch = patches[0, 0, 0, 0, :]
+        first_patch_np = backend.convert_to_numpy(first_patch)
+
+        expected = volume[0, 0:2, 0:2, 0:2, 0].flatten()
+        np.testing.assert_array_equal(first_patch_np, expected)
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_invalid_size(self, dtype):
+        volume = np.random.rand(1, 32, 32, 32, 1).astype(dtype)
+        with self.assertRaises(TypeError):
+            kimage.extract_volume_patches(volume, size=(4, 4))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_volume_patches_invalid_strides(self, dtype):
+        volume = np.random.rand(1, 32, 32, 32, 1).astype(dtype)
+        with self.assertRaises(ValueError):
+            kimage.extract_volume_patches(
+                volume, size=(4, 4, 4), strides=(2, 2)
+            )
