@@ -2566,9 +2566,6 @@ class ExtractVolumePatchesTest(testing.TestCase):
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_volume_patches_basic(self, dtype):
         volume = np.ones((1, 96, 96, 96, 4), dtype=dtype)
-        if backend.backend() == "torch":
-            # torch backend requires the input to be float32
-            volume = volume.astype(np.float32)
         patches = kimage.extract_volume_patches(
             volume, size=(4, 4, 4), strides=(4, 4, 4)
         )
