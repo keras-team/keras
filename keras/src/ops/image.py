@@ -740,8 +740,6 @@ class ExtractVolumePatches(Operation):
         else:
             strides = size
         self.strides = strides
-        self.size = size
-        self.strides = strides
         self.dilation_rate = dilation_rate
         self.padding = padding
         self.data_format = backend.standardize_data_format(data_format)
