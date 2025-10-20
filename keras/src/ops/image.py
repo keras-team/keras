@@ -832,7 +832,7 @@ def extract_volume_patches(
     Args:
         volumes: Input volume or batch of volumes. Must be 4D or 5D.
         size: Patch size int or tuple (patch_depth, patch_height, patch_width)
-        strides: strides along height, width, and depth. If not specified, or
+        strides: strides along depth, height, and width. If not specified, or
             if `None`, it defaults to the same value as `size`.
         dilation_rate: This is the input stride, specifying how far two
             consecutive patch samples are in the input. For value other than 1,
