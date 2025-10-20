@@ -2563,13 +2563,26 @@ class ImageOpsBehaviorTests(testing.TestCase):
 class ExtractVolumePatchesTest(testing.TestCase):
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_extract_volume_patches_basic(self, dtype):
+    def setUp(self):
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=FLOAT_DTYPES, data_format=["channels_last", "channels_first"]
+        )
+    )
+    def test_extract_volume_patches_basic(self, dtype, data_format):
         volume = np.ones((1, 96, 96, 96, 4), dtype=dtype)
         patches = kimage.extract_volume_patches(
-            volume, size=(4, 4, 4), strides=(4, 4, 4)
+            volume, size=(4, 4, 4), strides=(4, 4, 4), data_format=data_format
         )
-        self.assertEqual(patches.shape, (1, 24, 24, 24, 256))
+        if data_format == "channels_last":
+            expected_shape = (1, 24, 24, 24, 256)
+        else:
+            expected_shape = (1, 6144, 24, 24, 1)
+
+        self.assertEqual(patches.shape, expected_shape)
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_volume_patches_valid_padding(self, dtype):
@@ -2616,22 +2629,13 @@ class ExtractVolumePatchesTest(testing.TestCase):
             # eff_p = 3 + (3 - 1) * (2 - 1) = 5
             # out = (64 - 5) // 8 + 1 = 8
             expected_patches = 8
-            if backend.image_data_format() == "channels_last":
-                expected_shape = (
-                    1,
-                    expected_patches,
-                    expected_patches,
-                    expected_patches,
-                    54,
-                )  # 2*3*3*3
-            else:
-                expected_shape = (
-                    1,
-                    54,
-                    expected_patches,
-                    expected_patches,
-                    expected_patches,
-                )
+            expected_shape = (
+                1,
+                expected_patches,
+                expected_patches,
+                expected_patches,
+                54,
+            )  # 2*3*3*3
             self.assertEqual(patches.shape, expected_shape)
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
@@ -2646,17 +2650,6 @@ class ExtractVolumePatchesTest(testing.TestCase):
             patches.shape,
             (1, expected_patches, expected_patches, expected_patches, 64),
         )
-
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_extract_volume_patches_channels_first(self, dtype):
-        volume = np.random.rand(1, 3, 32, 32, 32).astype(dtype)
-        patches = kimage.extract_volume_patches(
-            volume,
-            size=(4, 4, 4),
-            strides=(4, 4, 4),
-            data_format="channels_first",
-        )
-        self.assertEqual(patches.shape, (1, 192, 8, 8, 8))
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_volume_patches_int_size(self, dtype):
@@ -2713,10 +2706,18 @@ class ExtractVolumePatchesTest(testing.TestCase):
                 volume, size=(4, 4, 4), strides=(2, 2)
             )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_extract_volume_patches_non_cubic(self, dtype):
-        volume = np.ones((1, 10, 12, 14, 1), dtype=dtype)
-        patches = kimage.extract_volume_patches(
-            volume, size=(2, 3, 4), strides=(2, 3, 4)
+    @parameterized.named_parameters(
+        named_product(
+            dtype=FLOAT_DTYPES, data_format=["channels_last", "channels_first"]
         )
-        self.assertEqual(patches.shape, (1, 5, 4, 3, 24))
+    )
+    def test_extract_volume_patches_non_cubic(self, dtype, data_format):
+        volume = np.random.rand(1, 3, 32, 32, 32).astype(dtype)
+        patches = kimage.extract_volume_patches(
+            volume, size=(2, 3, 4), strides=(2, 3, 4), data_format=data_format
+        )
+        if data_format == "channels_last":
+            expected_shape = (1, 1, 10, 8, 768)
+        else:
+            expected_shape = (1, 72, 16, 10, 8)
+        self.assertEqual(patches.shape, expected_shape)
