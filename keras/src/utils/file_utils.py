@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 import shutil
+import sys
 import tarfile
 import tempfile
 import urllib
@@ -52,23 +53,67 @@ def is_link_in_dir(info, base):
     return is_path_in_dir(info.linkname, base_dir=tip)
 
 
-def filter_safe_paths(members):
+def filter_safe_zipinfos(members):
     base_dir = resolve_path(".")
     for finfo in members:
         valid_path = False
-        if is_path_in_dir(finfo.name, base_dir):
+        if is_path_in_dir(finfo.filename, base_dir):
             valid_path = True
             yield finfo
-        elif finfo.issym() or finfo.islnk():
-            if is_link_in_dir(finfo, base_dir):
-                valid_path = True
-                yield finfo
         if not valid_path:
             warnings.warn(
                 "Skipping invalid path during archive extraction: "
                 f"'{finfo.name}'.",
                 stacklevel=2,
             )
+
+
+def filter_safe_tarinfos(members):
+    base_dir = resolve_path(".")
+    for finfo in members:
+        valid_path = False
+        if finfo.issym() or finfo.islnk():
+            if is_link_in_dir(finfo, base_dir):
+                valid_path = True
+                yield finfo
+        elif is_path_in_dir(finfo.name, base_dir):
+            valid_path = True
+            yield finfo
+        if not valid_path:
+            warnings.warn(
+                "Skipping invalid path during archive extraction: "
+                f"'{finfo.name}'.",
+                stacklevel=2,
+            )
+
+
+def extract_open_archive(archive, path="."):
+    """Extracts an open tar or zip archive to the provided directory.
+
+    This function filters unsafe paths during extraction.
+
+    Args:
+        archive: The archive object, either a `TarFile` or a `ZipFile`.
+        path: Where to extract the archive file.
+    """
+    if isinstance(archive, zipfile.ZipFile):
+        # Zip archive.
+        archive.extractall(
+            path, members=filter_safe_zipinfos(archive.infolist())
+        )
+    else:
+        # Tar archive.
+        extractall_kwargs = {}
+        # The `filter="data"` option was added in Python 3.12. It became the
+        # default starting from Python 3.14. So we only specify it between
+        # those two versions.
+        if sys.version_info >= (3, 12) and sys.version_info < (3, 14):
+            extractall_kwargs = {"filter": "data"}
+        archive.extractall(
+            path,
+            members=filter_safe_tarinfos(archive),
+            **extractall_kwargs,
+        )
 
 
 def extract_archive(file_path, path=".", archive_format="auto"):
@@ -112,14 +157,7 @@ def extract_archive(file_path, path=".", archive_format="auto"):
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:
                 try:
-                    if zipfile.is_zipfile(file_path):
-                        # Zip archive.
-                        archive.extractall(path)
-                    else:
-                        # Tar archive, perhaps unsafe. Filter paths.
-                        archive.extractall(
-                            path, members=filter_safe_paths(archive)
-                        )
+                    extract_open_archive(archive, path)
                 except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
                     if os.path.exists(path):
                         if os.path.isfile(path):
