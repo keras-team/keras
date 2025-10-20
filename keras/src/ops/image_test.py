@@ -2733,12 +2733,13 @@ class ExtractVolumePatchesTest(testing.TestCase):
         )
     )
     def test_extract_volume_patches_non_cubic(self, dtype, data_format):
-        volume = np.random.rand(1, 3, 32, 32, 32).astype(dtype)
+        if data_format == "channels_last":
+            volume = np.random.rand(1, 32, 32, 32, 3).astype(dtype)
+            expected_shape = (1, 16, 10, 8, 72)
+        else:
+            volume = np.random.rand(1, 3, 32, 32, 32).astype(dtype)
+            expected_shape = (1, 72, 16, 10, 8)
         patches = kimage.extract_volume_patches(
             volume, size=(2, 3, 4), strides=(2, 3, 4), data_format=data_format
         )
-        if data_format == "channels_last":
-            expected_shape = (1, 1, 10, 8, 768)
-        else:
-            expected_shape = (1, 72, 16, 10, 8)
         self.assertEqual(patches.shape, expected_shape)
