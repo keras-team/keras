@@ -865,7 +865,7 @@ def extract_volume_patches(
     >>> volume = np.random.random((10, 10, 10, 3)).astype("float32") # 1 volume
     >>> patches = keras.ops.image.extract_volume_patches(volume, (3, 3, 3))
     >>> patches.shape
-    (8, 8, 8, 81)
+    (3, 3, 3, 81)
     """
     if any_symbolic_tensors((volumes,)):
         return ExtractVolumePatches(
