@@ -2637,7 +2637,7 @@ class ExtractVolumePatchesTest(testing.TestCase):
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_volume_patches_overlapping(self, dtype):
         volume = np.random.rand(1, 16, 16, 16, 1)
-        volume = volume.astype(np.float32)
+        volume = volume.astype(dtype)
         patches = kimage.extract_volume_patches(
             volume, size=(4, 4, 4), strides=(2, 2, 2)
         )
