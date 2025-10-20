@@ -2606,8 +2606,12 @@ class ExtractVolumePatchesTest(testing.TestCase):
             (1, expected_patches, expected_patches, expected_patches, 64),
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_extract_volume_patches_with_dilation(self, dtype):
+    @parameterized.named_parameters(
+        named_product(
+            dtype=FLOAT_DTYPES, data_format=["channels_last", "channels_first"]
+        )
+    )
+    def test_extract_volume_patches_with_dilation(self, dtype, data_format):
         volume = np.random.rand(1, 64, 64, 64, 2).astype(dtype)
         if backend.backend() == "tensorflow":
             # TensorFlow backend does not support dilation > 1 and strides > 1
@@ -2629,13 +2633,22 @@ class ExtractVolumePatchesTest(testing.TestCase):
             # eff_p = 3 + (3 - 1) * (2 - 1) = 5
             # out = (64 - 5) // 8 + 1 = 8
             expected_patches = 8
-            expected_shape = (
-                1,
-                expected_patches,
-                expected_patches,
-                expected_patches,
-                54,
-            )  # 2*3*3*3
+            if data_format == "channels_last":
+                expected_shape = (
+                    1,
+                    expected_patches,
+                    expected_patches,
+                    expected_patches,
+                    54,
+                )
+            else:
+                expected_shape = (
+                    1,
+                    54,
+                    expected_patches,
+                    expected_patches,
+                    expected_patches,
+                )
             self.assertEqual(patches.shape, expected_shape)
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
