@@ -248,15 +248,13 @@ class LiteRTExporter:
             def __init__(self, model):
                 super().__init__()
                 # Store the model reference in a way that TensorFlow won't
-                # try to track it
-                # This prevents the _DictWrapper error during SavedModel
-                # serialization
+                # try to track it. This prevents the _DictWrapper error during
+                # SavedModel serialization
                 object.__setattr__(self, "_model", model)
 
                 # Track all variables from the Keras model using proper
-                # tf.Module methods
-                # This ensures proper variable handling for stateful layers
-                # like BatchNorm
+                # tf.Module methods. This ensures proper variable handling for
+                # stateful layers like BatchNorm
                 with self.name_scope:
                     for i, var in enumerate(model.variables):
                         # Use a different attribute name to avoid conflicts with
