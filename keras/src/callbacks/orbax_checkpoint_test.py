@@ -5,6 +5,7 @@ import tempfile
 import numpy as np
 import pytest
 
+from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
@@ -181,7 +182,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Create new model and load specific checkpoint
         new_model = self._create_test_model()
-        success = callback.load_checkpoint(step=1)  # Load epoch 1
+        success, _ = callback.load_checkpoint(step=1)  # Load epoch 1
 
         self.assertTrue(success, "Loading specific checkpoint should succeed")
         # Verify the model was loaded by checking it has weights
@@ -196,7 +197,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
 
         # Try to load from empty directory
-        success = callback.load_latest()
+        success, _ = callback.load_latest()
         self.assertFalse(success, "Loading from empty directory should fail")
         # Verify model still has its original weights (not modified)
         self.assertGreater(len(model.weights), 0)
@@ -323,6 +324,266 @@ class OrbaxCheckpointTest(testing.TestCase):
         self.assertEqual(iterator_state["shuffle_seed"], 42)
         self.assertEqual(iterator_state["batch_size"], 32)
         self.assertEqual(iterator_state["dataset_size"], len(x))
+
+    @pytest.mark.requires_trainable_backend
+    def test_load_checkpoint_with_iterator_state(self):
+        """Test loading checkpoint returns iterator state for restoration."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_load_iterator")
+
+        def iterator_state_func(epoch, logs):
+            return {
+                "current_position": epoch * 100,
+                "shuffle_seed": 42,
+                "batch_size": 32,
+                "dataset_size": len(x),
+            }
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_data_iterator=iterator_state_func,
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Create new model and load checkpoint
+        success, iterator_state = callback.load_checkpoint(step=1)
+
+        # Verify loading succeeded and iterator state was returned
+        self.assertTrue(success, "Loading checkpoint should succeed")
+        self.assertIsNotNone(
+            iterator_state, "Iterator state should be returned"
+        )
+        self.assertEqual(iterator_state["current_position"], 100)  # epoch 1
+        self.assertEqual(iterator_state["shuffle_seed"], 42)
+        self.assertEqual(iterator_state["batch_size"], 32)
+        self.assertEqual(iterator_state["dataset_size"], len(x))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TensorFlow-specific iterator restoration test",
+    )
+    def test_tensorflow_iterator_restoration(self):
+        """Test iterator restoration with TensorFlow backend."""
+        import tensorflow as tf
+
+        # Create simple test data
+        x, y = self._create_dummy_data(50)  # Smaller dataset
+
+        model = self._create_test_model()
+        checkpoint_dir = os.path.join(self.temp_dir, "test_tf_iterator")
+
+        def tf_iterator_state_func(epoch, logs):
+            return {
+                "batches_processed": epoch * 5,  # 5 batches per epoch
+                "shuffle_seed": 42,
+                "batch_size": 10,
+                "epoch": epoch,
+            }
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_data_iterator=tf_iterator_state_func,
+        )
+
+        # Train for 2 epochs using model.fit (simpler)
+        model.fit(
+            x, y, epochs=2, callbacks=[callback], verbose=0, batch_size=10
+        )
+
+        # Load checkpoint and verify iterator state
+        success, saved_iterator_state = callback.load_checkpoint(step=1)
+
+        self.assertTrue(success, "Checkpoint loading should succeed")
+        self.assertIsNotNone(
+            saved_iterator_state, "Iterator state should be returned"
+        )
+        self.assertEqual(saved_iterator_state["epoch"], 1)
+        self.assertEqual(
+            saved_iterator_state["batches_processed"], 5
+        )  # epoch 1 * 5 batches
+        self.assertEqual(saved_iterator_state["batch_size"], 10)
+
+        # Demonstrate iterator restoration
+        # Create tf.data.Dataset similar to what user would do
+        dataset = tf.data.Dataset.from_tensor_slices((x, y))
+        dataset = dataset.shuffle(saved_iterator_state["shuffle_seed"])
+        dataset = dataset.batch(saved_iterator_state["batch_size"])
+
+        # Create iterator and skip to saved position
+        iterator = iter(dataset)
+        for _ in range(saved_iterator_state["batches_processed"]):
+            try:
+                next(iterator)
+            except StopIteration:
+                break
+
+        # Verify we can get next batch
+        try:
+            batch_x, batch_y = next(iterator)
+            self.assertEqual(
+                batch_x.shape[0], saved_iterator_state["batch_size"]
+            )
+        except StopIteration:
+            # End of dataset is also acceptable
+            pass
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="JAX-specific iterator restoration test",
+    )
+    def test_jax_iterator_restoration(self):
+        """Test iterator restoration with JAX backend."""
+        import jax.numpy as jnp
+
+        # Create simple test data
+        x, y = self._create_dummy_data(50)
+
+        model = self._create_test_model()
+        checkpoint_dir = os.path.join(self.temp_dir, "test_jax_iterator")
+
+        def jax_iterator_state_func(epoch, logs):
+            return {
+                "batches_processed": epoch * 5,  # 5 batches per epoch
+                "shuffle_seed": 42,
+                "batch_size": 10,
+                "epoch": epoch,
+            }
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_data_iterator=jax_iterator_state_func,
+        )
+
+        # Train for 2 epochs using model.fit
+        model.fit(
+            x, y, epochs=2, callbacks=[callback], verbose=0, batch_size=10
+        )
+
+        # Load checkpoint and verify iterator state
+        success, saved_iterator_state = callback.load_checkpoint(step=1)
+
+        self.assertTrue(success, "Checkpoint loading should succeed")
+        self.assertIsNotNone(
+            saved_iterator_state, "Iterator state should be returned"
+        )
+        self.assertEqual(saved_iterator_state["epoch"], 1)
+        self.assertEqual(saved_iterator_state["batches_processed"], 5)
+        self.assertEqual(saved_iterator_state["batch_size"], 10)
+
+        # Demonstrate iterator restoration for JAX
+        # Convert to JAX arrays
+        x_jax = jnp.array(x)
+        # y_jax = jnp.array(y)  # Not used in this test
+
+        # Create shuffled indices (same as during training)
+        rng = jnp.array(
+            np.random.RandomState(
+                saved_iterator_state["shuffle_seed"]
+            ).permutation(len(x_jax))
+        )
+
+        # Calculate starting position
+        start_idx = (
+            saved_iterator_state["batches_processed"]
+            * saved_iterator_state["batch_size"]
+        )
+
+        # Get remaining data from correct position
+        remaining_indices = rng[start_idx:]
+        if len(remaining_indices) >= saved_iterator_state["batch_size"]:
+            batch_indices = remaining_indices[
+                : saved_iterator_state["batch_size"]
+            ]
+            batch_x = x_jax[batch_indices]
+            # batch_y = y_jax[batch_indices]  # Not used in assertion
+            self.assertEqual(
+                batch_x.shape[0], saved_iterator_state["batch_size"]
+            )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="PyTorch-specific iterator restoration test",
+    )
+    def test_pytorch_iterator_restoration(self):
+        """Test iterator restoration with PyTorch backend."""
+        import torch
+
+        # Create simple test data
+        x, y = self._create_dummy_data(50)
+
+        model = self._create_test_model()
+        checkpoint_dir = os.path.join(self.temp_dir, "test_torch_iterator")
+
+        def torch_iterator_state_func(epoch, logs):
+            return {
+                "batches_processed": epoch * 5,  # 5 batches per epoch
+                "shuffle_seed": 42,
+                "batch_size": 10,
+                "epoch": epoch,
+            }
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_data_iterator=torch_iterator_state_func,
+        )
+
+        # Train for 2 epochs using model.fit
+        model.fit(
+            x, y, epochs=2, callbacks=[callback], verbose=0, batch_size=10
+        )
+
+        # Load checkpoint and verify iterator state
+        success, saved_iterator_state = callback.load_checkpoint(step=1)
+
+        self.assertTrue(success, "Checkpoint loading should succeed")
+        self.assertIsNotNone(
+            saved_iterator_state, "Iterator state should be returned"
+        )
+        self.assertEqual(saved_iterator_state["epoch"], 1)
+        self.assertEqual(saved_iterator_state["batches_processed"], 5)
+        self.assertEqual(saved_iterator_state["batch_size"], 10)
+
+        # Demonstrate iterator restoration for PyTorch
+        # Convert to PyTorch tensors
+        x_torch = torch.tensor(x, dtype=torch.float32)
+        y_torch = torch.tensor(y, dtype=torch.float32)
+
+        # Create dataset and dataloader (same as during training)
+        dataset = torch.utils.data.TensorDataset(x_torch, y_torch)
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=saved_iterator_state["batch_size"],
+            shuffle=True,
+            generator=torch.Generator().manual_seed(
+                saved_iterator_state["shuffle_seed"]
+            ),
+        )
+
+        # Create iterator and skip to saved position
+        iterator = iter(dataloader)
+        for _ in range(saved_iterator_state["batches_processed"]):
+            try:
+                next(iterator)
+            except StopIteration:
+                break
+
+        # Verify we can get next batch
+        try:
+            batch_x, batch_y = next(iterator)
+            self.assertEqual(
+                batch_x.shape[0], saved_iterator_state["batch_size"]
+            )
+        except StopIteration:
+            # End of dataset is also acceptable
+            pass
 
     def _load_checkpoint_data(self, callback, step):
         """Helper method to load raw checkpoint data for testing."""

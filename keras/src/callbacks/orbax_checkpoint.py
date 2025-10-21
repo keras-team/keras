@@ -247,7 +247,9 @@ class OrbaxCheckpoint(MonitorCallback):
             step: The checkpoint step to load from.
 
         Returns:
-            bool: True if loading was successful, False otherwise.
+            tuple: (success, iterator_state) where success is True if loading
+            was successful, False otherwise, and iterator_state is the saved
+            data iterator state dict if available, None otherwise.
         """
         # In distributed training, only load on primary process
         if backend.get_process_index() != 0:
@@ -268,7 +270,12 @@ class OrbaxCheckpoint(MonitorCallback):
             checkpoint_data = self.manager.restore(step, args=restore_args)
 
             # Restore the model state
-            return self._restore_model_state(checkpoint_data)
+            success = self._restore_model_state(checkpoint_data)
+
+            # Extract iterator state if available
+            iterator_state = checkpoint_data.get("data_iterator", None)
+
+            return success, iterator_state
 
         except Exception as e:
             if self.verbose > 0:
@@ -276,13 +283,15 @@ class OrbaxCheckpoint(MonitorCallback):
                     f"OrbaxCheckpoint: Failed to load checkpoint from step "
                     f"{step}: {e}"
                 )
-            return False
+            return False, None
 
     def load_latest(self):
         """Load the most recent checkpoint.
 
         Returns:
-            bool: True if loading was successful, False otherwise.
+            tuple: (success, iterator_state) where success is True if loading
+            was successful, False otherwise, and iterator_state is the saved
+            data iterator state dict if available, None otherwise.
         """
         try:
             # Get the latest step
@@ -290,14 +299,14 @@ class OrbaxCheckpoint(MonitorCallback):
             if latest_step is None:
                 if self.verbose > 0:
                     print("OrbaxCheckpoint: No checkpoints found")
-                return False
+                return False, None
 
             return self.load_checkpoint(latest_step)
 
         except Exception as e:
             if self.verbose > 0:
                 print(f"OrbaxCheckpoint: Failed to load latest checkpoint: {e}")
-            return False
+            return False, None
 
     def _restore_model_state(self, checkpoint_data):
         """Restore model and optimizer state from checkpoint data."""
