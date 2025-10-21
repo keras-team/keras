@@ -65,6 +65,9 @@ class OrbaxCheckpoint(MonitorCallback):
             in the checkpoint. Defaults to True.
         save_on_background: Boolean, whether to save asynchronously in the
             background. Defaults to True.
+        save_metadata: Dict or callable, additional metadata to save with each
+            checkpoint. If callable, it will be called with (epoch, logs) and
+            should return a dict. Defaults to None.
     """
 
     def __init__(
@@ -80,6 +83,7 @@ class OrbaxCheckpoint(MonitorCallback):
         initial_value_threshold=None,
         save_optimizer_state=True,
         save_on_background=True,
+        save_metadata=None,
     ):
         if ocp is None:
             raise ImportError(
@@ -96,6 +100,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_best_only = save_best_only
         self.save_freq = save_freq
         self.save_optimizer_state = save_optimizer_state
+        self.save_metadata = save_metadata
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
@@ -166,7 +171,14 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.save_optimizer_state and optimizer_vars_np is not None:
             composite_state["optimizer_state"] = optimizer_vars_np
 
-        # composite_state['epoch'] = self._current_epoch
+        # Add metadata if specified
+        if self.save_metadata is not None:
+            if callable(self.save_metadata):
+                metadata = self.save_metadata(self._current_epoch, logs)
+            else:
+                metadata = self.save_metadata
+            if metadata:
+                composite_state["metadata"] = metadata
 
         # --- Save Logic ---
         # Assuming single host or JAX backend with jax.distributed initialized

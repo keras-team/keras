@@ -10,8 +10,11 @@ from keras.src import models
 from keras.src import testing
 
 try:
+    import orbax.checkpoint as ocp
+
     from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
 except ImportError:
+    ocp = None
     OrbaxCheckpoint = None
 
 
@@ -216,3 +219,79 @@ class OrbaxCheckpointTest(testing.TestCase):
             os.path.exists(checkpoint_dir),
             "Checkpoint directory should be created",
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_save_and_load_composite_metadata(self):
+        """Test saving and loading checkpoints with custom metadata."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_metadata")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_metadata={
+                "epoch": 5,
+                "learning_rate": 0.001,
+                "metrics": {"loss": 0.5, "accuracy": 0.8},
+            },
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Load the checkpoint and get the full data
+        checkpoint_data = self._load_checkpoint_data(callback, step=1)
+
+        # Verify metadata was saved
+        self.assertIn("metadata", checkpoint_data)
+        metadata = checkpoint_data["metadata"]
+        self.assertEqual(metadata["epoch"], 5)
+        self.assertEqual(metadata["learning_rate"], 0.001)
+        self.assertEqual(metadata["metrics"]["loss"], 0.5)
+        self.assertEqual(metadata["metrics"]["accuracy"], 0.8)
+
+        # Verify model weights are also present
+        self.assertIn("model_weights", checkpoint_data)
+        self.assertIn("optimizer_state", checkpoint_data)
+
+    @pytest.mark.requires_trainable_backend
+    def test_save_metadata_callable(self):
+        """Test saving metadata using a callable function."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_metadata_callable")
+
+        def metadata_func(epoch, logs):
+            return {
+                "epoch": epoch,
+                "learning_rate": 0.001,
+                "metrics": logs or {},
+            }
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_metadata=metadata_func,
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Load checkpoint data
+        checkpoint_data = self._load_checkpoint_data(callback, step=1)
+
+        # Verify metadata was saved with callable
+        self.assertIn("metadata", checkpoint_data)
+        metadata = checkpoint_data["metadata"]
+        self.assertEqual(metadata["epoch"], 1)  # epoch is 1-indexed in callback
+        self.assertEqual(metadata["learning_rate"], 0.001)
+
+    def _load_checkpoint_data(self, callback, step):
+        """Helper method to load raw checkpoint data for testing."""
+        try:
+            restore_args = ocp.args.StandardRestore()
+            return callback.manager.restore(step, args=restore_args)
+        except Exception as e:
+            self.fail(f"Failed to load checkpoint data: {e}")
