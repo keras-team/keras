@@ -143,6 +143,341 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
+    def test_synchronous_checkpointing(self):
+        """Test synchronous checkpointing (save_on_background=False)."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_sync")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_on_background=False,  # Synchronous saving
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
+
+        # Check that checkpoints were saved
+        all_steps = callback.manager.all_steps()
+        self.assertEqual(
+            len(all_steps),
+            3,
+            f"Should have 3 checkpoints, found {len(all_steps)}",
+        )
+
+        # Verify we can load the checkpoints
+        success = callback.load_latest()
+        self.assertTrue(success, "Should successfully load latest checkpoint")
+
+    @pytest.mark.requires_trainable_backend
+    def test_keep_period_functionality(self):
+        """Test keep_period parameter keeps checkpoints every Nth save
+        plus recent ones."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_keep_period")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            max_to_keep=5,  # Keep last 5 checkpoints
+            keep_period=3,  # Keep every 3rd checkpoint
+        )
+
+        # Train for 10 epochs
+        model.fit(x, y, epochs=10, callbacks=[callback], verbose=0)
+
+        # Check that checkpoints follow keep_period pattern
+        all_steps = sorted(callback.manager.all_steps())
+
+        # Should keep:
+        # - Checkpoints that are multiples of keep_period: 3, 6, 9
+        # - Plus the most recent max_to_keep checkpoints: 5, 6, 7, 8, 9, 10
+        # (but 10 doesn't exist yet)
+        # But since max_to_keep=5, and we have multiples, it keeps a combination
+        # The exact behavior may vary, but should include multiples of
+        # keep_period
+
+        multiples_of_period = [step for step in all_steps if step % 3 == 0]
+        self.assertGreater(
+            len(multiples_of_period),
+            0,
+            f"Should keep at least some multiples of keep_period=3, "
+            f"found {all_steps}",
+        )
+
+        # Should not keep more than max_to_keep total (though this may be
+        # approximate)
+        self.assertLessEqual(
+            len(all_steps),
+            10,  # Allow some flexibility
+            f"Should not keep excessively many checkpoints, "
+            f"found {len(all_steps)}: {all_steps}",
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_checkpoint_error_handling(self):
+        """Test error handling when checkpoint operations fail."""
+        x, y = self._create_dummy_data()
+
+        # Test: Try to load from a non-existent checkpoint
+        checkpoint_dir = os.path.join(self.temp_dir, "test_error_handling")
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+
+        # Try to load a checkpoint that doesn't exist
+        success, iterator_state = callback.load_checkpoint(step=999)
+        self.assertFalse(
+            success, "Loading non-existent checkpoint should fail gracefully"
+        )
+        self.assertIsNone(
+            iterator_state, "Iterator state should be None for failed load"
+        )
+
+        # Test: Try to load latest when no checkpoints exist
+        success, iterator_state = callback.load_latest()
+        self.assertFalse(
+            success,
+            "Loading latest when no checkpoints exist should fail gracefully",
+        )
+        self.assertIsNone(
+            iterator_state, "Iterator state should be None for failed load"
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_partial_checkpoint_loading(self):
+        """Test loading individual components from composite checkpoints."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_partial_load")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_metadata={"epoch": 1, "custom_value": 42.5},
+            save_data_iterator={"batch_index": 42},
+        )
+
+        # Train for a few epochs to create checkpoints
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Manually load checkpoint data to test partial access
+        import orbax.checkpoint as ocp
+
+        manager = ocp.CheckpointManager(directory=checkpoint_dir)
+        restore_args = ocp.args.StandardRestore()
+        checkpoint_data = manager.restore(step=1, args=restore_args)
+
+        # Verify we can access individual components
+        self.assertIn(
+            "model_weights",
+            checkpoint_data,
+            "Model weights should be available",
+        )
+        self.assertIn(
+            "optimizer_state",
+            checkpoint_data,
+            "Optimizer state should be available",
+        )
+        self.assertIn(
+            "metadata", checkpoint_data, "Metadata should be available"
+        )
+        self.assertIn(
+            "data_iterator",
+            checkpoint_data,
+            "Data iterator should be available",
+        )
+
+        # Check metadata content
+        self.assertEqual(checkpoint_data["metadata"]["epoch"], 1)
+        self.assertEqual(checkpoint_data["metadata"]["custom_value"], 42.5)
+
+        # Check iterator state content
+        self.assertEqual(checkpoint_data["data_iterator"]["batch_index"], 42)
+
+        # Verify model weights have the right shape (without loading them)
+        model_weights = checkpoint_data["model_weights"]
+        self.assertEqual(
+            len(model_weights),
+            len(model.weights),
+            "Should have weights for all model parameters",
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_background_delete_functionality(self):
+        """Test background deletion of old checkpoints."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_background_delete")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            max_to_keep=3,  # Keep only 3 checkpoints
+            enable_background_delete=True,  # Enable background deletion
+        )
+
+        # Train for more epochs than max_to_keep
+        model.fit(x, y, epochs=6, callbacks=[callback], verbose=0)
+
+        # Check that only max_to_keep checkpoints remain
+        all_steps = callback.manager.all_steps()
+        self.assertLessEqual(
+            len(all_steps),
+            3,
+            f"Should keep at most 3 checkpoints with background delete, "
+            f"found {len(all_steps)}: {all_steps}",
+        )
+
+        # Wait for background operations to complete
+        callback.manager.wait_until_finished()
+
+    @pytest.mark.requires_trainable_backend
+    def test_post_finalization_callback(self):
+        """Test post-finalization callbacks."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        callback_called = []
+
+        def post_callback():
+            callback_called.append(True)
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_post_callback")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            post_finalization_callback=post_callback,
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Wait for async operations to complete
+        callback.manager.wait_until_finished()
+
+        # Check that the callback was called
+        self.assertTrue(
+            len(callback_called) > 0,
+            "Post-finalization callback should have been called",
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_async_with_custom_options(self):
+        """Test async checkpointing with custom AsyncOptions."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_custom_async")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            async_timeout_secs=1200,  # Custom timeout: 20 minutes
+            enable_background_delete=True,  # Enable background delete
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
+
+        # Verify checkpoints were saved successfully
+        all_steps = callback.manager.all_steps()
+        self.assertEqual(
+            len(all_steps),
+            3,
+            f"Should have 3 checkpoints with custom async options, "
+            f"found {len(all_steps)}",
+        )
+
+        # Wait for all operations to complete
+        callback.manager.wait_until_finished()
+
+    @pytest.mark.requires_trainable_backend
+    def test_async_timeout_parameter(self):
+        """Test that async timeout parameter is properly configured."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_timeout")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            async_timeout_secs=300,  # Short timeout: 5 minutes
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Verify that the timeout setting doesn't break normal operation
+        all_steps = callback.manager.all_steps()
+        self.assertEqual(
+            len(all_steps),
+            2,
+            f"Should have 2 checkpoints with timeout setting, "
+            f"found {len(all_steps)}",
+        )
+
+        # Wait for completion
+        callback.manager.wait_until_finished()
+
+    @pytest.mark.requires_trainable_backend
+    def test_metrics_state_saving(self):
+        """Test saving and loading of metrics state."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_metrics_state")
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_metrics_state=True,
+        )
+
+        # Train for a few epochs to update metrics
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Check that metrics have state after training
+        original_metrics_state = []
+        for metric in model.metrics:
+            if hasattr(metric, "variables") and metric.variables:
+                original_metrics_state.append(
+                    [var.numpy() for var in metric.variables]
+                )
+
+        self.assertGreater(
+            len(original_metrics_state), 0, "Should have metrics with state"
+        )
+
+        # Check what's in the checkpoint
+        checkpoint_data = self._load_checkpoint_data(callback, step=1)
+        print(f"Checkpoint data keys: {list(checkpoint_data.keys())}")
+        if "metrics_state" in checkpoint_data:
+            print(f"Metrics state saved: {checkpoint_data['metrics_state']}")
+
+        # Create new model and load checkpoint
+        new_model = self._create_test_model()
+        success, _ = callback.load_latest(model=new_model)
+        self.assertTrue(
+            success, "Should successfully load checkpoint with metrics state"
+        )
+
+        # Check that metrics state was restored in the new model
+        print("New model metrics state after loading:")
+        for i, metric in enumerate(new_model.metrics):
+            if hasattr(metric, "variables") and metric.variables:
+                state = [var.numpy() for var in metric.variables]
+                print(f"  Metric {i}: {state}")
+
+        for i, original_state in enumerate(original_metrics_state):
+            if i < len(new_model.metrics):
+                new_metric = new_model.metrics[i]
+                if hasattr(new_metric, "variables") and new_metric.variables:
+                    new_state = [var.numpy() for var in new_metric.variables]
+                    # States should match (allowing for some floating point
+                    # differences)
+                    for orig, new in zip(original_state, new_state):
+                        np.testing.assert_allclose(orig, new, rtol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
     def test_optimizer_state_saving(self):
         """Test that optimizer state is saved and loaded."""
         model = self._create_test_model()

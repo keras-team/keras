@@ -72,6 +72,14 @@ class OrbaxCheckpoint(MonitorCallback):
             each checkpoint. If callable, it will be called with (epoch, logs)
             and should return a dict with serializable iterator state.
             Defaults to None.
+        save_metrics_state: Boolean, whether to include stateful metrics
+            variables in the checkpoint. Defaults to False.
+        async_timeout_secs: Integer, timeout in seconds for async checkpointing
+            operations. Defaults to 600 (10 minutes).
+        enable_background_delete: Boolean, whether to delete old checkpoints in
+            the background. Defaults to False.
+        post_finalization_callback: Callable, function to call after async
+            checkpointing operations complete. Defaults to None.
     """
 
     def __init__(
@@ -89,6 +97,10 @@ class OrbaxCheckpoint(MonitorCallback):
         save_on_background=True,
         save_metadata=None,
         save_data_iterator=None,
+        save_metrics_state=False,
+        async_timeout_secs=600,
+        enable_background_delete=False,
+        post_finalization_callback=None,
     ):
         if ocp is None:
             raise ImportError(
@@ -107,6 +119,10 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_optimizer_state = save_optimizer_state
         self.save_metadata = save_metadata
         self.save_data_iterator = save_data_iterator
+        self.save_metrics_state = save_metrics_state
+        self.async_timeout_secs = async_timeout_secs
+        self.enable_background_delete = enable_background_delete
+        self.post_finalization_callback = post_finalization_callback
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
@@ -115,12 +131,19 @@ class OrbaxCheckpoint(MonitorCallback):
             raise ValueError("Unrecognized save_freq")
 
         # --- Orbax CheckpointManager Setup ---
+        from orbax.checkpoint import AsyncOptions
+
+        async_options = AsyncOptions(
+            timeout_secs=self.async_timeout_secs,
+            post_finalization_callback=self.post_finalization_callback,
+        )
+
         options = ocp.CheckpointManagerOptions(
             max_to_keep=max_to_keep,
             keep_period=keep_period,
-            enable_async_checkpointing=save_on_background,  # Correct parameter
-            # name
-            # Add more options here if exposing them (e.g., custom handlers)
+            enable_async_checkpointing=save_on_background,
+            enable_background_delete=self.enable_background_delete,
+            async_options=async_options,
         )
         # Ensure directory exists (only needed on one process in multi-host)
         if backend.get_process_index() == 0:
@@ -176,6 +199,21 @@ class OrbaxCheckpoint(MonitorCallback):
         composite_state = {"model_weights": model_weights_np}
         if self.save_optimizer_state and optimizer_vars_np is not None:
             composite_state["optimizer_state"] = optimizer_vars_np
+
+        # Add metrics state if specified
+        if self.save_metrics_state and hasattr(self.model, "metrics"):
+            metrics_vars_np = []
+            for metric in self.model.metrics:
+                if hasattr(metric, "variables") and metric.variables:
+                    # Convert metric variables to numpy
+                    metric_vars = [
+                        backend.convert_to_numpy(var)
+                        for var in metric.variables
+                    ]
+                    metrics_vars_np.append(metric_vars)
+
+            if metrics_vars_np:
+                composite_state["metrics_state"] = metrics_vars_np
 
         # Add metadata if specified
         if self.save_metadata is not None:
@@ -240,11 +278,12 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.verbose > 0:
             print("OrbaxCheckpoint: All saves finalized.")
 
-    def load_checkpoint(self, step):
+    def load_checkpoint(self, step, model=None):
         """Load model and optimizer state from a specific checkpoint step.
 
         Args:
             step: The checkpoint step to load from.
+            model: Optional model to load into. If None, loads into self.model.
 
         Returns:
             tuple: (success, iterator_state) where success is True if loading
@@ -270,7 +309,8 @@ class OrbaxCheckpoint(MonitorCallback):
             checkpoint_data = self.manager.restore(step, args=restore_args)
 
             # Restore the model state
-            success = self._restore_model_state(checkpoint_data)
+            target_model = model if model is not None else self.model
+            success = self._restore_model_state(checkpoint_data, target_model)
 
             # Extract iterator state if available
             iterator_state = checkpoint_data.get("data_iterator", None)
@@ -285,8 +325,11 @@ class OrbaxCheckpoint(MonitorCallback):
                 )
             return False, None
 
-    def load_latest(self):
+    def load_latest(self, model=None):
         """Load the most recent checkpoint.
+
+        Args:
+            model: Optional model to load into. If None, loads into self.model.
 
         Returns:
             tuple: (success, iterator_state) where success is True if loading
@@ -301,15 +344,25 @@ class OrbaxCheckpoint(MonitorCallback):
                     print("OrbaxCheckpoint: No checkpoints found")
                 return False, None
 
-            return self.load_checkpoint(latest_step)
+            return self.load_checkpoint(latest_step, model)
 
         except Exception as e:
             if self.verbose > 0:
                 print(f"OrbaxCheckpoint: Failed to load latest checkpoint: {e}")
             return False, None
 
-    def _restore_model_state(self, checkpoint_data):
-        """Restore model and optimizer state from checkpoint data."""
+    def _restore_model_state(self, checkpoint_data, model=None):
+        """Restore model state from checkpoint data.
+
+        Args:
+            checkpoint_data: The checkpoint data loaded from Orbax.
+            model: Optional model to restore into. If None, uses self.model.
+
+        Returns:
+            bool: True if restoration was successful, False otherwise.
+        """
+        target_model = model if model is not None else self.model
+
         try:
             # Restore model weights
             if "model_weights" in checkpoint_data:
@@ -319,7 +372,7 @@ class OrbaxCheckpoint(MonitorCallback):
                 for i, weight_np in enumerate(model_weights_np):
                     # Convert numpy array back to appropriate backend tensor
                     weight_tensor = keras.ops.convert_to_tensor(weight_np)
-                    self.model.weights[i].assign(weight_tensor)
+                    target_model.weights[i].assign(weight_tensor)
 
             # Restore optimizer state if available
             if (
@@ -327,11 +380,37 @@ class OrbaxCheckpoint(MonitorCallback):
                 and self.save_optimizer_state
             ):
                 optimizer_vars_np = checkpoint_data["optimizer_state"]
-                # Convert NumPy arrays back to backend tensors and assign to
-                # optimizer
-                for i, var_np in enumerate(optimizer_vars_np):
-                    var_tensor = keras.ops.convert_to_tensor(var_np)
-                    self.model.optimizer.variables[i].assign(var_tensor)
+                # Only restore if the variable counts match
+                if len(optimizer_vars_np) == len(
+                    target_model.optimizer.variables
+                ):
+                    # Convert NumPy arrays back to backend tensors and assign to
+                    # optimizer
+                    for i, var_np in enumerate(optimizer_vars_np):
+                        var_tensor = keras.ops.convert_to_tensor(var_np)
+                        target_model.optimizer.variables[i].assign(var_tensor)
+
+            # Restore metrics state if available
+            if (
+                "metrics_state" in checkpoint_data
+                and self.save_metrics_state
+                and hasattr(target_model, "metrics")
+            ):
+                metrics_vars_np = checkpoint_data["metrics_state"]
+                metric_idx = 0
+                for metric in target_model.metrics:
+                    if (
+                        hasattr(metric, "variables")
+                        and metric.variables
+                        and metric_idx < len(metrics_vars_np)
+                    ):
+                        metric_vars_np = metrics_vars_np[metric_idx]
+                        # Restore metric variables
+                        for i, var_np in enumerate(metric_vars_np):
+                            if i < len(metric.variables):
+                                var_tensor = keras.ops.convert_to_tensor(var_np)
+                                metric.variables[i].assign(var_tensor)
+                        metric_idx += 1
 
             if self.verbose > 0:
                 print("OrbaxCheckpoint: Successfully restored model state")
