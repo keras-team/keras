@@ -11,12 +11,15 @@ from keras.src import models
 from keras.src import testing
 
 try:
-    import orbax.checkpoint as ocp
-
+    from keras.src.callbacks.orbax_checkpoint import CheckpointManager
     from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
+    from keras.src.callbacks.orbax_checkpoint import SaveArgs
+    from keras.src.callbacks.orbax_checkpoint import StandardRestore
 except ImportError:
-    ocp = None
+    CheckpointManager = None
     OrbaxCheckpoint = None
+    SaveArgs = None
+    StandardRestore = None
 
 
 @pytest.mark.skipif(
@@ -262,10 +265,8 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
 
         # Manually load checkpoint data to test partial access
-        import orbax.checkpoint as ocp
-
-        manager = ocp.CheckpointManager(directory=checkpoint_dir)
-        restore_args = ocp.args.StandardRestore()
+        manager = CheckpointManager(directory=checkpoint_dir)
+        restore_args = StandardRestore()
         checkpoint_data = manager.restore(step=1, args=restore_args)
 
         # Verify we can access individual components
@@ -476,6 +477,236 @@ class OrbaxCheckpointTest(testing.TestCase):
                     # differences)
                     for orig, new in zip(original_state, new_state):
                         np.testing.assert_allclose(orig, new, rtol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_checkpoint_transformations(self):
+        """Test applying transformations during checkpoint saving."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_transforms")
+
+        # Create save_args that converts float32 to float16
+        # Note: save_args structure must match composite_state structure (lists)
+        save_args = {
+            "model_weights": [
+                SaveArgs(dtype=np.dtype(np.float16)),  # weights
+                SaveArgs(dtype=np.dtype(np.float16)),  # bias
+                SaveArgs(dtype=np.dtype(np.float16)),  # output weights
+                SaveArgs(dtype=np.dtype(np.float16)),  # output bias
+            ],
+            "optimizer_state": [
+                None,  # iteration count (no change)
+                None,  # learning rate (no change)
+                None,  # momentum vars (no change)
+                None,  # momentum vars (no change)
+                None,  # momentum vars (no change)
+                None,  # momentum vars (no change)
+                None,  # momentum vars (no change)
+                None,  # momentum vars (no change)
+                None,  # momentum vars (no change)
+                None,  # momentum vars (no change)
+            ],
+        }
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_transforms=save_args,
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Load checkpoint data to verify transformation was applied
+        checkpoint_data = self._load_checkpoint_data(callback, step=1)
+
+        # Check that model weights were saved in float16
+        saved_weights = checkpoint_data["model_weights"]
+        self.assertEqual(
+            saved_weights[0].dtype,
+            np.float16,
+            "Weights should be saved in float16 due to transform",
+        )
+
+        # Verify we can still load the checkpoint normally
+        new_model = self._create_test_model()
+        success, _ = callback.load_latest(model=new_model)
+        self.assertTrue(success, "Should load transformed checkpoint")
+
+        # Check that weights were converted back to original dtype
+        self.assertEqual(
+            new_model.weights[0].dtype,
+            model.weights[0].dtype,
+            "Loaded weights should be converted back to original dtype",
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_save_decision_policy(self):
+        """Test using save_interval parameter for custom save logic."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_save_policy")
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",  # This will be overridden by the save_interval
+            save_interval=2,  # Save every 2 epochs
+        )
+
+        # Train for 5 epochs
+        model.fit(x, y, epochs=5, callbacks=[callback], verbose=0)
+
+        # Should have saved at epochs 0, 2, 4 (every 2 steps, 0-indexed)
+        all_steps = sorted(callback.manager.all_steps())
+        expected_steps = [0, 2, 4]  # 0-indexed epochs: 0, 2, 4
+        self.assertEqual(
+            all_steps,
+            expected_steps,
+            f"Should save at steps {expected_steps}, got {all_steps}",
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_end_to_end_iterator_resumption(self):
+        """Test complete training resumption with iterator state.
+
+        This test simulates: Run 1 -> Save -> Run 2 -> Restore -> Resume
+        and verifies that batches continue from where they left off.
+        """
+        # Create a larger dataset to make resumption more visible
+        x, y = self._create_dummy_data(num_samples=1200)
+        batch_size = 20  # 60 batches total
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_resumption")
+
+        # Track batches processed across runs
+        global_batch_counter = [0]  # Use list to modify in nested function
+        current_epoch = [0]
+        batch_within_epoch = [0]
+
+        def iterator_state_func(epoch, logs):
+            return {
+                "global_batch_counter": global_batch_counter[0],
+                "current_epoch": current_epoch[0],
+                "batch_within_epoch": batch_within_epoch[0],
+                "batch_size": batch_size,
+                "total_samples": len(x),
+            }
+
+        # === RUN 1: Train for 2 epochs ===
+        model1 = self._create_test_model()
+        callback1 = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_data_iterator=iterator_state_func,
+        )
+        callback1.set_model(model1)  # Set the model on the callback
+
+        # Custom training loop to track batches across epochs
+        batches_processed_run1 = []
+        total_batches_to_process = 2 * (len(x) // batch_size)  # 2 epochs worth
+        for batch_num in range(total_batches_to_process):
+            batch_start = batch_num * batch_size
+            batch_end = min(batch_start + batch_size, len(x))
+            batch_x = x[batch_start:batch_end]
+            batch_y = y[batch_start:batch_end]
+
+            # Track this batch
+            global_batch_counter[0] += 1
+            batches_processed_run1.append(batch_num)
+
+            # Train on batch
+            model1.train_on_batch(batch_x, batch_y)
+
+            # Trigger epoch end at the end of each "epoch"
+            epoch = batch_num // (len(x) // batch_size)
+            if (batch_num + 1) % (len(x) // batch_size) == 0:
+                callback1.on_epoch_end(epoch, logs={"loss": 0.1})
+
+        # Verify Run 1 saved checkpoints
+        all_steps_run1 = sorted(callback1.manager.all_steps())
+        self.assertEqual(
+            len(all_steps_run1), 2, "Run 1 should have saved 2 checkpoints"
+        )
+
+        # === RUN 2: Load checkpoint and resume ===
+        model2 = self._create_test_model()
+        callback2 = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_data_iterator=iterator_state_func,
+        )
+        callback2.set_model(model2)  # Set the model on the callback
+
+        # Load the latest checkpoint
+        success, saved_iterator_state = callback2.load_latest(model=model2)
+        self.assertTrue(success, "Should successfully load checkpoint")
+
+        # Verify iterator state was restored
+        self.assertIsNotNone(
+            saved_iterator_state, "Iterator state should be returned"
+        )
+        restored_batch_counter = saved_iterator_state["global_batch_counter"]
+        expected_batches_after_2_epochs = 2 * (len(x) // batch_size)
+        self.assertEqual(
+            restored_batch_counter,
+            expected_batches_after_2_epochs,
+            f"Should have processed {expected_batches_after_2_epochs} batches, "
+            f"got {restored_batch_counter}",
+        )
+
+        # Resume training from where we left off (with wrapping)
+        batches_processed_run2 = []
+
+        # Continue training for 1 more epoch (60 more batches)
+        end_batch = restored_batch_counter + (len(x) // batch_size)
+        for batch_num in range(restored_batch_counter, end_batch):
+            batch_start = (batch_num * batch_size) % len(x)
+            batch_end = min(batch_start + batch_size, len(x))
+            # Handle wrap-around
+            if batch_end < batch_start:
+                batch_end = len(x)
+            batch_x = x[batch_start:batch_end]
+            batch_y = y[batch_start:batch_end]
+
+            # Track this batch
+            global_batch_counter[0] += 1
+            batches_processed_run2.append(batch_num)
+
+            # Train on batch
+            model2.train_on_batch(batch_x, batch_y)
+
+        # Manual epoch end
+        callback2.on_epoch_end(2, logs={"loss": 0.05})
+
+        # Verify that Run 2 continued from the correct batch
+        expected_first_batch_run2 = expected_batches_after_2_epochs
+        self.assertEqual(
+            batches_processed_run2[0],
+            expected_first_batch_run2,
+            f"Run 2 should start from batch {expected_first_batch_run2}, "
+            f"got {batches_processed_run2[0]}",
+        )
+
+        # Verify no overlap between runs
+        max_batch_run1 = max(batches_processed_run1)
+        min_batch_run2 = min(batches_processed_run2)
+        self.assertEqual(
+            min_batch_run2,
+            max_batch_run1 + 1,
+            "Run 2 should start from the next batch after Run 1 ended",
+        )
+
+        # Verify total batches processed
+        total_expected_batches = 3 * (len(x) // batch_size)  # 3 epochs total
+        final_batch_counter = global_batch_counter[0]
+        self.assertEqual(
+            final_batch_counter,
+            total_expected_batches,
+            f"Total batches should be {total_expected_batches}, "
+            f"got {final_batch_counter}",
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_optimizer_state_saving(self):
@@ -923,7 +1154,7 @@ class OrbaxCheckpointTest(testing.TestCase):
     def _load_checkpoint_data(self, callback, step):
         """Helper method to load raw checkpoint data for testing."""
         try:
-            restore_args = ocp.args.StandardRestore()
+            restore_args = StandardRestore()
             return callback.manager.restore(step, args=restore_args)
         except Exception as e:
             self.fail(f"Failed to load checkpoint data: {e}")
