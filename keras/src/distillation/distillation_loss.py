@@ -228,12 +228,6 @@ class FeatureDistillation(DistillationLoss):
 
             loss = keras.ops.mean(loss_fn(teacher_features, student_features))
 
-            if (
-                hasattr(loss_fn, "__name__")
-                and "cosine" in loss_fn.__name__.lower()
-            ):
-                loss = keras.ops.subtract(1.0, loss)
-
             return loss
 
         loss_values = tree.map_structure(
