@@ -19,6 +19,9 @@ from keras.src.callbacks.learning_rate_scheduler import (
 from keras.src.callbacks.model_checkpoint import (
     ModelCheckpoint as ModelCheckpoint,
 )
+from keras.src.callbacks.orbax_checkpoint import (
+    OrbaxCheckpoint as OrbaxCheckpoint,
+)
 from keras.src.callbacks.progbar_logger import ProgbarLogger as ProgbarLogger
 from keras.src.callbacks.reduce_lr_on_plateau import (
     ReduceLROnPlateau as ReduceLROnPlateau,

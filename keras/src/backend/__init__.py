@@ -75,3 +75,38 @@ class name_scope(backend_name_scope):
 @keras_export("keras.device")
 def device(device_name):
     return device_scope(device_name)  # noqa: F405
+
+
+def get_process_index():
+    """Get the index of the current process in a distributed setup.
+
+    Returns:
+        int: The process index (0 for primary process, >0 for others).
+             Returns 0 if not in a distributed setup.
+    """
+    backend_name = backend()
+    if backend_name == "jax":
+        try:
+            import jax
+
+            return jax.process_index()
+        except (ImportError, AttributeError):
+            return 0
+    elif backend_name == "tensorflow":
+        try:
+            import tensorflow as tf
+
+            return tf.distribute.get_replica_context().replica_id_in_sync_group
+        except (ImportError, AttributeError, RuntimeError):
+            return 0
+    elif backend_name == "torch":
+        try:
+            import torch.distributed as dist
+
+            if dist.is_available() and dist.is_initialized():
+                return dist.get_rank()
+            return 0
+        except (ImportError, AttributeError):
+            return 0
+    else:
+        return 0
