@@ -15,7 +15,7 @@ def export_litert(
     aot_compile_targets=None,
     **kwargs,
 ):
-    """Export the model as a Litert artifact for inference.
+    """Export the model as a LiteRT artifact for inference.
 
     Args:
         model: The Keras model to export.
@@ -25,12 +25,12 @@ def export_litert(
             formats.
         input_signature: Optional input signature specification. If
             `None`, it will be inferred.
-        aot_compile_targets: Optional list of Litert targets for AOT
-            compilation.
+        aot_compile_targets: Optional list of LiteRT targets for AOT
+        compilation.
         **kwargs: Additional keyword arguments passed to the exporter.
     """
 
-    exporter = LitertExporter(
+    exporter = LiteRTExporter(
         model=model,
         input_signature=input_signature,
         verbose=verbose,
@@ -42,9 +42,9 @@ def export_litert(
         io_utils.print_msg(f"Saved artifact at '{filepath}'.")
 
 
-class LitertExporter:
+class LiteRTExporter:
     """
-    Exporter for the Litert (TFLite) format that creates a single,
+    Exporter for the LiteRT (TFLite) format that creates a single,
     callable signature for `model.call`.
     """
 
@@ -56,13 +56,13 @@ class LitertExporter:
         aot_compile_targets=None,
         **kwargs,
     ):
-        """Initialize the Litert exporter.
+        """Initialize the LiteRT exporter.
 
         Args:
             model: The Keras model to export
             input_signature: Input signature specification
             verbose: Whether to print progress messages during export.
-            aot_compile_targets: List of Litert targets for AOT compilation
+            aot_compile_targets: List of LiteRT targets for AOT compilation
             **kwargs: Additional export parameters
         """
         self.model = model
@@ -83,7 +83,7 @@ class LitertExporter:
             performed
         """
         if self.verbose:
-            io_utils.print_msg("Starting Litert export...")
+            io_utils.print_msg("Starting LiteRT export...")
 
         # 1. Ensure the model is built by calling it if necessary
         self._ensure_model_built()
@@ -124,7 +124,7 @@ class LitertExporter:
         if self.aot_compile_targets and litert.available:
             if self.verbose:
                 io_utils.print_msg(
-                    "Performing AOT compilation for Litert targets..."
+                    "Performing AOT compilation for LiteRT targets..."
                 )
             compiled_models = self._aot_compile(filepath)
         elif self.aot_compile_targets and not litert.available:
@@ -135,7 +135,7 @@ class LitertExporter:
 
         if self.verbose:
             io_utils.print_msg(
-                f"Litert export completed. Base model: {filepath}"
+                f"LiteRT export completed. Base model: {filepath}"
             )
             if compiled_models:
                 io_utils.print_msg(
