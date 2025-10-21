@@ -1712,6 +1712,14 @@ def isposinf(x):
     return tf.math.equal(x, tf.constant(float("inf"), dtype=x.dtype))
 
 
+def isreal(x):
+    x = convert_to_tensor(x)
+    if x.dtype.is_complex:
+        return tf.equal(tf.math.imag(x), 0)
+    else:
+        return tf.ones_like(x, dtype=tf.bool)
+
+
 def kron(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -2693,8 +2701,11 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype not in ("int64", "uint32", "uint64"):
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    x = tf.cast(x, dtype)
     x_shape = tf.shape(x)
     x = moveaxis(x, (axis1, axis2), (-2, -1))
     # Mask out the diagonal and reduce.
@@ -2703,10 +2714,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
         x,
         tf.zeros_like(x),
     )
-    # The output dtype is set to "int32" if the input dtype is "bool"
-    if standardize_dtype(x.dtype) == "bool":
-        x = tf.cast(x, "int32")
-    return tf.cast(tf.reduce_sum(x, axis=(-2, -1)), dtype)
+    return tf.reduce_sum(x, axis=(-2, -1))
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -2976,6 +2984,42 @@ def transpose(x, axes=None):
     return tf.transpose(x, perm=axes)
 
 
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    def _move_axis_to_last(tensor, axis):
+        if axis == -1:
+            return tensor
+        rank = tf.rank(tensor)
+        if axis < 0:
+            axis = rank + axis
+        perm = tf.concat(
+            [
+                tf.range(axis, dtype=tf.int32),
+                tf.range(axis + 1, rank, dtype=tf.int32),
+                tf.constant([axis], dtype=tf.int32),
+            ],
+            axis=0,
+        )
+        return tf.transpose(tensor, perm=perm)
+
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(y.dtype, float)
+    y = tf.cast(y, dtype)
+
+    if x is None:
+        dx_array = tf.cast(dx, dtype)
+    else:
+        x = convert_to_tensor(x, dtype=dtype)
+        dx_array = diff(x, axis=axis)
+        dx_array = _move_axis_to_last(dx_array, axis)
+
+    y = _move_axis_to_last(y, axis)
+
+    avg_heights = 0.5 * (y[..., 1:] + y[..., :-1])
+    result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
+
+    return result
+
+
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
@@ -3161,10 +3205,14 @@ def histogram(x, bins=10, range=None):
 
     x = tf.boolean_mask(x, (x >= min_val) & (x <= max_val))
     bin_edges = tf.linspace(min_val, max_val, bins + 1)
-    bin_edges_list = bin_edges.numpy().tolist()
-    bin_indices = tf.raw_ops.Bucketize(input=x, boundaries=bin_edges_list[1:-1])
+    bin_edges = tf.cast(bin_edges, x.dtype)
+    bin_indices = tf.searchsorted(bin_edges[1:-1], x, side="right")
 
-    bin_counts = tf.math.bincount(
-        bin_indices, minlength=bins, maxlength=bins, dtype=x.dtype
+    # tf.math.bincount does not work with XLA in this case. So, we use
+    # `scatter_nd`.
+    bin_counts = tf.scatter_nd(
+        indices=tf.expand_dims(bin_indices, axis=-1),
+        updates=tf.ones_like(bin_indices, dtype=x.dtype),
+        shape=(bins,),
     )
     return bin_counts, bin_edges

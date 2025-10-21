@@ -543,15 +543,18 @@ def clip(x, x_min, x_max):
 
 def concatenate(xs, axis=0):
     bcoo_count = builtins.sum(isinstance(x, jax_sparse.BCOO) for x in xs)
-    if bcoo_count:
-        if bcoo_count == len(xs):
-            axis = canonicalize_axis(axis, len(xs[0].shape))
-            return jax_sparse.bcoo_concatenate(xs, dimension=axis)
-        else:
-            xs = [
-                x.todense() if isinstance(x, jax_sparse.JAXSparse) else x
-                for x in xs
-            ]
+    if bcoo_count == len(xs):
+        axis = canonicalize_axis(axis, len(xs[0].shape))
+        return jax_sparse.bcoo_concatenate(xs, dimension=axis)
+    elif bcoo_count:
+        xs = [
+            x.todense()
+            if isinstance(x, jax_sparse.JAXSparse)
+            else convert_to_tensor(x)
+            for x in xs
+        ]
+    else:
+        xs = [convert_to_tensor(x) for x in xs]
     return jnp.concatenate(xs, axis=axis)
 
 
@@ -814,6 +817,11 @@ def isneginf(x):
 def isposinf(x):
     x = convert_to_tensor(x)
     return jnp.isposinf(x)
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    return jnp.isreal(x)
 
 
 def kron(x1, x2):
@@ -1087,6 +1095,7 @@ def reshape(x, newshape):
         if None not in output_shape:
             newshape = output_shape
         return jax_sparse.bcoo_reshape(x, new_sizes=newshape)
+    x = convert_to_tensor(x)
     return jnp.reshape(x, newshape)
 
 
@@ -1149,10 +1158,12 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
 def stack(x, axis=0):
+    x = [convert_to_tensor(t) for t in x]
     return jnp.stack(x, axis=axis)
 
 
@@ -1229,14 +1240,7 @@ def tile(x, repeats):
 
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
-    dtype = None
-    # TODO: Remove the condition of uint8 and uint16 once we have jax>=0.4.27
-    # for both CPU & GPU environments.
-    # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to int32
-    # otherwise.
-    if standardize_dtype(x.dtype) in ("bool", "uint8", "uint16"):
-        dtype = "int32"
-    return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
+    return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -1338,6 +1342,7 @@ def squeeze(x, axis=None):
             axis = tuple(i for i, d in enumerate(x.shape) if d == 1)
         axis = to_tuple_or_list(axis)
         return jax_sparse.bcoo_squeeze(x, dimensions=axis)
+    x = convert_to_tensor(x)
     return jnp.squeeze(x, axis=axis)
 
 
@@ -1354,6 +1359,14 @@ def transpose(x, axes=None):
                 permutation.append(a)
         return jax_sparse.bcoo_transpose(x, permutation=permutation)
     return jnp.transpose(x, axes=axes)
+
+
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    if x is not None:
+        x = convert_to_tensor(x)
+    dx = convert_to_tensor(dx)
+    return jnp.trapezoid(y, x, dx=dx, axis=axis)
 
 
 def var(x, axis=None, keepdims=False):

@@ -4,6 +4,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.layers.layer import Layer
+from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
@@ -178,7 +179,12 @@ class IndexLookup(Layer):
         self.vocabulary_dtype = tf.as_dtype(vocabulary_dtype).name
         self._frozen_vocab_size = kwargs.pop("vocabulary_size", None)
 
-        self.input_vocabulary = vocabulary
+        # Remember original `vocabulary` as `input_vocabulary` for serialization
+        # via `get_config`. However, if `vocabulary` is a file path or a URL, we
+        # serialize the vocabulary as an asset and clear the original path/URL.
+        self.input_vocabulary = (
+            vocabulary if not isinstance(vocabulary, str) else None
+        )
         self.input_idf_weights = idf_weights
 
         # We set this hidden attr to
@@ -382,6 +388,18 @@ class IndexLookup(Layer):
             )
 
         if isinstance(vocabulary, str):
+            if serialization_lib.in_safe_mode():
+                raise ValueError(
+                    "Requested the loading of a vocabulary file outside of the "
+                    "model archive. This carries a potential risk of loading "
+                    "arbitrary and sensitive files and thus it is disallowed "
+                    "by default. If you trust the source of the artifact, you "
+                    "can override this error by passing `safe_mode=False` to "
+                    "the loading function, or calling "
+                    "`keras.config.enable_unsafe_deserialization(). "
+                    f"Vocabulary file: '{vocabulary}'"
+                )
+
             if not tf.io.gfile.exists(vocabulary):
                 raise ValueError(
                     f"Vocabulary file {vocabulary} does not exist."

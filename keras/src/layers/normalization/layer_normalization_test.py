@@ -99,8 +99,8 @@ class LayerNormalizationTest(testing.TestCase):
         ).astype("float32")
 
         out = layer(inputs)
-        out -= layer.beta
-        out /= layer.gamma
+        out = ops.subtract(out, layer.beta)
+        out = ops.divide(out, layer.gamma)
 
         self.assertAllClose(ops.mean(out), 0.0, atol=1e-1)
         self.assertAllClose(ops.std(out), 1.0, atol=1e-1)
