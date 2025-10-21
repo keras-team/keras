@@ -13,29 +13,27 @@ try:
 except ImportError:
     ocp = None
 
-# Expose orbax classes for testing purposes
+# Expose advanced Orbax functionality for users who need direct access
+# These are provided as bridge for advanced usecases like custom type handlers
 if ocp is not None:
+    # Core checkpointing classes
     CheckpointManager = ocp.CheckpointManager
-    CheckpointManagerOptions = ocp.CheckpointManagerOptions
-    CheckpointHandler = ocp.CheckpointHandler
-    CheckpointHandlerRegistry = ocp.CheckpointHandlerRegistry
     SaveArgs = ocp.SaveArgs
     StandardRestore = ocp.args.StandardRestore
-    JsonSave = ocp.args.JsonSave
-    # Expose type handler functionality for advanced users and testing
+
+    # Type handler functionality for custom serialization
     TypeHandler = ocp.type_handlers.TypeHandler
     register_type_handler = ocp.type_handlers.register_type_handler
+
+    # Direct checkpointing for custom objects
     PyTreeCheckpointer = ocp.PyTreeCheckpointer
-    # Expose metadata for testing
+
+    # Metadata functionality
     metadata = ocp.metadata
 else:
     CheckpointManager = None
-    CheckpointManagerOptions = None
-    CheckpointHandler = None
-    CheckpointHandlerRegistry = None
     SaveArgs = None
     StandardRestore = None
-    JsonSave = None
     TypeHandler = None
     register_type_handler = None
     PyTreeCheckpointer = None

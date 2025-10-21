@@ -11,29 +11,24 @@ from keras.src import models
 from keras.src import testing
 
 try:
-    from keras.src.callbacks.orbax_checkpoint import CheckpointHandler
-    from keras.src.callbacks.orbax_checkpoint import CheckpointHandlerRegistry
+    # Import advanced Orbax functionality through the Keras bridge
     from keras.src.callbacks.orbax_checkpoint import CheckpointManager
-    from keras.src.callbacks.orbax_checkpoint import CheckpointManagerOptions
-    from keras.src.callbacks.orbax_checkpoint import JsonSave
     from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
     from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
     from keras.src.callbacks.orbax_checkpoint import SaveArgs
     from keras.src.callbacks.orbax_checkpoint import StandardRestore
     from keras.src.callbacks.orbax_checkpoint import TypeHandler
+    from keras.src.callbacks.orbax_checkpoint import metadata
     from keras.src.callbacks.orbax_checkpoint import register_type_handler
 except ImportError:
     OrbaxCheckpoint = None
-    CheckpointHandler = None
-    CheckpointHandlerRegistry = None
     CheckpointManager = None
-    CheckpointManagerOptions = None
-    JsonSave = None
     SaveArgs = None
     StandardRestore = None
     TypeHandler = None
     register_type_handler = None
     PyTreeCheckpointer = None
+    metadata = None
 
 
 class OrbaxCheckpointTest(testing.TestCase):
@@ -1180,8 +1175,8 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         import asyncio
 
-        from keras.src.callbacks.orbax_checkpoint import TypeHandler
-        from keras.src.callbacks.orbax_checkpoint import metadata
+        # Use the classes imported through the Keras bridge
+        # TypeHandler and metadata are already imported above
 
         class MetadataHandler(TypeHandler):
             """A custom Orbax type handler to save/load the TrainingMetadata
@@ -1244,14 +1239,12 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
         # 2. Register the type handler globally
-        from keras.src.callbacks.orbax_checkpoint import register_type_handler
-
         register_type_handler(
             ty=TrainingMetadata, handler=MetadataHandler(), override=True
         )
 
         # 3. Create a PyTreeCheckpointer to save the custom object directly
-        from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
+        # PyTreeCheckpointer is already imported above
 
         checkpointer = PyTreeCheckpointer()
 
