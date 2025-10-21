@@ -288,6 +288,42 @@ class OrbaxCheckpointTest(testing.TestCase):
         self.assertEqual(metadata["epoch"], 1)  # epoch is 1-indexed in callback
         self.assertEqual(metadata["learning_rate"], 0.001)
 
+    @pytest.mark.requires_trainable_backend
+    def test_save_data_iterator_state(self):
+        """Test saving data iterator state with checkpoints."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_iterator")
+
+        def iterator_state_func(epoch, logs):
+            return {
+                "current_position": epoch * 100,
+                "shuffle_seed": 42,
+                "batch_size": 32,
+                "dataset_size": len(x),
+            }
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_data_iterator=iterator_state_func,
+        )
+
+        # Train for a few epochs
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Load checkpoint data
+        checkpoint_data = self._load_checkpoint_data(callback, step=1)
+
+        # Verify data iterator state was saved
+        self.assertIn("data_iterator", checkpoint_data)
+        iterator_state = checkpoint_data["data_iterator"]
+        self.assertEqual(iterator_state["current_position"], 100)  # epoch 1
+        self.assertEqual(iterator_state["shuffle_seed"], 42)
+        self.assertEqual(iterator_state["batch_size"], 32)
+        self.assertEqual(iterator_state["dataset_size"], len(x))
+
     def _load_checkpoint_data(self, callback, step):
         """Helper method to load raw checkpoint data for testing."""
         try:

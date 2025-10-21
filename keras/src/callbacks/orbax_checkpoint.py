@@ -68,6 +68,10 @@ class OrbaxCheckpoint(MonitorCallback):
         save_metadata: Dict or callable, additional metadata to save with each
             checkpoint. If callable, it will be called with (epoch, logs) and
             should return a dict. Defaults to None.
+        save_data_iterator: Dict or callable, data iterator state to save with
+            each checkpoint. If callable, it will be called with (epoch, logs)
+            and should return a dict with serializable iterator state.
+            Defaults to None.
     """
 
     def __init__(
@@ -84,6 +88,7 @@ class OrbaxCheckpoint(MonitorCallback):
         save_optimizer_state=True,
         save_on_background=True,
         save_metadata=None,
+        save_data_iterator=None,
     ):
         if ocp is None:
             raise ImportError(
@@ -101,6 +106,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_freq = save_freq
         self.save_optimizer_state = save_optimizer_state
         self.save_metadata = save_metadata
+        self.save_data_iterator = save_data_iterator
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
@@ -179,6 +185,17 @@ class OrbaxCheckpoint(MonitorCallback):
                 metadata = self.save_metadata
             if metadata:
                 composite_state["metadata"] = metadata
+
+        # Add data iterator state if specified
+        if self.save_data_iterator is not None:
+            if callable(self.save_data_iterator):
+                iterator_state = self.save_data_iterator(
+                    self._current_epoch, logs
+                )
+            else:
+                iterator_state = self.save_data_iterator
+            if iterator_state:
+                composite_state["data_iterator"] = iterator_state
 
         # --- Save Logic ---
         # Assuming single host or JAX backend with jax.distributed initialized
