@@ -11,15 +11,32 @@ from keras.src import models
 from keras.src import testing
 
 try:
-    from keras.src.callbacks.orbax_checkpoint import CheckpointManager
+    import orbax.checkpoint as ocp
+
     from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
-    from keras.src.callbacks.orbax_checkpoint import SaveArgs
-    from keras.src.callbacks.orbax_checkpoint import StandardRestore
+
+    # Import directly from orbax
+    CheckpointHandler = ocp.CheckpointHandler
+    CheckpointHandlerRegistry = ocp.DefaultCheckpointHandlerRegistry
+    CheckpointManager = ocp.CheckpointManager
+    CheckpointManagerOptions = ocp.CheckpointManagerOptions
+    JsonSave = ocp.args.JsonSave
+    SaveArgs = ocp.SaveArgs
+    StandardRestore = ocp.args.StandardRestore
+    TypeHandler = ocp.type_handlers.TypeHandler
+    register_type_handler = ocp.type_handlers.register_type_handler
 except ImportError:
+    ocp = None
+    CheckpointHandler = None
+    CheckpointHandlerRegistry = None
     CheckpointManager = None
+    CheckpointManagerOptions = None
+    JsonSave = None
     OrbaxCheckpoint = None
     SaveArgs = None
     StandardRestore = None
+    TypeHandler = None
+    register_type_handler = None
 
 
 @pytest.mark.skipif(
@@ -1150,6 +1167,142 @@ class OrbaxCheckpointTest(testing.TestCase):
         except StopIteration:
             # End of dataset is also acceptable
             pass
+
+    @pytest.mark.requires_trainable_backend
+    def test_custom_handler_and_registry(self):
+        """Test custom handler for a custom object using PyTreeCheckpointHandler
+        directly."""
+        import json
+        import time
+        from dataclasses import dataclass
+
+        @dataclass
+        class TrainingMetadata:
+            """A custom object to hold arbitrary training info."""
+
+            experiment_id: str
+            start_time: float
+            backend: str
+            notes: str = ""
+
+        import asyncio
+
+        from orbax.checkpoint import metadata
+        from orbax.checkpoint.type_handlers import TypeHandler
+
+        class MetadataHandler(TypeHandler):
+            """A custom Orbax type handler to save/load the TrainingMetadata
+            object via JSON."""
+
+            def typestr(self) -> str:
+                return "training_metadata"
+
+            async def metadata(self, infos):
+                """Returns metadata for the parameters."""
+                return [
+                    metadata.Metadata(name=info.name, directory=info.parent_dir)
+                    for info in infos
+                ]
+
+            async def serialize(self, values, infos, args=None):
+                """Serializes the dataclass as a JSON dict."""
+                futures = []
+                for value, info in zip(values, infos):
+                    metadata_obj = value
+                    data = {
+                        "experiment_id": metadata_obj.experiment_id,
+                        "start_time": metadata_obj.start_time,
+                        "backend": metadata_obj.backend,
+                        "notes": metadata_obj.notes,
+                    }
+                    # Write to file in the directory
+                    file_path = info.path / "metadata.json"
+                    with open(file_path, "w") as f:
+                        json.dump(data, f)
+                    # Return a completed future
+                    future_obj = asyncio.Future()
+                    future_obj.set_result(None)
+                    futures.append(future_obj)
+                return futures
+
+            async def deserialize(self, infos, args=None):
+                """Deserializes the JSON dict and reconstructs the dataclass
+                object."""
+                futures = []
+                for info in infos:
+                    file_path = info.path / "metadata.json"
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+                    result = TrainingMetadata(**data)
+                    # Return a completed future with the result
+                    future_obj = asyncio.Future()
+                    future_obj.set_result(result)
+                    futures.append(future_obj)
+                return futures
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_custom_handler")
+
+        # 1. Create the custom metadata object
+        original_metadata = TrainingMetadata(
+            experiment_id="exp_123",
+            start_time=time.time(),
+            backend=backend.backend(),
+            notes="Testing custom handlers.",
+        )
+
+        # 2. Register the type handler globally
+        register_type_handler(
+            ty=TrainingMetadata, handler=MetadataHandler(), override=True
+        )
+
+        # 3. Create a PyTreeCheckpointer to save the custom object directly
+        checkpointer = ocp.PyTreeCheckpointer()
+
+        # 4. Save the custom object
+        checkpointer.save(
+            os.path.join(checkpoint_dir, "metadata"), original_metadata
+        )
+
+        # 5. Restore the custom object
+        restored_metadata = checkpointer.restore(
+            os.path.join(checkpoint_dir, "metadata")
+        )
+
+        # 6. If it's a future, get the result
+        if hasattr(restored_metadata, "result"):
+            restored_metadata = restored_metadata.result()
+
+        # 7. Verify the custom object was restored correctly
+        self.assertIsInstance(restored_metadata, TrainingMetadata)
+        self.assertEqual(
+            original_metadata.experiment_id, restored_metadata.experiment_id
+        )
+        self.assertEqual(original_metadata.backend, restored_metadata.backend)
+        self.assertEqual(original_metadata.notes, restored_metadata.notes)
+
+    def _load_checkpoint_data_from_manager(self, manager, step):
+        """Helper method to load raw checkpoint data from manager."""
+        try:
+            restore_args = StandardRestore()
+            return manager.restore(step, args=restore_args)
+        except Exception as e:
+            self.fail(f"Failed to load checkpoint data: {e}")
+
+    def _get_state_as_numpy_helper(self, model):
+        """Helper to convert model state to numpy (copied from
+        orbax_checkpoint.py)."""
+        try:
+            import keras
+
+            model_weights_np = [
+                keras.ops.convert_to_numpy(w) for w in model.weights
+            ]
+            optimizer_vars_np = [
+                keras.ops.convert_to_numpy(v) for v in model.optimizer.variables
+            ]
+            return model_weights_np, optimizer_vars_np
+        except Exception:
+            return None, None
 
     def _load_checkpoint_data(self, callback, step):
         """Helper method to load raw checkpoint data for testing."""
