@@ -52,23 +52,6 @@ def get_device_count():
     return distribution_lib.get_device_count()
 
 
-@keras_export("keras.distribution.get_best_devices")
-def get_best_devices(count):
-    """
-    Returns a list of the 'best' available devices for computation, up to the
-    specified count.
-
-    Args:
-        count (int): The maximum number of devices to return. If the total
-                     available devices is less than `count`, all available
-                     devices are returned.
-
-    Returns:
-        list: A list of device names (e.g., '/GPU:0', '/TPU:0').
-    """
-    return distribution_lib.get_best_devices(count)
-
-
 @keras_export("keras.distribution.initialize")
 def initialize(job_addresses=None, num_processes=None, process_id=None):
     """Initialize the distribution system for multi-host/process setting.

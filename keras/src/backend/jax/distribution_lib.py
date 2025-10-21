@@ -37,27 +37,6 @@ def get_device_count():
     return jax.local_device_count()
 
 
-def get_best_devices(count=1):
-    """
-    Get the best available devices for tensor parallelism.
-
-    Args:
-        count: Number of devices needed
-
-    Returns:
-        List of best device identifiers
-    """
-    all_devices = list_devices()
-
-    if count <= 0:
-        return []
-
-    if count > len(all_devices):
-        count = len(all_devices)
-
-    return all_devices[:count]
-
-
 def distribute_variable(value, layout):
     """Create a distributed variable for JAX.
 

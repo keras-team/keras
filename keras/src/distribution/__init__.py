@@ -6,7 +6,6 @@ from keras.src.distribution.distribution_lib import ModelParallel
 from keras.src.distribution.distribution_lib import TensorLayout
 from keras.src.distribution.distribution_lib import distribute_tensor
 from keras.src.distribution.distribution_lib import distribution
-from keras.src.distribution.distribution_lib import get_best_devices
 from keras.src.distribution.distribution_lib import get_device_count
 from keras.src.distribution.distribution_lib import initialize
 from keras.src.distribution.distribution_lib import list_devices
