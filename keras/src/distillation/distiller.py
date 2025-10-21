@@ -15,7 +15,7 @@ class Distiller(Model):
     from both ground truth labels and the teacher's predictions, often
     achieving better performance than training on labels alone.
 
-    Args:
+    Arguments:
         teacher: A trained `keras.Model` that serves as the knowledge source.
             The teacher model is frozen during distillation.
         student: A `keras.Model` to be trained through distillation.
@@ -36,7 +36,7 @@ class Distiller(Model):
         teacher: The teacher model providing knowledge. This model is frozen
             during training.
 
-    Examples:
+    Examlpe(s):
 
     ```python
     # Basic distillation with KerasHub models
@@ -296,7 +296,7 @@ class Distiller(Model):
     def _create_feature_extractor(self, model, layer_names):
         """Create a feature extractor for a model.
 
-        Args:
+        Arguments:
             model: The model to create an extractor for.
             layer_names: List of layer names to extract features from.
 
@@ -363,7 +363,7 @@ class Distiller(Model):
     def compile(self, optimizer="adam", loss=None, metrics=None, **kwargs):
         """Compile the distiller with proper integration.
 
-        Args:
+        Arguments:
             optimizer: Optimizer for training the student model.
             loss: Student loss function for the student's supervised learning.
                 Can be a string identifier or a loss function instance.
@@ -397,7 +397,7 @@ class Distiller(Model):
     ):
         """Compute combined distillation loss.
 
-        Args:
+        Arguments:
             x: Input data.
             y: Target data.
             y_pred: Model predictions.

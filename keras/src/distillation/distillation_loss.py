@@ -8,7 +8,7 @@ from keras.src.utils import tracking
 def _convert_loss_to_function(loss_item):
     """Convert a loss string identifier to a loss function.
 
-    Args:
+    Arguments:
         loss_item: Either a string identifier, a loss function instance,
             or None.
 
@@ -48,7 +48,7 @@ class DistillationLoss:
         This method should implement the specific distillation logic for
         transferring knowledge from teacher to student.
 
-        Args:
+        Arguments:
             teacher_outputs: Outputs from the teacher model. Can be a single
                 tensor or a list/tuple of tensors for multi-output models.
             student_outputs: Outputs from the student model. Can be a single
@@ -62,7 +62,7 @@ class DistillationLoss:
     def validate_outputs(self, teacher_outputs, student_outputs):
         """Validate that teacher and student outputs are compatible.
 
-        Args:
+        Arguments:
             teacher_outputs: Outputs from the teacher model.
             student_outputs: Outputs from the student model.
         Raises:
@@ -73,7 +73,7 @@ class DistillationLoss:
     def validate_model_compatibility(self, teacher, student):
         """Validate that teacher and student models are compatible.
 
-        Args:
+        Arguments:
             teacher: The teacher model.
             student: The student model.
         Raises:
@@ -91,7 +91,7 @@ class FeatureDistillation(DistillationLoss):
     helps the student learn better internal representations and often leads
     to better performance compared to logits-only distillation.
 
-    Args:
+    Arguments:
         loss: Loss function to use for feature distillation. Can be:
             - String identifier (e.g., 'mse', 'cosine_similarity', 'mae')
             - Keras loss instance
@@ -104,7 +104,7 @@ class FeatureDistillation(DistillationLoss):
         student_layer_name: Name of the student layer to extract features from.
             If None, uses the final output. Defaults to None.
 
-    Examples:
+    Examlpe(s):
 
     ```python
     # Basic feature distillation from final outputs
@@ -214,7 +214,7 @@ class FeatureDistillation(DistillationLoss):
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute feature distillation loss using extracted features.
 
-        Args:
+        Arguments:
             teacher_outputs: Extracted features from teacher layer.
             student_outputs: Extracted features from student layer.
             **kwargs: Additional arguments (ignored).
@@ -261,7 +261,7 @@ class LogitsDistillation(DistillationLoss):
     computing the loss between teacher and student predictions. It's the most
     common approach for knowledge distillation.
 
-    Args:
+    Arguments:
         temperature: Temperature for softmax scaling. Higher values produce
             softer probability distributions that are easier for the student to
             learn. Typical values range from 3-5. Defaults to 3.0.
@@ -274,7 +274,7 @@ class LogitsDistillation(DistillationLoss):
               models where you only want to distill some outputs)
             At least one loss must be non-None. Defaults to 'kl_divergence'.
 
-    Examples:
+    Examlpe(s):
 
     ```python
     # Basic logits distillation with KL divergence
@@ -329,7 +329,7 @@ class LogitsDistillation(DistillationLoss):
     def compute_loss(self, teacher_outputs, student_outputs, **kwargs):
         """Compute distillation loss using the configured loss function.
 
-        Args:
+        Arguments:
             teacher_outputs: Logits from teacher model. Can be a single tensor,
                 list/tuple of tensors, or dict of tensors.
             student_outputs: Logits from student model. Can be a single tensor,
@@ -352,10 +352,7 @@ class LogitsDistillation(DistillationLoss):
                 return 0.0
 
             # Special handling for KL divergence (needs probabilities)
-            if (
-                hasattr(loss_fn, "__name__")
-                and "kl" in loss_fn.__name__.lower()
-            ):
+            if isinstance(loss_fn, keras.losses.KLDivergence):
                 teacher_probs = keras.ops.softmax(teacher_logits, axis=-1)
                 student_probs = keras.ops.softmax(student_logits, axis=-1)
                 loss = keras.ops.mean(loss_fn(teacher_probs, student_probs))
