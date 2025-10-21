@@ -11,38 +11,31 @@ from keras.src import models
 from keras.src import testing
 
 try:
-    import orbax.checkpoint as ocp
-
+    from keras.src.callbacks.orbax_checkpoint import CheckpointHandler
+    from keras.src.callbacks.orbax_checkpoint import CheckpointHandlerRegistry
+    from keras.src.callbacks.orbax_checkpoint import CheckpointManager
+    from keras.src.callbacks.orbax_checkpoint import CheckpointManagerOptions
+    from keras.src.callbacks.orbax_checkpoint import JsonSave
     from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
-
-    # Import directly from orbax
-    CheckpointHandler = ocp.CheckpointHandler
-    CheckpointHandlerRegistry = ocp.DefaultCheckpointHandlerRegistry
-    CheckpointManager = ocp.CheckpointManager
-    CheckpointManagerOptions = ocp.CheckpointManagerOptions
-    JsonSave = ocp.args.JsonSave
-    SaveArgs = ocp.SaveArgs
-    StandardRestore = ocp.args.StandardRestore
-    TypeHandler = ocp.type_handlers.TypeHandler
-    register_type_handler = ocp.type_handlers.register_type_handler
+    from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
+    from keras.src.callbacks.orbax_checkpoint import SaveArgs
+    from keras.src.callbacks.orbax_checkpoint import StandardRestore
+    from keras.src.callbacks.orbax_checkpoint import TypeHandler
+    from keras.src.callbacks.orbax_checkpoint import register_type_handler
 except ImportError:
-    ocp = None
+    OrbaxCheckpoint = None
     CheckpointHandler = None
     CheckpointHandlerRegistry = None
     CheckpointManager = None
     CheckpointManagerOptions = None
     JsonSave = None
-    OrbaxCheckpoint = None
     SaveArgs = None
     StandardRestore = None
     TypeHandler = None
     register_type_handler = None
+    PyTreeCheckpointer = None
 
 
-@pytest.mark.skipif(
-    OrbaxCheckpoint is None,
-    reason="`orbax-checkpoint` is required for `OrbaxCheckpoint` tests.",
-)
 class OrbaxCheckpointTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -1187,8 +1180,8 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         import asyncio
 
-        from orbax.checkpoint import metadata
-        from orbax.checkpoint.type_handlers import TypeHandler
+        from keras.src.callbacks.orbax_checkpoint import TypeHandler
+        from keras.src.callbacks.orbax_checkpoint import metadata
 
         class MetadataHandler(TypeHandler):
             """A custom Orbax type handler to save/load the TrainingMetadata
@@ -1251,12 +1244,16 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
         # 2. Register the type handler globally
+        from keras.src.callbacks.orbax_checkpoint import register_type_handler
+
         register_type_handler(
             ty=TrainingMetadata, handler=MetadataHandler(), override=True
         )
 
         # 3. Create a PyTreeCheckpointer to save the custom object directly
-        checkpointer = ocp.PyTreeCheckpointer()
+        from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
+
+        checkpointer = PyTreeCheckpointer()
 
         # 4. Save the custom object
         checkpointer.save(

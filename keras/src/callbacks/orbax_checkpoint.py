@@ -16,12 +16,30 @@ except ImportError:
 # Expose orbax classes for testing purposes
 if ocp is not None:
     CheckpointManager = ocp.CheckpointManager
+    CheckpointManagerOptions = ocp.CheckpointManagerOptions
+    CheckpointHandler = ocp.CheckpointHandler
+    CheckpointHandlerRegistry = ocp.CheckpointHandlerRegistry
     SaveArgs = ocp.SaveArgs
     StandardRestore = ocp.args.StandardRestore
+    JsonSave = ocp.args.JsonSave
+    # Expose type handler functionality for advanced users and testing
+    TypeHandler = ocp.type_handlers.TypeHandler
+    register_type_handler = ocp.type_handlers.register_type_handler
+    PyTreeCheckpointer = ocp.PyTreeCheckpointer
+    # Expose metadata for testing
+    metadata = ocp.metadata
 else:
     CheckpointManager = None
+    CheckpointManagerOptions = None
+    CheckpointHandler = None
+    CheckpointHandlerRegistry = None
     SaveArgs = None
     StandardRestore = None
+    JsonSave = None
+    TypeHandler = None
+    register_type_handler = None
+    PyTreeCheckpointer = None
+    metadata = None
 
 
 def _get_state_as_numpy(model):
