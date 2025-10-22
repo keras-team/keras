@@ -66,8 +66,9 @@ def _infer_input_signature_from_model(model):
             return tuple(_make_input_spec(v) for v in structure)
         elif isinstance(structure, list):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                shape = (None,) + tuple(structure[1:])
-                return layers.InputSpec(shape=shape, dtype=model.input_dtype)
+                return layers.InputSpec(
+                    shape=[None] + structure[1:], dtype=model.input_dtype
+                )
             return [_make_input_spec(v) for v in structure]
         else:
             raise ValueError(
