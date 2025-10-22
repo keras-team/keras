@@ -43,9 +43,13 @@ def export_litert(
 
 
 class LiteRTExporter:
-    """
-    Exporter for the LiteRT (TFLite) format that creates a single,
-    callable signature for `model.call`.
+    """Exporter for the LiteRT (TFLite) format.
+
+    This class handles the conversion of Keras models for LiteRT runtime and
+    generates a `.tflite` model file. For efficient inference on mobile and
+    embedded devices, it creates a single callable signature based on the
+    model's `call()` method and supports optional Ahead-of-Time (AOT)
+    compilation for specific hardware targets.
     """
 
     def __init__(
