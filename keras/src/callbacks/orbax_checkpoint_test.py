@@ -219,7 +219,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
         # Measure time for asynchronous saving
-        start_time = time.time()
         model2.fit(x, y, epochs=3, callbacks=[callback_async], verbose=0)
         # async_time = time.time() - start_time
 
