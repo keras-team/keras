@@ -19,20 +19,20 @@ from keras.src.utils.module_utils import tensorflow
 # 1. Try AI Edge LiteRT interpreter (preferred)
 # 2. Fall back to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
 AI_EDGE_LITERT_AVAILABLE = False
-LiteRtInterpreter = None
+LiteRTInterpreter = None
 
 if backend.backend() == "tensorflow":
     if litert.available:
         try:
             from ai_edge_litert.interpreter import (
-                Interpreter as LiteRtInterpreter,
+                Interpreter as LiteRTInterpreter,
             )
 
             AI_EDGE_LITERT_AVAILABLE = True
         except (ImportError, OSError):
-            LiteRtInterpreter = tensorflow.lite.Interpreter
+            LiteRTInterpreter = tensorflow.lite.Interpreter
     else:
-        LiteRtInterpreter = tensorflow.lite.Interpreter
+        LiteRTInterpreter = tensorflow.lite.Interpreter
 
 # Model types to test (LSTM only if AI Edge LiteRT is available)
 model_types = ["sequential", "functional"]
@@ -199,7 +199,7 @@ class ExportLitertTest(testing.TestCase):
         model.export(temp_filepath, format="litert")
         self.assertTrue(os.path.exists(temp_filepath))
 
-        interpreter = LiteRtInterpreter(model_path=temp_filepath)
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
         interpreter.allocate_tensors()
         _set_interpreter_inputs(interpreter, ref_input)
         interpreter.invoke()
@@ -251,7 +251,7 @@ class ExportLitertTest(testing.TestCase):
         # Test with model.export()
         model.export(temp_filepath, format="litert")
         export_path = temp_filepath
-        interpreter = LiteRtInterpreter(model_path=export_path)
+        interpreter = LiteRTInterpreter(model_path=export_path)
         interpreter.allocate_tensors()
 
         feed_inputs = ref_input
@@ -290,7 +290,7 @@ class ExportLitertTest(testing.TestCase):
         # Test with model.export()
         model.export(temp_filepath, format="litert")
         export_path = temp_filepath
-        interpreter = LiteRtInterpreter(model_path=export_path)
+        interpreter = LiteRTInterpreter(model_path=export_path)
         interpreter.allocate_tensors()
 
         _set_interpreter_inputs(interpreter, [ref_input_x, ref_input_y])
@@ -335,7 +335,7 @@ class ExportLitertTest(testing.TestCase):
         export_path = temp_filepath
         self.assertTrue(os.path.exists(export_path))
 
-        interpreter = LiteRtInterpreter(model_path=export_path)
+        interpreter = LiteRTInterpreter(model_path=export_path)
         interpreter.allocate_tensors()
         input_details = interpreter.get_input_details()
         self.assertEqual(len(input_details), 1)
@@ -358,7 +358,7 @@ class ExportLitertTest(testing.TestCase):
         self.assertTrue(os.path.exists(tflite_path))
 
         # Test inference
-        interpreter = LiteRtInterpreter(model_path=tflite_path)
+        interpreter = LiteRTInterpreter(model_path=tflite_path)
         interpreter.allocate_tensors()
 
         input_details = interpreter.get_input_details()
@@ -393,7 +393,7 @@ class ExportLitertTest(testing.TestCase):
         self.assertTrue(os.path.exists(tflite_path))
 
         # Verify the exported model works
-        interpreter = LiteRtInterpreter(model_path=tflite_path)
+        interpreter = LiteRTInterpreter(model_path=tflite_path)
         interpreter.allocate_tensors()
 
         input_details = interpreter.get_input_details()
@@ -427,7 +427,7 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_subclass_model(self):
         """Test exporting subclass models (uses wrapper conversion path)."""
-        if LiteRtInterpreter is None:
+        if LiteRTInterpreter is None:
             self.skipTest("No LiteRT interpreter available")
 
         model = get_model("subclass")
@@ -444,7 +444,7 @@ class ExportLitertTest(testing.TestCase):
         self.assertTrue(os.path.exists(temp_filepath))
 
         # Verify inference
-        interpreter = LiteRtInterpreter(model_path=temp_filepath)
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
         interpreter.allocate_tensors()
         _set_interpreter_inputs(interpreter, ref_input)
         interpreter.invoke()
