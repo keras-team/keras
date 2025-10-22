@@ -712,7 +712,7 @@ def _extract_patches(
     return patches
 
 
-class ExtractVolumePatches(Operation):
+class ExtractPatches3D(Operation):
     def __init__(
         self,
         size,
@@ -880,7 +880,7 @@ def extract_patches_3d(
     (3, 3, 3, 81)
     """
     if any_symbolic_tensors((volumes,)):
-        return ExtractVolumePatches(
+        return ExtractPatches3D(
             size=size,
             strides=strides,
             dilation_rate=dilation_rate,

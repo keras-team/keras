@@ -2560,7 +2560,7 @@ class ImageOpsBehaviorTests(testing.TestCase):
             kimage.elastic_transform(invalid_image)
 
 
-class ExtractVolumePatchesTest(testing.TestCase):
+class ExtractPatches3DTest(testing.TestCase):
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     def setUp(self):
