@@ -73,6 +73,44 @@ class OrbaxCheckpoint(MonitorCallback):
     inference.
     It supports policies for keeping checkpoints and deciding when to save.
 
+    Example:
+
+    ```python
+    model.compile(loss=..., optimizer=...,
+                  metrics=['accuracy'])
+
+    EPOCHS = 10
+    checkpoint_dir = '/tmp/ckpt'
+    orbax_checkpoint_callback = keras.callbacks.OrbaxCheckpoint(
+        directory=checkpoint_dir,
+        monitor='val_accuracy',
+        mode='max',
+        save_best_only=True)
+
+    # Model is saved at the end of every epoch, if it's the best seen so far.
+    model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
+
+    # The model can be loaded from a specific checkpoint step as -
+    checkpoint = keras.callbacks.OrbaxCheckpoint(directory=checkpoint_dir)
+    checkpoint.load_checkpoint(step=5, model=model)  # Load from step 5
+
+    # Alternatively, save checkpoints every N batches -
+    orbax_checkpoint_callback = keras.callbacks.OrbaxCheckpoint(
+        directory=checkpoint_dir,
+        save_freq=100)  # Save every 100 batches
+
+    model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
+
+    # Or use a SaveDecisionPolicy for more control -
+    from orbax.checkpoint import checkpoint_managers
+    policy = checkpoint_managers.FixedIntervalPolicy(interval=5)
+    orbax_checkpoint_callback = keras.callbacks.OrbaxCheckpoint(
+        directory=checkpoint_dir,
+        save_decision_policy=policy)  # Save every 5 epochs
+
+    model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
+    ```
+
     Args:
         directory: string, path to the directory where to save the checkpoints.
         monitor: The metric name to monitor (e.g., 'val_loss').
@@ -86,7 +124,7 @@ class OrbaxCheckpoint(MonitorCallback):
         keep_period: Integer, keep one checkpoint every `keep_period` saves.
             Useful for keeping checkpoints less frequently over long runs.
         initial_value_threshold: Floating point initial "best" value for the
-             monitor, used with `save_best_only`.
+            monitor, used with `save_best_only`.
         save_optimizer_state: Boolean, whether to include optimizer variables
             in the checkpoint. Defaults to True.
         save_on_background: Boolean, whether to save asynchronously in the
@@ -110,8 +148,9 @@ class OrbaxCheckpoint(MonitorCallback):
             during saving. Keys should match composite_state keys (e.g.,
             'model_weights', 'optimizer_state'). Defaults to None.
         save_decision_policy: orbax.checkpoint.SaveDecisionPolicy object to
-            control when checkpoints are saved. If provided, overrides the
-            default save frequency logic. Defaults to None.
+            control when checkpoints are saved. Currently supports
+            FixedIntervalPolicy for saving at regular intervals. If provided,
+            overrides the default save frequency logic. Defaults to None.
         save_interval: Integer, save checkpoints every N steps. If provided,
             overrides save_freq. Defaults to None.
     """
@@ -166,6 +205,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
+        self._total_batches_seen = 0  # Global batch counter for step tracking
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError("Unrecognized save_freq")
@@ -174,10 +214,10 @@ class OrbaxCheckpoint(MonitorCallback):
         # if provided
         should_save_fn = None
         if save_decision_policy is not None:
-            # For now, create a simple should_save_fn that saves every 2 steps
-            # This is a placeholder - proper integration would require
-            # PolicyCheckpointInfo
-            should_save_fn = lambda step, prev_step=None: step % 2 == 0
+            # When using save_decision_policy, let Orbax handle
+            # should_save_fn internally
+            # Don't override should_save_fn
+            pass
         elif save_interval is not None:
             # Create should_save_fn that saves every N steps
             should_save_fn = (
@@ -199,6 +239,7 @@ class OrbaxCheckpoint(MonitorCallback):
             enable_background_delete=self.enable_background_delete,
             async_options=async_options,
             should_save_fn=should_save_fn,
+            save_decision_policy=save_decision_policy,
         )
         # Ensure directory exists (only needed on one process in multi-host)
         if backend.get_process_index() == 0:
@@ -218,7 +259,14 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.save_freq == "epoch":
             return False
 
-        self._batches_seen_since_last_saving += 1
+        if batch <= self._last_batch_seen:  # New epoch.
+            add_batches = batch + 1
+        else:
+            add_batches = batch - self._last_batch_seen
+        self._batches_seen_since_last_saving += add_batches
+        self._last_batch_seen = batch
+        self._total_batches_seen += add_batches
+
         if self._batches_seen_since_last_saving >= self.save_freq:
             self._batches_seen_since_last_saving = 0
             return True
@@ -235,8 +283,8 @@ class OrbaxCheckpoint(MonitorCallback):
                 backend.convert_to_numpy(self.model.optimizer.iterations)
             )
         else:
-            # Fallback: use batch count
-            return self._last_batch_seen
+            # Fallback: use global batch count
+            return self._total_batches_seen
 
     def _save_checkpoint(self, step, logs=None):
         """Save a checkpoint at the given step."""
@@ -333,8 +381,6 @@ class OrbaxCheckpoint(MonitorCallback):
                 # step
                 step = self._get_current_step()
                 self._save_checkpoint(step=step, logs=logs)
-                # Ensure all processes sync after save operation
-                self.manager.wait_until_finished()
 
     def on_epoch_end(self, epoch, logs=None):
         self._current_epoch = epoch
@@ -343,9 +389,19 @@ class OrbaxCheckpoint(MonitorCallback):
 
         should_save = False
         if self.save_decision_policy is not None:
-            # For FixedIntervalPolicy, save every N steps
-            # This is a simplified implementation
-            should_save = epoch % 2 == 0  # Save every 2 epochs for the test
+            # Handle FixedIntervalPolicy by extracting its interval
+            from orbax.checkpoint import checkpoint_managers
+
+            if isinstance(
+                self.save_decision_policy,
+                checkpoint_managers.FixedIntervalPolicy,
+            ):
+                should_save = epoch % self.save_decision_policy.interval == 0
+            else:
+                # For other policies, fall back to saving every epoch
+                # TODO: Implement full support for other SaveDecisionPolicy
+                # types
+                should_save = True
         elif self.save_interval is not None:
             # Save every N epochs
             should_save = epoch % self.save_interval == 0
@@ -371,8 +427,6 @@ class OrbaxCheckpoint(MonitorCallback):
         if should_save:
             # Use epoch number as the step for Orbax save
             self._save_checkpoint(step=epoch, logs=logs)
-            # Ensure all processes sync after save operation
-            self.manager.wait_until_finished()
 
     def on_train_end(self, logs=None):
         if self.verbose > 0:

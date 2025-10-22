@@ -643,6 +643,9 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         checkpoint_dir = os.path.join(self.temp_dir, "test_transforms")
 
+        # Train for one step first to initialize optimizer variables
+        model.fit(x, y, epochs=1, verbose=0)
+
         # Create save_args that converts float32 to float16
         # Note: save_args structure must match composite_state structure (lists)
         save_args = {
@@ -652,18 +655,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                 SaveArgs(dtype=np.dtype(np.float16)),  # output weights
                 SaveArgs(dtype=np.dtype(np.float16)),  # output bias
             ],
-            "optimizer_state": [
-                None,  # iteration count (no change)
-                None,  # learning rate (no change)
-                None,  # momentum vars (no change)
-                None,  # momentum vars (no change)
-                None,  # momentum vars (no change)
-                None,  # momentum vars (no change)
-                None,  # momentum vars (no change)
-                None,  # momentum vars (no change)
-                None,  # momentum vars (no change)
-                None,  # momentum vars (no change)
-            ],
+            "optimizer_state": [None] * len(model.optimizer.variables),
         }
 
         callback = OrbaxCheckpoint(
@@ -672,11 +664,11 @@ class OrbaxCheckpointTest(testing.TestCase):
             save_transforms=save_args,
         )
 
-        # Train for a few epochs
-        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+        # Train for one more epoch to trigger save
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
 
         # Load checkpoint data to verify transformation was applied
-        checkpoint_data = self._load_checkpoint_data(callback, step=1)
+        checkpoint_data = self._load_checkpoint_data(callback, step=0)
 
         # Check that model weights were saved in float16
         saved_weights = checkpoint_data["model_weights"]
@@ -1503,21 +1495,37 @@ class OrbaxCheckpointTest(testing.TestCase):
         except Exception as e:
             self.fail(f"Failed to load checkpoint data: {e}")
 
-    def _get_state_as_numpy_helper(self, model):
-        """Helper to convert model state to numpy (copied from
-        orbax_checkpoint.py)."""
-        try:
-            import keras
+    @pytest.mark.requires_trainable_backend
+    def test_save_decision_policy_integration(self):
+        """Test using orbax.checkpoint.SaveDecisionPolicy objects."""
+        from orbax.checkpoint import checkpoint_managers
 
-            model_weights_np = [
-                keras.ops.convert_to_numpy(w) for w in model.weights
-            ]
-            optimizer_vars_np = [
-                keras.ops.convert_to_numpy(v) for v in model.optimizer.variables
-            ]
-            return model_weights_np, optimizer_vars_np
-        except Exception:
-            return None, None
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.temp_dir, "test_decision_policy")
+
+        # Use FixedIntervalPolicy to save every 3 steps
+        policy = checkpoint_managers.FixedIntervalPolicy(
+            interval=3,  # Save every 3 steps
+        )
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_decision_policy=policy,
+        )
+
+        # Train for 10 epochs (steps 0-9)
+        model.fit(x, y, epochs=10, callbacks=[callback], verbose=0)
+
+        # Should have saved at steps 0, 3, 6, 9
+        all_steps = sorted(callback.manager.all_steps())
+        expected_steps = [0, 3, 6, 9]
+        self.assertEqual(
+            all_steps,
+            expected_steps,
+            f"Should save at steps {expected_steps}, got {all_steps}",
+        )
 
     def _load_checkpoint_data(self, callback, step):
         """Helper method to load raw checkpoint data for testing."""
