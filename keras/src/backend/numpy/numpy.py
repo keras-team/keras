@@ -294,6 +294,14 @@ def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
 
+def view(x, dtype=None, type=None):
+    return (
+        x.view(dtype=dtype, type=type)
+        if type is not None
+        else x.view(dtype=dtype)
+    )
+
+
 def average(x, axis=None, weights=None):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)

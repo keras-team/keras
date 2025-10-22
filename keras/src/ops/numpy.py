@@ -1124,6 +1124,50 @@ def array(x, dtype=None):
     return backend.numpy.array(x, dtype=dtype)
 
 
+class View(Operation):
+    def __init__(self, dtype, type, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.type = type
+
+    def call(self, x):
+        return backend.numpy.view(x, dtype=self.dtype, type=self.type)
+
+    def compute_output_spec(self, x, dtype=None, type=None):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.view", "keras.ops.numpy.view"])
+def view(x, dtype=None, type=None):
+    """Create a new view of the same data with the specified dtype.
+
+    Args:
+        x: Input tensor.
+        dtype: Data-type descriptor of the returned view,
+            e.g., float32 or int16.
+        type: Type of the returned view, e.g., ndarray or matrix.
+            Only support for numpy.
+
+    Returns:
+        A tensor.
+
+    Examples:
+    >>> x = keras.ops.array([1, 2, 3])
+    >>> x
+    array([1, 2, 3], dtype=int32)
+    >>> keras.ops.view(x, dtype="float32")
+    array([1., 2., 3.], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return View(dtype=dtype, type=type).symbolic_call(x)
+    return backend.numpy.view(x, dtype=dtype, type=type)
+
+
 class Average(Operation):
     def __init__(self, axis=None, *, name=None):
         super().__init__(name=name)

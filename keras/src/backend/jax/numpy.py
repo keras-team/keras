@@ -446,6 +446,10 @@ def array(x, dtype=None):
     return jnp.array(x, dtype=dtype)
 
 
+def view(x, dtype=None, type=None):
+    return x.view(dtype=dtype, type=type)
+
+
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]

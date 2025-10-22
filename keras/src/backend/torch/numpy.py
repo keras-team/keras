@@ -411,6 +411,12 @@ def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
 
+def view(x, dtype=None, type=None):
+    if type is not None:
+        raise NotImplementedError("`type` argument in `view` is not supported.")
+    return x.view(dtype)
+
+
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]

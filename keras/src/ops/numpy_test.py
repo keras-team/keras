@@ -9325,3 +9325,53 @@ class HistogramTest(testing.TestCase):
         model.compile(jit_compile=jit_compile)
 
         model.predict(np.random.randn(1, 8))
+
+
+class NumpyTestView(testing.TestCase):
+    def test_view(self):
+        import jax.numpy as jnp
+        import torch
+
+        if backend.backend() == "tensorflow":
+            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+            result = knp.view(input_array, dtype="float32")
+            assert result.dtype == "float32"
+            np.testing.assert_array_equal(
+                result,
+                np.array(
+                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
+                    dtype="float32",
+                ),
+            )
+        elif backend.backend() == "jax":
+            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype=jnp.int32)
+            result = knp.view(input_array, dtype=jnp.float32)
+            assert result.dtype == jnp.float32
+            np.testing.assert_array_equal(
+                result,
+                knp.array(
+                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
+                    dtype="float32",
+                ),
+            )
+        elif backend.backend() == "numpy":
+            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype=np.int32)
+            result = knp.view(input_array, dtype=np.float32)
+            assert result.dtype == np.float32
+            np.testing.assert_array_equal(
+                result,
+                knp.array(
+                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
+                    dtype=np.float32,
+                ),
+            )
+        elif backend.backend() == "torch":
+            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype=torch.int32)
+            result = knp.view(input_array, dtype=torch.float32)
+            assert result.dtype == torch.float32
+            assert torch.equal(
+                result,
+                knp.array(
+                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]]
+                ),
+            )
