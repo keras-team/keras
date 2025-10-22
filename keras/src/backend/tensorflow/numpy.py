@@ -999,19 +999,19 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None, type=None):
-    
     from keras.src import backend
 
     if type is not None:
         raise NotImplementedError("`type` argument in `view` is not supported.")
 
     old_dtype = x.dtype
-    new_dtype =  tf.as_dtype(backend.standardize_dtype(
-        dtype if dtype else x.dtype))
-    
+    new_dtype = tf.as_dtype(
+        backend.standardize_dtype(dtype if dtype else x.dtype)
+    )
+
     old_itemsize = old_dtype.size
     new_itemsize = new_dtype.size
-    
+
     if list(x.shape)[-1] * old_itemsize % new_itemsize != 0:
         raise ValueError(
             f"Cannot view array of shape {x.shape} and dtype {old_dtype} "
@@ -1021,9 +1021,8 @@ def view(x, dtype=None, type=None):
 
     new_size = old_itemsize * tf.size(x) // new_itemsize
 
-
     old_shape = tf.shape(x)
-    
+
     if old_itemsize == new_itemsize:
         return tf.bitcast(x, type=new_dtype)
     elif old_itemsize > new_itemsize:
@@ -1043,12 +1042,14 @@ def view(x, dtype=None, type=None):
                 f"by the ratio of new/old item sizes ({ratio})."
             )
         intermediate_last_two_dims = [last_dim_size // ratio, ratio]
-        intermediate_shape = tf.concat([old_shape[:-1], intermediate_last_two_dims], axis=0)
-        
+        intermediate_shape = tf.concat(
+            [old_shape[:-1], intermediate_last_two_dims], axis=0
+        )
+
         reshaped_tensor = tf.reshape(x, intermediate_shape)
 
-        return tf.bitcast(reshaped_tensor,new_dtype)
-    
+        return tf.bitcast(reshaped_tensor, new_dtype)
+
 
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)

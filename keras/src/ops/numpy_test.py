@@ -9333,7 +9333,7 @@ class NumpyTestView(testing.TestCase):
         import torch
 
         input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
-        
+
         # Test case 1: View with old dtype
         if backend.backend() == "tensorflow":
             result = knp.view(input_array, dtype="int32")
@@ -9343,7 +9343,7 @@ class NumpyTestView(testing.TestCase):
             result = knp.view(input_array, dtype=np.int32)
         elif backend.backend() == "torch":
             result = knp.view(input_array, dtype=torch.int32)
-        
+
         assert backend.standardize_dtype(result.dtype) == "int32"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -9362,7 +9362,7 @@ class NumpyTestView(testing.TestCase):
             result = knp.view(input_array, dtype=np.float32)
         elif backend.backend() == "torch":
             result = knp.view(input_array, dtype=torch.float32)
-        
+
         assert backend.standardize_dtype(result.dtype) == "float32"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -9381,7 +9381,7 @@ class NumpyTestView(testing.TestCase):
             result = knp.view(input_array, dtype=np.int16)
         elif backend.backend() == "torch":
             result = knp.view(input_array, dtype=torch.int16)
-        
+
         assert backend.standardize_dtype(result.dtype) == "int16"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -9390,7 +9390,7 @@ class NumpyTestView(testing.TestCase):
                 dtype="int16",
             ),
         )
-        
+
         # Test case 4: View int16 as int32 to a smaller bype size.
         x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
         if backend.backend() == "tensorflow":
@@ -9401,7 +9401,7 @@ class NumpyTestView(testing.TestCase):
             result = knp.view(x, dtype=np.int32)
         elif backend.backend() == "torch":
             result = knp.view(x, dtype=torch.int32)
-        
+
         assert backend.standardize_dtype(result.dtype) == "int32"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -9410,7 +9410,7 @@ class NumpyTestView(testing.TestCase):
                 dtype="int32",
             ),
         )
-        
+
         # Test case 5: View int32 as int64 to a smaller bype size.
         x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int32")
         if backend.backend() == "tensorflow":
@@ -9422,9 +9422,9 @@ class NumpyTestView(testing.TestCase):
             result = knp.view(x, dtype=np.int64)
         elif backend.backend() == "torch":
             result = knp.view(x, dtype=torch.int64)
-            
+
         print("test result", result)
-        
+
         assert backend.standardize_dtype(result.dtype) == "int64"
         self.assertAllClose(
             result,
@@ -9433,6 +9433,3 @@ class NumpyTestView(testing.TestCase):
                 dtype="int64",
             ),
         )
-    
-        
-     

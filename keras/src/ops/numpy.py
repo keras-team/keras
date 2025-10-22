@@ -1136,14 +1136,15 @@ class View(Operation):
     def compute_output_spec(self, x):
         old_dtype = backend.standardize_dtype(x.dtype)
         new_dtype = backend.standardize_dtype(
-            self.dtype if self.dtype else x.dtype)
-        
+            self.dtype if self.dtype else x.dtype
+        )
+
         old_itemsize = np.dtype(old_dtype).itemsize
         new_itemsize = np.dtype(new_dtype).itemsize
-        
+
         if old_itemsize == new_itemsize:
             return KerasTensor(x.shape, dtype=new_dtype)
-        
+
         if not x.shape:
             raise ValueError(
                 "Cannot view a scalar as a different dtype if item sizes "
@@ -1161,9 +1162,7 @@ class View(Operation):
                     f"as dtype {new_dtype} because the total number of bytes "
                     "is not divisible by the new itemsize."
                 )
-            output_shape[-1] = (
-                output_shape[-1] * old_itemsize // new_itemsize
-            )
+            output_shape[-1] = output_shape[-1] * old_itemsize // new_itemsize
         return KerasTensor(tuple(output_shape), dtype=new_dtype)
 
 
