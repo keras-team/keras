@@ -60,22 +60,12 @@ def _infer_input_signature_from_model(model):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                # For export, force batch dimension to None for flexible
-                # batching
-                shape = (
-                    (None,) + structure[1:] if len(structure) > 0 else structure
-                )
+                shape = (None,) + structure[1:]
                 return layers.InputSpec(shape=shape, dtype=model.input_dtype)
             return tuple(_make_input_spec(v) for v in structure)
         elif isinstance(structure, list):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                # For export, force batch dimension to None for flexible
-                # batching
-                shape = (
-                    (None,) + tuple(structure[1:])
-                    if len(structure) > 0
-                    else tuple(structure)
-                )
+                shape = (None,) + tuple(structure[1:])
                 return layers.InputSpec(shape=shape, dtype=model.input_dtype)
             return [_make_input_spec(v) for v in structure]
         else:
