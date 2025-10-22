@@ -1133,13 +1133,38 @@ class View(Operation):
     def call(self, x):
         return backend.numpy.view(x, dtype=self.dtype, type=self.type)
 
-    def compute_output_spec(self, x, dtype=None, type=None):
-        dtype = (
-            backend.standardize_dtype(x.dtype)
-            if self.dtype is None
-            else self.dtype
-        )
-        return KerasTensor(x.shape, dtype=dtype)
+    def compute_output_spec(self, x):
+        old_dtype = backend.standardize_dtype(x.dtype)
+        new_dtype = backend.standardize_dtype(
+            self.dtype if self.dtype else x.dtype)
+        
+        old_itemsize = np.dtype(old_dtype).itemsize
+        new_itemsize = np.dtype(new_dtype).itemsize
+        
+        if old_itemsize == new_itemsize:
+            return KerasTensor(x.shape, dtype=new_dtype)
+        
+        if not x.shape:
+            raise ValueError(
+                "Cannot view a scalar as a different dtype if item sizes "
+                "are different."
+            )
+
+        output_shape = list(x.shape)
+        if output_shape[-1] is None:
+            # Cannot infer shape if last dimension is dynamic
+            output_shape[-1] = None
+        else:
+            if (output_shape[-1] * old_itemsize) % new_itemsize != 0:
+                raise ValueError(
+                    f"Cannot view array of shape {x.shape} and dtype {x.dtype} "
+                    f"as dtype {new_dtype} because the total number of bytes "
+                    "is not divisible by the new itemsize."
+                )
+            output_shape[-1] = (
+                output_shape[-1] * old_itemsize // new_itemsize
+            )
+        return KerasTensor(tuple(output_shape), dtype=new_dtype)
 
 
 @keras_export(["keras.ops.view", "keras.ops.numpy.view"])
@@ -1165,7 +1190,8 @@ def view(x, dtype=None, type=None):
     """
     if any_symbolic_tensors((x,)):
         return View(dtype=dtype, type=type).symbolic_call(x)
-    return backend.numpy.view(x, dtype=dtype, type=type)
+    r = backend.numpy.view(x, dtype=dtype, type=type)
+    return r
 
 
 class Average(Operation):

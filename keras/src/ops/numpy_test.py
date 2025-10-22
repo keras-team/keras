@@ -9332,46 +9332,107 @@ class NumpyTestView(testing.TestCase):
         import jax.numpy as jnp
         import torch
 
+        input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+        
+        # Test case 1: View with old dtype
         if backend.backend() == "tensorflow":
-            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
-            result = knp.view(input_array, dtype="float32")
-            assert result.dtype == "float32"
-            np.testing.assert_array_equal(
-                result,
-                np.array(
-                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
-                    dtype="float32",
-                ),
-            )
+            result = knp.view(input_array, dtype="int32")
         elif backend.backend() == "jax":
-            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype=jnp.int32)
-            result = knp.view(input_array, dtype=jnp.float32)
-            assert result.dtype == jnp.float32
-            np.testing.assert_array_equal(
-                result,
-                knp.array(
-                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
-                    dtype="float32",
-                ),
-            )
+            result = knp.view(input_array, dtype=jnp.int32)
         elif backend.backend() == "numpy":
-            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype=np.int32)
-            result = knp.view(input_array, dtype=np.float32)
-            assert result.dtype == np.float32
-            np.testing.assert_array_equal(
-                result,
-                knp.array(
-                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
-                    dtype=np.float32,
-                ),
-            )
+            result = knp.view(input_array, dtype=np.int32)
         elif backend.backend() == "torch":
-            input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype=torch.int32)
+            result = knp.view(input_array, dtype=torch.int32)
+        
+        assert backend.standardize_dtype(result.dtype) == "int32"
+        self.assertAllClose(
+            backend.convert_to_tensor(result),
+            knp.array(
+                [[1, 2, 3], [4, 5, 6]],
+                dtype="int32",
+            ),
+        )
+
+        # Test case 2: View int32 as float32, remain the shape
+        if backend.backend() == "tensorflow":
+            result = knp.view(input_array, dtype="float32")
+        elif backend.backend() == "jax":
+            result = knp.view(input_array, dtype=jnp.float32)
+        elif backend.backend() == "numpy":
+            result = knp.view(input_array, dtype=np.float32)
+        elif backend.backend() == "torch":
             result = knp.view(input_array, dtype=torch.float32)
-            assert result.dtype == torch.float32
-            assert torch.equal(
-                result,
-                knp.array(
-                    [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]]
-                ),
-            )
+        
+        assert backend.standardize_dtype(result.dtype) == "float32"
+        self.assertAllClose(
+            backend.convert_to_tensor(result),
+            knp.array(
+                [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
+                dtype="float32",
+            ),
+        )
+
+        # Test case 3: View int32 as int16 to a smaller bype size.
+        if backend.backend() == "tensorflow":
+            result = knp.view(input_array, dtype="int16")
+        elif backend.backend() == "jax":
+            result = knp.view(input_array, dtype=jnp.int16)
+        elif backend.backend() == "numpy":
+            result = knp.view(input_array, dtype=np.int16)
+        elif backend.backend() == "torch":
+            result = knp.view(input_array, dtype=torch.int16)
+        
+        assert backend.standardize_dtype(result.dtype) == "int16"
+        self.assertAllClose(
+            backend.convert_to_tensor(result),
+            knp.array(
+                [[1, 0, 2, 0, 3, 0], [4, 0, 5, 0, 6, 0]],
+                dtype="int16",
+            ),
+        )
+        
+        # Test case 4: View int16 as int32 to a smaller bype size.
+        x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
+        if backend.backend() == "tensorflow":
+            result = knp.view(x, dtype="int32")
+        elif backend.backend() == "jax":
+            result = knp.view(x, dtype=jnp.int32)
+        elif backend.backend() == "numpy":
+            result = knp.view(x, dtype=np.int32)
+        elif backend.backend() == "torch":
+            result = knp.view(x, dtype=torch.int32)
+        
+        assert backend.standardize_dtype(result.dtype) == "int32"
+        self.assertAllClose(
+            backend.convert_to_tensor(result),
+            knp.array(
+                [[131073, 262147], [393221, 524295]],
+                dtype="int32",
+            ),
+        )
+        
+        # Test case 5: View int32 as int64 to a smaller bype size.
+        x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int32")
+        if backend.backend() == "tensorflow":
+            result = knp.view(x, dtype="int64")
+        elif backend.backend() == "jax":
+            # jnp.int64 requested in jnp.view is not available, and will be truncated to dtype int32.
+            return
+        elif backend.backend() == "numpy":
+            result = knp.view(x, dtype=np.int64)
+        elif backend.backend() == "torch":
+            result = knp.view(x, dtype=torch.int64)
+            
+        print("test result", result)
+        
+        assert backend.standardize_dtype(result.dtype) == "int64"
+        self.assertAllClose(
+            result,
+            knp.array(
+                [[8589934593, 17179869187], [25769803781, 34359738375]],
+                dtype="int64",
+            ),
+        )
+    
+        
+     
