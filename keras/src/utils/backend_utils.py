@@ -125,7 +125,12 @@ def set_backend(backend):
     Example:
 
     ```python
+    import keras
+
     keras.config.set_backend("jax")
+
+    del keras
+    import keras
     ```
 
     ⚠️ WARNING ⚠️: Using this function is dangerous and should be done
@@ -138,7 +143,7 @@ def set_backend(backend):
 
     This includes any function or class instance that uses any Keras
     functionality. All such code needs to be re-executed after calling
-    `set_backend()`.
+    `set_backend()` and re-importing the `keras` module.
     """
     os.environ["KERAS_BACKEND"] = backend
     # Clear module cache.
