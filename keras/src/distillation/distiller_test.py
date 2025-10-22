@@ -1,6 +1,5 @@
 import json
 import os
-import tempfile
 
 import numpy as np
 import pytest
@@ -58,14 +57,14 @@ class TestDistiller(TestCase):
         self.teacher(dummy_input)
         self.student(dummy_input)
 
-        # Create distillation strategy
-        self.strategy = LogitsDistillation(temperature=2.0)
+        # Create distillation distillation_loss
+        self.distillation_loss = LogitsDistillation(temperature=2.0)
 
         # Create distiller
         self.distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=self.strategy,
+            distillation_loss=self.distillation_loss,
             student_loss_weight=0.5,
         )
 
@@ -87,13 +86,15 @@ class TestDistiller(TestCase):
         # Check student_loss_weight
         self.assertEqual(self.distiller.student_loss_weight, 0.5)
 
-        # Check strategies (should be a list with one strategy)
-        self.assertIsInstance(self.distiller.strategies, list)
-        self.assertEqual(len(self.distiller.strategies), 1)
-        self.assertIsInstance(self.distiller.strategies[0], LogitsDistillation)
+        # Check distillation_loss (should be a list with one distillation_loss)
+        self.assertIsInstance(self.distiller.distillation_loss, list)
+        self.assertEqual(len(self.distiller.distillation_loss), 1)
+        self.assertIsInstance(
+            self.distiller.distillation_loss[0], LogitsDistillation
+        )
 
-        # Check that strategy has the correct temperature
-        self.assertEqual(self.distiller.strategies[0].temperature, 2.0)
+        # Check that distillation_loss has the correct temperature
+        self.assertEqual(self.distiller.distillation_loss[0].temperature, 2.0)
 
         # Check that model is compiled
         self.assertIsNotNone(self.distiller.optimizer)
@@ -134,7 +135,7 @@ class TestDistiller(TestCase):
         Distiller(
             teacher=new_teacher,
             student=self.student,
-            strategies=self.strategy,
+            distillation_loss=self.distillation_loss,
             student_loss_weight=0.5,
         )
 
@@ -148,31 +149,31 @@ class TestDistiller(TestCase):
             Distiller(
                 teacher="not_a_model",
                 student=self.student,
-                strategies=self.strategy,
+                distillation_loss=self.distillation_loss,
             )
 
         with self.assertRaises(ValueError):
             Distiller(
                 teacher=self.teacher,
                 student="not_a_model",
-                strategies=self.strategy,
+                distillation_loss=self.distillation_loss,
             )
 
-    def test_multi_strategy_functionality(self):
-        """Test multi-strategy functionality."""
-        # Create multiple strategies
-        strategies = [
+    def test_multi_distillation_loss_functionality(self):
+        """Test multi-distillation_loss functionality."""
+        # Create multiple distillation_loss
+        distillation_loss = [
             LogitsDistillation(temperature=3.0),
             LogitsDistillation(temperature=2.0),
         ]
-        strategy_weights = [0.7, 0.3]
+        distillation_loss_weights = [0.7, 0.3]
 
-        # Create distiller with multiple strategies
+        # Create distiller with multiple distillation_loss
         distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=strategies,
-            strategy_weights=strategy_weights,
+            distillation_loss=distillation_loss,
+            distillation_loss_weights=distillation_loss_weights,
             student_loss_weight=0.5,
         )
 
@@ -183,9 +184,9 @@ class TestDistiller(TestCase):
             metrics=["accuracy"],
         )
 
-        # Test that strategies are stored correctly
-        self.assertEqual(len(distiller.strategies), 2)
-        self.assertEqual(distiller.strategy_weights, [0.7, 0.3])
+        # Test that distillation_loss are stored correctly
+        self.assertEqual(len(distiller.distillation_loss), 2)
+        self.assertEqual(distiller.distillation_loss_weights, [0.7, 0.3])
 
         # Test training
         x = np.random.random((10, 5)).astype(np.float32)
@@ -197,9 +198,9 @@ class TestDistiller(TestCase):
         self.assertIn("student_loss", history.history)
         self.assertIn("distillation_loss", history.history)
 
-    def test_multi_strategy_validation(self):
-        """Test multi-strategy validation."""
-        strategies = [
+    def test_multi_distillation_loss_validation(self):
+        """Test multi-distillation_loss validation."""
+        distillation_loss = [
             LogitsDistillation(temperature=3.0),
             LogitsDistillation(temperature=2.0),
         ]
@@ -208,19 +209,19 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=strategies,
+            distillation_loss=distillation_loss,
             student_loss_weight=0.5,
         )
 
-        self.assertEqual(len(distiller.strategies), 2)
+        self.assertEqual(len(distiller.distillation_loss), 2)
 
-        # Test invalid strategy weights length
+        # Test invalid distillation_loss weights length
         with self.assertRaises(ValueError):
             Distiller(
                 teacher=self.teacher,
                 student=self.student,
-                strategies=strategies,
-                strategy_weights=[1.0],  # Wrong length
+                distillation_loss=distillation_loss,
+                distillation_loss_weights=[1.0],  # Wrong length
                 student_loss_weight=0.5,
             )
 
@@ -230,7 +231,7 @@ class TestDistiller(TestCase):
         distiller_0 = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=self.strategy,
+            distillation_loss=self.distillation_loss,
             student_loss_weight=0.0,
         )
 
@@ -238,7 +239,7 @@ class TestDistiller(TestCase):
         distiller_1 = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=self.strategy,
+            distillation_loss=self.distillation_loss,
             student_loss_weight=1.0,
         )
 
@@ -288,7 +289,7 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=self.strategy,
+            distillation_loss=self.distillation_loss,
             student_loss_weight=0.5,
         )
 
@@ -363,7 +364,7 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=self.strategy,
+            distillation_loss=self.distillation_loss,
             student_loss_weight=0.5,
         )
 
@@ -407,7 +408,7 @@ class TestDistiller(TestCase):
         distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=self.strategy,
+            distillation_loss=self.distillation_loss,
             student_loss_weight=0.5,
         )
 
@@ -452,13 +453,15 @@ class TestDistiller(TestCase):
             ]
         )
 
-        # Create distiller with single strategy
-        strategy = LogitsDistillation(temperature=3.0, loss="kl_divergence")
+        # Create distiller with single distillation_loss
+        distillation_loss = LogitsDistillation(
+            temperature=3.0, loss="kl_divergence"
+        )
 
         original_distiller = Distiller(
             teacher=teacher,
             student=student,
-            strategies=strategy,
+            distillation_loss=distillation_loss,
             student_loss_weight=0.7,
         )
 
@@ -473,8 +476,8 @@ class TestDistiller(TestCase):
         required_keys = [
             "teacher",
             "student",
-            "strategies",
-            "strategy_weights",
+            "distillation_loss",
+            "distillation_loss_weights",
             "student_loss_weight",
         ]
         for key in required_keys:
@@ -490,37 +493,39 @@ class TestDistiller(TestCase):
         # Verify reconstruction
         self.assertEqual(reconstructed_distiller.student_loss_weight, 0.7)
         self.assertIsInstance(
-            reconstructed_distiller.strategies[0], LogitsDistillation
+            reconstructed_distiller.distillation_loss[0], LogitsDistillation
         )
 
-        # Verify strategy parameters
-        self.assertEqual(reconstructed_distiller.strategies[0].temperature, 3.0)
+        # Verify distillation_loss parameters
+        self.assertEqual(
+            reconstructed_distiller.distillation_loss[0].temperature, 3.0
+        )
 
         # Test that reconstructed distiller can be used for inference
         reconstructed_output = reconstructed_distiller(x_test)
         self.assertEqual(reconstructed_output.shape, (2, 10))
 
         # Test model saving and loading (full integration test)
-        with tempfile.TemporaryDirectory() as temp_dir:
-            model_path = os.path.join(temp_dir, "distiller_model.keras")
+        temp_dir = self.get_temp_dir()
+        model_path = os.path.join(temp_dir, "distiller_model.keras")
 
-            # Compile original distiller
-            original_distiller.compile(
-                loss="sparse_categorical_crossentropy",
-            )
+        # Compile original distiller
+        original_distiller.compile(
+            loss="sparse_categorical_crossentropy",
+        )
 
-            # Save the model
-            original_distiller.save(model_path)
+        # Save the model
+        original_distiller.save(model_path)
 
-            # Load the model
-            loaded_distiller = keras.models.load_model(model_path)
+        # Load the model
+        loaded_distiller = keras.models.load_model(model_path)
 
-            # Verify loaded model works
-            loaded_output = loaded_distiller(x_test)
-            self.assertEqual(loaded_output.shape, (2, 10))
+        # Verify loaded model works
+        loaded_output = loaded_distiller(x_test)
+        self.assertEqual(loaded_output.shape, (2, 10))
 
-            # Verify parameters are preserved
-            self.assertEqual(loaded_distiller.student_loss_weight, 0.7)
+        # Verify parameters are preserved
+        self.assertEqual(loaded_distiller.student_loss_weight, 0.7)
 
         # The core serialization functionality is working
         self.assertTrue(True, "Distiller serialization test passed")

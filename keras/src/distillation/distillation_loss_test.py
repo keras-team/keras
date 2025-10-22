@@ -10,7 +10,7 @@ from keras.src.testing import TestCase
 
 @pytest.mark.requires_trainable_backend
 class TestLogitsDistillation(TestCase):
-    """Test cases for LogitsDistillation strategy."""
+    """Test cases for LogitsDistillation distillation_loss."""
 
     def test_logits_distillation_basic(self):
         """Test basic logits distillation structure validation."""
@@ -22,16 +22,18 @@ class TestLogitsDistillation(TestCase):
             np.array([[2.0, 1.0, 4.0], [3.0, 6.0, 2.0]]), dtype="float32"
         )
 
-        strategy = LogitsDistillation(temperature=3.0)
-        strategy.validate_outputs(teacher_logits, student_logits)
+        distillation_loss = LogitsDistillation(temperature=3.0)
+        distillation_loss.validate_outputs(teacher_logits, student_logits)
         incompatible_logits = {"output": teacher_logits}
         with self.assertRaises(ValueError):
-            strategy.validate_outputs(teacher_logits, incompatible_logits)
+            distillation_loss.validate_outputs(
+                teacher_logits, incompatible_logits
+            )
 
 
 @pytest.mark.requires_trainable_backend
 class TestFeatureDistillation(TestCase):
-    """Test cases for FeatureDistillation strategy."""
+    """Test cases for FeatureDistillation distillation_loss."""
 
     def test_feature_distillation_basic(self):
         """Test basic feature distillation structure validation."""
@@ -43,11 +45,13 @@ class TestFeatureDistillation(TestCase):
             np.array([[1.1, 2.1, 3.1], [4.1, 5.1, 6.1]]), dtype="float32"
         )
 
-        strategy = FeatureDistillation(loss="mse")
-        strategy.validate_outputs(teacher_features, student_features)
+        distillation_loss = FeatureDistillation(loss="mse")
+        distillation_loss.validate_outputs(teacher_features, student_features)
         incompatible_features = [teacher_features, teacher_features]
         with self.assertRaises(ValueError):
-            strategy.validate_outputs(teacher_features, incompatible_features)
+            distillation_loss.validate_outputs(
+                teacher_features, incompatible_features
+            )
 
 
 @pytest.mark.requires_trainable_backend
@@ -96,7 +100,7 @@ class TestEndToEndDistillation(TestCase):
         distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=LogitsDistillation(temperature=3.0),
+            distillation_loss=LogitsDistillation(temperature=3.0),
             student_loss_weight=0.5,
         )
 
@@ -134,7 +138,7 @@ class TestEndToEndDistillation(TestCase):
         distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=FeatureDistillation(
+            distillation_loss=FeatureDistillation(
                 loss="mse",
                 teacher_layer_name="teacher_dense_1",
                 student_layer_name="student_dense_1",
@@ -169,10 +173,10 @@ class TestEndToEndDistillation(TestCase):
             len(distiller._student_feature_extractor.outputs), 2
         )  # final + dense_1
 
-    def test_multi_strategy_distillation_end_to_end(self):
-        """Test end-to-end distillation with multiple strategies."""
-        # Create multiple strategies
-        strategies = [
+    def test_multi_distillation_loss_distillation_end_to_end(self):
+        """Test end-to-end distillation with multiple distillation_loss."""
+        # Create multiple distillation_loss
+        distillation_loss = [
             LogitsDistillation(temperature=3.0),
             FeatureDistillation(
                 loss="mse",
@@ -190,8 +194,8 @@ class TestEndToEndDistillation(TestCase):
         distiller = Distiller(
             teacher=self.teacher,
             student=self.student,
-            strategies=strategies,
-            strategy_weights=[1.0, 0.5, 0.3],
+            distillation_loss=distillation_loss,
+            distillation_loss_weights=[1.0, 0.5, 0.3],
             student_loss_weight=0.5,
         )
 
