@@ -1144,7 +1144,7 @@ class View(Operation):
 
 @keras_export(["keras.ops.view", "keras.ops.numpy.view"])
 def view(x, dtype=None, type=None):
-    """Create a new view of the same data with the specified dtype.
+    """Create a new bitwise view of the same data with the specified dtype.
 
     Args:
         x: Input tensor.
@@ -1161,7 +1161,7 @@ def view(x, dtype=None, type=None):
     >>> x
     array([1, 2, 3], dtype=int32)
     >>> keras.ops.view(x, dtype="float32")
-    array([1., 2., 3.], dtype=float32)
+    array([1.0e-45, 3.0e-45, 4.0e-45], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return View(dtype=dtype, type=type).symbolic_call(x)
