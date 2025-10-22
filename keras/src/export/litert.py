@@ -194,7 +194,7 @@ class LiteRTExporter:
 
     def _convert_to_tflite(self, input_signature):
         """Converts the Keras model to TFLite format.
-        
+
         Returns:
             A bytes object containing the serialized TFLite model.
         """
@@ -235,7 +235,7 @@ class LiteRTExporter:
 
     def _convert_with_wrapper(self, input_signature):
         """Converts the model to TFLite using the tf.Module wrapper.
-        
+
         Returns:
             A bytes object containing the serialized TFLite model.
         """
