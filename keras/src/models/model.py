@@ -136,6 +136,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         keras.Input(shape=(None, None, 3)),
         keras.layers.Conv2D(filters=32, kernel_size=3),
     ])
+    ```
     """
 
     def __new__(cls, *args, **kwargs):

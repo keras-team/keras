@@ -42,8 +42,8 @@ def get_input_signature(model):
         input_signature = _infer_input_signature_from_model(model)
         if not input_signature or not model._called:
             raise ValueError(
-                "The model provided has never called. It must be called "
-                "at least once before export."
+                "The model provided has never called. "
+                "It must be called at least once before export."
             )
     return input_signature
 
@@ -60,8 +60,9 @@ def _infer_input_signature_from_model(model):
             return {k: _make_input_spec(v) for k, v in structure.items()}
         elif isinstance(structure, tuple):
             if all(isinstance(d, (int, type(None))) for d in structure):
-                shape = (None,) + structure[1:]
-                return layers.InputSpec(shape=shape, dtype=model.input_dtype)
+                return layers.InputSpec(
+                    shape=(None,) + structure[1:], dtype=model.input_dtype
+                )
             return tuple(_make_input_spec(v) for v in structure)
         elif isinstance(structure, list):
             if all(isinstance(d, (int, type(None))) for d in structure):
