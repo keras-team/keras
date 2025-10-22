@@ -100,6 +100,7 @@ class LiteRTExporter:
         tflite_model = self._convert_to_tflite(self.input_signature)
 
         if self.verbose:
+            # Calculate model size from the serialized bytes
             final_size_mb = len(tflite_model) / (1024 * 1024)
             io_utils.print_msg(
                 f"TFLite model converted successfully. Size: "
@@ -192,7 +193,11 @@ class LiteRTExporter:
             )
 
     def _convert_to_tflite(self, input_signature):
-        """Converts the Keras model to a TFLite model."""
+        """Converts the Keras model to TFLite format.
+        
+        Returns:
+            A bytes object containing the serialized TFLite model.
+        """
         is_sequential = isinstance(self.model, tf.keras.Sequential)
 
         # Try direct conversion first for all models
@@ -229,7 +234,11 @@ class LiteRTExporter:
             return self._convert_with_wrapper(input_signature)
 
     def _convert_with_wrapper(self, input_signature):
-        """Converts the model to TFLite using the tf.Module wrapper."""
+        """Converts the model to TFLite using the tf.Module wrapper.
+        
+        Returns:
+            A bytes object containing the serialized TFLite model.
+        """
 
         # Define the wrapper class dynamically to avoid module-level
         # tf.Module inheritance
