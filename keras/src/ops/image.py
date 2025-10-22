@@ -745,7 +745,7 @@ class ExtractVolumePatches(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, volumes):
-        return _extract_volume_patches(
+        return _extract_patches_3d(
             volumes,
             self.size,
             self.strides,
@@ -780,7 +780,7 @@ class ExtractVolumePatches(Operation):
         return KerasTensor(shape=out_shape, dtype=volumes.dtype)
 
 
-def _extract_volume_patches(
+def _extract_patches_3d(
     volumes,
     size,
     strides=None,
@@ -830,8 +830,8 @@ def _extract_volume_patches(
     return patches
 
 
-@keras_export("keras.ops.image.extract_volume_patches")
-def extract_volume_patches(
+@keras_export("keras.ops.image.extract_patches_3d")
+def extract_patches_3d(
     volumes,
     size,
     strides=None,
@@ -870,12 +870,12 @@ def extract_volume_patches(
     >>> volumes = np.random.random(
     ...     (2, 10, 10, 10, 3)
     ... ).astype("float32") # batch of 2 volumes
-    >>> patches = keras.ops.image.extract_volume_patches(volumes, (3, 3, 3))
+    >>> patches = keras.ops.image.extract_patches_3d(volumes, (3, 3, 3))
     >>> patches.shape
     (2, 3, 3, 3, 81)
     >>> # Unbatched case
     >>> volume = np.random.random((10, 10, 10, 3)).astype("float32") # 1 volume
-    >>> patches = keras.ops.image.extract_volume_patches(volume, (3, 3, 3))
+    >>> patches = keras.ops.image.extract_patches_3d(volume, (3, 3, 3))
     >>> patches.shape
     (3, 3, 3, 81)
     """
@@ -888,7 +888,7 @@ def extract_volume_patches(
             data_format=data_format,
         ).symbolic_call(volumes)
 
-    return _extract_volume_patches(
+    return _extract_patches_3d(
         volumes, size, strides, dilation_rate, padding, data_format=data_format
     )
 
