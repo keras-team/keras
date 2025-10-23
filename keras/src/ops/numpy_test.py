@@ -9328,6 +9328,10 @@ class HistogramTest(testing.TestCase):
 
 
 class NumpyTestView(testing.TestCase):
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO doesn't support this change",
+    )
     def test_view(self):
         import jax.numpy as jnp
         import torch
