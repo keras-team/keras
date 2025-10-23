@@ -152,7 +152,10 @@ class FeatureDistillation(DistillationLoss):
 
         flat_losses = tree.flatten(self.loss)
         if all(l is None for l in flat_losses):
-            raise ValueError("The `loss` argument in `FeatureDistillation` must contain at least one non-`None` value.")
+            raise ValueError(
+                "The `loss` argument in `FeatureDistillation` must "
+                "contain at least one non-`None` value."
+            )
 
     def validate_model_compatibility(self, teacher, student):
         """Validate that teacher and student models are compatible for feature
