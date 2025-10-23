@@ -446,8 +446,8 @@ def array(x, dtype=None):
     return jnp.array(x, dtype=dtype)
 
 
-def view(x, dtype=None, type=None):
-    return x.view(dtype=dtype, type=type)
+def view(x, dtype=None):
+    return x.view(dtype=dtype)
 
 
 def average(x, axis=None, weights=None):

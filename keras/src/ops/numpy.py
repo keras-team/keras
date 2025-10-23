@@ -1125,13 +1125,12 @@ def array(x, dtype=None):
 
 
 class View(Operation):
-    def __init__(self, dtype=None, type=None, *, name=None):
+    def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
         self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
-        self.type = type
 
     def call(self, x):
-        return backend.numpy.view(x, dtype=self.dtype, type=self.type)
+        return backend.numpy.view(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         old_dtype = backend.standardize_dtype(x.dtype)
@@ -1152,10 +1151,7 @@ class View(Operation):
             )
 
         output_shape = list(x.shape)
-        if output_shape[-1] is None:
-            # Cannot infer shape if last dimension is dynamic
-            output_shape[-1] = None
-        else:
+        if output_shape[-1] is not None:
             if (output_shape[-1] * old_itemsize) % new_itemsize != 0:
                 raise ValueError(
                     f"Cannot view array of shape {x.shape} and dtype {x.dtype} "
@@ -1167,18 +1163,16 @@ class View(Operation):
 
 
 @keras_export(["keras.ops.view", "keras.ops.numpy.view"])
-def view(x, dtype=None, type=None):
+def view(x, dtype=None):
     """Create a new bitwise view of the same data with the specified dtype.
 
     Args:
         x: Input tensor.
         dtype: Data-type descriptor of the returned view,
             e.g., float32 or int16.
-        type: Type of the returned view, e.g., ndarray or matrix.
-            Only support for numpy.
 
     Returns:
-        A tensor.
+        View of a tensor with data type dtype.
 
     Examples:
     >>> x = keras.ops.array([1, 2, 3])
@@ -1188,8 +1182,8 @@ def view(x, dtype=None, type=None):
     array([1.0e-45, 3.0e-45, 4.0e-45], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return View(dtype=dtype, type=type).symbolic_call(x)
-    r = backend.numpy.view(x, dtype=dtype, type=type)
+        return View(dtype=dtype).symbolic_call(x)
+    r = backend.numpy.view(x, dtype=dtype)
     return r
 
 
