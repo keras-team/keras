@@ -1036,7 +1036,6 @@ def view(x, dtype=None):
                 f"must be divisible by the ratio of new/old item sizes "
                 f"({ratio})."
             )
-        old_shape_test = tf.shape(x)
         intermediate_shape = old_shape[:-1] + [last_dim_size // ratio, ratio]
 
         reshaped_tensor = tf.reshape(x, intermediate_shape)
