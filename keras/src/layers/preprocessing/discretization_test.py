@@ -226,3 +226,6 @@ class DiscretizationTest(testing.TestCase):
 
         # Check consistency
         self.assertAllClose(model_call_output, predict_output)
+        self.assertAllClose(model_call_output, predict_output)
+        self.assertEqual(model_call_output.dtype, predict_output.dtype)
+        self.assertTrue(backend.is_int_dtype(model_call_output.dtype))
