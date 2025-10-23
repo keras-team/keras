@@ -2576,7 +2576,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         rng = np.random.default_rng(0)
 
         x = x_np = (4 * rng.standard_normal(x_shape)).astype(dtype)
-        if x_sparse:
+        if x_sparse: 
             x_np = np.multiply(x_np, rng.random(x_shape) < 0.7)
             x = dense_to_sparse(x_np)
 
@@ -9335,6 +9335,8 @@ class NumpyTestView(testing.TestCase):
     def test_view(self):
         import jax.numpy as jnp
         import torch
+        import os
+        import jax
 
         input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
 
@@ -9420,9 +9422,10 @@ class NumpyTestView(testing.TestCase):
         if backend.backend() == "tensorflow":
             result = knp.view(x, dtype="int64")
         elif backend.backend() == "jax":
-            # jnp.int64 requested in jnp.view is not available, and will
-            # be truncated to dtype int32.
-            return
+            # jax default doesn't support bit 64, need to enable it.
+            os.environ["JAX_ENABLE_X64"] = "1"
+            jax.config.update("jax_enable_x64", True)
+            result = knp.view(x, dtype=jnp.int64)
         elif backend.backend() == "numpy":
             result = knp.view(x, dtype=np.int64)
         elif backend.backend() == "torch":
