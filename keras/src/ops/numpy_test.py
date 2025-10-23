@@ -1857,7 +1857,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_angle(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.angle(x).shape, (None, 3))
-    
+
     def test_view(self):
         x = knp.array(KerasTensor((None, 3)), dtype="int32")
         self.assertEqual(knp.view(x, dtype="uint32").shape, (None, 3))
@@ -2466,7 +2466,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_angle(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.angle(x).shape, (2, 3))
-        
+
     def test_view(self):
         x = knp.array(KerasTensor((2, 3)), dtype="int32")
         self.assertEqual(knp.view(x, dtype="uint32").shape, (2, 3))
@@ -2592,7 +2592,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         rng = np.random.default_rng(0)
 
         x = x_np = (4 * rng.standard_normal(x_shape)).astype(dtype)
-        if x_sparse: 
+        if x_sparse:
             x_np = np.multiply(x_np, rng.random(x_shape) < 0.7)
             x = dense_to_sparse(x_np)
 
@@ -4073,10 +4073,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_view(self):
+        import os
+
+        import jax
         import jax.numpy as jnp
         import torch
-        import os
-        import jax
 
         input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
 
@@ -9294,11 +9295,11 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.Angle().symbolic_call(x).dtype),
             expected_dtype,
         )
-    
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
-    def test_view(self,dtypes):
+    def test_view(self, dtypes):
         import jax.numpy as jnp
         import tensorflow as tf
         import torch
@@ -9306,13 +9307,15 @@ class NumpyDtypeTest(testing.TestCase):
         input_dtype, output_dtype = dtypes
         if input_dtype is None or output_dtype is None:
             return
-        x = knp.ones((2,8), dtype=input_dtype)
-        x_jax = jnp.ones((2,8), dtype=input_dtype)
-        
+        x = knp.ones((2, 8), dtype=input_dtype)
+        x_jax = jnp.ones((2, 8), dtype=input_dtype)
+
         try:
             if backend.backend() == "torch":
                 keras_output = knp.view(x, getattr(torch, output_dtype))
-                symbolic_output = knp.View(getattr(torch, output_dtype)).symbolic_call(x)
+                symbolic_output = knp.View(
+                    getattr(torch, output_dtype)
+                ).symbolic_call(x)
             else:
                 keras_output = knp.view(x, output_dtype)
                 symbolic_output = knp.View(output_dtype).symbolic_call(x)
@@ -9329,12 +9332,12 @@ class NumpyDtypeTest(testing.TestCase):
                 standardize_dtype(symbolic_output.dtype),
                 standardize_dtype(expected_output.dtype),
             )
-        
+
         except ValueError:
             return  # Skip invalid view combinations
         except tf.errors.InvalidArgumentError:
             return  # Skip invalid tf bitcast combinations, e.g. int32 to bool
-        
+
 
 @pytest.mark.skipif(
     testing.torch_uses_gpu(),
@@ -9489,4 +9492,3 @@ class HistogramTest(testing.TestCase):
         model.compile(jit_compile=jit_compile)
 
         model.predict(np.random.randn(1, 8))
-
