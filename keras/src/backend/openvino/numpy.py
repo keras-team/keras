@@ -508,6 +508,10 @@ def array(x, dtype=None):
     return np.array(x)
 
 
+def view(x, dtype=None, type=None):
+    raise NotImplementedError("`view` is not supported with openvino backend")
+
+
 def average(x, axis=None, weights=None):
     x = get_ov_output(x)
     if weights is not None:

@@ -9416,7 +9416,8 @@ class NumpyTestView(testing.TestCase):
         if backend.backend() == "tensorflow":
             result = knp.view(x, dtype="int64")
         elif backend.backend() == "jax":
-            # jnp.int64 requested in jnp.view is not available, and will be truncated to dtype int32.
+            # jnp.int64 requested in jnp.view is not available, and will
+            # be truncated to dtype int32.
             return
         elif backend.backend() == "numpy":
             result = knp.view(x, dtype=np.int64)

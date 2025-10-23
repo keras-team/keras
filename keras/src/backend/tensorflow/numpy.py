@@ -1019,8 +1019,6 @@ def view(x, dtype=None, type=None):
             f"is not divisible by the new itemsize."
         )
 
-    new_size = old_itemsize * tf.size(x) // new_itemsize
-
     old_shape = tf.shape(x)
 
     if old_itemsize == new_itemsize:
@@ -1038,8 +1036,9 @@ def view(x, dtype=None, type=None):
         ratio = new_itemsize // old_itemsize
         if last_dim_size % ratio != 0:
             raise ValueError(
-                f"Cannot view dtype. Last dimension size ({last_dim_size}) must be divisible "
-                f"by the ratio of new/old item sizes ({ratio})."
+                f"Cannot view dtype. Last dimension size ({last_dim_size}) "
+                f"must be divisible by the ratio of new/old item sizes "
+                f"({ratio})."
             )
         intermediate_last_two_dims = [last_dim_size // ratio, ratio]
         intermediate_shape = tf.concat(
