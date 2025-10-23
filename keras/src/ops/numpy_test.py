@@ -9424,8 +9424,6 @@ class NumpyTestView(testing.TestCase):
         elif backend.backend() == "torch":
             result = knp.view(x, dtype=torch.int64)
 
-        print("test result", result)
-
         assert backend.standardize_dtype(result.dtype) == "int64"
         self.assertAllClose(
             result,
