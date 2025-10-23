@@ -21,7 +21,8 @@ class Distiller(Model):
         student: A `keras.Model` to be trained through distillation.
         distillation_losses: List of distillation losses to apply. Can be a
             single distillation loss or a list of distillation losses like
-            `LogitsDistillation`, `FeatureDistillation`, or custom distillation
+            `keras.distillation.LogitsDistillation`,
+            `keras.distillation.FeatureDistillation`, or custom distillation
             losses.
         distillation_loss_weights: List of weights for each distillation loss.
             Must have the same length as `distillation_losses`. If `None`,
