@@ -508,7 +508,7 @@ def array(x, dtype=None):
     return np.array(x)
 
 
-def view(x, dtype=None, type=None):
+def view(x, dtype=None):
     raise NotImplementedError("`view` is not supported with openvino backend")
 
 
