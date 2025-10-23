@@ -286,24 +286,53 @@ def _distribute_initializer(
     Raises:
         ValueError: If init_func or seed is None.
                     If init_func.func is not a supported random function.
+                    Supported jax.random func: normal, truncated_normal, uniform
         TypeError: If init_func is not a functools.partial object.
     """
     import warnings
     from functools import partial
 
-    # Validate all required arguments
-    if seed is None:
-        raise ValueError("seed cannot be None. Use keras.random.SeedGenerator.")
-
-    if init_func is None:
+    # Create SeedGenerator to ensure backend variable exists
+    # For future state tracking for distributed keys, add
+    # attributes for base/split keys and number of devices sharded.
+    if isinstance(seed, jax.Array):
+        seed_gen = seed_generator.SeedGenerator(seed=int(seed[0]))
+    elif isinstance(seed, int):
+        seed_gen = seed_generator.SeedGenerator(seed=seed)
+    elif isinstance(seed, seed_generator.SeedGenerator):
+        seed_gen = seed
+    else:
         raise ValueError(
-            "init_func cannot be None. Shape and dtype info are required."
+            f"seed must be int, JAX array, or SeedGenerator, got {type(seed)}"
+        )
+
+    # Extract the state value as JAX array
+    jax_seed = seed_gen.state.value
+
+    # Convert to JAX PRNG key format (swap counter and seed value)
+    jax_compatible_seed = jax.numpy.array(
+        [jax_seed[1], jax_seed[0]], dtype=jax.numpy.uint32
+    )
+
+    # Validate all required arguments
+    if init_func is None or init_func.func.__name__ not in [
+        "normal",
+        "truncated_normal",
+        "uniform",
+    ]:
+        raise ValueError(
+            "init_func cannot be None or "
+            "Unsupported initializer: {init_func.func.__name__}."
+            "only JAX-compatible random initializers are supported. "
+            "Supported jax.random funcs: normal, truncated_normal, uniform"
         )
 
     # Ensure init_func is a partial
     if not isinstance(init_func, partial):
         raise TypeError(
             f"init_func must be functools.partial object, got {type(init_func)}"
+            "init_func is a jax.random.* function with shape and "
+            "dtype bound via partial"
         )
 
     # Shard based on tensor layout
@@ -315,12 +344,28 @@ def _distribute_initializer(
     else:
         sharding = _to_backend_layout(layout)
 
-    # The init_func has static arguments baked in as per initializer.
-    compiled_init = jax.jit(
-        lambda seed: init_func(seed), out_shardings=sharding
-    )
+    # JAX PRNG key handling within JIT:
+    # The key is passed directly to jax.random.* functions which are
+    # JIT-compatible and functional. JAX automatically ensures different
+    # random values per shard when out_shardings is specified.
+    try:
+        compiled_init = jax.jit(
+            lambda jax_compatible_seed: init_func(jax_compatible_seed),
+            out_shardings=sharding,
+        )
+        sample = compiled_init(jax_compatible_seed)
+    except RuntimeError as e:
+        warnings.warn(
+            f"Sharding failed due to: {e}, falling back to single device"
+        )
+        compiled_init = jax.jit(
+            lambda jax_compatible_seed: init_func(jax_compatible_seed),
+            out_shardings=None,
+        )
+        sample = compiled_init(jax_compatible_seed)
 
-    sample = compiled_init(seed)
+    # Store the SeedGenerator for state tracking
+    seed = seed_gen.next()
 
     # Apply mean/stddev only for distributions where it makes sense
     if init_func.func in (jax.random.normal, jax.random.truncated_normal):
@@ -332,8 +377,3 @@ def _distribute_initializer(
                 "mean and stddev are ignored for uniform distribution"
             )
         return sample
-    else:
-        raise ValueError(
-            f"Unsupported initializer: {init_func.func.__name__}. "
-            f"Supported: normal, truncated_normal, uniform"
-        )
