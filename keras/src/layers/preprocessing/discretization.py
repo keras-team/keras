@@ -95,9 +95,6 @@ class Discretization(DataLayer):
         dtype=None,
         name=None,
     ):
-        if dtype is None:
-            dtype = "int64" if output_mode == "int" else backend.floatx()
-
         super().__init__(name=name, dtype=dtype)
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
