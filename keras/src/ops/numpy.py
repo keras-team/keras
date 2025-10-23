@@ -1125,7 +1125,7 @@ def array(x, dtype=None):
 
 
 class View(Operation):
-    def __init__(self, dtype, type, *, name=None):
+    def __init__(self, dtype=None, type=None, *, name=None):
         super().__init__(name=name)
         self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
         self.type = type
