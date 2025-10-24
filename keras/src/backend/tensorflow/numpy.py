@@ -1001,6 +1001,7 @@ def array(x, dtype=None):
 def view(x, dtype=None):
     from keras.src import backend
 
+    x = convert_to_tensor(x)
     old_dtype = tf.as_dtype(backend.standardize_dtype(x.dtype))
     new_dtype = tf.as_dtype(
         backend.standardize_dtype(dtype if dtype else x.dtype)
@@ -1016,8 +1017,6 @@ def view(x, dtype=None):
             f"is not divisible by the new itemsize."
         )
 
-    old_shape = list(shape_op(x))
-
     if old_itemsize == new_itemsize:
         return tf.bitcast(x, type=new_dtype)
     elif old_itemsize > new_itemsize:
@@ -1028,6 +1027,7 @@ def view(x, dtype=None):
         cast_tensor = tf.bitcast(flat_tensor, type=new_dtype)
         return tf.reshape(cast_tensor, new_shape)
     else:
+        old_shape = list(shape_op(x))
         last_dim_size = old_shape[-1]
         ratio = new_itemsize // old_itemsize
         if isinstance(last_dim_size, int) and last_dim_size % ratio != 0:
@@ -1037,9 +1037,7 @@ def view(x, dtype=None):
                 f"({ratio})."
             )
         intermediate_shape = old_shape[:-1] + [last_dim_size // ratio, ratio]
-
         reshaped_tensor = tf.reshape(x, intermediate_shape)
-
         return tf.bitcast(reshaped_tensor, new_dtype)
 
 

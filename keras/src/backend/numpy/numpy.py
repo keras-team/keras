@@ -295,6 +295,7 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
+    x = convert_to_tensor(x)
     return x.view(dtype=dtype)
 
 
