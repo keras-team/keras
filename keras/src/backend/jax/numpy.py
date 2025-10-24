@@ -3,7 +3,6 @@ import math
 
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
-from jax import core
 from jax import export as jax_export
 
 from keras.src.backend import config
@@ -1002,11 +1001,6 @@ def ndim(x):
 
 
 def nonzero(x):
-    if isinstance(x, core.Tracer):
-        # needed because this is called for several metric calculations,
-        # which will supply tracer values during `fit` execution
-        return jnp.nonzero(x, size=core.get_aval(x).size)[0]
-
     return jnp.nonzero(x)
 
 
