@@ -1,4 +1,14 @@
-"""Utilities for distribution strategy with JAX backend."""
+"""Utilities for distribution strategy with JAX backend.
+
+This file contains the core JAX distribution primitives from Keras,
+along with higher-level device management and auto-configuration utilities.
+This version does not use try-except blocks for error handling.
+"""
+
+import logging
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import jax
 import numpy as np
@@ -7,6 +17,8 @@ from keras.src.backend.common import global_state
 from keras.src.random import seed_generator
 from keras.src.utils import jax_utils
 from keras.src.utils import rng_utils
+
+logger = logging.getLogger(__name__)
 
 
 def list_devices(device_type=None):
@@ -25,6 +37,153 @@ def list_devices(device_type=None):
     device_type = device_type.lower() if device_type else None
     jax_devices = jax.devices(backend=device_type)
     return [f"{device.platform}:{device.id}" for device in jax_devices]
+
+
+def get_device_info(device_id: str) -> Dict[str, any]:
+    """
+    Get detailed information about a specific device.
+
+    Args:
+        device_id: Device identifier (e.g., 'gpu:0', 'tpu:0', 'cpu:0')
+
+    Returns:
+        Dictionary containing device information
+    """
+    device_info = {
+        "id": device_id,
+        "type": None,
+        "index": None,
+        "memory": None,
+        "capabilities": None,
+    }
+
+    device_type, device_index = device_id.split(":")
+    device_info["type"] = device_type.upper()
+    device_info["index"] = int(device_index)
+
+    return device_info
+
+
+def get_best_devices(count: int = 1) -> List[str]:
+    """
+    Get the best available devices for tensor parallelism.
+
+    Args:
+        count: Number of devices needed
+
+    Returns:
+        List of best device identifiers
+    """
+    all_devices = list_devices()
+
+    if count <= 0:
+        return []
+
+    if count > len(all_devices):
+        logger.warning(
+            f"Requested {count} devices but only {len(all_devices)} available"
+        )
+        count = len(all_devices)
+
+    return all_devices[:count]
+
+
+def get_device_backend(device_type: str) -> str:
+    """
+    Get the recommended backend for a device type.
+
+    Args:
+        device_type: Device type ('tpu', 'gpu', 'cpu')
+
+    Returns:
+        Recommended backend name
+    """
+    backend_mapping = {"tpu": "jax", "gpu": "jax", "cpu": "jax"}
+
+    return backend_mapping.get(device_type.lower(), "jax")
+
+
+def validate_device_placement(device_id: str) -> bool:
+    """
+    Validate if a device can be used for tensor operations.
+
+    Args:
+        device_id: Device identifier
+
+    Returns:
+        True if device is valid and available
+    """
+    all_devices = list_devices()
+    return device_id in all_devices
+
+
+def get_device_memory_info(device_id: str) -> Optional[Dict[str, any]]:
+    """
+    Get memory information for a device (if available).
+
+    Args:
+        device_id: Device identifier
+
+    Returns:
+        Memory information dictionary or None if not available
+    """
+    if device_id.startswith("gpu:"):
+        return {
+            "type": "GPU",
+            "index": int(device_id.split(":")[1]),
+            "memory": "Available",
+        }
+    elif device_id.startswith("tpu:"):
+        return {
+            "type": "TPU",
+            "index": int(device_id.split(":")[1]),
+            "memory": "TPU Memory",
+        }
+    elif device_id.startswith("cpu:"):
+        return {
+            "type": "CPU",
+            "index": int(device_id.split(":")[1]),
+            "memory": "System RAM",
+        }
+
+    return None
+
+
+def auto_configure_tensor_parallel(
+    world_size: int = None, backend: str = None
+) -> Dict[str, any]:
+    """
+    Automatically configure tensor parallelism with the best available devices.
+
+    Args:
+        world_size: Number of devices to use (if None, uses all available)
+        backend: Backend to use (if None, will be set to 'jax')
+
+    Returns:
+        Configuration dictionary with devices, backend, and other settings
+    """
+    all_devices = list_devices()
+
+    if not all_devices:
+        raise RuntimeError("No devices available for tensor parallelism")
+
+    if world_size is None:
+        world_size = len(all_devices)
+    else:
+        world_size = min(world_size, len(all_devices))
+
+    selected_devices = all_devices[:world_size]
+
+    recommended_backend = "jax"
+
+    config = {
+        "devices": selected_devices,
+        "world_size": world_size,
+        "backend": recommended_backend,
+    }
+
+    logger.info(f"Auto-configured tensor parallelism: {config}")
+    return config
 
 
 def distribute_variable(value, layout):
