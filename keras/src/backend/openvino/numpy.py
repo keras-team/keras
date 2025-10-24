@@ -556,7 +556,7 @@ def heaviside(x1, x2):
     x1 = get_ov_output(x1)
     x_type = x1.get_element_type()
 
-    x2 = get_ov_output(x2, x1.get_element_type())
+    x2 = get_ov_output(x2, x_type)
     zero_scalar = ov_opset.constant(0, x1.get_element_type()).output(0)
     one_scalar = ov_opset.constant(1, x1.get_element_type()).output(0)
 
