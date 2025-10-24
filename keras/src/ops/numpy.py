@@ -1183,8 +1183,7 @@ def view(x, dtype=None):
     """
     if any_symbolic_tensors((x,)):
         return View(dtype=dtype).symbolic_call(x)
-    r = backend.numpy.view(x, dtype=dtype)
-    return r
+    return backend.numpy.view(x, dtype=dtype)
 
 
 class Average(Operation):
