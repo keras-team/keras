@@ -1001,7 +1001,7 @@ def array(x, dtype=None):
 def view(x, dtype=None):
     from keras.src import backend
 
-    old_dtype = x.dtype
+    old_dtype = tf.as_dtype(backend.standardize_dtype(x.dtype))
     new_dtype = tf.as_dtype(
         backend.standardize_dtype(dtype if dtype else x.dtype)
     )

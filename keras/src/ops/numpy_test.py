@@ -4079,66 +4079,30 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_view(self):
-        input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
-
-        # Test case 1: View with old dtype
-        result = knp.view(input_array, dtype="int32")
-        assert backend.standardize_dtype(result.dtype) == "int32"
-        self.assertAllClose(
-            backend.convert_to_tensor(result),
-            knp.array(
-                [[1, 2, 3], [4, 5, 6]],
-                dtype="int32",
-            ),
-        )
-
-        # Test case 2: View int32 as float32, remain the shape
-        result = knp.view(input_array, dtype="float32")
-        assert backend.standardize_dtype(result.dtype) == "float32"
-        self.assertAllClose(
-            backend.convert_to_tensor(result),
-            knp.array(
-                [[1.0e-45, 3.0e-45, 4.0e-45], [6.0e-45, 7.0e-45, 8.0e-45]],
-                dtype="float32",
-            ),
-        )
-
-        # Test case 3: View int32 as int16 to a smaller bype size.
-        result = knp.view(input_array, dtype="int16")
+        x = np.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
+        result = knp.view(x, dtype="int16")
         assert backend.standardize_dtype(result.dtype) == "int16"
-        self.assertAllClose(
-            backend.convert_to_tensor(result),
-            knp.array(
-                [[1, 0, 2, 0, 3, 0], [4, 0, 5, 0, 6, 0]],
-                dtype="int16",
-            ),
-        )
 
-        # Test case 4: View int16 as int32 to a smaller bype size.
-        x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
-        result = knp.view(x, dtype="int32")
-        assert backend.standardize_dtype(result.dtype) == "int32"
-        self.assertAllClose(
-            backend.convert_to_tensor(result),
-            knp.array(
-                [[131073, 262147], [393221, 524295]],
-                dtype="int32",
-            ),
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
         )
+        self.assertAllClose(knp.view(x, dtype="int16"), x.view("int16"))
 
-        # Test case 5: View int32 as int64 to a smaller bype size.
-        if backend.backend() == "jax":
-            return  # jax does not support x64 by default
-        x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int32")
-        result = knp.view(x, dtype="int64")
-        assert backend.standardize_dtype(result.dtype) == "int64"
-        self.assertAllClose(
-            result,
-            knp.array(
-                [[8589934593, 17179869187], [25769803781, 34359738375]],
-                dtype="int64",
-            ),
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="float16").dtype),
+            "float16",
         )
+        self.assertAllClose(knp.view(x, dtype="float16"), x.view("float16"))
+
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
+        )
+        self.assertAllClose(knp.view(x, dtype="int8"), x.view("int8"))
+
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
+        )
+        self.assertAllClose(knp.view(x, dtype="int32"), x.view("int32"))
 
     @parameterized.named_parameters(
         [

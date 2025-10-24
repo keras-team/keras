@@ -413,7 +413,8 @@ def array(x, dtype=None):
 
 def view(x, dtype=None):
     dtype = to_torch_dtype(dtype)
-    return x.view(dtype)
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
 
 
 def average(x, axis=None, weights=None):
