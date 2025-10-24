@@ -95,9 +95,6 @@ class Discretization(DataLayer):
         dtype=None,
         name=None,
     ):
-        if dtype is None:
-            dtype = "int64" if output_mode == "int" else backend.floatx()
-
         super().__init__(name=name, dtype=dtype)
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
@@ -154,6 +151,10 @@ class Discretization(DataLayer):
     @property
     def input_dtype(self):
         return backend.floatx()
+
+    @property
+    def output_dtype(self):
+        return self.compute_dtype if self.output_mode != "int" else "int32"
 
     def adapt(self, data, steps=None):
         """Computes bin boundaries from quantiles in a input dataset.
@@ -213,7 +214,7 @@ class Discretization(DataLayer):
         self.summary = np.array([[], []], dtype="float32")
 
     def compute_output_spec(self, inputs):
-        return backend.KerasTensor(shape=inputs.shape, dtype=self.compute_dtype)
+        return backend.KerasTensor(shape=inputs.shape, dtype=self.output_dtype)
 
     def load_own_variables(self, store):
         if len(store) == 1:
@@ -234,7 +235,7 @@ class Discretization(DataLayer):
             indices,
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
-            dtype=self.compute_dtype,
+            dtype=self.output_dtype,
             sparse=self.sparse,
             backend_module=self.backend,
         )
