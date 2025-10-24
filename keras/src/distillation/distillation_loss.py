@@ -77,15 +77,15 @@ class DistillationLoss:
             teacher: The teacher model.
             student: The student model.
         Raises:
-            ValueError: If models are not compatible with this
-                distillation_loss.
+            ValueError: If models are not compatible with this distillation
+                loss.
         """
         pass
 
 
 @keras_export("keras.distillation.FeatureDistillation")
 class FeatureDistillation(DistillationLoss):
-    """Feature distillation distillation_loss.
+    """Feature distillation loss.
 
     Feature distillation transfers knowledge from intermediate layers of the
     teacher model to corresponding layers of the student model. This approach
@@ -99,7 +99,7 @@ class FeatureDistillation(DistillationLoss):
             - Nested structure of losses matching the layer output structure
             - `None` to skip distillation for that output (useful for
               multi-output models where you only want to distill some outputs)
-            At least one loss must be non-None. Defaults to 'mse'.
+            At least one loss must be non-`None`. Defaults to 'mse'.
         teacher_layer_name: Name of the teacher layer to extract features from.
             If `None`, uses the final output. Defaults to `None`.
         student_layer_name: Name of the student layer to extract features from.
@@ -152,7 +152,10 @@ class FeatureDistillation(DistillationLoss):
 
         flat_losses = tree.flatten(self.loss)
         if all(l is None for l in flat_losses):
-            raise ValueError("At least one loss must be non-None.")
+            raise ValueError(
+                "The `loss` argument in `FeatureDistillation` must "
+                "contain at least one non-`None` value."
+            )
 
     def validate_model_compatibility(self, teacher, student):
         """Validate that teacher and student models are compatible for feature
@@ -258,7 +261,7 @@ class FeatureDistillation(DistillationLoss):
 class LogitsDistillation(DistillationLoss):
     """Distillation loss that transfers knowledge from final model outputs.
 
-    This distillation_loss applies temperature scaling to the teacher's logits
+    This distillation loss applies temperature scaling to the teacher's logits
     before computing the loss between teacher and student predictions. It's the
     most common approach for knowledge distillation.
 

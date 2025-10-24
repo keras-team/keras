@@ -19,13 +19,14 @@ class Distiller(Model):
         teacher: A trained `keras.Model` that serves as the knowledge source.
             The teacher model is frozen during distillation.
         student: A `keras.Model` to be trained through distillation.
-        distillation_loss: List of distillation strategies to apply.
-            Can be a single strategy or a list of strategies like
-            `LogitsDistillation`, `FeatureDistillation`, or custom distillation
-            strategies.
-        distillation_loss_weights: List of weights for each distillation
-            strategy. Must have the same length as `distillation_loss`.
-            If None, equal weights are used.
+        distillation_losses: List of distillation losses to apply. Can be a
+            single distillation loss or a list of distillation losses like
+            `keras.distillation.LogitsDistillation`,
+            `keras.distillation.FeatureDistillation`, or custom distillation
+            losses.
+        distillation_loss_weights: List of weights for each distillation loss.
+            Must have the same length as `distillation_losses`. If `None`,
+            equal weights are used.
         student_loss_weight: Weight for the student's supervised loss component.
             Must be between 0 and 1. Defaults to 0.5.
         name: Name for the distiller model. Defaults to `"distiller"`.
@@ -49,11 +50,11 @@ class Distiller(Model):
         "gemma_1.1_2b_en", load_weights=False
     )
 
-    # Single distillation strategy
+    # Single distillation loss
     distiller = Distiller(
         teacher=teacher,
         student=student,
-        strategies=LogitsDistillation(temperature=3.0),
+        distillation_losses=LogitsDistillation(temperature=3.0),
     )
 
     # Compile the distiller (like any Keras model)
@@ -69,18 +70,18 @@ class Distiller(Model):
     # Access the trained student model
     trained_student = distiller.student
 
-    # Multiple distillation strategies
+    # Multiple distillation losses
     distiller = Distiller(
         teacher=teacher,
         student=student,
-        strategies=[
+        distillation_losses=[
             LogitsDistillation(temperature=3.0),
             FeatureDistillation(
                 teacher_layer_name="dense_1",
                 student_layer_name="dense_1"
             )
         ],
-        strategy_weights=[1.0, 0.5],
+        distillation_loss_weights=[1.0, 0.5],
     )
 
     # Compile with custom settings
@@ -96,7 +97,7 @@ class Distiller(Model):
         self,
         teacher,
         student,
-        distillation_loss,
+        distillation_losses,
         distillation_loss_weights=None,
         student_loss_weight=0.5,
         name="distiller",
@@ -124,36 +125,40 @@ class Distiller(Model):
             )
         self.student_loss_weight = student_loss_weight
 
-        # Handle distillation_loss configuration
-        if distillation_loss is None:
+        # Handle distillation losses configuration
+        if distillation_losses is None:
             raise ValueError(
-                "'distillation_loss' cannot be `None`. Provide a distillation "
-                "strategy (e.g., LogitsDistillation or FeatureDistillation) "
-                "or a list of strategies."
+                "'distillation_losses' cannot be `None`. Provide a "
+                "distillation loss (e.g., LogitsDistillation or "
+                "FeatureDistillation) or a list of distillation losses."
             )
 
-        # Convert single strategy to list for uniform handling
-        if not isinstance(distillation_loss, (list, tuple)):
-            self.distillation_loss = [distillation_loss]
+        # Convert single distillation loss to list for uniform handling
+        if not isinstance(distillation_losses, (list, tuple)):
+            self.distillation_losses = [distillation_losses]
             self.distillation_loss_weights = [1.0]
         else:
-            self.distillation_loss = distillation_loss
+            self.distillation_losses = distillation_losses
             # Set default weights if not provided
             if distillation_loss_weights is None:
-                self.distillation_loss_weights = [1.0] * len(distillation_loss)
+                self.distillation_loss_weights = [1.0] * len(
+                    distillation_losses
+                )
             else:
-                if len(distillation_loss_weights) != len(distillation_loss):
+                if len(distillation_loss_weights) != len(distillation_losses):
                     raise ValueError(
-                        "Number of distillation_loss_weights "
+                        f"Number of distillation_loss_weights "
                         f"({len(distillation_loss_weights)}) must match "
-                        "number of distillation_loss "
-                        f"({len(distillation_loss)})"
+                        f"number of distillation_losses "
+                        f"({len(distillation_losses)})"
                     )
                 self.distillation_loss_weights = distillation_loss_weights
 
-        # Validate strategy-specific compatibility and create feature extractors
-        for strategy in self.distillation_loss:
-            self._validate_strategy_compatibility(teacher, student, strategy)
+        # Validate distillation loss compatibility and create extractors
+        for distillation_loss in self.distillation_losses:
+            self._validate_distillation_loss_compatibility(
+                teacher, student, distillation_loss
+            )
 
         self._create_multi_feature_extractors()
 
@@ -266,29 +271,41 @@ class Distiller(Model):
             student.outputs,
         )
 
-    def _validate_strategy_compatibility(self, teacher, student, strategy):
-        """Validate that the strategy is compatible with the teacher and student
-        models."""
-        strategy.validate_model_compatibility(teacher, student)
+    def _validate_distillation_loss_compatibility(
+        self, teacher, student, distillation_loss
+    ):
+        """Validate that the distillation loss is compatible with teacher
+        and student models."""
+        distillation_loss.validate_model_compatibility(teacher, student)
 
     def _create_multi_feature_extractors(self):
         """Create feature extractors for efficient multi-layer extraction."""
         teacher_layer_names = []
         student_layer_names = []
 
-        for strategy in self.distillation_loss:
+        for distillation_loss in self.distillation_losses:
             if (
-                hasattr(strategy, "teacher_layer_name")
-                and strategy.teacher_layer_name
+                hasattr(distillation_loss, "teacher_layer_name")
+                and distillation_loss.teacher_layer_name
             ):
-                if strategy.teacher_layer_name not in teacher_layer_names:
-                    teacher_layer_names.append(strategy.teacher_layer_name)
+                if (
+                    distillation_loss.teacher_layer_name
+                    not in teacher_layer_names
+                ):
+                    teacher_layer_names.append(
+                        distillation_loss.teacher_layer_name
+                    )
             if (
-                hasattr(strategy, "student_layer_name")
-                and strategy.student_layer_name
+                hasattr(distillation_loss, "student_layer_name")
+                and distillation_loss.student_layer_name
             ):
-                if strategy.student_layer_name not in student_layer_names:
-                    student_layer_names.append(strategy.student_layer_name)
+                if (
+                    distillation_loss.student_layer_name
+                    not in student_layer_names
+                ):
+                    student_layer_names.append(
+                        distillation_loss.student_layer_name
+                    )
 
         self._teacher_feature_extractor = self._create_feature_extractor(
             self.teacher, teacher_layer_names
@@ -300,16 +317,15 @@ class Distiller(Model):
     def _create_feature_extractor(self, model, layer_names):
         """Create a feature extractor for a model.
 
-                Arguments:
-                    model: The model to create an extractor for.
-                    layer_names: List of layer names to extract features from.
+        Arguments:
+            model: The model to create an extractor for.
+            layer_names: List of layer names to extract features from.
 
-                Returns:
-                    Feature extractor model or `None` if no layer names
-                        sprovided.
-        `
-                Raises:
-                    ValueError: If model has no symbolic inputs/outputs.
+        Returns:
+            Feature extractor model or `None` if no layer names provided.
+
+        Raises:
+            ValueError: If model has no symbolic inputs/outputs.
         """
         if not layer_names:
             return None
@@ -350,12 +366,14 @@ class Distiller(Model):
         else:
             return {"final_output": y_pred}
 
-    def _get_strategy_features(self, strategy, all_features, is_teacher):
-        """Get the specific features needed by a strategy."""
+    def _get_distillation_loss_features(
+        self, distillation_loss, all_features, is_teacher
+    ):
+        """Get the specific features needed by a distillation loss."""
         if is_teacher:
-            layer_name = strategy.teacher_layer_name or "final_output"
+            layer_name = distillation_loss.teacher_layer_name or "final_output"
         else:
-            layer_name = strategy.student_layer_name or "final_output"
+            layer_name = distillation_loss.student_layer_name or "final_output"
 
         if layer_name not in all_features:
             raise ValueError(
@@ -441,61 +459,79 @@ class Distiller(Model):
             teacher_features = self._extract_all_teacher_features(x)
             student_features = self._extract_all_student_features(x, y_pred)
 
-            # Apply strategies using pre-extracted features
-            for strategy, weight in zip(
-                self.distillation_loss, self.distillation_loss_weights
+            # Apply distillation losses using pre-extracted features
+            for distillation_loss_fn, weight in zip(
+                self.distillation_losses, self.distillation_loss_weights
             ):
-                # Get appropriate outputs/features for this strategy
+                # Get appropriate outputs/features for this distillation loss
                 if (
-                    hasattr(strategy, "teacher_layer_name")
-                    and strategy.teacher_layer_name is not None
+                    hasattr(distillation_loss_fn, "teacher_layer_name")
+                    and distillation_loss_fn.teacher_layer_name is not None
                 ):
                     # FeatureDistillation with specific layers
                     try:
-                        strategy_teacher_output = self._get_strategy_features(
-                            strategy, teacher_features, is_teacher=True
+                        distillation_loss_teacher_output = (
+                            self._get_distillation_loss_features(
+                                distillation_loss_fn,
+                                teacher_features,
+                                is_teacher=True,
+                            )
                         )
-                        strategy_student_output = self._get_strategy_features(
-                            strategy, student_features, is_teacher=False
+                        distillation_loss_student_output = (
+                            self._get_distillation_loss_features(
+                                distillation_loss_fn,
+                                student_features,
+                                is_teacher=False,
+                            )
                         )
                     except ValueError as e:
-                        # Re-raise with context about which strategy failed
+                        # Re-raise with context about which loss failed
                         raise RuntimeError(
                             f"Failed to extract features for "
-                            f"{type(strategy).__name__} targeting teacher "
-                            f"layer '{strategy.teacher_layer_name}' and "
-                            f"student layer '{strategy.student_layer_name}'. "
+                            f"{type(distillation_loss_fn).__name__} "
+                            f"targeting teacher layer "
+                            f"'{distillation_loss_fn.teacher_layer_name}' "
+                            f"and student layer "
+                            f"'{distillation_loss_fn.student_layer_name}'. "
                             f"Original error: {e}"
                         ) from e
                 else:
                     # LogitsDistillation or FeatureDistillation (final outputs)
-                    strategy_teacher_output = teacher_features["final_output"]
-                    strategy_student_output = y_pred
+                    distillation_loss_teacher_output = teacher_features[
+                        "final_output"
+                    ]
+                    distillation_loss_student_output = y_pred
 
-                # Validate outputs are compatible for this strategy
-                strategy.validate_outputs(
-                    strategy_teacher_output, strategy_student_output
+                # Validate outputs are compatible for this distillation loss
+                distillation_loss_fn.validate_outputs(
+                    distillation_loss_teacher_output,
+                    distillation_loss_student_output,
                 )
 
-                # Compute loss for this strategy
-                strategy_loss = strategy.compute_loss(
-                    strategy_teacher_output, strategy_student_output
+                # Compute loss for this distillation loss
+                current_distillation_loss = distillation_loss_fn.compute_loss(
+                    distillation_loss_teacher_output,
+                    distillation_loss_student_output,
                 )
 
-                # Validate that strategy returns a scalar
+                # Validate that distillation loss returns a scalar
                 if (
-                    hasattr(strategy_loss, "shape")
-                    and len(strategy_loss.shape) > 0
+                    hasattr(current_distillation_loss, "shape")
+                    and len(current_distillation_loss.shape) > 0
                 ):
                     raise ValueError(
-                        f"Strategy {strategy.__class__.__name__} returned a "
-                        f"non-scalar loss with shape {strategy_loss.shape}. "
-                        f"The compute_loss method must return a scalar tensor."
+                        f"Distillation loss "
+                        f"{distillation_loss_fn.__class__.__name__} "
+                        f"returned a non-scalar loss with shape "
+                        f"{current_distillation_loss.shape}. "
+                        f"The compute_loss method must return a scalar "
+                        f"tensor."
                     )
 
                 # Apply weight and add to total
                 distillation_loss = keras.ops.add(
-                    distillation_loss, keras.ops.multiply(weight, strategy_loss)
+                    distillation_loss,
+                    keras.ops.multiply(weight, current_distillation_loss),
                 )
 
         # Combine losses
@@ -532,9 +568,9 @@ class Distiller(Model):
                 "student": serialization_lib.serialize_keras_object(
                     self.student
                 ),
-                "distillation_loss": [
-                    serialization_lib.serialize_keras_object(strategy)
-                    for strategy in self.distillation_loss
+                "distillation_losses": [
+                    serialization_lib.serialize_keras_object(distillation_loss)
+                    for distillation_loss in self.distillation_losses
                 ],
                 "distillation_loss_weights": self.distillation_loss_weights,
                 "student_loss_weight": self.student_loss_weight,
@@ -554,9 +590,9 @@ class Distiller(Model):
         config["student"] = serialization_lib.deserialize_keras_object(
             config["student"]
         )
-        config["distillation_loss"] = [
-            serialization_lib.deserialize_keras_object(strategy)
-            for strategy in config["distillation_loss"]
+        config["distillation_losses"] = [
+            serialization_lib.deserialize_keras_object(distillation_loss)
+            for distillation_loss in config["distillation_losses"]
         ]
 
         return cls(**config)
