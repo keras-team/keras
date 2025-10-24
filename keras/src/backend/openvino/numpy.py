@@ -555,8 +555,8 @@ def hamming(x):
 def heaviside(x1, x2):
     x1 = get_ov_output(x1)
     x_type = x1.get_element_type()
-
     x2 = get_ov_output(x2, x_type)
+
     zero_scalar = ov_opset.constant(0, x_type).output(0)
     one_scalar = ov_opset.constant(1, x_type).output(0)
 
@@ -566,11 +566,7 @@ def heaviside(x1, x2):
 
     x = ov_opset.select(neg, zero_scalar, x1).output(0)
     x = ov_opset.select(pos, one_scalar, x).output(0)
-
-    x2_cast = ov_opset.convert(x2, x_type).output(0)
-    x = ov_opset.convert(x, x_type).output(0)
-    if not isinstance(x1, OpenVINOKerasTensor) or not isinstance(x2, OpenVINOKerasTensor):
-        raise ValueError("Inputs must be OpenVINOKerasTensors")
+    x = ov_opset.select(eq, x2, x).output(0)
     return OpenVINOKerasTensor(x)
 
 
