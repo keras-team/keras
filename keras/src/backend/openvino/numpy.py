@@ -568,9 +568,9 @@ def heaviside(x1, x2):
     x = ov_opset.select(pos, one_scalar, x).output(0)
 
     x2_cast = ov_opset.convert(x2, x_type).output(0)
-    x = ov_opset.select(eq, x2_cast, x).output(0)
-
     x = ov_opset.convert(x, x_type).output(0)
+    if not isinstance(x1, OpenVINOKerasTensor) or not isinstance(x2, OpenVINOKerasTensor):
+        raise ValueError("Inputs must be OpenVINOKerasTensors")
     return OpenVINOKerasTensor(x)
 
 
