@@ -27,6 +27,16 @@ def list_devices(device_type=None):
     return [f"{device.platform}:{device.id}" for device in jax_devices]
 
 
+def get_device_count():
+    """Returns the number of local JAX devices.
+
+    Returns:
+        int: The total number of devices configured in the current distribution
+             strategy.
+    """
+    return jax.local_device_count()
+
+
 def distribute_variable(value, layout):
     """Create a distributed variable for JAX.
 

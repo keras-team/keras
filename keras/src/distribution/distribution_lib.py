@@ -39,6 +39,19 @@ def list_devices(device_type=None):
     return distribution_lib.list_devices(device_type)
 
 
+@keras_export("keras.distribution.get_device_count")
+def get_device_count():
+    """
+    Returns the total number of devices (e.g., GPUs, TPUs) available for the
+    current distribution strategy.
+
+    Returns:
+        int: The total number of devices configured in the current distribution
+             strategy.
+    """
+    return distribution_lib.get_device_count()
+
+
 @keras_export("keras.distribution.initialize")
 def initialize(job_addresses=None, num_processes=None, process_id=None):
     """Initialize the distribution system for multi-host/process setting.
