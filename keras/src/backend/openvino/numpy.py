@@ -554,7 +554,7 @@ def hamming(x):
 
 def heaviside(x1, x2):
     x1 = get_ov_output(x1)
-    T = x1.get_element_type()
+    x_type = x1.get_element_type()
 
     x2 = get_ov_output(x2, x1.get_element_type())
     zero_scalar = ov_opset.constant(0, x1.get_element_type()).output(0)
@@ -564,14 +564,13 @@ def heaviside(x1, x2):
     pos = ov_opset.greater(x1, zero_scalar).output(0)
     eq = ov_opset.equal(x1, zero_scalar).output(0)
 
-    x = ov_opset.select(neg, zero_scalar, x1).output(0)  # dtype: x1 dtype
-    x = ov_opset.select(pos, one_scalar, x).output(0)  # dtype: x1 dtype
+    x = ov_opset.select(neg, zero_scalar, x1).output(0)
+    x = ov_opset.select(pos, one_scalar, x).output(0)
 
-    # 🔧 Make sure x2 matches x1’s dtype before the final select
     x2_cast = ov_opset.convert(x2, x1.get_element_type()).output(0)
     x = ov_opset.select(eq, x2_cast, x).output(0)
 
-    x = ov_opset.convert(x, T).output(0)
+    x = ov_opset.convert(x, x_type).output(0)
     return OpenVINOKerasTensor(x)
 
 
