@@ -359,7 +359,8 @@ class OrbaxCheckpointTest(testing.TestCase):
         with self.assertRaises(Exception):
             callback.load_checkpoint(step=999)
 
-        # Test: Try to load latest when no checkpoints exist - should raise FileNotFoundError
+        # Test: Try to load latest when no checkpoints exist -
+        # should raise FileNotFoundError
         with self.assertRaises(FileNotFoundError):
             callback.load_latest()
 

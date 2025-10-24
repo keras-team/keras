@@ -20,8 +20,8 @@ from keras.src.backend.openvino.core import is_tensor
 from keras.src.backend.openvino.core import random_seed_dtype
 from keras.src.backend.openvino.core import shape
 from keras.src.backend.openvino.core import vectorized_map
+from keras.src.backend.openvino.distribution_lib import process_id
 from keras.src.backend.openvino.rnn import cudnn_ok
 from keras.src.backend.openvino.rnn import gru
 from keras.src.backend.openvino.rnn import lstm
 from keras.src.backend.openvino.rnn import rnn
-from keras.src.backend.openvino.distribution_lib import process_id

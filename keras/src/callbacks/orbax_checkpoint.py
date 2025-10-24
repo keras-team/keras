@@ -41,7 +41,7 @@ metadata = ocp.metadata
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
     state_tree = model.get_state_tree(value_format="numpy_array")
-    
+
     # Convert numpy scalar types to Python types for Orbax compatibility
     def convert_scalars(obj):
         if isinstance(obj, np.ndarray) and obj.ndim == 0:
@@ -54,13 +54,14 @@ def _get_state_tree(model):
             return {k: convert_scalars(v) for k, v in obj.items()}
         else:
             return obj
-    
+
     return convert_scalars(state_tree)
 
 
 def _flatten_state_tree_values(state_tree):
     """Flatten nested state tree into a list of values in consistent order."""
     values = []
+
     def _flatten(obj):
         if isinstance(obj, dict):
             for key in sorted(obj.keys()):  # Sort for consistent ordering
@@ -68,15 +69,15 @@ def _flatten_state_tree_values(state_tree):
         else:
             # Save any non-dict value (numpy arrays, lists, scalars, etc.)
             values.append(obj)
+
     _flatten(state_tree)
     return values
 
 
 def _reconstruct_state_tree_with_values(structure, values):
     """Reconstruct state tree structure with provided values."""
-    result = {}
     value_iter = iter(values)
-    
+
     def _reconstruct(obj):
         if isinstance(obj, dict):
             new_dict = {}
@@ -109,7 +110,7 @@ def _reconstruct_state_tree_with_values(structure, values):
                     return np.array(value, dtype=obj.dtype).reshape(obj.shape)
             else:
                 return value
-    
+
     return _reconstruct(structure)
 
 
@@ -128,15 +129,10 @@ def _restore_legacy_format(
             target_model.weights[i].assign(weight_tensor)
 
     # Restore optimizer state if available
-    if (
-        "optimizer_state" in checkpoint_data
-        and save_optimizer_state
-    ):
+    if "optimizer_state" in checkpoint_data and save_optimizer_state:
         optimizer_vars_np = checkpoint_data["optimizer_state"]
         # Only restore if the variable counts match
-        if len(optimizer_vars_np) == len(
-            target_model.optimizer.variables
-        ):
+        if len(optimizer_vars_np) == len(target_model.optimizer.variables):
             # Convert NumPy arrays back to backend tensors and assign to
             # optimizer
             for i, var_np in enumerate(optimizer_vars_np):
@@ -406,14 +402,14 @@ class OrbaxCheckpoint(MonitorCallback):
         trainable_values = _flatten_state_tree_values(
             state_tree["trainable_variables"]
         )
-        
+
         # Save optimizer and metrics state if requested
         optimizer_values = None
         if self.save_optimizer_state and "optimizer_variables" in state_tree:
             optimizer_values = _flatten_state_tree_values(
                 state_tree["optimizer_variables"]
             )
-            
+
         metrics_values = None
         if self.save_metrics_state and "metrics_variables" in state_tree:
             metrics_values = _flatten_state_tree_values(
@@ -423,7 +419,7 @@ class OrbaxCheckpoint(MonitorCallback):
         composite_state = {
             "model_weights": trainable_values,
         }
-        
+
         if optimizer_values is not None:
             composite_state["optimizer_state"] = optimizer_values
         if metrics_values is not None:
@@ -611,8 +607,9 @@ class OrbaxCheckpoint(MonitorCallback):
         target_model = model if model is not None else self.model
 
         # Check if this is the new flattened format
-        if ("model_weights" in checkpoint_data and
-            isinstance(checkpoint_data["model_weights"], list)):
+        if "model_weights" in checkpoint_data and isinstance(
+            checkpoint_data["model_weights"], list
+        ):
             # New format: flattened values
             return self._restore_from_flattened_values(
                 checkpoint_data, target_model
@@ -625,8 +622,10 @@ class OrbaxCheckpoint(MonitorCallback):
         else:
             # Fallback to legacy format
             _restore_legacy_format(
-                checkpoint_data, target_model, self.save_optimizer_state,
-                self.save_metrics_state
+                checkpoint_data,
+                target_model,
+                self.save_optimizer_state,
+                self.save_metrics_state,
             )
             return True
 
@@ -649,9 +648,9 @@ class OrbaxCheckpoint(MonitorCallback):
         # Restore trainable variables
         if "model_weights" in checkpoint_data:
             saved_trainable_values = checkpoint_data["model_weights"]
-            target_trainable_structure = (
-                target_state_tree["trainable_variables"]
-            )
+            target_trainable_structure = target_state_tree[
+                "trainable_variables"
+            ]
             reconstructed_state["trainable_variables"] = (
                 _reconstruct_state_tree_with_values(
                     target_trainable_structure, saved_trainable_values
@@ -665,9 +664,9 @@ class OrbaxCheckpoint(MonitorCallback):
             and "optimizer_variables" in target_state_tree
         ):
             saved_optimizer_values = checkpoint_data["optimizer_state"]
-            target_optimizer_structure = (
-                target_state_tree["optimizer_variables"]
-            )
+            target_optimizer_structure = target_state_tree[
+                "optimizer_variables"
+            ]
             reconstructed_state["optimizer_variables"] = (
                 _reconstruct_state_tree_with_values(
                     target_optimizer_structure, saved_optimizer_values
@@ -702,5 +701,3 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.verbose > 0:
             print_msg("OrbaxCheckpoint: Successfully restored model state")
         return True
-
-

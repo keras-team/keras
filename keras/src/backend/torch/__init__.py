@@ -39,8 +39,8 @@ from keras.src.backend.torch.core import shape
 from keras.src.backend.torch.core import stop_gradient
 from keras.src.backend.torch.core import to_torch_dtype
 from keras.src.backend.torch.core import vectorized_map
+from keras.src.backend.torch.distribution_lib import process_id
 from keras.src.backend.torch.rnn import cudnn_ok
 from keras.src.backend.torch.rnn import gru
 from keras.src.backend.torch.rnn import lstm
 from keras.src.backend.torch.rnn import rnn
-from keras.src.backend.torch.distribution_lib import process_id
