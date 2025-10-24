@@ -1124,6 +1124,68 @@ def array(x, dtype=None):
     return backend.numpy.array(x, dtype=dtype)
 
 
+class View(Operation):
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return backend.numpy.view(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        old_dtype = backend.standardize_dtype(x.dtype)
+        new_dtype = backend.standardize_dtype(
+            self.dtype if self.dtype else x.dtype
+        )
+
+        old_itemsize = np.dtype(old_dtype).itemsize
+        new_itemsize = np.dtype(new_dtype).itemsize
+
+        if old_itemsize == new_itemsize:
+            return KerasTensor(x.shape, dtype=new_dtype)
+
+        if not x.shape:
+            raise ValueError(
+                "Cannot view a scalar as a different dtype if item sizes "
+                "are different."
+            )
+
+        output_shape = list(x.shape)
+        if output_shape[-1] is not None:
+            if (output_shape[-1] * old_itemsize) % new_itemsize != 0:
+                raise ValueError(
+                    f"Cannot view array of shape {x.shape} and dtype {x.dtype} "
+                    f"as dtype {new_dtype} because the total number of bytes "
+                    "is not divisible by the new itemsize."
+                )
+            output_shape[-1] = output_shape[-1] * old_itemsize // new_itemsize
+        return KerasTensor(tuple(output_shape), dtype=new_dtype)
+
+
+@keras_export(["keras.ops.view", "keras.ops.numpy.view"])
+def view(x, dtype=None):
+    """Create a new bitwise view of the same data with the specified dtype.
+
+    Args:
+        x: Input tensor.
+        dtype: Data-type descriptor of the returned view,
+            e.g., float32 or int16.
+
+    Returns:
+        View of a tensor with data type dtype.
+
+    Examples:
+    >>> x = keras.ops.array([1, 2, 3])
+    >>> x
+    array([1, 2, 3], dtype=int32)
+    >>> keras.ops.view(x, dtype="float32")
+    array([1.0e-45, 3.0e-45, 4.0e-45], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return View(dtype=dtype).symbolic_call(x)
+    return backend.numpy.view(x, dtype=dtype)
+
+
 class Average(Operation):
     def __init__(self, axis=None, *, name=None):
         super().__init__(name=name)

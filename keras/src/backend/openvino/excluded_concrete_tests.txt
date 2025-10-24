@@ -51,6 +51,7 @@ NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_vdot
+NumpyDtypeTest::test_view
 NumpyDtypeTest::test_vstack
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
@@ -102,6 +103,7 @@ NumpyOneInputOpsCorrectnessTest::test_unravel_index
 NumpyOneInputOpsCorrectnessTest::test_var
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_vstack
+NumpyOneInputOpsCorrectnessTest::test_view
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_and
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_left_shift
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_or
@@ -131,10 +133,12 @@ NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_isposinf
 NumpyOneInputOpsDynamicShapeTest::test_isreal
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
+NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_cbrt
 NumpyOneInputOpsStaticShapeTest::test_isposinf
 NumpyOneInputOpsStaticShapeTest::test_isreal
+NumpyOneInputOpsStaticShapeTest::test_view
 NumpyTwoInputOpsDynamicShapeTest::test_gcd
 NumpyTwoInputOpsDynamicShapeTest::test_heaviside
 NumpyTwoInputOpsDynamicShapeTest::test_hypot
