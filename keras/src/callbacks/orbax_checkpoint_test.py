@@ -11,14 +11,23 @@ from keras.src import models
 from keras.src import testing
 
 # Import advanced Orbax functionality through the Keras bridge
-from keras.src.callbacks.orbax_checkpoint import CheckpointManager
+# These will only be available if orbax-checkpoint is installed
+try:
+    from keras.src.callbacks.orbax_checkpoint import CheckpointManager
+    from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
+    from keras.src.callbacks.orbax_checkpoint import SaveArgs
+    from keras.src.callbacks.orbax_checkpoint import StandardRestore
+    from keras.src.callbacks.orbax_checkpoint import TypeHandler
+    from keras.src.callbacks.orbax_checkpoint import metadata
+    from keras.src.callbacks.orbax_checkpoint import register_type_handler
+except ImportError:
+    # If orbax is not available, these won't be exported
+    pass
+
 from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
-from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
-from keras.src.callbacks.orbax_checkpoint import SaveArgs
-from keras.src.callbacks.orbax_checkpoint import StandardRestore
-from keras.src.callbacks.orbax_checkpoint import TypeHandler
-from keras.src.callbacks.orbax_checkpoint import metadata
-from keras.src.callbacks.orbax_checkpoint import register_type_handler
+
+# Skip the entire test module if orbax-checkpoint is not available
+pytest.importorskip("orbax.checkpoint")
 
 
 class OrbaxCheckpointTest(testing.TestCase):

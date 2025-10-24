@@ -21,21 +21,9 @@ ocp = LazyModule(
     ),
 )
 
-# Expose advanced Orbax functionality for users who need direct access
-# These are provided as bridge for advanced usecases like custom type handlers
-CheckpointManager = ocp.CheckpointManager
-SaveArgs = ocp.SaveArgs
-StandardRestore = ocp.args.StandardRestore
-
-# Type handler functionality for custom serialization
-TypeHandler = ocp.type_handlers.TypeHandler
-register_type_handler = ocp.type_handlers.register_type_handler
-
-# Direct checkpointing for custom objects
-PyTreeCheckpointer = ocp.PyTreeCheckpointer
-
-# Metadata functionality
-metadata = ocp.metadata
+# Note: Advanced Orbax functionality is available through the ocp LazyModule
+# Users can access it via: from keras.src.utils.module_utils import LazyModule
+# ocp = LazyModule("orbax.checkpoint"); ocp.CheckpointManager
 
 
 def _get_state_tree(model):
@@ -701,3 +689,14 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.verbose > 0:
             print_msg("OrbaxCheckpoint: Successfully restored model state")
         return True
+
+
+# Export additional Orbax functionality for advanced users (only if available)
+if ocp.available:
+    CheckpointManager = ocp.CheckpointManager
+    PyTreeCheckpointer = ocp.PyTreeCheckpointer
+    SaveArgs = ocp.SaveArgs
+    StandardRestore = ocp.args.StandardRestore
+    TypeHandler = ocp.type_handlers.TypeHandler
+    metadata = ocp.metadata
+    register_type_handler = ocp.type_handlers.register_type_handler
