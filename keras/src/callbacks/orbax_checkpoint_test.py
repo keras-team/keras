@@ -10,25 +10,15 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 
-try:
-    # Import advanced Orbax functionality through the Keras bridge
-    from keras.src.callbacks.orbax_checkpoint import CheckpointManager
-    from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
-    from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
-    from keras.src.callbacks.orbax_checkpoint import SaveArgs
-    from keras.src.callbacks.orbax_checkpoint import StandardRestore
-    from keras.src.callbacks.orbax_checkpoint import TypeHandler
-    from keras.src.callbacks.orbax_checkpoint import metadata
-    from keras.src.callbacks.orbax_checkpoint import register_type_handler
-except ImportError:
-    OrbaxCheckpoint = None
-    CheckpointManager = None
-    SaveArgs = None
-    StandardRestore = None
-    TypeHandler = None
-    register_type_handler = None
-    PyTreeCheckpointer = None
-    metadata = None
+# Import advanced Orbax functionality through the Keras bridge
+from keras.src.callbacks.orbax_checkpoint import CheckpointManager
+from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
+from keras.src.callbacks.orbax_checkpoint import PyTreeCheckpointer
+from keras.src.callbacks.orbax_checkpoint import SaveArgs
+from keras.src.callbacks.orbax_checkpoint import StandardRestore
+from keras.src.callbacks.orbax_checkpoint import TypeHandler
+from keras.src.callbacks.orbax_checkpoint import metadata
+from keras.src.callbacks.orbax_checkpoint import register_type_handler
 
 
 class OrbaxCheckpointTest(testing.TestCase):
@@ -365,24 +355,13 @@ class OrbaxCheckpointTest(testing.TestCase):
         checkpoint_dir = os.path.join(self.temp_dir, "test_error_handling")
         callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
 
-        # Try to load a checkpoint that doesn't exist
-        success, iterator_state = callback.load_checkpoint(step=999)
-        self.assertFalse(
-            success, "Loading non-existent checkpoint should fail gracefully"
-        )
-        self.assertIsNone(
-            iterator_state, "Iterator state should be None for failed load"
-        )
+        # Try to load a checkpoint that doesn't exist - should raise exception
+        with self.assertRaises(Exception):
+            callback.load_checkpoint(step=999)
 
-        # Test: Try to load latest when no checkpoints exist
-        success, iterator_state = callback.load_latest()
-        self.assertFalse(
-            success,
-            "Loading latest when no checkpoints exist should fail gracefully",
-        )
-        self.assertIsNone(
-            iterator_state, "Iterator state should be None for failed load"
-        )
+        # Test: Try to load latest when no checkpoints exist - should raise FileNotFoundError
+        with self.assertRaises(FileNotFoundError):
+            callback.load_latest()
 
     @pytest.mark.requires_trainable_backend
     def test_partial_checkpoint_loading(self):
@@ -774,9 +753,9 @@ class OrbaxCheckpointTest(testing.TestCase):
         checkpoint_dir = os.path.join(self.temp_dir, "test_empty")
         callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
 
-        # Try to load from empty directory
-        success, _ = callback.load_latest()
-        self.assertFalse(success, "Loading from empty directory should fail")
+        # Try to load from empty directory - should raise FileNotFoundError
+        with self.assertRaises(FileNotFoundError):
+            callback.load_latest()
         # Verify model still has its original weights (not modified)
         self.assertGreater(len(model.weights), 0)
 

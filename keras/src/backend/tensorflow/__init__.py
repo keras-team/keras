@@ -1,5 +1,4 @@
 from keras.src.backend.tensorflow import core
-from keras.src.backend.tensorflow import distribution_lib
 from keras.src.backend.tensorflow import image
 from keras.src.backend.tensorflow import linalg
 from keras.src.backend.tensorflow import math
@@ -28,3 +27,4 @@ from keras.src.backend.tensorflow.rnn import cudnn_ok
 from keras.src.backend.tensorflow.rnn import gru
 from keras.src.backend.tensorflow.rnn import lstm
 from keras.src.backend.tensorflow.rnn import rnn
+from keras.src.backend.tensorflow.distribution_lib import process_id

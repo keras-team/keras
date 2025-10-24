@@ -1,5 +1,6 @@
 from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.openvino import core
+from keras.src.backend.openvino import distribution_lib
 from keras.src.backend.openvino import image
 from keras.src.backend.openvino import linalg
 from keras.src.backend.openvino import math
@@ -23,3 +24,4 @@ from keras.src.backend.openvino.rnn import cudnn_ok
 from keras.src.backend.openvino.rnn import gru
 from keras.src.backend.openvino.rnn import lstm
 from keras.src.backend.openvino.rnn import rnn
+from keras.src.backend.openvino.distribution_lib import process_id

@@ -1,68 +1,172 @@
 import os
 import warnings
 
-import keras  # Import Keras itself
+import numpy as np
+
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
+from keras.src.utils.io_utils import print_msg
+from keras.src.utils.module_utils import LazyModule
 
-try:
-    import orbax.checkpoint as ocp
-except ImportError:
-    ocp = None
+ocp = LazyModule(
+    "orbax.checkpoint",
+    pip_name="orbax-checkpoint",
+    import_error_msg=(
+        "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
+        "Install it with: pip install orbax-checkpoint"
+    ),
+)
 
 # Expose advanced Orbax functionality for users who need direct access
 # These are provided as bridge for advanced usecases like custom type handlers
-if ocp is not None:
-    # Core checkpointing classes
-    CheckpointManager = ocp.CheckpointManager
-    SaveArgs = ocp.SaveArgs
-    StandardRestore = ocp.args.StandardRestore
+CheckpointManager = ocp.CheckpointManager
+SaveArgs = ocp.SaveArgs
+StandardRestore = ocp.args.StandardRestore
 
-    # Type handler functionality for custom serialization
-    TypeHandler = ocp.type_handlers.TypeHandler
-    register_type_handler = ocp.type_handlers.register_type_handler
+# Type handler functionality for custom serialization
+TypeHandler = ocp.type_handlers.TypeHandler
+register_type_handler = ocp.type_handlers.register_type_handler
 
-    # Direct checkpointing for custom objects
-    PyTreeCheckpointer = ocp.PyTreeCheckpointer
+# Direct checkpointing for custom objects
+PyTreeCheckpointer = ocp.PyTreeCheckpointer
 
-    # Metadata functionality
-    metadata = ocp.metadata
-else:
-    CheckpointManager = None
-    SaveArgs = None
-    StandardRestore = None
-    TypeHandler = None
-    register_type_handler = None
-    PyTreeCheckpointer = None
-    metadata = None
+# Metadata functionality
+metadata = ocp.metadata
 
 
-def _get_state_as_numpy(model):
-    # Explicitly convert Keras weights/variables to NumPy arrays
-    try:
-        model_weights_np = [
-            keras.ops.convert_to_numpy(w) for w in model.weights
-        ]
-        optimizer_vars_np = [
-            keras.ops.convert_to_numpy(v) for v in model.optimizer.variables
-        ]
-        return model_weights_np, optimizer_vars_np
-    except Exception as e:
-        warnings.warn(f"Could not convert state to NumPy: {e}")
-        return None, None
+def _get_state_tree(model):
+    """Get the complete model state as a nested tree structure."""
+    state_tree = model.get_state_tree(value_format="numpy_array")
+    
+    # Convert numpy scalar types to Python types for Orbax compatibility
+    def convert_scalars(obj):
+        if isinstance(obj, np.ndarray) and obj.ndim == 0:
+            # Convert 0-dimensional numpy arrays (scalars) to Python types
+            return obj.item()
+        elif isinstance(obj, np.generic):
+            # Convert numpy scalar types (like np.float32) to Python types
+            return obj.item()
+        elif isinstance(obj, dict):
+            return {k: convert_scalars(v) for k, v in obj.items()}
+        else:
+            return obj
+    
+    return convert_scalars(state_tree)
 
 
-# Conditional export decorator
-def _conditional_export(cls):
-    if ocp is not None:
-        return keras_export("keras.callbacks.OrbaxCheckpoint")(cls)
-    return cls
+def _flatten_state_tree_values(state_tree):
+    """Flatten nested state tree into a list of values in consistent order."""
+    values = []
+    def _flatten(obj):
+        if isinstance(obj, dict):
+            for key in sorted(obj.keys()):  # Sort for consistent ordering
+                _flatten(obj[key])
+        else:
+            # Save any non-dict value (numpy arrays, lists, scalars, etc.)
+            values.append(obj)
+    _flatten(state_tree)
+    return values
 
 
-@_conditional_export
+def _reconstruct_state_tree_with_values(structure, values):
+    """Reconstruct state tree structure with provided values."""
+    result = {}
+    value_iter = iter(values)
+    
+    def _reconstruct(obj):
+        if isinstance(obj, dict):
+            new_dict = {}
+            for key in sorted(obj.keys()):
+                new_dict[key] = _reconstruct(obj[key])
+            return new_dict
+        else:
+            value = next(value_iter)
+            # Handle different cases for value conversion
+            if isinstance(obj, np.generic):
+                # obj is a numpy scalar (0-dimensional)
+                if isinstance(value, (int, float)):
+                    # Convert Python scalar to numpy scalar
+                    return np.array(value, dtype=obj.dtype)
+                elif isinstance(value, np.ndarray):
+                    # value is a numpy array, convert to scalar if needed
+                    if value.ndim == 0:
+                        return np.array(value.item(), dtype=obj.dtype)
+                    elif value.ndim == 1 and value.size == 1:
+                        return np.array(value.item(), dtype=obj.dtype)
+                    else:
+                        return value.astype(obj.dtype).reshape(obj.shape)
+                else:
+                    return np.array(value, dtype=obj.dtype)
+            elif isinstance(obj, np.ndarray):
+                # obj is a numpy array
+                if isinstance(value, np.ndarray):
+                    return value.astype(obj.dtype).reshape(obj.shape)
+                else:
+                    return np.array(value, dtype=obj.dtype).reshape(obj.shape)
+            else:
+                return value
+    
+    return _reconstruct(structure)
+
+
+def _restore_legacy_format(
+    checkpoint_data, target_model, save_optimizer_state, save_metrics_state
+):
+    """Restore from the old flat format for backward compatibility."""
+    # Restore model weights
+    if "model_weights" in checkpoint_data:
+        model_weights_np = checkpoint_data["model_weights"]
+        # Convert NumPy arrays back to backend tensors and assign to
+        # model
+        for i, weight_np in enumerate(model_weights_np):
+            # Convert numpy array back to appropriate backend tensor
+            weight_tensor = ops.convert_to_tensor(weight_np)
+            target_model.weights[i].assign(weight_tensor)
+
+    # Restore optimizer state if available
+    if (
+        "optimizer_state" in checkpoint_data
+        and save_optimizer_state
+    ):
+        optimizer_vars_np = checkpoint_data["optimizer_state"]
+        # Only restore if the variable counts match
+        if len(optimizer_vars_np) == len(
+            target_model.optimizer.variables
+        ):
+            # Convert NumPy arrays back to backend tensors and assign to
+            # optimizer
+            for i, var_np in enumerate(optimizer_vars_np):
+                var_tensor = ops.convert_to_tensor(var_np)
+                target_model.optimizer.variables[i].assign(var_tensor)
+
+    # Restore metrics state if available
+    if (
+        "metrics_state" in checkpoint_data
+        and save_metrics_state
+        and hasattr(target_model, "metrics")
+    ):
+        metrics_vars_np = checkpoint_data["metrics_state"]
+        metric_idx = 0
+        for metric in target_model.metrics:
+            if (
+                hasattr(metric, "variables")
+                and metric.variables
+                and metric_idx < len(metrics_vars_np)
+            ):
+                metric_vars_np = metrics_vars_np[metric_idx]
+                # Restore metric variables
+                for i, var_np in enumerate(metric_vars_np):
+                    if i < len(metric.variables):
+                        var_tensor = ops.convert_to_tensor(var_np)
+                        metric.variables[i].assign(var_tensor)
+                metric_idx += 1
+
+
+@keras_export("keras.callbacks.OrbaxCheckpoint")
 class OrbaxCheckpoint(MonitorCallback):
     """Callback to save and load model state using Orbax with a similar API to
     ModelCheckpoint.
@@ -178,11 +282,8 @@ class OrbaxCheckpoint(MonitorCallback):
         save_decision_policy=None,
         save_interval=None,
     ):
-        if ocp is None:
-            raise ImportError(
-                "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
-                "Install it with: pip install orbax-checkpoint"
-            )
+        # Ensure orbax is available
+        ocp.initialize()
 
         # Initialize MonitorCallback for handling 'monitor', 'mode', 'best'
         # logic
@@ -292,31 +393,41 @@ class OrbaxCheckpoint(MonitorCallback):
             return
 
         # --- Prepare Composite State (Backend-Agnostic) ---
-        model_weights_np, optimizer_vars_np = _get_state_as_numpy(self.model)
+        state_tree = _get_state_tree(self.model)
 
-        if model_weights_np is None:
+        if state_tree is None:
             if self.verbose > 0:
-                print("OrbaxCheckpoint: Skipping save due to conversion error")
+                print_msg(
+                    "OrbaxCheckpoint: Skipping save due to state tree error"
+                )
             return
 
-        composite_state = {"model_weights": model_weights_np}
-        if self.save_optimizer_state and optimizer_vars_np is not None:
-            composite_state["optimizer_state"] = optimizer_vars_np
+        # Flatten the trainable variables values for cross-model compatibility
+        trainable_values = _flatten_state_tree_values(
+            state_tree["trainable_variables"]
+        )
+        
+        # Save optimizer and metrics state if requested
+        optimizer_values = None
+        if self.save_optimizer_state and "optimizer_variables" in state_tree:
+            optimizer_values = _flatten_state_tree_values(
+                state_tree["optimizer_variables"]
+            )
+            
+        metrics_values = None
+        if self.save_metrics_state and "metrics_variables" in state_tree:
+            metrics_values = _flatten_state_tree_values(
+                state_tree["metrics_variables"]
+            )
 
-        # Add metrics state if specified
-        if self.save_metrics_state and hasattr(self.model, "metrics"):
-            metrics_vars_np = []
-            for metric in self.model.metrics:
-                if hasattr(metric, "variables") and metric.variables:
-                    # Convert metric variables to numpy
-                    metric_vars = [
-                        backend.convert_to_numpy(var)
-                        for var in metric.variables
-                    ]
-                    metrics_vars_np.append(metric_vars)
-
-            if metrics_vars_np:
-                composite_state["metrics_state"] = metrics_vars_np
+        composite_state = {
+            "model_weights": trainable_values,
+        }
+        
+        if optimizer_values is not None:
+            composite_state["optimizer_state"] = optimizer_values
+        if metrics_values is not None:
+            composite_state["metrics_variables"] = metrics_values
 
         # Add metadata if specified
         if self.save_metadata is not None:
@@ -339,15 +450,12 @@ class OrbaxCheckpoint(MonitorCallback):
                 composite_state["data_iterator"] = iterator_state
 
         # --- Save Logic ---
-        # Assuming single host or JAX backend with jax.distributed initialized
-        # for now.
-        # A robust implementation would need a backend-aware way to check
-        # process_index.
+        # Only save on the primary process (rank 0) in distributed setups
         is_primary_host = backend.get_process_index() == 0
 
         if is_primary_host:
             if self.verbose > 0:
-                print(
+                print_msg(
                     f"OrbaxCheckpoint: Triggering async save for step {step}..."
                 )
 
@@ -430,10 +538,10 @@ class OrbaxCheckpoint(MonitorCallback):
 
     def on_train_end(self, logs=None):
         if self.verbose > 0:
-            print("OrbaxCheckpoint: Waiting for final saves to complete...")
+            print_msg("OrbaxCheckpoint: Waiting for final saves to complete...")
         self.manager.wait_until_finished()
         if self.verbose > 0:
-            print("OrbaxCheckpoint: All saves finalized.")
+            print_msg("OrbaxCheckpoint: All saves finalized.")
 
     def load_checkpoint(self, step, model=None):
         """Load model and optimizer state from a specific checkpoint step.
@@ -450,37 +558,27 @@ class OrbaxCheckpoint(MonitorCallback):
         # In distributed training, only load on primary process
         if backend.get_process_index() != 0:
             return True  # Return True to indicate no error, but no loading
-            # performed
 
-        try:
-            if self.verbose > 0:
-                print(
-                    f"OrbaxCheckpoint: Loading checkpoint from step {step}..."
-                )
+        if self.verbose > 0:
+            print_msg(
+                f"OrbaxCheckpoint: Loading checkpoint from step {step}..."
+            )
 
-            # Prepare restore arguments - Orbax can restore without explicit
-            # template
-            restore_args = ocp.args.StandardRestore()
+        # Prepare restore arguments - Orbax can restore without explicit
+        # template
+        restore_args = ocp.args.StandardRestore()
 
-            # Load the checkpoint
-            checkpoint_data = self.manager.restore(step, args=restore_args)
+        # Load the checkpoint
+        checkpoint_data = self.manager.restore(step, args=restore_args)
 
-            # Restore the model state
-            target_model = model if model is not None else self.model
-            success = self._restore_model_state(checkpoint_data, target_model)
+        # Restore the model state
+        target_model = model if model is not None else self.model
+        success = self._restore_model_state(checkpoint_data, target_model)
 
-            # Extract iterator state if available
-            iterator_state = checkpoint_data.get("data_iterator", None)
+        # Extract iterator state if available
+        iterator_state = checkpoint_data.get("data_iterator", None)
 
-            return success, iterator_state
-
-        except Exception as e:
-            if self.verbose > 0:
-                print(
-                    f"OrbaxCheckpoint: Failed to load checkpoint from step "
-                    f"{step}: {e}"
-                )
-            return False, None
+        return success, iterator_state
 
     def load_latest(self, model=None):
         """Load the most recent checkpoint.
@@ -493,20 +591,12 @@ class OrbaxCheckpoint(MonitorCallback):
             was successful, False otherwise, and iterator_state is the saved
             data iterator state dict if available, None otherwise.
         """
-        try:
-            # Get the latest step
-            latest_step = self.manager.latest_step()
-            if latest_step is None:
-                if self.verbose > 0:
-                    print("OrbaxCheckpoint: No checkpoints found")
-                return False, None
+        # Get the latest step
+        latest_step = self.manager.latest_step()
+        if latest_step is None:
+            raise FileNotFoundError("OrbaxCheckpoint: No checkpoints found")
 
-            return self.load_checkpoint(latest_step, model)
-
-        except Exception as e:
-            if self.verbose > 0:
-                print(f"OrbaxCheckpoint: Failed to load latest checkpoint: {e}")
-            return False, None
+        return self.load_checkpoint(latest_step, model)
 
     def _restore_model_state(self, checkpoint_data, model=None):
         """Restore model state from checkpoint data.
@@ -516,64 +606,101 @@ class OrbaxCheckpoint(MonitorCallback):
             model: Optional model to restore into. If None, uses self.model.
 
         Returns:
-            bool: True if restoration was successful, False otherwise.
+            bool: True if restoration was successful.
         """
         target_model = model if model is not None else self.model
 
-        try:
-            # Restore model weights
-            if "model_weights" in checkpoint_data:
-                model_weights_np = checkpoint_data["model_weights"]
-                # Convert NumPy arrays back to backend tensors and assign to
-                # model
-                for i, weight_np in enumerate(model_weights_np):
-                    # Convert numpy array back to appropriate backend tensor
-                    weight_tensor = keras.ops.convert_to_tensor(weight_np)
-                    target_model.weights[i].assign(weight_tensor)
-
-            # Restore optimizer state if available
-            if (
-                "optimizer_state" in checkpoint_data
-                and self.save_optimizer_state
-            ):
-                optimizer_vars_np = checkpoint_data["optimizer_state"]
-                # Only restore if the variable counts match
-                if len(optimizer_vars_np) == len(
-                    target_model.optimizer.variables
-                ):
-                    # Convert NumPy arrays back to backend tensors and assign to
-                    # optimizer
-                    for i, var_np in enumerate(optimizer_vars_np):
-                        var_tensor = keras.ops.convert_to_tensor(var_np)
-                        target_model.optimizer.variables[i].assign(var_tensor)
-
-            # Restore metrics state if available
-            if (
-                "metrics_state" in checkpoint_data
-                and self.save_metrics_state
-                and hasattr(target_model, "metrics")
-            ):
-                metrics_vars_np = checkpoint_data["metrics_state"]
-                metric_idx = 0
-                for metric in target_model.metrics:
-                    if (
-                        hasattr(metric, "variables")
-                        and metric.variables
-                        and metric_idx < len(metrics_vars_np)
-                    ):
-                        metric_vars_np = metrics_vars_np[metric_idx]
-                        # Restore metric variables
-                        for i, var_np in enumerate(metric_vars_np):
-                            if i < len(metric.variables):
-                                var_tensor = keras.ops.convert_to_tensor(var_np)
-                                metric.variables[i].assign(var_tensor)
-                        metric_idx += 1
-
-            if self.verbose > 0:
-                print("OrbaxCheckpoint: Successfully restored model state")
+        # Check if this is the new flattened format
+        if ("model_weights" in checkpoint_data and
+            isinstance(checkpoint_data["model_weights"], list)):
+            # New format: flattened values
+            return self._restore_from_flattened_values(
+                checkpoint_data, target_model
+            )
+        elif "model_state" in checkpoint_data:
+            # Old format: full state tree (for backward compatibility)
+            return self._restore_from_state_tree(
+                checkpoint_data["model_state"], target_model
+            )
+        else:
+            # Fallback to legacy format
+            _restore_legacy_format(
+                checkpoint_data, target_model, self.save_optimizer_state,
+                self.save_metrics_state
+            )
             return True
 
-        except Exception as e:
+    def _restore_from_flattened_values(self, checkpoint_data, target_model):
+        """Restore from the new flattened values format."""
+        # Get the target model's state tree structure (without convert_scalars)
+        target_state_tree = target_model.get_state_tree(
+            value_format="numpy_array"
+        )
+        if target_state_tree is None:
             if self.verbose > 0:
-                print(f"OrbaxCheckpoint: Failed to restore model state: {e}")
+                print_msg(
+                    "OrbaxCheckpoint: Could not get target model state tree"
+                )
             return False
+
+        # Reconstruct state tree with saved values
+        reconstructed_state = {}
+
+        # Restore trainable variables
+        if "model_weights" in checkpoint_data:
+            saved_trainable_values = checkpoint_data["model_weights"]
+            target_trainable_structure = (
+                target_state_tree["trainable_variables"]
+            )
+            reconstructed_state["trainable_variables"] = (
+                _reconstruct_state_tree_with_values(
+                    target_trainable_structure, saved_trainable_values
+                )
+            )
+
+        # Restore optimizer variables if available
+        if (
+            "optimizer_state" in checkpoint_data
+            and self.save_optimizer_state
+            and "optimizer_variables" in target_state_tree
+        ):
+            saved_optimizer_values = checkpoint_data["optimizer_state"]
+            target_optimizer_structure = (
+                target_state_tree["optimizer_variables"]
+            )
+            reconstructed_state["optimizer_variables"] = (
+                _reconstruct_state_tree_with_values(
+                    target_optimizer_structure, saved_optimizer_values
+                )
+            )
+
+        # Restore metrics variables if available
+        if (
+            "metrics_variables" in checkpoint_data
+            and self.save_metrics_state
+            and "metrics_variables" in target_state_tree
+        ):
+            saved_metrics_values = checkpoint_data["metrics_variables"]
+            target_metrics_structure = target_state_tree["metrics_variables"]
+            reconstructed_state["metrics_variables"] = (
+                _reconstruct_state_tree_with_values(
+                    target_metrics_structure, saved_metrics_values
+                )
+            )
+
+        # Use set_state_tree to restore the reconstructed state
+        target_model.set_state_tree(reconstructed_state)
+
+        if self.verbose > 0:
+            print_msg("OrbaxCheckpoint: Successfully restored model state")
+        return True
+
+    def _restore_from_state_tree(self, state_tree, target_model):
+        """Restore from the old full state tree format
+        (for backward compatibility)."""
+        target_model.set_state_tree(state_tree)
+        if self.verbose > 0:
+            print_msg("OrbaxCheckpoint: Successfully restored model state")
+        return True
+
+
