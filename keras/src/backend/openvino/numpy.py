@@ -2035,22 +2035,9 @@ def stack(x, axis=0):
 
 
 def std(x, axis=None, keepdims=False):
-    x = get_ov_output(x)
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    axis = ov_opset.constant(axis, Type.i32).output(0)
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    mean = ov_opset.reduce_mean(x, axis, keepdims).output(0)
-    const_two = ov_opset.constant(2, x.get_element_type()).output(0)
-    squared_x = ov_opset.power(x, const_two).output(0)
-    squared_mean = ov_opset.power(mean, const_two).output(0)
-    squared_x_mean = ov_opset.reduce_mean(squared_x, axis, keepdims)
-    variance = ov_opset.subtract(squared_x_mean, squared_mean).output(0)
-    std_var = OpenVINOKerasTensor(ov_opset.sqrt(variance).output(0))
-    return std_var
+    var_x = var(x, axis, keepdims)
+    std_dev = ov_opset.sqrt(var_x).output(0)
+    return OpenVINOKerasTensor(std_dev)
 
 
 def swapaxes(x, axis1, axis2):
@@ -2415,18 +2402,24 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
 
 def var(x, axis=None, keepdims=False):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+    x, axis = _resolve_axis(x, axis)
+
+    work_dtype = Type.f64 if x_type.is_integral() else x.get_element_type()
+    if x_type.is_integral():
+        x = ov_opset.convert(x, work_dtype).output(0)
     if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    axis = ov_opset.constant(axis, Type.i32).output(0)
+        zero = ov_opset.constant(0.0, work_dtype).output(0)
+        return OpenVINOKerasTensor(ov_opset.multiply(x, zero).output(0))
     # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
     # but less numerically stable.
     mean = ov_opset.reduce_mean(x, axis, keepdims).output(0)
-    const_two = ov_opset.constant(2, x.get_element_type()).output(0)
+    const_two = ov_opset.constant(2, work_dtype).output(0)
+
     squared_x = ov_opset.power(x, const_two).output(0)
     squared_mean = ov_opset.power(mean, const_two).output(0)
-    squared_x_mean = ov_opset.reduce_mean(squared_x, axis, keepdims)
+
+    squared_x_mean = ov_opset.reduce_mean(squared_x, axis, keepdims).output(0)
     variance = OpenVINOKerasTensor(
         ov_opset.subtract(squared_x_mean, squared_mean).output(0)
     )
