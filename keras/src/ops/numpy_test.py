@@ -1865,6 +1865,9 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = knp.array(KerasTensor((None, 3)), dtype="int32")
         self.assertEqual(knp.view(x, dtype="int16").shape, (None, 6))
         self.assertEqual(knp.view(x, dtype="int16").dtype, "int16")
+        x = knp.array(KerasTensor((None, 4)), dtype="int16")
+        self.assertEqual(knp.view(x, dtype="int32").shape, (None, 2))
+        self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
 
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
@@ -2474,6 +2477,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = knp.array(KerasTensor((2, 3)), dtype="int32")
         self.assertEqual(knp.view(x, dtype="int16").shape, (2, 6))
         self.assertEqual(knp.view(x, dtype="int16").dtype, "int16")
+        x = knp.array(KerasTensor((2, 4)), dtype="int16")
+        self.assertEqual(knp.view(x, dtype="int32").shape, (2, 2))
+        self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
 
 
 class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
@@ -4082,15 +4088,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
 
         # Test case 1: View with old dtype
-        if backend.backend() == "tensorflow":
-            result = knp.view(input_array, dtype="int32")
-        elif backend.backend() == "jax":
-            result = knp.view(input_array, dtype=jnp.int32)
-        elif backend.backend() == "numpy":
-            result = knp.view(input_array, dtype=np.int32)
-        elif backend.backend() == "torch":
-            result = knp.view(input_array, dtype=torch.int32)
-
+        result = knp.view(input_array, dtype="int32")
         assert backend.standardize_dtype(result.dtype) == "int32"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -4101,15 +4099,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # Test case 2: View int32 as float32, remain the shape
-        if backend.backend() == "tensorflow":
-            result = knp.view(input_array, dtype="float32")
-        elif backend.backend() == "jax":
-            result = knp.view(input_array, dtype=jnp.float32)
-        elif backend.backend() == "numpy":
-            result = knp.view(input_array, dtype=np.float32)
-        elif backend.backend() == "torch":
-            result = knp.view(input_array, dtype=torch.float32)
-
+        result = knp.view(input_array, dtype="float32")
         assert backend.standardize_dtype(result.dtype) == "float32"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -4120,15 +4110,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # Test case 3: View int32 as int16 to a smaller bype size.
-        if backend.backend() == "tensorflow":
-            result = knp.view(input_array, dtype="int16")
-        elif backend.backend() == "jax":
-            result = knp.view(input_array, dtype=jnp.int16)
-        elif backend.backend() == "numpy":
-            result = knp.view(input_array, dtype=np.int16)
-        elif backend.backend() == "torch":
-            result = knp.view(input_array, dtype=torch.int16)
-
+        result = knp.view(input_array, dtype="int16")
         assert backend.standardize_dtype(result.dtype) == "int16"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -4140,15 +4122,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         # Test case 4: View int16 as int32 to a smaller bype size.
         x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
-        if backend.backend() == "tensorflow":
-            result = knp.view(x, dtype="int32")
-        elif backend.backend() == "jax":
-            result = knp.view(x, dtype=jnp.int32)
-        elif backend.backend() == "numpy":
-            result = knp.view(x, dtype=np.int32)
-        elif backend.backend() == "torch":
-            result = knp.view(x, dtype=torch.int32)
-
+        result = knp.view(x, dtype="int32")
         assert backend.standardize_dtype(result.dtype) == "int32"
         self.assertAllClose(
             backend.convert_to_tensor(result),
@@ -4159,19 +4133,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # Test case 5: View int32 as int64 to a smaller bype size.
+        if backend.backend() == "jax":
+            return # jax does not support x64 by default
         x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int32")
-        if backend.backend() == "tensorflow":
-            result = knp.view(x, dtype="int64")
-        elif backend.backend() == "jax":
-            # jax default doesn't support bit 64, need to enable it.
-            os.environ["JAX_ENABLE_X64"] = "1"
-            jax.config.update("jax_enable_x64", True)
-            result = knp.view(x, dtype=jnp.int64)
-        elif backend.backend() == "numpy":
-            result = knp.view(x, dtype=np.int64)
-        elif backend.backend() == "torch":
-            result = knp.view(x, dtype=torch.int64)
-
+        result = knp.view(x, dtype="int64")
         assert backend.standardize_dtype(result.dtype) == "int64"
         self.assertAllClose(
             result,
@@ -9295,9 +9260,10 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.Angle().symbolic_call(x).dtype),
             expected_dtype,
         )
-
+    
+    VIEW_DTYPES = [x for x in ALL_DTYPES if x != 'bool' and x is not None]
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(VIEW_DTYPES, 2))
     )
     def test_view(self, dtypes):
         import jax.numpy as jnp
@@ -9305,38 +9271,24 @@ class NumpyDtypeTest(testing.TestCase):
         import torch
 
         input_dtype, output_dtype = dtypes
-        if input_dtype is None or output_dtype is None:
-            return
         x = knp.ones((2, 8), dtype=input_dtype)
         x_jax = jnp.ones((2, 8), dtype=input_dtype)
 
-        try:
-            if backend.backend() == "torch":
-                keras_output = knp.view(x, getattr(torch, output_dtype))
-                symbolic_output = knp.View(
-                    getattr(torch, output_dtype)
-                ).symbolic_call(x)
-            else:
-                keras_output = knp.view(x, output_dtype)
-                symbolic_output = knp.View(output_dtype).symbolic_call(x)
-            expected_output = x_jax.view(output_dtype)
-            self.assertEqual(
-                standardize_dtype(keras_output.dtype),
-                standardize_dtype(expected_output.dtype),
-            )
-            self.assertEqual(
-                keras_output.shape,
-                expected_output.shape,
-            )
-            self.assertEqual(
-                standardize_dtype(symbolic_output.dtype),
-                standardize_dtype(expected_output.dtype),
-            )
-
-        except ValueError:
-            return  # Skip invalid view combinations
-        except tf.errors.InvalidArgumentError:
-            return  # Skip invalid tf bitcast combinations, e.g. int32 to bool
+        keras_output = knp.view(x, output_dtype)
+        symbolic_output = knp.View(output_dtype).symbolic_call(x)
+        expected_output = x_jax.view(output_dtype)
+        self.assertEqual(
+            standardize_dtype(keras_output.dtype),
+            standardize_dtype(expected_output.dtype),
+        )
+        self.assertEqual(
+            keras_output.shape,
+            expected_output.shape,
+        )
+        self.assertEqual(
+            standardize_dtype(symbolic_output.dtype),
+            standardize_dtype(expected_output.dtype),
+        )
 
 
 @pytest.mark.skipif(

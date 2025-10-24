@@ -412,6 +412,7 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
+    dtype = to_torch_dtype(dtype)
     return x.view(dtype)
 
 

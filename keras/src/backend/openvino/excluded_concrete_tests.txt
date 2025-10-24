@@ -52,7 +52,6 @@ NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_vdot
 NumpyDtypeTest::test_view
-NumpyViewTest
 NumpyDtypeTest::test_vstack
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
