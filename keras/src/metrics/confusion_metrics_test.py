@@ -787,6 +787,20 @@ class SensitivityAtSpecificityTest(testing.TestCase):
         ):
             metrics.SensitivityAtSpecificity(0.4, num_thresholds=-1)
 
+    @pytest.mark.requires_trainable_backend
+    def test_handles_sas_metrics(self):
+        # Test for https://github.com/keras-team/keras/issues/19376
+        model = models.Sequential(
+            [
+                layers.Input((1,)),
+                layers.Dense(1),
+            ]
+        )
+        sas = metrics.SpecificityAtSensitivity(0.5, name="sas")
+
+        model.compile(optimizer="adam", loss="crossentropy", metrics=[sas])
+        model.fit(np.ones((5, 1)), np.ones((5, 1)))
+
 
 class SpecificityAtSensitivityTest(testing.TestCase):
     def test_config(self):
