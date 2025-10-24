@@ -553,9 +553,26 @@ def hamming(x):
 
 
 def heaviside(x1, x2):
-    raise NotImplementedError(
-        "`heaviside` is not supported with openvino backend"
-    )
+    x1 = get_ov_output(x1)
+    T = x1.get_element_type()
+
+    x2 = get_ov_output(x2, x1.get_element_type())
+    zero_scalar = ov_opset.constant(0, x1.get_element_type()).output(0)
+    one_scalar = ov_opset.constant(1, x1.get_element_type()).output(0)
+
+    neg = ov_opset.less(x1, zero_scalar).output(0)
+    pos = ov_opset.greater(x1, zero_scalar).output(0)
+    eq = ov_opset.equal(x1, zero_scalar).output(0)
+
+    x = ov_opset.select(neg, zero_scalar, x1).output(0)  # dtype: x1 dtype
+    x = ov_opset.select(pos, one_scalar, x).output(0)  # dtype: x1 dtype
+
+    # 🔧 Make sure x2 matches x1’s dtype before the final select
+    x2_cast = ov_opset.convert(x2, x1.get_element_type()).output(0)
+    x = ov_opset.select(eq, x2_cast, x).output(0)
+
+    x = ov_opset.convert(x, T).output(0)
+    return OpenVINOKerasTensor(x)
 
 
 def kaiser(x, beta):
@@ -695,15 +712,9 @@ def count_nonzero(x, axis=None):
     zero_constant = ov_opset.convert_like(zero_constant, x)
     x = ov_opset.not_equal(x, zero_constant).output(0)
     x = ov_opset.convert(x, Type.i32).output(0)
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    if isinstance(axis, tuple):
-        axis = list(axis)
-    if axis == []:
+    x, axis = _resolve_axis(x, axis)
+    if not axis:
         return OpenVINOKerasTensor(x)
-    axis = ov_opset.constant(axis, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.reduce_sum(x, axis, False).output(0))
 
 
@@ -722,11 +733,7 @@ def cumsum(x, axis=None, dtype=None):
     if dtype is not None:
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
         x = ov_opset.convert(x, ov_type).output(0)
-    if axis is None:
-        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axis = 0
-    axis = ov_opset.constant(axis, Type.i32).output(0)
+    x, axis = _resolve_axis(x, axis)
     if x.get_element_type() == Type.boolean:
         x = ov_opset.convert(x, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.cumsum(x, axis).output(0))
@@ -1761,7 +1768,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             "`pad` operation supports only scalar pad value "
             "in constant mode by openvino backend"
         )
-        pad_value = constant_values
+        pad_value = ov_opset.constant(
+            constant_values, x.get_element_type()
+        ).output(0)
 
     # split pad_width into two tensors pads_begin and pads_end
     pads_begin = []
