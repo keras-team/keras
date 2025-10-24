@@ -4079,12 +4079,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_view(self):
-        import os
-
-        import jax
-        import jax.numpy as jnp
-        import torch
-
         input_array = knp.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
 
         # Test case 1: View with old dtype
@@ -4134,7 +4128,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         # Test case 5: View int32 as int64 to a smaller bype size.
         if backend.backend() == "jax":
-            return # jax does not support x64 by default
+            return  # jax does not support x64 by default
         x = knp.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int32")
         result = knp.view(x, dtype="int64")
         assert backend.standardize_dtype(result.dtype) == "int64"
@@ -9260,15 +9254,14 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.Angle().symbolic_call(x).dtype),
             expected_dtype,
         )
-    
-    VIEW_DTYPES = [x for x in ALL_DTYPES if x != 'bool' and x is not None]
+
+    VIEW_DTYPES = [x for x in ALL_DTYPES if x != "bool" and x is not None]
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(VIEW_DTYPES, 2))
     )
     def test_view(self, dtypes):
         import jax.numpy as jnp
-        import tensorflow as tf
-        import torch
 
         input_dtype, output_dtype = dtypes
         x = knp.ones((2, 8), dtype=input_dtype)
