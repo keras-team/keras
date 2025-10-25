@@ -3138,28 +3138,38 @@ def correlate(x1, x2, mode="valid"):
             tf.reshape(b, (tf.shape(b)[0], 1, 1)),
         )
 
+    def _full_corr(x1, x2):
+        """Compute 'full' correlation result (length = n + m - 1)."""
+        m = tf.shape(x2)[0]
+        pad = tf.maximum(m - 1, 0)
+        x1 = tf.pad(x1, [[pad, pad]])  # pad input with zeros
+        x1, x2 = _pack(x1, x2)
+        out = tf.nn.conv1d(x1, x2, stride=1, padding="VALID")
+        return tf.squeeze(out)
+
     n = tf.shape(x1)[0]
     m = tf.shape(x2)[0]
 
     if mode == "full":
-        # Pad input with m-1 zeros on both sides; keep filter length m.
-        pad = tf.maximum(m - 1, 0)
-        x1 = tf.pad(x1, [[pad, pad]])
-        x1, x2 = _pack(x1, x2)
-        out = tf.nn.conv1d(x1, x2, stride=1, padding="VALID")
-        return tf.squeeze(out)
+        return _full_corr(x1, x2)
     elif mode == "same":
-        full_ = correlate(x1, x2, mode="full")
-        full_len = tf.shape(full_)[0]
+        # unfortunately we can't leverage 'SAME' padding directly like
+        # we can with "valid"
+        # it works fine for odd-length filters, but for even-length filters
+        # the output is off by 1 compared to numpy, due to how
+        # tf handles centering
+        full_corr = _full_corr(x1, x2)
+        full_len = n + m - 1
         out_len = tf.maximum(n, m)
         start = (full_len - out_len) // 2
-        return tf.slice(full_, [start], [out_len])
+        return tf.slice(full_corr, [start], [out_len])
     elif mode == "valid":
         x1, x2 = _pack(x1, x2)
         return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="VALID"))
     else:
         raise ValueError(
-            f"Invalid mode: '{mode}'. Mode must be one of 'full', 'same', 'valid'."
+            f"Invalid mode: '{mode}'. Mode must be one of:"
+            f" 'full', 'same', 'valid'."
         )
 
 
