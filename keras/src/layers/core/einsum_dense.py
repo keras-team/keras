@@ -356,9 +356,8 @@ class EinsumDense(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
-        if mode == "gptq":
-            # A saved quantized model will always be calibrated.
-            self.is_gptq_calibrated = True
+        # A saved GPTQ quantized model will always be calibrated.
+        self.is_gptq_calibrated = mode == "gptq"
 
         idx = 0
         for name in self.variable_serialization_spec[mode]:
@@ -498,12 +497,7 @@ class EinsumDense(Layer):
             columns = kernel_shape[1]
         elif len(kernel_shape) == 3:
             shape = list(self.original_kernel_shape)
-            try:
-                d_model_dim_index = shape.index(max(shape))
-            except ValueError:
-                raise TypeError(
-                    f"Could not determine hidden dimension from shape {shape}"
-                )
+            d_model_dim_index = shape.index(max(shape))
 
             if d_model_dim_index == 0:  # QKV projection case
                 in_features, heads, head_dim = shape
@@ -529,8 +523,7 @@ class EinsumDense(Layer):
         # For 4-bit weights, we pack two values per byte.
         kernel_columns = (columns + 1) // 2 if weight_bits == 4 else columns
 
-        if hasattr(self, "_set_quantization_info"):
-            self._set_quantization_info()
+        self._set_quantization_info()
 
         self.quantized_kernel = self.add_weight(
             name="kernel",

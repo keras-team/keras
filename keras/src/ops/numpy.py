@@ -7088,6 +7088,48 @@ def transpose(x, axes=None):
     return backend.numpy.transpose(x, axes=axes)
 
 
+class Trapezoid(Operation):
+    def __init__(self, x=None, dx=1.0, axis=-1, *, name=None):
+        super().__init__(name=name)
+        self.x = x
+        self.dx = dx
+        self.axis = axis
+
+    def call(self, y):
+        return backend.numpy.trapezoid(y, x=self.x, dx=self.dx, axis=self.axis)
+
+    def compute_output_spec(self, y):
+        out_shape = list(y.shape)
+        if self.axis is not None and len(out_shape) > 0:
+            out_shape.pop(self.axis % len(out_shape))
+        dtype = backend.result_type(getattr(y, "dtype", type(y)), float)
+        return KerasTensor(tuple(out_shape), dtype=dtype)
+
+
+@keras_export(["keras.ops.trapezoid", "keras.ops.numpy.trapezoid"])
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    """Integrate along the given axis using the composite trapezoidal rule.
+
+    Args:
+        y: Input tensor.
+        x: Optional tensor specifying sample points corresponding to `y`.
+           If `None`, spacing is assumed to be `dx`.
+        dx: Spacing between sample points when `x` is `None`.
+        axis: Axis along which to integrate. Default is the last axis.
+
+    Returns:
+        The approximate integral of `y` along the given axis.
+
+    Example:
+    >>> y = keras.ops.convert_to_tensor([[1, 2, 3], [4, 5, 6]])
+    >>> keras.ops.trapezoid(y, axis=1)
+    array([ 4., 10.], dtype=float32)
+    """
+    if any_symbolic_tensors((y,)):
+        return Trapezoid(x=x, dx=dx, axis=axis).symbolic_call(y)
+    return backend.numpy.trapezoid(y, x=x, dx=dx, axis=axis)
+
+
 class Mean(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)

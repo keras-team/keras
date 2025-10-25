@@ -1133,6 +1133,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.any(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.any(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
+    def test_trapezoid(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.trapezoid(x).shape, (None,))
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.trapezoid(x, axis=1).shape, (None, 3))
+
     def test_var(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.var(x).shape, ())
@@ -1864,6 +1871,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_any(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.any(x).shape, ())
+
+    def test_trapezoid(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.trapezoid(x).shape, (2,))
 
     def test_var(self):
         x = KerasTensor((2, 3))
@@ -3602,6 +3613,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.Any(axis=1, keepdims=True)(x),
             np.any(x, axis=1, keepdims=True),
+        )
+
+    def test_trapezoid(self):
+        y = np.random.random((3, 3, 3))
+        x = np.random.random((3, 3, 3))
+        dx = 2.0
+
+        self.assertAllClose(knp.trapezoid(y), np.trapezoid(y))
+        self.assertAllClose(knp.trapezoid(y, x=x), np.trapezoid(y, x=x))
+        self.assertAllClose(knp.trapezoid(y, dx=dx), np.trapezoid(y, dx=dx))
+        self.assertAllClose(
+            knp.trapezoid(y, x=x, axis=1),
+            np.trapezoid(y, x=x, axis=1),
         )
 
     def test_var(self):
@@ -8965,6 +8989,22 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.trunc(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Trunc().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_trapezoid(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2,), dtype=dtype)
+        x_jax = jnp.ones((2,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.trapezoid(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.trapezoid(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Trapezoid().symbolic_call(x).dtype),
             expected_dtype,
         )
 

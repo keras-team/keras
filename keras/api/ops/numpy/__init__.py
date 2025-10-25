@@ -172,6 +172,7 @@ from keras.src.ops.numpy import tensordot as tensordot
 from keras.src.ops.numpy import tile as tile
 from keras.src.ops.numpy import trace as trace
 from keras.src.ops.numpy import transpose as transpose
+from keras.src.ops.numpy import trapezoid as trapezoid
 from keras.src.ops.numpy import tri as tri
 from keras.src.ops.numpy import tril as tril
 from keras.src.ops.numpy import triu as triu
