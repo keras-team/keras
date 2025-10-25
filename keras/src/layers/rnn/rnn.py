@@ -212,6 +212,7 @@ class RNN(Layer):
         self.supports_masking = True
         self.input_spec = None
         self.states = None
+        self._expected_batch_size = None
 
         state_size = getattr(self.cell, "state_size", None)
         if state_size is None:
@@ -283,6 +284,9 @@ class RNN(Layer):
                         f"batch size: sequence.shape={sequences_shape}"
                     )
                 self._create_state_variables(sequences_shape[0])
+                self._expected_batch_size = ops.shape(
+                    tree.flatten(self.states)[0]
+                )[0]
 
     @tracking.no_automatic_dependency_tracking
     def _create_state_variables(self, batch_size):
@@ -382,6 +386,21 @@ class RNN(Layer):
                 initial_state = self.get_initial_state(
                     batch_size=ops.shape(sequences)[0]
                 )
+        if self.stateful:
+            actual_batch_size = ops.shape(sequences)[0]
+            if (
+                self._expected_batch_size is not None
+                and actual_batch_size is not None
+                and actual_batch_size != self._expected_batch_size
+            ):
+                raise ValueError(
+                    f"If an RNN is stateful, the batch size of the "
+                    f"input sequences must be the same as the batch "
+                    f"size of the initial state. \n"
+                    f"- Expected batch size: {self._expected_batch_size}\n"
+                    f"- Received batch size: {actual_batch_size}"
+                )
+
         # RNN expect the states in a list, even if single state.
         if not tree.is_nested(initial_state):
             initial_state = [initial_state]

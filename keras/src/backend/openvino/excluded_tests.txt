@@ -8,6 +8,7 @@ keras/src/layers/convolutional/separable_conv_test.py
 keras/src/layers/core/dense_test.py
 keras/src/layers/core/einsum_dense_test.py
 keras/src/layers/core/embedding_test.py
+keras/src/layers/core/reversible_embedding_test.py
 keras/src/layers/normalization/spectral_normalization_test.py
 keras/src/layers/normalization/unit_normalization_test.py
 keras/src/layers/pooling/average_pooling_test.py
