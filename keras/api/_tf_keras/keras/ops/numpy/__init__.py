@@ -95,6 +95,7 @@ from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
 from keras.src.ops.numpy import isneginf as isneginf
 from keras.src.ops.numpy import isposinf as isposinf
+from keras.src.ops.numpy import isreal as isreal
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import kron as kron
 from keras.src.ops.numpy import lcm as lcm
@@ -171,6 +172,7 @@ from keras.src.ops.numpy import tensordot as tensordot
 from keras.src.ops.numpy import tile as tile
 from keras.src.ops.numpy import trace as trace
 from keras.src.ops.numpy import transpose as transpose
+from keras.src.ops.numpy import trapezoid as trapezoid
 from keras.src.ops.numpy import tri as tri
 from keras.src.ops.numpy import tril as tril
 from keras.src.ops.numpy import triu as triu

@@ -971,36 +971,17 @@ class VariableOpsDTypeTest(test_case.TestCase):
     def test_truediv(self, dtypes):
         import jax.numpy as jnp
 
-        try:
-            # JAX v0.8.0 and newer
-            from jax import enable_x64
-        except ImportError:
-            # JAX v0.7.2 and older
-            from jax.experimental import enable_x64
+        dtype1, dtype2 = dtypes
+        x1 = backend.Variable("ones", shape=(1,), dtype=dtype1, trainable=False)
+        x2 = backend.Variable("ones", shape=(1,), dtype=dtype2, trainable=False)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.true_divide(x1_jax, x2_jax).dtype
+        )
 
-        # We have to disable x64 for jax since jnp.true_divide doesn't respect
-        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
-        # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with enable_x64(False):
-            dtype1, dtype2 = dtypes
-            x1 = backend.Variable(
-                "ones", shape=(1,), dtype=dtype1, trainable=False
-            )
-            x2 = backend.Variable(
-                "ones", shape=(1,), dtype=dtype2, trainable=False
-            )
-            x1_jax = jnp.ones((1,), dtype=dtype1)
-            x2_jax = jnp.ones((1,), dtype=dtype2)
-            expected_dtype = standardize_dtype(
-                jnp.true_divide(x1_jax, x2_jax).dtype
-            )
-            if "float64" in (dtype1, dtype2):
-                expected_dtype = "float64"
-            if backend.backend() == "jax":
-                expected_dtype = expected_dtype.replace("64", "32")
-
-            self.assertDType(x1 / x2, expected_dtype)
-            self.assertDType(x1.__rtruediv__(x2), expected_dtype)
+        self.assertDType(x1 / x2, expected_dtype)
+        self.assertDType(x1.__rtruediv__(x2), expected_dtype)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))

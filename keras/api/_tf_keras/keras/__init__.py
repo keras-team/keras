@@ -10,6 +10,7 @@ from keras import callbacks as callbacks
 from keras import config as config
 from keras import constraints as constraints
 from keras import datasets as datasets
+from keras import distillation as distillation
 from keras import distribution as distribution
 from keras import dtype_policies as dtype_policies
 from keras import export as export
