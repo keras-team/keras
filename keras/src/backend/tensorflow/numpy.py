@@ -3130,30 +3130,37 @@ def correlate(x1, x2, mode="valid"):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
 
-    x1_len, x2_len = int(x1.shape[0]), int(x2.shape[0])
+    def _pack(a, b):
+        # a: input [N] -> [1,N,1];
+        # b: filter [M] -> [M,1,1]
+        return (
+            tf.reshape(a, (1, tf.shape(a)[0], 1)),
+            tf.reshape(b, (tf.shape(b)[0], 1, 1)),
+        )
+
+    n = tf.shape(x1)[0]
+    m = tf.shape(x2)[0]
 
     if mode == "full":
-        full_len = x1_len + x2_len - 1
-
-        x1_pad = (full_len - x1_len) / 2
-        x2_pad = (full_len - x2_len) / 2
-
-        x1 = tf.pad(
-            x1, paddings=[[tf.math.floor(x1_pad), tf.math.ceil(x1_pad)]]
+        # Pad input with m-1 zeros on both sides; keep filter length m.
+        pad = tf.maximum(m - 1, 0)
+        x1 = tf.pad(x1, [[pad, pad]])
+        x1, x2 = _pack(x1, x2)
+        out = tf.nn.conv1d(x1, x2, stride=1, padding="VALID")
+        return tf.squeeze(out)
+    elif mode == "same":
+        full_ = correlate(x1, x2, mode="full")
+        full_len = tf.shape(full_)[0]
+        out_len = tf.maximum(n, m)
+        start = (full_len - out_len) // 2
+        return tf.slice(full_, [start], [out_len])
+    elif mode == "valid":
+        x1, x2 = _pack(x1, x2)
+        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="VALID"))
+    else:
+        raise ValueError(
+            f"Invalid mode: '{mode}'. Mode must be one of 'full', 'same', 'valid'."
         )
-        x2 = tf.pad(
-            x2, paddings=[[tf.math.floor(x2_pad), tf.math.ceil(x2_pad)]]
-        )
-
-        x1 = tf.reshape(x1, (1, full_len, 1))
-        x2 = tf.reshape(x2, (full_len, 1, 1))
-
-        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="SAME"))
-
-    x1 = tf.reshape(x1, (1, x1_len, 1))
-    x2 = tf.reshape(x2, (x2_len, 1, 1))
-
-    return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))
 
 
 def select(condlist, choicelist, default=0):
