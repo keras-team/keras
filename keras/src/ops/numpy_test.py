@@ -5134,6 +5134,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_correlate_bug(self):
+        # copied from https://github.com/keras-team/keras/issues/21617
         x = np.array([1, 3, 5])
         y = np.array([7, 9])
         self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
