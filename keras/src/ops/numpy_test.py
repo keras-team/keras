@@ -5133,6 +5133,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
         )
 
+    def test_correlate_bug(self):
+        x = np.array([1, 3, 5])
+        y = np.array([7, 9])
+        self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.correlate(x, y, mode="full"), np.correlate(x, y, mode="full")
+        )
+
+        self.assertAllClose(knp.Correlate()(x, y), np.correlate(x, y))
+        self.assertAllClose(
+            knp.Correlate(mode="same")(x, y), np.correlate(x, y, mode="same")
+        )
+        self.assertAllClose(
+            knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
+        )
+
     def test_select(self):
         x = np.arange(6)
         condlist = [x < 3, x > 3]

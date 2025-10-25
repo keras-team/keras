@@ -3133,27 +3133,33 @@ def correlate(x1, x2, mode="valid"):
     x1_len, x2_len = int(x1.shape[0]), int(x2.shape[0])
 
     if mode == "full":
-        full_len = x1_len + x2_len - 1
+        pad = x2_len - 1
 
-        x1_pad = (full_len - x1_len) / 2
-        x2_pad = (full_len - x2_len) / 2
+        x1_padded = tf.pad(x1, paddings=[[pad, pad]])
 
-        x1 = tf.pad(
-            x1, paddings=[[tf.math.floor(x1_pad), tf.math.ceil(x1_pad)]]
-        )
+        x1 = tf.reshape(x1_padded, (1, x1_len + 2 * pad, 1))
+        x2 = tf.reshape(x2, (x2_len, 1, 1))
+
+        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="VALID"))
+
+    elif mode == "same":
+        same_len = x1_len
+
+        x2_pad = (same_len - x2_len) / 2
+
         x2 = tf.pad(
             x2, paddings=[[tf.math.floor(x2_pad), tf.math.ceil(x2_pad)]]
         )
 
-        x1 = tf.reshape(x1, (1, full_len, 1))
-        x2 = tf.reshape(x2, (full_len, 1, 1))
+        x1 = tf.reshape(x1, (1, same_len, 1))
+        x2 = tf.reshape(x2, (same_len, 1, 1))
 
-        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="SAME"))
+        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))
+    else:
+        x1 = tf.reshape(x1, (1, x1_len, 1))
+        x2 = tf.reshape(x2, (x2_len, 1, 1))
 
-    x1 = tf.reshape(x1, (1, x1_len, 1))
-    x2 = tf.reshape(x2, (x2_len, 1, 1))
-
-    return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))
+        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))
 
 
 def select(condlist, choicelist, default=0):
