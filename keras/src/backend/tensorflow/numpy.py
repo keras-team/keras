@@ -3148,16 +3148,19 @@ def correlate(x1, x2, mode="valid"):
         x1, x2 = _pack(x1, x2)
         out = tf.nn.conv1d(x1, x2, stride=1, padding="VALID")
         return tf.squeeze(out)
-    if mode == "same":
+    elif mode == "same":
         full_ = correlate(x1, x2, mode="full")
         full_len = tf.shape(full_)[0]
         out_len = tf.maximum(n, m)
         start = (full_len - out_len) // 2
         return tf.slice(full_, [start], [out_len])
-    else:
-        # deal with the "valid" case
+    elif mode == "valid":
         x1, x2 = _pack(x1, x2)
-        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))
+        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="VALID"))
+    else:
+        raise ValueError(
+            f"Invalid mode: '{mode}'. Mode must be one of 'full', 'same', 'valid'."
+        )
 
 
 def select(condlist, choicelist, default=0):
