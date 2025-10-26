@@ -19,10 +19,10 @@ class LayoutTest(testing.TestCase):
         expected_shard_2 = ops.array([[8.0, 9.0], [10.0, 11.0]])
 
         shard_0 = split_tensor_for_parallelism(
-            tensor, rank=0, device_count=device_count, dim=dim
+            tensor, index=0, device_count=device_count, dim=dim
         )
         shard_2 = split_tensor_for_parallelism(
-            tensor, rank=2, device_count=device_count, dim=dim
+            tensor, index=2, device_count=device_count, dim=dim
         )
 
         self.assertAllClose(shard_0, expected_shard_0)
@@ -36,19 +36,19 @@ class LayoutTest(testing.TestCase):
         tensor = ops.reshape(ops.arange(10, dtype="float32"), (10, 1))
 
         shard_0 = split_tensor_for_parallelism(
-            tensor, rank=0, device_count=device_count, dim=dim
+            tensor, index=0, device_count=device_count, dim=dim
         )
         self.assertEqual(shard_0.shape, (4, 1))
         self.assertAllClose(shard_0, ops.array([[0.0], [1.0], [2.0], [3.0]]))
 
         shard_1 = split_tensor_for_parallelism(
-            tensor, rank=1, device_count=device_count, dim=dim
+            tensor, index=1, device_count=device_count, dim=dim
         )
         self.assertEqual(shard_1.shape, (3, 1))
         self.assertAllClose(shard_1, ops.array([[4.0], [5.0], [6.0]]))
 
         shard_2 = split_tensor_for_parallelism(
-            tensor, rank=2, device_count=device_count, dim=dim
+            tensor, index=2, device_count=device_count, dim=dim
         )
         self.assertEqual(shard_2.shape, (3, 1))
         self.assertAllClose(shard_2, ops.array([[7.0], [8.0], [9.0]]))
@@ -63,7 +63,7 @@ class LayoutTest(testing.TestCase):
 
         shards = [
             split_tensor_for_parallelism(
-                original_tensor, rank=i, device_count=device_count, dim=dim
+                original_tensor, index=i, device_count=device_count, dim=dim
             )
             for i in range(device_count)
         ]
@@ -82,7 +82,7 @@ class LayoutTest(testing.TestCase):
 
         shards = [
             split_tensor_for_parallelism(
-                original_tensor, rank=i, device_count=device_count, dim=dim
+                original_tensor, index=i, device_count=device_count, dim=dim
             )
             for i in range(device_count)
         ]
@@ -105,7 +105,7 @@ class LayoutTest(testing.TestCase):
 
         shards = [
             split_tensor_for_parallelism(
-                original_tensor, rank=i, device_count=device_count, dim=dim
+                original_tensor, index=i, device_count=device_count, dim=dim
             )
             for i in range(device_count)
         ]
@@ -121,27 +121,27 @@ class LayoutTest(testing.TestCase):
 
         row_dim = 0
         shard_row_0 = split_tensor_for_parallelism(
-            tensor, rank=0, device_count=device_count, dim=row_dim
+            tensor, index=0, device_count=device_count, dim=row_dim
         )
         self.assertAllClose(shard_row_0, tensor[:2, :])
 
         col_dim = 1
         shard_col_0 = split_tensor_for_parallelism(
-            tensor, rank=0, device_count=device_count, dim=col_dim
+            tensor, index=0, device_count=device_count, dim=col_dim
         )
         self.assertAllClose(shard_col_0, tensor[:, :2])
 
     def test_layout_map_namedtuple_behavior(self):
         """Tests basic behavior of the LayoutMap namedtuple."""
 
-        def rule_kernel(tensor, rank):
+        def rule_kernel(tensor, index):
             return split_tensor_for_parallelism(
-                tensor, rank=rank, device_count=2, dim=0
+                tensor, index=index, device_count=2, dim=0
             )
 
-        def rule_output(tensor, rank):
+        def rule_output(tensor, index):
             return split_tensor_for_parallelism(
-                tensor, rank=rank, device_count=2, dim=-1
+                tensor, index=index, device_count=2, dim=-1
             )
 
         state_rules = {"kernel": rule_kernel}
