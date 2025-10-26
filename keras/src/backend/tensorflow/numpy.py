@@ -2457,7 +2457,7 @@ def array_split(x, indices_or_sections, axis=0):
         ],
         axis=0,
     )
-    
+
     return tf.split(x, sizes, axis=axis)
 
 

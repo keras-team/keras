@@ -44,8 +44,8 @@ def get_device_count(device_type=None):
     """Returns the total number of available devices.
 
     Args:
-        device_type: Optional device type to count (e.g., "cpu", 
-             "gpu", "tpu"). If `None`, it counts all available 
+        device_type: Optional device type to count (e.g., "cpu",
+             "gpu", "tpu"). If `None`, it counts all available
              devices.
 
     Returns:

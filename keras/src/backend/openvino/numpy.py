@@ -1833,26 +1833,20 @@ def array_split(x, indices_or_sections, axis=0):
     num_splits = ov_opset.constant(
         np.array(num_splits_val, dtype=np.int64)
     ).output(0)
-    
-    axis_tensor = ov_opset.constant(
-        np.array(axis, dtype=np.int64)
-    ).output(0)
-    
-    zero_scalar = ov_opset.constant(
-        np.array(0, dtype=np.int64)
-    ).output(0)
-    
-    one_scalar = ov_opset.constant(
-        np.array(1, dtype=np.int64)
-    ).output(0)
+
+    axis_tensor = ov_opset.constant(np.array(axis, dtype=np.int64)).output(0)
+
+    zero_scalar = ov_opset.constant(np.array(0, dtype=np.int64)).output(0)
+
+    one_scalar = ov_opset.constant(np.array(1, dtype=np.int64)).output(0)
 
     shape_tensor = ov_opset.shape_of(x, Type.i64).output(0)
     axis_i64_vec = ov_opset.constant([axis], dtype=Type.i64).output(0)
-    
+
     total_size_tensor_vec = ov_opset.gather(
         shape_tensor, axis_i64_vec, zero_scalar
     ).output(0)
-    
+
     total_size = ov_opset.squeeze(total_size_tensor_vec, zero_scalar).output(0)
 
     split_size = ov_opset.divide(
@@ -1864,9 +1858,7 @@ def array_split(x, indices_or_sections, axis=0):
     ).output(0)
 
     splits_shape = ov_opset.constant([num_splits_val], dtype=Type.i64).output(0)
-    all_splits_base = ov_opset.broadcast(split_size, splits_shape).output(
-        0
-    )
+    all_splits_base = ov_opset.broadcast(split_size, splits_shape).output(0)
 
     range_splits = ov_opset.range(
         zero_scalar,
@@ -1877,13 +1869,9 @@ def array_split(x, indices_or_sections, axis=0):
 
     remainder_bcast = ov_opset.broadcast(remainder, splits_shape).output(0)
 
-    add_one_mask = ov_opset.less(range_splits, remainder_bcast).output(
-        0
-    )
+    add_one_mask = ov_opset.less(range_splits, remainder_bcast).output(0)
 
-    add_one_values = ov_opset.convert(add_one_mask, Type.i64).output(
-        0
-    )
+    add_one_values = ov_opset.convert(add_one_mask, Type.i64).output(0)
 
     split_lengths = ov_opset.add(all_splits_base, add_one_values).output(0)
     splits = ov_opset.variadic_split(x, axis_tensor, split_lengths)

@@ -7612,6 +7612,7 @@ def histogram(x, bins=10, range=None):
         )
     return backend.numpy.histogram(x, bins=bins, range=range)
 
+
 class ArraySplit(Operation):
     def __init__(self, indices_or_sections, axis=0, *, name=None):
         super().__init__(name=name)
@@ -7645,7 +7646,7 @@ class ArraySplit(Operation):
 
     def compute_output_spec(self, x):
         num_splits = self.indices_or_sections
-        
+
         # Normalize axis
         axis = self.axis
         if axis < 0:
@@ -7725,7 +7726,5 @@ def array_split(x, indices_or_sections, axis=0):
     # The eager path should also call the backend's array_split.
     # The original implementation was incorrect.
     return backend.numpy.array_split(
-        x,
-        indices_or_sections=indices_or_sections,
-        axis=axis
+        x, indices_or_sections=indices_or_sections, axis=axis
     )

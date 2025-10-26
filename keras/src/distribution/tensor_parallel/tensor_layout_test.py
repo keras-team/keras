@@ -118,7 +118,7 @@ class LayoutTest(testing.TestCase):
         """Tests using 'row' and 'column' sharding hints for 2D tensors."""
         device_count = 2
         tensor = ops.reshape(ops.arange(16, dtype="float32"), (4, 4))
-        
+
         row_dim = 0
         shard_row_0 = split_tensor_for_parallelism(
             tensor, rank=0, device_count=device_count, dim=row_dim
@@ -131,9 +131,9 @@ class LayoutTest(testing.TestCase):
         )
         self.assertAllClose(shard_col_0, tensor[:, :2])
 
-
     def test_layout_map_namedtuple_behavior(self):
         """Tests basic behavior of the LayoutMap namedtuple."""
+
         def rule_kernel(tensor, rank):
             return split_tensor_for_parallelism(
                 tensor, rank=rank, device_count=2, dim=0
@@ -143,7 +143,7 @@ class LayoutTest(testing.TestCase):
             return split_tensor_for_parallelism(
                 tensor, rank=rank, device_count=2, dim=-1
             )
-            
+
         state_rules = {"kernel": rule_kernel}
         output_rules = {"output": rule_output}
 
