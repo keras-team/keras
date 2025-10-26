@@ -1,30 +1,29 @@
-import pytest
-
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
-from keras.src.distribution.tensor_parallel.tensor_layout import Split
-
-
-@pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Backend specific test",
+from keras.src.distribution.tensor_parallel.tensor_layout import (
+    split_tensor_for_parallelism,
 )
+
+
 class LayoutTest(testing.TestCase):
     """Test suite for tensor layout actions and mappings."""
 
     def test_split_with_even_division(self):
         """Tests splitting a tensor that divides evenly among workers."""
         device_count = 4
+        dim = 0
         tensor = ops.reshape(ops.arange(16, dtype="float32"), (8, 2))
-        action = Split(device_count=device_count, dim=0)
 
         expected_shard_0 = ops.array([[0.0, 1.0], [2.0, 3.0]])
         expected_shard_2 = ops.array([[8.0, 9.0], [10.0, 11.0]])
 
-        shard_0 = action(tensor, rank=0)
-        shard_2 = action(tensor, rank=2)
+        shard_0 = split_tensor_for_parallelism(
+            tensor, rank=0, device_count=device_count, dim=dim
+        )
+        shard_2 = split_tensor_for_parallelism(
+            tensor, rank=2, device_count=device_count, dim=dim
+        )
 
         self.assertAllClose(shard_0, expected_shard_0)
         self.assertAllClose(shard_2, expected_shard_2)
@@ -33,18 +32,24 @@ class LayoutTest(testing.TestCase):
     def test_split_with_uneven_division(self):
         """Tests splitting tensor where remainder is distributed correctly."""
         device_count = 3
+        dim = 0
         tensor = ops.reshape(ops.arange(10, dtype="float32"), (10, 1))
-        action = Split(device_count=device_count, dim=0)
 
-        shard_0 = action(tensor, rank=0)
+        shard_0 = split_tensor_for_parallelism(
+            tensor, rank=0, device_count=device_count, dim=dim
+        )
         self.assertEqual(shard_0.shape, (4, 1))
         self.assertAllClose(shard_0, ops.array([[0.0], [1.0], [2.0], [3.0]]))
 
-        shard_1 = action(tensor, rank=1)
+        shard_1 = split_tensor_for_parallelism(
+            tensor, rank=1, device_count=device_count, dim=dim
+        )
         self.assertEqual(shard_1.shape, (3, 1))
         self.assertAllClose(shard_1, ops.array([[4.0], [5.0], [6.0]]))
 
-        shard_2 = action(tensor, rank=2)
+        shard_2 = split_tensor_for_parallelism(
+            tensor, rank=2, device_count=device_count, dim=dim
+        )
         self.assertEqual(shard_2.shape, (3, 1))
         self.assertAllClose(shard_2, ops.array([[7.0], [8.0], [9.0]]))
 
@@ -53,12 +58,17 @@ class LayoutTest(testing.TestCase):
         Confirms that the original tensor can be reconstructed.
         """
         device_count = 2
+        dim = 0
         original_tensor = ops.reshape(ops.arange(12, dtype="float32"), (6, 2))
-        action = Split(device_count=device_count, dim=0)
 
-        shards = [action(original_tensor, rank=i) for i in range(device_count)]
+        shards = [
+            split_tensor_for_parallelism(
+                original_tensor, rank=i, device_count=device_count, dim=dim
+            )
+            for i in range(device_count)
+        ]
 
-        reconstructed_tensor = ops.concatenate(shards, axis=action.dim)
+        reconstructed_tensor = ops.concatenate(shards, axis=dim)
 
         self.assertAllClose(original_tensor, reconstructed_tensor)
 
@@ -67,28 +77,38 @@ class LayoutTest(testing.TestCase):
         Confirms that original tensor can be reconstructed with uneven split.
         """
         device_count = 4
+        dim = 0
         original_tensor = ops.reshape(ops.arange(22, dtype="float32"), (11, 2))
-        action = Split(device_count=device_count, dim=0)
 
-        shards = [action(original_tensor, rank=i) for i in range(device_count)]
+        shards = [
+            split_tensor_for_parallelism(
+                original_tensor, rank=i, device_count=device_count, dim=dim
+            )
+            for i in range(device_count)
+        ]
 
         self.assertEqual(shards[0].shape, (3, 2))
         self.assertEqual(shards[1].shape, (3, 2))
         self.assertEqual(shards[2].shape, (3, 2))
         self.assertEqual(shards[3].shape, (2, 2))
 
-        reconstructed_tensor = ops.concatenate(shards, axis=action.dim)
+        reconstructed_tensor = ops.concatenate(shards, axis=dim)
         self.assertAllClose(original_tensor, reconstructed_tensor)
 
     def test_split_last_dimension(self):
         """Tests splitting on the last dimension using dim=-1."""
         device_count = 3
+        dim = -1
         original_tensor = ops.reshape(
             ops.arange(30, dtype="float32"), (2, 5, 3)
         )
-        action = Split(device_count=device_count, dim=-1)
 
-        shards = [action(original_tensor, rank=i) for i in range(device_count)]
+        shards = [
+            split_tensor_for_parallelism(
+                original_tensor, rank=i, device_count=device_count, dim=dim
+            )
+            for i in range(device_count)
+        ]
 
         self.assertEqual(shards[0].shape, (2, 5, 1))
         self.assertEqual(shards[1].shape, (2, 5, 1))
@@ -98,25 +118,34 @@ class LayoutTest(testing.TestCase):
         """Tests using 'row' and 'column' sharding hints for 2D tensors."""
         device_count = 2
         tensor = ops.reshape(ops.arange(16, dtype="float32"), (4, 4))
-
-        action_row = Split(
-            device_count=device_count, dim=-1, sharding_type="row"
+        
+        row_dim = 0
+        shard_row_0 = split_tensor_for_parallelism(
+            tensor, rank=0, device_count=device_count, dim=row_dim
         )
-        shard_row_0 = action_row(tensor, rank=0)
         self.assertAllClose(shard_row_0, tensor[:2, :])
-        self.assertEqual(action_row.dim, 0)
 
-        action_col = Split(
-            device_count=device_count, dim=-1, sharding_type="column"
+        col_dim = 1
+        shard_col_0 = split_tensor_for_parallelism(
+            tensor, rank=0, device_count=device_count, dim=col_dim
         )
-        shard_col_0 = action_col(tensor, rank=0)
         self.assertAllClose(shard_col_0, tensor[:, :2])
-        self.assertEqual(action_col.dim, 1)
+
 
     def test_layout_map_namedtuple_behavior(self):
         """Tests basic behavior of the LayoutMap namedtuple."""
-        state_rules = {"kernel": Split(device_count=2, dim=0)}
-        output_rules = {"output": Split(device_count=2, dim=-1)}
+        def rule_kernel(tensor, rank):
+            return split_tensor_for_parallelism(
+                tensor, rank=rank, device_count=2, dim=0
+            )
+
+        def rule_output(tensor, rank):
+            return split_tensor_for_parallelism(
+                tensor, rank=rank, device_count=2, dim=-1
+            )
+            
+        state_rules = {"kernel": rule_kernel}
+        output_rules = {"output": rule_output}
 
         layout_map = LayoutMap(
             state_rules=state_rules, output_rules=output_rules
@@ -131,4 +160,4 @@ class LayoutTest(testing.TestCase):
         with self.assertRaises(AttributeError):
             layout_map.state_rules = {}
 
-        self.assertIsInstance(layout_map.state_rules["kernel"], Split)
+        self.assertTrue(callable(layout_map.state_rules["kernel"]))

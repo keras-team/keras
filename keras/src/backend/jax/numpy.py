@@ -1152,6 +1152,10 @@ def split(x, indices_or_sections, axis=0):
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
+def array_split(x, indices_or_sections, axis=0):
+    return jnp.array_split(x, indices_or_sections, axis=axis)
+
+
 def stack(x, axis=0):
     return jnp.stack(x, axis=axis)
 

@@ -40,16 +40,18 @@ def list_devices(device_type=None):
 
 
 @keras_export("keras.distribution.get_device_count")
-def get_device_count():
-    """
-    Returns the total number of devices (e.g., GPUs, TPUs) available for the
-    current distribution strategy.
+def get_device_count(device_type=None):
+    """Returns the total number of available devices.
+
+    Args:
+        device_type: Optional device type to count (e.g., "cpu", 
+             "gpu", "tpu"). If `None`, it counts all available 
+             devices.
 
     Returns:
-        int: The total number of devices configured in the current distribution
-             strategy.
+        int: The total number of available devices.
     """
-    return distribution_lib.get_device_count()
+    return distribution_lib.get_device_count(device_type=device_type)
 
 
 @keras_export("keras.distribution.initialize")

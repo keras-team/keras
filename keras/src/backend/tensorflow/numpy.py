@@ -2443,6 +2443,24 @@ def split(x, indices_or_sections, axis=0):
     return tf.split(x, num_or_size_splits, axis=axis)
 
 
+def array_split(x, indices_or_sections, axis=0):
+    x = tf.convert_to_tensor(x)
+    num_splits = indices_or_sections
+    total_size = tf.shape(x)[axis]
+    avg_size = tf.math.floordiv(total_size, num_splits)
+    remainder = tf.math.floormod(total_size, num_splits)
+
+    sizes = tf.concat(
+        [
+            tf.fill([remainder], avg_size + 1),
+            tf.fill([num_splits - remainder], avg_size),
+        ],
+        axis=0,
+    )
+    
+    return tf.split(x, sizes, axis=axis)
+
+
 def stack(x, axis=0):
     dtype_set = set([getattr(a, "dtype", type(a)) for a in x])
     if len(dtype_set) > 1:

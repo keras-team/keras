@@ -9460,3 +9460,75 @@ class HistogramTest(testing.TestCase):
             ValueError, "Input tensor must be 1-dimensional"
         ):
             hist_op(input_tensor)
+
+
+class NumPyArraySplitTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("even_split_1D", 10, 2, 0, (5, 5)),
+        ("uneven_split_1D", 10, 3, 0, (4, 3, 3)),
+        ("one_section_1D", 10, 1, 0, (10,)),
+        ("split_by_length_1D", 7, 3, 0, (3, 2, 2)),
+        ("even_split_2D_axis0", (4, 3), 2, 0, ((2, 3), (2, 3))),
+        ("uneven_split_2D_axis0", (4, 3), 3, 0, ((2, 3), (1, 3), (1, 3))),
+        ("uneven_split_2D_axis1", (3, 5), 3, 1, ((3, 2), (3, 2), (3, 1))),
+        ("single_element_array", 1, 1, 0, (1,)),
+        ("split_by_size_zero_length", 0, 2, 0, (0, 0)),
+        ("split_by_size_zero_length_non_empty_split", 1, 2, 0, (1, 0)),
+        ("3D_axis_neg1", (2, 3, 7), 3, -1, ((2, 3, 3), (2, 3, 2), (2, 3, 2))),
+    )
+    def test_array_split_static_shape_and_correctness(
+        self, shape, indices_or_sections, axis, expected_shapes
+    ):
+        if isinstance(shape, int):
+            input_array = np.arange(shape)
+        else:
+            input_array = np.arange(np.prod(shape)).reshape(shape)
+
+        # Eager correctness check
+        results = knp.array_split(input_array, indices_or_sections, axis)
+        expected = np.array_split(input_array, indices_or_sections, axis)
+        self.assertEqual(len(results), len(expected))
+        for res, exp in zip(results, expected):
+            self.assertAllClose(res, exp)
+
+        # Symbolic shape check
+        x = KerasTensor(input_array.shape)
+        symbolic_results = knp.array_split(x, indices_or_sections, axis)
+        self.assertEqual(len(symbolic_results), len(expected_shapes))
+        for res, expected_shape in zip(symbolic_results, expected_shapes):
+            if isinstance(expected_shape, int):
+                self.assertEqual(res.shape, (expected_shape,))
+            else:
+                self.assertEqual(res.shape, expected_shape)
+
+    @parameterized.named_parameters(
+        ("axis_0", (None, 3), 3, 0),
+        ("axis_1", (2, None), 3, 1),
+        ("3D_axis2", (1, 2, None), 2, 2),
+    )
+    def test_array_split_dynamic_shape(
+        self, input_shape, indices_or_sections, axis
+    ):
+        # Symbolic shape check for dynamic inputs
+        x = KerasTensor(input_shape)
+        results = knp.array_split(x, indices_or_sections, axis)
+        num_splits = indices_or_sections
+        self.assertEqual(len(results), num_splits)
+
+        # Check shapes: the dimension being split must be `None`
+        for res in results:
+            expected_shape_list = list(input_shape)
+            expected_shape_list[axis] = None
+            self.assertEqual(res.shape, tuple(expected_shape_list))
+
+    @parameterized.named_parameters(
+        ("non_int_sections", 2, 2.5, 0),
+        ("zero_sections", 6, 0, 0),
+        ("negative_sections", 6, -1, 0),
+    )
+    def test_array_split_error_conditions(
+        self, size, indices_or_sections, axis
+    ):
+        input_array = np.arange(size)
+        with self.assertRaises((ValueError, TypeError)):
+            knp.array_split(input_array, indices_or_sections, axis)

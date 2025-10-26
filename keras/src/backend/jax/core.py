@@ -553,9 +553,7 @@ def all_reduce(x, op="sum", axis_name="model"):
     if op == "sum":
         return lax.psum(x, axis_name=axis_name)
     elif op == "mean":
-        sum_val = lax.psum(x, axis_name=axis_name)
-        axis_size = lax.psum(1, axis_name=axis_name)
-        return sum_val / axis_size
+        return lax.pmean(x, axis_name=axis_name)
     else:
         raise ValueError(
             f"Unsupported reduction operation: {op}. "
