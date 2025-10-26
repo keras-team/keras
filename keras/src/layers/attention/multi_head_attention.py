@@ -378,7 +378,10 @@ class MultiHeadAttention(Layer):
         if self._attention_axes is None:
             self._attention_axes = tuple(range(1, rank - 2))
         else:
-            self._attention_axes = tuple(self._attention_axes)
+            self._attention_axes = tuple(
+                axis if axis >= 0 else (rank - 1) + axis
+                for axis in self._attention_axes
+            )
         (
             self._dot_product_equation,
             self._combine_equation,
