@@ -37,6 +37,7 @@ from keras.src.ops.linalg import det as det
 from keras.src.ops.linalg import eig as eig
 from keras.src.ops.linalg import eigh as eigh
 from keras.src.ops.linalg import inv as inv
+from keras.src.ops.linalg import jvp as jvp
 from keras.src.ops.linalg import lstsq as lstsq
 from keras.src.ops.linalg import lu_factor as lu_factor
 from keras.src.ops.linalg import norm as norm
@@ -116,6 +117,7 @@ from keras.src.ops.nn import sparsemax as sparsemax
 from keras.src.ops.nn import squareplus as squareplus
 from keras.src.ops.nn import tanh_shrink as tanh_shrink
 from keras.src.ops.nn import threshold as threshold
+from keras.src.ops.nn import unfold as unfold
 from keras.src.ops.numpy import abs as abs
 from keras.src.ops.numpy import absolute as absolute
 from keras.src.ops.numpy import add as add
@@ -208,6 +210,7 @@ from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
 from keras.src.ops.numpy import isneginf as isneginf
 from keras.src.ops.numpy import isposinf as isposinf
+from keras.src.ops.numpy import isreal as isreal
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import kron as kron
 from keras.src.ops.numpy import lcm as lcm
@@ -284,6 +287,7 @@ from keras.src.ops.numpy import tensordot as tensordot
 from keras.src.ops.numpy import tile as tile
 from keras.src.ops.numpy import trace as trace
 from keras.src.ops.numpy import transpose as transpose
+from keras.src.ops.numpy import trapezoid as trapezoid
 from keras.src.ops.numpy import tri as tri
 from keras.src.ops.numpy import tril as tril
 from keras.src.ops.numpy import triu as triu
@@ -293,6 +297,7 @@ from keras.src.ops.numpy import unravel_index as unravel_index
 from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize
+from keras.src.ops.numpy import view as view
 from keras.src.ops.numpy import vstack as vstack
 from keras.src.ops.numpy import where as where
 from keras.src.ops.numpy import zeros as zeros

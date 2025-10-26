@@ -654,7 +654,7 @@ class SensitivitySpecificityBase(Metric):
         Args:
             constrained: Over these values the constraint is specified. A rank-1
                 tensor.
-            dependent: From these values the maximum that satiesfies the
+            dependent: From these values the maximum that satisfies the
                 constraint is selected. Values in this tensor and in
                 `constrained` are linked by having the same threshold at each
                 position, hence this tensor must have the same shape.
@@ -664,11 +664,12 @@ class SensitivitySpecificityBase(Metric):
         Returns:
             maximal dependent value, if no value satisfies the constraint 0.0.
         """
-        feasible = ops.nonzero(predicate(constrained, self.value))
-        feasible_exists = ops.greater(ops.size(feasible), 0)
-        max_dependent = ops.max(ops.take(dependent, feasible), initial=0)
-
-        return ops.where(feasible_exists, max_dependent, 0.0)
+        feasible = predicate(constrained, self.value)
+        # Mask values based on whether they satisfy the constraint and take max.
+        return ops.max(
+            ops.multiply(dependent, ops.cast(feasible, dependent.dtype)),
+            initial=0,
+        )
 
 
 @keras_export("keras.metrics.SensitivityAtSpecificity")
