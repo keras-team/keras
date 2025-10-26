@@ -205,3 +205,29 @@ class DiscretizationTest(testing.TestCase):
         layer = layers.Discretization(num_bins=3)
         with self.assertRaisesRegex(ValueError, "You need .* call .*adapt"):
             layer([[0.1, 0.8, 0.9]])
+
+    def test_model_call_vs_predict_consistency(self):
+        """Test that model(input) and model.predict(input) produce consistent outputs."""  # noqa: E501
+        # Test with int output mode
+        layer = layers.Discretization(
+            bin_boundaries=[-0.5, 0, 0.1, 0.2, 3],
+            output_mode="int",
+        )
+        x = np.array([[0.0, 0.15, 0.21, 0.3], [0.0, 0.17, 0.451, 7.8]])
+
+        # Create model
+        inputs = layers.Input(shape=(4,), dtype="float32")
+        outputs = layer(inputs)
+        model = models.Model(inputs=inputs, outputs=outputs)
+
+        # Test both execution modes
+        model_call_output = model(x)
+        predict_output = model.predict(x)
+
+        # Check consistency
+        self.assertAllClose(model_call_output, predict_output)
+        self.assertEqual(
+            backend.standardize_dtype(model_call_output.dtype),
+            backend.standardize_dtype(predict_output.dtype),
+        )
+        self.assertTrue(backend.is_int_dtype(model_call_output.dtype))

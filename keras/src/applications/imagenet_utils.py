@@ -278,7 +278,10 @@ def _preprocess_tensor_input(x, data_format, mode):
 
     # Zero-center by mean pixel
     if data_format == "channels_first":
-        mean_tensor = ops.reshape(mean_tensor, (1, 3) + (1,) * (ndim - 2))
+        if len(x.shape) == 3:
+            mean_tensor = ops.reshape(mean_tensor, (3, 1, 1))
+        else:
+            mean_tensor = ops.reshape(mean_tensor, (1, 3) + (1,) * (ndim - 2))
     else:
         mean_tensor = ops.reshape(mean_tensor, (1,) * (ndim - 1) + (3,))
     x += mean_tensor

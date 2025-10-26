@@ -1185,7 +1185,9 @@ class CoreOpsCorrectnessTest(testing.TestCase):
                 self.b = self.add_weight(shape=(1,), initializer="zeros")
 
             def call(self, x, training=False):
-                return x * ops.stop_gradient(self.w) + self.b
+                return ops.add(
+                    ops.multiply(x, ops.stop_gradient(self.w)), self.b
+                )
 
         model = models.Sequential([ExampleLayer()])
         model.compile(

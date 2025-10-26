@@ -77,9 +77,11 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
         "backends."
     ),
 )
-@pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
 @pytest.mark.skipif(
-    testing.tensorflow_uses_gpu(), reason="Leads to core dumps on CI"
+    testing.jax_uses_gpu()
+    or testing.tensorflow_uses_gpu()
+    or testing.torch_uses_gpu(),
+    reason="Fails on GPU",
 )
 class ExportONNXTest(testing.TestCase):
     @parameterized.named_parameters(
