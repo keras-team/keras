@@ -56,6 +56,17 @@ class JaxVariable(KerasVariable):
 
     # Overload native accessor.
     def __jax_array__(self):
+        # Handle case where Variable is copied during JAX tracing
+        # and both _value and _initializer become None
+        if self._value is None and self._initializer is None:
+            # This can happen when JAX copies Variables during tracing.
+            # In this case, we need to use the  actual shape to create a
+            # placeholder tensor for shape inference.
+            import jax.numpy as jnp
+
+            from keras.src.backend.common import standardize_dtype
+
+            return jnp.zeros(self._shape, dtype=standardize_dtype(self._dtype))
         return self.value
 
 
@@ -521,13 +532,14 @@ def _convert_variable_to_value(arg):
 
 
 def custom_gradient(fun):
+    @jax.custom_gradient
     def wrapper(*args, **kwargs):
         # Convert Variable objects to their values
         args = tree.map_structure(_convert_variable_to_value, args)
         kwargs = tree.map_structure(_convert_variable_to_value, kwargs)
         return fun(*args, **kwargs)
 
-    return jax.custom_gradient(fun=wrapper)
+    return wrapper
 
 
 def remat(f):

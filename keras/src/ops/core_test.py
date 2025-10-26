@@ -663,12 +663,12 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         
         # Create a simple model with a Variable
         class QuantizedLayer(layers.Layer):
-            def build(self, input_shape):
-                from keras.src import initializers
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
                 self.log_scaling = self.add_weight(
                     name="log_scaling",
                     shape=(),
-                    initializer=initializers.Zeros(),
+                    initializer="zeros",
                     trainable=True,
                 )
             

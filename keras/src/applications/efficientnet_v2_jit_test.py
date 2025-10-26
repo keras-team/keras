@@ -29,7 +29,8 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
         epochs = 1
 
         # Generate random data (use minimum supported size)
-        data_shape = (224, 224, 3)  # Minimum size for EfficientNetV2
+        # Torch backend uses channels_first format: (C, H, W)
+        data_shape = (3, 260, 260)  # Default size for EfficientNetV2B2
         x_train = np.random.rand(
             batch_size * steps_per_epoch, *data_shape
         ).astype(np.float32)
@@ -41,7 +42,7 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
         # Create model
         base_model = EfficientNetV2B2(
             include_top=False,
-            input_shape=(224, 224, 3),  # Fixed shape for jit_compile
+            input_shape=(3, 260, 260),  # Fixed shape (channels_first)
             pooling="avg",
             include_preprocessing=True,
             weights=None,  # Don't load weights for faster testing
@@ -75,7 +76,8 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
         batch_size = 2
 
         # Generate random data
-        x_train = np.random.rand(batch_size, 224, 224, 3).astype(np.float32)
+        # Torch backend uses channels_first format: (C, H, W)
+        x_train = np.random.rand(batch_size, 3, 224, 224).astype(np.float32)
         _ = np.eye(num_classes)[
             np.random.randint(0, num_classes, size=(batch_size,))
         ]
@@ -83,7 +85,7 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
         # Create model
         base_model = EfficientNetV2B0(
             include_top=False,
-            input_shape=(224, 224, 3),
+            input_shape=(3, 224, 224),  # channels_first format for torch
             pooling="avg",
             weights=None,
         )

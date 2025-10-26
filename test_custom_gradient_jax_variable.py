@@ -1,12 +1,13 @@
 """Test custom_gradient with JAX backend when Variables are passed."""
 import os
+
 os.environ["KERAS_BACKEND"] = "jax"
 
 import numpy as np
-import pytest
+
 import keras
-from keras import ops
 from keras import layers
+from keras import ops
 
 
 def test_custom_gradient_with_variable():
@@ -61,7 +62,10 @@ def test_custom_gradient_with_variable():
     history = model.fit(x_train, y_train, epochs=1, batch_size=32, verbose=0)
     
     assert history is not None
-    print("✓ Test passed: custom_gradient works with Variables in JAX backend")
+    print(
+        "✓ Test passed: custom_gradient works with "
+        "Variables in JAX backend"
+    )
 
 
 def test_custom_gradient_with_variable_value_property():
@@ -108,9 +112,10 @@ def test_custom_gradient_with_variable_value_property():
     history = model.fit(x_train, y_train, epochs=1, batch_size=32, verbose=0)
     
     assert history is not None
-    print("✓ Test passed: custom_gradient works with Variable.value in JAX backend")
-
-
+    print(
+        "✓ Test passed: custom_gradient works with "
+        "Variable.value in JAX backend"
+    )
 if __name__ == "__main__":
     print("Testing custom_gradient with JAX backend and Variables...")
     print()
