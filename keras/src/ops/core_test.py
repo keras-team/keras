@@ -646,7 +646,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         functions would fail because JAX would capture the Variable object
         instead of its value.
         """
-        import jax
 
         @ops.custom_gradient
         def roundpass(x, log_scaling):
@@ -693,7 +692,9 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         y_train = np.random.randn(32, 2).astype("float32")
         
         # Train for one step - this should not raise TypeError
-        history = model.fit(x_train, y_train, epochs=1, batch_size=32, verbose=0)
+        history = model.fit(
+            x_train, y_train, epochs=1, batch_size=32, verbose=0
+        )
         
         self.assertIsNotNone(history)
 

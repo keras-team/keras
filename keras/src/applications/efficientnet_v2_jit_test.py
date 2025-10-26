@@ -1,6 +1,6 @@
-"""Test for Issue #21647: jit_compile=True with EfficientNetV2 on torch backend."""
+"""Test for Issue #21647: jit_compile=True with EfficientNetV2 on torch
+backend."""
 
-import os
 
 import numpy as np
 import pytest
@@ -9,7 +9,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
-from keras.src.applications import EfficientNetV2B2
+from keras.src.applications.efficientnet_v2 import EfficientNetV2B2
 from keras.src.losses import CategoricalCrossentropy
 from keras.src.optimizers import Adam
 
@@ -76,7 +76,7 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
 
         # Generate random data
         x_train = np.random.rand(batch_size, 64, 64, 3).astype(np.float32)
-        y_train = np.eye(num_classes)[
+        _ = np.eye(num_classes)[
             np.random.randint(0, num_classes, size=(batch_size,))
         ]
 

@@ -513,18 +513,20 @@ def random_seed_dtype():
     return "uint32"
 
 
+def _convert_variable_to_value(arg):
+    """Convert Variable objects to their underlying values."""
+    if isinstance(arg, Variable):
+        return arg.value
+    return arg
+
+
 def custom_gradient(fun):
     def wrapper(*args, **kwargs):
         # Convert Variable objects to their values
-        def _convert_arg(arg):
-            if isinstance(arg, Variable):
-                return arg.value
-            return arg
-        
-        args = tree.map_structure(_convert_arg, args)
-        kwargs = tree.map_structure(_convert_arg, kwargs)
+        args = tree.map_structure(_convert_variable_to_value, args)
+        kwargs = tree.map_structure(_convert_variable_to_value, kwargs)
         return fun(*args, **kwargs)
-    
+
     return jax.custom_gradient(fun=wrapper)
 
 
