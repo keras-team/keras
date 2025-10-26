@@ -28,8 +28,8 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
         steps_per_epoch = 1
         epochs = 1
 
-        # Generate random data (small for testing)
-        data_shape = (64, 64, 3)  # Smaller image size for faster testing
+        # Generate random data (use minimum supported size)
+        data_shape = (224, 224, 3)  # Minimum size for EfficientNetV2
         x_train = np.random.rand(
             batch_size * steps_per_epoch, *data_shape
         ).astype(np.float32)
@@ -41,7 +41,7 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
         # Create model
         base_model = EfficientNetV2B2(
             include_top=False,
-            input_shape=(64, 64, 3),  # Fixed shape for jit_compile
+            input_shape=(224, 224, 3),  # Fixed shape for jit_compile
             pooling="avg",
             include_preprocessing=True,
             weights=None,  # Don't load weights for faster testing
@@ -69,13 +69,13 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
 
     def test_efficientnet_v2_b0_with_jit_compile(self):
         """Test that EfficientNetV2B0 also works with jit_compile=True."""
-        from keras.src.applications import EfficientNetV2B0
+        from keras.src.applications.efficientnet_v2 import EfficientNetV2B0
 
         num_classes = 5
         batch_size = 2
 
         # Generate random data
-        x_train = np.random.rand(batch_size, 64, 64, 3).astype(np.float32)
+        x_train = np.random.rand(batch_size, 224, 224, 3).astype(np.float32)
         _ = np.eye(num_classes)[
             np.random.randint(0, num_classes, size=(batch_size,))
         ]
@@ -83,7 +83,7 @@ class EfficientNetV2JitCompileTest(testing.TestCase):
         # Create model
         base_model = EfficientNetV2B0(
             include_top=False,
-            input_shape=(64, 64, 3),
+            input_shape=(224, 224, 3),
             pooling="avg",
             weights=None,
         )
