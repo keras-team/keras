@@ -514,7 +514,18 @@ def random_seed_dtype():
 
 
 def custom_gradient(fun):
-    return jax.custom_gradient(fun=fun)
+    def wrapper(*args, **kwargs):
+        # Convert Variable objects to their values
+        def _convert_arg(arg):
+            if isinstance(arg, Variable):
+                return arg.value
+            return arg
+        
+        args = tree.map_structure(_convert_arg, args)
+        kwargs = tree.map_structure(_convert_arg, kwargs)
+        return fun(*args, **kwargs)
+    
+    return jax.custom_gradient(fun=wrapper)
 
 
 def remat(f):
