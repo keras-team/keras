@@ -2301,7 +2301,7 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         return gathered_y
     perm = collections.deque(range(ndims))
     perm.rotate(shift_value_static)
-    return tf.transpose(a=gathered_y, perm=perm)
+    return tf.transpose(a=gathered_y, perm=list(perm))
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
