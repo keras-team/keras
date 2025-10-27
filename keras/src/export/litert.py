@@ -218,10 +218,10 @@ class LiteRTExporter:
                 tf.lite.OpsSet.SELECT_TF_OPS,
             ]
             converter.experimental_enable_resource_variables = False
-            
+
             # Apply any additional converter settings from kwargs
             self._apply_converter_kwargs(converter)
-            
+
             tflite_model = converter.convert()
 
             if self.verbose:
@@ -404,21 +404,22 @@ class LiteRTExporter:
 
     def _apply_converter_kwargs(self, converter):
         """Apply additional converter settings from kwargs.
-        
+
         This method applies any TFLite converter settings passed via kwargs
         to the converter object. Common settings include:
-        - optimizations: List of optimization options (e.g., [tf.lite.Optimize.DEFAULT])
+        - optimizations: List of optimization options
+          (e.g., [tf.lite.Optimize.DEFAULT])
         - representative_dataset: Dataset generator for quantization
         - target_spec: Additional target specification settings
         - inference_input_type: Input type for inference (e.g., tf.int8)
         - inference_output_type: Output type for inference (e.g., tf.int8)
-        
+
         Args:
             converter: tf.lite.TFLiteConverter instance to configure
         """
         if not self.kwargs:
             return
-            
+
         for key, value in self.kwargs.items():
             if hasattr(converter, key):
                 setattr(converter, key, value)
