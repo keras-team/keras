@@ -345,6 +345,16 @@ class OrbaxCheckpoint(MonitorCallback):
                     "sharding and multi_host parameters are only supported "
                     "with JAX backend. Current backend: " + backend.backend()
                 )
+
+        # Validate sharding object type
+        if sharding is not None and backend.backend() == "jax":
+            # Basic validation: sharding should not be a string or other
+            # primitive type
+            if isinstance(sharding, (str, int, float, bool)):
+                raise TypeError(
+                    f"sharding parameter must be a valid JAX sharding object, "
+                    f"got {type(sharding).__name__}: {sharding}"
+                )
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
@@ -395,9 +405,14 @@ class OrbaxCheckpoint(MonitorCallback):
             except RuntimeError as e:
                 # If distributed cannot be initialized (e.g., JAX already
                 # initialized), continue anyway - the multi_host flag is mainly
-                # a hint to Orbax
-                if "must be called before" in str(e):
-                    pass  # This is expected in test environments
+                # a hint to Orbax.
+                # We check for messages related to initialization state.
+                error_str = str(e).lower()
+                if (
+                    "already been initialized" in error_str
+                    or "must be called before" in error_str
+                ):
+                    pass  # This is expected in some environments.
                 else:
                     raise
             # Orbax will automatically handle multi-host coordination:
@@ -529,14 +544,8 @@ class OrbaxCheckpoint(MonitorCallback):
             )
 
             # Apply sharding if specified (JAX only)
-            if self.sharding is not None and backend.backend() == "jax":
-                # For JAX sharding, we need to ensure the data is properly
-                # sharded
-                # This is typically handled automatically by Orbax when JAX
-                # arrays with sharding metadata are saved
-                if hasattr(save_args, "sharding"):
-                    save_args.sharding = self.sharding
-
+            # Note: Sharding is handled automatically by Orbax when saving
+            # sharded JAX arrays. No explicit sharding parameter needed.
             self.manager.save(step, args=save_args)
 
     def on_train_batch_end(self, batch, logs=None):
@@ -650,13 +659,8 @@ class OrbaxCheckpoint(MonitorCallback):
         restore_args = ocp.args.StandardRestore()
 
         # Apply sharding if specified (JAX only)
-        if self.sharding is not None and backend.backend() == "jax":
-            # For JAX sharding, we need to ensure the data is properly restored
-            # with the same sharding specification used during save
-            if hasattr(restore_args, "sharding"):
-                restore_args.sharding = self.sharding
-
-        # Load the checkpoint
+        # Note: Sharding is handled automatically by Orbax when loading
+        # sharded JAX arrays. No explicit sharding parameter needed.
         checkpoint_data = self.manager.restore(step, args=restore_args)
 
         # Restore the model state

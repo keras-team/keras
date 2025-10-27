@@ -2044,10 +2044,14 @@ class OrbaxCheckpointTest(testing.TestCase):
                 "unsharded checkpoint",
             )
 
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding validation tests require JAX backend",
+    )
     def test_invalid_sharding_argument_raises_error(self):
         """Test that invalid sharding arguments raise TypeError."""
         # Test with string (invalid sharding object)
-        with self.assertRaises((TypeError, ValueError)):
+        with self.assertRaises(TypeError):
             OrbaxCheckpoint(
                 directory=os.path.join(self.temp_dir, "test_invalid_sharding"),
                 sharding="invalid_sharding_string",
