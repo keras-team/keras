@@ -12,7 +12,7 @@ import numpy as np
 from keras.src.api_export import keras_export
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
-
+from keras import backend
 
 @keras_export(["keras.utils.PyDataset", "keras.utils.Sequence"])
 class PyDataset:
@@ -94,7 +94,21 @@ class PyDataset:
         self._workers = workers
         self._use_multiprocessing = use_multiprocessing
         self._max_queue_size = max_queue_size
-
+        backend_name = backend.backend()
+        if backend_name not in ("torch", "jax", "tensorflow"):
+            raise ValueError(
+                f"PyDataset is only supported for PyTorch, JAX, or TensorFlow backends. "
+                f"Received unsupported backend: '{backend_name}'."
+            )
+        # Optionally warn if using TF (since tf.data.Dataset is better)
+        if backend_name == "tensorflow":
+            import warnings
+            warnings.warn(
+                "You are using PyDataset with the TensorFlow backend. "
+                "Consider using `tf.data.Dataset` for better performance.",
+                stacklevel=2,
+            )
+            
     def _warn_if_super_not_called(self):
         warn = False
         if not hasattr(self, "_workers"):

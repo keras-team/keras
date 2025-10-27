@@ -12,6 +12,17 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def __init__(self, dataloader):
         import torch
+        import keras
+
+        # --- ✅ Backend compatibility check ---
+        backend = keras.backend.backend()
+        if backend != "torch":
+            raise ValueError(
+                f"Incompatible backend '{backend}' for TorchDataLoaderAdapter. "
+                "This adapter only supports the PyTorch backend. "
+                "If you are using TensorFlow or JAX, please use the "
+                "corresponding DatasetAdapter instead."
+            )
 
         if not isinstance(dataloader, torch.utils.data.DataLoader):
             raise ValueError(

@@ -18,14 +18,25 @@ class TFDatasetAdapter(DataAdapter):
                 instance.
         """
         from keras.src.utils.module_utils import tensorflow as tf
+        import keras
+        from keras.src.utils.module_utils import tensorflow as tf
 
-        if not isinstance(
-            dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)
-        ):
+        # --- ✅ Backend compatibility check ---
+        backend = keras.backend.backend()
+        if backend != "tensorflow":
             raise ValueError(
-                "Expected argument `dataset` to be a tf.data.Dataset. "
+                f"Incompatible backend '{backend}' for TFDatasetAdapter. "
+                "This adapter only supports the TensorFlow backend."
+            )
+
+        # --- ✅ Dataset type validation ---
+        if not isinstance(dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)):
+            raise ValueError(
+                "Expected argument `dataset` to be a tf.data.Dataset or "
+                "tf.distribute.DistributedDataset. "
                 f"Received: {dataset}"
             )
+
         if class_weight is not None:
             dataset = dataset.map(
                 make_class_weight_map_fn(class_weight)
