@@ -8,6 +8,7 @@ from keras.src.ops.image import affine_transform as affine_transform
 from keras.src.ops.image import crop_images as crop_images
 from keras.src.ops.image import elastic_transform as elastic_transform
 from keras.src.ops.image import extract_patches as extract_patches
+from keras.src.ops.image import extract_patches_3d as extract_patches_3d
 from keras.src.ops.image import gaussian_blur as gaussian_blur
 from keras.src.ops.image import hsv_to_rgb as hsv_to_rgb
 from keras.src.ops.image import map_coordinates as map_coordinates
