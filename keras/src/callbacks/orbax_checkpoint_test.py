@@ -26,6 +26,12 @@ except ImportError:
 
 from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
 
+# Import distribution for sharding tests
+try:
+    from keras.src import distribution
+except ImportError:
+    distribution = None
+
 # Skip the entire test module if orbax-checkpoint is not available
 pytest.importorskip("orbax.checkpoint")
 
@@ -1523,3 +1529,526 @@ class OrbaxCheckpointTest(testing.TestCase):
             return callback.manager.restore(step, args=restore_args)
         except Exception as e:
             self.fail(f"Failed to load checkpoint data: {e}")
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding tests require JAX backend",
+    )
+    def test_jax_sharding_parameter_acceptance(self):
+        """Test that sharding parameter is accepted with JAX backend."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest("Sharding test requires at least 2 devices")
+
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=(None,), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        # Should not raise an error
+        callback = OrbaxCheckpoint(
+            directory=os.path.join(self.temp_dir, "test_sharding_acceptance"),
+            sharding=sharding,
+        )
+        self.assertIsNotNone(callback.sharding)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding tests require JAX backend",
+    )
+    def test_jax_sharding_with_virtual_devices(self):
+        """Test sharding functionality with virtual devices setup."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest("Sharding test requires at least 2 devices")
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        # Create sharding layout
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=("x",), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        checkpoint_dir = os.path.join(
+            self.temp_dir, "test_sharding_virtual_devices"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, sharding=sharding, save_freq="epoch"
+        )
+
+        # Train and save
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+
+        # Verify checkpoint was saved
+        self.assertTrue(os.path.exists(checkpoint_dir))
+        self.assertIsNotNone(callback.manager.latest_step())
+
+        # Load and verify
+        new_model = self._create_test_model()
+        success, _ = callback.load_latest(model=new_model)
+        self.assertTrue(success, "Should successfully load sharded checkpoint")
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding tests require JAX backend",
+    )
+    def test_jax_sharding_and_multi_host_combined(self):
+        """Test combining sharding and multi-host checkpointing."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest("Combined test requires at least 2 devices")
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        # Create sharding layout
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=("x",), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        checkpoint_dir = os.path.join(
+            self.temp_dir, "test_sharding_multi_host_combined"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            sharding=sharding,
+            multi_host=True,
+            save_freq="epoch",
+        )
+
+        # Train and save
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+
+        # Verify checkpoint was saved
+        self.assertTrue(os.path.exists(checkpoint_dir))
+        self.assertIsNotNone(callback.manager.latest_step())
+
+        # Load and verify
+        new_model = self._create_test_model()
+        success, _ = callback.load_latest(model=new_model)
+        self.assertTrue(success, "Should successfully load combined checkpoint")
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding tests require JAX backend",
+    )
+    def test_jax_sharding_parameter_validation(self):
+        """Test that sharding parameter validation works correctly."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest(
+                "Sharding validation test requires at least 2 devices"
+            )
+
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=(None,), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        # Valid sharding should work
+        callback = OrbaxCheckpoint(
+            directory=os.path.join(self.temp_dir, "test_valid_sharding"),
+            sharding=sharding,
+        )
+        self.assertEqual(callback.sharding, sharding)
+
+        # None sharding should work
+        callback_none = OrbaxCheckpoint(
+            directory=os.path.join(self.temp_dir, "test_none_sharding")
+        )
+        self.assertIsNone(callback_none.sharding)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding tests require JAX backend",
+    )
+    def test_jax_different_sharding_configurations(self):
+        """Test different sharding configurations work correctly."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 4:
+            self.skipTest(
+                "Different sharding configs test requires at least 4 devices"
+            )
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        # Test different sharding configurations
+        configs = [
+            # 2-way sharding
+            {"shape": (2,), "axis_names": ("x",), "axes": ("x",)},
+            # 4-way sharding
+            {"shape": (4,), "axis_names": ("x",), "axes": (None,)},
+        ]
+
+        for i, config in enumerate(configs):
+            device_mesh = DeviceMesh(
+                shape=config["shape"],
+                axis_names=config["axis_names"],
+                devices=devices[: config["shape"][0]],
+            )
+            tensor_layout = TensorLayout(
+                axes=config["axes"], device_mesh=device_mesh
+            )
+            sharding = tensor_layout.backend_layout
+
+            checkpoint_dir = os.path.join(
+                self.temp_dir, f"test_sharding_config_{i}"
+            )
+            callback = OrbaxCheckpoint(
+                directory=checkpoint_dir, sharding=sharding, save_freq="epoch"
+            )
+
+            # Train and save
+            model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+
+            # Verify checkpoint was saved
+            self.assertTrue(os.path.exists(checkpoint_dir))
+            self.assertIsNotNone(callback.manager.latest_step())
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding compatibility tests require JAX backend",
+    )
+    def test_jax_sharding_compatibility_across_save_load(self):
+        """Test sharding compatibility across save and load operations."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest(
+                "Sharding compatibility test requires at least 2 devices"
+            )
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        # Save with sharding
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=("x",), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        checkpoint_dir = os.path.join(
+            self.temp_dir, "test_sharding_compatibility"
+        )
+        save_callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, sharding=sharding, save_freq="epoch"
+        )
+
+        model.fit(x, y, epochs=1, callbacks=[save_callback], verbose=0)
+
+        # Load with same sharding
+        load_callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, sharding=sharding
+        )
+        new_model = self._create_test_model()
+        success, _ = load_callback.load_latest(model=new_model)
+        self.assertTrue(success, "Should successfully load with same sharding")
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding edge case tests require JAX backend",
+    )
+    def test_jax_single_device_sharding_edge_cases(self):
+        """Test edge cases for single device sharding scenarios."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest(
+                "Single device sharding test requires at least 2 devices"
+            )
+
+        # Test with single device in mesh (effectively no sharding)
+        device_mesh = DeviceMesh(
+            shape=(1,), axis_names=("x",), devices=devices[:1]
+        )
+        tensor_layout = TensorLayout(axes=(None,), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(
+            self.temp_dir, "test_single_device_sharding"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, sharding=sharding, save_freq="epoch"
+        )
+
+        # Should work without errors
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        self.assertIsNotNone(callback.manager.latest_step())
+
+    def test_tensorflow_backend_rejects_sharding(self):
+        """Test that TensorFlow backend rejects sharding parameter."""
+        if backend.backend() == "tensorflow":
+            with self.assertRaises((ValueError, TypeError)) as cm:
+                OrbaxCheckpoint(
+                    directory=os.path.join(self.temp_dir, "test_tf_reject"),
+                    sharding="invalid_sharding",  # Any non-None value
+                )
+            self.assertIn("JAX backend", str(cm.exception))
+
+    def test_pytorch_backend_rejects_sharding(self):
+        """Test that PyTorch backend rejects sharding parameter."""
+        if backend.backend() == "torch":
+            with self.assertRaises((ValueError, TypeError)) as cm:
+                OrbaxCheckpoint(
+                    directory=os.path.join(self.temp_dir, "test_torch_reject"),
+                    sharding="invalid_sharding",  # Any non-None value
+                )
+            self.assertIn("JAX backend", str(cm.exception))
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding functionality validation requires JAX backend",
+    )
+    def test_jax_sharding_functionality_validation(self):
+        """Comprehensive test of JAX sharding functionality."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest(
+                "Sharding functionality test requires at least 2 devices"
+            )
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        # Create sharding
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=("x",), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        checkpoint_dir = os.path.join(
+            self.temp_dir, "test_sharding_functionality"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, sharding=sharding, save_freq="epoch"
+        )
+
+        # Train and checkpoint
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Verify multiple checkpoints
+        all_steps = sorted(callback.manager.all_steps())
+        self.assertEqual(
+            len(all_steps), 2, f"Expected 2 checkpoints, got {len(all_steps)}"
+        )
+
+        # Load from specific step
+        new_model = self._create_test_model()
+        success, _ = callback.load_checkpoint(
+            step=all_steps[0], model=new_model
+        )
+        self.assertTrue(success, "Should load from specific step")
+
+        # Load latest
+        latest_model = self._create_test_model()
+        success, _ = callback.load_latest(model=latest_model)
+        self.assertTrue(success, "Should load latest checkpoint")
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Multi-host error handling tests require JAX backend",
+    )
+    def test_multi_host_error_handling_with_invalid_sharding(self):
+        """Test error handling when combining multi-host with invalid
+        sharding."""
+        # Test that multi_host works with None sharding
+        callback = OrbaxCheckpoint(
+            directory=os.path.join(self.temp_dir, "test_multi_host_none"),
+            multi_host=True,
+        )
+        self.assertTrue(callback.multi_host)
+        self.assertIsNone(callback.sharding)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding interoperability tests require JAX backend",
+    )
+    def test_restore_sharded_checkpoint_to_unsharded_model(self):
+        """Test restoring a sharded checkpoint to an unsharded model."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest(
+                "Sharded to unsharded test requires at least 2 devices"
+            )
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        # Save with 2-way sharding
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=("x",), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        checkpoint_dir = os.path.join(
+            self.temp_dir, "test_sharded_to_unsharded"
+        )
+        save_callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, sharding=sharding, save_freq="epoch"
+        )
+
+        model.fit(x, y, epochs=1, callbacks=[save_callback], verbose=0)
+
+        # Capture original weights
+        original_weights = [w.numpy() for w in model.weights]
+
+        # Load with unsharded model (sharding=None)
+        load_callback = OrbaxCheckpoint(directory=checkpoint_dir)
+
+        new_model = self._create_test_model()
+        success, _ = load_callback.load_latest(model=new_model)
+        self.assertTrue(
+            success,
+            "Should successfully load sharded checkpoint to unsharded model",
+        )
+
+        # Assert: Unsharded weights should match original
+        restored_weights = [w.numpy() for w in new_model.weights]
+        for original, restored in zip(original_weights, restored_weights):
+            np.testing.assert_allclose(
+                original,
+                restored,
+                rtol=1e-5,
+                atol=1e-6,
+                err_msg="Unsharded weights should match original after loading "
+                "sharded checkpoint",
+            )
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding interoperability tests require JAX backend",
+    )
+    def test_restore_unsharded_checkpoint_to_sharded_model(self):
+        """Test restoring an unsharded checkpoint to a sharded model."""
+        if distribution is None:
+            self.skipTest("Distribution module not available")
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import TensorLayout
+
+        devices = distribution.list_devices()
+        if len(devices) < 2:
+            self.skipTest(
+                "Unsharded to sharded test requires at least 2 devices"
+            )
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        # Save with unsharded model
+        checkpoint_dir = os.path.join(
+            self.temp_dir, "test_unsharded_to_sharded"
+        )
+        save_callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, save_freq="epoch"
+        )
+
+        model.fit(x, y, epochs=1, callbacks=[save_callback], verbose=0)
+
+        # Capture original weights
+        original_weights = [w.numpy() for w in model.weights]
+
+        # Load with 2-way sharding
+        device_mesh = DeviceMesh(
+            shape=(2,), axis_names=("x",), devices=devices[:2]
+        )
+        tensor_layout = TensorLayout(axes=("x",), device_mesh=device_mesh)
+        sharding = tensor_layout.backend_layout
+
+        load_callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, sharding=sharding
+        )
+
+        new_model = self._create_test_model()
+        success, _ = load_callback.load_latest(model=new_model)
+        self.assertTrue(
+            success,
+            "Should successfully load unsharded checkpoint to sharded model",
+        )
+
+        # Assert: Sharded weights should match original
+        restored_weights = [w.numpy() for w in new_model.weights]
+        for original, restored in zip(original_weights, restored_weights):
+            np.testing.assert_allclose(
+                original,
+                restored,
+                rtol=1e-5,
+                atol=1e-6,
+                err_msg="Sharded weights should match original after loading "
+                "unsharded checkpoint",
+            )
+
+    def test_invalid_sharding_argument_raises_error(self):
+        """Test that invalid sharding arguments raise TypeError."""
+        # Test with string (invalid sharding object)
+        with self.assertRaises((TypeError, ValueError)):
+            OrbaxCheckpoint(
+                directory=os.path.join(self.temp_dir, "test_invalid_sharding"),
+                sharding="invalid_sharding_string",
+            )
