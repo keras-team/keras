@@ -218,6 +218,10 @@ class LiteRTExporter:
                 tf.lite.OpsSet.SELECT_TF_OPS,
             ]
             converter.experimental_enable_resource_variables = False
+            
+            # Apply any additional converter settings from kwargs
+            self._apply_converter_kwargs(converter)
+            
             tflite_model = converter.convert()
 
             if self.verbose:
@@ -369,6 +373,9 @@ class LiteRTExporter:
                     "experimental_enable_resource_variables"
                 ]
 
+                # Apply any additional converter settings from kwargs
+                self._apply_converter_kwargs(converter)
+
                 if self.verbose:
                     io_utils.print_msg(
                         f"Trying conversion {strategy['name']}..."
@@ -394,6 +401,42 @@ class LiteRTExporter:
         raise RuntimeError(
             "All conversion strategies failed for wrapper-based conversion"
         )
+
+    def _apply_converter_kwargs(self, converter):
+        """Apply additional converter settings from kwargs.
+        
+        This method applies any TFLite converter settings passed via kwargs
+        to the converter object. Common settings include:
+        - optimizations: List of optimization options (e.g., [tf.lite.Optimize.DEFAULT])
+        - representative_dataset: Dataset generator for quantization
+        - target_spec: Additional target specification settings
+        - inference_input_type: Input type for inference (e.g., tf.int8)
+        - inference_output_type: Output type for inference (e.g., tf.int8)
+        
+        Args:
+            converter: tf.lite.TFLiteConverter instance to configure
+        """
+        if not self.kwargs:
+            return
+            
+        for key, value in self.kwargs.items():
+            if hasattr(converter, key):
+                setattr(converter, key, value)
+                if self.verbose:
+                    io_utils.print_msg(f"Applied converter setting: {key}")
+            elif key == "target_spec" and isinstance(value, dict):
+                # Handle nested target_spec settings
+                for spec_key, spec_value in value.items():
+                    if hasattr(converter.target_spec, spec_key):
+                        setattr(converter.target_spec, spec_key, spec_value)
+                        if self.verbose:
+                            io_utils.print_msg(
+                                f"Applied target_spec setting: {spec_key}"
+                            )
+            elif self.verbose:
+                io_utils.print_msg(
+                    f"Warning: Unknown converter setting '{key}' - ignoring"
+                )
 
     def _aot_compile(self, tflite_filepath):
         """Performs AOT compilation using LiteRT."""
