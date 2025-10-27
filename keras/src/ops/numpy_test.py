@@ -3325,6 +3325,24 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 np.quantile(x, q, axis=1, method=method),
             )
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_quantile_in_tf_function(self):
+        import tensorflow as tf
+
+        x = knp.array([[1, 2, 3], [4, 5, 6]])
+        q = [0.5]
+        expected_output = np.array([[2, 5]])
+
+        @tf.function
+        def run_quantile(x, q, axis):
+            return knp.quantile(x, q, axis=axis)
+
+        result = run_quantile(x, q, axis=1)
+        self.assertAllClose(result, expected_output)
+
     def test_take(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         indices = np.array([0, 1])
