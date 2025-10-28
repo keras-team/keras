@@ -1858,6 +1858,17 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.angle(x).shape, (None, 3))
 
+    def test_view(self):
+        x = knp.array(KerasTensor((None, 3)), dtype="int32")
+        self.assertEqual(knp.view(x, dtype="uint32").shape, (None, 3))
+        self.assertEqual(knp.view(x, dtype="uint32").dtype, "uint32")
+        x = knp.array(KerasTensor((None, 3)), dtype="int32")
+        self.assertEqual(knp.view(x, dtype="int16").shape, (None, 6))
+        self.assertEqual(knp.view(x, dtype="int16").dtype, "int16")
+        x = knp.array(KerasTensor((None, 4)), dtype="int16")
+        self.assertEqual(knp.view(x, dtype="int32").shape, (None, 2))
+        self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
+
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_mean(self):
@@ -2458,6 +2469,17 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_angle(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.angle(x).shape, (2, 3))
+
+    def test_view(self):
+        x = knp.array(KerasTensor((2, 3)), dtype="int32")
+        self.assertEqual(knp.view(x, dtype="uint32").shape, (2, 3))
+        self.assertEqual(knp.view(x, dtype="uint32").dtype, "uint32")
+        x = knp.array(KerasTensor((2, 3)), dtype="int32")
+        self.assertEqual(knp.view(x, dtype="int16").shape, (2, 6))
+        self.assertEqual(knp.view(x, dtype="int16").dtype, "int16")
+        x = knp.array(KerasTensor((2, 4)), dtype="int16")
+        self.assertEqual(knp.view(x, dtype="int32").shape, (2, 2))
+        self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
 
 
 class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
@@ -3303,6 +3325,24 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 np.quantile(x, q, axis=1, method=method),
             )
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_quantile_in_tf_function(self):
+        import tensorflow as tf
+
+        x = knp.array([[1, 2, 3], [4, 5, 6]])
+        q = [0.5]
+        expected_output = np.array([[2, 5]])
+
+        @tf.function
+        def run_quantile(x, q, axis):
+            return knp.quantile(x, q, axis=axis)
+
+        result = run_quantile(x, q, axis=1)
+        self.assertAllClose(result, expected_output)
+
     def test_take(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         indices = np.array([0, 1])
@@ -4055,6 +4095,32 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Concatenate(axis=1)([x, y]),
             np.concatenate([x, y], axis=1),
         )
+
+    def test_view(self):
+        x = np.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
+        result = knp.view(x, dtype="int16")
+        assert backend.standardize_dtype(result.dtype) == "int16"
+
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
+        )
+        self.assertAllClose(knp.view(x, dtype="int16"), x.view("int16"))
+
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="float16").dtype),
+            "float16",
+        )
+        self.assertAllClose(knp.view(x, dtype="float16"), x.view("float16"))
+
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
+        )
+        self.assertAllClose(knp.view(x, dtype="int8"), x.view("int8"))
+
+        self.assertEqual(
+            backend.standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
+        )
+        self.assertAllClose(knp.view(x, dtype="int32"), x.view("int32"))
 
     @parameterized.named_parameters(
         [
@@ -9169,6 +9235,34 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(
             standardize_dtype(knp.Angle().symbolic_call(x).dtype),
             expected_dtype,
+        )
+
+    VIEW_DTYPES = [x for x in ALL_DTYPES if x != "bool" and x is not None]
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(VIEW_DTYPES, 2))
+    )
+    def test_view(self, dtypes):
+        import jax.numpy as jnp
+
+        input_dtype, output_dtype = dtypes
+        x = knp.ones((2, 8), dtype=input_dtype)
+        x_jax = jnp.ones((2, 8), dtype=input_dtype)
+
+        keras_output = knp.view(x, output_dtype)
+        symbolic_output = knp.View(output_dtype).symbolic_call(x)
+        expected_output = x_jax.view(output_dtype)
+        self.assertEqual(
+            standardize_dtype(keras_output.dtype),
+            standardize_dtype(expected_output.dtype),
+        )
+        self.assertEqual(
+            keras_output.shape,
+            expected_output.shape,
+        )
+        self.assertEqual(
+            standardize_dtype(symbolic_output.dtype),
+            standardize_dtype(expected_output.dtype),
         )
 
 
