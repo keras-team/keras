@@ -17,6 +17,7 @@ from keras.src.distribution.distribution_lib import (
 from keras.src.distribution.distribution_lib import distribution as distribution
 from keras.src.distribution.distribution_lib import initialize as initialize
 from keras.src.distribution.distribution_lib import list_devices as list_devices
+from keras.src.distribution.distribution_lib import process_id as process_id
 from keras.src.distribution.distribution_lib import (
     set_distribution as set_distribution,
 )

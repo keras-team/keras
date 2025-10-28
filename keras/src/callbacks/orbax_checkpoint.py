@@ -5,25 +5,14 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import ops
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
+from keras.src.distribution.distribution_lib import process_id
 from keras.src.utils.io_utils import print_msg
-from keras.src.utils.module_utils import LazyModule
-
-ocp = LazyModule(
-    "orbax.checkpoint",
-    pip_name="orbax-checkpoint",
-    import_error_msg=(
-        "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
-        "Install it with: pip install orbax-checkpoint"
-    ),
-)
-
-# Note: Advanced Orbax functionality is available through the ocp LazyModule
-# Users can access it via: from keras.src.utils.module_utils import LazyModule
-# ocp = LazyModule("orbax.checkpoint"); ocp.CheckpointManager
+from keras.src.utils.module_utils import ocp
 
 
 def _get_state_tree(model):
@@ -38,68 +27,49 @@ def _get_state_tree(model):
         elif isinstance(obj, np.generic):
             # Convert numpy scalar types (like np.float32) to Python types
             return obj.item()
-        elif isinstance(obj, dict):
-            return {k: convert_scalars(v) for k, v in obj.items()}
         else:
             return obj
 
-    return convert_scalars(state_tree)
+    return tree.map_structure(convert_scalars, state_tree)
 
 
 def _flatten_state_tree_values(state_tree):
     """Flatten nested state tree into a list of values in consistent order."""
-    values = []
-
-    def _flatten(obj):
-        if isinstance(obj, dict):
-            for key in sorted(obj.keys()):  # Sort for consistent ordering
-                _flatten(obj[key])
-        else:
-            # Save any non-dict value (numpy arrays, lists, scalars, etc.)
-            values.append(obj)
-
-    _flatten(state_tree)
-    return values
+    return tree.flatten(state_tree)
 
 
 def _reconstruct_state_tree_with_values(structure, values):
     """Reconstruct state tree structure with provided values."""
     value_iter = iter(values)
 
-    def _reconstruct(obj):
-        if isinstance(obj, dict):
-            new_dict = {}
-            for key in sorted(obj.keys()):
-                new_dict[key] = _reconstruct(obj[key])
-            return new_dict
-        else:
-            value = next(value_iter)
-            # Handle different cases for value conversion
-            if isinstance(obj, np.generic):
-                # obj is a numpy scalar (0-dimensional)
-                if isinstance(value, (int, float)):
-                    # Convert Python scalar to numpy scalar
-                    return np.array(value, dtype=obj.dtype)
-                elif isinstance(value, np.ndarray):
-                    # value is a numpy array, convert to scalar if needed
-                    if value.ndim == 0:
-                        return np.array(value.item(), dtype=obj.dtype)
-                    elif value.ndim == 1 and value.size == 1:
-                        return np.array(value.item(), dtype=obj.dtype)
-                    else:
-                        return value.astype(obj.dtype).reshape(obj.shape)
+    def _reconstruct_value(obj):
+        value = next(value_iter)
+        # Handle different cases for value conversion
+        if isinstance(obj, np.generic):
+            # obj is a numpy scalar (0-dimensional)
+            if isinstance(value, (int, float)):
+                # Convert Python scalar to numpy scalar
+                return np.array(value, dtype=obj.dtype)
+            elif isinstance(value, np.ndarray):
+                # value is a numpy array, convert to scalar if needed
+                if value.ndim == 0:
+                    return np.array(value.item(), dtype=obj.dtype)
+                elif value.ndim == 1 and value.size == 1:
+                    return np.array(value.item(), dtype=obj.dtype)
                 else:
-                    return np.array(value, dtype=obj.dtype)
-            elif isinstance(obj, np.ndarray):
-                # obj is a numpy array
-                if isinstance(value, np.ndarray):
                     return value.astype(obj.dtype).reshape(obj.shape)
-                else:
-                    return np.array(value, dtype=obj.dtype).reshape(obj.shape)
             else:
-                return value
+                return np.array(value, dtype=obj.dtype)
+        elif isinstance(obj, np.ndarray):
+            # obj is a numpy array
+            if isinstance(value, np.ndarray):
+                return value.astype(obj.dtype).reshape(obj.shape)
+            else:
+                return np.array(value, dtype=obj.dtype).reshape(obj.shape)
+        else:
+            return value
 
-    return _reconstruct(structure)
+    return tree.map_structure(_reconstruct_value, structure)
 
 
 def _restore_legacy_format(
@@ -327,7 +297,7 @@ class OrbaxCheckpoint(MonitorCallback):
             save_decision_policy=save_decision_policy,
         )
         # Ensure directory exists (only needed on one process in multi-host)
-        if backend.get_process_index() == 0:
+        if process_id() == 0:
             os.makedirs(directory, exist_ok=True)
 
         # Create the CheckpointManager
@@ -380,38 +350,27 @@ class OrbaxCheckpoint(MonitorCallback):
         state_tree = _get_state_tree(self.model)
 
         if state_tree is None:
-            if self.verbose > 0:
-                print_msg(
-                    "OrbaxCheckpoint: Skipping save due to state tree error"
-                )
-            return
-
-        # Flatten the trainable variables values for cross-model compatibility
-        trainable_values = _flatten_state_tree_values(
-            state_tree["trainable_variables"]
-        )
-
-        # Save optimizer and metrics state if requested
-        optimizer_values = None
-        if self.save_optimizer_state and "optimizer_variables" in state_tree:
-            optimizer_values = _flatten_state_tree_values(
-                state_tree["optimizer_variables"]
+            raise RuntimeError(
+                "OrbaxCheckpoint: Failed to get model state tree. "
+                "The model may not be properly built or may have no "
+                "savable state."
             )
 
-        metrics_values = None
-        if self.save_metrics_state and "metrics_variables" in state_tree:
-            metrics_values = _flatten_state_tree_values(
-                state_tree["metrics_variables"]
-            )
-
+        # Save the nested state structures directly (preserving layer
+        # names and structure)
         composite_state = {
-            "model_weights": trainable_values,
+            "trainable_variables": state_tree["trainable_variables"],
         }
 
-        if optimizer_values is not None:
-            composite_state["optimizer_state"] = optimizer_values
-        if metrics_values is not None:
-            composite_state["metrics_variables"] = metrics_values
+        if self.save_optimizer_state and "optimizer_variables" in state_tree:
+            composite_state["optimizer_variables"] = state_tree[
+                "optimizer_variables"
+            ]
+
+        if self.save_metrics_state and "metrics_variables" in state_tree:
+            composite_state["metrics_variables"] = state_tree[
+                "metrics_variables"
+            ]
 
         # Add metadata if specified
         if self.save_metadata is not None:
@@ -435,7 +394,7 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # --- Save Logic ---
         # Only save on the primary process (rank 0) in distributed setups
-        is_primary_host = backend.get_process_index() == 0
+        is_primary_host = process_id() == 0
 
         if is_primary_host:
             if self.verbose > 0:
@@ -540,7 +499,7 @@ class OrbaxCheckpoint(MonitorCallback):
             data iterator state dict if available, None otherwise.
         """
         # In distributed training, only load on primary process
-        if backend.get_process_index() != 0:
+        if process_id() != 0:
             return True  # Return True to indicate no error, but no loading
 
         if self.verbose > 0:
@@ -594,11 +553,18 @@ class OrbaxCheckpoint(MonitorCallback):
         """
         target_model = model if model is not None else self.model
 
-        # Check if this is the new flattened format
-        if "model_weights" in checkpoint_data and isinstance(
+        # Check if this is the new nested structure format
+        if "trainable_variables" in checkpoint_data and isinstance(
+            checkpoint_data["trainable_variables"], dict
+        ):
+            # New format: nested structures
+            return self._restore_from_nested_structures(
+                checkpoint_data, target_model
+            )
+        elif "model_weights" in checkpoint_data and isinstance(
             checkpoint_data["model_weights"], list
         ):
-            # New format: flattened values
+            # Old format: flattened values (for backward compatibility)
             return self._restore_from_flattened_values(
                 checkpoint_data, target_model
             )
@@ -617,8 +583,109 @@ class OrbaxCheckpoint(MonitorCallback):
             )
             return True
 
+    def _restore_from_nested_structures(self, checkpoint_data, target_model):
+        """Restore from the new nested structures format."""
+        # Ensure the target model is built so it has variables
+        if len(target_model.trainable_variables) == 0:
+            try:
+                # Try to build the model by doing a dummy forward pass
+                if (
+                    hasattr(target_model, "input_shape")
+                    and target_model.input_shape is not None
+                ):
+                    dummy_input_shape = target_model.input_shape
+                    if dummy_input_shape[0] is None:  # Batch dimension is None
+                        dummy_input = np.zeros((1,) + dummy_input_shape[1:])
+                    else:
+                        dummy_input = np.zeros(dummy_input_shape)
+                    target_model(dummy_input)
+            except Exception:
+                # If dummy forward pass fails, try build
+                try:
+                    if (
+                        hasattr(target_model, "input_shape")
+                        and target_model.input_shape is not None
+                    ):
+                        build_shape = target_model.input_shape
+                        if (
+                            isinstance(build_shape, (list, tuple))
+                            and len(build_shape) > 1
+                            and build_shape[0] is None
+                        ):
+                            build_shape = build_shape[1:]
+                        target_model.build(build_shape)
+                except Exception:
+                    # If building fails, continue anyway
+                    pass
+
+        # Prepare the state tree to restore
+        reconstructed_state = {}
+
+        # Restore trainable variables
+        if "trainable_variables" in checkpoint_data:
+            reconstructed_state["trainable_variables"] = checkpoint_data[
+                "trainable_variables"
+            ]
+
+        # Restore optimizer variables if available and model has optimizer
+        if (
+            "optimizer_variables" in checkpoint_data
+            and self.save_optimizer_state
+            and hasattr(target_model, "optimizer")
+            and target_model.optimizer is not None
+        ):
+            reconstructed_state["optimizer_variables"] = checkpoint_data[
+                "optimizer_variables"
+            ]
+
+        # Restore metrics variables if available
+        if "metrics_variables" in checkpoint_data and self.save_metrics_state:
+            reconstructed_state["metrics_variables"] = checkpoint_data[
+                "metrics_variables"
+            ]
+
+        # Use set_state_tree to restore the state
+        target_model.set_state_tree(reconstructed_state)
+
+        if self.verbose > 0:
+            print_msg("OrbaxCheckpoint: Successfully restored model state")
+        return True
+
     def _restore_from_flattened_values(self, checkpoint_data, target_model):
         """Restore from the new flattened values format."""
+        # Ensure the target model is built so it has variables
+        if len(target_model.trainable_variables) == 0:
+            try:
+                # Try to build the model by doing a dummy forward pass
+                if (
+                    hasattr(target_model, "input_shape")
+                    and target_model.input_shape is not None
+                ):
+                    dummy_input_shape = target_model.input_shape
+                    if dummy_input_shape[0] is None:  # Batch dimension is None
+                        dummy_input = np.zeros((1,) + dummy_input_shape[1:])
+                    else:
+                        dummy_input = np.zeros(dummy_input_shape)
+                    target_model(dummy_input)
+            except Exception:
+                # If dummy forward pass fails, try build
+                try:
+                    if (
+                        hasattr(target_model, "input_shape")
+                        and target_model.input_shape is not None
+                    ):
+                        build_shape = target_model.input_shape
+                        if (
+                            isinstance(build_shape, (list, tuple))
+                            and len(build_shape) > 1
+                            and build_shape[0] is None
+                        ):
+                            build_shape = build_shape[1:]
+                        target_model.build(build_shape)
+                except Exception:
+                    # If building fails, continue anyway
+                    pass
+
         # Get the target model's state tree structure (without convert_scalars)
         target_state_tree = target_model.get_state_tree(
             value_format="numpy_array"

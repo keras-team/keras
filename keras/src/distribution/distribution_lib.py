@@ -896,3 +896,19 @@ def set_distribution(value):
         value: a `Distribution` instance.
     """
     global_state.set_global_attribute(GLOBAL_ATTRIBUTE_NAME, value)
+
+
+@keras_export("keras.distribution.process_id")
+def process_id():
+    """Return the current process ID for the distribution setting.
+
+    Returns the index of the current process in a distributed setup.
+    Returns 0 if not in a distributed setup or if the backend doesn't
+    support distributed execution.
+
+    Returns:
+        int: The process ID (0 for primary process, >0 for others).
+    """
+    if distribution_lib is None:
+        return 0
+    return distribution_lib.process_id()
