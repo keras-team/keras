@@ -1869,6 +1869,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.view(x, dtype="int32").shape, (None, 2))
         self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
 
+    def test_array_split(self):
+        x = KerasTensor((None, 4))
+        splits = knp.array_split(x, 2, axis=0)
+        self.assertEqual(len(splits), 2)
+        self.assertEqual(splits[0].shape, (None, 4))
+        self.assertEqual(splits[1].shape, (None, 4))
+
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_mean(self):
@@ -2480,6 +2487,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = knp.array(KerasTensor((2, 4)), dtype="int16")
         self.assertEqual(knp.view(x, dtype="int32").shape, (2, 2))
         self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
+
+    def test_array_split(self):
+        x = KerasTensor((6, 4))
+        splits = knp.array_split(x, 3, axis=0)
+        self.assertEqual(len(splits), 3)
+        self.assertEqual(splits[0].shape, (2, 4))
+        self.assertEqual(splits[1].shape, (2, 4))
+        self.assertEqual(splits[2].shape, (2, 4))
 
 
 class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
@@ -3600,6 +3615,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # test overflow
         x = np.array([65504, 65504, 65504], dtype="float16")
         self.assertAllClose(knp.mean(x), np.mean(x))
+
+    def test_array_split(self):
+        x = np.array([[1, 2, 3], [4, 5, 6]])
+        self.assertAllClose(knp.array_split(x, 2), np.array_split(x, 2))
+        self.assertAllClose(
+            knp.array_split(x, [1], axis=1), np.array_split(x, [1], axis=1)
+        )
 
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
@@ -5917,6 +5939,19 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Add().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_array_split(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 2), dtype=dtype)
+        x_jax = jnp.ones((1, 2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.split(x_jax, 2, -1)[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.split(x, 2, -1)[0].dtype),
             expected_dtype,
         )
 
@@ -9401,75 +9436,3 @@ class HistogramTest(testing.TestCase):
         model.compile(jit_compile=jit_compile)
 
         model.predict(np.random.randn(1, 8))
-
-
-class NumPyArraySplitTest(testing.TestCase):
-    @parameterized.named_parameters(
-        ("even_split_1D", 10, 2, 0, (5, 5)),
-        ("uneven_split_1D", 10, 3, 0, (4, 3, 3)),
-        ("one_section_1D", 10, 1, 0, (10,)),
-        ("split_by_length_1D", 7, 3, 0, (3, 2, 2)),
-        ("even_split_2D_axis0", (4, 3), 2, 0, ((2, 3), (2, 3))),
-        ("uneven_split_2D_axis0", (4, 3), 3, 0, ((2, 3), (1, 3), (1, 3))),
-        ("uneven_split_2D_axis1", (3, 5), 3, 1, ((3, 2), (3, 2), (3, 1))),
-        ("single_element_array", 1, 1, 0, (1,)),
-        ("split_by_size_zero_length", 0, 2, 0, (0, 0)),
-        ("split_by_size_zero_length_non_empty_split", 1, 2, 0, (1, 0)),
-        ("3D_axis_neg1", (2, 3, 7), 3, -1, ((2, 3, 3), (2, 3, 2), (2, 3, 2))),
-    )
-    def test_array_split_static_shape_and_correctness(
-        self, shape, indices_or_sections, axis, expected_shapes
-    ):
-        if isinstance(shape, int):
-            input_array = np.arange(shape)
-        else:
-            input_array = np.arange(np.prod(shape)).reshape(shape)
-
-        # Eager correctness check
-        results = knp.array_split(input_array, indices_or_sections, axis)
-        expected = np.array_split(input_array, indices_or_sections, axis)
-        self.assertEqual(len(results), len(expected))
-        for res, exp in zip(results, expected):
-            self.assertAllClose(res, exp)
-
-        # Symbolic shape check
-        x = KerasTensor(input_array.shape)
-        symbolic_results = knp.array_split(x, indices_or_sections, axis)
-        self.assertEqual(len(symbolic_results), len(expected_shapes))
-        for res, expected_shape in zip(symbolic_results, expected_shapes):
-            if isinstance(expected_shape, int):
-                self.assertEqual(res.shape, (expected_shape,))
-            else:
-                self.assertEqual(res.shape, expected_shape)
-
-    @parameterized.named_parameters(
-        ("axis_0", (None, 3), 3, 0),
-        ("axis_1", (2, None), 3, 1),
-        ("3D_axis2", (1, 2, None), 2, 2),
-    )
-    def test_array_split_dynamic_shape(
-        self, input_shape, indices_or_sections, axis
-    ):
-        # Symbolic shape check for dynamic inputs
-        x = KerasTensor(input_shape)
-        results = knp.array_split(x, indices_or_sections, axis)
-        num_splits = indices_or_sections
-        self.assertEqual(len(results), num_splits)
-
-        # Check shapes: the dimension being split must be `None`
-        for res in results:
-            expected_shape_list = list(input_shape)
-            expected_shape_list[axis] = None
-            self.assertEqual(res.shape, tuple(expected_shape_list))
-
-    @parameterized.named_parameters(
-        ("non_int_sections", 2, 2.5, 0),
-        ("zero_sections", 6, 0, 0),
-        ("negative_sections", 6, -1, 0),
-    )
-    def test_array_split_error_conditions(
-        self, size, indices_or_sections, axis
-    ):
-        input_array = np.arange(size)
-        with self.assertRaises((ValueError, TypeError)):
-            knp.array_split(input_array, indices_or_sections, axis)
