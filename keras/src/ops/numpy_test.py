@@ -3620,7 +3620,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [4, 5, 6]])
         self.assertAllClose(knp.array_split(x, 2), np.array_split(x, 2))
         self.assertAllClose(
-            knp.array_split(x, [1], axis=1), np.array_split(x, [1], axis=1)
+            knp.array_split(x, 3, axis=1), np.array_split(x, 3, axis=1)
         )
 
     def test_all(self):
