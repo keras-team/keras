@@ -42,6 +42,10 @@ class JaxDistributionLibTest(testing.TestCase):
 
         return sharding
 
+    def test_get_device_count(self):
+        self.assertEqual(backend_dlib.get_device_count(), 8)
+        self.assertEqual(backend_dlib.get_device_count("cpu"), 8)
+
     def test_list_devices(self):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
