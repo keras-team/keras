@@ -21,16 +21,7 @@ def split_tensor_for_parallelism(tensor, index, device_count, dim):
         A tensor slice corresponding to the given `index`.
     """
     if dim == -1:
-        static_shape = getattr(tensor, "shape", None)
-        if static_shape is not None:
-            rank = len(static_shape)
-        else:
-            rank = None
-
-        if rank is not None:
-            split_dim = rank - 1
-        else:
-            split_dim = ops.ndim(tensor) - 1
+        split_dim = ops.ndim(tensor) - 1
     else:
         split_dim = dim
 
