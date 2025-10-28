@@ -535,14 +535,14 @@ def all_reduce(x, op="sum", axis_name="model"):
     Performs an **all-reduce** operation across all replicas in the specified
     distribution axis.
 
-    The all-reduce operation computes a reduction (like sum, mean, or product)
+    The all-reduce operation computes a reduction (like sum or mean)
     of the input tensor `x` across all devices/replicas in the `axis_name`
     group, and then broadcasts the result back to all participating devices.
 
     Args:
         x: The tensor to reduce.
-        op: The reduction operation to perform. Common options include "sum",
-            "mean", or "product". Defaults to "sum".
+        op: The reduction operation to perform. Common options include "sum"
+            and "mean". Defaults to "sum".
         axis_name: The name of the distribution axis (e.g., "model",
             "data") over which to perform the reduction. Defaults to "model".
 
