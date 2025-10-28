@@ -39,21 +39,6 @@ def list_devices(device_type=None):
     return distribution_lib.list_devices(device_type)
 
 
-@keras_export("keras.distribution.get_device_count")
-def get_device_count(device_type=None):
-    """Returns the total number of available devices.
-
-    Args:
-        device_type: Optional device type to count (e.g., "cpu",
-             "gpu", "tpu"). If `None`, it counts all available
-             devices.
-
-    Returns:
-        int: The total number of available devices.
-    """
-    return distribution_lib.get_device_count(device_type=device_type)
-
-
 @keras_export("keras.distribution.initialize")
 def initialize(job_addresses=None, num_processes=None, process_id=None):
     """Initialize the distribution system for multi-host/process setting.

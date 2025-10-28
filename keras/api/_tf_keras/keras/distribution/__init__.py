@@ -15,9 +15,6 @@ from keras.src.distribution.distribution_lib import (
     distribute_tensor as distribute_tensor,
 )
 from keras.src.distribution.distribution_lib import distribution as distribution
-from keras.src.distribution.distribution_lib import (
-    get_device_count as get_device_count,
-)
 from keras.src.distribution.distribution_lib import initialize as initialize
 from keras.src.distribution.distribution_lib import list_devices as list_devices
 from keras.src.distribution.distribution_lib import (
