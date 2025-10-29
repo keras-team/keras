@@ -41,15 +41,14 @@ def list_devices(device_type=None):
 
 @keras_export("keras.distribution.get_device_count")
 def get_device_count(device_type=None):
-    """Returns the total number of available devices.
-
+    """Returns the number of available JAX devices.
     Args:
-        device_type: Optional device type to count (e.g., "cpu",
-             "gpu", "tpu"). If `None`, it counts all available
-             devices.
-
+        device_type: Optional device type to count (e.g., "cpu", "gpu", "tpu").
+            If `None`, it defaults to counting "gpu" or "tpu" devices if
+            available, otherwise it counts "cpu" devices. It does not
+            return the sum of all device types.
     Returns:
-        int: The total number of available devices.
+        int: The total number of JAX devices for the specified type.
     """
     return distribution_lib.get_device_count(device_type=device_type)
 
