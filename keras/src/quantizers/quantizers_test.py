@@ -544,10 +544,9 @@ class QuantizersTest(testing.TestCase):
 
                 _, f_vjp = jax.vjp(quantize_fn, inputs)
 
-                # NOTE: When python version >= 3.10, the gradients are at
-                # `f_vjp.args[0].args[0][0]`. Otherwise, they are at
-                # `f_vjp.args[0].args[0][1]`.
-                if sys.version_info >= (3, 10):
+                if getattr(jax.config, "jax_vjp3", False):
+                    input_gradients = f_vjp.opaque_residuals[0]
+                elif sys.version_info >= (3, 10):
                     input_gradients = f_vjp.args[0].args[0][0]
                 else:
                     input_gradients = f_vjp.args[0].args[0][1]
