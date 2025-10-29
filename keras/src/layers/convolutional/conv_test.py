@@ -1100,7 +1100,6 @@ class ConvCorrectnessTest(testing.TestCase):
         x = np.random.rand(3, 4, 4, 4)
         l = layers.Conv2D(6, [5, 5], 1, "valid")
         # The exception type can vary across backends (e.g., ValueError,
-        # tf.errors.InvalidArgumentError, RuntimeError). A generic Exception
-        # check with a message assertion is more robust.
+        # tf.errors.InvalidArgumentError, RuntimeError).
         with self.assertRaises(Exception):
             l(x)
