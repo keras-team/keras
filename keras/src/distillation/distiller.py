@@ -39,7 +39,7 @@ class Distiller(Model):
         teacher: The teacher model providing knowledge. This model is frozen
             during training.
 
-    Examlpe(s):
+    Examples:
 
     ```python
     # Basic distillation with KerasHub models
