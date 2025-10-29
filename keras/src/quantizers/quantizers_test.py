@@ -544,7 +544,7 @@ class QuantizersTest(testing.TestCase):
 
                 _, f_vjp = jax.vjp(quantize_fn, inputs)
 
-                if jax.config.jax_vjp3:
+                if getattr(jax.config, "jax_vjp3", False):
                     input_gradients = f_vjp.opaque_residuals[0]
                 elif sys.version_info >= (3, 10):
                     input_gradients = f_vjp.args[0].args[0][0]
