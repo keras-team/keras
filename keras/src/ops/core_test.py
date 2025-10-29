@@ -641,7 +641,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
     )
     def test_custom_gradient_with_variable(self):
         """Test that custom_gradient works with Variables in JAX backend.
-        
+
         This addresses issue #21105 where passing Variables to custom_gradient
         functions would fail because JAX would capture the Variable object
         instead of its value.
@@ -652,15 +652,15 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             """Custom gradient function that uses a Variable."""
             scaling = ops.exp(log_scaling)
             rounded = ops.round(x * scaling) / scaling
-            
+
             def grad(*args, upstream=None):
                 if upstream is None:
                     (upstream,) = args
                 # Straight-through estimator: gradient passes through
                 return upstream, ops.zeros_like(log_scaling)
-            
+
             return rounded, grad
-        
+
         # Create a simple model with a Variable
         class QuantizedLayer(layers.Layer):
             def __init__(self, **kwargs):
@@ -671,32 +671,32 @@ class CoreOpsCorrectnessTest(testing.TestCase):
                     initializer="zeros",
                     trainable=True,
                 )
-            
+
             def call(self, x):
                 # This should work without needing to manually add .value
                 return roundpass(x, self.log_scaling)
-        
+
         # Build a simple model
         inputs = input_layer.Input(shape=(4,))
         x = QuantizedLayer()(inputs)
         outputs = layers.Dense(2)(x)
         model = models.Model(inputs, outputs)
-        
+
         # Compile the model
         model.compile(
             optimizer=optimizers.Adam(),
             loss=losses.MeanSquaredError(),
         )
-        
+
         # Create dummy data
         x_train = np.random.randn(32, 4).astype("float32")
         y_train = np.random.randn(32, 2).astype("float32")
-        
+
         # Train for one step - this should not raise TypeError
         history = model.fit(
             x_train, y_train, epochs=1, batch_size=32, verbose=0
         )
-        
+
         self.assertIsNotNone(history)
 
     def test_dynamic_slice(self):
