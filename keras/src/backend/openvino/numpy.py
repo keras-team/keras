@@ -2015,65 +2015,27 @@ def split(x, indices_or_sections, axis=0):
 
 
 def array_split(x, indices_or_sections, axis=0):
+    original_shape = x.shape
     x = get_ov_output(x)
 
-    if not isinstance(indices_or_sections, int):
-        raise TypeError(
-            "Argument `indices_or_sections` must be of type `int`. "
-            f"Received: {indices_or_sections}"
-        )
-    if indices_or_sections <= 0:
-        raise ValueError(
-            "Argument `indices_or_sections` must be a positive integer. "
-            f"Received: {indices_or_sections}"
-        )
-
     num_splits_val = indices_or_sections
-    num_splits = ov_opset.constant(
-        np.array(num_splits_val, dtype=np.int64)
+    total_size = original_shape[axis]
+    if total_size is None:
+        raise ValueError(
+            f"Cannot use array_split with static Python logic on a dynamic axis. "
+            f"Axis {axis} has unknown dimension (None) for shape {original_shape}."
+        )
+
+    base_size = total_size // num_splits_val
+    remainder = total_size % num_splits_val
+
+    split_lengths = [base_size + 1] * remainder + [base_size] * (num_splits_val - remainder)
+    split_lengths_tensor = ov_opset.constant(
+        split_lengths, dtype=Type.i64
     ).output(0)
-
-    axis_tensor = ov_opset.constant(np.array(axis, dtype=np.int64)).output(0)
-
-    zero_scalar = ov_opset.constant(np.array(0, dtype=np.int64)).output(0)
-
-    one_scalar = ov_opset.constant(np.array(1, dtype=np.int64)).output(0)
-
-    shape_tensor = ov_opset.shape_of(x, Type.i64).output(0)
-    axis_i64_vec = ov_opset.constant([axis], dtype=Type.i64).output(0)
-
-    total_size_tensor_vec = ov_opset.gather(
-        shape_tensor, axis_i64_vec, zero_scalar
-    ).output(0)
-
-    total_size = ov_opset.squeeze(total_size_tensor_vec, zero_scalar).output(0)
-
-    split_size = ov_opset.divide(
-        total_size, num_splits, auto_broadcast="NUMPY"
-    ).output(0)
-
-    remainder = ov_opset.mod(
-        total_size, num_splits, auto_broadcast="NUMPY"
-    ).output(0)
-
-    splits_shape = ov_opset.constant([num_splits_val], dtype=Type.i64).output(0)
-    all_splits_base = ov_opset.broadcast(split_size, splits_shape).output(0)
-
-    range_splits = ov_opset.range(
-        zero_scalar,
-        num_splits,
-        one_scalar,
-        Type.i64,
-    ).output(0)
-
-    remainder_bcast = ov_opset.broadcast(remainder, splits_shape).output(0)
-
-    add_one_mask = ov_opset.less(range_splits, remainder_bcast).output(0)
-
-    add_one_values = ov_opset.convert(add_one_mask, Type.i64).output(0)
-
-    split_lengths = ov_opset.add(all_splits_base, add_one_values).output(0)
-    splits = ov_opset.variadic_split(x, axis_tensor, split_lengths)
+    
+    axis_tensor = ov_opset.constant(axis, dtype=Type.i32).output(0)
+    splits = ov_opset.variadic_split(x, axis_tensor, split_lengths_tensor)
 
     result = []
     for i in range(num_splits_val):

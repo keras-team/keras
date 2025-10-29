@@ -2489,11 +2489,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
 
     def test_array_split(self):
-        x = KerasTensor((6, 4))
+        x = KerasTensor((8, 4))
         splits = knp.array_split(x, 3, axis=0)
         self.assertEqual(len(splits), 3)
-        self.assertEqual(splits[0].shape, (2, 4))
-        self.assertEqual(splits[1].shape, (2, 4))
+        self.assertEqual(splits[0].shape, (3, 4))
+        self.assertEqual(splits[1].shape, (3, 4))
         self.assertEqual(splits[2].shape, (2, 4))
 
 
