@@ -128,19 +128,20 @@ class Muon(optimizer.Optimizer):
         self.exclude_embeddings = exclude_embeddings
         self.exclude_layers = exclude_layers or []
 
-
     def _should_use_adamw(self, variable):
         """
         To use it with 4D convolutional filters,
         it works well to just flatten their last 3 dimensions.
-        any {0,1}-D parameters should all be optimized by adam 
+        any {0,1}-D parameters should all be optimized by adam
         """
         # Use Adam for scalar or vector parameters
-        if not 1 < len(variable.shape) <5:
+        if not 1 < len(variable.shape) < 5:
             return True
 
         # Exclude embedding layers if specified
-        var_identifier = getattr(variable, "name", "") or getattr(variable, "path", "")
+        var_identifier = getattr(variable, "name", "") or getattr(
+            variable, "path", ""
+        )
         if self.exclude_embeddings and "embedding" in var_identifier.lower():
             return True
 
@@ -155,7 +156,6 @@ class Muon(optimizer.Optimizer):
 
         # Otherwise, use AdamW
         return False
-
 
     def build(self, var_list):
         """Initialize optimizer variables.

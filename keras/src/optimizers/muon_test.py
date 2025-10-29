@@ -3,7 +3,8 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
-from keras.src.layers import Dense, Embedding
+from keras.src.layers import Dense
+from keras.src.layers import Embedding
 from keras.src.optimizers.muon import Muon
 
 
@@ -61,7 +62,9 @@ class MuonTest(testing.TestCase):
         var = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         optimizer.build([var])
         optimizer._muon_update_step(grads, var, 0.5)
-        self.assertAllClose(var, [[1.13, 1.51], [2.57, 4.06]], rtol=1e-2, atol=1e-2)
+        self.assertAllClose(
+            var, [[1.13, 1.51], [2.57, 4.06]], rtol=1e-2, atol=1e-2
+        )
 
     def test_clip_norm(self):
         optimizer = Muon(clipnorm=1)
@@ -76,7 +79,8 @@ class MuonTest(testing.TestCase):
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
 
     def test_no_path_attribute_error(self):
-        """Ensure compatibility with TF 2.16+ ResourceVariable (no .path)."""
+        """Ensure compatibility with TF 2.16+
+        ResourceVariable (no .path)."""
         optimizer = Muon()
         var = backend.Variable([1.0, 2.0], name="test_var")
         try:
