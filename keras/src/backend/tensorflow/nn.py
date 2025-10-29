@@ -310,7 +310,7 @@ def conv(
 ):
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
-        return tf.nn.convolution(
+        result = tf.nn.convolution(
             inputs,
             kernel,
             strides,
@@ -318,6 +318,13 @@ def conv(
             data_format=tf_data_format,
             dilations=dilation_rate,
         )
+        if any(dim == 0 for dim in result.shape):
+            raise ValueError(
+                f"Convolution produced an output with size 0 dimension: "
+                f"{result.shape}. Kernel size "
+                f"cannot be greater than the padded input size."
+            )
+        return result
 
     # Certain ops are are broken in Tensorflow on CPU only.
     # We can work around by compiling the op with XLA.

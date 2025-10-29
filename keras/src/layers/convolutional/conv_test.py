@@ -1095,3 +1095,11 @@ class ConvCorrectnessTest(testing.TestCase):
         )
         layer.build((None, 5, 5, 3))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
+
+    def test_conv_raises_exception_on_zero_dims(self):
+        x = np.random.rand(3, 4, 4, 4)
+        l = layers.Conv2D(6, [5, 5], 1, "valid")
+        with self.assertRaisesRegex(
+            ValueError, "Convolution produced an output with size 0 dimension"
+        ):
+            l(x)
