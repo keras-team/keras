@@ -318,13 +318,19 @@ def conv(
             data_format=tf_data_format,
             dilations=dilation_rate,
         )
-        if any(dim == 0 for dim in result.shape):
-            raise ValueError(
-                f"Convolution produced an output with size 0 dimension: "
-                f"{result.shape}. Kernel size "
-                f"cannot be greater than the padded input size."
-            )
-        return result
+        result_shape = tf.shape(result)
+        assertion = tf.Assert(
+            tf.reduce_all(result_shape > 0),
+            [
+                "Convolution produced an output with size 0 dimension. "
+                "Output shape:",
+                result_shape,
+                ". This is likely because the kernel size is larger than the "
+                "input size when using 'valid' padding.",
+            ],
+        )
+        with tf.control_dependencies([assertion]):
+            return tf.identity(result)
 
     # Certain ops are are broken in Tensorflow on CPU only.
     # We can work around by compiling the op with XLA.
