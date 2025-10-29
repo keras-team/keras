@@ -593,17 +593,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     provided, they will be automatically computed.
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
-                - `litert_kwargs`: Optional `dict`. Specific to
-                    `format="litert"`. A dictionary containing LiteRT export
-                    parameters. Can include:
-                    - `allow_custom_ops`: Optional `bool`. Whether to allow
-                        custom operations during conversion. Defaults to
-                        `False`.
-                    - `enable_select_tf_ops`: Optional `bool`. Whether to
-                        enable TensorFlow Select ops for unsupported
-                        operations. Defaults to `False`.
-                    - `optimizations`: Optional `list`. List of optimizations
-                        to apply (e.g., `[tf.lite.Optimize.DEFAULT]`).
+                - LiteRT-specific options: Optional keyword arguments specific
+                    to `format="litert"`. These are passed directly to the
+                    TensorFlow Lite converter and include options like
+                    `optimizations`, `representative_dataset`,
+                    `experimental_new_quantizer`, `allow_custom_ops`,
+                    `enable_select_tf_ops`, etc. See TensorFlow Lite
+                    documentation for all available options.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -701,13 +697,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 **kwargs,
             )
         elif format == "litert":
-            litert_kwargs = kwargs.pop("litert_kwargs", {})
             export_litert(
                 self,
                 filepath,
                 verbose=verbose,
                 input_signature=input_signature,
-                **litert_kwargs,
                 **kwargs,
             )
 

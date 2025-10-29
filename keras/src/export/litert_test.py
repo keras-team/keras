@@ -452,6 +452,285 @@ class ExportLitertTest(testing.TestCase):
 
         self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
 
+    def test_export_with_optimizations_default(self):
+        """Test export with DEFAULT optimization."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        model = get_model("sequential")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "optimized_default.tflite"
+        )
+
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        # Export with DEFAULT optimization
+        model.export(
+            temp_filepath,
+            format="litert",
+            optimizations=[tensorflow.lite.Optimize.DEFAULT],
+        )
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify inference still works
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        _set_interpreter_inputs(interpreter, ref_input)
+        interpreter.invoke()
+        litert_output = _get_interpreter_outputs(interpreter)
+
+        # Quantized model should be close but not exact
+        self.assertAllClose(ref_output, litert_output, atol=1e-2, rtol=1e-2)
+
+    def test_export_with_optimizations_sparsity(self):
+        """Test export with EXPERIMENTAL_SPARSITY optimization."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        model = get_model("functional")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "optimized_sparsity.tflite"
+        )
+
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+
+        # Export with EXPERIMENTAL_SPARSITY optimization
+        model.export(
+            temp_filepath,
+            format="litert",
+            optimizations=[tensorflow.lite.Optimize.EXPERIMENTAL_SPARSITY],
+        )
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify the model can run inference
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        _set_interpreter_inputs(interpreter, ref_input)
+        interpreter.invoke()
+        litert_output = _get_interpreter_outputs(interpreter)
+
+        # Output should have valid shape
+        self.assertEqual(litert_output.shape, (batch_size, 1))
+
+    def test_export_with_optimizations_size(self):
+        """Test export with OPTIMIZE_FOR_SIZE optimization."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        model = get_model("sequential")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "optimized_size.tflite"
+        )
+
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+
+        # Export with OPTIMIZE_FOR_SIZE
+        model.export(
+            temp_filepath,
+            format="litert",
+            optimizations=[tensorflow.lite.Optimize.OPTIMIZE_FOR_SIZE],
+        )
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify the model can run inference
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        _set_interpreter_inputs(interpreter, ref_input)
+        interpreter.invoke()
+        litert_output = _get_interpreter_outputs(interpreter)
+
+        self.assertEqual(litert_output.shape, (batch_size, 1))
+
+    def test_export_with_optimizations_latency(self):
+        """Test export with OPTIMIZE_FOR_LATENCY optimization."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        model = get_model("functional")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "optimized_latency.tflite"
+        )
+
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+
+        # Export with OPTIMIZE_FOR_LATENCY
+        model.export(
+            temp_filepath,
+            format="litert",
+            optimizations=[tensorflow.lite.Optimize.OPTIMIZE_FOR_LATENCY],
+        )
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify the model can run inference
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        _set_interpreter_inputs(interpreter, ref_input)
+        interpreter.invoke()
+        litert_output = _get_interpreter_outputs(interpreter)
+
+        self.assertEqual(litert_output.shape, (batch_size, 1))
+
+    def test_export_with_multiple_optimizations(self):
+        """Test export with multiple optimization options combined."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        model = get_model("sequential")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "optimized_multiple.tflite"
+        )
+
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+
+        # Export with multiple optimizations
+        model.export(
+            temp_filepath,
+            format="litert",
+            optimizations=[
+                tensorflow.lite.Optimize.DEFAULT,
+                tensorflow.lite.Optimize.EXPERIMENTAL_SPARSITY,
+            ],
+        )
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify the model can run inference
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        _set_interpreter_inputs(interpreter, ref_input)
+        interpreter.invoke()
+        litert_output = _get_interpreter_outputs(interpreter)
+
+        self.assertEqual(litert_output.shape, (batch_size, 1))
+
+    def test_export_with_representative_dataset(self):
+        """Test export with representative dataset for better quantization."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        model = get_model("functional")
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_model.tflite"
+        )
+
+        # Create representative dataset
+        def representative_dataset():
+            for _ in range(10):
+                yield [np.random.normal(size=(1, 10)).astype("float32")]
+
+        # Export with optimizations and representative dataset
+        model.export(
+            temp_filepath,
+            format="litert",
+            optimizations=[tensorflow.lite.Optimize.DEFAULT],
+            representative_dataset=representative_dataset,
+        )
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify the model can run inference
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        _set_interpreter_inputs(interpreter, ref_input)
+        interpreter.invoke()
+        litert_output = _get_interpreter_outputs(interpreter)
+
+        # Output should have valid shape
+        self.assertEqual(litert_output.shape, (batch_size, 1))
+
+    def test_export_with_multiple_kwargs(self):
+        """Test export with multiple converter kwargs."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        # Create a larger model for quantization testing
+        inputs = layers.Input(shape=(28, 28, 3))
+        x = layers.Conv2D(32, 3, activation="relu")(inputs)
+        x = layers.MaxPooling2D()(x)
+        x = layers.Flatten()(x)
+        x = layers.Dense(10, activation="softmax")(x)
+        model = models.Model(inputs, x)
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "multi_kwargs_model.tflite"
+        )
+
+        # Create representative dataset
+        def representative_dataset():
+            for _ in range(5):
+                yield [np.random.normal(size=(1, 28, 28, 3)).astype("float32")]
+
+        # Export with multiple kwargs
+        model.export(
+            temp_filepath,
+            format="litert",
+            optimizations=[tensorflow.lite.Optimize.DEFAULT],
+            representative_dataset=representative_dataset,
+            experimental_new_quantizer=True,
+        )
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify file size is reduced compared to non-quantized
+        file_size = os.path.getsize(temp_filepath)
+        self.assertGreater(file_size, 0)
+
+    def test_export_optimization_file_size_comparison(self):
+        """Test that optimizations reduce file size."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        # Create a larger model to see size differences
+        inputs = layers.Input(shape=(28, 28, 3))
+        x = layers.Conv2D(64, 3, activation="relu")(inputs)
+        x = layers.Conv2D(64, 3, activation="relu")(x)
+        x = layers.MaxPooling2D()(x)
+        x = layers.Flatten()(x)
+        x = layers.Dense(128, activation="relu")(x)
+        x = layers.Dense(10, activation="softmax")(x)
+        model = models.Model(inputs, x)
+
+        # Export without optimization
+        filepath_no_opt = os.path.join(
+            self.get_temp_dir(), "model_no_opt.tflite"
+        )
+        model.export(filepath_no_opt, format="litert")
+
+        # Export with optimization
+        filepath_with_opt = os.path.join(
+            self.get_temp_dir(), "model_with_opt.tflite"
+        )
+        model.export(
+            filepath_with_opt,
+            format="litert",
+            optimizations=[tensorflow.lite.Optimize.DEFAULT],
+        )
+
+        # Optimized model should be smaller
+        size_no_opt = os.path.getsize(filepath_no_opt)
+        size_with_opt = os.path.getsize(filepath_with_opt)
+
+        self.assertLess(
+            size_with_opt,
+            size_no_opt,
+            f"Optimized model ({size_with_opt} bytes) should be smaller "
+            f"than non-optimized ({size_no_opt} bytes)",
+        )
+
+        # Typically expect ~75% size reduction with quantization
+        reduction_ratio = size_with_opt / size_no_opt
+        self.assertLess(
+            reduction_ratio,
+            0.5,  # Should be less than 50% of original size
+            f"Expected significant size reduction, got {reduction_ratio:.2%}",
+        )
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
