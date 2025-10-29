@@ -27,9 +27,8 @@ pip install keras --upgrade
 
 2. Install backend package(s).
 
-To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
-Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
-as well as `tf.data` pipelines.
+To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`. Additionally,
+The `openvino` backend is available with support for model inference only.
 
 ### Local installation
 
