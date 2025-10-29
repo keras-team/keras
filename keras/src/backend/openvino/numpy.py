@@ -2022,18 +2022,20 @@ def array_split(x, indices_or_sections, axis=0):
     total_size = original_shape[axis]
     if total_size is None:
         raise ValueError(
-            f"Cannot use array_split with static Python logic on a dynamic axis. "
-            f"Axis {axis} has unknown dimension (None) for shape {original_shape}."
+            f"Cannot use array_split with static Python logic on dynamic axis. "
+            f"Axis {axis} has unknown dimension for shape {original_shape}."
         )
 
     base_size = total_size // num_splits_val
     remainder = total_size % num_splits_val
 
-    split_lengths = [base_size + 1] * remainder + [base_size] * (num_splits_val - remainder)
+    split_lengths = [base_size + 1] * remainder + [base_size] * (
+        num_splits_val - remainder
+    )
     split_lengths_tensor = ov_opset.constant(
         split_lengths, dtype=Type.i64
     ).output(0)
-    
+
     axis_tensor = ov_opset.constant(axis, dtype=Type.i32).output(0)
     splits = ov_opset.variadic_split(x, axis_tensor, split_lengths_tensor)
 
