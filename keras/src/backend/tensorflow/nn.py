@@ -322,11 +322,12 @@ def conv(
         assertion = tf.Assert(
             tf.reduce_all(result_shape > 0),
             [
-                "Convolution produced an output with size 0 dimension. "
+                "The convolution operation resulted in an empty output. "
                 "Output shape:",
                 result_shape,
-                ". This is likely because the kernel size is larger than the "
-                "input size when using 'valid' padding.",
+                ". This can happen if the input is too small for the given "
+                "kernel size, strides, dilation rate, and padding mode. "
+                "Please check the input shape and convolution parameters.",
             ],
         )
         with tf.control_dependencies([assertion]):
