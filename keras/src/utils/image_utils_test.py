@@ -29,7 +29,6 @@ class SaveImgTest(testing.TestCase, parameterized.TestCase):
             save_img(path, img)  # Let it infer from path
 
         self.assertTrue(os.path.exists(path))
-
         # Verify saved image is correctly converted to RGB if needed
         loaded_img = load_img(path)
         loaded_array = img_to_array(loaded_img)

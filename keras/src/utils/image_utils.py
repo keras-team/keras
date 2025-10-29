@@ -463,7 +463,7 @@ def smart_resize(
     img = backend_module.image.resize(
         img, size=size, interpolation=interpolation, data_format=data_format
     )
-
+    
     if isinstance(x, np.ndarray):
         return np.array(img)
     return img
