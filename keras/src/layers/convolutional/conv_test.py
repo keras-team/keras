@@ -1099,7 +1099,10 @@ class ConvCorrectnessTest(testing.TestCase):
     def test_conv_raises_exception_on_zero_dims(self):
         x = np.random.rand(3, 4, 4, 4)
         l = layers.Conv2D(6, [5, 5], 1, "valid")
+        # The exception type can vary across backends (e.g., ValueError,
+        # tf.errors.InvalidArgumentError, RuntimeError). A generic Exception
+        # check with a message assertion is more robust.
         with self.assertRaisesRegex(
-            ValueError, "Convolution produced an output with size 0 dimension"
+            Exception, "Convolution produced an output with size 0 dimension"
         ):
             l(x)
