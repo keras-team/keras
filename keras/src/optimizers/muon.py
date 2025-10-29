@@ -129,32 +129,26 @@ class Muon(optimizer.Optimizer):
         self.exclude_layers = exclude_layers or []
 
     def _should_use_adamw(self, variable):
-        """
-        To use it with 4D convolutional filters,
-        it works well to just flatten their last 3 dimensions.
-        any {0,1}-D parameters should all be optimized by adam
-        """
-        # Use Adam for scalar or vector parameters
+        # To use it with 4D convolutional filters,
+        # it works well to just flatten their last 3 dimensions.
+        # any {0,1}-D parameters should all be optimized by adam
         if not 1 < len(variable.shape) < 5:
             return True
 
-        # Exclude embedding layers if specified
-        var_identifier = getattr(variable, "name", "") or getattr(
-            variable, "path", ""
-        )
+        # Get variable identifier (use .name in Keras 3+)
+        var_identifier = variable.name
+
+        # Check if embedding layer should be excluded
         if self.exclude_embeddings and "embedding" in var_identifier.lower():
             return True
 
-        # Exclude variables matching any of the excluded layer patterns
-        for keyword in getattr(self, "exclude_layers", []):
+        # Check if variable matches any excluded layer patterns
+        for keyword in self.exclude_layers:
             try:
                 if re.search(keyword, var_identifier):
                     return True
             except re.error:
-                # Skip invalid regex patterns
                 continue
-
-        # Otherwise, use AdamW
         return False
 
     def build(self, var_list):

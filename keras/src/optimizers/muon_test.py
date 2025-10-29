@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from keras.src import backend
 from keras.src import ops
@@ -28,33 +29,38 @@ class MuonTest(testing.TestCase):
         optimizer._adamw_update_step(grads, var, 0.5)
         self.assertAllClose(var, [0.5, 1.5, 2.5, 3.5], rtol=1e-4, atol=1e-4)
 
-    def test_should_use_adamw(self):
-        # Excluded layer test
-        var = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        optimizer = Muon(exclude_layers=["var"])
-        self.assertTrue(optimizer._should_use_adamw(var))
+    def test_should_use_adamw_excluded_layer(self):
+        """Ensure exclude_layers keyword works and no .path is accessed."""
+        optimizer = Muon(exclude_layers=["dense"])
+        dummy_var = backend.Variable(
+            [[1.0, 2.0], [3.0, 4.0]], name="dense_kernel_0"
+        )
+        result = optimizer._should_use_adamw(dummy_var)
+        self.assertTrue(result)
 
-        # Embedding test
+    def test_should_use_adamw_embedding(self):
+        """Embedding layer should use AdamW when exclude_embeddings=True."""
         embedding = Embedding(2, 2)
         embedding.build()
         optimizer = Muon(exclude_embeddings=True)
-        self.assertTrue(optimizer._should_use_adamw(embedding.weights[0]))
+        result = optimizer._should_use_adamw(embedding.weights[0])
+        self.assertTrue(result)
 
-        # 2D variable not excluded
-        var2 = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        optimizer = Muon()
-        self.assertFalse(optimizer._should_use_adamw(var2))
-
-        # Dense layer
-        dense = Dense(2)
-        dense.build([None, 2])
-        self.assertFalse(optimizer._should_use_adamw(dense.weights[0]))
-
-        # Dimension rules
+    def test_should_use_adamw_dimension_rule(self):
+        """Variables with dimensions not between 2–4 use AdamW."""
         v_1d = backend.Variable([1.0, 2.0], name="v1d")
         v_5d = backend.Variable(np.zeros((2, 2, 2, 2, 2)), name="v5d")
+        optimizer = Muon()
         self.assertTrue(optimizer._should_use_adamw(v_1d))
         self.assertTrue(optimizer._should_use_adamw(v_5d))
+
+    def test_should_use_adamw_dense_layer(self):
+        """2D dense layer weights should use Muon (False)."""
+        dense = Dense(2)
+        dense.build([None, 2])
+        optimizer = Muon()
+        result = optimizer._should_use_adamw(dense.weights[0])
+        self.assertFalse(result)
 
     def test_muon_single_step(self):
         optimizer = Muon(learning_rate=0.5, weight_decay=0)
@@ -79,10 +85,12 @@ class MuonTest(testing.TestCase):
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
 
     def test_no_path_attribute_error(self):
-        """Ensure compatibility with TF 2.16+
-        ResourceVariable (no .path)."""
+        """Ensure compatibility with TF 2.16+ where
+        ResourceVariable has no .path."""
         optimizer = Muon()
-        var = backend.Variable([1.0, 2.0], name="test_var")
+        var = tf.Variable([1.0, 2.0], name="test_var")
+        # Force-run method that caused AttributeError in issue #21793
+
         try:
             result = optimizer._should_use_adamw(var)
             self.assertIn(result, [True, False])
