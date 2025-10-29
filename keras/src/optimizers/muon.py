@@ -132,13 +132,25 @@ class Muon(optimizer.Optimizer):
         # To use it with 4D convolutional filters,
         # it works well to just flatten their last 3 dimensions.
         # any {0,1}-D parameters should all be optimized by adam
-        if not 1 < len(variable.shape) < 4:
+        if not 1 < len(variable.shape) < 5:
             return True
-        if self.exclude_embeddings and "embedding" in variable.path.lower():
+
+        # Get variable identifier (use .name in Keras 3+)
+        var_identifier = variable.name
+
+        # Check if embedding layer should be excluded
+        if self.exclude_embeddings and "embedding" in var_identifier.lower():
             return True
+
+        # Check if variable matches any excluded layer patterns
         for keyword in self.exclude_layers:
-            if re.search(keyword, variable.path):
-                return True
+            try:
+                if re.search(keyword, var_identifier):
+                    return True
+            except re.error:
+                # Skip invalid regex patterns in exclude_layers
+                continue
+
         return False
 
     def build(self, var_list):
@@ -161,13 +173,13 @@ class Muon(optimizer.Optimizer):
 
         for var in var_list:
             if not self._overwrite_variable_with_gradient(var):
-                self.adam_momentums[var.path] = (
+                self.adam_momentums[var.name] = (
                     self.add_variable_from_reference(
                         reference_variable=var, name="momentum"
                     )
                 )
                 if self._should_use_adamw(var):
-                    self.adam_velocities[var.path] = (
+                    self.adam_velocities[var.name] = (
                         self.add_variable_from_reference(
                             reference_variable=var, name="velocity"
                         )
@@ -183,7 +195,7 @@ class Muon(optimizer.Optimizer):
             self._muon_update_step(gradient, variable, learning_rate)
 
     def _muon_update_step(self, gradient, variable, lr):
-        m = self.adam_momentums[variable.path]
+        m = self.adam_momentums[variable.name]
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
         shape = variable.shape
         if self.nesterov:
@@ -210,8 +222,8 @@ class Muon(optimizer.Optimizer):
             ops.cast(self.adam_beta_2, variable.dtype), local_step
         )
 
-        m = self.adam_momentums[variable.path]
-        v = self.adam_velocities[variable.path]
+        m = self.adam_momentums[variable.name]
+        v = self.adam_velocities[variable.name]
 
         alpha = lr * ops.sqrt(1 - adam_beta_2_power) / (1 - adam_beta_1_power)
 
