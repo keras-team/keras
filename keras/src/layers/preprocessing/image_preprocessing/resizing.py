@@ -101,6 +101,19 @@ class Resizing(BaseImagePreprocessingLayer):
             self.width_axis = -2
 
     def transform_images(self, images, transformation=None, training=True):
+        # Compute effective crop flag:
+        # only crop if aspect ratios differ and flag is True
+        input_height, input_width = transformation
+        source_aspect_ratio = input_width / input_height
+        target_aspect_ratio = self.width / self.height
+        # Use a small epsilon for floating-point comparison
+        aspect_ratios_match = (
+            abs(source_aspect_ratio - target_aspect_ratio) < 1e-6
+        )
+        effective_crop_to_aspect_ratio = (
+            self.crop_to_aspect_ratio and not aspect_ratios_match
+        )
+
         size = (self.height, self.width)
         resized = self.backend.image.resize(
             images,
@@ -108,7 +121,7 @@ class Resizing(BaseImagePreprocessingLayer):
             interpolation=self.interpolation,
             antialias=self.antialias,
             data_format=self.data_format,
-            crop_to_aspect_ratio=self.crop_to_aspect_ratio,
+            crop_to_aspect_ratio=effective_crop_to_aspect_ratio,
             pad_to_aspect_ratio=self.pad_to_aspect_ratio,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
