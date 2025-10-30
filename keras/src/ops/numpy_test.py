@@ -4136,6 +4136,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_view(self):
+        x = np.array(1, dtype="int16")
+        result = knp.view(x, dtype="float16")
+        assert backend.standardize_dtype(result.dtype) == "float16"
+
+        with self.assertRaises(Exception):
+            result = knp.view(x, dtype="int8")
+
+        with self.assertRaises(Exception):
+            result = knp.view(x, dtype="int32")
+
         x = np.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
         result = knp.view(x, dtype="int16")
         assert backend.standardize_dtype(result.dtype) == "int16"
