@@ -1869,6 +1869,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.view(x, dtype="int32").shape, (None, 2))
         self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
 
+    def test_array_split(self):
+        x = KerasTensor((None, 4))
+        splits = knp.array_split(x, 2, axis=0)
+        self.assertEqual(len(splits), 2)
+        self.assertEqual(splits[0].shape, (None, 4))
+        self.assertEqual(splits[1].shape, (None, 4))
+
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_mean(self):
@@ -2480,6 +2487,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = knp.array(KerasTensor((2, 4)), dtype="int16")
         self.assertEqual(knp.view(x, dtype="int32").shape, (2, 2))
         self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
+
+    def test_array_split(self):
+        x = KerasTensor((8, 4))
+        splits = knp.array_split(x, 3, axis=0)
+        self.assertEqual(len(splits), 3)
+        self.assertEqual(splits[0].shape, (3, 4))
+        self.assertEqual(splits[1].shape, (3, 4))
+        self.assertEqual(splits[2].shape, (2, 4))
 
 
 class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
@@ -3618,6 +3633,30 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # test overflow
         x = np.array([65504, 65504, 65504], dtype="float16")
         self.assertAllClose(knp.mean(x), np.mean(x))
+
+    def test_array_split(self):
+        x = np.array([[1, 2, 3], [4, 5, 6]])
+
+        # Even split (axis=0)
+        knp_res1 = knp.array_split(x, 2)
+        np_res1 = np.array_split(x, 2)
+        self.assertEqual(len(knp_res1), len(np_res1))
+        for k_arr, n_arr in zip(knp_res1, np_res1):
+            self.assertAllClose(k_arr, n_arr)
+
+        # Even split (axis=1)
+        knp_res2 = knp.array_split(x, 3, axis=1)
+        np_res2 = np.array_split(x, 3, axis=1)
+        self.assertEqual(len(knp_res2), len(np_res2))
+        for k_arr, n_arr in zip(knp_res2, np_res2):
+            self.assertAllClose(k_arr, n_arr)
+
+        # Uneven split (axis=1) - 3 columns into 2 sections
+        knp_res3 = knp.array_split(x, 2, axis=1)
+        np_res3 = np.array_split(x, 2, axis=1)
+        self.assertEqual(len(knp_res3), len(np_res3))
+        for k_arr, n_arr in zip(knp_res3, np_res3):
+            self.assertAllClose(k_arr, n_arr)
 
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
@@ -5935,6 +5974,19 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Add().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_array_split(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 2), dtype=dtype)
+        x_jax = jnp.ones((1, 2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.split(x_jax, 2, -1)[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.split(x, 2, -1)[0].dtype),
             expected_dtype,
         )
 

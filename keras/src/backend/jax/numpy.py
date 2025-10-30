@@ -1167,6 +1167,11 @@ def split(x, indices_or_sections, axis=0):
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    return jnp.array_split(x, indices_or_sections, axis=axis)
+
+
 def stack(x, axis=0):
     x = [convert_to_tensor(t) for t in x]
     return jnp.stack(x, axis=axis)
