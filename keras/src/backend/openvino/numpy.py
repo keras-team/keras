@@ -2404,8 +2404,10 @@ def var(x, axis=None, keepdims=False):
     if x_type.is_integral():
         x = ov_opset.convert(x, work_dtype).output(0)
     if axis is None:
-        zero = ov_opset.constant(0.0, work_dtype).output(0)
-        return OpenVINOKerasTensor(ov_opset.multiply(x, zero).output(0))
+        const_zero = ov_opset.constant(0, dtype=work_dtype).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.broadcast(const_zero, ov_opset.shape_of(x)).output(0)
+        )
     # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
     # but less numerically stable.
     mean = ov_opset.reduce_mean(x, axis, keepdims).output(0)
