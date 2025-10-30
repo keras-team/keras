@@ -104,12 +104,13 @@ class PyDataset:
         # Optionally warn if using TF (since tf.data.Dataset is better)
         if backend_name == "tensorflow":
             import warnings
+
             warnings.warn(
                 "You are using PyDataset with the TensorFlow backend. "
                 "Consider using `tf.data.Dataset` for better performance.",
                 stacklevel=2,
             )
-            
+
     def _warn_if_super_not_called(self):
         warn = False
         if not hasattr(self, "_workers"):

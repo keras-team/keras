@@ -22,17 +22,17 @@ class TFDatasetAdapter(DataAdapter):
 
         # --- ✅ Backend compatibility check ---
         backend = keras.backend.backend()
-        if backend not in ("tensorflow","numpy","torch","jax"):
+        if backend not in ("tensorflow", "numpy", "torch", "jax"):
             raise ValueError(
                 f"Incompatible backend '{backend}' for TFDatasetAdapter. "
-                "This adapter only supports the TensorFlow , numpy , torch ," \
+                "This adapter only supports the TensorFlow , numpy , torch ,"
                 " jax backend."
             )
 
         # --- ✅ Dataset type validation ---
         if not isinstance(
             dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)
-            ):
+        ):
             raise ValueError(
                 "Expected argument `dataset` to be a tf.data.Dataset or "
                 "tf.distribute.DistributedDataset. "
