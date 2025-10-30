@@ -1011,8 +1011,8 @@ def view(x, dtype=None):
     new_itemsize = new_dtype.size
 
     old_shape = list(shape_op(x))
-    last_dim_size = old_shape[-1] if len(old_shape) > 0 else 0
-    if (last_dim_size == 0 and old_itemsize != new_itemsize) or (
+    last_dim_size = old_shape[-1] if len(old_shape) > 0 else -1
+    if (last_dim_size == -1 and old_itemsize != new_itemsize) or (
         last_dim_size * old_itemsize % new_itemsize != 0
     ):
         raise ValueError(
