@@ -3618,13 +3618,27 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_array_split(self):
         x = np.array([[1, 2, 3], [4, 5, 6]])
-        self.assertAllClose(knp.array_split(x, 2), np.array_split(x, 2))
-        self.assertAllClose(
-            knp.array_split(x, 3, axis=1), np.array_split(x, 3, axis=1)
-        )
-        self.assertAllClose(
-            knp.array_split(x, 2, axis=1), np.array_split(x, 2, axis=1)
-        )
+
+        # Even split (axis=0)
+        knp_res1 = knp.array_split(x, 2)
+        np_res1 = np.array_split(x, 2)
+        self.assertEqual(len(knp_res1), len(np_res1))
+        for k_arr, n_arr in zip(knp_res1, np_res1):
+            self.assertAllClose(k_arr, n_arr)
+
+        # Even split (axis=1)
+        knp_res2 = knp.array_split(x, 3, axis=1)
+        np_res2 = np.array_split(x, 3, axis=1)
+        self.assertEqual(len(knp_res2), len(np_res2))
+        for k_arr, n_arr in zip(knp_res2, np_res2):
+            self.assertAllClose(k_arr, n_arr)
+
+        # Uneven split (axis=1) - 3 columns into 2 sections
+        knp_res3 = knp.array_split(x, 2, axis=1)
+        np_res3 = np.array_split(x, 2, axis=1)
+        self.assertEqual(len(knp_res3), len(np_res3))
+        for k_arr, n_arr in zip(knp_res3, np_res3):
+            self.assertAllClose(k_arr, n_arr)
 
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
