@@ -96,9 +96,9 @@ class PyDataset:
         self._use_multiprocessing = use_multiprocessing
         self._max_queue_size = max_queue_size
         backend_name = backend.backend()
-        if backend_name not in ("torch", "jax", "tensorflow"):
+        if backend_name not in ("torch", "jax", "tensorflow","numpy"):
             raise ValueError(
-                f"PyDataset supports tf,torch,jax backend"
+                f"PyDataset supports tf, torch, jax, numpy backend"
                 f"Received unsupported backend: '{backend_name}'."
             )
         # Optionally warn if using TF (since tf.data.Dataset is better)
