@@ -1,7 +1,7 @@
 import itertools
 
 import numpy as np
-import keras
+
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -12,9 +12,10 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def __init__(self, dataloader):
         # --- ✅ Backend compatibility check ---
-        import keras
         import torch
 
+        import keras
+        
         backend = keras.backend.backend()
         if backend not in ("torch", "tensorflow"):
             raise ValueError(
