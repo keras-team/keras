@@ -17,10 +17,10 @@ class TorchDataLoaderAdapter(DataAdapter):
         import keras
 
         backend = keras.backend.backend()
-        if backend not in ("torch", "tensorflow","numpy","jax"):
+        if backend not in ("torch", "tensorflow", "numpy", "jax"):
             raise ValueError(
                 f"Incompatible backend '{backend}' for TorchDataLoaderAdapter. "
-                "This adapter only supports the PyTorch, tensorflow, jax, numpy" \
+                "This adapter only supports the PyTorch, tensorflow, jax, numpy"
                 " backend. "
             )
 
