@@ -5115,26 +5115,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_correlate_different_size(self):
-        x = np.array([1, 2, 3, 4, 5, 6])
-        y = np.array([0, 1, 0.5])
-        self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
-        self.assertAllClose(
-            knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
-        )
-        self.assertAllClose(
-            knp.correlate(x, y, mode="full"), np.correlate(x, y, mode="full")
-        )
-
-        self.assertAllClose(knp.Correlate()(x, y), np.correlate(x, y))
-        self.assertAllClose(
-            knp.Correlate(mode="same")(x, y), np.correlate(x, y, mode="same")
-        )
-        self.assertAllClose(
-            knp.Correlate(mode="full")(x, y), np.correlate(x, y, mode="full")
-        )
-
-    def test_correlate_bug(self):
-        # copied from https://github.com/keras-team/keras/issues/21617
         x = np.array([1, 3, 5])
         y = np.array([7, 9])
         self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))

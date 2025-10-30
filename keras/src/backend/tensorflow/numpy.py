@@ -3134,21 +3134,25 @@ def correlate(x1, x2, mode="valid"):
         # a: input [N] -> [1,N,1];
         # b: filter [M] -> [M,1,1]
         return (
-            tf.reshape(a, (1, tf.shape(a)[0], 1)),
-            tf.reshape(b, (tf.shape(b)[0], 1, 1)),
+            tf.reshape(a, (1, shape_op(a)[0], 1)),
+            tf.reshape(b, (shape_op(b)[0], 1, 1)),
         )
 
     def _full_corr(x1, x2):
         """Compute 'full' correlation result (length = n + m - 1)."""
-        m = tf.shape(x2)[0]
-        pad = tf.maximum(m - 1, 0)
+        m = shape_op(x2)[0]
+        pad = (
+            builtins.max(m - 1, 0)
+            if isinstance(m, int)
+            else tf.maximum(m - 1, 0)
+        )
         x1 = tf.pad(x1, [[pad, pad]])  # pad input with zeros
         x1, x2 = _pack(x1, x2)
         out = tf.nn.conv1d(x1, x2, stride=1, padding="VALID")
         return tf.squeeze(out)
 
-    n = tf.shape(x1)[0]
-    m = tf.shape(x2)[0]
+    n = shape_op(x1)[0]
+    m = shape_op(x2)[0]
 
     if mode == "full":
         return _full_corr(x1, x2)
