@@ -3149,7 +3149,7 @@ def correlate(x1, x2, mode="valid"):
         x1 = tf.pad(x1, [[pad, pad]])  # pad input with zeros
         x1, x2 = _pack(x1, x2)
         out = tf.nn.conv1d(x1, x2, stride=1, padding="VALID")
-        return tf.squeeze(out)
+        return tf.squeeze(out, axis=[0, 2])
 
     n = shape_op(x1)[0]
     m = shape_op(x2)[0]
@@ -3169,7 +3169,9 @@ def correlate(x1, x2, mode="valid"):
         return tf.slice(full_corr, [start], [out_len])
     elif mode == "valid":
         x1, x2 = _pack(x1, x2)
-        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="VALID"))
+        return tf.squeeze(
+            tf.nn.conv1d(x1, x2, stride=1, padding="VALID"), axis=[0, 2]
+        )
     else:
         raise ValueError(
             f"Invalid mode: '{mode}'. Mode must be one of:"
