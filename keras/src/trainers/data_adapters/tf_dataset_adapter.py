@@ -17,20 +17,22 @@ class TFDatasetAdapter(DataAdapter):
                 shard the input dataset into per worker/process dataset
                 instance.
         """
-        from keras.src.utils.module_utils import tensorflow as tf
         import keras
         from keras.src.utils.module_utils import tensorflow as tf
 
         # --- ✅ Backend compatibility check ---
         backend = keras.backend.backend()
-        if backend != "tensorflow":
+        if backend not in ("tensorflow","numpy","torch","jax"):
             raise ValueError(
                 f"Incompatible backend '{backend}' for TFDatasetAdapter. "
-                "This adapter only supports the TensorFlow backend."
+                "This adapter only supports the TensorFlow , numpy , torch ," \
+                " jax backend."
             )
 
         # --- ✅ Dataset type validation ---
-        if not isinstance(dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)):
+        if not isinstance(
+            dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)
+            ):
             raise ValueError(
                 "Expected argument `dataset` to be a tf.data.Dataset or "
                 "tf.distribute.DistributedDataset. "

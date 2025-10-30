@@ -1,26 +1,28 @@
 import itertools
 
 import numpy as np
+import torch
+import keras
 
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
 
 
+
+
 class TorchDataLoaderAdapter(DataAdapter):
     """Adapter that handles `torch.utils.data.DataLoader`."""
 
     def __init__(self, dataloader):
-        import torch
-        import keras
 
         # --- ✅ Backend compatibility check ---
         backend = keras.backend.backend()
-        if backend != "torch":
+        if backend not in ("torch","tensorflow"):
             raise ValueError(
                 f"Incompatible backend '{backend}' for TorchDataLoaderAdapter. "
-                "This adapter only supports the PyTorch backend. "
-                "If you are using TensorFlow or JAX, please use the "
+                "This adapter only supports the PyTorch, tensorflow backend. "
+                "If you are using TensorFlow, please use the "
                 "corresponding DatasetAdapter instead."
             )
 
