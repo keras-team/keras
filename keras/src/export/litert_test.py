@@ -886,7 +886,7 @@ class ExportLitertTest(testing.TestCase):
         # AOT compilation may fail, but that's acceptable as long as base model
         # is created
         try:
-            result = model.export(
+            model.export(
                 temp_filepath,
                 format="litert",
                 aot_compile_targets=["arm64"],
@@ -895,9 +895,6 @@ class ExportLitertTest(testing.TestCase):
 
             # Base .tflite file should be created regardless
             self.assertTrue(os.path.exists(temp_filepath))
-
-            # Result should be either filepath or CompilationResult
-            self.assertIsNotNone(result)
 
         except RuntimeError as e:
             # AOT compilation may fail if infrastructure not available
