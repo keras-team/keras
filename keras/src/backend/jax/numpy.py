@@ -446,6 +446,11 @@ def array(x, dtype=None):
     return jnp.array(x, dtype=dtype)
 
 
+def view(x, dtype=None):
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
+
+
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]
@@ -1160,6 +1165,11 @@ def sort(x, axis=-1):
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
     return jnp.split(x, indices_or_sections, axis=axis)
+
+
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    return jnp.array_split(x, indices_or_sections, axis=axis)
 
 
 def stack(x, axis=0):

@@ -411,6 +411,12 @@ def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
 
+def view(x, dtype=None):
+    dtype = to_torch_dtype(dtype)
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
+
+
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]
@@ -1530,6 +1536,12 @@ def split(x, indices_or_sections, axis=0):
     )
     if dim == 0 and isinstance(indices_or_sections, int):
         out = [out[0].clone() for _ in range(indices_or_sections)]
+    return list(out)
+
+
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    out = torch.tensor_split(x, indices_or_sections, dim=axis)
     return list(out)
 
 

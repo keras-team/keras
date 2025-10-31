@@ -294,6 +294,11 @@ def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
 
+def view(x, dtype=None):
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
+
+
 def average(x, axis=None, weights=None):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
@@ -1100,6 +1105,11 @@ def sort(x, axis=-1):
 def split(x, indices_or_sections, axis=0):
     axis = standardize_axis_for_numpy(axis)
     return np.split(x, indices_or_sections, axis=axis)
+
+
+def array_split(x, indices_or_sections, axis=0):
+    axis = standardize_axis_for_numpy(axis)
+    return np.array_split(x, indices_or_sections, axis=axis)
 
 
 def stack(x, axis=0):
