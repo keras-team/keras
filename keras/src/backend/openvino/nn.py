@@ -435,6 +435,8 @@ def conv_transpose(
 def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("`sparse=True` is not supported with openvino backend")
+    if dtype is None:
+        dtype = backend.floatx()
     ov_dtype = OPENVINO_DTYPES[dtype]
     one_hot_encoded = ov_opset.one_hot(
         x,
