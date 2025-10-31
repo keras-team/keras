@@ -22,12 +22,12 @@ def celu(x, alpha=1.0):
     const_zero = get_ov_output(0.0, x.get_element_type())
     const_alpha = get_ov_output(alpha, x.get_element_type())
     const_one = get_ov_output(1.0, x.get_element_type())
-    foo = ov_opset.exp(ov_opset.divide(x, const_alpha)).output(0)
-    foobar = ov_opset.multiply(const_alpha, ov_opset.subtract(foo, const_one))
+    exp_x_div_alpha = ov_opset.exp(ov_opset.divide(x, const_alpha)).output(0)
+    negative_branch = ov_opset.multiply(const_alpha, ov_opset.subtract(exp_x_div_alpha, const_one))
 
     celu_x = ov_opset.add(
         ov_opset.maximum(x, const_zero).output(0),
-        ov_opset.minimum(foobar, const_zero).output(0),
+        ov_opset.minimum(negative_branch, const_zero).output(0),
     )
     return OpenVINOKerasTensor(celu_x.output(0))
 
