@@ -23,7 +23,9 @@ def celu(x, alpha=1.0):
     const_alpha = get_ov_output(alpha, x.get_element_type())
     const_one = get_ov_output(1.0, x.get_element_type())
     exp_x_div_alpha = ov_opset.exp(ov_opset.divide(x, const_alpha)).output(0)
-    negative_branch = ov_opset.multiply(const_alpha, ov_opset.subtract(exp_x_div_alpha, const_one))
+    negative_branch = ov_opset.multiply(
+        const_alpha, ov_opset.subtract(exp_x_div_alpha, const_one)
+    )
 
     celu_x = ov_opset.add(
         ov_opset.maximum(x, const_zero).output(0),
@@ -426,12 +428,16 @@ def conv_transpose(
 
 
 def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
+    if sparse:
+        raise ValueError("`sparse=True` is not supported with openvino backend")
+    ov_dtype = OPENVINO_DTYPES[dtype]
     one_hot_encoded = ov_opset.one_hot(
-        x, depth=num_classes, axis=axis, on_value=1, off_value=0
+        x,
+        depth=num_classes,
+        axis=axis,
+        on_value=ov_opset.constant(1, ov_dtype),
+        off_value=ov_opset.constant(0, ov_dtype),
     ).output(0)
-    if dtype is not None:
-        dtype = OPENVINO_DTYPES[dtype]
-        one_hot_encoded = ov_opset.convert(one_hot_encoded, dtype).output(0)
     return OpenVINOKerasTensor(one_hot_encoded)
 
 
@@ -521,7 +527,10 @@ def batch_normalization(
 
 
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
-    output = log_softmax(output, axis=-1)
+    target = get_ov_output(target)
+    output = get_ov_output(output)
+    target_length = get_ov_output(target_length)
+    output_length = get_ov_output(output_length)
     ctc_loss_ = ov_opset.ctc_loss(
         output, output_length, target, target_length, blank_index=mask_index
     )
