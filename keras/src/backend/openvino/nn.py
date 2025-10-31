@@ -146,32 +146,37 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
-    inputs = get_ov_output(inputs)
-
-    num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
-    if isinstance(pool_size, int):
-        pool_size = [pool_size] * num_spatial_dims
-
-    strides = _adjust_strides_dilation(strides, num_spatial_dims)
-    pad_mode, pads_begin, pads_end = _adjust_padding(padding)
-    inputs = _adjust_input(inputs, num_spatial_dims, data_format)
-    max_pooled = ov_opset.max_pool(
+    return _pool(
         inputs,
-        kernel_shape=pool_size,
+        pool_size,
+        ov_opset.max_pool,
         strides=strides,
-        auto_pad=pad_mode,
-        exclude_pad=True,
-        pads_begin=pads_begin,
-        pads_end=pads_end,
-    ).output(0)
-    max_pooled = _adjust_outputs(max_pooled, num_spatial_dims, data_format)
-    return OpenVINOKerasTensor(max_pooled)
+        padding=padding,
+        data_format=data_format,
+    )
 
 
 def average_pool(
     inputs,
     pool_size,
+    strides=None,
+    padding="valid",
+    data_format=None,
+):
+    return _pool(
+        inputs,
+        pool_size,
+        ov_opset.avg_pool,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+    )
+
+
+def _pool(
+    inputs,
+    pool_size,
+    pooling_func,
     strides=None,
     padding="valid",
     data_format=None,
@@ -186,7 +191,7 @@ def average_pool(
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
-    avg_pooled = ov_opset.avg_pool(
+    pooled = pooling_func(
         inputs,
         kernel_shape=pool_size,
         strides=strides,
@@ -195,8 +200,8 @@ def average_pool(
         pads_begin=pads_begin,
         pads_end=pads_end,
     ).output(0)
-    avg_pooled = _adjust_outputs(avg_pooled, num_spatial_dims, data_format)
-    return OpenVINOKerasTensor(avg_pooled)
+    adjusted_pooled = _adjust_outputs(pooled, num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(adjusted_pooled)
 
 
 def _adjust_strides_dilation(
