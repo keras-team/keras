@@ -29,6 +29,7 @@ from keras.src.backend.torch.core import Variable
 from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import compute_output_spec
 from keras.src.backend.torch.core import cond
+from keras.src.backend.torch.core import convert_checkpoint_value
 from keras.src.backend.torch.core import convert_to_numpy
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import device_scope

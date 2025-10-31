@@ -13,6 +13,7 @@ from keras.src.backend.tensorflow.core import Variable
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import compute_output_spec
 from keras.src.backend.tensorflow.core import cond
+from keras.src.backend.tensorflow.core import convert_checkpoint_value
 from keras.src.backend.tensorflow.core import convert_to_numpy
 from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.core import device_scope

@@ -4,7 +4,6 @@ import warnings
 import numpy as np
 
 from keras.src import backend
-from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
@@ -33,11 +32,6 @@ def _get_state_tree(model):
     return tree.map_structure(convert_scalars, state_tree)
 
 
-def _flatten_state_tree_values(state_tree):
-    """Flatten nested state tree into a list of values in consistent order."""
-    return tree.flatten(state_tree)
-
-
 def _reconstruct_state_tree_with_values(structure, values):
     """Reconstruct state tree structure with provided values."""
     value_iter = iter(values)
@@ -62,62 +56,12 @@ def _reconstruct_state_tree_with_values(structure, values):
                 return np.array(value, dtype=obj.dtype)
         elif isinstance(obj, np.ndarray):
             # obj is a numpy array
-            if isinstance(value, np.ndarray):
-                return value.astype(obj.dtype).reshape(obj.shape)
-            else:
-                return np.array(value, dtype=obj.dtype).reshape(obj.shape)
+            # Use backend-specific conversion that handles JAX arrays properly
+            return backend.convert_checkpoint_value(value, obj.dtype, obj.shape)
         else:
             return value
 
     return tree.map_structure(_reconstruct_value, structure)
-
-
-def _restore_legacy_format(
-    checkpoint_data, target_model, save_optimizer_state, save_metrics_state
-):
-    """Restore from the old flat format for backward compatibility."""
-    # Restore model weights
-    if "model_weights" in checkpoint_data:
-        model_weights_np = checkpoint_data["model_weights"]
-        # Convert NumPy arrays back to backend tensors and assign to
-        # model
-        for i, weight_np in enumerate(model_weights_np):
-            # Convert numpy array back to appropriate backend tensor
-            weight_tensor = ops.convert_to_tensor(weight_np)
-            target_model.weights[i].assign(weight_tensor)
-
-    # Restore optimizer state if available
-    if "optimizer_state" in checkpoint_data and save_optimizer_state:
-        optimizer_vars_np = checkpoint_data["optimizer_state"]
-        # Only restore if the variable counts match
-        if len(optimizer_vars_np) == len(target_model.optimizer.variables):
-            # Convert NumPy arrays back to backend tensors and assign to
-            # optimizer
-            for i, var_np in enumerate(optimizer_vars_np):
-                var_tensor = ops.convert_to_tensor(var_np)
-                target_model.optimizer.variables[i].assign(var_tensor)
-
-    # Restore metrics state if available
-    if (
-        "metrics_state" in checkpoint_data
-        and save_metrics_state
-        and hasattr(target_model, "metrics")
-    ):
-        metrics_vars_np = checkpoint_data["metrics_state"]
-        metric_idx = 0
-        for metric in target_model.metrics:
-            if (
-                hasattr(metric, "variables")
-                and metric.variables
-                and metric_idx < len(metrics_vars_np)
-            ):
-                metric_vars_np = metrics_vars_np[metric_idx]
-                # Restore metric variables
-                for i, var_np in enumerate(metric_vars_np):
-                    if i < len(metric.variables):
-                        var_tensor = ops.convert_to_tensor(var_np)
-                        metric.variables[i].assign(var_tensor)
-                metric_idx += 1
 
 
 @keras_export("keras.callbacks.OrbaxCheckpoint")
@@ -574,14 +518,8 @@ class OrbaxCheckpoint(MonitorCallback):
                 checkpoint_data["model_state"], target_model
             )
         else:
-            # Fallback to legacy format
-            _restore_legacy_format(
-                checkpoint_data,
-                target_model,
-                self.save_optimizer_state,
-                self.save_metrics_state,
-            )
-            return True
+            # Unsupported checkpoint format
+            return False
 
     def _restore_from_nested_structures(self, checkpoint_data, target_model):
         """Restore from the new nested structures format."""

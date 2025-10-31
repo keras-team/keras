@@ -14,6 +14,7 @@ from keras.src.backend.jax.core import Variable
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import compute_output_spec
 from keras.src.backend.jax.core import cond
+from keras.src.backend.jax.core import convert_checkpoint_value
 from keras.src.backend.jax.core import convert_to_numpy
 from keras.src.backend.jax.core import convert_to_tensor
 from keras.src.backend.jax.core import device_scope
