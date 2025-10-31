@@ -60,8 +60,10 @@ def silu(x):
 
 
 def log_sigmoid(x):
-    raise NotImplementedError(
-        "`log_sigmoid` is not supported with openvino backend"
+    x = get_ov_output(x)
+    neg_x = ov_opset.negative(x)
+    return OpenVINOKerasTensor(
+        ov_opset.negative(ov_opset.softplus(neg_x)).output(0)
     )
 
 
