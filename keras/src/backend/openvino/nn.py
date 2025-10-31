@@ -147,12 +147,7 @@ def max_pool(
     data_format=None,
 ):
     return _pool(
-        inputs,
-        pool_size,
-        ov_opset.max_pool,
-        strides=strides,
-        padding=padding,
-        data_format=data_format,
+        inputs, pool_size, ov_opset.max_pool, strides, padding, data_format
     )
 
 
@@ -167,9 +162,10 @@ def average_pool(
         inputs,
         pool_size,
         ov_opset.avg_pool,
-        strides=strides,
-        padding=padding,
-        data_format=data_format,
+        strides,
+        padding,
+        data_format,
+        exclude_pad=True,
     )
 
 
@@ -180,6 +176,7 @@ def _pool(
     strides=None,
     padding="valid",
     data_format=None,
+    **kwargs,
 ):
     data_format = backend.standardize_data_format(data_format)
     inputs = get_ov_output(inputs)
@@ -195,14 +192,13 @@ def _pool(
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
     pool_kwargs = {
-        "kernel": pool_size,
+        "kernel_shape": pool_size,
         "strides": strides,
         "auto_pad": pad_mode,
         "pads_begin": pads_begin,
         "pads_end": pads_end,
+        **kwargs,
     }
-    if pooling_func == ov_opset.avg_pool:
-        pool_kwargs["exclude_pad"] = True
     pooled = pooling_func(inputs, **pool_kwargs).output(0)
     adjusted_pooled = _adjust_outputs(pooled, num_spatial_dims, data_format)
     return OpenVINOKerasTensor(adjusted_pooled)
