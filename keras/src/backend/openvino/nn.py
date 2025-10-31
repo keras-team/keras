@@ -144,9 +144,27 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    raise NotImplementedError(
-        "`max_pool` is not supported with openvino backend"
-    )
+    data_format = backend.standardize_data_format(data_format)
+    inputs = get_ov_output(inputs)
+
+    num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
+    if isinstance(pool_size, int):
+        pool_size = [pool_size] * num_spatial_dims
+
+    strides = _adjust_strides_dilation(strides, num_spatial_dims)
+    pad_mode, pads_begin, pads_end = _adjust_padding(padding)
+    inputs = _adjust_input(inputs, num_spatial_dims, data_format)
+    avg_pooled = ov_opset.max_pool(
+        inputs,
+        kernel_shape=pool_size,
+        strides=strides,
+        auto_pad=pad_mode,
+        exclude_pad=True,
+        pads_begin=pads_begin,
+        pads_end=pads_end,
+    ).output(0)
+    avg_pooled = _adjust_outputs(avg_pooled, num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(avg_pooled)
 
 
 def average_pool(
@@ -503,9 +521,11 @@ def batch_normalization(
 
 
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
-    raise NotImplementedError(
-        "`ctc_loss` is not supported with openvino backend"
+    output = log_softmax(output, axis=-1)
+    ctc_loss_ = ov_opset.ctc_loss(
+        output, output_length, target, target_length, blank_index=mask_index
     )
+    return OpenVINOKerasTensor(ctc_loss_.output(0))
 
 
 def ctc_decode(
