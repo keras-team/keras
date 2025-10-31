@@ -3165,7 +3165,7 @@ def correlate(x1, x2, mode="valid"):
         full_corr = _full_corr(x1, x2)
         full_len = n + m - 1
         out_len = (
-            max(n, m)
+            max([n, m])
             if isinstance(n, int) and isinstance(m, int)
             else tf.maximum(n, m)
         )
