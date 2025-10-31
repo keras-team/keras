@@ -665,11 +665,12 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"{list(available_formats)}."
             )
 
-        # Check if LiteRT export is available (requires TensorFlow)
-        if format == "litert" and export_litert is None:
+        # Check if LiteRT export is available (requires TensorFlow backend)
+        if format == "litert" and backend.backend() != "tensorflow":
             raise ImportError(
-                "LiteRT export requires TensorFlow to be installed. "
-                "Please install TensorFlow: `pip install tensorflow`"
+                "LiteRT export requires TensorFlow backend. "
+                "Please set the backend to TensorFlow: "
+                "`keras.backend.set_backend('tensorflow')`"
             )
 
         if format == "tf_saved_model":
