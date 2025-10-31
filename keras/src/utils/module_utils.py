@@ -59,3 +59,11 @@ optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
 grain = LazyModule("grain")
+ocp = LazyModule(
+    "orbax.checkpoint",
+    pip_name="orbax-checkpoint",
+    import_error_msg=(
+        "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
+        "Install it with: pip install orbax-checkpoint"
+    ),
+)
