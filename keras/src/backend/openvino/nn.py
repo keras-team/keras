@@ -188,12 +188,15 @@ def _pool(
     if isinstance(pool_size, int):
         pool_size = [pool_size] * num_spatial_dims
 
+    if strides is None:
+        strides = pool_size
+
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
     pooled = pooling_func(
         inputs,
-        kernel_shape=pool_size,
+        kernel=pool_size,
         strides=strides,
         auto_pad=pad_mode,
         exclude_pad=True,
@@ -435,15 +438,18 @@ def conv_transpose(
 def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("`sparse=True` is not supported with openvino backend")
+    x = get_ov_output(x)
     if dtype is None:
         dtype = backend.floatx()
     ov_dtype = OPENVINO_DTYPES[dtype]
+    on_value = get_ov_output(1, ov_dtype)
+    off_value = get_ov_output(0, ov_dtype)
     one_hot_encoded = ov_opset.one_hot(
         x,
         depth=num_classes,
         axis=axis,
-        on_value=ov_opset.constant(1, ov_dtype),
-        off_value=ov_opset.constant(0, ov_dtype),
+        on_value=on_value,
+        off_value=off_value,
     ).output(0)
     return OpenVINOKerasTensor(one_hot_encoded)
 
