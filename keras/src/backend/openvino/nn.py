@@ -194,15 +194,16 @@ def _pool(
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
-    pooled = pooling_func(
-        inputs,
-        kernel=pool_size,
-        strides=strides,
-        auto_pad=pad_mode,
-        exclude_pad=True,
-        pads_begin=pads_begin,
-        pads_end=pads_end,
-    ).output(0)
+    pool_kwargs = {
+        "kernel": pool_size,
+        "strides": strides,
+        "auto_pad": pad_mode,
+        "pads_begin": pads_begin,
+        "pads_end": pads_end,
+    }
+    if pooling_func == ov_opset.avg_pool:
+        pool_kwargs["exclude_pad"] = True
+    pooled = pooling_func(inputs, **pool_kwargs).output(0)
     adjusted_pooled = _adjust_outputs(pooled, num_spatial_dims, data_format)
     return OpenVINOKerasTensor(adjusted_pooled)
 
