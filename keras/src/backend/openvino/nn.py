@@ -154,7 +154,7 @@ def max_pool(
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
     inputs = _adjust_input(inputs, num_spatial_dims, data_format)
-    avg_pooled = ov_opset.max_pool(
+    max_pooled = ov_opset.max_pool(
         inputs,
         kernel_shape=pool_size,
         strides=strides,
@@ -163,8 +163,8 @@ def max_pool(
         pads_begin=pads_begin,
         pads_end=pads_end,
     ).output(0)
-    avg_pooled = _adjust_outputs(avg_pooled, num_spatial_dims, data_format)
-    return OpenVINOKerasTensor(avg_pooled)
+    max_pooled = _adjust_outputs(max_pooled, num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(max_pooled)
 
 
 def average_pool(
