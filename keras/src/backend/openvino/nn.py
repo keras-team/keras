@@ -2,6 +2,7 @@ import openvino.opset14 as ov_opset
 from openvino import Type
 
 from keras.src import backend
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
 
@@ -14,6 +15,21 @@ def relu(x):
 def relu6(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.clamp(x, 0.0, 6.0).output(0))
+
+
+def celu(x, alpha=1.0):
+    x = get_ov_output(x)
+    const_zero = get_ov_output(0.0, x.get_element_type())
+    const_alpha = get_ov_output(alpha, x.get_element_type())
+    const_one = get_ov_output(1.0, x.get_element_type())
+    foo = ov_opset.exp(ov_opset.divide(x, const_alpha)).output(0)
+    foobar = ov_opset.multiply(const_alpha, ov_opset.subtract(foo, const_one))
+
+    celu_x = ov_opset.add(
+        ov_opset.maximum(x, const_zero).output(0),
+        ov_opset.minimum(foobar, const_zero).output(0),
+    )
+    return OpenVINOKerasTensor(celu_x.output(0))
 
 
 def sigmoid(x):
@@ -140,9 +156,27 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    raise NotImplementedError(
-        "`average_pool` is not supported with openvino backend"
-    )
+    data_format = backend.standardize_data_format(data_format)
+    inputs = get_ov_output(inputs)
+
+    num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
+    if isinstance(pool_size, int):
+        pool_size = [pool_size] * num_spatial_dims
+
+    strides = _adjust_strides_dilation(strides, num_spatial_dims)
+    pad_mode, pads_begin, pads_end = _adjust_padding(padding)
+    inputs = _adjust_input(inputs, num_spatial_dims, data_format)
+    avg_pooled = ov_opset.avg_pool(
+        inputs,
+        kernel_shape=pool_size,
+        strides=strides,
+        auto_pad=pad_mode,
+        exclude_pad=True,
+        pads_begin=pads_begin,
+        pads_end=pads_end,
+    ).output(0)
+    avg_pooled = _adjust_outputs(avg_pooled, num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(avg_pooled)
 
 
 def _adjust_strides_dilation(
@@ -374,9 +408,13 @@ def conv_transpose(
 
 
 def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
-    raise NotImplementedError(
-        "`one_hot` is not supported with openvino backend"
-    )
+    one_hot_encoded = ov_opset.one_hot(
+        x, depth=num_classes, axis=axis, on_value=1, off_value=0
+    ).output(0)
+    if dtype is not None:
+        dtype = OPENVINO_DTYPES[dtype]
+        one_hot_encoded = ov_opset.convert(one_hot_encoded, dtype).output(0)
+    return OpenVINOKerasTensor(one_hot_encoded)
 
 
 def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
