@@ -26,6 +26,7 @@ from keras.src.ops.numpy import argmin as argmin
 from keras.src.ops.numpy import argpartition as argpartition
 from keras.src.ops.numpy import argsort as argsort
 from keras.src.ops.numpy import array as array
+from keras.src.ops.numpy import array_split as array_split
 from keras.src.ops.numpy import average as average
 from keras.src.ops.numpy import bartlett as bartlett
 from keras.src.ops.numpy import bincount as bincount

@@ -282,7 +282,7 @@ class Variable:
                 "The shape of the target variable and "
                 "the shape of the target value in "
                 "`variable.assign(value)` must match. "
-                f"variable.shape={self.value.shape}, "
+                f"variable.shape={self.shape}, "
                 f"Received: value.shape={value.shape}. "
                 f"Target variable: {self}"
             )
@@ -399,7 +399,11 @@ class Variable:
     def __repr__(self):
         value = None
         if hasattr(self, "_value") and self._value is not None:
-            value = backend.core.convert_to_numpy(self._value)
+            try:
+                value = backend.core.convert_to_numpy(self._value)
+            except:
+                # In some cases the conversion to numpy can fail.
+                pass
         value_str = f", value={value}" if value is not None else ""
         return (
             f"<Variable path={self.path}, shape={self.shape}, "
