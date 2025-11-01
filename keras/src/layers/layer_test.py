@@ -144,6 +144,66 @@ class LayerTest(testing.TestCase):
         self.assertEqual(out["2"]["11"].shape, (2, 3))
         self.assertEqual(out["2"]["22"].shape, (2, 3))
 
+    def test_custom_layer_with_mask_parameter(self):
+        # Test that custom layer parameters ending in _mask work correctly
+        # with compute_output_shape. Regression test for issue #21154.
+
+        class CustomLayerWithMask(layers.Layer):
+            def call(self, x, attention_mask):
+                return x * attention_mask
+
+            def compute_output_shape(self, x_shape, attention_mask_shape):
+                # Use the mask shape in computation to ensure it's needed
+                return x_shape
+
+        layer = CustomLayerWithMask()
+        x = backend.KerasTensor((2, 3))
+        attention_mask = backend.KerasTensor((2, 3))
+        
+        # This should work without errors
+        output = layer(x, attention_mask=attention_mask)
+        self.assertEqual(output.shape, (2, 3))
+        
+        # Test compute_output_spec as well
+        output_spec = layer.compute_output_spec(x, attention_mask=attention_mask)
+        self.assertEqual(output_spec.shape, (2, 3))
+
+    def test_mask_parameter_exclusions(self):
+        # Test that only 'mask' parameter is excluded from shapes_dict,
+        # not all parameters ending with '_mask'. Regression test for issue #21154.
+
+        class LayerWithMultipleMasks(layers.Layer):
+            def call(self, x, mask=None, attention_mask=None, padding_mask=None):
+                result = x
+                if mask is not None:
+                    result = result * mask
+                if attention_mask is not None:
+                    result = result * attention_mask
+                if padding_mask is not None:
+                    result = result * padding_mask
+                return result
+
+            def compute_output_shape(self, x_shape, attention_mask_shape=None, padding_mask_shape=None):
+                # Note: 'mask' should not appear here as it's excluded
+                # but attention_mask_shape and padding_mask_shape should be available
+                return x_shape
+
+        layer = LayerWithMultipleMasks()
+        x = backend.KerasTensor((2, 3))
+        mask = backend.KerasTensor((2, 3))
+        attention_mask = backend.KerasTensor((2, 3))
+        padding_mask = backend.KerasTensor((2, 3))
+        
+        # This should work without errors
+        output = layer(x, mask=mask, attention_mask=attention_mask, padding_mask=padding_mask)
+        self.assertEqual(output.shape, (2, 3))
+        
+        # Test compute_output_spec as well
+        output_spec = layer.compute_output_spec(
+            x, mask=mask, attention_mask=attention_mask, padding_mask=padding_mask
+        )
+        self.assertEqual(output_spec.shape, (2, 3))
+
     def test_positional_arg_error(self):
         class SomeLayer(layers.Layer):
             def call(self, x, bool_arg):
