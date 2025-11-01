@@ -1896,7 +1896,7 @@ def get_shapes_dict(call_spec):
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():
         if k == "mask":
-            # Do not include the 'mask' tensor in shapes dict (for Keras masking)
+            # Do not include 'mask' tensor in shapes dict
             continue
         if k == "kwargs" or k == "args":
             # Do not include catch-alls in shapes dict

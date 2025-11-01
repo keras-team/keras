@@ -170,7 +170,7 @@ class LayerTest(testing.TestCase):
 
     def test_mask_parameter_exclusions(self):
         # Test that only 'mask' parameter is excluded from shapes_dict,
-        # not all parameters ending with '_mask'. Regression test for issue #21154.
+        # not all parameters ending with '_mask'. Issue #21154.
 
         class LayerWithMultipleMasks(layers.Layer):
             def call(self, x, mask=None, attention_mask=None, padding_mask=None):
@@ -183,9 +183,12 @@ class LayerTest(testing.TestCase):
                     result = result * padding_mask
                 return result
 
-            def compute_output_shape(self, x_shape, attention_mask_shape=None, padding_mask_shape=None):
-                # Note: 'mask' should not appear here as it's excluded
-                # but attention_mask_shape and padding_mask_shape should be available
+            def compute_output_shape(
+                self, x_shape, attention_mask_shape=None,
+                padding_mask_shape=None
+            ):
+                # Note: 'mask' is excluded but other *_mask
+                # params are available
                 return x_shape
 
         layer = LayerWithMultipleMasks()
