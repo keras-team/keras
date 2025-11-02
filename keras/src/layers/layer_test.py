@@ -165,7 +165,9 @@ class LayerTest(testing.TestCase):
         self.assertEqual(output.shape, (2, 3))
         
         # Test compute_output_spec as well
-        output_spec = layer.compute_output_spec(x, attention_mask=attention_mask)
+        output_spec = layer.compute_output_spec(
+            x, attention_mask=attention_mask
+        )
         self.assertEqual(output_spec.shape, (2, 3))
 
     def test_mask_parameter_exclusions(self):
@@ -173,7 +175,10 @@ class LayerTest(testing.TestCase):
         # not all parameters ending with '_mask'. Issue #21154.
 
         class LayerWithMultipleMasks(layers.Layer):
-            def call(self, x, mask=None, attention_mask=None, padding_mask=None):
+            def call(
+                self, x, mask=None, attention_mask=None,
+                padding_mask=None
+            ):
                 result = x
                 if mask is not None:
                     result = result * mask
@@ -198,12 +203,16 @@ class LayerTest(testing.TestCase):
         padding_mask = backend.KerasTensor((2, 3))
         
         # This should work without errors
-        output = layer(x, mask=mask, attention_mask=attention_mask, padding_mask=padding_mask)
+        output = layer(
+            x, mask=mask, attention_mask=attention_mask,
+            padding_mask=padding_mask
+        )
         self.assertEqual(output.shape, (2, 3))
         
         # Test compute_output_spec as well
         output_spec = layer.compute_output_spec(
-            x, mask=mask, attention_mask=attention_mask, padding_mask=padding_mask
+            x, mask=mask, attention_mask=attention_mask,
+            padding_mask=padding_mask
         )
         self.assertEqual(output_spec.shape, (2, 3))
 
