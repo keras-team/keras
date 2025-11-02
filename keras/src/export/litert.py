@@ -288,7 +288,7 @@ class LiteRTExporter:
                     if len(args) == 1:
                         return self._model(args[0])
                     else:
-                        return self._model(list(args))
+                        return self._model(*args)
                 elif kwargs and not args:
                     # Called with keyword arguments
                     if len(kwargs) == 1 and "inputs" in kwargs:
