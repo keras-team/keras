@@ -1972,7 +1972,9 @@ def huber(y_true, y_pred, delta=1.0):
     delta = ops.convert_to_tensor(delta, dtype=y_pred.dtype)
     error = ops.subtract(y_pred, y_true)
     abs_error = ops.abs(error)
-    half = ops.convert_to_tensor(0.5, dtype=abs_error.dtype)
+    half = ops.cast(ops.convert_to_tensor(0.5), dtype=abs_error.dtype)
+    delta = ops.cast(delta, dtype=abs_error.dtype)
+
     return ops.mean(
         ops.where(
             abs_error <= delta,
