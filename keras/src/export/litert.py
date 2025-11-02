@@ -1,5 +1,6 @@
 import logging
 import os
+import traceback
 
 from keras.src import tree
 from keras.src.utils import io_utils
@@ -494,8 +495,6 @@ class LiteRTExporter:
         except Exception as e:
             if self.verbose:
                 io_utils.print_msg(f"AOT compilation failed: {e}")
-                import traceback
-
                 traceback.print_exc()
             raise RuntimeError(f"AOT compilation failed: {e}")
 
