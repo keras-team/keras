@@ -29,9 +29,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
+      - name: Install System Dependencies
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            git \
+            sudo \
+            && rm -rf /var/lib/apt/lists/*
+
       - name: Install Dependencies
         run: |
-          pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt
+          pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt \
+          pip uninstall -y keras keras-nightly
       
       - name: Set Keras Backend
         run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
