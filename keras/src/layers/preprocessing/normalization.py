@@ -238,17 +238,19 @@ class Normalization(DataLayer):
             if len(tf_dataset.element_spec) == 1:
                 # just x
                 data = tf_dataset.map(lambda x: x)
-                input_shape = data.element_spec.shape
             elif len(tf_dataset.element_spec) == 2:
                 # (x, y) pairs
                 data = tf_dataset.map(lambda x, y: x)
-                input_shape = data.element_spec.shape
             elif len(tf_dataset.element_spec) == 3:
                 # (x, y, sample_weight) tuples
                 data = tf_dataset.map(lambda x, y, z: x)
-                input_shape = data.element_spec.shape
+            input_shape = data.element_spec.shape
         else:
-            raise NotImplementedError(f"Unsupported data type: {type(data)}")
+            raise TypeError(
+                f"Unsupported data type: {type(data)}. `adapt` supports "
+                f"`np.ndarray`, backend tensors, `tf.data.Dataset`, and "
+                f"`keras.utils.PyDataset`."
+            )
 
         if not self.built:
             self.build(input_shape)
