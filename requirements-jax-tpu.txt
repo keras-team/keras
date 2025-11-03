@@ -1,5 +1,5 @@
 # Tensorflow cpu-only version (needed for testing).
-tensorflow-cpu~=2.18.1
+tensorflow-cpu~=2.19.1
 tf2onnx
 
 # Torch cpu-only version (needed for testing).
@@ -11,4 +11,4 @@ torch==2.6.0
 jax[tpu]
 flax
 
--r requirements-common-jax-tpu.txt
+-r requirements-common.txt

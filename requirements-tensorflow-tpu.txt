@@ -1,6 +1,6 @@
 #tensorflow==2.18.0
-#--find-links https://storage.googleapis.com/libtpu-tf-releases/index.html
-#tensorflow-tpu==2.18.0
+--find-links https://storage.googleapis.com/libtpu-tf-releases/index.html
+tensorflow-tpu==2.19.0
 
 #tf2onnx
 
