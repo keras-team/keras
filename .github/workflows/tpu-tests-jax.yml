@@ -39,7 +39,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt \
-          pip uninstall keras keras-nightly
+          # pip uninstall keras keras-nightly
       
       - name: Set Keras Backend
         run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
