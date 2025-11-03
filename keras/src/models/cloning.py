@@ -288,6 +288,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
 
     new_layers = [clone_function(layer) for layer in model.layers]
 
+    ref_input_layer = None
     if isinstance(model._layers[0], InputLayer):
         ref_input_layer = model._layers[0]
         input_name = ref_input_layer.name
