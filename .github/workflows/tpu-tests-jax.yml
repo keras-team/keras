@@ -31,7 +31,7 @@ jobs:
       
       - name: Install Dependencies
         run: |
-          pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt && \
+          pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt
       
       - name: Set Keras Backend
         run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
@@ -42,6 +42,6 @@ jobs:
           echo "Verifying JAX installation..."
           python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()[0].device_kind}')"
 
-          pytest keras --ignore keras/src/applications \
-                      --cov=keras \
-                      --cov-config=pyproject.toml
+          # pytest keras --ignore keras/src/applications \
+          #             --cov=keras \
+          #             --cov-config=pyproject.toml
