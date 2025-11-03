@@ -832,11 +832,16 @@ def clone_graph_nodes(inputs, outputs):
             kt_id_mapping[id(kt_input)] = kt_input
         else:
             # We need to create a new Keras tensor for any intermediate tensor
+            original_op = kt_input._keras_history.operation
+            optional = False
+            if isinstance(original_op, InputLayer):
+                optional = original_op.optional
             cloned_input = Input(
                 batch_shape=kt_input.shape,
                 dtype=kt_input.dtype,
                 sparse=kt_input.sparse,
                 name=f"{kt_input.name}CLONE",
+                optional=optional,
             )
             cloned_inputs.append(cloned_input)
             kt_id_mapping[id(kt_input)] = cloned_input

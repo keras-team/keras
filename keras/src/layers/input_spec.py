@@ -111,6 +111,7 @@ class InputSpec:
             "max_ndim": self.max_ndim,
             "min_ndim": self.min_ndim,
             "axes": self.axes,
+            "optional": self.optional,
         }
 
     @classmethod
