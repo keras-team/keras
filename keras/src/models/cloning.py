@@ -313,6 +313,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
         inputs = Input(
             tensor=input_tensors,
             name=input_name,
+            optional= ref_input_layer.optional if ref_input_layer else False,
         )
         new_layers = [inputs] + new_layers
     else:
@@ -321,6 +322,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
                 batch_shape=input_batch_shape,
                 dtype=input_dtype,
                 name=input_name,
+                optional=ref_input_layer.optional if ref_input_layer else False,
             )
             new_layers = [inputs] + new_layers
     cloned_model = Sequential(
