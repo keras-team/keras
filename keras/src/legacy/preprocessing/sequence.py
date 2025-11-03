@@ -47,6 +47,8 @@ class TimeseriesGenerator(PyDataset):
             in reverse chronological order.
         batch_size: Number of timeseries samples in each batch
             (except maybe the last one).
+        **kwargs: Additional keyword arguments for the `PyDataset` base class,
+            such as `workers`, `use_multiprocessing`, and `max_queue_size`.
 
     Returns:
         A PyDataset instance.
@@ -64,7 +66,9 @@ class TimeseriesGenerator(PyDataset):
         shuffle=False,
         reverse=False,
         batch_size=128,
+        **kwargs,
     ):
+        super().__init__(**kwargs)
         if len(data) != len(targets):
             raise ValueError(
                 "Data and targets have to be "
@@ -145,18 +149,22 @@ class TimeseriesGenerator(PyDataset):
         except TypeError as e:
             raise TypeError(f"Targets not JSON Serializable: {targets}") from e
 
-        return {
-            "data": json_data,
-            "targets": json_targets,
-            "length": self.length,
-            "sampling_rate": self.sampling_rate,
-            "stride": self.stride,
-            "start_index": self.start_index,
-            "end_index": self.end_index,
-            "shuffle": self.shuffle,
-            "reverse": self.reverse,
-            "batch_size": self.batch_size,
-        }
+        config = super().get_config()
+        config.update(
+            {
+                "data": json_data,
+                "targets": json_targets,
+                "length": self.length,
+                "sampling_rate": self.sampling_rate,
+                "stride": self.stride,
+                "start_index": self.start_index,
+                "end_index": self.end_index,
+                "shuffle": self.shuffle,
+                "reverse": self.reverse,
+                "batch_size": self.batch_size,
+            }
+        )
+        return config
 
     def to_json(self, **kwargs):
         """Returns a JSON string containing the generator's configuration.

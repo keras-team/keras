@@ -124,14 +124,14 @@ class CloneModelTest(testing.TestCase):
     def test_custom_clone_function(self, model_fn):
         def clone_function(layer):
             config = layer.get_config()
-            config["name"] = config["name"] + "_custom"
+            config["name"] = f"{config['name']}_custom"
             return layer.__class__.from_config(config)
 
         model = model_fn()
         new_model = clone_model(model, clone_function=clone_function)
         for l1, l2 in zip(model.layers, new_model.layers):
             if not isinstance(l1, layers.InputLayer):
-                self.assertEqual(l2.name, l1.name + "_custom")
+                self.assertEqual(l2.name, f"{l1.name}_custom")
 
     @parameterized.named_parameters(
         ("cnn_functional", get_cnn_functional_model),

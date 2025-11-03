@@ -3,7 +3,6 @@ import os
 import sys
 import time
 
-from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
@@ -120,16 +119,16 @@ class Progbar:
 
             if self.target is not None:
                 numdigits = int(math.log10(self.target)) + 1
-                bar = ("%" + str(numdigits) + "d/%d") % (current, self.target)
+                bar = (f"%{numdigits}d/%d") % (current, self.target)
                 bar = f"\x1b[1m{bar}\x1b[0m "
                 special_char_len += 8
                 prog = float(current) / self.target
                 prog_width = int(self.width * prog)
 
                 if prog_width > 0:
-                    bar += "\33[32m" + "━" * prog_width + "\x1b[0m"
+                    bar += f"\33[32m{'━' * prog_width}\x1b[0m"
                     special_char_len += 9
-                bar += "\33[37m" + "━" * (self.width - prog_width) + "\x1b[0m"
+                bar += f"\33[37m{'━' * (self.width - prog_width)}\x1b[0m"
                 special_char_len += 9
 
             else:
@@ -162,12 +161,7 @@ class Progbar:
             for k in self._values_order:
                 info += f" - {k}:"
                 if isinstance(self._values[k], list):
-                    avg = backend.convert_to_numpy(
-                        backend.numpy.mean(
-                            self._values[k][0] / max(1, self._values[k][1])
-                        )
-                    )
-                    avg = float(avg)
+                    avg = self._values[k][0] / max(1, self._values[k][1])
                     if abs(avg) > 1e-3:
                         info += f" {avg:.4f}"
                     else:
@@ -189,16 +183,12 @@ class Progbar:
         elif self.verbose == 2:
             if finalize:
                 numdigits = int(math.log10(self.target)) + 1
-                count = ("%" + str(numdigits) + "d/%d") % (current, self.target)
+                count = f"%{numdigits}d/%d" % (current, self.target)
                 info = f"{count} - {now - self._start:.0f}s"
-                info += " -" + self._format_time(time_per_unit, self.unit_name)
+                info += f" -{self._format_time(time_per_unit, self.unit_name)}"
                 for k in self._values_order:
                     info += f" - {k}:"
-                    avg = backend.convert_to_numpy(
-                        backend.numpy.mean(
-                            self._values[k][0] / max(1, self._values[k][1])
-                        )
-                    )
+                    avg = self._values[k][0] / max(1, self._values[k][1])
                     if avg > 1e-3:
                         info += f" {avg:.4f}"
                     else:

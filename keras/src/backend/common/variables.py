@@ -142,7 +142,7 @@ class Variable:
         self._name = name
         parent_path = current_path()
         if parent_path:
-            self._path = current_path() + "/" + name
+            self._path = f"{parent_path}/{name}"
         else:
             self._path = name
         self._shape = None
@@ -282,7 +282,7 @@ class Variable:
                 "The shape of the target variable and "
                 "the shape of the target value in "
                 "`variable.assign(value)` must match. "
-                f"variable.shape={self.value.shape}, "
+                f"variable.shape={self.shape}, "
                 f"Received: value.shape={value.shape}. "
                 f"Target variable: {self}"
             )
@@ -399,7 +399,11 @@ class Variable:
     def __repr__(self):
         value = None
         if hasattr(self, "_value") and self._value is not None:
-            value = backend.core.convert_to_numpy(self._value)
+            try:
+                value = backend.core.convert_to_numpy(self._value)
+            except:
+                # In some cases the conversion to numpy can fail.
+                pass
         value_str = f", value={value}" if value is not None else ""
         return (
             f"<Variable path={self.path}, shape={self.shape}, "
@@ -597,6 +601,14 @@ def standardize_shape(shape):
                 shape = shape.as_list()
         shape = tuple(shape)
 
+    if config.backend() == "jax":
+        # Replace `_DimExpr` (dimension expression) with None
+        from jax import export as jax_export
+
+        shape = tuple(
+            None if jax_export.is_symbolic_dim(d) else d for d in shape
+        )
+
     if config.backend() == "torch":
         # `shape` might be `torch.Size`. We need to convert the items in it to
         # either int or `None`
@@ -604,9 +616,6 @@ def standardize_shape(shape):
 
     for e in shape:
         if e is None:
-            continue
-        if config.backend() == "jax" and "_DimExpr" in str(type(e)):
-            # JAX2TF tracing uses JAX-native dimension expressions
             continue
         if not is_int_dtype(type(e)):
             raise ValueError(

@@ -24,13 +24,13 @@ if backend.backend() == "jax":
     # Don't override user-specified device count, or other XLA flags.
     if "xla_force_host_platform_device_count" not in xla_flags:
         os.environ["XLA_FLAGS"] = (
-            xla_flags + " --xla_force_host_platform_device_count=8"
+            f"{xla_flags} --xla_force_host_platform_device_count=8"
         )
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Backend specific test",
+    backend.backend() != "jax" or len(jax.devices()) != 8,
+    reason="Backend specific test and requires 8 devices",
 )
 class JaxDistributionLibTest(testing.TestCase):
     def _create_jax_layout(self, sharding):
@@ -41,6 +41,10 @@ class JaxDistributionLibTest(testing.TestCase):
             return jax_layout.Layout(sharding=sharding)
 
         return sharding
+
+    def test_get_device_count(self):
+        self.assertEqual(backend_dlib.get_device_count(), 8)
+        self.assertEqual(backend_dlib.get_device_count("cpu"), 8)
 
     def test_list_devices(self):
         self.assertEqual(len(distribution_lib.list_devices()), 8)

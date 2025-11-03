@@ -15,6 +15,9 @@ class Solarization(BaseImagePreprocessingLayer):
     to all values. When created with specified `threshold` the layer only
     augments pixels that are above the `threshold` value.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         addition_factor: (Optional)  A tuple of two floats or a single float,
             between 0 and 1.

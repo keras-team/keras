@@ -260,3 +260,18 @@ class SimpleRNNTest(testing.TestCase):
         output_shape = layer.compute_output_shape(x.shape)
         for out, shape in zip(output, output_shape):
             self.assertEqual(out.shape, shape)
+
+    def test_keeps_use_cudnn(self):
+        # keep use_cudnn if the layer has it
+        for rnn_class in [layers.GRU, layers.LSTM]:
+            for use_cudnn in [True, False, "auto"]:
+                rnn = rnn_class(1, use_cudnn=use_cudnn)
+                bidi = layers.Bidirectional(rnn)
+                self.assertEqual(bidi.forward_layer.use_cudnn, use_cudnn)
+                self.assertEqual(bidi.backward_layer.use_cudnn, use_cudnn)
+
+        # otherwise ignore it
+        rnn = layers.SimpleRNN(1)
+        bidi = layers.Bidirectional(rnn)
+        self.assertFalse(hasattr(bidi.forward_layer, "use_cudnn"))
+        self.assertFalse(hasattr(bidi.backward_layer, "use_cudnn"))

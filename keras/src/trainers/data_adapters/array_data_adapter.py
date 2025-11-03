@@ -76,7 +76,9 @@ class ArrayDataAdapter(DataAdapter):
         inputs = data_adapter_utils.pack_x_y_sample_weight(x, y, sample_weight)
 
         data_adapter_utils.check_data_cardinality(inputs)
-        num_samples = set(i.shape[0] for i in tree.flatten(inputs)).pop()
+        num_samples = set(
+            i.shape[0] for i in tree.flatten(inputs) if i is not None
+        ).pop()
         self._num_samples = num_samples
         self._inputs = inputs
 
@@ -269,7 +271,9 @@ class ArrayDataAdapter(DataAdapter):
                     x = convert_to_tensor(x)
                     return x
 
-                return tree.map_structure(slice_and_convert, self.array)
+                return tree.map_structure(
+                    slice_and_convert, self.array, none_is_leaf=False
+                )
 
             def __len__(self):
                 return len(self.array[0])
@@ -337,7 +341,9 @@ class ArrayDataAdapter(DataAdapter):
             slice_indices_and_convert_fn = functools.partial(
                 slice_and_convert_fn, indices=indices
             )
-            yield tree.map_structure(slice_indices_and_convert_fn, inputs)
+            yield tree.map_structure(
+                slice_indices_and_convert_fn, inputs, none_is_leaf=False
+            )
 
     @property
     def num_batches(self):

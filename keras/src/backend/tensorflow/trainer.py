@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import warnings
 
 import numpy as np
@@ -67,7 +68,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             )
             self._loss_tracker.update_state(
                 loss_module.unscale_loss_for_distribution(loss),
-                sample_weight=tf.shape(tree.flatten(x)[0])[0],
+                sample_weight=tf.shape(
+                    next(i for i in tree.flatten(x) if i is not None)
+                )[0],
             )
             if self.optimizer is not None:
                 loss = self.optimizer.scale_loss(loss)
@@ -95,7 +98,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
         )
         self._loss_tracker.update_state(
             loss_module.unscale_loss_for_distribution(loss),
-            sample_weight=tf.shape(tree.flatten(x)[0])[0],
+            sample_weight=tf.shape(
+                next(i for i in tree.flatten(x) if i is not None)
+            )[0],
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
@@ -106,6 +111,21 @@ class TensorFlowTrainer(base_trainer.Trainer):
         else:
             y_pred = self(x)
         return y_pred
+
+    def _autoconvert_optionals(self, step_func):
+        # Wrapper converting (nested) TF Optional in input data to None
+        @functools.wraps(step_func)
+        def wrapper(data):
+            converted_data = tree.map_structure(
+                lambda i: (
+                    None if isinstance(i, tf.experimental.Optional) else i
+                ),
+                data,
+            )
+            result = step_func(converted_data)
+            return result
+
+        return wrapper
 
     def _make_function(self, step_function):
         @tf.autograph.experimental.do_not_convert
@@ -125,6 +145,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 reduce_retracing=True,
                 jit_compile=self.jit_compile,
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def multi_step_on_iterator(iterator):
@@ -253,6 +274,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             one_step_on_data = tf.function(
                 one_step_on_data, reduce_retracing=True, jit_compile=True
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data_distributed(data):
@@ -409,7 +431,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                     _use_cached_eval_dataset=True,
                 )
                 val_logs = {
-                    "val_" + name: val for name, val in val_logs.items()
+                    f"val_{name}": val for name, val in val_logs.items()
                 }
                 epoch_logs.update(val_logs)
 

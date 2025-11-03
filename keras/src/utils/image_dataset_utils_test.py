@@ -1,8 +1,10 @@
 import os
 
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import testing
 from keras.src.utils import image_dataset_utils
 from keras.src.utils import image_utils
@@ -66,7 +68,11 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             i += 1
         return temp_dir
 
-    def test_image_dataset_from_directory_no_labels(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_no_labels(self, format):
         # Test retrieving images without labels from a directory and its
         # subdirs.
 
@@ -77,7 +83,11 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             img.save(os.path.join(directory, filename))
 
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=5, image_size=(18, 18), labels=None
+            directory,
+            batch_size=5,
+            image_size=(18, 18),
+            labels=None,
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [5, 18, 18, 3]
@@ -86,8 +96,8 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(dataset.class_names, None)
         batch = next(iter(dataset))
         # We return plain images
-        self.assertEqual(batch.shape, output_shape)
-        self.assertEqual(batch.dtype.name, "float32")
+        self.assertEqual(list(batch.shape), output_shape)
+        self.assertDType(batch, "float32")
         # Count samples
         batch_count = 0
         sample_count = 0
@@ -97,10 +107,18 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(batch_count, 2)
         self.assertEqual(sample_count, 10)
 
-    def test_image_dataset_from_directory_binary(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_binary(self, format):
         directory = self._prepare_directory(num_classes=2)
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), label_mode="int"
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode="int",
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 3]
@@ -108,33 +126,38 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             output_shape = [8, 3, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8,))
-        self.assertEqual(batch[1].dtype.name, "int32")
+        self.assertEqual(list(batch[0].shape), output_shape)
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(list(batch[1].shape), [8])
+        self.assertDType(batch[1], "int32")
 
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), label_mode="binary"
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode="binary",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8, 1))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(list(batch[0].shape), output_shape)
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(list(batch[1].shape), [8, 1])
+        self.assertDType(batch[1], "float32")
 
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=8,
             image_size=(18, 18),
             label_mode="categorical",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8, 2))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(list(batch[0].shape), output_shape)
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(list(batch[1].shape), [8, 2])
+        self.assertDType(batch[1], "float32")
 
     def test_static_shape_in_graph(self):
         directory = self._prepare_directory(num_classes=2)
@@ -154,31 +177,51 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
 
         symbolic_fn(dataset)
 
-    def test_sample_count(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_sample_count(self, format):
         directory = self._prepare_directory(num_classes=4, count=15)
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), label_mode=None
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            format=format,
         )
         sample_count = 0
         for batch in dataset:
             sample_count += batch.shape[0]
         self.assertEqual(sample_count, 15)
 
-    def test_image_dataset_from_directory_multiclass(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_multiclass(self, format):
         directory = self._prepare_directory(num_classes=4, count=15)
 
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), label_mode=None
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 3]
         else:
             output_shape = [8, 3, 18, 18]
         batch = next(iter(dataset))
-        self.assertEqual(batch.shape, output_shape)
+        self.assertEqual(list(batch.shape), output_shape)
 
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), label_mode=None
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            format=format,
         )
         sample_count = 0
         iterator = iter(dataset)
@@ -187,32 +230,45 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(sample_count, 15)
 
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), label_mode="int"
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode="int",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8,))
-        self.assertEqual(batch[1].dtype.name, "int32")
+        self.assertEqual(list(batch[0].shape), output_shape)
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(list(batch[1].shape), [8])
+        self.assertDType(batch[1], "int32")
 
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=8,
             image_size=(18, 18),
             label_mode="categorical",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (output_shape))
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8, 4))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(list(batch[0].shape), output_shape)
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(list(batch[1].shape), [8, 4])
+        self.assertDType(batch[1], "float32")
 
-    def test_image_dataset_from_directory_color_modes(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_color_modes(self, format):
         directory = self._prepare_directory(num_classes=4, color_mode="rgba")
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), color_mode="rgba"
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            color_mode="rgba",
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 4]
@@ -220,14 +276,18 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             output_shape = [8, 4, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
-        self.assertEqual(batch[0].dtype.name, "float32")
+        self.assertEqual(list(batch[0].shape), output_shape)
+        self.assertDType(batch[0], "float32")
 
         directory = self._prepare_directory(
             num_classes=4, color_mode="grayscale"
         )
         dataset = image_dataset_utils.image_dataset_from_directory(
-            directory, batch_size=8, image_size=(18, 18), color_mode="grayscale"
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            color_mode="grayscale",
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 1]
@@ -235,10 +295,14 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             output_shape = [8, 1, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
-        self.assertEqual(batch[0].dtype.name, "float32")
+        self.assertEqual(list(batch[0].shape), output_shape)
+        self.assertDType(batch[0], "float32")
 
-    def test_image_dataset_from_directory_validation_split(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_validation_split(self, format):
         directory = self._prepare_directory(num_classes=2, count=10)
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
@@ -247,6 +311,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             validation_split=0.2,
             subset="training",
             seed=1337,
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
@@ -256,7 +321,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         else:
             train_output_shape = [8, 3, 18, 18]
             val_output_shape = [2, 3, 18, 18]
-        self.assertEqual(batch[0].shape, train_output_shape)
+        self.assertEqual(list(batch[0].shape), train_output_shape)
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=10,
@@ -264,10 +329,11 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             validation_split=0.2,
             subset="validation",
             seed=1337,
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, val_output_shape)
+        self.assertEqual(list(batch[0].shape), val_output_shape)
 
         (
             train_dataset,
@@ -279,15 +345,20 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             validation_split=0.2,
             subset="both",
             seed=1337,
+            format=format,
         )
         batch = next(iter(train_dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, train_output_shape)
+        self.assertEqual(list(batch[0].shape), train_output_shape)
         batch = next(iter(val_dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, val_output_shape)
+        self.assertEqual(list(batch[0].shape), val_output_shape)
 
-    def test_image_dataset_from_directory_manual_labels(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_manual_labels(self, format):
         # Case: wrong number of labels
         directory = self._prepare_directory(num_classes=1, count=4)
         with self.assertRaisesRegex(ValueError, "match the number of files"):
@@ -297,6 +368,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
                 image_size=(18, 18),
                 labels=[0, 1, 0],
                 shuffle=False,
+                format=format,
             )
 
         # Case: single directory
@@ -307,6 +379,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             image_size=(18, 18),
             labels=[0, 1, 0, 1],
             shuffle=False,
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [18, 18, 3]
@@ -315,7 +388,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(dataset.class_names, ["0", "1"])
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, [4] + output_shape)
+        self.assertEqual(list(batch[0].shape), [4] + output_shape)
         self.assertAllClose(batch[1], [0, 1, 0, 1])
 
         # Case: multiple directories
@@ -326,14 +399,19 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             image_size=(18, 18),
             labels=[0, 1, 0, 1, 1, 1],
             shuffle=False,
+            format=format,
         )
         self.assertEqual(dataset.class_names, ["0", "1"])
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, [6] + output_shape)
+        self.assertEqual(list(batch[0].shape), [6] + output_shape)
         self.assertAllClose(batch[1], [0, 1, 0, 1, 1, 1])
 
-    def test_image_dataset_from_directory_follow_links(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_follow_links(self, format):
         directory = self._prepare_directory(
             num_classes=2, count=25, nested_dirs=True
         )
@@ -343,24 +421,36 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             image_size=(18, 18),
             label_mode=None,
             follow_links=True,
+            format=format,
         )
         sample_count = 0
         for batch in dataset:
             sample_count += batch.shape[0]
         self.assertEqual(sample_count, 25)
 
-    def test_image_dataset_from_directory_no_images(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_no_images(self, format):
         directory = self._prepare_directory(num_classes=2, count=0)
         with self.assertRaisesRegex(ValueError, "No images found."):
-            _ = image_dataset_utils.image_dataset_from_directory(directory)
+            _ = image_dataset_utils.image_dataset_from_directory(
+                directory, format=format
+            )
 
-    def test_image_dataset_from_directory_crop_to_aspect_ratio(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_crop_to_aspect_ratio(self, format):
         directory = self._prepare_directory(num_classes=2, count=5)
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=5,
             image_size=(18, 18),
             crop_to_aspect_ratio=True,
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [5, 18, 18, 3]
@@ -368,15 +458,20 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             output_shape = [5, 3, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
+        self.assertEqual(list(batch[0].shape), output_shape)
 
-    def test_image_dataset_from_directory_pad_to_aspect_ratio(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_pad_to_aspect_ratio(self, format):
         directory = self._prepare_directory(num_classes=2, count=5)
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
             batch_size=5,
             image_size=(18, 18),
             pad_to_aspect_ratio=True,
+            format=format,
         )
         if backend.config.image_data_format() == "channels_last":
             output_shape = [5, 18, 18, 3]
@@ -384,26 +479,30 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             output_shape = [5, 3, 18, 18]
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, output_shape)
+        self.assertEqual(list(batch[0].shape), output_shape)
 
-    def test_image_dataset_from_directory_errors(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_errors(self, format):
         directory = self._prepare_directory(num_classes=3, count=5)
 
         with self.assertRaisesRegex(ValueError, "`labels` argument should be"):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, labels="other"
+                directory, labels="other", format=format
             )
 
         with self.assertRaisesRegex(
             ValueError, "`label_mode` argument must be"
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, label_mode="other"
+                directory, label_mode="other", format=format
             )
 
         with self.assertRaisesRegex(ValueError, "`color_mode` must be one of"):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, color_mode="other"
+                directory, color_mode="other", format=format
             )
 
         with self.assertRaisesRegex(
@@ -413,6 +512,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
                 directory,
                 labels=[0, 0, 1, 1, 1],
                 class_names=["class_0", "class_1", "class_2"],
+                format=format,
             )
 
         with self.assertRaisesRegex(
@@ -420,26 +520,26 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             "Expected the lengths of `labels` to match the number of files",
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, labels=[0, 0, 1, 1]
+                directory, labels=[0, 0, 1, 1], format=format
             )
 
         with self.assertRaisesRegex(
             ValueError, "`class_names` passed did not match"
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, class_names=["class_0", "wrong_class"]
+                directory, class_names=["class_0", "wrong_class"], format=format
             )
 
         with self.assertRaisesRegex(ValueError, "there must be exactly 2"):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, label_mode="binary"
+                directory, label_mode="binary", format=format
             )
 
         with self.assertRaisesRegex(
             ValueError, "`validation_split` must be between 0 and 1"
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, validation_split=2
+                directory, validation_split=2, format=format
             )
 
         with self.assertRaisesRegex(
@@ -447,22 +547,32 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             '`subset` must be either "training", "validation" or "both"',
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, validation_split=0.2, subset="other"
+                directory, validation_split=0.2, subset="other", format=format
             )
 
         with self.assertRaisesRegex(
             ValueError, "`validation_split` must be set"
         ):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, validation_split=0.0, subset="training"
+                directory,
+                validation_split=0.0,
+                subset="training",
+                format=format,
             )
 
         with self.assertRaisesRegex(ValueError, "must provide a `seed`"):
             _ = image_dataset_utils.image_dataset_from_directory(
-                directory, validation_split=0.2, subset="training"
+                directory,
+                validation_split=0.2,
+                subset="training",
+                format=format,
             )
 
-    def test_image_dataset_from_directory_not_batched(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_not_batched(self, format):
         directory = self._prepare_directory(num_classes=2, count=2)
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
@@ -470,11 +580,16 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             image_size=(18, 18),
             label_mode=None,
             shuffle=False,
+            format=format,
         )
         sample = next(iter(dataset))
         self.assertEqual(len(sample.shape), 3)
 
-    def test_image_dataset_from_directory_shuffle(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_shuffle(self, format):
         # TODO: add same test for train/val
         directory = self._prepare_directory(
             num_classes=2, count=25, nested_dirs=True
@@ -486,14 +601,15 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             label_mode=None,
             follow_links=True,
             shuffle=False,
+            format=format,
         )
         batches_1 = []
         batches_2 = []
         for b in dataset:
-            batches_1.append(b)
+            batches_1.append(ops.convert_to_numpy(b))
         batches_1 = np.concatenate(batches_1, axis=0)
         for b in dataset:
-            batches_2.append(b)
+            batches_2.append(ops.convert_to_numpy(b))
         batches_2 = np.concatenate(batches_2, axis=0)
         self.assertAllClose(batches_1, batches_2, atol=1e-6)
 
@@ -505,16 +621,21 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             follow_links=True,
             shuffle=True,
             seed=1337,
+            format=format,
         )
         batches_1 = []
         batches_2 = []
         for b in dataset:
-            batches_1.append(b)
+            batches_1.append(ops.convert_to_numpy(b))
         batches_1 = np.concatenate(batches_1, axis=0)
         for b in dataset:
-            batches_2.append(b)
+            batches_2.append(ops.convert_to_numpy(b))
         batches_2 = np.concatenate(batches_2, axis=0)
-        self.assertNotAllClose(batches_1, batches_2, atol=1e-6)
+        if format == "tf":
+            self.assertNotAllClose(batches_1, batches_2, atol=1e-6)
+        else:
+            # Grain shuffles deterministically, so we expect the same batches.
+            self.assertAllClose(batches_1, batches_2, atol=1e-6)
 
         # Test random seed determinism
         dataset = image_dataset_utils.image_dataset_from_directory(
@@ -525,9 +646,10 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             follow_links=True,
             shuffle=True,
             seed=1337,
+            format=format,
         )
         batches_1_alt = []
         for b in dataset:
-            batches_1_alt.append(b)
+            batches_1_alt.append(ops.convert_to_numpy(b))
         batches_1_alt = np.concatenate(batches_1_alt, axis=0)
         self.assertAllClose(batches_1, batches_1_alt, atol=1e-6)

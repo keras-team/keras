@@ -124,50 +124,63 @@ class DTypePolicyMapTest(testing.TestCase):
             dtype_policy_map["layer/dense_3"] = 123
 
     def test_get(self):
-        dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
-            "bfloat16"
-        )
-        dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
+        # 1. Setup
+        bfloat16_policy = dtype_policies.DTypePolicy("bfloat16")
+        int8_policy = dtype_policies.QuantizedDTypePolicy(
             "int8", "mixed_bfloat16"
         )
-        dtype_policy_map["layer/dense_2"] = (
-            dtype_policies.QuantizedFloat8DTypePolicy("float8", "mixed_float16")
+        float32_policy = dtype_policies.DTypePolicy("float32")
+        float16_policy = dtype_policies.DTypePolicy("float16")
+
+        policy_map = DTypePolicyMap()
+        # Policy for an exact layer path
+        policy_map["model/encoder/layer_0/dense"] = bfloat16_policy
+        # Policy for a layer that is also a prefix of another layer's name
+        policy_map["model/encoder/attention/query"] = int8_policy
+        # Regex policies for entire scopes MUST include wildcards
+        policy_map["model/decoder/.*"] = float32_policy
+        policy_map["model/decoder/attention/.*"] = float16_policy
+
+        # 2. Test exact match
+        self.assertEqual(
+            policy_map["model/encoder/layer_0/dense"], bfloat16_policy
+        )
+        self.assertEqual(
+            policy_map["model/encoder/attention/query"], int8_policy
         )
 
+        # 3. Test successful regex fallback (explicit wildcard)
+        # "model/decoder/.*" should match its children.
+        self.assertEqual(policy_map["model/decoder/layer_0"], float32_policy)
+
+        # 4. Test that partial matches are ignored
+        # The exact key "model/encoder/attention/query" should not match
+        # "model/encoder/attention/query_norm" without a wildcard.
         self.assertEqual(
-            dtype_policy_map["layer/dense_0"],
-            dtype_policies.DTypePolicy("bfloat16"),
+            policy_map["model/encoder/attention/query_norm"],
+            policy_map.default_policy,
         )
+        # A plain key "model/decoder" will not match "model/decoder/layer_0"
+        policy_map["model/decoder"] = bfloat16_policy  # Add exact key
+        self.assertEqual(policy_map["model/decoder/layer_0"], float32_policy)
+        # Still matches the more general regex
+        self.assertEqual(policy_map["model/decoder"], bfloat16_policy)
+
+        # 5. Test no match
         self.assertEqual(
-            dtype_policy_map["layer/dense_1"],
-            dtype_policies.QuantizedDTypePolicy("int8", "mixed_bfloat16"),
-        )
-        self.assertEqual(
-            dtype_policy_map["layer/dense_2"],
-            dtype_policies.QuantizedFloat8DTypePolicy(
-                "float8", "mixed_float16"
-            ),
+            policy_map["model/embedding"], policy_map.default_policy
         )
 
-        self.assertNotEqual(
-            dtype_policy_map["layer/dense_2"],
-            dtype_policies.QuantizedFloat8DTypePolicy("float8", "bfloat16"),
-        )
-
-        # No hit
-        self.assertEqual(
-            dtype_policy_map["layer/batch_normalization"],
-            dtype_policy_map.default_policy,
-        )
-
-        # It will cause a ValueError in the case of one-to-many.
-        dtype_policy_map["dense"] = dtype_policies.DTypePolicy("float32")
-        dtype_policy_map["dense_1"] = dtype_policies.DTypePolicy("float32")
+        # 6. Test multiple regex matches causing a ValueError
+        # "model/decoder/attention/output" matches two regex patterns:
+        # - "model/decoder/.*"
+        # - "model/decoder/attention/.*"
         with self.assertRaisesRegex(
-            ValueError, "Path 'dense_10' matches multiple dtype policy"
+            ValueError,
+            "Path 'model/decoder/attention/output' matches multiple "
+            "dtype policy",
         ):
-            dtype_policy_map["dense_10"]
+            _ = policy_map["model/decoder/attention/output"]
 
     def test_delete(self):
         dtype_policy_map = DTypePolicyMap()

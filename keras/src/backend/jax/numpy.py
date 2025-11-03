@@ -3,6 +3,7 @@ import math
 
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
+from jax import export as jax_export
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
@@ -39,17 +40,17 @@ def add(x1, x2):
 
 def bartlett(x):
     x = convert_to_tensor(x)
-    return jnp.bartlett(x)
+    return cast(jnp.bartlett(x), config.floatx())
 
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return jnp.hamming(x)
+    return cast(jnp.hamming(x), config.floatx())
 
 
 def hanning(x):
     x = convert_to_tensor(x)
-    return jnp.hanning(x)
+    return cast(jnp.hanning(x), config.floatx())
 
 
 def heaviside(x1, x2):
@@ -58,9 +59,15 @@ def heaviside(x1, x2):
     return jnp.heaviside(x1, x2)
 
 
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.hypot(x1, x2)
+
+
 def kaiser(x, beta):
     x = convert_to_tensor(x)
-    return jnp.kaiser(x, beta)
+    return cast(jnp.kaiser(x, beta), config.floatx())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -300,14 +307,20 @@ def append(x1, x2, axis=None):
     return jnp.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
+    def get_dtype(x):
+        if hasattr(x, "dtype"):
+            return x.dtype
+        if jax_export.is_symbolic_dim(x):
+            return int
+        return type(x)
+
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [get_dtype(start)]
         if stop is not None:
-            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            dtypes_to_resolve.append(get_dtype(stop))
+        if step is not None:
+            dtypes_to_resolve.append(get_dtype(step))
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = standardize_dtype(dtype)
     return jnp.arange(start, stop, step=step, dtype=dtype)
@@ -433,6 +446,11 @@ def array(x, dtype=None):
     return jnp.array(x, dtype=dtype)
 
 
+def view(x, dtype=None):
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
+
+
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]
@@ -497,7 +515,7 @@ def right_shift(x, y):
 
 def blackman(x):
     x = convert_to_tensor(x)
-    return jnp.blackman(x)
+    return cast(jnp.blackman(x), config.floatx())
 
 
 def broadcast_to(x, shape):
@@ -530,15 +548,18 @@ def clip(x, x_min, x_max):
 
 def concatenate(xs, axis=0):
     bcoo_count = builtins.sum(isinstance(x, jax_sparse.BCOO) for x in xs)
-    if bcoo_count:
-        if bcoo_count == len(xs):
-            axis = canonicalize_axis(axis, len(xs[0].shape))
-            return jax_sparse.bcoo_concatenate(xs, dimension=axis)
-        else:
-            xs = [
-                x.todense() if isinstance(x, jax_sparse.JAXSparse) else x
-                for x in xs
-            ]
+    if bcoo_count == len(xs):
+        axis = canonicalize_axis(axis, len(xs[0].shape))
+        return jax_sparse.bcoo_concatenate(xs, dimension=axis)
+    elif bcoo_count:
+        xs = [
+            x.todense()
+            if isinstance(x, jax_sparse.JAXSparse)
+            else convert_to_tensor(x)
+            for x in xs
+        ]
+    else:
+        xs = [convert_to_tensor(x) for x in xs]
     return jnp.concatenate(xs, axis=axis)
 
 
@@ -730,6 +751,12 @@ def full_like(x, fill_value, dtype=None):
     return jnp.full_like(x, fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.gcd(x1, x2)
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -769,6 +796,12 @@ def isfinite(x):
     return jnp.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 @sparse.elementwise_unary(linear=False)
 def isinf(x):
     x = convert_to_tensor(x)
@@ -779,6 +812,33 @@ def isinf(x):
 def isnan(x):
     x = convert_to_tensor(x)
     return jnp.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return jnp.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return jnp.isposinf(x)
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    return jnp.isreal(x)
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.kron(x1, x2)
+
+
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.lcm(x1, x2)
 
 
 def less(x1, x2):
@@ -846,6 +906,15 @@ def logaddexp(x1, x2):
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return jnp.logaddexp(x1, x2)
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return jnp.logaddexp2(x1, x2)
 
 
 def logical_and(x1, x2):
@@ -1031,6 +1100,7 @@ def reshape(x, newshape):
         if None not in output_shape:
             newshape = output_shape
         return jax_sparse.bcoo_reshape(x, new_sizes=newshape)
+    x = convert_to_tensor(x)
     return jnp.reshape(x, newshape)
 
 
@@ -1093,10 +1163,17 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    return jnp.array_split(x, indices_or_sections, axis=axis)
+
+
 def stack(x, axis=0):
+    x = [convert_to_tensor(t) for t in x]
     return jnp.stack(x, axis=axis)
 
 
@@ -1173,14 +1250,7 @@ def tile(x, repeats):
 
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
-    dtype = None
-    # TODO: Remove the condition of uint8 and uint16 once we have jax>=0.4.27
-    # for both CPU & GPU environments.
-    # uint8 and uint16 will be casted to uint32 when jax>=0.4.27 but to int32
-    # otherwise.
-    if standardize_dtype(x.dtype) in ("bool", "uint8", "uint16"):
-        dtype = "int32"
-    return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
+    return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -1282,6 +1352,7 @@ def squeeze(x, axis=None):
             axis = tuple(i for i, d in enumerate(x.shape) if d == 1)
         axis = to_tuple_or_list(axis)
         return jax_sparse.bcoo_squeeze(x, dimensions=axis)
+    x = convert_to_tensor(x)
     return jnp.squeeze(x, axis=axis)
 
 
@@ -1298,6 +1369,14 @@ def transpose(x, axes=None):
                 permutation.append(a)
         return jax_sparse.bcoo_transpose(x, permutation=permutation)
     return jnp.transpose(x, axes=axes)
+
+
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    if x is not None:
+        x = convert_to_tensor(x)
+    dx = convert_to_tensor(dx)
+    return jnp.trapezoid(y, x, dx=dx, axis=axis)
 
 
 def var(x, axis=None, keepdims=False):

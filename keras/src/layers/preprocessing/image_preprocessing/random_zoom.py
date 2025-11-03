@@ -24,6 +24,9 @@ class RandomZoom(BaseImagePreprocessingLayer):
     of integer or floating point dtype.
     By default, the layer will output floats.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:
         `(..., height, width, channels)`, in `"channels_last"` format,
@@ -34,9 +37,6 @@ class RandomZoom(BaseImagePreprocessingLayer):
         `(..., target_height, target_width, channels)`,
         or `(..., channels, target_height, target_width)`,
         in `"channels_first"` format.
-
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
-    (independently of which backend you're using).
 
     Args:
         height_factor: a float represented as fraction of value, or a tuple of

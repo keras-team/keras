@@ -11,16 +11,19 @@ from keras.src.utils import backend_utils
 class MixUp(BaseImagePreprocessingLayer):
     """MixUp implements the MixUp data augmentation technique.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
+    References:
+        - [MixUp paper](https://arxiv.org/abs/1710.09412).
+        - [MixUp for Object Detection paper](https://arxiv.org/pdf/1902.04103).
+
     Args:
         alpha: Float between 0 and 1. Controls the blending strength.
                Smaller values mean less mixing, while larger values allow
                for more  blending between images. Defaults to 0.2,
                recommended for ImageNet1k classification.
         seed: Integer. Used to create a random seed.
-
-    References:
-        - [MixUp paper](https://arxiv.org/abs/1710.09412).
-        - [MixUp for Object Detection paper](https://arxiv.org/pdf/1902.04103).
 
     Example:
     ```python

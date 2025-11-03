@@ -101,7 +101,9 @@ def list_to_tuple(maybe_list):
 
 
 def check_data_cardinality(data):
-    num_samples = set(int(i.shape[0]) for i in tree.flatten(data))
+    num_samples = set(
+        int(i.shape[0]) for i in tree.flatten(data) if i is not None
+    )
     if len(num_samples) > 1:
         msg = (
             "Data cardinality is ambiguous. "
@@ -186,7 +188,9 @@ def get_keras_tensor_spec(batches):
         else:
             return backend.KerasTensor(shape=shape, dtype=dtype)
 
-    return tree.map_structure(get_single_tensor_spec, *batches)
+    return tree.map_structure(
+        get_single_tensor_spec, *batches, none_is_leaf=False
+    )
 
 
 def convert_to_tf_tensor_spec(keras_tensor, batch_axis_to_none=True):
@@ -199,6 +203,8 @@ def convert_to_tf_tensor_spec(keras_tensor, batch_axis_to_none=True):
     """
     from keras.src.utils.module_utils import tensorflow as tf
 
+    if keras_tensor is None:
+        return tf.OptionalSpec(None)
     if not isinstance(keras_tensor, backend.KerasTensor):
         raise TypeError(
             f"Expected a KerasTensor, but got {keras_tensor} of type "
@@ -252,7 +258,9 @@ def get_jax_iterator(iterable):
             return np.asarray(x)
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_jax_compatible, batch)
+        yield tree.map_structure(
+            convert_to_jax_compatible, batch, none_is_leaf=False
+        )
 
 
 def get_numpy_iterator(iterable):
@@ -268,7 +276,7 @@ def get_numpy_iterator(iterable):
         return x
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_numpy, batch)
+        yield tree.map_structure(convert_to_numpy, batch, none_is_leaf=False)
 
 
 def get_torch_dataloader(iterable):
@@ -282,7 +290,9 @@ def get_torch_dataloader(iterable):
 
         def __iter__(self):
             for batch in self.iterable:
-                yield tree.map_structure(convert_to_tensor, batch)
+                yield tree.map_structure(
+                    convert_to_tensor, batch, none_is_leaf=False
+                )
 
     dataset = ConverterIterableDataset(iterable)
     # `batch_size=None` indicates that we should not re-batch

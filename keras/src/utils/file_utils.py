@@ -2,8 +2,12 @@ import hashlib
 import os
 import re
 import shutil
+import sys
 import tarfile
+import tempfile
 import urllib
+import urllib.error
+import urllib.parse
 import warnings
 import zipfile
 from urllib.request import urlretrieve
@@ -49,23 +53,67 @@ def is_link_in_dir(info, base):
     return is_path_in_dir(info.linkname, base_dir=tip)
 
 
-def filter_safe_paths(members):
+def filter_safe_zipinfos(members):
     base_dir = resolve_path(".")
     for finfo in members:
         valid_path = False
-        if is_path_in_dir(finfo.name, base_dir):
+        if is_path_in_dir(finfo.filename, base_dir):
             valid_path = True
             yield finfo
-        elif finfo.issym() or finfo.islnk():
-            if is_link_in_dir(finfo, base_dir):
-                valid_path = True
-                yield finfo
         if not valid_path:
             warnings.warn(
                 "Skipping invalid path during archive extraction: "
                 f"'{finfo.name}'.",
                 stacklevel=2,
             )
+
+
+def filter_safe_tarinfos(members):
+    base_dir = resolve_path(".")
+    for finfo in members:
+        valid_path = False
+        if finfo.issym() or finfo.islnk():
+            if is_link_in_dir(finfo, base_dir):
+                valid_path = True
+                yield finfo
+        elif is_path_in_dir(finfo.name, base_dir):
+            valid_path = True
+            yield finfo
+        if not valid_path:
+            warnings.warn(
+                "Skipping invalid path during archive extraction: "
+                f"'{finfo.name}'.",
+                stacklevel=2,
+            )
+
+
+def extract_open_archive(archive, path="."):
+    """Extracts an open tar or zip archive to the provided directory.
+
+    This function filters unsafe paths during extraction.
+
+    Args:
+        archive: The archive object, either a `TarFile` or a `ZipFile`.
+        path: Where to extract the archive file.
+    """
+    if isinstance(archive, zipfile.ZipFile):
+        # Zip archive.
+        archive.extractall(
+            path, members=filter_safe_zipinfos(archive.infolist())
+        )
+    else:
+        # Tar archive.
+        extractall_kwargs = {}
+        # The `filter="data"` option was added in Python 3.12. It became the
+        # default starting from Python 3.14. So we only specify it between
+        # those two versions.
+        if sys.version_info >= (3, 12) and sys.version_info < (3, 14):
+            extractall_kwargs = {"filter": "data"}
+        archive.extractall(
+            path,
+            members=filter_safe_tarinfos(archive),
+            **extractall_kwargs,
+        )
 
 
 def extract_archive(file_path, path=".", archive_format="auto"):
@@ -109,14 +157,7 @@ def extract_archive(file_path, path=".", archive_format="auto"):
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:
                 try:
-                    if zipfile.is_zipfile(file_path):
-                        # Zip archive.
-                        archive.extractall(path)
-                    else:
-                        # Tar archive, perhaps unsafe. Filter paths.
-                        archive.extractall(
-                            path, members=filter_safe_paths(archive)
-                        )
+                    extract_open_archive(archive, path)
                 except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
                     if os.path.exists(path):
                         if os.path.isfile(path):
@@ -159,7 +200,7 @@ def get_file(
     ```python
     path_to_downloaded_file = get_file(
         origin="https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
-        extract=True,
+        extract=True
     )
     ```
 
@@ -221,7 +262,9 @@ def get_file(
         hash_algorithm = "md5"
     datadir_base = os.path.expanduser(cache_dir)
     if not os.access(datadir_base, os.W_OK):
-        datadir_base = os.path.join("/tmp", ".keras")
+        datadir_base = os.path.join(
+            "/tmp" if os.path.isdir("/tmp") else tempfile.gettempdir(), ".keras"
+        )
     datadir = os.path.join(datadir_base, cache_subdir)
     os.makedirs(datadir, exist_ok=True)
 
@@ -249,13 +292,13 @@ def get_file(
             if "." in fname:
                 download_target = os.path.join(datadir, fname)
                 fname = fname[: fname.find(".")]
-                extraction_dir = os.path.join(datadir, fname + "_extracted")
+                extraction_dir = os.path.join(datadir, f"{fname}_extracted")
             else:
                 extraction_dir = os.path.join(datadir, fname)
-                download_target = os.path.join(datadir, fname + "_archive")
+                download_target = os.path.join(datadir, f"{fname}_archive")
         else:
             extraction_dir = os.path.join(datadir, fname)
-            download_target = os.path.join(datadir, fname + "_archive")
+            download_target = os.path.join(datadir, f"{fname}_archive")
     else:
         download_target = os.path.join(datadir, fname)
 
@@ -520,3 +563,6 @@ def makedirs(path):
         else:
             _raise_if_no_gfile(path)
     return os.makedirs(path)
+
+
+"/fo"

@@ -15,6 +15,9 @@ class RandAugment(BaseImagePreprocessingLayer):
     policy implemented by this layer has been benchmarked extensively and is
     effective on a wide variety of datasets.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     References:
         - [RandAugment](https://arxiv.org/abs/1909.13719)
 
@@ -29,7 +32,6 @@ class RandAugment(BaseImagePreprocessingLayer):
         interpolation: The interpolation method to use for resizing operations.
             Options include `nearest`, `bilinear`. Default is `bilinear`.
         seed: Integer. Used to create a random seed.
-
     """
 
     _USE_BASE_FACTOR = False

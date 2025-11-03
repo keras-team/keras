@@ -313,18 +313,19 @@ def append(x1, x2, axis=None):
     return torch.cat((x1, x2), dim=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [getattr(start, "dtype", type(start))]
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        if step is not None:
+            dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
     if stop is None:
-        return torch.arange(end=start, dtype=dtype, device=get_device())
+        start, stop = 0, start
+    if step is None:
+        step = 1
     return torch.arange(
         start, stop, step=step, dtype=dtype, device=get_device()
     )
@@ -408,6 +409,12 @@ def argsort(x, axis=-1):
 
 def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
+
+
+def view(x, dtype=None):
+    dtype = to_torch_dtype(dtype)
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
 
 
 def average(x, axis=None, weights=None):
@@ -839,6 +846,12 @@ def full_like(x, fill_value, dtype=None):
     return full(shape=x.shape, fill_value=fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.gcd(x1, x2)
+
+
 def greater(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.greater(x1, x2)
@@ -852,6 +865,22 @@ def greater_equal(x1, x2):
 def hstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return torch.hstack(xs)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+
+    return torch.hypot(x1, x2)
 
 
 def identity(n, dtype=None):
@@ -886,6 +915,23 @@ def isfinite(x):
     return torch.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
+
+    if standardize_dtype(x1.dtype) == "bool":
+        x1 = cast(x1, x2.dtype)
+    if standardize_dtype(x2.dtype) == "bool":
+        x2 = cast(x2, x1.dtype)
+
+    return torch.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 def isinf(x):
     x = convert_to_tensor(x)
     return torch.isinf(x)
@@ -894,6 +940,33 @@ def isinf(x):
 def isnan(x):
     x = convert_to_tensor(x)
     return torch.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return torch.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return torch.isposinf(x)
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    return torch.isreal(x)
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.kron(x1, x2)
+
+
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.lcm(x1, x2)
 
 
 def less(x1, x2):
@@ -990,6 +1063,15 @@ def logaddexp(x1, x2):
         x1 = cast(x1, dtype)
         x2 = cast(x2, dtype)
         return torch.logaddexp(x1, x2)
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return torch.logaddexp2(x1, x2)
 
 
 def logical_and(x1, x2):
@@ -1385,7 +1467,7 @@ def searchsorted(sorted_sequence, values, side="left"):
             "to extend it to N-D sequences. Received: "
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
-    out_int32 = len(sorted_sequence) <= np.iinfo(np.int32).max
+    out_int32 = sorted_sequence.shape[0] <= np.iinfo(np.int32).max
     return torch.searchsorted(
         sorted_sequence, values, side=side, out_int32=out_int32
     )
@@ -1454,6 +1536,12 @@ def split(x, indices_or_sections, axis=0):
     )
     if dim == 0 and isinstance(indices_or_sections, int):
         out = [out[0].clone() for _ in range(indices_or_sections)]
+    return list(out)
+
+
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    out = torch.tensor_split(x, indices_or_sections, dim=axis)
     return list(out)
 
 
@@ -1570,8 +1658,9 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype != "int64":
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16", "uint8"):
+        # Torch backend doesn't support uint32 dtype.
+        dtype = "int32"
     return torch.sum(
         torch.diagonal(x, offset, axis1, axis2),
         dim=-1,
@@ -1710,6 +1799,18 @@ def transpose(x, axes=None):
     if axes is not None:
         return torch.permute(x, dims=axes)
     return x.T
+
+
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    if standardize_dtype(y.dtype) == "bool":
+        y = cast(y, config.floatx())
+    if x is not None:
+        x = convert_to_tensor(x)
+        return torch.trapz(y, x=x, dim=axis)
+    else:
+        dx = convert_to_tensor(dx)
+        return torch.trapz(y, dx=dx, dim=axis)
 
 
 def var(x, axis=None, keepdims=False):

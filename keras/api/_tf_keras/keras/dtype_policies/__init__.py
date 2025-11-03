@@ -12,6 +12,9 @@ from keras.src.dtype_policies.dtype_policy import (
     FloatDTypePolicy as FloatDTypePolicy,
 )
 from keras.src.dtype_policies.dtype_policy import (
+    GPTQDTypePolicy as GPTQDTypePolicy,
+)
+from keras.src.dtype_policies.dtype_policy import (
     QuantizedDTypePolicy as QuantizedDTypePolicy,
 )
 from keras.src.dtype_policies.dtype_policy import (

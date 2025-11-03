@@ -58,3 +58,4 @@ torch_xla = LazyModule(
 optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
+grain = LazyModule("grain")

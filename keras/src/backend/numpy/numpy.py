@@ -173,15 +173,18 @@ def append(x1, x2, axis=None):
     return np.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [getattr(start, "dtype", type(start))]
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        if step is not None:
+            dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
+    if stop is None:
+        start, stop = 0, start
+    if step is None:
+        step = 1
     return np.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -291,6 +294,11 @@ def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
 
+def view(x, dtype=None):
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
+
+
 def average(x, axis=None, weights=None):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
@@ -372,6 +380,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 def bitwise_and(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_and(x, y)
 
 
@@ -387,12 +398,18 @@ def bitwise_not(x):
 def bitwise_or(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_or(x, y)
 
 
 def bitwise_xor(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.bitwise_xor(x, y)
 
 
@@ -400,6 +417,9 @@ def bitwise_left_shift(x, y):
     x = convert_to_tensor(x)
     if not isinstance(y, int):
         y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = x.astype(dtype)
+        y = y.astype(dtype)
     return np.left_shift(x, y)
 
 
@@ -411,6 +431,9 @@ def bitwise_right_shift(x, y):
     x = convert_to_tensor(x)
     if not isinstance(y, int):
         y = convert_to_tensor(y)
+        dtype = dtypes.result_type(x.dtype, y.dtype)
+        x = x.astype(dtype)
+        y = y.astype(dtype)
     return np.right_shift(x, y)
 
 
@@ -647,6 +670,14 @@ def full_like(x, fill_value, dtype=None):
     return np.full_like(x, fill_value, dtype=dtype)
 
 
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.gcd(x1, x2).astype(dtype)
+
+
 def greater(x1, x2):
     return np.greater(x1, x2)
 
@@ -663,6 +694,19 @@ def hstack(xs):
             lambda x: convert_to_tensor(x).astype(dtype), xs
         )
     return np.hstack(xs)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype in ["int64"]:
+        dtype = "float64"
+
+    return np.hypot(x1, x2).astype(dtype)
 
 
 def identity(n, dtype=None):
@@ -682,12 +726,47 @@ def isfinite(x):
     return np.isfinite(x)
 
 
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return np.isin(x1, x2, assume_unique=assume_unique, invert=invert)
+
+
 def isinf(x):
     return np.isinf(x)
 
 
 def isnan(x):
     return np.isnan(x)
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return np.isneginf(x)
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return np.isposinf(x)
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    return np.isreal(x)
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.kron(x1, x2).astype(dtype)
+
+
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.lcm(x1, x2).astype(dtype)
 
 
 def less(x1, x2):
@@ -767,6 +846,13 @@ def logaddexp(x1, x2):
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.logaddexp(x1, x2)
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return np.logaddexp2(x1, x2).astype(dtype)
 
 
 def logical_and(x1, x2):
@@ -972,7 +1058,9 @@ def searchsorted(sorted_sequence, values, side="left"):
             f"sorted_sequence.shape={sorted_sequence.shape}"
         )
     out_type = (
-        "int32" if len(sorted_sequence) <= np.iinfo(np.int32).max else "int64"
+        "int32"
+        if sorted_sequence.shape[0] <= np.iinfo(np.int32).max
+        else "int64"
     )
     return np.searchsorted(sorted_sequence, values, side=side).astype(out_type)
 
@@ -1017,6 +1105,11 @@ def sort(x, axis=-1):
 def split(x, indices_or_sections, axis=0):
     axis = standardize_axis_for_numpy(axis)
     return np.split(x, indices_or_sections, axis=axis)
+
+
+def array_split(x, indices_or_sections, axis=0):
+    axis = standardize_axis_for_numpy(axis)
+    return np.array_split(x, indices_or_sections, axis=axis)
 
 
 def stack(x, axis=0):
@@ -1094,8 +1187,10 @@ def trace(x, offset=0, axis1=0, axis2=1):
     axis2 = standardize_axis_for_numpy(axis2)
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype not in ("int64", "uint32", "uint64"):
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
     return np.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
@@ -1249,6 +1344,15 @@ def squeeze(x, axis=None):
 def transpose(x, axes=None):
     axes = tuple(axes) if isinstance(axes, list) else axes
     return np.transpose(x, axes=axes)
+
+
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    result_dtype = dtypes.result_type(y.dtype, float)
+    if x is not None:
+        x = convert_to_tensor(x)
+    dx = convert_to_tensor(dx)
+    return np.trapezoid(y, x, dx=dx, axis=axis).astype(result_dtype)
 
 
 def var(x, axis=None, keepdims=False):

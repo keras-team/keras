@@ -18,7 +18,7 @@ class Equalization(BaseImagePreprocessingLayer):
     equalization independently on each color channel. At inference time,
     the equalization is consistently applied.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Args:

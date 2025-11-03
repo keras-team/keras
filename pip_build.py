@@ -47,7 +47,7 @@ def export_version_string(version, is_nightly=False, rc_index=None):
         )
         pyproj_pth.write_text(pyproj_str)
     elif rc_index is not None:
-        version += "rc" + str(rc_index)
+        version += f"rc{str(rc_index)}"
 
     # Make sure to export the __version__ string
     with open(os.path.join(package, "src", "version.py")) as f:

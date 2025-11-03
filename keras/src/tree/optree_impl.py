@@ -93,14 +93,14 @@ def flatten_with_path(structure):
     return list(zip(paths, leaves))
 
 
-def map_structure(func, *structures):
+def map_structure(func, *structures, none_is_leaf=True):
     if not structures:
         raise ValueError("Must provide at least one structure")
 
     # Add check for same structures, otherwise optree just maps to shallowest.
     def func_with_check(*args):
         if not all(
-            optree.tree_is_leaf(s, none_is_leaf=True, namespace="keras")
+            optree.tree_is_leaf(s, none_is_leaf=none_is_leaf, namespace="keras")
             for s in args
         ):
             raise ValueError("Structures don't have the same nested structure.")
@@ -109,7 +109,7 @@ def map_structure(func, *structures):
     map_func = func_with_check if len(structures) > 1 else func
 
     return optree.tree_map(
-        map_func, *structures, none_is_leaf=True, namespace="keras"
+        map_func, *structures, none_is_leaf=none_is_leaf, namespace="keras"
     )
 
 

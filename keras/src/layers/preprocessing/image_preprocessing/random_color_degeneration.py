@@ -13,6 +13,9 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
     color. It then takes a weighted average between original image and the
     degenerated image. This makes colors appear more dull.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         factor: A tuple of two floats or a single float.
             `factor` controls the extent to which the

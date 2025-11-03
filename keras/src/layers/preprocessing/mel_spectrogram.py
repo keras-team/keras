@@ -1,5 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 
 # mel spectrum constants.
 _MEL_BREAK_FREQUENCY_HERTZ = 700.0
@@ -7,7 +7,7 @@ _MEL_HIGH_FREQUENCY_Q = 1127.0
 
 
 @keras_export("keras.layers.MelSpectrogram")
-class MelSpectrogram(TFDataLayer):
+class MelSpectrogram(DataLayer):
     """A preprocessing layer to convert raw audio signals to Mel spectrograms.
 
     This layer takes `float32`/`float64` single or batched audio signal as
@@ -24,9 +24,36 @@ class MelSpectrogram(TFDataLayer):
     speech and music processing tasks like speech recognition, speaker
     identification, and music genre classification.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     References:
     - [Spectrogram](https://en.wikipedia.org/wiki/Spectrogram),
     - [Mel scale](https://en.wikipedia.org/wiki/Mel_scale).
+
+    Args:
+        fft_length: Integer, size of the FFT window.
+        sequence_stride: Integer, number of samples between successive STFT
+            columns.
+        sequence_length: Integer, size of the window used for applying
+            `window` to each audio frame. If `None`, defaults to `fft_length`.
+        window: String, name of the window function to use. Available values
+            are `"hann"` and `"hamming"`. If `window` is a tensor, it will be
+            used directly as the window and its length must be
+            `sequence_length`. If `window` is `None`, no windowing is
+            used. Defaults to `"hann"`.
+        sampling_rate: Integer, sample rate of the input signal.
+        num_mel_bins: Integer, number of mel bins to generate.
+        min_freq: Float, minimum frequency of the mel bins.
+        max_freq: Float, maximum frequency of the mel bins.
+            If `None`, defaults to `sampling_rate / 2`.
+        power_to_db: If True, convert the power spectrogram to decibels.
+        top_db: Float, minimum negative cut-off `max(10 * log10(S)) - top_db`.
+        mag_exp: Float, exponent for the magnitude spectrogram.
+            1 for magnitude, 2 for power, etc. Default is 2.
+        ref_power: Float, the power is scaled relative to it
+            `10 * log10(S / ref_power)`.
+        min_power: Float, minimum value for power and `ref_power`.
 
     Examples:
 
@@ -55,29 +82,6 @@ class MelSpectrogram(TFDataLayer):
         2D (unbatched) or 3D (batched) tensor with
         shape:`(..., num_mel_bins, time)`.
 
-    Args:
-        fft_length: Integer, size of the FFT window.
-        sequence_stride: Integer, number of samples between successive STFT
-            columns.
-        sequence_length: Integer, size of the window used for applying
-            `window` to each audio frame. If `None`, defaults to `fft_length`.
-        window: String, name of the window function to use. Available values
-            are `"hann"` and `"hamming"`. If `window` is a tensor, it will be
-            used directly as the window and its length must be
-            `sequence_length`. If `window` is `None`, no windowing is
-            used. Defaults to `"hann"`.
-        sampling_rate: Integer, sample rate of the input signal.
-        num_mel_bins: Integer, number of mel bins to generate.
-        min_freq: Float, minimum frequency of the mel bins.
-        max_freq: Float, maximum frequency of the mel bins.
-            If `None`, defaults to `sampling_rate / 2`.
-        power_to_db: If True, convert the power spectrogram to decibels.
-        top_db: Float, minimum negative cut-off `max(10 * log10(S)) - top_db`.
-        mag_exp: Float, exponent for the magnitude spectrogram.
-            1 for magnitude, 2 for power, etc. Default is 2.
-        ref_power: Float, the power is scaled relative to it
-            `10 * log10(S / ref_power)`.
-        min_power: Float, minimum value for power and `ref_power`.
     """
 
     def __init__(

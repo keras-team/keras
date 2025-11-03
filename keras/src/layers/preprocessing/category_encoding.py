@@ -1,12 +1,12 @@
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.utils import backend_utils
 from keras.src.utils import numerical_utils
 
 
 @keras_export("keras.layers.CategoryEncoding")
-class CategoryEncoding(TFDataLayer):
+class CategoryEncoding(DataLayer):
     """A preprocessing layer which encodes integer features.
 
     This layer provides options for condensing data into a categorical encoding
@@ -15,7 +15,7 @@ class CategoryEncoding(TFDataLayer):
     inputs. For integer inputs where the total number of tokens is not known,
     use `keras.layers.IntegerLookup` instead.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Examples:

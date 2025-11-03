@@ -46,8 +46,8 @@ except ImportError:
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
-_VARS_FNAME_H5 = _VARS_FNAME + ".h5"
-_VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
+_VARS_FNAME_H5 = f"{_VARS_FNAME}.h5"
+_VARS_FNAME_NPZ = f"{_VARS_FNAME}.npz"
 _ASSETS_DIRNAME = "assets"
 _MEMORY_UPPER_BOUND = 0.5  # 50%
 
@@ -664,7 +664,7 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 def _name_key(name):
     """Make sure that private attributes are visited last."""
     if name.startswith("_"):
-        return "~" + name
+        return f"~{name}"
     return name
 
 
@@ -943,7 +943,7 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
-                self.archive.extractall(path=self.tmp_dir)
+                file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
                 self.tmp_dir, self.root_path
             ).replace("\\", "/")
@@ -1288,7 +1288,7 @@ class ShardedH5IOStore(H5IOStore):
         # If not found, check shard map and switch files.
         weight_map = self.sharding_config["weight_map"]
         filenames = weight_map.get(parsed_path) or weight_map.get(
-            "/" + parsed_path + "/vars"
+            f"/{parsed_path}/vars"
         )
         if filenames is not None:
             if not isinstance(filenames, list):
@@ -1584,7 +1584,7 @@ def get_attr_skipset(obj_type):
 
         ref_obj = Operation()
         skipset.update(dir(ref_obj))
-    if obj_type == "Layer":
+    elif obj_type == "Layer":
         from keras.src.layers.layer import Layer
 
         ref_obj = Layer()
@@ -1631,7 +1631,7 @@ def get_attr_skipset(obj_type):
         raise ValueError(
             f"get_attr_skipset got invalid {obj_type=}. "
             "Accepted values for `obj_type` are "
-            "['Layer', 'Functional', 'Sequential', 'Metric', "
+            "['Operation', 'Layer', 'Functional', 'Sequential', 'Metric', "
             "'Optimizer', 'Loss', 'Cross', 'Feature']"
         )
 

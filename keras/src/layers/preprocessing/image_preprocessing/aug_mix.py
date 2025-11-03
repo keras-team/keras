@@ -43,6 +43,13 @@ class AugMix(BaseImagePreprocessingLayer):
     in num_chains different ways, with each chain consisting of
     chain_depth augmentations.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
+    References:
+        - [AugMix paper](https://arxiv.org/pdf/1912.02781)
+        - [Official Code](https://github.com/google-research/augmix)
+
     Args:
         value_range: the range of values the incoming images will have.
             Represented as a two number tuple written (low, high).
@@ -64,10 +71,6 @@ class AugMix(BaseImagePreprocessingLayer):
         interpolation: The interpolation method to use for resizing operations.
             Options include `"nearest"`, `"bilinear"`. Default is `"bilinear"`.
         seed: Integer. Used to create a random seed.
-
-    References:
-        - [AugMix paper](https://arxiv.org/pdf/1912.02781)
-        - [Official Code](https://github.com/google-research/augmix)
     """
 
     _USE_BASE_FACTOR = False

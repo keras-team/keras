@@ -62,7 +62,7 @@ def device_scope(device_name):
     current_device = _parse_device_input(device_name)
     global_state.set_global_attribute("torch_device", current_device)
     try:
-        yield
+        yield torch.device(current_device)
     finally:
         global_state.set_global_attribute("torch_device", previous_device)
 
@@ -191,21 +191,18 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         raise ValueError("`sparse=True` is not supported with torch backend")
     if ragged:
         raise ValueError("`ragged=True` is not supported with torch backend")
-    if isinstance(x, Variable):
-        if dtype is None:
-            return x.value
-        x = x.value
-        return x.to(to_torch_dtype(dtype))
-    if is_tensor(x):
+    if isinstance(x, Variable) or is_tensor(x):
+        if isinstance(x, Variable):
+            x = x.value
         device = get_device()
         if x.device != device:
             if x.is_meta:
                 x = torch.empty_like(x, device=device)
             else:
                 x = x.to(device)
-        if dtype is None:
-            return x
-        return x.to(to_torch_dtype(dtype))
+        if dtype is not None:
+            x = x.to(to_torch_dtype(dtype))
+        return x
     if dtype is None:
         if isinstance(x, bool):
             return torch.as_tensor(x, dtype=torch.bool, device=get_device())

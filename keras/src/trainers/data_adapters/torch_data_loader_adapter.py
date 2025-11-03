@@ -35,7 +35,9 @@ class TorchDataLoaderAdapter(DataAdapter):
         for batch in self._dataloader:
             # shared memory using `np.asarray`
             yield tuple(
-                tree.map_structure(lambda x: np.asarray(x.cpu()), batch)
+                tree.map_structure(
+                    lambda x: np.asarray(x.cpu()), batch, none_is_leaf=False
+                )
             )
 
     def get_jax_iterator(self):

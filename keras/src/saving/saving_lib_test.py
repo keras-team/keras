@@ -880,7 +880,7 @@ class SavingAPITest(testing.TestCase):
             ]
         )
         model.save(temp_filepath)
-        with self.assertRaisesRegex(ValueError, "Deserializing it is unsafe"):
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
             model = saving_lib.load_model(temp_filepath)
         model = saving_lib.load_model(temp_filepath, safe_mode=False)
 
