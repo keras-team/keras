@@ -42,6 +42,18 @@ jobs:
           echo "Verifying JAX installation..."
           python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()[0].device_kind}')"
 
-          # pytest keras --ignore keras/src/applications \
-          #             --cov=keras \
-          #             --cov-config=pyproject.toml
+          pytest keras --ignore keras/src/applications \
+                      --cov=keras \
+                      --cov-config=pyproject.toml
+          
+          pytest --lf --collect-only -q > excluded_tpu_tests.txt
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: tpu-jax-test-report
+          
+          # This is the path to the file or directory you want to upload
+          # You can use wildcards
+          path: |
+            excluded_tpu_tests.txt
