@@ -5230,8 +5230,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_correlate_different_size(self):
-        x = np.array([1, 2, 3, 4, 5, 6])
-        y = np.array([0, 1, 0.5])
+        x = np.array([1, 3, 5])
+        y = np.array([7, 9])
         self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
         self.assertAllClose(
             knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
