@@ -6,7 +6,9 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.data_layer import DataLayer
+from keras.src.trainers.data_adapters import get_data_adapter
 from keras.src.utils.module_utils import tensorflow as tf
+from keras.utils import PyDataset
 
 
 @keras_export("keras.layers.Normalization")
@@ -229,6 +231,24 @@ class Normalization(DataLayer):
                 # Batch dataset if it isn't batched
                 data = data.batch(128)
             input_shape = tuple(data.element_spec.shape)
+        elif isinstance(data, PyDataset):
+            # as PyDatasets returns tuples of input/annotation pairs
+            adapter = get_data_adapter(data)
+            tf_dataset = adapter.get_tf_dataset()
+            if len(tf_dataset.element_spec) == 1:
+                # just x
+                data = tf_dataset.map(lambda x: x)
+                input_shape = data.element_spec.shape
+            elif len(tf_dataset.element_spec) == 2:
+                # (x, y) pairs
+                data = tf_dataset.map(lambda x, y: x)
+                input_shape = data.element_spec.shape
+            elif len(tf_dataset.element_spec) == 3:
+                # (x, y, sample_weight) tuples
+                data = tf_dataset.map(lambda x, y, z: x)
+                input_shape = data.element_spec.shape
+        else:
+            raise NotImplementedError(f"Unsupported data type: {type(data)}")
 
         if not self.built:
             self.build(input_shape)
