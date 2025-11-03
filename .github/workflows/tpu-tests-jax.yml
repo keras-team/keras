@@ -61,7 +61,5 @@ jobs:
         with:
           name: tpu-jax-test-report
           
-          # This is the path to the file or directory you want to upload
-          # You can use wildcards
           path: |
             excluded_tpu_tests.txt
