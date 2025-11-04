@@ -1237,3 +1237,62 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
 
     # ---- reshape -> (N, C*kH*kW, L) ----
     return patches.reshape(N, C * k[0] * k[1], -1)
+
+
+def _adaptive_pool2d(inputs, output_size, mode="avg", data_format=None):
+    """Adaptive pooling for 2D inputs."""
+    from keras.src import backend
+
+    data_format = backend.standardize_data_format(data_format)
+    x = convert_to_tensor(inputs)
+
+    if isinstance(output_size, int):
+        out_h = out_w = int(output_size)
+    else:
+        out_h, out_w = output_size
+
+    if data_format == "channels_last":
+        N, H, W, C = x.shape
+        x_nchw = np.transpose(x, (0, 3, 1, 2))
+    else:
+        N, C, H, W = x.shape
+        x_nchw = x
+
+    out = np.empty((N, C, out_h, out_w), dtype=x.dtype)
+
+    for i in range(out_h):
+        h_start = int(np.floor(i * H / out_h))
+        h_end = int(np.ceil((i + 1) * H / out_h))
+        h_start = max(0, min(h_start, H - 1))
+        h_end = max(h_start + 1, min(h_end, H))
+
+        for j in range(out_w):
+            w_start = int(np.floor(j * W / out_w))
+            w_end = int(np.ceil((j + 1) * W / out_w))
+            w_start = max(0, min(w_start, W - 1))
+            w_end = max(w_start + 1, min(w_end, W))
+
+            patch = x_nchw[:, :, h_start:h_end, w_start:w_end]
+
+            if mode == "avg":
+                out[:, :, i, j] = np.mean(patch, axis=(2, 3))
+            else:
+                out[:, :, i, j] = np.max(patch, axis=(2, 3))
+
+    if data_format == "channels_last":
+        return np.transpose(out, (0, 2, 3, 1))
+    return out
+
+
+def adaptive_avg_pool(inputs, output_size, data_format=None):
+    """Adaptive average pooling 2D wrapper."""
+    return _adaptive_pool2d(
+        inputs, output_size, mode="avg", data_format=data_format
+    )
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    """Adaptive max pooling 2D wrapper."""
+    return _adaptive_pool2d(
+        inputs, output_size, mode="max", data_format=data_format
+    )

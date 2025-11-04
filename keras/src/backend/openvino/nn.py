@@ -266,6 +266,16 @@ def average_pool(
     )
 
 
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    """Adaptive average pooling - OpenVINO backend not yet supported."""
+    raise NotImplementedError("Adaptive pooling not implemented for OpenVINO.")
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    """Adaptive max pooling - OpenVINO backend not yet supported."""
+    raise NotImplementedError("Adaptive pooling not implemented for OpenVINO.")
+
+
 def _pool(
     inputs,
     pool_size,
