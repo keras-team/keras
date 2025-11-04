@@ -1466,153 +1466,59 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches.reshape(N, CKK, oH * oW)
 
 
-def _adaptive_pool_start_index(output_idx, output_size, input_size):
-    """Calculate start index for adaptive pooling (PyTorch compatible)."""
-    return jnp.floor((output_idx * input_size) / output_size).astype(jnp.int32)
+def _adaptive_pool(
+    inputs, output_size, data_format="channels_first", pool_fn=jnp.mean
+):
+    """
+    Optimized adaptive pooling for JAX backend, fully vectorized and
+    tracer-safe.
+    """
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+    out_h, out_w = output_size
 
+    # Handle data format
+    if data_format == "channels_last":
+        inputs = jnp.transpose(inputs, (0, 3, 1, 2))  # NHWC → NCHW
+    n, c, h, w = inputs.shape
 
-def _adaptive_pool_end_index(output_idx, output_size, input_size):
-    """Calculate end index for adaptive pooling (PyTorch compatible)."""
-    return jnp.ceil(((output_idx + 1) * input_size) / output_size).astype(
-        jnp.int32
-    )
+    # Precompute static pooling bins as concrete numpy arrays (not traced)
+    h_bins = [
+        (int(jnp.floor(i * h / out_h)), int(jnp.ceil((i + 1) * h / out_h)))
+        for i in range(out_h)
+    ]
+    w_bins = [
+        (int(jnp.floor(j * w / out_w)), int(jnp.ceil((j + 1) * w / out_w)))
+        for j in range(out_w)
+    ]
+
+    # Define pooling over one image (C,H,W)
+    def pool_single_image(img):
+        pooled_rows = []
+        for hs, he in h_bins:
+            pooled_cols = []
+            for ws, we in w_bins:
+                region = img[:, hs:he, ws:we]
+                pooled_cols.append(pool_fn(region, axis=(1, 2)))
+            pooled_rows.append(jnp.stack(pooled_cols, axis=-1))
+        return jnp.stack(pooled_rows, axis=-2)  # (C, out_h, out_w)
+
+    # Vectorize over batch
+    outputs = jax.vmap(pool_single_image)(inputs)  # (N, C, out_h, out_w)
+
+    # Convert back if channels_last
+    if data_format == "channels_last":
+        outputs = jnp.transpose(outputs, (0, 2, 3, 1))
+    return outputs
 
 
 def adaptive_avg_pool(
-    inputs, output_size, data_format="channels_last", name=None
+    inputs, output_size, data_format="channels_first", name=None
 ):
-    """
-    Adaptive average pooling for JAX backend (PyTorch-compatible).
-    """
-    # Convert output_size to tuple
-    spatial_dims = inputs.ndim - 2
-    if isinstance(output_size, int):
-        output_size = (output_size,) * spatial_dims
-    else:
-        output_size = tuple(output_size)
-
-    # Get spatial shape
-    if data_format == "channels_last":
-        batch_size = inputs.shape[0]
-        channels = inputs.shape[-1]
-        spatial_shape = inputs.shape[1:-1]
-    else:  # channels_first
-        batch_size = inputs.shape[0]
-        channels = inputs.shape[1]
-        spatial_shape = inputs.shape[2:]
-
-    if len(output_size) != 2:
-        raise NotImplementedError(
-            "Only 2D adaptive pooling is currently supported"
-        )
-
-    out_h, out_w = output_size
-    in_h, in_w = spatial_shape
-
-    # Build output by iterating over output positions
-    result_list = []
-
-    for i in range(out_h):
-        for j in range(out_w):
-            # Calculate pooling region for this output position
-            start_h = jnp.floor((i * in_h) / out_h).astype(jnp.int32)
-            end_h = jnp.ceil(((i + 1) * in_h) / out_h).astype(jnp.int32)
-            start_w = jnp.floor((j * in_w) / out_w).astype(jnp.int32)
-            end_w = jnp.ceil(((j + 1) * in_w) / out_w).astype(jnp.int32)
-
-            # Extract region and apply average pooling
-            if data_format == "channels_last":
-                region = inputs[:, start_h:end_h, start_w:end_w, :]
-                # Average over spatial dimensions (axis 1, 2)
-                pooled = jnp.mean(region, axis=(1, 2))
-            else:  # channels_first
-                region = inputs[:, :, start_h:end_h, start_w:end_w]
-                # Average over spatial dimensions (axis 2, 3)
-                pooled = jnp.mean(region, axis=(2, 3))
-
-            result_list.append(pooled)
-
-    # Stack results: (out_h*out_w, batch, channels)
-    output = jnp.stack(result_list, axis=0)
-
-    # Reshape and transpose to correct output shape
-    if data_format == "channels_last":
-        # (out_h*out_w, batch, channels) -> (batch, out_h, out_w, channels)
-        output = output.reshape(out_h, out_w, batch_size, channels)
-        output = jnp.transpose(output, (2, 0, 1, 3))
-    else:  # channels_first
-        # (out_h*out_w, batch, channels) -> (batch, channels, out_h, out_w)
-        output = output.reshape(out_h, out_w, batch_size, channels)
-        output = jnp.transpose(output, (2, 3, 0, 1))
-
-    return output
+    return _adaptive_pool(inputs, output_size, data_format, pool_fn=jnp.mean)
 
 
 def adaptive_max_pool(
-    inputs, output_size, data_format="channels_last", name=None
+    inputs, output_size, data_format="channels_first", name=None
 ):
-    """
-    Adaptive max pooling for JAX backend (PyTorch-compatible).
-    """
-    # Convert output_size to tuple
-    spatial_dims = inputs.ndim - 2
-    if isinstance(output_size, int):
-        output_size = (output_size,) * spatial_dims
-    else:
-        output_size = tuple(output_size)
-
-    # Get spatial shape
-    if data_format == "channels_last":
-        batch_size = inputs.shape[0]
-        channels = inputs.shape[-1]
-        spatial_shape = inputs.shape[1:-1]
-    else:  # channels_first
-        batch_size = inputs.shape[0]
-        channels = inputs.shape[1]
-        spatial_shape = inputs.shape[2:]
-
-    if len(output_size) != 2:
-        raise NotImplementedError(
-            "Only 2D adaptive pooling is currently supported"
-        )
-
-    out_h, out_w = output_size
-    in_h, in_w = spatial_shape
-
-    # Build output by iterating over output positions
-    result_list = []
-
-    for i in range(out_h):
-        for j in range(out_w):
-            # Calculate pooling region for this output position
-            start_h = jnp.floor((i * in_h) / out_h).astype(jnp.int32)
-            end_h = jnp.ceil(((i + 1) * in_h) / out_h).astype(jnp.int32)
-            start_w = jnp.floor((j * in_w) / out_w).astype(jnp.int32)
-            end_w = jnp.ceil(((j + 1) * in_w) / out_w).astype(jnp.int32)
-
-            # Extract region and apply max pooling
-            if data_format == "channels_last":
-                region = inputs[:, start_h:end_h, start_w:end_w, :]
-                # Max over spatial dimensions (axis 1, 2)
-                pooled = jnp.max(region, axis=(1, 2))
-            else:  # channels_first
-                region = inputs[:, :, start_h:end_h, start_w:end_w]
-                # Max over spatial dimensions (axis 2, 3)
-                pooled = jnp.max(region, axis=(2, 3))
-
-            result_list.append(pooled)
-
-    # Stack results: (out_h*out_w, batch, channels)
-    output = jnp.stack(result_list, axis=0)
-
-    # Reshape and transpose to correct output shape
-    if data_format == "channels_last":
-        # (out_h*out_w, batch, channels) -> (batch, out_h, out_w, channels)
-        output = output.reshape(out_h, out_w, batch_size, channels)
-        output = jnp.transpose(output, (2, 0, 1, 3))
-    else:  # channels_first
-        # (out_h*out_w, batch, channels) -> (batch, channels, out_h, out_w)
-        output = output.reshape(out_h, out_w, batch_size, channels)
-        output = jnp.transpose(output, (2, 3, 0, 1))
-
-    return output
+    return _adaptive_pool(inputs, output_size, data_format, pool_fn=jnp.max)
