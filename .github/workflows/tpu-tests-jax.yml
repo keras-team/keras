@@ -29,13 +29,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
-      - name: Install System Dependencies
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            git \
-            sudo \
-            && rm -rf /var/lib/apt/lists/*
-
       - name: Install Dependencies
         run: |
           pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt \
@@ -48,18 +41,8 @@ jobs:
         run: |
           echo "Successfully running inside the public python container!"
           echo "Verifying JAX installation..."
-          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices: {jax.devices()[0].device_kind}')"
+          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX device Type : {jax.devices()[0].device_kind}')"
 
           pytest keras --ignore keras/src/applications \
                       --cov=keras \
                       --cov-config=pyproject.toml
-          
-          pytest --lf --collect-only -q > excluded_tpu_tests.txt
-
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
-        with:
-          name: tpu-jax-test-report
-          
-          path: |
-            excluded_tpu_tests.txt
