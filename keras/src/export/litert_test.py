@@ -941,6 +941,310 @@ class ExportLitertTest(testing.TestCase):
             if not os.path.exists(temp_filepath):
                 self.fail(f"Base model should be created: {str(e)}")
 
+    def test_signature_def_with_named_model(self):
+        """Test that exported models have SignatureDef with input names."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        # Build a model with explicit layer names
+        inputs = layers.Input(shape=(10,), name="feature_input")
+        x = layers.Dense(32, activation="relu", name="encoder")(inputs)
+        x = layers.Dense(16, activation="relu", name="bottleneck")(x)
+        outputs = layers.Dense(
+            1, activation="sigmoid", name="prediction_output"
+        )(x)
+        model = models.Model(inputs=inputs, outputs=outputs, name="named_model")
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "named_model.tflite")
+
+        # Export the model
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Load and check SignatureDef
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+
+        # Get SignatureDef information
+        signature_defs = interpreter.get_signature_list()
+        self.assertIn("serving_default", signature_defs)
+
+        serving_sig = signature_defs["serving_default"]
+        sig_inputs = serving_sig.get("inputs", [])
+        sig_outputs = serving_sig.get("outputs", [])
+
+        # Verify SignatureDef has inputs and outputs
+        self.assertGreater(
+            len(sig_inputs), 0, "Should have at least one input in SignatureDef"
+        )
+        self.assertGreater(
+            len(sig_outputs),
+            0,
+            "Should have at least one output in SignatureDef",
+        )
+
+        # Verify input names are preserved (they should match Keras input names)
+        self.assertIn(
+            "feature_input",
+            sig_inputs,
+            f"Input name 'feature_input' should be in SignatureDef inputs: "
+            f"{sig_inputs}",
+        )
+
+        # Verify inference works using signature runner
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        # Note: For single-output Functional models, Keras returns a tensor
+        # (not dict). SignatureDef will have generic output names like
+        # 'output_0'.
+        # Only multi-output models or models with explicit dict returns have
+        # named outputs
+
+        # Test inference using signature runner for better output name handling
+        signature_runner = interpreter.get_signature_runner("serving_default")
+        sig_output = signature_runner(feature_input=ref_input)
+
+        # sig_output should be a dict with meaningful output names
+        self.assertIsInstance(sig_output, dict)
+        self.assertGreater(
+            len(sig_output), 0, "Should have at least one output"
+        )
+
+        # For single output, extract the value
+        if len(sig_output) == 1:
+            litert_output = list(sig_output.values())[0]
+        else:
+            litert_output = list(sig_output.values())
+
+        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+
+    def test_signature_def_with_functional_model(self):
+        """Test that SignatureDef preserves input/output names for
+        Functional models."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        # Create a Functional model with named inputs and outputs
+        inputs = layers.Input(shape=(10,), name="input_layer")
+        x = layers.Dense(32, activation="relu", name="hidden_layer")(inputs)
+        outputs = layers.Dense(1, activation="sigmoid", name="output_layer")(x)
+        model = models.Model(
+            inputs=inputs, outputs=outputs, name="functional_model"
+        )
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "functional_model.tflite"
+        )
+
+        # Export the model
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Load and check SignatureDef
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+
+        # Get SignatureDef information
+        signature_defs = interpreter.get_signature_list()
+        self.assertIn("serving_default", signature_defs)
+
+        serving_sig = signature_defs["serving_default"]
+        sig_inputs = serving_sig.get("inputs", [])
+        sig_outputs = serving_sig.get("outputs", [])
+
+        # Verify SignatureDef has inputs and outputs
+        self.assertGreater(
+            len(sig_inputs), 0, "Should have at least one input in SignatureDef"
+        )
+        self.assertGreater(
+            len(sig_outputs),
+            0,
+            "Should have at least one output in SignatureDef",
+        )
+
+        # Verify that input names are preserved
+        self.assertIn(
+            "input_layer",
+            sig_inputs,
+            f"Input name 'input_layer' should be in SignatureDef inputs: "
+            f"{sig_inputs}",
+        )
+
+        # Test inference using signature runner for named outputs
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        # Use signature runner to get outputs with meaningful names
+        signature_runner = interpreter.get_signature_runner("serving_default")
+        sig_output = signature_runner(input_layer=ref_input)
+
+        # sig_output should be a dict with output names
+        self.assertIsInstance(sig_output, dict)
+        self.assertGreater(
+            len(sig_output), 0, "Should have at least one output"
+        )
+
+        # For single output, TFLite typically uses generic names like 'output_0'
+        # Extract the single output value
+        if len(sig_output) == 1:
+            litert_output = list(sig_output.values())[0]
+        else:
+            litert_output = list(sig_output.values())
+
+        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+
+    def test_signature_def_with_multi_input_model(self):
+        """Test that SignatureDef preserves names for multi-input models."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        # Create a multi-input model
+        input1 = layers.Input(shape=(10,), name="input_1")
+        input2 = layers.Input(shape=(5,), name="input_2")
+        concat = layers.Concatenate(name="concat_layer")([input1, input2])
+        outputs = layers.Dense(1, activation="sigmoid", name="output")(concat)
+        model = models.Model(
+            inputs=[input1, input2], outputs=outputs, name="multi_input_model"
+        )
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "multi_input_model.tflite"
+        )
+
+        # Export the model
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Load and check SignatureDef
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+
+        # Get SignatureDef information
+        signature_defs = interpreter.get_signature_list()
+        self.assertIn("serving_default", signature_defs)
+
+        serving_sig = signature_defs["serving_default"]
+        sig_inputs = serving_sig.get("inputs", [])
+        sig_outputs = serving_sig.get("outputs", [])
+
+        # Verify SignatureDef has correct number of inputs and outputs
+        self.assertEqual(
+            len(sig_inputs), 2, "Should have 2 inputs in SignatureDef"
+        )
+        self.assertGreater(
+            len(sig_outputs),
+            0,
+            "Should have at least one output in SignatureDef",
+        )
+
+        # Verify that input names are preserved
+        self.assertIn(
+            "input_1",
+            sig_inputs,
+            f"Input name 'input_1' should be in SignatureDef inputs: "
+            f"{sig_inputs}",
+        )
+        self.assertIn(
+            "input_2",
+            sig_inputs,
+            f"Input name 'input_2' should be in SignatureDef inputs: "
+            f"{sig_inputs}",
+        )
+
+        # Test inference using signature runner
+        batch_size = 1
+        ref_input1 = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_input2 = np.random.normal(size=(batch_size, 5)).astype("float32")
+        ref_inputs = [ref_input1, ref_input2]
+        ref_output = _convert_to_numpy(model(ref_inputs))
+
+        # Use signature runner with named inputs
+        signature_runner = interpreter.get_signature_runner("serving_default")
+        sig_output = signature_runner(input_1=ref_input1, input_2=ref_input2)
+
+        # sig_output should be a dict with output names
+        self.assertIsInstance(sig_output, dict)
+        self.assertGreater(
+            len(sig_output), 0, "Should have at least one output"
+        )
+
+        # For single output, TFLite uses generic names like 'output_0'
+        if len(sig_output) == 1:
+            litert_output = list(sig_output.values())[0]
+        else:
+            litert_output = list(sig_output.values())
+
+        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+
+    def test_signature_def_with_multi_output_model(self):
+        """Test that SignatureDef handles multi-output models correctly."""
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        # Create a multi-output model
+        inputs = layers.Input(shape=(10,), name="input_layer")
+        x = layers.Dense(32, activation="relu", name="shared_layer")(inputs)
+        output1 = layers.Dense(1, activation="sigmoid", name="output_1")(x)
+        output2 = layers.Dense(2, activation="softmax", name="output_2")(x)
+        model = models.Model(
+            inputs=inputs, outputs=[output1, output2], name="multi_output_model"
+        )
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "multi_output_model.tflite"
+        )
+
+        # Export the model
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Load and check SignatureDef
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+
+        # Get SignatureDef information
+        signature_defs = interpreter.get_signature_list()
+        self.assertIn("serving_default", signature_defs)
+
+        serving_sig = signature_defs["serving_default"]
+        sig_inputs = serving_sig.get("inputs", [])
+        sig_outputs = serving_sig.get("outputs", [])
+
+        # Verify SignatureDef structure
+        self.assertGreater(
+            len(sig_inputs), 0, "Should have at least one input in SignatureDef"
+        )
+        self.assertEqual(
+            len(sig_outputs), 2, "Should have 2 outputs in SignatureDef"
+        )
+
+        # Test inference using signature runner
+        batch_size = 1
+        ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
+        ref_outputs = _convert_to_numpy(model(ref_input))
+
+        # Use signature runner
+        signature_runner = interpreter.get_signature_runner("serving_default")
+        sig_output = signature_runner(input_layer=ref_input)
+
+        # sig_output should be a dict with output names
+        self.assertIsInstance(sig_output, dict)
+        self.assertEqual(len(sig_output), 2, "Should have 2 outputs")
+
+        # Note: TFLite uses generic names like 'output_0', 'output_1' for
+        # SignatureDef outputs. These don't match the Keras layer names
+        # ('output_1', 'output_2') - this is expected. The names come from
+        # TensorFlow's symbolic tracing, not from our exporter code.
+        # Verify outputs match by position
+        sig_output_values = list(sig_output.values())
+        for i, ref_out in enumerate(ref_outputs):
+            self.assertAllClose(
+                ref_out, sig_output_values[i], atol=1e-4, rtol=1e-4
+            )
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
