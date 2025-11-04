@@ -34,7 +34,9 @@ def pytest_collection_modifyitems(config, items):
     tpu_skipped_tests = []
     if backend() == "jax":
         try:
-            with open("keras/src/backend/jax/excluded_tpu_tests.txt", "r") as file:
+            with open(
+                "keras/src/backend/jax/excluded_tpu_tests.txt", "r"
+            ) as file:
                 tpu_skipped_tests = file.readlines()
                 # it is necessary to check if stripped line is not empty
                 # and exclude such lines
