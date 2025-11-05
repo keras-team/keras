@@ -495,7 +495,7 @@ class LiteRTExporter:
         except Exception as e:
             if self.verbose:
                 io_utils.print_msg(f"AOT compilation failed: {e}")
-                traceback.print_exc()
+                io_utils.print_msg(traceback.format_exc())
             raise RuntimeError(f"AOT compilation failed: {e}")
 
     def _get_available_litert_targets(self):
