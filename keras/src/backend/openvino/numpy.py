@@ -843,9 +843,30 @@ def diff(a, n=1, axis=-1):
 
 
 def digitize(x, bins):
-    raise NotImplementedError(
-        "`digitize` is not supported with openvino backend"
-    )
+    x_node = get_ov_output(x)
+
+    if isinstance(bins, OpenVINOKerasTensor):
+        bins_node = get_ov_output(bins)
+    else:
+        bins_np = np.asarray(bins)
+        if bins_np.ndim != 1:
+            raise ValueError("`bins` must be 1-D array-like")
+        bins_node = ov_opset.constant(bins_np).output(0)
+
+    x_node, bins_node = _align_operand_types(x_node, bins_node, "digitize()")
+
+    if x_node.get_element_type() == Type.boolean:
+        x_node = ov_opset.convert(x_node, Type.f32).output(0)
+        bins_node = ov_opset.convert(bins_node, Type.f32).output(0)
+
+    result = ov_opset.bucketize(
+        x_node,
+        bins_node,
+        output_type=Type.i32,
+        with_right_bound=False,
+    ).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def dot(x1, x2):
