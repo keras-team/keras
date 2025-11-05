@@ -1,4 +1,4 @@
-name: Keras Tests on TPU Runner using JAX Backend
+name: Keras Tests on TPU Runner
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test-in-container:
-    name: Run Keras tests on TPU runner using JAX Backend
+    name: Run tests on TPU
     runs-on: linux-x86-ct6e-44-1tpu
 
     strategy:
