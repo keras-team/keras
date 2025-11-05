@@ -730,22 +730,3 @@ class CustomGradientFunction(torch.autograd.Function):
         if not isinstance(grads, tuple):
             grads = (grads,)
         return (None,) + grads
-
-
-def convert_checkpoint_value(value, dtype, shape):
-    """Convert a value for checkpoint restoration.
-
-    For PyTorch backend, convert to numpy arrays with specified dtype and shape.
-
-    Args:
-        value: The value to convert
-        dtype: The target dtype
-        shape: The target shape
-
-    Returns:
-        A numpy array with the specified dtype and shape.
-    """
-    if isinstance(value, np.ndarray):
-        return value.astype(dtype).reshape(shape)
-    else:
-        return np.array(value, dtype=dtype).reshape(shape)

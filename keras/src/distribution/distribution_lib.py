@@ -137,9 +137,11 @@ class DeviceMesh:
     represents the computation devices in the global context.
 
     See more details in [jax.sharding.Mesh](
-        https://jax.readthedocs.io/en/latest/jax.sharding.html#jax.sharding.Mesh)
+        https://jax.readthedocs.io/en/latest/jax.sharding.html
+        #jax.sharding.Mesh)
     and [tf.dtensor.Mesh](
-        https://www.tensorflow.org/api_docs/python/tf/experimental/dtensor/Mesh).
+        https://www.tensorflow.org/api_docs/python/tf/experimental
+        /dtensor/Mesh).
 
     Args:
         shape: tuple of list of integers. The shape of the overall
@@ -221,9 +223,11 @@ class TensorLayout:
     and `tf.dtensor.Layout`.
 
     See more details in [jax.sharding.NamedSharding](
-        https://jax.readthedocs.io/en/latest/jax.sharding.html#jax.sharding.NamedSharding)
+        https://jax.readthedocs.io/en/latest/jax.sharding.html
+        #jax.sharding.NamedSharding)
     and [tf.dtensor.Layout](
-        https://www.tensorflow.org/api_docs/python/tf/experimental/dtensor/Layout).
+        https://www.tensorflow.org/api_docs/python/tf/experimental
+        /dtensor/Layout).
 
     Args:
         axes: tuple of strings that should map to the `axis_names` in
@@ -896,19 +900,3 @@ def set_distribution(value):
         value: a `Distribution` instance.
     """
     global_state.set_global_attribute(GLOBAL_ATTRIBUTE_NAME, value)
-
-
-@keras_export("keras.distribution.process_id")
-def process_id():
-    """Return the current process ID for the distribution setting.
-
-    Returns the index of the current process in a distributed setup.
-    Returns 0 if not in a distributed setup or if the backend doesn't
-    support distributed execution.
-
-    Returns:
-        int: The process ID (0 for primary process, >0 for others).
-    """
-    if distribution_lib is None:
-        return 0
-    return distribution_lib.process_id()

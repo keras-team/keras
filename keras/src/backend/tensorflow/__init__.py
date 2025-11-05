@@ -13,7 +13,6 @@ from keras.src.backend.tensorflow.core import Variable
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import compute_output_spec
 from keras.src.backend.tensorflow.core import cond
-from keras.src.backend.tensorflow.core import convert_checkpoint_value
 from keras.src.backend.tensorflow.core import convert_to_numpy
 from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.core import device_scope
@@ -24,7 +23,6 @@ from keras.src.backend.tensorflow.core import scatter
 from keras.src.backend.tensorflow.core import shape
 from keras.src.backend.tensorflow.core import stop_gradient
 from keras.src.backend.tensorflow.core import vectorized_map
-from keras.src.backend.tensorflow.distribution_lib import process_id
 from keras.src.backend.tensorflow.rnn import cudnn_ok
 from keras.src.backend.tensorflow.rnn import gru
 from keras.src.backend.tensorflow.rnn import lstm

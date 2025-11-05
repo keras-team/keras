@@ -1,6 +1,5 @@
 from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.openvino import core
-from keras.src.backend.openvino import distribution_lib
 from keras.src.backend.openvino import image
 from keras.src.backend.openvino import linalg
 from keras.src.backend.openvino import math
@@ -20,7 +19,6 @@ from keras.src.backend.openvino.core import is_tensor
 from keras.src.backend.openvino.core import random_seed_dtype
 from keras.src.backend.openvino.core import shape
 from keras.src.backend.openvino.core import vectorized_map
-from keras.src.backend.openvino.distribution_lib import process_id
 from keras.src.backend.openvino.rnn import cudnn_ok
 from keras.src.backend.openvino.rnn import gru
 from keras.src.backend.openvino.rnn import lstm

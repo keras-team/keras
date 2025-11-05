@@ -1,4 +1,3 @@
-import os
 import warnings
 
 import numpy as np
@@ -9,9 +8,10 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
-from keras.src.distribution.distribution_lib import process_id
 from keras.src.utils.io_utils import print_msg
 from keras.src.utils.module_utils import ocp
+
+# Context and AsyncOptions are accessed through the lazy-loaded ocp module
 
 
 def _get_state_tree(model):
@@ -30,38 +30,6 @@ def _get_state_tree(model):
             return obj
 
     return tree.map_structure(convert_scalars, state_tree)
-
-
-def _reconstruct_state_tree_with_values(structure, values):
-    """Reconstruct state tree structure with provided values."""
-    value_iter = iter(values)
-
-    def _reconstruct_value(obj):
-        value = next(value_iter)
-        # Handle different cases for value conversion
-        if isinstance(obj, np.generic):
-            # obj is a numpy scalar (0-dimensional)
-            if isinstance(value, (int, float)):
-                # Convert Python scalar to numpy scalar
-                return np.array(value, dtype=obj.dtype)
-            elif isinstance(value, np.ndarray):
-                # value is a numpy array, convert to scalar if needed
-                if value.ndim == 0:
-                    return np.array(value.item(), dtype=obj.dtype)
-                elif value.ndim == 1 and value.size == 1:
-                    return np.array(value.item(), dtype=obj.dtype)
-                else:
-                    return value.astype(obj.dtype).reshape(obj.shape)
-            else:
-                return np.array(value, dtype=obj.dtype)
-        elif isinstance(obj, np.ndarray):
-            # obj is a numpy array
-            # Use backend-specific conversion that handles JAX arrays properly
-            return backend.convert_checkpoint_value(value, obj.dtype, obj.shape)
-        else:
-            return value
-
-    return tree.map_structure(_reconstruct_value, structure)
 
 
 @keras_export("keras.callbacks.OrbaxCheckpoint")
@@ -102,15 +70,6 @@ class OrbaxCheckpoint(MonitorCallback):
         save_freq=100)  # Save every 100 batches
 
     model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
-
-    # Or use a SaveDecisionPolicy for more control -
-    from orbax.checkpoint import checkpoint_managers
-    policy = checkpoint_managers.FixedIntervalPolicy(interval=5)
-    orbax_checkpoint_callback = keras.callbacks.OrbaxCheckpoint(
-        directory=checkpoint_dir,
-        save_decision_policy=policy)  # Save every 5 epochs
-
-    model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
     ```
 
     Args:
@@ -140,21 +99,12 @@ class OrbaxCheckpoint(MonitorCallback):
             Defaults to None.
         save_metrics_state: Boolean, whether to include stateful metrics
             variables in the checkpoint. Defaults to False.
-        async_timeout_secs: Integer, timeout in seconds for async checkpointing
-            operations. Defaults to 600 (10 minutes).
-        enable_background_delete: Boolean, whether to delete old checkpoints in
-            the background. Defaults to False.
         post_finalization_callback: Callable, function to call after async
             checkpointing operations complete. Defaults to None.
-        save_transforms: Dict of orbax.checkpoint.Transform objects to apply
-            during saving. Keys should match composite_state keys (e.g.,
-            'model_weights', 'optimizer_state'). Defaults to None.
         save_decision_policy: orbax.checkpoint.SaveDecisionPolicy object to
-            control when checkpoints are saved. Currently supports
-            FixedIntervalPolicy for saving at regular intervals. If provided,
-            overrides the default save frequency logic. Defaults to None.
-        save_interval: Integer, save checkpoints every N steps. If provided,
-            overrides save_freq. Defaults to None.
+            control when checkpoints are saved. If None, defaults to saving
+            every epoch for save_freq="epoch" or every save_freq batches.
+            Defaults to None.
     """
 
     def __init__(
@@ -173,12 +123,8 @@ class OrbaxCheckpoint(MonitorCallback):
         save_metadata=None,
         save_data_iterator=None,
         save_metrics_state=False,
-        async_timeout_secs=600,
-        enable_background_delete=False,
         post_finalization_callback=None,
-        save_transforms=None,
         save_decision_policy=None,
-        save_interval=None,
     ):
         # Ensure orbax is available
         ocp.initialize()
@@ -192,15 +138,12 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_best_only = save_best_only
         self.save_freq = save_freq
         self.save_optimizer_state = save_optimizer_state
+        self.save_on_background = save_on_background
         self.save_metadata = save_metadata
         self.save_data_iterator = save_data_iterator
         self.save_metrics_state = save_metrics_state
-        self.async_timeout_secs = async_timeout_secs
-        self.enable_background_delete = enable_background_delete
         self.post_finalization_callback = post_finalization_callback
-        self.save_transforms = save_transforms
         self.save_decision_policy = save_decision_policy
-        self.save_interval = save_interval
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
@@ -209,49 +152,49 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError("Unrecognized save_freq")
 
-        # Create should_save_fn from save_decision_policy or save_interval
-        # if provided
-        should_save_fn = None
-        if save_decision_policy is not None:
-            # When using save_decision_policy, let Orbax handle
-            # should_save_fn internally
-            # Don't override should_save_fn
-            pass
-        elif save_interval is not None:
-            # Create should_save_fn that saves every N steps
-            should_save_fn = (
-                lambda step, prev_step=None: step % save_interval == 0
+        # Set up save_decision_policy if not provided
+        if save_decision_policy is None:
+            if save_freq == "epoch":
+                # For epoch-based saving, save every epoch
+                save_decision_policy = (
+                    ocp.training.save_decision_policies.FixedIntervalPolicy(1)
+                )
+            else:
+                # For batch-based saving, save every save_freq batches
+                save_decision_policy = (
+                    ocp.training.save_decision_policies.FixedIntervalPolicy(
+                        save_freq
+                    )
+                )
+
+        # --- Orbax Checkpointer Setup (V1 API) ---
+        # Map V0 options to V1 parameters
+        policies = []
+        if keep_period is not None:
+            policies.append(
+                ocp.training.preservation_policies.EveryNSteps(keep_period)
+            )
+        if max_to_keep is not None:
+            policies.append(
+                ocp.training.preservation_policies.LatestN(max_to_keep)
             )
 
-        # --- Orbax CheckpointManager Setup ---
-        from orbax.checkpoint import AsyncOptions
+        # Use AnyPreservationPolicy to combine them.
+        preservation_policy = None
+        if policies:
+            preservation_policy = (
+                ocp.training.preservation_policies.AnyPreservationPolicy(
+                    policies
+                )
+            )
 
-        async_options = AsyncOptions(
-            timeout_secs=self.async_timeout_secs,
-            post_finalization_callback=self.post_finalization_callback,
-        )
-
-        options = ocp.CheckpointManagerOptions(
-            max_to_keep=max_to_keep,
-            keep_period=keep_period,
-            enable_async_checkpointing=save_on_background,
-            enable_background_delete=self.enable_background_delete,
-            async_options=async_options,
-            should_save_fn=should_save_fn,
+        # Create the V1 Checkpointer with direct parameter passing
+        # Orbax will handle directory creation on all processes as needed
+        self.checkpointer = ocp.training.Checkpointer(
+            directory=directory,
+            preservation_policy=preservation_policy,
             save_decision_policy=save_decision_policy,
         )
-        # Ensure directory exists (only needed on one process in multi-host)
-        if process_id() == 0:
-            os.makedirs(directory, exist_ok=True)
-
-        # Create the CheckpointManager
-        self.manager = ocp.CheckpointManager(
-            directory=directory,
-            options=options,
-        )
-
-    def set_model(self, model):
-        self._model = model
 
     def _should_save_on_batch(self, batch):
         """Check if we should save on this batch."""
@@ -336,21 +279,35 @@ class OrbaxCheckpoint(MonitorCallback):
             if iterator_state:
                 composite_state["data_iterator"] = iterator_state
 
-        # --- Save Logic ---
-        # Only save on the primary process (rank 0) in distributed setups
-        is_primary_host = process_id() == 0
-
-        if is_primary_host:
-            if self.verbose > 0:
-                print_msg(
-                    f"OrbaxCheckpoint: Triggering async save for step {step}..."
-                )
-
-            # Save the checkpoint
-            save_args = ocp.args.StandardSave(
-                composite_state, save_args=self.save_transforms
+        # --- Save Logic (V1 API) ---
+        # All processes participate in distributed checkpointing
+        # No wait loop needed. The Checkpointer handles overlapping saves.
+        if self.verbose > 0:
+            print_msg(
+                f"OrbaxCheckpoint: Triggering async save for step {step}..."
             )
-            self.manager.save(step, args=save_args)
+
+        # Configure context if a callback is provided
+        context_options = {}
+        async_options = {}
+
+        if self.post_finalization_callback is not None:
+            async_options["post_finalization_callback"] = (
+                self.post_finalization_callback
+            )
+
+        if async_options:
+            context_options["async_options"] = ocp.options.AsyncOptions(
+                **async_options
+            )
+
+        # Use a single with statement. If context_options is empty,
+        # Context() uses defaults.
+        with ocp.Context(**context_options):
+            if self.save_on_background:
+                self.checkpointer.save_pytree_async(step, composite_state)
+            else:
+                self.checkpointer.save_pytree(step, composite_state)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -382,26 +339,8 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.monitor_op is None:
             self._set_monitor_op()  # From MonitorCallback
 
-        should_save = False
-        if self.save_decision_policy is not None:
-            # Handle FixedIntervalPolicy by extracting its interval
-            from orbax.checkpoint import checkpoint_managers
-
-            if isinstance(
-                self.save_decision_policy,
-                checkpoint_managers.FixedIntervalPolicy,
-            ):
-                should_save = epoch % self.save_decision_policy.interval == 0
-            else:
-                # For other policies, fall back to saving every epoch
-                # TODO: Implement full support for other SaveDecisionPolicy
-                # types
-                should_save = True
-        elif self.save_interval is not None:
-            # Save every N epochs
-            should_save = epoch % self.save_interval == 0
-        elif self.save_freq == "epoch":
-            should_save = True
+        # For save_freq="epoch", save at every epoch
+        should_save = self.save_freq == "epoch"
 
         # Handle save_best_only logic
         if should_save and self.save_best_only:
@@ -421,14 +360,19 @@ class OrbaxCheckpoint(MonitorCallback):
 
         if should_save:
             # Use epoch number as the step for Orbax save
+            # The Checkpointer will decide if it *actually* saves
+            # based on its internal SaveDecisionPolicy.
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
         if self.verbose > 0:
-            print_msg("OrbaxCheckpoint: Waiting for final saves to complete...")
-        self.manager.wait_until_finished()
-        if self.verbose > 0:
-            print_msg("OrbaxCheckpoint: All saves finalized.")
+            print_msg("OrbaxCheckpoint: Training completed.")
+
+        # Close the Checkpointer to ensure all pending saves complete
+        try:
+            self.checkpointer.close()
+        except Exception:
+            pass  # Ignore errors during cleanup
 
     def load_checkpoint(self, step, model=None):
         """Load model and optimizer state from a specific checkpoint step.
@@ -442,28 +386,34 @@ class OrbaxCheckpoint(MonitorCallback):
             was successful, False otherwise, and iterator_state is the saved
             data iterator state dict if available, None otherwise.
         """
-        # In distributed training, only load on primary process
-        if process_id() != 0:
-            return True  # Return True to indicate no error, but no loading
-
+        # All processes participate in distributed checkpoint loading
         if self.verbose > 0:
             print_msg(
                 f"OrbaxCheckpoint: Loading checkpoint from step {step}..."
             )
 
-        # Prepare restore arguments - Orbax can restore without explicit
-        # template
-        restore_args = ocp.args.StandardRestore()
+        # Load the checkpoint using V1 API
+        checkpoint_data = self.checkpointer.load_pytree(step)
 
-        # Load the checkpoint
-        checkpoint_data = self.manager.restore(step, args=restore_args)
+        # Extract model state (exclude metadata and data_iterator)
+        model_state = {}
+        iterator_state = None
+
+        for key, value in checkpoint_data.items():
+            if key == "data_iterator":
+                iterator_state = value
+            elif key == "metadata":
+                pass  # Metadata is not used in loading
+            else:
+                # This is model state (trainable_variables, optimizer_variables,
+                # etc.)
+                model_state[key] = value
 
         # Restore the model state
         target_model = model if model is not None else self.model
-        success = self._restore_model_state(checkpoint_data, target_model)
-
-        # Extract iterator state if available
-        iterator_state = checkpoint_data.get("data_iterator", None)
+        success = self._restore_model_state_from_full_tree(
+            model_state, target_model
+        )
 
         return success, iterator_state
 
@@ -478,218 +428,40 @@ class OrbaxCheckpoint(MonitorCallback):
             was successful, False otherwise, and iterator_state is the saved
             data iterator state dict if available, None otherwise.
         """
-        # Get the latest step
-        latest_step = self.manager.latest_step()
-        if latest_step is None:
+        # Wait for any in-progress saves to complete
+        self.wait_until_finished()
+
+        # Get the latest step using V1 API
+        latest_metadata = self.checkpointer.latest
+        if latest_metadata is None:
             raise FileNotFoundError("OrbaxCheckpoint: No checkpoints found")
 
-        return self.load_checkpoint(latest_step, model)
+        return self.load_checkpoint(latest_metadata.step, model)
 
-    def _restore_model_state(self, checkpoint_data, model=None):
-        """Restore model state from checkpoint data.
-
-        Args:
-            checkpoint_data: The checkpoint data loaded from Orbax.
-            model: Optional model to restore into. If None, uses self.model.
+    def all_steps(self):
+        """Get all available checkpoint steps.
 
         Returns:
-            bool: True if restoration was successful.
+            list: List of available checkpoint step numbers, sorted.
         """
+        return sorted([int(cp.step) for cp in self.checkpointer.checkpoints])
+
+    def wait_until_finished(self):
+        """Wait for any in-progress checkpoint operations to complete.
+
+        This method blocks until all asynchronous checkpoint save operations
+        have completed. It should be called before attempting to load
+        checkpoints if there might be pending save operations.
+        """
+        # Wait for any async operations to complete
+        while self.checkpointer.is_saving_in_progress():
+            import time
+
+            time.sleep(0.1)
+
+    def _restore_model_state_from_full_tree(self, state_tree, model=None):
+        """Restore model state from full state tree (V1 format)."""
         target_model = model if model is not None else self.model
-
-        # Check if this is the new nested structure format
-        if "trainable_variables" in checkpoint_data and isinstance(
-            checkpoint_data["trainable_variables"], dict
-        ):
-            # New format: nested structures
-            return self._restore_from_nested_structures(
-                checkpoint_data, target_model
-            )
-        elif "model_weights" in checkpoint_data and isinstance(
-            checkpoint_data["model_weights"], list
-        ):
-            # Old format: flattened values (for backward compatibility)
-            return self._restore_from_flattened_values(
-                checkpoint_data, target_model
-            )
-        elif "model_state" in checkpoint_data:
-            # Old format: full state tree (for backward compatibility)
-            return self._restore_from_state_tree(
-                checkpoint_data["model_state"], target_model
-            )
-        else:
-            # Unsupported checkpoint format
-            return False
-
-    def _restore_from_nested_structures(self, checkpoint_data, target_model):
-        """Restore from the new nested structures format."""
-        # Ensure the target model is built so it has variables
-        if len(target_model.trainable_variables) == 0:
-            try:
-                # Try to build the model by doing a dummy forward pass
-                if (
-                    hasattr(target_model, "input_shape")
-                    and target_model.input_shape is not None
-                ):
-                    dummy_input_shape = target_model.input_shape
-                    if dummy_input_shape[0] is None:  # Batch dimension is None
-                        dummy_input = np.zeros((1,) + dummy_input_shape[1:])
-                    else:
-                        dummy_input = np.zeros(dummy_input_shape)
-                    target_model(dummy_input)
-            except Exception:
-                # If dummy forward pass fails, try build
-                try:
-                    if (
-                        hasattr(target_model, "input_shape")
-                        and target_model.input_shape is not None
-                    ):
-                        build_shape = target_model.input_shape
-                        if (
-                            isinstance(build_shape, (list, tuple))
-                            and len(build_shape) > 1
-                            and build_shape[0] is None
-                        ):
-                            build_shape = build_shape[1:]
-                        target_model.build(build_shape)
-                except Exception:
-                    # If building fails, continue anyway
-                    pass
-
-        # Prepare the state tree to restore
-        reconstructed_state = {}
-
-        # Restore trainable variables
-        if "trainable_variables" in checkpoint_data:
-            reconstructed_state["trainable_variables"] = checkpoint_data[
-                "trainable_variables"
-            ]
-
-        # Restore optimizer variables if available and model has optimizer
-        if (
-            "optimizer_variables" in checkpoint_data
-            and self.save_optimizer_state
-            and hasattr(target_model, "optimizer")
-            and target_model.optimizer is not None
-        ):
-            reconstructed_state["optimizer_variables"] = checkpoint_data[
-                "optimizer_variables"
-            ]
-
-        # Restore metrics variables if available
-        if "metrics_variables" in checkpoint_data and self.save_metrics_state:
-            reconstructed_state["metrics_variables"] = checkpoint_data[
-                "metrics_variables"
-            ]
-
-        # Use set_state_tree to restore the state
-        target_model.set_state_tree(reconstructed_state)
-
-        if self.verbose > 0:
-            print_msg("OrbaxCheckpoint: Successfully restored model state")
-        return True
-
-    def _restore_from_flattened_values(self, checkpoint_data, target_model):
-        """Restore from the new flattened values format."""
-        # Ensure the target model is built so it has variables
-        if len(target_model.trainable_variables) == 0:
-            try:
-                # Try to build the model by doing a dummy forward pass
-                if (
-                    hasattr(target_model, "input_shape")
-                    and target_model.input_shape is not None
-                ):
-                    dummy_input_shape = target_model.input_shape
-                    if dummy_input_shape[0] is None:  # Batch dimension is None
-                        dummy_input = np.zeros((1,) + dummy_input_shape[1:])
-                    else:
-                        dummy_input = np.zeros(dummy_input_shape)
-                    target_model(dummy_input)
-            except Exception:
-                # If dummy forward pass fails, try build
-                try:
-                    if (
-                        hasattr(target_model, "input_shape")
-                        and target_model.input_shape is not None
-                    ):
-                        build_shape = target_model.input_shape
-                        if (
-                            isinstance(build_shape, (list, tuple))
-                            and len(build_shape) > 1
-                            and build_shape[0] is None
-                        ):
-                            build_shape = build_shape[1:]
-                        target_model.build(build_shape)
-                except Exception:
-                    # If building fails, continue anyway
-                    pass
-
-        # Get the target model's state tree structure (without convert_scalars)
-        target_state_tree = target_model.get_state_tree(
-            value_format="numpy_array"
-        )
-        if target_state_tree is None:
-            if self.verbose > 0:
-                print_msg(
-                    "OrbaxCheckpoint: Could not get target model state tree"
-                )
-            return False
-
-        # Reconstruct state tree with saved values
-        reconstructed_state = {}
-
-        # Restore trainable variables
-        if "model_weights" in checkpoint_data:
-            saved_trainable_values = checkpoint_data["model_weights"]
-            target_trainable_structure = target_state_tree[
-                "trainable_variables"
-            ]
-            reconstructed_state["trainable_variables"] = (
-                _reconstruct_state_tree_with_values(
-                    target_trainable_structure, saved_trainable_values
-                )
-            )
-
-        # Restore optimizer variables if available
-        if (
-            "optimizer_state" in checkpoint_data
-            and self.save_optimizer_state
-            and "optimizer_variables" in target_state_tree
-        ):
-            saved_optimizer_values = checkpoint_data["optimizer_state"]
-            target_optimizer_structure = target_state_tree[
-                "optimizer_variables"
-            ]
-            reconstructed_state["optimizer_variables"] = (
-                _reconstruct_state_tree_with_values(
-                    target_optimizer_structure, saved_optimizer_values
-                )
-            )
-
-        # Restore metrics variables if available
-        if (
-            "metrics_variables" in checkpoint_data
-            and self.save_metrics_state
-            and "metrics_variables" in target_state_tree
-        ):
-            saved_metrics_values = checkpoint_data["metrics_variables"]
-            target_metrics_structure = target_state_tree["metrics_variables"]
-            reconstructed_state["metrics_variables"] = (
-                _reconstruct_state_tree_with_values(
-                    target_metrics_structure, saved_metrics_values
-                )
-            )
-
-        # Use set_state_tree to restore the reconstructed state
-        target_model.set_state_tree(reconstructed_state)
-
-        if self.verbose > 0:
-            print_msg("OrbaxCheckpoint: Successfully restored model state")
-        return True
-
-    def _restore_from_state_tree(self, state_tree, target_model):
-        """Restore from the old full state tree format
-        (for backward compatibility)."""
         target_model.set_state_tree(state_tree)
         if self.verbose > 0:
             print_msg("OrbaxCheckpoint: Successfully restored model state")
@@ -698,10 +470,10 @@ class OrbaxCheckpoint(MonitorCallback):
 
 # Export additional Orbax functionality for advanced users (only if available)
 if ocp.available:
-    CheckpointManager = ocp.CheckpointManager
-    PyTreeCheckpointer = ocp.PyTreeCheckpointer
-    SaveArgs = ocp.SaveArgs
-    StandardRestore = ocp.args.StandardRestore
-    TypeHandler = ocp.type_handlers.TypeHandler
-    metadata = ocp.metadata
-    register_type_handler = ocp.type_handlers.register_type_handler
+    Checkpointer = ocp.training.Checkpointer
+    save_pytree = ocp.save_pytree
+    load_pytree = ocp.load_pytree
+    save_pytree_async = ocp.save_pytree_async
+    load_pytree_async = ocp.load_pytree_async
+    preservation_policies = ocp.training.preservation_policies
+    save_decision_policies = ocp.training.save_decision_policies

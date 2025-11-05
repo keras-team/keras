@@ -193,11 +193,6 @@ def num_processes():
     return jax.process_count()
 
 
-def process_id():
-    """Return the current process ID for the distribution setting."""
-    return jax.process_index()
-
-
 def _to_backend_device(device_name):
     if isinstance(device_name, jax.Device):
         return device_name

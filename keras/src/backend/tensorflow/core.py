@@ -696,23 +696,3 @@ class name_scope(base_name_scope):
 
 def device_scope(device_name):
     return tf.device(device_name)
-
-
-def convert_checkpoint_value(value, dtype, shape):
-    """Convert a value for checkpoint restoration.
-
-    For TensorFlow backend, convert to numpy arrays with specified dtype and
-    shape.
-
-    Args:
-        value: The value to convert
-        dtype: The target dtype
-        shape: The target shape
-
-    Returns:
-        A numpy array with the specified dtype and shape.
-    """
-    if isinstance(value, np.ndarray):
-        return value.astype(dtype).reshape(shape)
-    else:
-        return np.array(value, dtype=dtype).reshape(shape)

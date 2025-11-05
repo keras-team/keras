@@ -85,13 +85,3 @@ def _to_backend_layout(tensor_layout):
     ]
     dtensor_mesh = tensor_layout.device_mesh.backend_mesh
     return dtensor.Layout(sharding_specs=sharding_specs, mesh=dtensor_mesh)
-
-
-def process_id():
-    """Return the current process ID for the distribution setting."""
-    try:
-        import tensorflow as tf
-
-        return tf.distribute.get_replica_context().replica_id_in_sync_group
-    except (ImportError, AttributeError, RuntimeError):
-        return 0

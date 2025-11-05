@@ -572,35 +572,3 @@ def device_scope(device_name):
     else:
         jax_device = device_name
     return jax.default_device(jax_device)
-
-
-def convert_checkpoint_value(value, dtype, shape):
-    """Convert a value for checkpoint restoration, preserving JAX arrays for
-    sharding.
-
-    This function handles the special case of checkpoint restoration where JAX
-    arrays should be preserved for sharding support, while other values are
-    converted to JAX arrays with the specified dtype and shape.
-
-    Args:
-        value: The value to convert (can be JAX array, numpy array, or other
-            types)
-        dtype: The target dtype
-        shape: The target shape
-
-    Returns:
-        A JAX array with the specified dtype and shape, or the original JAX
-        array if it was already a JAX array.
-    """
-    # For JAX backend, preserve JAX arrays for sharding support
-    if hasattr(value, "__array_namespace__") or str(type(value)).startswith(
-        "<class 'jax"
-    ):
-        # value is already a JAX array, return as-is to preserve sharding
-        return value
-    elif isinstance(value, np.ndarray):
-        # Convert numpy array to JAX array
-        return jnp.array(value).astype(dtype).reshape(shape)
-    else:
-        # Convert other types to JAX array
-        return jnp.array(value, dtype=dtype).reshape(shape)
