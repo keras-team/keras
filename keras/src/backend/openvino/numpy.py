@@ -868,17 +868,24 @@ def digitize(x, bins, right=False):
             bins_node = ov_opset.convert(bins_node, Type.f32).output(0)
 
     if x_node.get_element_type() != bins_node.get_element_type():
-        bins_node = ov_opset.convert(bins_node, x_node.get_element_type()).output(0)
+        bins_node = ov_opset.convert(
+            bins_node, x_node.get_element_type()
+        ).output(0)
 
-
-    axes_for_unsqueeze = ov_opset.constant(np.array([-1], dtype=np.int64), Type.i64).output(0)
+    axes_for_unsqueeze = ov_opset.constant(
+        np.array([-1], dtype=np.int64), Type.i64
+    ).output(0)
     x_expanded = ov_opset.unsqueeze(x_node, axes_for_unsqueeze).output(0)
     cmp = ov_opset.greater_equal(x_expanded, bins_node).output(0)
     cmp_int = ov_opset.convert(cmp, Type.i32).output(0)
-    reduce_axes = ov_opset.constant(np.array([-1], dtype=np.int64), Type.i64).output(0)
+    reduce_axes = ov_opset.constant(
+        np.array([-1], dtype=np.int64), Type.i64
+    ).output(0)
     indices_node = ov_opset.reduce_sum(cmp_int, reduce_axes, False).output(0)
 
-    return OpenVINOKerasTensor(ov_opset.convert(indices_node, Type.i32).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.convert(indices_node, Type.i32).output(0)
+    )
 
 
 def dot(x1, x2):
