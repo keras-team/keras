@@ -842,10 +842,43 @@ def diff(a, n=1, axis=-1):
     return OpenVINOKerasTensor(result)
 
 
-def digitize(x, bins):
-    raise NotImplementedError(
-        "`digitize` is not supported with openvino backend"
-    )
+def digitize(x, bins, right=False):
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(bins, OpenVINOKerasTensor):
+        element_type = element_type or bins.output.get_element_type()
+
+    x_node = get_ov_output(x, element_type)
+
+    if element_type is not None:
+        x_node = ov_opset.convert(x_node, element_type).output(0)
+
+    if isinstance(bins, OpenVINOKerasTensor):
+        bins_node = get_ov_output(bins, element_type)
+    else:
+        bins_np = np.asarray(bins)
+        if bins_np.ndim != 1:
+            raise ValueError("`bins` must be 1-D array-like")
+
+        bins_node = ov_opset.constant(bins_np).output(0)
+        if element_type is not None:
+            bins_node = ov_opset.convert(bins_node, element_type).output(0)
+        else:
+            bins_node = ov_opset.convert(bins_node, Type.f32).output(0)
+
+    if x_node.get_element_type() != bins_node.get_element_type():
+        bins_node = ov_opset.convert(bins_node, x_node.get_element_type()).output(0)
+
+
+    axes_for_unsqueeze = ov_opset.constant(np.array([-1], dtype=np.int64), Type.i64).output(0)
+    x_expanded = ov_opset.unsqueeze(x_node, axes_for_unsqueeze).output(0)
+    cmp = ov_opset.greater_equal(x_expanded, bins_node).output(0)
+    cmp_int = ov_opset.convert(cmp, Type.i32).output(0)
+    reduce_axes = ov_opset.constant(np.array([-1], dtype=np.int64), Type.i64).output(0)
+    indices_node = ov_opset.reduce_sum(cmp_int, reduce_axes, False).output(0)
+
+    return OpenVINOKerasTensor(ov_opset.convert(indices_node, Type.i32).output(0))
 
 
 def dot(x1, x2):
