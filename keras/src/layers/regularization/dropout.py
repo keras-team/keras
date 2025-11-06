@@ -59,6 +59,13 @@ class Dropout(Layer):
         if noise_shape is None:
             return None
 
+        if isinstance(noise_shape, str):
+            raise ValueError(
+                f"Invalid value received for argument `noise_shape`. "
+                f"Expected a tuple or list of integers. "
+                f"Received: noise_shape={noise_shape}"
+            )
+
         if not isinstance(noise_shape, tuple):
             try:
                 noise_shape = tuple(noise_shape)
@@ -75,13 +82,15 @@ class Dropout(Layer):
                     raise ValueError(
                         f"Invalid value received for argument `noise_shape`. "
                         f"Expected all elements to be integers or None. "
-                        f"Received element at index {i}: {dim} (type: {type(dim).__name__})"
+                        f"Received element at index {i}: {dim} "
+                        f"(type: {type(dim).__name__})"
                     )
-                
+
                 if dim <= 0:
                     raise ValueError(
                         f"Invalid value received for argument `noise_shape`. "
-                        f"Expected all dimensions to be positive integers or None. "
+                        f"Expected all dimensions to be positive integers "
+                        f"or None. "
                         f"Received negative or zero value at index {i}: {dim}"
                     )
 
