@@ -104,8 +104,10 @@ class Resizing(BaseImagePreprocessingLayer):
         # Compute effective crop flag:
         # only crop if aspect ratios differ and flag is True
         input_height, input_width = transformation
-        source_aspect_ratio = input_width / input_height
-        target_aspect_ratio = self.width / self.height
+        epsilon = self.backend.epsilon()
+        source_aspect_ratio = input_width / (input_height + epsilon)
+        target_aspect_ratio = self.width / (self.height + epsilon)
+
         # Use a small epsilon for floating-point comparison
         aspect_ratios_match = (
             abs(source_aspect_ratio - target_aspect_ratio) < 1e-6
