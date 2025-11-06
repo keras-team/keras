@@ -190,6 +190,47 @@ def log_softmax(x, axis=-1):
     return OpenVINOKerasTensor(ov_opset.log_softmax(x, axis).output(0))
 
 
+def squareplus(x, b=4):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+
+    b = get_ov_output(b, et)
+    two = get_ov_output(2.0, et)
+
+    x_squared = ov_opset.multiply(x, x)
+    inside = ov_opset.add(x_squared, b)
+    root = ov_opset.sqrt(inside)
+    summed = ov_opset.add(x, root)
+
+    out = ov_opset.divide(summed, two)
+
+    return OpenVINOKerasTensor(out.output(0))
+
+
+def sparse_plus(x):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+
+    one = get_ov_output(1.0, et)
+    neg_one = get_ov_output(-1.0, et)
+    zero = get_ov_output(0.0, et)
+    quarter = get_ov_output(0.25, et)
+
+    x_plus_1 = ov_opset.add(x, one)
+    quad = ov_opset.multiply(quarter, ov_opset.multiply(x_plus_1, x_plus_1))
+
+    leq_than_neg_one = ov_opset.less_equal(x, neg_one)
+    less_than_one = ov_opset.less(x, one)
+
+    out = ov_opset.select(
+        leq_than_neg_one,
+        zero,
+        ov_opset.select(less_than_one, quad, x),
+    )
+
+    return OpenVINOKerasTensor(out.output(0))
+
+
 def max_pool(
     inputs,
     pool_size,
