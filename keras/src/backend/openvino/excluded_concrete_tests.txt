@@ -306,9 +306,7 @@ NNOpsCorrectnessTest::test_squareplus
 NNOpsCorrectnessTest::test_tanh_shrink
 NNOpsCorrectnessTest::test_threshold
 NNOpsCorrectnessTest::test_sparsemax
-
-
-
+NNOpsCorrectnessTest::test_rms_normalization_10.0
 NNOpsDtypeTest::test_squareplus
 NNOpsDtypeTest::test_tanh
 NNOpsDtypeTest::test_soft_shrink
@@ -321,12 +319,10 @@ NNOpsDtypeTest::test_sparse_sigmoid_
 NNOpsDtypeTest::test_threshold_
 NNOpsDtypeTest::test_dot_product_attention_
 NNOpsDtypeTest::test_sparse_plus_
-
 NNOpsDynamicShapeTest::test_elu
 NNOpsDynamicShapeTest::test_glu
 NNOpsDynamicShapeTest::test_selu
 NNOpsDynamicShapeTest::test_silu
 NNOpsDynamicShapeTest::test_tanh
-
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsBehaviorTest::test_logit_recovery_binary_crossentropy

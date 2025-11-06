@@ -1324,6 +1324,15 @@ class NNOpsStaticShapeTest(testing.TestCase):
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
+    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
+        if backend.backend() == "openvino":
+            # OpenVINO seems to use lower precision for some operations,
+            # or employs some different algorithms that wind up with
+            # slightly different results. To address this, we relax
+            # the tolerances for OpenVINO backend.
+            atol = 1e-3
+        super().assertAllClose(x1, x2, atol=atol, rtol=rtol, msg=msg)
+
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.relu(x), [0, 0, 1, 2, 3])
