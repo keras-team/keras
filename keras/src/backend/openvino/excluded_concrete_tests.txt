@@ -293,7 +293,6 @@ NNOpsCorrectnessTest::test_moments
 NNOpsCorrectnessTest::test_normalize
 NNOpsCorrectnessTest::test_polar_corectness
 NNOpsCorrectnessTest::test_psnr
-NNOpsCorrectnessTest::test_selu
 NNOpsCorrectnessTest::test_sparse_categorical_crossentropy
 NNOpsCorrectnessTest::test_threshold
 NNOpsCorrectnessTest::test_sparsemax
