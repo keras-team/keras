@@ -1,13 +1,10 @@
 import math
-import numbers
 import os
 import sys
 import time
-from collections.abc import Sequence
 
 import numpy as np
 
-from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
@@ -167,7 +164,9 @@ class Progbar:
                 info += f" - {k}:"
                 if isinstance(self._values[k], list):
                     values, count = self._values[k]
-                    avg = self._compute_avg(values, count)
+                    if not isinstance(values, float):
+                        values = np.mean(values)
+                    avg = values / max(1, count)
                     if abs(avg) > 1e-3:
                         info += f" {avg:.4f}"
                     else:
@@ -195,7 +194,9 @@ class Progbar:
                 for k in self._values_order:
                     info += f" - {k}:"
                     values, count = self._values[k]
-                    avg = self._compute_avg(values, count)
+                    if not isinstance(values, float):
+                        values = np.mean(values)
+                    avg = values / max(1, count)
                     if avg > 1e-3:
                         info += f" {avg:.4f}"
                     else:
@@ -209,28 +210,6 @@ class Progbar:
 
     def add(self, n, values=None):
         self.update(self._seen_so_far + n, values)
-
-    def _compute_avg(self, values, count):
-        """Compute the average of a metric.
-
-        Args:
-            values: Metric values to average. Can be a float, sequence, or
-                tensor.
-            count: Number of times the metric was updated.
-
-        Returns:
-            The average of the metric.
-        """
-        if isinstance(values, Sequence) and not isinstance(
-            values, (str, bytes)
-        ):
-            values = np.array(values)
-        elif backend.is_tensor(values):
-            values = backend.convert_to_numpy(values)
-        avg = values / max(1, count)
-        if not isinstance(avg, numbers.Number):
-            avg = np.mean(avg)
-        return float(avg)
 
     def _format_time(self, time_per_unit, unit_name):
         """format a given duration to display to the user.

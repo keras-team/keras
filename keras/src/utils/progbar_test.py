@@ -1,7 +1,6 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
 from keras.src.utils import progbar
 
@@ -12,7 +11,6 @@ class ProgbarTest(testing.TestCase):
             ("float", "float"),
             ("np", "np"),
             ("list", "list"),
-            ("tensor", "tensor"),
         ]
     )
     def test_update(self, value_type):
@@ -22,8 +20,6 @@ class ProgbarTest(testing.TestCase):
             values = np.array(1.0)
         elif value_type == "list":
             values = [0.0, 1.0, 2.0]
-        elif value_type == "tensor":
-            values = backend.convert_to_tensor([0.0, 1.0, 2.0])
         else:
             raise ValueError("Unknown value_type")
         pb = progbar.Progbar(target=1, verbose=1)
