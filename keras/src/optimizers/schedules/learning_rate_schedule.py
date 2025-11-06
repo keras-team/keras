@@ -584,9 +584,10 @@ class CosineDecay(LearningRateSchedule):
     schedule applies a linear increase per optimizer step to our learning rate
     from `initial_learning_rate` to `warmup_target` for a duration of
     `warmup_steps`. Afterwards, it applies a cosine decay function taking our
-    learning rate from `warmup_target` to `alpha` for a duration of
-    `decay_steps`. If `warmup_target` is None we skip warmup and our decay
-    will take our learning rate from `initial_learning_rate` to `alpha`.
+    learning rate from `warmup_target` to `warmup_target * alpha` for a
+    duration of `decay_steps`. If `warmup_target` is None we skip warmup and
+    our decay will take our learning rate from `initial_learning_rate` to
+    `initial_learning_rate * alpha`.
     It requires a `step` value to  compute the learning rate. You can
     just pass a backend variable that you increment at each training step.
 
