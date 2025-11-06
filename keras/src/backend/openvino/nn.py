@@ -44,6 +44,42 @@ def tanh(x):
     return OpenVINOKerasTensor(ov_opset.tanh(x).output(0))
 
 
+def tanh_shrink(x):
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.subtract(x, ov_opset.tanh(x)).output(0))
+
+
+def hard_tanh(x):
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.clamp(x, -1.0, 1.0).output(0))
+
+
+def soft_shrink(x, threshold=0.5):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+    thr = get_ov_output(threshold, et)
+    zero = get_ov_output(0.0, et)
+    abs_x = ov_opset.abs(x)
+    sub = ov_opset.subtract(abs_x, thr)
+    shrunk = ov_opset.maximum(sub, zero)
+    sign = ov_opset.sign(x)
+    out = ov_opset.multiply(sign, shrunk)
+    return OpenVINOKerasTensor(out.output(0))
+
+
+def hard_shrink(x, threshold=0.5):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+
+    thr = get_ov_output(threshold, et)
+    zero = get_ov_output(0.0, et)
+
+    cond = ov_opset.greater(ov_opset.abs(x), thr)
+
+    out = ov_opset.select(cond, x, zero)
+    return OpenVINOKerasTensor(out.output(0))
+
+
 def softplus(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.softplus(x).output(0))
@@ -75,6 +111,20 @@ def leaky_relu(x, negative_slope=0.2):
     ).output(0)
     leaky_relu = ov_opset.prelu(x, slope_const).output(0)
     return OpenVINOKerasTensor(leaky_relu)
+
+
+def sparse_sigmoid(x):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+
+    one = get_ov_output(1.0, et)
+    neg_one = get_ov_output(-1.0, et)
+    half = get_ov_output(0.5, et)
+
+    y = ov_opset.minimum(ov_opset.maximum(x, neg_one), one)
+
+    out = ov_opset.multiply(half, ov_opset.add(y, one))
+    return OpenVINOKerasTensor(out.output(0))
 
 
 def hard_sigmoid(x):
