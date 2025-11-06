@@ -72,7 +72,7 @@ class Dropout(Layer):
             except TypeError:
                 raise ValueError(
                     f"Invalid value received for argument `noise_shape`. "
-                    f"Expected a tuple or list of integers. "
+                    f"Expected an iterable of integers (e.g., a tuple or list). "
                     f"Received: noise_shape={noise_shape}"
                 )
 
