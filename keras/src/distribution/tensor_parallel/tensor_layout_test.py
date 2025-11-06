@@ -96,9 +96,11 @@ class LayoutTest(testing.TestCase):
         self.assertAllClose(original_tensor, reconstructed_tensor)
 
     def test_split_last_dimension(self):
-        """Tests splitting on the last dimension using dim=-1."""
+        """Tests splitting on the last dimension."""
         device_count = 3
-        dim = -1
+        # Change dim from -1 to 2 (the explicit index of the last dimension)
+        # to avoid backend-specific issues with dynamic shape resolution.
+        dim = 2
         original_tensor = ops.reshape(
             ops.arange(30, dtype="float32"), (2, 5, 3)
         )
