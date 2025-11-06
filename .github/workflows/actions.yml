@@ -43,6 +43,7 @@ jobs:
         run: |
           echo "Successfully running inside the public python container!"
           echo "Verifying JAX installation..."
+          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices : {jax.devices()}')"
 
           pytest keras --ignore keras/src/applications \
                       --cov=keras \
