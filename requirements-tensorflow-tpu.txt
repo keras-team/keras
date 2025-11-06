@@ -1,7 +1,7 @@
 --find-links https://storage.googleapis.com/libtpu-tf-releases/index.html
-tensorflow-tpu==2.19.0
+tensorflow-tpu==2.19.1
 
-#tf2onnx
+tf2onnx
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
