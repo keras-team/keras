@@ -411,6 +411,12 @@ def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
 
+def view(x, dtype=None):
+    dtype = to_torch_dtype(dtype)
+    x = convert_to_tensor(x)
+    return x.view(dtype=dtype)
+
+
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]
@@ -944,6 +950,11 @@ def isneginf(x):
 def isposinf(x):
     x = convert_to_tensor(x)
     return torch.isposinf(x)
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    return torch.isreal(x)
 
 
 def kron(x1, x2):
@@ -1528,6 +1539,12 @@ def split(x, indices_or_sections, axis=0):
     return list(out)
 
 
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    out = torch.tensor_split(x, indices_or_sections, dim=axis)
+    return list(out)
+
+
 def stack(x, axis=0):
     x = [convert_to_tensor(elem) for elem in x]
     return torch.stack(x, dim=axis)
@@ -1641,8 +1658,9 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype != "int64":
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16", "uint8"):
+        # Torch backend doesn't support uint32 dtype.
+        dtype = "int32"
     return torch.sum(
         torch.diagonal(x, offset, axis1, axis2),
         dim=-1,
@@ -1781,6 +1799,18 @@ def transpose(x, axes=None):
     if axes is not None:
         return torch.permute(x, dims=axes)
     return x.T
+
+
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    if standardize_dtype(y.dtype) == "bool":
+        y = cast(y, config.floatx())
+    if x is not None:
+        x = convert_to_tensor(x)
+        return torch.trapz(y, x=x, dim=axis)
+    else:
+        dx = convert_to_tensor(dx)
+        return torch.trapz(y, dx=dx, dim=axis)
 
 
 def var(x, axis=None, keepdims=False):

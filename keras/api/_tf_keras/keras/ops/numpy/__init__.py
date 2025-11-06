@@ -26,6 +26,7 @@ from keras.src.ops.numpy import argmin as argmin
 from keras.src.ops.numpy import argpartition as argpartition
 from keras.src.ops.numpy import argsort as argsort
 from keras.src.ops.numpy import array as array
+from keras.src.ops.numpy import array_split as array_split
 from keras.src.ops.numpy import average as average
 from keras.src.ops.numpy import bartlett as bartlett
 from keras.src.ops.numpy import bincount as bincount
@@ -95,6 +96,7 @@ from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
 from keras.src.ops.numpy import isneginf as isneginf
 from keras.src.ops.numpy import isposinf as isposinf
+from keras.src.ops.numpy import isreal as isreal
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import kron as kron
 from keras.src.ops.numpy import lcm as lcm
@@ -171,6 +173,7 @@ from keras.src.ops.numpy import tensordot as tensordot
 from keras.src.ops.numpy import tile as tile
 from keras.src.ops.numpy import trace as trace
 from keras.src.ops.numpy import transpose as transpose
+from keras.src.ops.numpy import trapezoid as trapezoid
 from keras.src.ops.numpy import tri as tri
 from keras.src.ops.numpy import tril as tril
 from keras.src.ops.numpy import triu as triu
@@ -180,6 +183,7 @@ from keras.src.ops.numpy import unravel_index as unravel_index
 from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize
+from keras.src.ops.numpy import view as view
 from keras.src.ops.numpy import vstack as vstack
 from keras.src.ops.numpy import where as where
 from keras.src.ops.numpy import zeros as zeros

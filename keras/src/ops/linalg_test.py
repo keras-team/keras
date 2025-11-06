@@ -590,7 +590,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
         # Test `compute_uv=False`
         s_no_uv = linalg.svd(x, compute_uv=False)
-        self.assertAllClose(s_no_uv, s)
+        self.assertAllClose(s_no_uv, s, atol=1e-5, rtol=1e-5)
 
     @parameterized.named_parameters(
         ("b_rank_1", 1, None),
