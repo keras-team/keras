@@ -56,7 +56,8 @@ def softsign(x):
 
 def silu(x):
     x = get_ov_output(x)
-    return OpenVINOKerasTensor(ov_opset.swish(x).output(0))
+    beta = get_ov_output(1.0, x.get_element_type())
+    return OpenVINOKerasTensor(ov_opset.swish(x, beta=beta).output(0))
 
 
 def log_sigmoid(x):
