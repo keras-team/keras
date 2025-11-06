@@ -294,13 +294,11 @@ NNOpsCorrectnessTest::test_normalize
 NNOpsCorrectnessTest::test_polar_corectness
 NNOpsCorrectnessTest::test_psnr
 NNOpsCorrectnessTest::test_sparse_categorical_crossentropy
-NNOpsCorrectnessTest::test_threshold
 NNOpsCorrectnessTest::test_sparsemax
 NNOpsCorrectnessTest::test_rms_normalization_10.0
 NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
-NNOpsDtypeTest::test_threshold_
 NNOpsDtypeTest::test_dot_product_attention_
 NNOpsDynamicShapeTest::test_glu
 NNOpsDynamicShapeTest::test_selu

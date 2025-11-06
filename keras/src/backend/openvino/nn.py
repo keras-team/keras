@@ -231,6 +231,20 @@ def sparse_plus(x):
     return OpenVINOKerasTensor(out.output(0))
 
 
+def threshold(x, threshold, default_value):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+
+    thr = get_ov_output(threshold, et)
+    dv = get_ov_output(default_value, et)
+
+    cond = ov_opset.greater(x, thr)
+
+    out = ov_opset.select(cond, x, dv)
+
+    return OpenVINOKerasTensor(out.output(0))
+
+
 def max_pool(
     inputs,
     pool_size,
