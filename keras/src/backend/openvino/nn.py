@@ -554,6 +554,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     ctc_loss_ = ov_opset.ctc_loss(
         output, output_length, target, target_length, blank_index=mask_index
     )
+    ctc_loss_ = ov_opset.convert(ctc_loss_, OPENVINO_DTYPES[backend.floatx()])
     return OpenVINOKerasTensor(ctc_loss_.output(0))
 
 
