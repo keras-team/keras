@@ -146,8 +146,18 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
+    num_spatial_dims = (
+        get_ov_output(inputs).get_partial_shape().rank.get_length() - 2
+    )
+    kwargs = {"dilations": [1] * num_spatial_dims}  # required for ov max_pool
     return _pool(
-        inputs, pool_size, ov_opset.max_pool, strides, padding, data_format
+        inputs,
+        pool_size,
+        ov_opset.max_pool,
+        strides,
+        padding,
+        data_format,
+        **kwargs,
     )
 
 
