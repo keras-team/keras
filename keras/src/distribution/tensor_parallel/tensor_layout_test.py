@@ -98,8 +98,6 @@ class LayoutTest(testing.TestCase):
     def test_split_last_dimension(self):
         """Tests splitting on the last dimension."""
         device_count = 3
-        # Change dim from -1 to 2 (the explicit index of the last dimension)
-        # to avoid backend-specific issues with dynamic shape resolution.
         dim = 2
         original_tensor = ops.reshape(
             ops.arange(30, dtype="float32"), (2, 5, 3)
