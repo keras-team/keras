@@ -12,7 +12,15 @@ from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import jax
-
+import tensorflow as tf
+from jax.experimental import jax2tf 
+import keras
+import itertools
+import string
+import functools
+from keras.src import random
+import logging
+# from flax.core import FrozenDict, DictWrapper, ListWrapper
 
 @keras_export("keras.layers.JaxLayer")
 class JaxLayer(Layer):
@@ -196,6 +204,9 @@ class JaxLayer(Layer):
         init_fn: the function to call to initialize the model. See description
             above for the list of arguments it takes and the outputs it returns.
             If `None`, then `params` and/or `state` must be provided.
+        compute_output_shape_fn: Function that takes the input shape
+            (a tuple or nested structure of tuples) and returns the output
+            shape (a tuple or nested structure of tuples).
       params: A `PyTree` containing all the model trainable parameters. This
             allows passing trained parameters or controlling the initialization.
             If both `params` and `state` are `None`, `init_fn` is called at
@@ -214,14 +225,15 @@ class JaxLayer(Layer):
         self,
         call_fn,
         init_fn=None,
+        compute_output_shape_fn=None,
         params=None,
         state=None,
         seed=None,
         **kwargs,
     ):
-        if backend.backend() != "jax":
+        if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
-                "JaxLayer is only supported with the JAX backend. Current "
+                "JaxLayer is only supported with the JAX or Tensorflow backend. Current "
                 f"backend: {backend.backend()}"
             )
 
@@ -233,7 +245,10 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        self.seed_generator = backend.random.SeedGenerator(seed)
+        self.compute_output_shape_fn = compute_output_shape_fn
+        if seed is None:
+            seed = random.seed_generator.make_default_seed()
+        self.jax_rng = jax.random.PRNGKey(seed)
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
@@ -251,7 +266,12 @@ class JaxLayer(Layer):
             self.init_fn_arguments = self._validate_signature(
                 init_fn, "init_fn", {"rng", "inputs", "training"}, {"inputs"}
             )
+        
+        # Attributes for jax2tf functions
+        self.jax2tf_training_false_fn = None
+        self.jax2tf_training_true_fn = None
 
+            
     def _validate_signature(self, fn, fn_name, allowed, required):
         fn_parameters = inspect.signature(fn).parameters
         for parameter_name in required:
@@ -271,6 +291,78 @@ class JaxLayer(Layer):
             parameter_names.append(parameter.name)
 
         return parameter_names
+    
+    def _get_jax2tf_input_shape(self, input_shape):
+        """Convert input shape in a format suitable for `jax2tf`.
+
+        `jax2tf` expects a letter for each unknown dimension, which allows
+        correlated dimensions. Since correlated dimensions are not supported by
+        Keras, we simply use 'a', 'b', 'c'..., for each unknown dimension. We
+        however use 'batch' for dimension 0 if not defined to correlate the
+        batch size across inputs.
+
+        Example (spaces added for readability):
+        ```
+        input_shape:  (None , 4   , None, None, 5   )
+        result:      "(batch, 4   , a   , b   , 5   )"
+        ```
+
+        Args:
+          input_shape: a single shape or a structure of shapes for the inputs.
+        Returns:
+          the shape or shapes structure in the `jax2tf` format as strings.
+        """
+        dim_names = itertools.chain(
+            string.ascii_lowercase,  # a, b, ... z
+            itertools.starmap(  # aa, ab, ... az, ba, bb, ... zz
+                lambda a, b: a + b,
+                itertools.product(string.ascii_lowercase, repeat=2),
+            ),
+        )
+
+        def get_single_jax2tf_shape(shape):
+            jax2tf_shape = []
+
+            for index, dim in enumerate(shape):
+                if dim is not None:
+                    jax2tf_shape.append(str(dim))
+                elif index == 0:
+                    jax2tf_shape.append("batch")
+                else:
+                    jax2tf_shape.append(next(dim_names))
+
+            return "(" + ", ".join(jax2tf_shape) + ")"
+
+        res = tree.map_shape_structure(get_single_jax2tf_shape, input_shape)
+        logging.info("_get_jax2tf_input_shape res:", res)
+        return res
+
+    def _jax2tf_convert(self, fn, polymorphic_shapes):
+        converted_fn = jax2tf.convert(fn, polymorphic_shapes=polymorphic_shapes)
+        # Autograph won't work with the output of jax2tf.
+        converted_fn = tf.autograph.experimental.do_not_convert(converted_fn)
+        return converted_fn
+
+    def _partial_with_positional(self, fn, index, value):
+        """Return a new partial with one positional argument set to a value.
+
+        This is needed because `jax2tf` only supports positional arguments and
+        `functools.partial` only supports setting positional arguments starting
+        from the left. Our use case is the `training` argument which is
+        typically the righmost argument.
+
+        Args:
+          fn: the function to wrap.
+          index: the index of the positional argument to set to `value`.
+          value: the value for the positional argument at `index`.
+        """
+
+        @functools.wraps(fn)
+        def wrapper(*args):
+            args = args[0:index] + (value,) + args[index:]
+            return fn(*args)
+
+        return wrapper
 
     @tracking.no_automatic_dependency_tracking
     def _create_variables(self, values, trainable):
@@ -296,14 +388,14 @@ class JaxLayer(Layer):
 
         def create_variable(value):
             if backend.is_tensor(value) or isinstance(
-                value, (np.ndarray, np.generic)
+                value, (np.ndarray, np.generic, jax.Array)
             ):
                 dtype = value.dtype
                 if is_float_dtype(dtype):
                     dtype = None  # Use the layer dtype policy
                 return self.add_weight(
                     value.shape,
-                    initializer=value,
+                    initializer=backend.convert_to_tensor(value) if value is not None else None,
                     dtype=dtype,
                     trainable=trainable,
                 )
@@ -328,8 +420,15 @@ class JaxLayer(Layer):
         else:
             self.state = variables
 
-        flat_variables, _ = jax.tree_util.tree_flatten(variables)
-        return flat_variables
+        if backend.backend() == "jax":
+            flat_variables, _ = jax.tree_util.tree_flatten(variables)
+            return flat_variables
+        elif backend.backend() == "tensorflow":
+            return variables
+
+    def _split_jax_rng(self):
+        self.jax_rng, subkey = jax.random.split(self.jax_rng)
+        return subkey
 
     def _get_init_rng(self):
         """
@@ -343,7 +442,7 @@ class JaxLayer(Layer):
             a JAX `PRNGKey` or structure of `PRNGKey`s that will be passed as
             the `rng` argument of `init_fn`.
         """
-        return self.seed_generator.next()
+        return self._split_jax_rng()
 
     def _get_call_rng(self, training):
         """
@@ -359,24 +458,22 @@ class JaxLayer(Layer):
             the `rng` argument of `call_fn`.
         """
         if training:
-            return self.seed_generator.next()
+            return self._split_jax_rng()
         else:
             return None
 
-    def build(self, input_shape):
-        if self.params is not None or self.state is not None:
-            return
-
-        if jax_utils.is_in_jax_tracing_scope():
+    def _initialize_weights(self, input_shape):
+        if jax_utils.is_in_jax_tracing_scope() or tf.inside_function():
             # This exception is not actually shown, it is caught and a detailed
             # warning about calling 'build' is printed.
-            raise ValueError("'JaxLayer' cannot be built in tracing scope")
+            raise ValueError("'JaxLayer' cannot be built in tracing scope or inside tf function")
 
+        logging.info("_initialize_weights input_shape:", input_shape)
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
             shape = [d if d is not None else 1 for d in shape]
-            return jax.numpy.ones(shape)
-
+            return keras.ops.ones(shape)
+        
         init_inputs = tree.map_shape_structure(create_input, input_shape)
         init_args = []
         for argument_name in self.init_fn_arguments:
@@ -398,6 +495,44 @@ class JaxLayer(Layer):
         )
         self.tracked_state = self._create_variables(init_state, trainable=False)
 
+                
+    def build(self, input_shape):
+        if self.params is None and self.state is None:
+            self._initialize_weights(input_shape)
+
+        if backend.backend() == "tensorflow":
+            polymorphic_shapes = []
+            for argument in self.call_fn_arguments:
+                if argument == "inputs":
+                    polymorphic_shapes.append(
+                        self._get_jax2tf_input_shape(input_shape)
+                    )
+                elif argument != "training":
+                    # params, state, rng
+                    polymorphic_shapes.append("...")
+
+            if "training" in self.call_fn_arguments:
+                training_argument_index = self.call_fn_arguments.index("training")
+                self.jax2tf_training_false_fn = self._jax2tf_convert(
+                    self._partial_with_positional(
+                        self.call_fn, training_argument_index, False
+                    ),
+                    polymorphic_shapes,
+                )
+                self.jax2tf_training_true_fn = self._jax2tf_convert(
+                    self._partial_with_positional(
+                        self.call_fn, training_argument_index, True
+                    ),
+                    polymorphic_shapes,
+                )
+            else:
+                self.jax2tf_training_false_fn = self._jax2tf_convert(
+                    self.call_fn,
+                    polymorphic_shapes,
+                )
+                self.jax2tf_training_true_fn = None
+            super().build(input_shape)
+    
     def call(self, inputs, training=False):
         def unwrap_variable(variable):
             return None if variable is None else variable.value
@@ -417,7 +552,8 @@ class JaxLayer(Layer):
             elif argument_name == "inputs":
                 call_args.append(inputs)
             elif argument_name == "training":
-                call_args.append(training)
+                if backend.backend() == "jax":
+                    call_args.append(training)
 
         def assign_state_to_variable(value, variable):
             # This exists only to make debugging this error case easier.
@@ -429,14 +565,50 @@ class JaxLayer(Layer):
                 )
             variable.assign(value)
 
-        if self.has_state:
-            predictions, new_state = self.call_fn(*call_args)
-            jax.tree_util.tree_map(
-                assign_state_to_variable, new_state, self.state
-            )
-            return predictions
+        def call_with_fn(fn):
+            if self.has_state:
+                predictions, new_state = fn(*call_args)
+                if backend.backend() == "jax":
+                    jax.tree_util.tree_map(
+                        assign_state_to_variable, new_state, self.state
+                    )
+                elif backend.backend() == "tensorflow":
+                    # tf.nest.map_structure(
+                    #     assign_state_to_variable, new_state, self.state
+                    # )
+                    new_state_leaves = jax.tree_util.tree_leaves(new_state)
+                    state_leaves = jax.tree_util.tree_leaves(self.state)
+                    if len(new_state_leaves) != len(state_leaves):
+                        # This indicates a more fundamental structure divergence.
+                        raise ValueError(
+                            "State leaf count mismatch between jax2tf output and layer state: "
+                            f"{len(new_state_leaves)} vs {len(state_leaves)}. "
+                            f"new_state structure: {jax.tree_util.tree_structure(new_state)}, "
+                            f"self.state structure: {jax.tree_util.tree_structure(self.state)}"
+                        )
+                    for new_val, state_leaf in zip(new_state_leaves, state_leaves):
+                        assign_state_to_variable(new_val, state_leaf)
+                    
+                return predictions
+            else:
+                return fn(*call_args)
+        if backend.backend() == "jax":
+            return call_with_fn(self.call_fn)
+        elif backend.backend() == "tensorflow":
+            if self.jax2tf_training_true_fn is None:
+                return call_with_fn(self.jax2tf_training_false_fn)
+            else:
+                if training:
+                    return call_with_fn(self.jax2tf_training_true_fn)
+                else:
+                    return call_with_fn(self.jax2tf_training_false_fn)
+
+    def compute_output_shape(self, input_shape):
+        if self.compute_output_shape_fn:
+            return self.compute_output_shape_fn(input_shape)
         else:
-            return self.call_fn(*call_args)
+            return super().compute_output_shape(input_shape)
+    
 
     def get_config(self):
         config = {
@@ -549,18 +721,13 @@ class FlaxLayer(JaxLayer):
     def __init__(
         self,
         module,
+        compute_output_shape_fn=None,
         method=None,
         variables=None,
         **kwargs,
     ):
         # Late import to only require Flax when this is used.
         from flax.core import scope as flax_scope
-
-        if backend.backend() != "jax":
-            raise ValueError(
-                "FlaxLayer is only supported with the JAX backend. Current "
-                f"backend: {backend.backend()}"
-            )
 
         self.module = module
         self.method = method
@@ -618,6 +785,7 @@ class FlaxLayer(JaxLayer):
         super().__init__(
             call_fn=call_fn,
             init_fn=init_fn,
+            compute_output_shape_fn=compute_output_shape_fn,
             params=params,
             state=state,
             **kwargs,
@@ -650,13 +818,13 @@ class FlaxLayer(JaxLayer):
 
     def _get_init_rng(self):
         return {
-            "params": self.seed_generator.next(),
-            "dropout": self.seed_generator.next(),
+            "params": self._split_jax_rng(),
+            "dropout": self._split_jax_rng(),
         }
 
     def _get_call_rng(self, training):
         if training:
-            return {"dropout": self.seed_generator.next()}
+            return {"dropout": self._split_jax_rng()}
         else:
             return {}
 

@@ -19,6 +19,8 @@ from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.saving import object_registration
 from keras.src.utils.jax_layer import FlaxLayer
 from keras.src.utils.jax_layer import JaxLayer
+from keras.src import ops
+from keras.src import random
 
 try:
     import flax
@@ -67,6 +69,11 @@ def jax_stateful_apply(params, state, inputs, training):
     if training:
         state = state + 1
     return outputs, state
+
+
+@object_registration.register_keras_serializable()
+def stateless_compute_output_shape(input_shape):
+    return (input_shape[0], num_classes)
 
 
 if flax is not None:
@@ -179,8 +186,8 @@ if flax is not None:
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="JaxLayer and FlaxLayer are only supported with JAX backend",
+    backend.backend() not in ["jax", "tensorflow"],
+    reason="JaxLayer and FlaxLayer are only supported with JAX and TF backend",
 )
 class TestJaxLayer(testing.TestCase):
     def _test_layer(
@@ -194,16 +201,18 @@ class TestJaxLayer(testing.TestCase):
         non_trainable_params,
     ):
         # Fake MNIST data
-        x_train = np.random.uniform(size=(320, 28, 28, 1))
-        y_train = np.eye(num_classes, dtype="int32")[
-            (np.random.uniform(size=(320,)) * num_classes).astype("int32")
-        ]
-        x_test = np.random.uniform(size=(32, 28, 28, 1))
+        x_train = random.uniform(shape=(320, 28, 28, 1))
+        y_train_indices = ops.cast(
+            ops.random.uniform(shape=(320,), minval=0, maxval=num_classes),
+            dtype="int32"
+        )
+        y_train = ops.one_hot(y_train_indices, num_classes, dtype="int32")
+        x_test = random.uniform(shape=(32, 28, 28, 1))
 
         def _count_params(weights):
             count = 0
             for weight in weights:
-                count = count + np.prod(weight.shape)
+                count = count + ops.prod(ops.shape(weight))
             return count
 
         def verify_weights_and_params(layer):
@@ -229,12 +238,11 @@ class TestJaxLayer(testing.TestCase):
         )
         model1.summary()
 
-        verify_weights_and_params(layer1)
-
         model1.compile(
             loss="categorical_crossentropy",
             optimizer="adam",
             metrics=[metrics.CategoricalAccuracy()],
+            run_eagerly=True,
         )
 
         tw1_before_fit = tree.map_structure(
@@ -251,13 +259,15 @@ class TestJaxLayer(testing.TestCase):
             backend.convert_to_numpy, layer1.non_trainable_weights
         )
 
+        verify_weights_and_params(layer1)
+
         # verify both trainable and non-trainable weights did change after fit
         for before, after in zip(tw1_before_fit, tw1_after_fit):
             self.assertNotAllClose(before, after)
         for before, after in zip(ntw1_before_fit, ntw1_after_fit):
             self.assertNotAllClose(before, after)
 
-        expected_ouput_shape = (x_test.shape[0], num_classes)
+        expected_ouput_shape = (ops.shape(x_test)[0], num_classes)
         output1 = model1(x_test)
         self.assertEqual(output1.shape, expected_ouput_shape)
         predict1 = model1.predict(x_test, steps=1)
@@ -478,7 +488,11 @@ class TestJaxLayer(testing.TestCase):
             flax_model = flax_model_class()
             if flax_model_method:
                 kwargs["method"] = getattr(flax_model, flax_model_method)
-            return FlaxLayer(flax_model_class(), **kwargs)
+            if backend.backend() == "jax":
+                return FlaxLayer(flax_model_class(), **kwargs)
+            elif backend.backend() == "tensorflow":
+                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
+
 
         self._test_layer(
             flax_model_class.__name__,
@@ -662,12 +676,12 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "sequence_instead_of_mapping",
             "init_state": [0.0],
-            "error_regex": "Expected dict, got ",
+            "error_regex": "Structure mismatch",
         },
         {
             "testcase_name": "mapping_instead_of_sequence",
             "init_state": {"state": {"foo": 0.0}},
-            "error_regex": "Expected list, got ",
+            "error_regex": "Structure mismatch",
         },
         {
             "testcase_name": "sequence_instead_of_variable",
@@ -677,17 +691,17 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "no_initial_state",
             "init_state": None,
-            "error_regex": "Expected dict, got None",
+            "error_regex": "Structure mismatch",
         },
         {
             "testcase_name": "missing_dict_key",
             "init_state": {"state": {}},
-            "error_regex": "Expected list, got ",
+            "error_regex": "Structure mismatch ",
         },
         {
             "testcase_name": "missing_variable_in_list",
             "init_state": {"state": {"foo": [2.0]}},
-            "error_regex": "Expected list, got ",
+            "error_regex": "Structure mismatch",
         },
     )
     def test_state_mismatch_during_update(self, init_state, error_regex):
