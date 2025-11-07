@@ -136,8 +136,8 @@ def max_pool(
 def adaptive_max_pool(inputs, output_size, data_format=None):
     """Adaptive max pooling - OpenVINO backend not yet supported."""
     raise NotImplementedError(
-        "adaptive_max_pool is not yet supported for OpenVINO backend. "
-        "Please use JAX, NumPy, PyTorch, or TensorFlow backend."
+        "Adaptive pooling not implemented for OpenVINO. "
+        "Use JAX or Torch backend."
     )
 
 
@@ -156,8 +156,8 @@ def average_pool(
 def adaptive_avg_pool(inputs, output_size, data_format=None):
     """Adaptive average pooling - OpenVINO backend not yet supported."""
     raise NotImplementedError(
-        "adaptive_avg_pool is not yet supported for OpenVINO backend. "
-        "Please use JAX, NumPy, PyTorch, or TensorFlow backend."
+        "Adaptive pooling not implemented for OpenVINO. "
+        "Use JAX or Torch backend."
     )
 
 

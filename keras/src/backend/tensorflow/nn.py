@@ -241,45 +241,10 @@ def max_pool(
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    """Adaptive max pooling 2D for TensorFlow backend."""
-    import tensorflow as tf
-
-    from keras.src import backend
-
-    data_format = backend.standardize_data_format(data_format)
-    x = tf.convert_to_tensor(inputs)
-
-    if isinstance(output_size, int):
-        out_h = out_w = int(output_size)
-    else:
-        out_h, out_w = output_size
-
-    if data_format == "channels_last":
-        N, H, W, C = x.shape
-        x_nchw = tf.transpose(x, [0, 3, 1, 2])
-    else:
-        N, C, H, W = x.shape
-        x_nchw = x
-
-    result_list = []
-    for i in range(out_h):
-        for j in range(out_w):
-            h_start = int(tf.math.floor(i * H / out_h))
-            h_end = int(tf.math.ceil((i + 1) * H / out_h))
-            w_start = int(tf.math.floor(j * W / out_w))
-            w_end = int(tf.math.ceil((j + 1) * W / out_w))
-
-            patch = x_nchw[:, :, h_start:h_end, w_start:w_end]
-            pooled = tf.reduce_max(patch, axis=[2, 3])
-            result_list.append(pooled)
-
-    output = tf.stack(result_list, axis=0)
-    output = tf.reshape(output, [out_h, out_w, N, C])
-    output = tf.transpose(
-        output, [2, 0, 1, 3] if data_format == "channels_last" else [2, 3, 0, 1]
+    raise NotImplementedError(
+        "Adaptive pooling not implemented for TensorFlow.  "
+        "Use JAX or Torch backend."
     )
-
-    return output
 
 
 def average_pool(
@@ -311,45 +276,10 @@ def average_pool(
 
 
 def adaptive_avg_pool(inputs, output_size, data_format=None):
-    """Adaptive average pooling 2D for TensorFlow backend."""
-    import tensorflow as tf
-
-    from keras.src import backend
-
-    data_format = backend.standardize_data_format(data_format)
-    x = tf.convert_to_tensor(inputs)
-
-    if isinstance(output_size, int):
-        out_h = out_w = int(output_size)
-    else:
-        out_h, out_w = output_size
-
-    if data_format == "channels_last":
-        N, H, W, C = x.shape
-        x_nchw = tf.transpose(x, [0, 3, 1, 2])
-    else:
-        N, C, H, W = x.shape
-        x_nchw = x
-
-    result_list = []
-    for i in range(out_h):
-        for j in range(out_w):
-            h_start = int(tf.math.floor(i * H / out_h))
-            h_end = int(tf.math.ceil((i + 1) * H / out_h))
-            w_start = int(tf.math.floor(j * W / out_w))
-            w_end = int(tf.math.ceil((j + 1) * W / out_w))
-
-            patch = x_nchw[:, :, h_start:h_end, w_start:w_end]
-            pooled = tf.reduce_mean(patch, axis=[2, 3])
-            result_list.append(pooled)
-
-    output = tf.stack(result_list, axis=0)
-    output = tf.reshape(output, [out_h, out_w, N, C])
-    output = tf.transpose(
-        output, [2, 0, 1, 3] if data_format == "channels_last" else [2, 3, 0, 1]
+    raise NotImplementedError(
+        "Adaptive pooling not implemented for TensorFlow.  "
+        "Use JAX or Torch backend."
     )
-
-    return output
 
 
 def _convert_data_format(data_format, ndim):
