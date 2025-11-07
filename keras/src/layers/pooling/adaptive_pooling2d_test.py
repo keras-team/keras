@@ -1,19 +1,20 @@
 """Tests for Adaptive Average and Max Pooling 2D layers."""
-import pytest
-SKIP_BACKENDS = [ "openvino", "tensorflow"]
-from keras.src import backend as K
-
-pytestmark = pytest.mark.skipif(
-    K.backend() in SKIP_BACKENDS,
-    reason="Adaptive pooling not implemented for this backend."
-)
 
 import numpy as np
 import pytest
 
+from keras.src import backend as K
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+
+SKIP_BACKENDS = ["openvino", "tensorflow"]
+
+pytestmark = pytest.mark.skipif(
+    K.backend() in SKIP_BACKENDS,
+    reason=f"Adaptive pooling tests not supported for backend: {K.backend()}",
+)
+
 
 try:
     import torch
