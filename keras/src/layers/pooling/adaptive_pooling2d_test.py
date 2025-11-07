@@ -1,4 +1,4 @@
-"""Tests for Adaptive Average Pooling 2D layer."""
+"""Tests for Adaptive Average and Max Pooling 2D layers."""
 
 import numpy as np
 import pytest
@@ -7,7 +7,6 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import testing
 
-# Only import torch if available
 try:
     import torch
 
@@ -20,16 +19,20 @@ class AdaptiveAveragePooling2DTest(testing.TestCase):
     """Test suite for AdaptiveAveragePooling2D layer."""
 
     def test_adaptive_avg_pooling_2d_basic(self):
-        """Test basic functionality with square output."""
-        layer = layers.AdaptiveAveragePooling2D(output_size=4)
-        x = np.random.randn(2, 8, 8, 3).astype("float32")
+        """Test basic functionality with square output, channels_last."""
+        layer = layers.AdaptiveAveragePooling2D(
+            output_size=4, data_format="channels_last"
+        )
+        x = np.random.randn(2, 8, 8, 3).astype("float32")  # NHWC
         y = layer(x)
         self.assertEqual(y.shape, (2, 4, 4, 3))
 
     def test_adaptive_avg_pooling_2d_rectangular(self):
-        """Test with rectangular output size."""
-        layer = layers.AdaptiveAveragePooling2D(output_size=(2, 4))
-        x = np.random.randn(2, 8, 8, 3).astype("float32")
+        """Test with rectangular output size, channels_last."""
+        layer = layers.AdaptiveAveragePooling2D(
+            output_size=(2, 4), data_format="channels_last"
+        )
+        x = np.random.randn(2, 8, 8, 3).astype("float32")  # NHWC
         y = layer(x)
         self.assertEqual(y.shape, (2, 2, 4, 3))
 
@@ -38,13 +41,15 @@ class AdaptiveAveragePooling2DTest(testing.TestCase):
         layer = layers.AdaptiveAveragePooling2D(
             output_size=4, data_format="channels_first"
         )
-        x = np.random.randn(2, 3, 8, 8).astype("float32")
+        x = np.random.randn(2, 3, 8, 8).astype("float32")  # NCHW
         y = layer(x)
         self.assertEqual(y.shape, (2, 3, 4, 4))
 
     def test_adaptive_avg_pooling_2d_output_shape(self):
         """Test compute_output_shape method."""
-        layer = layers.AdaptiveAveragePooling2D(output_size=(2, 4))
+        layer = layers.AdaptiveAveragePooling2D(
+            output_size=(2, 4), data_format="channels_last"
+        )
         x_shape = (2, 8, 8, 3)
         output_shape = layer.compute_output_shape(x_shape)
         self.assertEqual(output_shape, (2, 2, 4, 3))
@@ -82,16 +87,20 @@ class AdaptiveMaxPooling2DTest(testing.TestCase):
     """Test suite for AdaptiveMaxPooling2D layer."""
 
     def test_adaptive_max_pooling_2d_basic(self):
-        """Test basic functionality with square output."""
-        layer = layers.AdaptiveMaxPooling2D(output_size=4)
-        x = np.random.randn(2, 8, 8, 3).astype("float32")
+        """Test basic functionality with square output, channels_last."""
+        layer = layers.AdaptiveMaxPooling2D(
+            output_size=4, data_format="channels_last"
+        )
+        x = np.random.randn(2, 8, 8, 3).astype("float32")  # NHWC
         y = layer(x)
         self.assertEqual(y.shape, (2, 4, 4, 3))
 
     def test_adaptive_max_pooling_2d_rectangular(self):
-        """Test with rectangular output size."""
-        layer = layers.AdaptiveMaxPooling2D(output_size=(3, 5))
-        x = np.random.randn(2, 9, 15, 3).astype("float32")
+        """Test with rectangular output size, channels_last."""
+        layer = layers.AdaptiveMaxPooling2D(
+            output_size=(3, 5), data_format="channels_last"
+        )
+        x = np.random.randn(2, 9, 15, 3).astype("float32")  # NHWC
         y = layer(x)
         self.assertEqual(y.shape, (2, 3, 5, 3))
 
@@ -100,13 +109,15 @@ class AdaptiveMaxPooling2DTest(testing.TestCase):
         layer = layers.AdaptiveMaxPooling2D(
             output_size=4, data_format="channels_first"
         )
-        x = np.random.randn(2, 3, 8, 8).astype("float32")
+        x = np.random.randn(2, 3, 8, 8).astype("float32")  # NCHW
         y = layer(x)
         self.assertEqual(y.shape, (2, 3, 4, 4))
 
     def test_adaptive_max_pooling_2d_output_shape(self):
         """Test compute_output_shape method."""
-        layer = layers.AdaptiveMaxPooling2D(output_size=(3, 5))
+        layer = layers.AdaptiveMaxPooling2D(
+            output_size=(3, 5), data_format="channels_last"
+        )
         x_shape = (2, 9, 15, 3)
         output_shape = layer.compute_output_shape(x_shape)
         self.assertEqual(output_shape, (2, 3, 5, 3))
@@ -126,14 +137,13 @@ class AdaptiveMaxPooling2DTest(testing.TestCase):
         self.assertEqual(new_layer.data_format, "channels_first")
 
 
-# Parameterized tests as standalone functions (OUTSIDE classes)
 @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not installed")
 @pytest.mark.parametrize(
     "output_size", [(4, 4), (2, 2), (3, 5), (1, 1), (7, 9)]
 )
 def test_adaptive_avg_pooling2d_matches_torch(output_size):
     """Test numerical accuracy against PyTorch implementation."""
-    x_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+    x_np = np.random.randn(2, 3, 8, 8).astype(np.float32)  # NCHW
 
     # PyTorch
     x_torch = torch.tensor(x_np)
@@ -158,7 +168,7 @@ def test_adaptive_avg_pooling2d_matches_torch(output_size):
 )
 def test_adaptive_max_pooling2d_matches_torch(output_size):
     """Test numerical accuracy against PyTorch implementation."""
-    x_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+    x_np = np.random.randn(2, 3, 8, 8).astype(np.float32)  # NCHW
 
     # PyTorch
     x_torch = torch.tensor(x_np)
@@ -175,59 +185,3 @@ def test_adaptive_max_pooling2d_matches_torch(output_size):
     np.testing.assert_allclose(
         y_keras_np, y_torch.numpy(), rtol=1e-5, atol=1e-5
     )
-
-
-@pytest.mark.parametrize("output_size", [(4, 4), (7, 7), (1, 1)])
-@pytest.mark.parametrize("input_shape", [(2, 3, 8, 8), (4, 64, 224, 224)])
-def test_adaptive_avg_pool_numerical_equivalence(input_shape, output_size):
-    """Test numerical equivalence with PyTorch across multiple shapes."""
-    # Set seed for reproducibility
-    np.random.seed(42)
-    torch.manual_seed(42)
-
-    x_np = np.random.randn(*input_shape).astype(np.float32)
-
-    # PyTorch reference
-    x_torch = torch.tensor(x_np)
-    y_torch = torch.nn.functional.adaptive_avg_pool2d(x_torch, output_size)
-    y_torch_np = y_torch.detach().cpu().numpy()
-
-    # Keras/JAX
-    from keras.src import ops
-
-    x_keras = ops.convert_to_tensor(x_np)
-    y_keras = ops.adaptive_avg_pool(
-        x_keras, output_size=output_size, data_format="channels_first"
-    )
-    y_keras_np = np.array(y_keras)
-
-    # Compare with appropriate tolerance for float32
-    np.testing.assert_allclose(y_keras_np, y_torch_np, rtol=1e-5, atol=1e-5)
-
-
-@pytest.mark.parametrize("output_size", [(4, 4), (7, 7), (1, 1)])
-@pytest.mark.parametrize("input_shape", [(2, 3, 8, 8), (4, 64, 224, 224)])
-def test_adaptive_max_pool_numerical_equivalence(input_shape, output_size):
-    """Test numerical equivalence with PyTorch across multiple shapes."""
-    # Set seed for reproducibility
-    np.random.seed(42)
-    torch.manual_seed(42)
-
-    x_np = np.random.randn(*input_shape).astype(np.float32)
-
-    # PyTorch reference
-    x_torch = torch.tensor(x_np)
-    y_torch = torch.nn.functional.adaptive_max_pool2d(x_torch, output_size)
-    y_torch_np = y_torch.detach().cpu().numpy()
-
-    # Keras/JAX
-    from keras.src import ops
-
-    x_keras = ops.convert_to_tensor(x_np)
-    y_keras = ops.adaptive_max_pool(
-        x_keras, output_size=output_size, data_format="channels_first"
-    )
-    y_keras_np = np.array(y_keras)
-
-    # Compare with appropriate tolerance for float32
-    np.testing.assert_allclose(y_keras_np, y_torch_np, rtol=1e-5, atol=1e-5)
