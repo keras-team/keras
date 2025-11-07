@@ -1241,13 +1241,11 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
 
 def _adaptive_pool2d(inputs, output_size, mode="avg", data_format=None):
     """Adaptive pooling for 2D inputs."""
-    from keras.src import backend
-
     data_format = backend.standardize_data_format(data_format)
     x = convert_to_tensor(inputs)
 
     if isinstance(output_size, int):
-        out_h = out_w = int(output_size)
+        out_h = out_w = output_size
     else:
         out_h, out_w = output_size
 
@@ -1258,22 +1256,25 @@ def _adaptive_pool2d(inputs, output_size, mode="avg", data_format=None):
         N, C, H, W = x.shape
         x_nchw = x
 
+    # Precompute start and end indices using integer arithmetic
+    h_starts = np.array([i * H // out_h for i in range(out_h)], dtype=int)
+    h_ends = np.array(
+        [min(((i + 1) * H + out_h - 1) // out_h, H) for i in range(out_h)],
+        dtype=int,
+    )
+    w_starts = np.array([j * W // out_w for j in range(out_w)], dtype=int)
+    w_ends = np.array(
+        [min(((j + 1) * W + out_w - 1) // out_w, W) for j in range(out_w)],
+        dtype=int,
+    )
+
     out = np.empty((N, C, out_h, out_w), dtype=x.dtype)
 
     for i in range(out_h):
-        h_start = int(np.floor(i * H / out_h))
-        h_end = int(np.ceil((i + 1) * H / out_h))
-        h_start = max(0, min(h_start, H - 1))
-        h_end = max(h_start + 1, min(h_end, H))
-
         for j in range(out_w):
-            w_start = int(np.floor(j * W / out_w))
-            w_end = int(np.ceil((j + 1) * W / out_w))
-            w_start = max(0, min(w_start, W - 1))
-            w_end = max(w_start + 1, min(w_end, W))
-
-            patch = x_nchw[:, :, h_start:h_end, w_start:w_end]
-
+            patch = x_nchw[
+                :, :, h_starts[i] : h_ends[i], w_starts[j] : w_ends[j]
+            ]
             if mode == "avg":
                 out[:, :, i, j] = np.mean(patch, axis=(2, 3))
             else:

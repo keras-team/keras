@@ -1478,59 +1478,99 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches.reshape(N, CKK, oH * oW)
 
 
-def _adaptive_pool(
-    inputs, output_size, data_format="channels_first", pool_fn=jnp.mean
-):
-    """
-    Optimized adaptive pooling for JAX backend, fully vectorized and
-    tracer-safe.
-    """
-    if isinstance(output_size, int):
-        output_size = (output_size, output_size)
-    out_h, out_w = output_size
-
-    # Handle data format
-    if data_format == "channels_last":
-        inputs = jnp.transpose(inputs, (0, 3, 1, 2))  # NHWC → NCHW
-    n, c, h, w = inputs.shape
-
-    # Precompute static pooling bins as concrete numpy arrays (not traced)
-    h_bins = [
-        (int(jnp.floor(i * h / out_h)), int(jnp.ceil((i + 1) * h / out_h)))
-        for i in range(out_h)
-    ]
-    w_bins = [
-        (int(jnp.floor(j * w / out_w)), int(jnp.ceil((j + 1) * w / out_w)))
-        for j in range(out_w)
-    ]
-
-    # Define pooling over one image (C,H,W)
-    def pool_single_image(img):
-        pooled_rows = []
-        for hs, he in h_bins:
-            pooled_cols = []
-            for ws, we in w_bins:
-                region = img[:, hs:he, ws:we]
-                pooled_cols.append(pool_fn(region, axis=(1, 2)))
-            pooled_rows.append(jnp.stack(pooled_cols, axis=-1))
-        return jnp.stack(pooled_rows, axis=-2)  # (C, out_h, out_w)
-
-    # Vectorize over batch
-    outputs = jax.vmap(pool_single_image)(inputs)  # (N, C, out_h, out_w)
-
-    # Convert back if channels_last
-    if data_format == "channels_last":
-        outputs = jnp.transpose(outputs, (0, 2, 3, 1))
-    return outputs
-
-
 def adaptive_avg_pool(
     inputs, output_size, data_format="channels_first", name=None
 ):
-    return _adaptive_pool(inputs, output_size, data_format, pool_fn=jnp.mean)
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+    out_h, out_w = output_size
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 3, 1))  # NCHW -> NHWC
+    n, h, w, c = inputs.shape
+    if h % out_h == 0 and w % out_w == 0:
+        kernel_h = h // out_h
+        kernel_w = w // out_w
+        stride_h = kernel_h
+        stride_w = kernel_w
+        pooled = lax.reduce_window(
+            inputs,
+            0.0,
+            lax.add,
+            (1, kernel_h, kernel_w, 1),
+            (1, stride_h, stride_w, 1),
+            "VALID",
+        )
+        pooled = pooled / (kernel_h * kernel_w)
+    else:
+        start_h = jnp.arange(out_h, dtype=jnp.int32) * h // out_h
+        end_h = jnp.minimum(
+            ((jnp.arange(out_h, dtype=jnp.int32) + 1) * h + out_h - 1) // out_h,
+            h,
+        )
+        start_w = jnp.arange(out_w, dtype=jnp.int32) * w // out_w
+        end_w = jnp.minimum(
+            ((jnp.arange(out_w, dtype=jnp.int32) + 1) * w + out_w - 1) // out_w,
+            w,
+        )
+        pooled = jnp.zeros((n, out_h, out_w, c), dtype=inputs.dtype)
+        for i in range(out_h):
+            sh = start_h[i]
+            eh = end_h[i]
+            for j in range(out_w):
+                sw = start_w[j]
+                ew = end_w[j]
+                region = inputs[:, sh:eh, sw:ew, :]
+                pooled = pooled.at[:, i, j, :].set(
+                    jnp.mean(region, axis=(1, 2))
+                )
+
+    if data_format == "channels_first":
+        pooled = jnp.transpose(pooled, (0, 3, 1, 2))  # NHWC -> NCHW
+    return pooled
 
 
 def adaptive_max_pool(
     inputs, output_size, data_format="channels_first", name=None
 ):
-    return _adaptive_pool(inputs, output_size, data_format, pool_fn=jnp.max)
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+    out_h, out_w = output_size
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 3, 1))  # NCHW -> NHWC
+    n, h, w, c = inputs.shape
+    if h % out_h == 0 and w % out_w == 0:
+        kernel_h = h // out_h
+        kernel_w = w // out_w
+        stride_h = kernel_h
+        stride_w = kernel_w
+        pooled = lax.reduce_window(
+            inputs,
+            -jnp.inf,
+            lax.max,
+            (1, kernel_h, kernel_w, 1),
+            (1, stride_h, stride_w, 1),
+            "VALID",
+        )
+    else:
+        start_h = jnp.arange(out_h, dtype=jnp.int32) * h // out_h
+        end_h = jnp.minimum(
+            ((jnp.arange(out_h, dtype=jnp.int32) + 1) * h + out_h - 1) // out_h,
+            h,
+        )
+        start_w = jnp.arange(out_w, dtype=jnp.int32) * w // out_w
+        end_w = jnp.minimum(
+            ((jnp.arange(out_w, dtype=jnp.int32) + 1) * w + out_w - 1) // out_w,
+            w,
+        )
+        pooled = jnp.zeros((n, out_h, out_w, c), dtype=inputs.dtype)
+        for i in range(out_h):
+            sh = start_h[i]
+            eh = end_h[i]
+            for j in range(out_w):
+                sw = start_w[j]
+                ew = end_w[j]
+                region = inputs[:, sh:eh, sw:ew, :]
+                pooled = pooled.at[:, i, j, :].set(jnp.max(region, axis=(1, 2)))
+    if data_format == "channels_first":
+        pooled = jnp.transpose(pooled, (0, 3, 1, 2))  # NHWC -> NCHW
+    return pooled

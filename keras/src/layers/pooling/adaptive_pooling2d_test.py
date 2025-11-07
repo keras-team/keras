@@ -175,3 +175,59 @@ def test_adaptive_max_pooling2d_matches_torch(output_size):
     np.testing.assert_allclose(
         y_keras_np, y_torch.numpy(), rtol=1e-5, atol=1e-5
     )
+
+
+@pytest.mark.parametrize("output_size", [(4, 4), (7, 7), (1, 1)])
+@pytest.mark.parametrize("input_shape", [(2, 3, 8, 8), (4, 64, 224, 224)])
+def test_adaptive_avg_pool_numerical_equivalence(input_shape, output_size):
+    """Test numerical equivalence with PyTorch across multiple shapes."""
+    # Set seed for reproducibility
+    np.random.seed(42)
+    torch.manual_seed(42)
+
+    x_np = np.random.randn(*input_shape).astype(np.float32)
+
+    # PyTorch reference
+    x_torch = torch.tensor(x_np)
+    y_torch = torch.nn.functional.adaptive_avg_pool2d(x_torch, output_size)
+    y_torch_np = y_torch.detach().cpu().numpy()
+
+    # Keras/JAX
+    from keras.src import ops
+
+    x_keras = ops.convert_to_tensor(x_np)
+    y_keras = ops.adaptive_avg_pool(
+        x_keras, output_size=output_size, data_format="channels_first"
+    )
+    y_keras_np = np.array(y_keras)
+
+    # Compare with appropriate tolerance for float32
+    np.testing.assert_allclose(y_keras_np, y_torch_np, rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.parametrize("output_size", [(4, 4), (7, 7), (1, 1)])
+@pytest.mark.parametrize("input_shape", [(2, 3, 8, 8), (4, 64, 224, 224)])
+def test_adaptive_max_pool_numerical_equivalence(input_shape, output_size):
+    """Test numerical equivalence with PyTorch across multiple shapes."""
+    # Set seed for reproducibility
+    np.random.seed(42)
+    torch.manual_seed(42)
+
+    x_np = np.random.randn(*input_shape).astype(np.float32)
+
+    # PyTorch reference
+    x_torch = torch.tensor(x_np)
+    y_torch = torch.nn.functional.adaptive_max_pool2d(x_torch, output_size)
+    y_torch_np = y_torch.detach().cpu().numpy()
+
+    # Keras/JAX
+    from keras.src import ops
+
+    x_keras = ops.convert_to_tensor(x_np)
+    y_keras = ops.adaptive_max_pool(
+        x_keras, output_size=output_size, data_format="channels_first"
+    )
+    y_keras_np = np.array(y_keras)
+
+    # Compare with appropriate tolerance for float32
+    np.testing.assert_allclose(y_keras_np, y_torch_np, rtol=1e-5, atol=1e-5)
