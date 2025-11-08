@@ -405,7 +405,11 @@ class JaxLayer(Layer):
                     dtype = None  # Use the layer dtype policy
                 return self.add_weight(
                     value.shape,
-                    initializer=backend.convert_to_tensor(value) if value is not None else None,
+                    initializer=(
+                        backend.convert_to_tensor(value)
+                        if value is not None
+                        else None
+                    ),
                     dtype=dtype,
                     trainable=trainable,
                 )
