@@ -18,10 +18,7 @@ from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src import ops
 from keras.src.utils.module_utils import jax
-from jax.experimental import jax2tf 
 from keras.src.utils.module_utils import tensorflow as tf
-
-
 
 
 def standardize_pytree_collections(pytree):
@@ -349,6 +346,8 @@ class JaxLayer(Layer):
         return res
 
     def _jax2tf_convert(self, fn, polymorphic_shapes):
+        from jax.experimental import jax2tf
+
         converted_fn = jax2tf.convert(fn, polymorphic_shapes=polymorphic_shapes)
         # Autograph won't work with the output of jax2tf.
         converted_fn = tf.autograph.experimental.do_not_convert(converted_fn)
