@@ -62,10 +62,7 @@ class NameScopeTest(testing.TestCase):
         global_state.set_global_attribute("name_scope_stack", None)
 
         # Exit should not raise an AttributeError
-        try:
-            scope.__exit__()
-        except AttributeError as e:
-            self.fail(f"__exit__ raised AttributeError: {e}")
+        scope.__exit__()
 
         # Clean up: reset the stack
         global_state.set_global_attribute("name_scope_stack", [])
@@ -84,10 +81,7 @@ class NameScopeTest(testing.TestCase):
         name_scope_stack.clear()
 
         # Exit should not raise an IndexError
-        try:
-            scope.__exit__()
-        except IndexError as e:
-            self.fail(f"__exit__ raised IndexError: {e}")
+        scope.__exit__()
 
         # Verify stack is still empty
         name_scope_stack = global_state.get_global_attribute(
@@ -98,22 +92,14 @@ class NameScopeTest(testing.TestCase):
     def test_multithreaded_name_scope(self):
         """Test name_scope in multithreaded environment."""
         results = []
-        errors = []
 
         def thread_function(thread_id):
-            try:
-                # Each thread should have its own name_scope_stack
-                with name_scope(f"thread_{thread_id}"):
-                    path = current_path()
-                    results.append(path)
-                    # Verify we get the expected path
-                    if path != f"thread_{thread_id}":
-                        errors.append(
-                            f"Thread {thread_id}: Expected "
-                            f"'thread_{thread_id}', got '{path}'"
-                        )
-            except Exception as e:
-                errors.append(f"Thread {thread_id}: {type(e).__name__}: {e}")
+            # Each thread should have its own name_scope_stack
+            with name_scope(f"thread_{thread_id}"):
+                path = current_path()
+                results.append(path)
+                # Verify we get the expected path
+                self.assertEqual(path, f"thread_{thread_id}")
 
         # Create and start multiple threads
         threads = []
@@ -125,10 +111,6 @@ class NameScopeTest(testing.TestCase):
         # Wait for all threads to complete
         for thread in threads:
             thread.join()
-
-        # Check for any errors
-        if errors:
-            self.fail(f"Errors in threads: {errors}")
 
         # Verify all threads executed successfully
         self.assertEqual(len(results), 5)
