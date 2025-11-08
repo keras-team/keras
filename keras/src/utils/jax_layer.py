@@ -246,8 +246,8 @@ class JaxLayer(Layer):
     ):
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
-                "JaxLayer is only supported with the JAX or Tensorflow backend. "
-                f"Current backend: {backend.backend()}"
+                "JaxLayer is only supported with the JAX or Tensorflow backend"
+                f". Current backend: {backend.backend()}"
             )
 
         if init_fn is None and params is None and state is None:
