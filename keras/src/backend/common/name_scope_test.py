@@ -123,9 +123,7 @@ class NameScopeTest(testing.TestCase):
         self.assertFalse(scope._pop_on_exit)
 
         # Set up a stack manually
-        global_state.set_global_attribute(
-            "name_scope_stack", [scope], set_to_default=False
-        )
+        global_state.set_global_attribute("name_scope_stack", [scope])
 
         scope.__exit__()
 
