@@ -75,9 +75,7 @@ class NameScopeTest(testing.TestCase):
         scope.__enter__()
 
         # Simulate the scenario where the stack is cleared
-        name_scope_stack = global_state.get_global_attribute(
-            "name_scope_stack"
-        )
+        name_scope_stack = global_state.get_global_attribute("name_scope_stack")
         name_scope_stack.clear()
 
         # Exit should not raise an IndexError
@@ -128,9 +126,7 @@ class NameScopeTest(testing.TestCase):
         scope.__exit__()
 
         # Verify the stack still contains the scope
-        name_scope_stack = global_state.get_global_attribute(
-            "name_scope_stack"
-        )
+        name_scope_stack = global_state.get_global_attribute("name_scope_stack")
         self.assertEqual(len(name_scope_stack), 1)
 
         # Clean up
