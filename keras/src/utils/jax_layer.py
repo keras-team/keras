@@ -6,9 +6,7 @@ import itertools
 import numpy as np
 import string
 
-import jax
 from jax.experimental import jax2tf 
-import keras
 from keras.src import backend
 from keras.src import random
 from keras.src import tree
@@ -19,8 +17,9 @@ from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
 from keras.src.utils import tracking
+from keras.src import ops
 from keras.src.utils.module_utils import jax
-import tensorflow as tf
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 
@@ -484,7 +483,7 @@ class JaxLayer(Layer):
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
             shape = [d if d is not None else 1 for d in shape]
-            return keras.ops.ones(shape)
+            return ops.ones(shape)
         
         init_inputs = tree.map_shape_structure(create_input, input_shape)
         init_args = []
