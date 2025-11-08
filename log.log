@@ -1,0 +1,1911 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.10, pytest-8.4.2, pluggy-1.6.0 -- /Users/wenyiguo/keras/venv/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /Users/wenyiguo/keras
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 28 items
+
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_independent_bound_method FAILED [  3%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_state_no_method FAILED [  7%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method FAILED [ 10%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method_dtype_policy FAILED [ 14%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_independent PASSED [ 17%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_state PASSED [ 21%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_state_dtype_policy PASSED [ 25%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_rng_seeding PASSED [ 28%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_mapping_instead_of_sequence FAILED [ 32%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_missing_dict_key FAILED [ 35%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_missing_variable_in_list FAILED [ 39%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_no_initial_state FAILED [ 42%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_sequence_instead_of_mapping FAILED [ 46%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_sequence_instead_of_variable FAILED [ 50%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_different_argument_order FAILED [ 53%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_flax_state_no_params FAILED [ 57%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_minimal_arguments PASSED [ 60%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_missing_inputs_in_call_fn PASSED [ 64%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_missing_inputs_in_init_fn PASSED [ 67%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_no_init_fn_and_no_params PASSED [ 71%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_polymorphic_shape_more_than_26_dimension_names PASSED [ 75%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_state_jax_registered_node_class FAILED [ 78%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_state_non_tensor_leaves PASSED [ 82%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_state_none_leaves PASSED [ 85%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_structures_as_inputs_and_outputs PASSED [ 89%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_training_in_call_fn_but_not_init_fn FAILED [ 92%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_unsupported_argument_in_call_fn PASSED [ 96%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_unsupported_argument_in_init_fn PASSED [100%]
+
+=================================== FAILURES ===================================
+________ TestJaxLayer.test_flax_layer_training_independent_bound_method ________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_flax_layer_training_independent_bound_method>
+flax_model_class = <class 'keras.src.utils.jax_layer_test.FlaxTrainingIndependentModel'>
+flax_model_method = 'forward', init_kwargs = {}, trainable_weights = 8
+trainable_params = 648226, non_trainable_weights = 0, non_trainable_params = 0
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "training_independent_bound_method",
+            "flax_model_class": "FlaxTrainingIndependentModel",
+            "flax_model_method": "forward",
+            "init_kwargs": {},
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_state_no_method",
+            "flax_model_class": "FlaxBatchNormModel",
+            "flax_model_method": None,
+            "init_kwargs": {},
+            "trainable_weights": 13,
+            "trainable_params": 354258,
+            "non_trainable_weights": 8,
+            "non_trainable_params": 536,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method_dtype_policy",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+                "dtype": DTypePolicy("mixed_float16"),
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+    )
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
+    def test_flax_layer(
+        self,
+        flax_model_class,
+        flax_model_method,
+        init_kwargs,
+        trainable_weights,
+        trainable_params,
+        non_trainable_weights,
+        non_trainable_params,
+    ):
+        flax_model_class = FLAX_OBJECTS.get(flax_model_class)
+        if "method" in init_kwargs:
+            init_kwargs["method"] = FLAX_OBJECTS.get(init_kwargs["method"])
+    
+        def create_wrapper(**kwargs):
+            params = kwargs.pop("params") if "params" in kwargs else None
+            state = kwargs.pop("state") if "state" in kwargs else None
+            if params and state:
+                variables = {**params, **state}
+            elif params:
+                variables = params
+            elif state:
+                variables = state
+            else:
+                variables = None
+            kwargs["variables"] = variables
+            flax_model = flax_model_class()
+            if flax_model_method:
+                kwargs["method"] = getattr(flax_model, flax_model_method)
+            if backend.backend() == "jax":
+                return FlaxLayer(flax_model_class(), **kwargs)
+            elif backend.backend() == "tensorflow":
+                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
+    
+    
+>       self._test_layer(
+            flax_model_class.__name__,
+            create_wrapper,
+            init_kwargs,
+            trainable_weights,
+            trainable_params,
+            non_trainable_weights,
+            non_trainable_params,
+        )
+
+keras/src/utils/jax_layer_test.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/jax_layer_test.py:254: in _test_layer
+    model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:399: in fit
+    logs = self.train_function(iterator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:241: in function
+    opt_outputs = multi_step_on_iterator(iterator)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:154: in multi_step_on_iterator
+    one_step_on_data(iterator.get_next())
+keras/src/backend/tensorflow/trainer.py:125: in wrapper
+    result = step_func(converted_data)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:134: in one_step_on_data
+    outputs = self.distribute_strategy.run(step_function, args=(data,))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:1673: in run
+    return self._extended.call_for_each_replica(fn, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:3263: in call_for_each_replica
+    return self._call_for_each_replica(fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:4061: in _call_for_each_replica
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:59: in train_step
+    y_pred = self(x, training=True)
+             ^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:183: in call
+    outputs = self._run_through_graph(
+keras/src/ops/function.py:206: in _run_through_graph
+    outputs = op(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:644: in call
+    return operation(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:609: in call
+    return call_with_fn(self.jax2tf_training_false_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x34ec467a0>
+tree = {}, is_leaf = None, rest = (DictWrapper({}),), leaves = []
+treedef = PyTreeDef({})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+----------------------------- Captured stdout call -----------------------------
+Model: "FlaxTrainingIndependentModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+----------------------------- Captured stderr call -----------------------------
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1762560145.098912 1448076 service.cc:148] XLA service 0x11f0dbaf0 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+I0000 00:00:1762560145.098989 1448076 service.cc:156]   StreamExecutor device (0): Host, Default Version
+I0000 00:00:1762560145.119877 1448076 device_compiler.h:188] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+__________ TestJaxLayer.test_flax_layer_training_rng_state_no_method ___________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_flax_layer_training_rng_state_no_method>
+flax_model_class = <class 'keras.src.utils.jax_layer_test.FlaxBatchNormModel'>
+flax_model_method = None, init_kwargs = {}, trainable_weights = 13
+trainable_params = 354258, non_trainable_weights = 8, non_trainable_params = 536
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "training_independent_bound_method",
+            "flax_model_class": "FlaxTrainingIndependentModel",
+            "flax_model_method": "forward",
+            "init_kwargs": {},
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_state_no_method",
+            "flax_model_class": "FlaxBatchNormModel",
+            "flax_model_method": None,
+            "init_kwargs": {},
+            "trainable_weights": 13,
+            "trainable_params": 354258,
+            "non_trainable_weights": 8,
+            "non_trainable_params": 536,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method_dtype_policy",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+                "dtype": DTypePolicy("mixed_float16"),
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+    )
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
+    def test_flax_layer(
+        self,
+        flax_model_class,
+        flax_model_method,
+        init_kwargs,
+        trainable_weights,
+        trainable_params,
+        non_trainable_weights,
+        non_trainable_params,
+    ):
+        flax_model_class = FLAX_OBJECTS.get(flax_model_class)
+        if "method" in init_kwargs:
+            init_kwargs["method"] = FLAX_OBJECTS.get(init_kwargs["method"])
+    
+        def create_wrapper(**kwargs):
+            params = kwargs.pop("params") if "params" in kwargs else None
+            state = kwargs.pop("state") if "state" in kwargs else None
+            if params and state:
+                variables = {**params, **state}
+            elif params:
+                variables = params
+            elif state:
+                variables = state
+            else:
+                variables = None
+            kwargs["variables"] = variables
+            flax_model = flax_model_class()
+            if flax_model_method:
+                kwargs["method"] = getattr(flax_model, flax_model_method)
+            if backend.backend() == "jax":
+                return FlaxLayer(flax_model_class(), **kwargs)
+            elif backend.backend() == "tensorflow":
+                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
+    
+    
+>       self._test_layer(
+            flax_model_class.__name__,
+            create_wrapper,
+            init_kwargs,
+            trainable_weights,
+            trainable_params,
+            non_trainable_weights,
+            non_trainable_params,
+        )
+
+keras/src/utils/jax_layer_test.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/jax_layer_test.py:254: in _test_layer
+    model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:399: in fit
+    logs = self.train_function(iterator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:241: in function
+    opt_outputs = multi_step_on_iterator(iterator)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:154: in multi_step_on_iterator
+    one_step_on_data(iterator.get_next())
+keras/src/backend/tensorflow/trainer.py:125: in wrapper
+    result = step_func(converted_data)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:134: in one_step_on_data
+    outputs = self.distribute_strategy.run(step_function, args=(data,))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:1673: in run
+    return self._extended.call_for_each_replica(fn, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:3263: in call_for_each_replica
+    return self._call_for_each_replica(fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:4061: in _call_for_each_replica
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:59: in train_step
+    y_pred = self(x, training=True)
+             ^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:183: in call
+    outputs = self._run_through_graph(
+keras/src/ops/function.py:206: in _run_through_graph
+    outputs = op(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:644: in call
+    return operation(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:612: in call
+    return call_with_fn(self.jax2tf_training_true_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x36cc81580>
+tree = {'batch_stats': {'BatchNorm_0': {'mean': <tf.Tensor: shape=(12,), dtype=float32, numpy=
+array([-0.00319871, -0.0067011... , 0.997175  , 1.0033267 ,
+       0.99977   , 0.99732304, 1.0004325 , 0.99955   , 0.99559575],
+      dtype=float32)>}}}
+is_leaf = None
+rest = (DictWrapper({'batch_stats': DictWrapper({'BatchNorm_0': DictWrapper({'mean': <Variable path=flax_layer/variable_13, s...1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1.]>})})}),)
+leaves = [<tf.Tensor: shape=(12,), dtype=float32, numpy=
+array([-0.00319871, -0.00670112, -0.0096636 , -0.00773753, -0.0039517 ...      0.9931413 , 0.9929665 , 0.99336755, 0.9929529 , 0.992772  ,
+       0.9927061 , 0.9929846 ], dtype=float32)>, ...]
+treedef = PyTreeDef({'batch_stats': {'BatchNorm_0': {'mean': *, 'var': *}, 'BatchNorm_1': {'mean': *, 'var': *}, 'BatchNorm_2': {'mean': *, 'var': *}, 'BatchNorm_3': {'mean': *, 'var': *}}})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({'batch_stats': DictWrapper({'BatchNorm_0': DictWrapper({'mean': <Variable path=flax_layer/variable_13, shape=(12,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_14, shape=(12,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.]>}), 'BatchNorm_1': DictWrapper({'mean': <Variable path=flax_layer/variable_15, shape=(24,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_16, shape=(24,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.]>}), 'BatchNorm_2': DictWrapper({'mean': <Variable path=flax_layer/variable_17, shape=(32,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_18, shape=(32,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1.]>}), 'BatchNorm_3': DictWrapper({'mean': <Variable path=flax_layer/variable_19, shape=(200,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+E      0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_20, shape=(200,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+E      1. 1. 1. 1. 1. 1. 1. 1.]>})})}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+----------------------------- Captured stdout call -----------------------------
+Model: "FlaxBatchNormModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       354,794 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 354,794 (1.35 MB)
+ Trainable params: 354,258 (1.35 MB)
+ Non-trainable params: 536 (2.09 KB)
+___________ TestJaxLayer.test_flax_layer_training_rng_unbound_method ___________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_flax_layer_training_rng_unbound_method>
+flax_model_class = <class 'keras.src.utils.jax_layer_test.FlaxDropoutModel'>
+flax_model_method = None
+init_kwargs = {'method': <function flax_dropout_wrapper at 0x16a760860>}
+trainable_weights = 8, trainable_params = 648226, non_trainable_weights = 0
+non_trainable_params = 0
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "training_independent_bound_method",
+            "flax_model_class": "FlaxTrainingIndependentModel",
+            "flax_model_method": "forward",
+            "init_kwargs": {},
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_state_no_method",
+            "flax_model_class": "FlaxBatchNormModel",
+            "flax_model_method": None,
+            "init_kwargs": {},
+            "trainable_weights": 13,
+            "trainable_params": 354258,
+            "non_trainable_weights": 8,
+            "non_trainable_params": 536,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method_dtype_policy",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+                "dtype": DTypePolicy("mixed_float16"),
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+    )
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
+    def test_flax_layer(
+        self,
+        flax_model_class,
+        flax_model_method,
+        init_kwargs,
+        trainable_weights,
+        trainable_params,
+        non_trainable_weights,
+        non_trainable_params,
+    ):
+        flax_model_class = FLAX_OBJECTS.get(flax_model_class)
+        if "method" in init_kwargs:
+            init_kwargs["method"] = FLAX_OBJECTS.get(init_kwargs["method"])
+    
+        def create_wrapper(**kwargs):
+            params = kwargs.pop("params") if "params" in kwargs else None
+            state = kwargs.pop("state") if "state" in kwargs else None
+            if params and state:
+                variables = {**params, **state}
+            elif params:
+                variables = params
+            elif state:
+                variables = state
+            else:
+                variables = None
+            kwargs["variables"] = variables
+            flax_model = flax_model_class()
+            if flax_model_method:
+                kwargs["method"] = getattr(flax_model, flax_model_method)
+            if backend.backend() == "jax":
+                return FlaxLayer(flax_model_class(), **kwargs)
+            elif backend.backend() == "tensorflow":
+                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
+    
+    
+>       self._test_layer(
+            flax_model_class.__name__,
+            create_wrapper,
+            init_kwargs,
+            trainable_weights,
+            trainable_params,
+            non_trainable_weights,
+            non_trainable_params,
+        )
+
+keras/src/utils/jax_layer_test.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/jax_layer_test.py:254: in _test_layer
+    model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:399: in fit
+    logs = self.train_function(iterator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:241: in function
+    opt_outputs = multi_step_on_iterator(iterator)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:154: in multi_step_on_iterator
+    one_step_on_data(iterator.get_next())
+keras/src/backend/tensorflow/trainer.py:125: in wrapper
+    result = step_func(converted_data)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:134: in one_step_on_data
+    outputs = self.distribute_strategy.run(step_function, args=(data,))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:1673: in run
+    return self._extended.call_for_each_replica(fn, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:3263: in call_for_each_replica
+    return self._call_for_each_replica(fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:4061: in _call_for_each_replica
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:59: in train_step
+    y_pred = self(x, training=True)
+             ^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:183: in call
+    outputs = self._run_through_graph(
+keras/src/ops/function.py:206: in _run_through_graph
+    outputs = op(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:644: in call
+    return operation(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:612: in call
+    return call_with_fn(self.jax2tf_training_true_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x36e4ebb00>
+tree = {}, is_leaf = None, rest = (DictWrapper({}),), leaves = []
+treedef = PyTreeDef({})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+----------------------------- Captured stdout call -----------------------------
+Model: "FlaxDropoutModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+____ TestJaxLayer.test_flax_layer_training_rng_unbound_method_dtype_policy _____
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_flax_layer_training_rng_unbound_method_dtype_policy>
+flax_model_class = <class 'keras.src.utils.jax_layer_test.FlaxDropoutModel'>
+flax_model_method = None
+init_kwargs = {'dtype': <DTypePolicy "mixed_float16">, 'method': <function flax_dropout_wrapper at 0x16a760860>}
+trainable_weights = 8, trainable_params = 648226, non_trainable_weights = 0
+non_trainable_params = 0
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "training_independent_bound_method",
+            "flax_model_class": "FlaxTrainingIndependentModel",
+            "flax_model_method": "forward",
+            "init_kwargs": {},
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_state_no_method",
+            "flax_model_class": "FlaxBatchNormModel",
+            "flax_model_method": None,
+            "init_kwargs": {},
+            "trainable_weights": 13,
+            "trainable_params": 354258,
+            "non_trainable_weights": 8,
+            "non_trainable_params": 536,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method_dtype_policy",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+                "dtype": DTypePolicy("mixed_float16"),
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+    )
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
+    def test_flax_layer(
+        self,
+        flax_model_class,
+        flax_model_method,
+        init_kwargs,
+        trainable_weights,
+        trainable_params,
+        non_trainable_weights,
+        non_trainable_params,
+    ):
+        flax_model_class = FLAX_OBJECTS.get(flax_model_class)
+        if "method" in init_kwargs:
+            init_kwargs["method"] = FLAX_OBJECTS.get(init_kwargs["method"])
+    
+        def create_wrapper(**kwargs):
+            params = kwargs.pop("params") if "params" in kwargs else None
+            state = kwargs.pop("state") if "state" in kwargs else None
+            if params and state:
+                variables = {**params, **state}
+            elif params:
+                variables = params
+            elif state:
+                variables = state
+            else:
+                variables = None
+            kwargs["variables"] = variables
+            flax_model = flax_model_class()
+            if flax_model_method:
+                kwargs["method"] = getattr(flax_model, flax_model_method)
+            if backend.backend() == "jax":
+                return FlaxLayer(flax_model_class(), **kwargs)
+            elif backend.backend() == "tensorflow":
+                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
+    
+    
+>       self._test_layer(
+            flax_model_class.__name__,
+            create_wrapper,
+            init_kwargs,
+            trainable_weights,
+            trainable_params,
+            non_trainable_weights,
+            non_trainable_params,
+        )
+
+keras/src/utils/jax_layer_test.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/jax_layer_test.py:254: in _test_layer
+    model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:399: in fit
+    logs = self.train_function(iterator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:241: in function
+    opt_outputs = multi_step_on_iterator(iterator)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:154: in multi_step_on_iterator
+    one_step_on_data(iterator.get_next())
+keras/src/backend/tensorflow/trainer.py:125: in wrapper
+    result = step_func(converted_data)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:134: in one_step_on_data
+    outputs = self.distribute_strategy.run(step_function, args=(data,))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:1673: in run
+    return self._extended.call_for_each_replica(fn, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:3263: in call_for_each_replica
+    return self._call_for_each_replica(fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:4061: in _call_for_each_replica
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:59: in train_step
+    y_pred = self(x, training=True)
+             ^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:183: in call
+    outputs = self._run_through_graph(
+keras/src/ops/function.py:206: in _run_through_graph
+    outputs = op(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:644: in call
+    return operation(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:939: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:612: in call
+    return call_with_fn(self.jax2tf_training_true_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x36e43ad40>
+tree = {}, is_leaf = None, rest = (DictWrapper({}),), leaves = []
+treedef = PyTreeDef({})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+----------------------------- Captured stdout call -----------------------------
+Model: "FlaxDropoutModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+__ TestJaxLayer.test_state_mismatch_during_update_mapping_instead_of_sequence __
+ValueError: Expected dict, got DictWrapper({'state': DictWrapper({'foo': <Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>})}).
+
+During handling of the above exception, another exception occurred:
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_state_mismatch_during_update_mapping_instead_of_sequence>
+init_state = {'state': {'foo': 0.0}}, error_regex = 'Structure mismatch'
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "sequence_instead_of_mapping",
+            "init_state": [0.0],
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "mapping_instead_of_sequence",
+            "init_state": {"state": {"foo": 0.0}},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "sequence_instead_of_variable",
+            "init_state": {"state": [[0.0]]},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "no_initial_state",
+            "init_state": None,
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "missing_dict_key",
+            "init_state": {"state": {}},
+            "error_regex": "Structure mismatch ",
+        },
+        {
+            "testcase_name": "missing_variable_in_list",
+            "init_state": {"state": {"foo": [2.0]}},
+            "error_regex": "Structure mismatch",
+        },
+    )
+    def test_state_mismatch_during_update(self, init_state, error_regex):
+        def jax_fn(params, state, inputs):
+            return inputs, {"state": [jnp.ones([])]}
+    
+        layer = JaxLayer(jax_fn, params={}, state=init_state)
+>       with self.assertRaisesRegex(ValueError, error_regex):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: "Structure mismatch" does not match "Expected dict, got DictWrapper({'state': DictWrapper({'foo': <Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>})})."
+
+keras/src/utils/jax_layer_test.py:712: AssertionError
+_______ TestJaxLayer.test_state_mismatch_during_update_missing_dict_key ________
+ValueError: Expected dict, got DictWrapper({'state': DictWrapper({})}).
+
+During handling of the above exception, another exception occurred:
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_state_mismatch_during_update_missing_dict_key>
+init_state = {'state': {}}, error_regex = 'Structure mismatch '
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "sequence_instead_of_mapping",
+            "init_state": [0.0],
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "mapping_instead_of_sequence",
+            "init_state": {"state": {"foo": 0.0}},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "sequence_instead_of_variable",
+            "init_state": {"state": [[0.0]]},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "no_initial_state",
+            "init_state": None,
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "missing_dict_key",
+            "init_state": {"state": {}},
+            "error_regex": "Structure mismatch ",
+        },
+        {
+            "testcase_name": "missing_variable_in_list",
+            "init_state": {"state": {"foo": [2.0]}},
+            "error_regex": "Structure mismatch",
+        },
+    )
+    def test_state_mismatch_during_update(self, init_state, error_regex):
+        def jax_fn(params, state, inputs):
+            return inputs, {"state": [jnp.ones([])]}
+    
+        layer = JaxLayer(jax_fn, params={}, state=init_state)
+>       with self.assertRaisesRegex(ValueError, error_regex):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: "Structure mismatch " does not match "Expected dict, got DictWrapper({'state': DictWrapper({})})."
+
+keras/src/utils/jax_layer_test.py:712: AssertionError
+___ TestJaxLayer.test_state_mismatch_during_update_missing_variable_in_list ____
+ValueError: Expected dict, got DictWrapper({'state': DictWrapper({'foo': ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=2.0>])})}).
+
+During handling of the above exception, another exception occurred:
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_state_mismatch_during_update_missing_variable_in_list>
+init_state = {'state': {'foo': [2.0]}}, error_regex = 'Structure mismatch'
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "sequence_instead_of_mapping",
+            "init_state": [0.0],
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "mapping_instead_of_sequence",
+            "init_state": {"state": {"foo": 0.0}},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "sequence_instead_of_variable",
+            "init_state": {"state": [[0.0]]},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "no_initial_state",
+            "init_state": None,
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "missing_dict_key",
+            "init_state": {"state": {}},
+            "error_regex": "Structure mismatch ",
+        },
+        {
+            "testcase_name": "missing_variable_in_list",
+            "init_state": {"state": {"foo": [2.0]}},
+            "error_regex": "Structure mismatch",
+        },
+    )
+    def test_state_mismatch_during_update(self, init_state, error_regex):
+        def jax_fn(params, state, inputs):
+            return inputs, {"state": [jnp.ones([])]}
+    
+        layer = JaxLayer(jax_fn, params={}, state=init_state)
+>       with self.assertRaisesRegex(ValueError, error_regex):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: "Structure mismatch" does not match "Expected dict, got DictWrapper({'state': DictWrapper({'foo': ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=2.0>])})})."
+
+keras/src/utils/jax_layer_test.py:712: AssertionError
+_______ TestJaxLayer.test_state_mismatch_during_update_no_initial_state ________
+ValueError: Expected dict, got None.
+
+During handling of the above exception, another exception occurred:
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_state_mismatch_during_update_no_initial_state>
+init_state = None, error_regex = 'Structure mismatch'
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "sequence_instead_of_mapping",
+            "init_state": [0.0],
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "mapping_instead_of_sequence",
+            "init_state": {"state": {"foo": 0.0}},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "sequence_instead_of_variable",
+            "init_state": {"state": [[0.0]]},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "no_initial_state",
+            "init_state": None,
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "missing_dict_key",
+            "init_state": {"state": {}},
+            "error_regex": "Structure mismatch ",
+        },
+        {
+            "testcase_name": "missing_variable_in_list",
+            "init_state": {"state": {"foo": [2.0]}},
+            "error_regex": "Structure mismatch",
+        },
+    )
+    def test_state_mismatch_during_update(self, init_state, error_regex):
+        def jax_fn(params, state, inputs):
+            return inputs, {"state": [jnp.ones([])]}
+    
+        layer = JaxLayer(jax_fn, params={}, state=init_state)
+>       with self.assertRaisesRegex(ValueError, error_regex):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: "Structure mismatch" does not match "Expected dict, got None."
+
+keras/src/utils/jax_layer_test.py:712: AssertionError
+__ TestJaxLayer.test_state_mismatch_during_update_sequence_instead_of_mapping __
+ValueError: Expected dict, got ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>]).
+
+During handling of the above exception, another exception occurred:
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_state_mismatch_during_update_sequence_instead_of_mapping>
+init_state = [0.0], error_regex = 'Structure mismatch'
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "sequence_instead_of_mapping",
+            "init_state": [0.0],
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "mapping_instead_of_sequence",
+            "init_state": {"state": {"foo": 0.0}},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "sequence_instead_of_variable",
+            "init_state": {"state": [[0.0]]},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "no_initial_state",
+            "init_state": None,
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "missing_dict_key",
+            "init_state": {"state": {}},
+            "error_regex": "Structure mismatch ",
+        },
+        {
+            "testcase_name": "missing_variable_in_list",
+            "init_state": {"state": {"foo": [2.0]}},
+            "error_regex": "Structure mismatch",
+        },
+    )
+    def test_state_mismatch_during_update(self, init_state, error_regex):
+        def jax_fn(params, state, inputs):
+            return inputs, {"state": [jnp.ones([])]}
+    
+        layer = JaxLayer(jax_fn, params={}, state=init_state)
+>       with self.assertRaisesRegex(ValueError, error_regex):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: "Structure mismatch" does not match "Expected dict, got ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>])."
+
+keras/src/utils/jax_layer_test.py:712: AssertionError
+_ TestJaxLayer.test_state_mismatch_during_update_sequence_instead_of_variable __
+ValueError: Expected dict, got DictWrapper({'state': ListWrapper([ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>])])}).
+
+During handling of the above exception, another exception occurred:
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_state_mismatch_during_update_sequence_instead_of_variable>
+init_state = {'state': [[0.0]]}, error_regex = 'Structure mismatch'
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "sequence_instead_of_mapping",
+            "init_state": [0.0],
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "mapping_instead_of_sequence",
+            "init_state": {"state": {"foo": 0.0}},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "sequence_instead_of_variable",
+            "init_state": {"state": [[0.0]]},
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "no_initial_state",
+            "init_state": None,
+            "error_regex": "Structure mismatch",
+        },
+        {
+            "testcase_name": "missing_dict_key",
+            "init_state": {"state": {}},
+            "error_regex": "Structure mismatch ",
+        },
+        {
+            "testcase_name": "missing_variable_in_list",
+            "init_state": {"state": {"foo": [2.0]}},
+            "error_regex": "Structure mismatch",
+        },
+    )
+    def test_state_mismatch_during_update(self, init_state, error_regex):
+        def jax_fn(params, state, inputs):
+            return inputs, {"state": [jnp.ones([])]}
+    
+        layer = JaxLayer(jax_fn, params={}, state=init_state)
+>       with self.assertRaisesRegex(ValueError, error_regex):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: "Structure mismatch" does not match "Expected dict, got DictWrapper({'state': ListWrapper([ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>])])})."
+
+keras/src/utils/jax_layer_test.py:712: AssertionError
+_______________ TestJaxLayer.test_with_different_argument_order ________________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_with_different_argument_order>
+
+    def test_with_different_argument_order(self):
+        def jax_call_fn(training, inputs, rng, state, params):
+            return inputs, {}
+    
+        def jax_init_fn(training, inputs, rng):
+            return {}, {}
+    
+        layer = JaxLayer(jax_call_fn, jax_init_fn)
+>       layer(np.ones((1,)))
+
+keras/src/utils/jax_layer_test.py:532: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:614: in call
+    return call_with_fn(self.jax2tf_training_false_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x393b49940>
+tree = {}, is_leaf = None, rest = (DictWrapper({}),), leaves = []
+treedef = PyTreeDef({})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+_________________ TestJaxLayer.test_with_flax_state_no_params __________________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_with_flax_state_no_params>
+
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
+    def test_with_flax_state_no_params(self):
+        class MyFlaxLayer(flax.linen.Module):
+            @flax.linen.compact
+            def __call__(self, x):
+                def zeros_init(shape):
+                    return jnp.zeros(shape, jnp.int32)
+    
+                count = self.variable("a", "b", zeros_init, [])
+                count.value = count.value + 1
+                return x
+    
+        layer = FlaxLayer(MyFlaxLayer(), variables={"a": {"b": 0}})
+>       layer(np.ones((1,)))
+
+keras/src/utils/jax_layer_test.py:634: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:609: in call
+    return call_with_fn(self.jax2tf_training_false_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x393b7aa20>
+tree = {'a': {'b': <tf.Tensor: shape=(), dtype=int32, numpy=1>}}, is_leaf = None
+rest = (DictWrapper({'a': DictWrapper({'b': <Variable path=flax_layer/variable, shape=(), dtype=int64, value=0>})}),)
+leaves = [<tf.Tensor: shape=(), dtype=int32, numpy=1>]
+treedef = PyTreeDef({'a': {'b': *}})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({'a': DictWrapper({'b': <Variable path=flax_layer/variable, shape=(), dtype=int64, value=0>})}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+____________ TestJaxLayer.test_with_state_jax_registered_node_class ____________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_with_state_jax_registered_node_class>
+
+    def test_with_state_jax_registered_node_class(self):
+        @jax.tree_util.register_pytree_node_class
+        class NamedPoint:
+            def __init__(self, x, y, name):
+                self.x = x
+                self.y = y
+                self.name = name
+    
+            def tree_flatten(self):
+                return ((self.x, self.y), self.name)
+    
+            @classmethod
+            def tree_unflatten(cls, aux_data, children):
+                return cls(*children, aux_data)
+    
+        def jax_fn(params, state, inputs):
+            return inputs, state
+    
+        layer = JaxLayer(jax_fn, state=[NamedPoint(1.0, 2.0, "foo")])
+>       layer(np.ones((1,)))
+
+keras/src/utils/jax_layer_test.py:673: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:609: in call
+    return call_with_fn(self.jax2tf_training_false_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x395be4680>
+tree = [<keras.src.utils.jax_layer_test.TestJaxLayer.test_with_state_jax_registered_node_class.<locals>.NamedPoint object at 0x396832d50>]
+is_leaf = None
+rest = (ListWrapper([<keras.src.utils.jax_layer_test.TestJaxLayer.test_with_state_jax_registered_node_class.<locals>.NamedPoint object at 0x3923390a0>]),)
+leaves = [<tf.Tensor: shape=(), dtype=float32, numpy=1.0>, <tf.Tensor: shape=(), dtype=float32, numpy=2.0>]
+treedef = PyTreeDef([CustomNode(NamedPoint[foo], [*, *])])
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected list, got ListWrapper([<keras.src.utils.jax_layer_test.TestJaxLayer.test_with_state_jax_registered_node_class.<locals>.NamedPoint object at 0x3923390a0>]).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+__________ TestJaxLayer.test_with_training_in_call_fn_but_not_init_fn __________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_with_training_in_call_fn_but_not_init_fn>
+
+    def test_with_training_in_call_fn_but_not_init_fn(self):
+        def jax_call_fn(params, state, rng, inputs, training):
+            return inputs, {}
+    
+        def jax_init_fn(rng, inputs):
+            return {}, {}
+    
+        layer = JaxLayer(jax_call_fn, jax_init_fn)
+>       layer(np.ones((1,)))
+
+keras/src/utils/jax_layer_test.py:522: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:614: in call
+    return call_with_fn(self.jax2tf_training_false_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x395b993a0>
+tree = {}, is_leaf = None, rest = (DictWrapper({}),), leaves = []
+treedef = PyTreeDef({})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+=========================== short test summary info ============================
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_independent_bound_method - ValueError: Expected dict, got DictWrapper({}).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_state_no_method - ValueError: Expected dict, got DictWrapper({'batch_stats': DictWrapper({'BatchNorm_0': DictWrapper({'mean': <Variable path=flax_layer/variable_13, shape=(12,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_14, shape=(12,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.]>}), 'BatchNorm_1': DictWrapper({'mean': <Variable path=flax_layer/variable_15, shape=(24,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_16, shape=(24,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.]>}), 'BatchNorm_2': DictWrapper({'mean': <Variable path=flax_layer/variable_17, shape=(32,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_18, shape=(32,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1.]>}), 'BatchNorm_3': DictWrapper({'mean': <Variable path=flax_layer/variable_19, shape=(200,), dtype=float32, value=[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0.]>, 'var': <Variable path=flax_layer/variable_20, shape=(200,), dtype=float32, value=[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.
+ 1. 1. 1. 1. 1. 1. 1. 1.]>})})}).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method - ValueError: Expected dict, got DictWrapper({}).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method_dtype_policy - ValueError: Expected dict, got DictWrapper({}).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_mapping_instead_of_sequence - AssertionError: "Structure mismatch" does not match "Expected dict, got DictWrapper({'state': DictWrapper({'foo': <Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>})})."
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_missing_dict_key - AssertionError: "Structure mismatch " does not match "Expected dict, got DictWrapper({'state': DictWrapper({})})."
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_missing_variable_in_list - AssertionError: "Structure mismatch" does not match "Expected dict, got DictWrapper({'state': DictWrapper({'foo': ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=2.0>])})})."
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_no_initial_state - AssertionError: "Structure mismatch" does not match "Expected dict, got None."
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_sequence_instead_of_mapping - AssertionError: "Structure mismatch" does not match "Expected dict, got ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>])."
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_sequence_instead_of_variable - AssertionError: "Structure mismatch" does not match "Expected dict, got DictWrapper({'state': ListWrapper([ListWrapper([<Variable path=jax_layer/variable, shape=(), dtype=float32, value=0.0>])])})."
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_different_argument_order - ValueError: Expected dict, got DictWrapper({}).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_flax_state_no_params - ValueError: Expected dict, got DictWrapper({'a': DictWrapper({'b': <Variable path=flax_layer/variable, shape=(), dtype=int64, value=0>})}).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_state_jax_registered_node_class - ValueError: Expected list, got ListWrapper([<keras.src.utils.jax_layer_test.TestJaxLayer.test_with_state_jax_registered_node_class.<locals>.NamedPoint object at 0x3923390a0>]).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_training_in_call_fn_but_not_init_fn - ValueError: Expected dict, got DictWrapper({}).
+======================== 14 failed, 14 passed in 8.05s =========================
+============================= test session starts ==============================
+platform darwin -- Python 3.12.10, pytest-8.4.2, pluggy-1.6.0 -- /Users/wenyiguo/keras/venv/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /Users/wenyiguo/keras
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_independent_bound_method FAILED [ 50%]
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method FAILED [100%]
+
+=================================== FAILURES ===================================
+________ TestJaxLayer.test_flax_layer_training_independent_bound_method ________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_flax_layer_training_independent_bound_method>
+flax_model_class = <class 'keras.src.utils.jax_layer_test.FlaxTrainingIndependentModel'>
+flax_model_method = 'forward', init_kwargs = {}, trainable_weights = 8
+trainable_params = 648226, non_trainable_weights = 0, non_trainable_params = 0
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "training_independent_bound_method",
+            "flax_model_class": "FlaxTrainingIndependentModel",
+            "flax_model_method": "forward",
+            "init_kwargs": {},
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        # {
+        #     "testcase_name": "training_rng_state_no_method",
+        #     "flax_model_class": "FlaxBatchNormModel",
+        #     "flax_model_method": None,
+        #     "init_kwargs": {},
+        #     "trainable_weights": 13,
+        #     "trainable_params": 354258,
+        #     "non_trainable_weights": 8,
+        #     "non_trainable_params": 536,
+        # },
+        # {
+        #     "testcase_name": "training_rng_unbound_method_dtype_policy",
+        #     "flax_model_class": "FlaxDropoutModel",
+        #     "flax_model_method": None,
+        #     "init_kwargs": {
+        #         "method": "flax_dropout_wrapper",
+        #         "dtype": DTypePolicy("mixed_float16"),
+        #     },
+        #     "trainable_weights": 8,
+        #     "trainable_params": 648226,
+        #     "non_trainable_weights": 0,
+        #     "non_trainable_params": 0,
+        # },
+    )
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
+    def test_flax_layer(
+        self,
+        flax_model_class,
+        flax_model_method,
+        init_kwargs,
+        trainable_weights,
+        trainable_params,
+        non_trainable_weights,
+        non_trainable_params,
+    ):
+        flax_model_class = FLAX_OBJECTS.get(flax_model_class)
+        if "method" in init_kwargs:
+            init_kwargs["method"] = FLAX_OBJECTS.get(init_kwargs["method"])
+    
+        def create_wrapper(**kwargs):
+            params = kwargs.pop("params") if "params" in kwargs else None
+            state = kwargs.pop("state") if "state" in kwargs else None
+            if params and state:
+                variables = {**params, **state}
+            elif params:
+                variables = params
+            elif state:
+                variables = state
+            else:
+                variables = None
+            kwargs["variables"] = variables
+            flax_model = flax_model_class()
+            if flax_model_method:
+                kwargs["method"] = getattr(flax_model, flax_model_method)
+            if backend.backend() == "jax":
+                return FlaxLayer(flax_model_class(), **kwargs)
+            elif backend.backend() == "tensorflow":
+                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
+    
+    
+>       self._test_layer(
+            flax_model_class.__name__,
+            create_wrapper,
+            init_kwargs,
+            trainable_weights,
+            trainable_params,
+            non_trainable_weights,
+            non_trainable_params,
+        )
+
+keras/src/utils/jax_layer_test.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/jax_layer_test.py:254: in _test_layer
+    model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:399: in fit
+    logs = self.train_function(iterator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:241: in function
+    opt_outputs = multi_step_on_iterator(iterator)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:154: in multi_step_on_iterator
+    one_step_on_data(iterator.get_next())
+keras/src/backend/tensorflow/trainer.py:125: in wrapper
+    result = step_func(converted_data)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:134: in one_step_on_data
+    outputs = self.distribute_strategy.run(step_function, args=(data,))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:1673: in run
+    return self._extended.call_for_each_replica(fn, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:3263: in call_for_each_replica
+    return self._call_for_each_replica(fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:4061: in _call_for_each_replica
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:59: in train_step
+    y_pred = self(x, training=True)
+             ^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:183: in call
+    outputs = self._run_through_graph(
+keras/src/ops/function.py:206: in _run_through_graph
+    outputs = op(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:644: in call
+    return operation(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:609: in call
+    return call_with_fn(self.jax2tf_training_false_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x31d82f740>
+tree = {}, is_leaf = None, rest = (DictWrapper({}),), leaves = []
+treedef = PyTreeDef({})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+----------------------------- Captured stdout call -----------------------------
+Model: "FlaxTrainingIndependentModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+----------------------------- Captured stderr call -----------------------------
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1762560267.960370 1451585 service.cc:148] XLA service 0x15533c0f0 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+I0000 00:00:1762560267.960444 1451585 service.cc:156]   StreamExecutor device (0): Host, Default Version
+I0000 00:00:1762560267.986555 1451585 device_compiler.h:188] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+___________ TestJaxLayer.test_flax_layer_training_rng_unbound_method ___________
+
+self = <keras.src.utils.jax_layer_test.TestJaxLayer testMethod=test_flax_layer_training_rng_unbound_method>
+flax_model_class = <class 'keras.src.utils.jax_layer_test.FlaxDropoutModel'>
+flax_model_method = None
+init_kwargs = {'method': <function flax_dropout_wrapper at 0x1549f8900>}
+trainable_weights = 8, trainable_params = 648226, non_trainable_weights = 0
+non_trainable_params = 0
+
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "training_independent_bound_method",
+            "flax_model_class": "FlaxTrainingIndependentModel",
+            "flax_model_method": "forward",
+            "init_kwargs": {},
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_rng_unbound_method",
+            "flax_model_class": "FlaxDropoutModel",
+            "flax_model_method": None,
+            "init_kwargs": {
+                "method": "flax_dropout_wrapper",
+            },
+            "trainable_weights": 8,
+            "trainable_params": 648226,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        # {
+        #     "testcase_name": "training_rng_state_no_method",
+        #     "flax_model_class": "FlaxBatchNormModel",
+        #     "flax_model_method": None,
+        #     "init_kwargs": {},
+        #     "trainable_weights": 13,
+        #     "trainable_params": 354258,
+        #     "non_trainable_weights": 8,
+        #     "non_trainable_params": 536,
+        # },
+        # {
+        #     "testcase_name": "training_rng_unbound_method_dtype_policy",
+        #     "flax_model_class": "FlaxDropoutModel",
+        #     "flax_model_method": None,
+        #     "init_kwargs": {
+        #         "method": "flax_dropout_wrapper",
+        #         "dtype": DTypePolicy("mixed_float16"),
+        #     },
+        #     "trainable_weights": 8,
+        #     "trainable_params": 648226,
+        #     "non_trainable_weights": 0,
+        #     "non_trainable_params": 0,
+        # },
+    )
+    @pytest.mark.skipif(flax is None, reason="Flax library is not available.")
+    def test_flax_layer(
+        self,
+        flax_model_class,
+        flax_model_method,
+        init_kwargs,
+        trainable_weights,
+        trainable_params,
+        non_trainable_weights,
+        non_trainable_params,
+    ):
+        flax_model_class = FLAX_OBJECTS.get(flax_model_class)
+        if "method" in init_kwargs:
+            init_kwargs["method"] = FLAX_OBJECTS.get(init_kwargs["method"])
+    
+        def create_wrapper(**kwargs):
+            params = kwargs.pop("params") if "params" in kwargs else None
+            state = kwargs.pop("state") if "state" in kwargs else None
+            if params and state:
+                variables = {**params, **state}
+            elif params:
+                variables = params
+            elif state:
+                variables = state
+            else:
+                variables = None
+            kwargs["variables"] = variables
+            flax_model = flax_model_class()
+            if flax_model_method:
+                kwargs["method"] = getattr(flax_model, flax_model_method)
+            if backend.backend() == "jax":
+                return FlaxLayer(flax_model_class(), **kwargs)
+            elif backend.backend() == "tensorflow":
+                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
+    
+    
+>       self._test_layer(
+            flax_model_class.__name__,
+            create_wrapper,
+            init_kwargs,
+            trainable_weights,
+            trainable_params,
+            non_trainable_weights,
+            non_trainable_params,
+        )
+
+keras/src/utils/jax_layer_test.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+keras/src/utils/jax_layer_test.py:254: in _test_layer
+    model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:399: in fit
+    logs = self.train_function(iterator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:241: in function
+    opt_outputs = multi_step_on_iterator(iterator)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:154: in multi_step_on_iterator
+    one_step_on_data(iterator.get_next())
+keras/src/backend/tensorflow/trainer.py:125: in wrapper
+    result = step_func(converted_data)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:134: in one_step_on_data
+    outputs = self.distribute_strategy.run(step_function, args=(data,))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:1673: in run
+    return self._extended.call_for_each_replica(fn, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:3263: in call_for_each_replica
+    return self._call_for_each_replica(fn, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/distribute/distribute_lib.py:4061: in _call_for_each_replica
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.12/site-packages/tensorflow/python/autograph/impl/api.py:643: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+keras/src/backend/tensorflow/trainer.py:59: in train_step
+    y_pred = self(x, training=True)
+             ^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:183: in call
+    outputs = self._run_through_graph(
+keras/src/ops/function.py:206: in _run_through_graph
+    outputs = op(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^
+keras/src/models/functional.py:644: in call
+    return operation(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/layers/layer.py:941: in __call__
+    outputs = super().__call__(*args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/traceback_utils.py:113: in error_handler
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+keras/src/ops/operation.py:77: in __call__
+    return self.call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:612: in call
+    return call_with_fn(self.jax2tf_training_true_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+keras/src/utils/jax_layer.py:586: in call_with_fn
+    jax.tree_util.tree_map(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+f = <function JaxLayer.call.<locals>.assign_state_to_variable at 0x323642de0>
+tree = {}, is_leaf = None, rest = (DictWrapper({}),), leaves = []
+treedef = PyTreeDef({})
+
+    @export
+    def tree_map(f: Callable[..., Any],
+                 tree: Any,
+                 *rest: Any,
+                 is_leaf: Callable[[Any], bool] | None = None) -> Any:
+      """Alias of :func:`jax.tree.map`."""
+      leaves, treedef = tree_flatten(tree, is_leaf)
+>     all_leaves = [leaves] + [treedef.flatten_up_to(r) for r in rest]
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+E     ValueError: Expected dict, got DictWrapper({}).
+
+venv/lib/python3.12/site-packages/jax/_src/tree_util.py:357: ValueError
+----------------------------- Captured stdout call -----------------------------
+Model: "FlaxDropoutModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+=========================== short test summary info ============================
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_independent_bound_method - ValueError: Expected dict, got DictWrapper({}).
+FAILED keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method - ValueError: Expected dict, got DictWrapper({}).
+============================== 2 failed in 1.45s ===============================

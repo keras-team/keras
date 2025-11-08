@@ -20,7 +20,16 @@ import string
 import functools
 from keras.src import random
 import logging
-# from flax.core import FrozenDict, DictWrapper, ListWrapper
+import collections
+
+
+def standardize_pytree_collections(pytree):
+    if isinstance(pytree, collections.abc.Mapping):
+        return {k: standardize_pytree_collections(v) for k, v in pytree.items()}
+    elif isinstance(pytree, collections.abc.Sequence):
+        return [standardize_pytree_collections(v) for v in pytree]
+    else:
+        return pytree
 
 @keras_export("keras.layers.JaxLayer")
 class JaxLayer(Layer):
@@ -573,21 +582,28 @@ class JaxLayer(Layer):
                         assign_state_to_variable, new_state, self.state
                     )
                 elif backend.backend() == "tensorflow":
-                    # tf.nest.map_structure(
+                    # self.state = standardize_pytree_collections(self.state)
+                    print("\nself.state:", self.state)
+                    print("new_state:", new_state)
+                    print("self.state after: ", standardize_pytree_collections(self.state))
+                    print("pytree name", type(self.state).__name__)
+                    print("pytree name", type(new_state).__name__)
+                    jax.tree_util.tree_map(assign_state_to_variable, standardize_pytree_collections(new_state), standardize_pytree_collections(self.state))
+                    # jax.tree_util.tree_map(
                     #     assign_state_to_variable, new_state, self.state
                     # )
-                    new_state_leaves = jax.tree_util.tree_leaves(new_state)
-                    state_leaves = jax.tree_util.tree_leaves(self.state)
-                    if len(new_state_leaves) != len(state_leaves):
-                        # This indicates a more fundamental structure divergence.
-                        raise ValueError(
-                            "State leaf count mismatch between jax2tf output and layer state: "
-                            f"{len(new_state_leaves)} vs {len(state_leaves)}. "
-                            f"new_state structure: {jax.tree_util.tree_structure(new_state)}, "
-                            f"self.state structure: {jax.tree_util.tree_structure(self.state)}"
-                        )
-                    for new_val, state_leaf in zip(new_state_leaves, state_leaves):
-                        assign_state_to_variable(new_val, state_leaf)
+                    # new_state_leaves = jax.tree_util.tree_leaves(new_state)
+                    # state_leaves = jax.tree_util.tree_leaves(self.state)
+                    # if len(new_state_leaves) != len(state_leaves):
+                    #     # This indicates a more fundamental structure divergence.
+                    #     raise ValueError(
+                    #         "State leaf count mismatch between jax2tf output and layer state: "
+                    #         f"{len(new_state_leaves)} vs {len(state_leaves)}. "
+                    #         f"new_state structure: {jax.tree_util.tree_structure(new_state)}, "
+                    #         f"self.state structure: {jax.tree_util.tree_structure(self.state)}"
+                    #     )
+                    # for new_val, state_leaf in zip(new_state_leaves, state_leaves):
+                    #     assign_state_to_variable(new_val, state_leaf)
                     
                 return predictions
             else:
