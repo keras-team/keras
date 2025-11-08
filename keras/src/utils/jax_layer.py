@@ -6,7 +6,6 @@ import itertools
 import numpy as np
 import string
 
-from jax.experimental import jax2tf 
 from keras.src import backend
 from keras.src import random
 from keras.src import tree
@@ -19,6 +18,7 @@ from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src import ops
 from keras.src.utils.module_utils import jax
+from jax.experimental import jax2tf 
 from keras.src.utils.module_utils import tensorflow as tf
 
 
