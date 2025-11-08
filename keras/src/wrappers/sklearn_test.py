@@ -59,7 +59,7 @@ def wrapped_parametrize_with_checks(
 
 def dynamic_model(X, y, loss, layers=[10]):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
-    classification loss and ouput activations.
+    classification loss and output activations.
     """
     n_features_in = X.shape[1]
     inp = Input(shape=(n_features_in,))
