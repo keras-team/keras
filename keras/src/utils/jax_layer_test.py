@@ -238,11 +238,12 @@ class TestJaxLayer(testing.TestCase):
         )
         model1.summary()
 
+        verify_weights_and_params(layer1)
+
         model1.compile(
             loss="categorical_crossentropy",
             optimizer="adam",
             metrics=[metrics.CategoricalAccuracy()],
-            run_eagerly=True,
         )
 
         tw1_before_fit = tree.map_structure(
@@ -258,8 +259,6 @@ class TestJaxLayer(testing.TestCase):
         ntw1_after_fit = tree.map_structure(
             backend.convert_to_numpy, layer1.non_trainable_weights
         )
-
-        verify_weights_and_params(layer1)
 
         # verify both trainable and non-trainable weights did change after fit
         for before, after in zip(tw1_before_fit, tw1_after_fit):
@@ -357,59 +356,59 @@ class TestJaxLayer(testing.TestCase):
         output5 = model5(x_test)
         self.assertNotAllClose(output5, 0.0)
 
-    # @parameterized.named_parameters(
-        # {
-        #     "testcase_name": "training_independent",
-        #     "init_kwargs": {
-        #         "call_fn": jax_stateless_apply,
-        #         "init_fn": jax_stateless_init,
-        #     },
-        #     "trainable_weights": 6,
-        #     "trainable_params": 266610,
-        #     "non_trainable_weights": 0,
-        #     "non_trainable_params": 0,
-        # },
-        # {
-        #     "testcase_name": "training_state",
-        #     "init_kwargs": {
-        #         "call_fn": jax_stateful_apply,
-        #         "init_fn": jax_stateful_init,
-        #     },
-        #     "trainable_weights": 6,
-        #     "trainable_params": 266610,
-        #     "non_trainable_weights": 1,
-        #     "non_trainable_params": 1,
-        # },
-        # {
-        #     "testcase_name": "training_state_dtype_policy",
-        #     "init_kwargs": {
-        #         "call_fn": jax_stateful_apply,
-        #         "init_fn": jax_stateful_init,
-        #         "dtype": DTypePolicy("mixed_float16"),
-        #     },
-        #     "trainable_weights": 6,
-        #     "trainable_params": 266610,
-        #     "non_trainable_weights": 1,
-        #     "non_trainable_params": 1,
-        # },
-    # )
-    # def test_jax_layer(
-    #     self,
-    #     init_kwargs,
-    #     trainable_weights,
-    #     trainable_params,
-    #     non_trainable_weights,
-    #     non_trainable_params,
-    # ):
-    #     self._test_layer(
-    #         init_kwargs["call_fn"].__name__,
-    #         JaxLayer,
-    #         init_kwargs,
-    #         trainable_weights,
-    #         trainable_params,
-    #         non_trainable_weights,
-    #         non_trainable_params,
-    #     )
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "training_independent",
+            "init_kwargs": {
+                "call_fn": jax_stateless_apply,
+                "init_fn": jax_stateless_init,
+            },
+            "trainable_weights": 6,
+            "trainable_params": 266610,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
+            "testcase_name": "training_state",
+            "init_kwargs": {
+                "call_fn": jax_stateful_apply,
+                "init_fn": jax_stateful_init,
+            },
+            "trainable_weights": 6,
+            "trainable_params": 266610,
+            "non_trainable_weights": 1,
+            "non_trainable_params": 1,
+        },
+        {
+            "testcase_name": "training_state_dtype_policy",
+            "init_kwargs": {
+                "call_fn": jax_stateful_apply,
+                "init_fn": jax_stateful_init,
+                "dtype": DTypePolicy("mixed_float16"),
+            },
+            "trainable_weights": 6,
+            "trainable_params": 266610,
+            "non_trainable_weights": 1,
+            "non_trainable_params": 1,
+        },
+    )
+    def test_jax_layer(
+        self,
+        init_kwargs,
+        trainable_weights,
+        trainable_params,
+        non_trainable_weights,
+        non_trainable_params,
+    ):
+        self._test_layer(
+            init_kwargs["call_fn"].__name__,
+            JaxLayer,
+            init_kwargs,
+            trainable_weights,
+            trainable_params,
+            non_trainable_weights,
+            non_trainable_params,
+        )
 
     @parameterized.named_parameters(
         {
