@@ -58,7 +58,8 @@ class name_scope:
             name_scope_stack = global_state.get_global_attribute(
                 "name_scope_stack"
             )
-            name_scope_stack.pop()
+            if name_scope_stack is not None and len(name_scope_stack) > 0:
+                name_scope_stack.pop()
 
 
 def current_path():
