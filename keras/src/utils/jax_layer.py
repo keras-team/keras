@@ -1,17 +1,14 @@
 import inspect
 
-
-
-
 import collections
 import functools
 import itertools
-import keras
 import numpy as np
 import string
-import tensorflow as tf
 
+import jax
 from jax.experimental import jax2tf 
+import keras
 from keras.src import backend
 from keras.src import random
 from keras.src import tree
@@ -23,7 +20,7 @@ from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import jax
-
+import tensorflow as tf
 
 
 
@@ -249,8 +246,8 @@ class JaxLayer(Layer):
     ):
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
-                "JaxLayer is only supported with the JAX or Tensorflow backend. Current "
-                f"backend: {backend.backend()}"
+                "JaxLayer is only supported with the JAX or Tensorflow backend. "
+                f"Current backend: {backend.backend()}"
             )
 
         if init_fn is None and params is None and state is None:
