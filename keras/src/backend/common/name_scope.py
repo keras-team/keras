@@ -54,17 +54,12 @@ class name_scope:
         return self
 
     def __exit__(self, *args, **kwargs):
-        if not self._pop_on_exit():
-            return
-        name_scope_stack = global_state.get_global_attribute(
-            "name_scope_stack"
-        )
-        if not name_scope_stack:
-            return
-        try:
-            name_scope_stack.pop()
-        except (AttributeError, IndexError):
-            return
+        if self._pop_on_exit:  
+            name_scope_stack = global_state.get_global_attribute(  
+                "name_scope_stack"  
+            )  
+            if name_scope_stack:  
+                name_scope_stack.pop() 
 
 def current_path():
     name_scope_stack = global_state.get_global_attribute("name_scope_stack")
