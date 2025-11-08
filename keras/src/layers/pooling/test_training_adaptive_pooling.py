@@ -6,7 +6,6 @@ from keras.src import backend as K
 from keras.src import layers
 from keras.src import models
 
-np.random.seed(42)
 x_train = np.random.randn(1000, 32, 32, 3).astype(np.float32)
 y_train = np.random.randint(0, 10, 1000)
 x_val = np.random.randn(200, 32, 32, 3).astype(np.float32)
