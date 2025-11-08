@@ -1,8 +1,19 @@
 import inspect
 
-import numpy as np
 
+
+
+import collections
+import functools
+import itertools
+import keras
+import numpy as np
+import string
+import tensorflow as tf
+
+from jax.experimental import jax2tf 
 from keras.src import backend
+from keras.src import random
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.variables import is_float_dtype
@@ -12,22 +23,18 @@ from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import jax
-import tensorflow as tf
-from jax.experimental import jax2tf 
-import keras
-import itertools
-import string
-import functools
-from keras.src import random
-import logging
-import collections
+
+
+
 
 
 def standardize_pytree_collections(pytree):
     if isinstance(pytree, collections.abc.Mapping):
-        return {k: standardize_pytree_collections(v) for k, v in pytree.items()}
+        return {k: standardize_pytree_collections(v)
+                for k, v in pytree.items()}
     elif isinstance(pytree, collections.abc.Sequence):
-        return [standardize_pytree_collections(v) for v in pytree]
+        return [standardize_pytree_collections(v)
+                for v in pytree]
     else:
         return pytree
 
@@ -343,7 +350,6 @@ class JaxLayer(Layer):
             return "(" + ", ".join(jax2tf_shape) + ")"
 
         res = tree.map_shape_structure(get_single_jax2tf_shape, input_shape)
-        logging.info("_get_jax2tf_input_shape res:", res)
         return res
 
     def _jax2tf_convert(self, fn, polymorphic_shapes):
@@ -475,9 +481,9 @@ class JaxLayer(Layer):
         if jax_utils.is_in_jax_tracing_scope() or tf.inside_function():
             # This exception is not actually shown, it is caught and a detailed
             # warning about calling 'build' is printed.
-            raise ValueError("'JaxLayer' cannot be built in tracing scope or inside tf function")
+            raise ValueError("'JaxLayer' cannot be built in tracing scope"
+                             "or inside tf function")
 
-        logging.info("_initialize_weights input_shape:", input_shape)
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
             shape = [d if d is not None else 1 for d in shape]
@@ -582,29 +588,10 @@ class JaxLayer(Layer):
                         assign_state_to_variable, new_state, self.state
                     )
                 elif backend.backend() == "tensorflow":
-                    # self.state = standardize_pytree_collections(self.state)
-                    print("\nself.state:", self.state)
-                    print("new_state:", new_state)
-                    print("self.state after: ", standardize_pytree_collections(self.state))
-                    print("pytree name", type(self.state).__name__)
-                    print("pytree name", type(new_state).__name__)
-                    jax.tree_util.tree_map(assign_state_to_variable, standardize_pytree_collections(new_state), standardize_pytree_collections(self.state))
-                    # jax.tree_util.tree_map(
-                    #     assign_state_to_variable, new_state, self.state
-                    # )
-                    # new_state_leaves = jax.tree_util.tree_leaves(new_state)
-                    # state_leaves = jax.tree_util.tree_leaves(self.state)
-                    # if len(new_state_leaves) != len(state_leaves):
-                    #     # This indicates a more fundamental structure divergence.
-                    #     raise ValueError(
-                    #         "State leaf count mismatch between jax2tf output and layer state: "
-                    #         f"{len(new_state_leaves)} vs {len(state_leaves)}. "
-                    #         f"new_state structure: {jax.tree_util.tree_structure(new_state)}, "
-                    #         f"self.state structure: {jax.tree_util.tree_structure(self.state)}"
-                    #     )
-                    # for new_val, state_leaf in zip(new_state_leaves, state_leaves):
-                    #     assign_state_to_variable(new_val, state_leaf)
-                    
+                    jax.tree_util.tree_map(
+                        assign_state_to_variable,
+                        standardize_pytree_collections(new_state),
+                        standardize_pytree_collections(self.state))
                 return predictions
             else:
                 return fn(*call_args)
