@@ -37,7 +37,7 @@ def make_model(pool_type="avg"):
 @pytest.mark.parametrize("pool", ["avg", "max"])
 def test_training_adaptive_pooling(pool):
     # Skip backends where training is unsupported
-    if K.backend() in ["numpy", "openvino", "tensorflow", "jax"]:
+    if K.backend() in ["numpy", "openvino"]:
         pytest.skip(
             f"fit or adaptive pooling not supported for backend: {K.backend()}"
         )

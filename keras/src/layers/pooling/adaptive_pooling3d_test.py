@@ -1,4 +1,4 @@
-"""Tests for Adaptive Average and Max Pooling 2D layer."""
+"""Tests for Adaptive Average and Max Pooling 3D layer."""
 
 import numpy as np
 import pytest
@@ -27,8 +27,8 @@ except ImportError:
     TORCH_AVAILABLE = False
 
 
-class AdaptivePooling2DLayerTest(testing.TestCase):
-    """Basic tests for AdaptiveAveragePooling2D and AdaptiveMaxPooling2D."""
+class AdaptivePooling3DLayerTest(testing.TestCase):
+    """Basic tests for AdaptiveAveragePooling3D and AdaptiveMaxPooling3D."""
 
     def _run_layer_test(self, layer_class, x_np, output_size, data_format):
         layer = layer_class(output_size=output_size, data_format=data_format)
@@ -37,20 +37,20 @@ class AdaptivePooling2DLayerTest(testing.TestCase):
         self.assertEqual(y.shape, expected_shape)
 
     def test_average_pooling_basic_shapes(self):
-        shape = (2, 3, 8, 8)  # N,C,H,W
+        shape = (2, 3, 8, 8, 8)  # N,C,D,H,W
         x = np.random.randn(*shape).astype("float32")
         self._run_layer_test(
-            layers.AdaptiveAveragePooling2D,
+            layers.AdaptiveAveragePooling3D,
             x,
             output_size=4,
             data_format="channels_first",
         )
 
     def test_max_pooling_basic_shapes(self):
-        shape = (2, 3, 8, 8)
+        shape = (2, 3, 8, 8, 8)
         x = np.random.randn(*shape).astype("float32")
         self._run_layer_test(
-            layers.AdaptiveMaxPooling2D,
+            layers.AdaptiveMaxPooling3D,
             x,
             output_size=4,
             data_format="channels_first",
@@ -59,10 +59,10 @@ class AdaptivePooling2DLayerTest(testing.TestCase):
 
 @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not installed")
 @pytest.mark.parametrize("output_size", [1, 2, 3, 4])
-def test_adaptive_avg_pool2d_matches_torch(output_size):
-    x_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+def test_adaptive_avg_pool3d_matches_torch(output_size):
+    x_np = np.random.randn(2, 3, 8, 8, 8).astype(np.float32)
     x_torch = torch.tensor(x_np)
-    y_torch = torch.nn.functional.adaptive_avg_pool2d(x_torch, output_size)
+    y_torch = torch.nn.functional.adaptive_avg_pool3d(x_torch, output_size)
 
     x_keras = ops.convert_to_tensor(x_np)
     y_keras = ops.adaptive_avg_pool(
@@ -77,10 +77,10 @@ def test_adaptive_avg_pool2d_matches_torch(output_size):
 
 @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not installed")
 @pytest.mark.parametrize("output_size", [1, 2, 3, 4])
-def test_adaptive_max_pool2d_matches_torch(output_size):
-    x_np = np.random.randn(2, 3, 8, 8).astype(np.float32)
+def test_adaptive_max_pool3d_matches_torch(output_size):
+    x_np = np.random.randn(2, 3, 8, 8, 8).astype(np.float32)
     x_torch = torch.tensor(x_np)
-    y_torch = torch.nn.functional.adaptive_max_pool2d(x_torch, output_size)
+    y_torch = torch.nn.functional.adaptive_max_pool3d(x_torch, output_size)
 
     x_keras = ops.convert_to_tensor(x_np)
     y_keras = ops.adaptive_max_pool(

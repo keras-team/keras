@@ -240,11 +240,279 @@ def max_pool(
     return outputs
 
 
-def adaptive_max_pool(inputs, output_size, data_format=None):
-    raise NotImplementedError(
-        "Adaptive pooling not implemented for TensorFlow.  "
-        "Use JAX or Torch backend."
+def get_static_window_sizes(input_dim, output_dim):
+    """Calculate small and big window sizes for adaptive pooling."""
+    if input_dim < output_dim:
+        small_window = 1
+    else:
+        small_window = max(1, math.ceil(input_dim / output_dim))
+
+    big_window = small_window + 1
+
+    # Ensure windows don't exceed input dimension
+    small_window = min(small_window, input_dim)
+    big_window = min(big_window, input_dim)
+
+    return small_window, big_window
+
+
+def compute_static_gather_indices(
+    input_dim, output_size, small_window, big_window
+):
+    """Compute gather indices for Two-Pool Gather method (corrected)."""
+    window_starts = tf.cast(
+        tf.floor(
+            tf.cast(tf.range(output_size), tf.float32)
+            * tf.cast(input_dim, tf.float32)
+            / tf.cast(output_size, tf.float32)
+        ),
+        tf.int32,
     )
+    window_ends = tf.cast(
+        tf.math.ceil(
+            tf.cast(tf.range(1, output_size + 1), tf.float32)
+            * tf.cast(input_dim, tf.float32)
+            / tf.cast(output_size, tf.float32)
+        ),
+        tf.int32,
+    )
+
+    window_ends = tf.minimum(window_ends, input_dim)
+    window_starts = tf.minimum(window_starts, input_dim - 1)
+
+    window_sizes = window_ends - window_starts
+    is_big_window = tf.equal(window_sizes, big_window)
+
+    small_pool_len = max(1, input_dim - small_window + 1)
+
+    small_indices = window_starts
+    big_indices = window_starts + small_pool_len
+
+    gather_indices = tf.where(is_big_window, big_indices, small_indices)
+    return tf.cast(gather_indices, tf.int32)
+
+
+def adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 1))
+
+    static_shape = inputs.shape.as_list()
+    l_static = static_shape[1]
+    out_l = output_size[0]
+
+    if l_static is None:
+        raise ValueError(
+            "Input length must be statically known for adaptive pooling"
+        )
+
+    small_l, big_l = get_static_window_sizes(l_static, out_l)
+    gather_l = compute_static_gather_indices(l_static, out_l, small_l, big_l)
+
+    small_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(small_l,),
+        pooling_type="MAX",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
+    )
+    big_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(big_l,),
+        pooling_type="MAX",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
+    )
+
+    combined_l = tf.concat([small_pool_l, big_pool_l], axis=1)
+    pooled_l = tf.gather(combined_l, gather_l, axis=1)
+
+    if data_format == "channels_first":
+        pooled_l = tf.transpose(pooled_l, (0, 2, 1))
+    return pooled_l
+
+
+def adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
+    """Adaptive Max Pooling 2D using Two-Pool Gather method."""
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 1))
+
+    static_shape = inputs.shape.as_list()
+    h_static = static_shape[1]
+    w_static = static_shape[2]
+    out_h, out_w = output_size
+
+    if h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_h, big_h = get_static_window_sizes(h_static, out_h)
+    small_w, big_w = get_static_window_sizes(w_static, out_w)
+
+    gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(small_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(big_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=1)
+    pooled_h = tf.gather(combined_h, gather_h, axis=1)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, small_w),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, big_w),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=2)
+    pooled_w = tf.gather(combined_w, gather_w, axis=2)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 3, 1, 2))
+
+    return pooled_w
+
+
+def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
+    """Adaptive Max Pooling 3D using Two-Pool Gather method."""
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 4, 1))
+
+    static_shape = inputs.shape.as_list()
+    d_static = static_shape[1]
+    h_static = static_shape[2]
+    w_static = static_shape[3]
+    out_d, out_h, out_w = output_size
+
+    if d_static is None or h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_d, big_d = get_static_window_sizes(d_static, out_d)
+    small_h, big_h = get_static_window_sizes(h_static, out_h)
+    small_w, big_w = get_static_window_sizes(w_static, out_w)
+
+    gather_d = compute_static_gather_indices(d_static, out_d, small_d, big_d)
+    gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(small_d, 1, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(big_d, 1, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_d = tf.concat([small_pool_d, big_pool_d], axis=1)
+    pooled_d = tf.gather(combined_d, gather_d, axis=1)
+
+    small_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, small_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, big_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=2)
+    pooled_h = tf.gather(combined_h, gather_h, axis=2)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, small_w),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, big_w),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=3)
+    pooled_w = tf.gather(combined_w, gather_w, axis=3)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 4, 1, 2, 3))
+
+    return pooled_w
+
+
+def adaptive_max_pool(inputs, output_size, data_format="channels_first"):
+    """Dispatcher for adaptive max pooling (1D, 2D, or 3D)."""
+    ndims = len(inputs.shape) - 2
+    if ndims == 1:
+        return adaptive_max_pool1d(inputs, output_size, data_format)
+    elif ndims == 2:
+        return adaptive_max_pool2d(inputs, output_size, data_format)
+    elif ndims == 3:
+        return adaptive_max_pool3d(inputs, output_size, data_format)
+    else:
+        raise ValueError(
+            "adaptive_max_pool supports 1D, 2D, or 3D inputs only."
+        )
 
 
 def average_pool(
@@ -275,11 +543,224 @@ def average_pool(
     return outputs
 
 
-def adaptive_avg_pool(inputs, output_size, data_format=None):
-    raise NotImplementedError(
-        "Adaptive pooling not implemented for TensorFlow.  "
-        "Use JAX or Torch backend."
+def adaptive_avg_pool1d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 1))
+
+    static_shape = inputs.shape.as_list()
+    l_static = static_shape[1]
+    out_l = output_size[0]
+
+    if l_static is None:
+        raise ValueError(
+            "Input length must be statically known for adaptive pooling"
+        )
+
+    small_l, big_l = get_static_window_sizes(l_static, out_l)
+    gather_l = compute_static_gather_indices(l_static, out_l, small_l, big_l)
+
+    small_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(small_l,),
+        pooling_type="AVG",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
     )
+    big_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(big_l,),
+        pooling_type="AVG",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
+    )
+
+    combined_l = tf.concat([small_pool_l, big_pool_l], axis=1)
+    pooled_l = tf.gather(combined_l, gather_l, axis=1)
+
+    if data_format == "channels_first":
+        pooled_l = tf.transpose(pooled_l, (0, 2, 1))
+    return pooled_l
+
+
+def adaptive_avg_pool2d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 1))
+
+    static_shape = inputs.shape.as_list()
+    h_static = static_shape[1]
+    w_static = static_shape[2]
+    out_h, out_w = output_size
+
+    if h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_h, big_h = get_static_window_sizes(h_static, out_h)
+    small_w, big_w = get_static_window_sizes(w_static, out_w)
+
+    gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(small_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(big_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=1)
+    pooled_h = tf.gather(combined_h, gather_h, axis=1)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, small_w),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, big_w),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=2)
+    pooled_w = tf.gather(combined_w, gather_w, axis=2)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 3, 1, 2))
+
+    return pooled_w
+
+
+def adaptive_avg_pool3d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 4, 1))
+
+    static_shape = inputs.shape.as_list()
+    d_static = static_shape[1]
+    h_static = static_shape[2]
+    w_static = static_shape[3]
+    out_d, out_h, out_w = output_size
+
+    if d_static is None or h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_d, big_d = get_static_window_sizes(d_static, out_d)
+    small_h, big_h = get_static_window_sizes(h_static, out_h)
+    small_w, big_w = get_static_window_sizes(w_static, out_w)
+
+    gather_d = compute_static_gather_indices(d_static, out_d, small_d, big_d)
+    gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(small_d, 1, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(big_d, 1, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_d = tf.concat([small_pool_d, big_pool_d], axis=1)
+    pooled_d = tf.gather(combined_d, gather_d, axis=1)
+
+    small_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, small_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, big_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=2)
+    pooled_h = tf.gather(combined_h, gather_h, axis=2)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, small_w),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, big_w),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=3)
+    pooled_w = tf.gather(combined_w, gather_w, axis=3)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 4, 1, 2, 3))
+
+    return pooled_w
+
+
+def adaptive_avg_pool(inputs, output_size, data_format="channels_first"):
+    ndims = len(inputs.shape) - 2
+    if ndims == 1:
+        return adaptive_avg_pool1d(inputs, output_size, data_format)
+    elif ndims == 2:
+        return adaptive_avg_pool2d(inputs, output_size, data_format)
+    elif ndims == 3:
+        return adaptive_avg_pool3d(inputs, output_size, data_format)
+    else:
+        raise ValueError(
+            "adaptive_avg_pool supports 1D, 2D, or 3D inputs only."
+        )
 
 
 def _convert_data_format(data_format, ndim):
