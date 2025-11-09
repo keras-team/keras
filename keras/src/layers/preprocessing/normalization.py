@@ -232,18 +232,11 @@ class Normalization(DataLayer):
                 data = data.batch(128)
             input_shape = tuple(data.element_spec.shape)
         elif isinstance(data, PyDataset):
-            # as PyDatasets returns tuples of input/annotation pairs
             adapter = get_data_adapter(data)
             tf_dataset = adapter.get_tf_dataset()
-            if len(tf_dataset.element_spec) == 1:
-                # just x
-                data = tf_dataset.map(lambda x: x)
-            elif len(tf_dataset.element_spec) == 2:
-                # (x, y) pairs
-                data = tf_dataset.map(lambda x, y: x)
-            elif len(tf_dataset.element_spec) == 3:
-                # (x, y, sample_weight) tuples
-                data = tf_dataset.map(lambda x, y, z: x)
+            # args will either be (samples,), (samples, labels) pairs,
+            # or (samples, labels, sample_weights) tuples
+            data = tf_dataset.map(lambda *args: args[0])
             input_shape = data.element_spec.shape
         else:
             raise TypeError(
