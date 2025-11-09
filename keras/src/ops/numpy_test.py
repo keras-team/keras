@@ -3969,21 +3969,33 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_bartlett(self):
         x = np.random.randint(1, 100 + 1)
-        self.assertAllClose(knp.bartlett(x), np.bartlett(x))
+        if backend.backend() == "openvino":
+            kwargs = {"atol": 1e-3}
+        else:
+            kwargs = {}
+        self.assertAllClose(knp.bartlett(x), np.bartlett(x), **kwargs)
 
-        self.assertAllClose(knp.Bartlett()(x), np.bartlett(x))
+        self.assertAllClose(knp.Bartlett()(x), np.bartlett(x), **kwargs)
 
     def test_blackman(self):
         x = np.random.randint(1, 100 + 1)
-        self.assertAllClose(knp.blackman(x), np.blackman(x))
+        if backend.backend() == "openvino":
+            kwargs = {"atol": 1e-3}
+        else:
+            kwargs = {}
+        self.assertAllClose(knp.blackman(x), np.blackman(x), **kwargs)
 
-        self.assertAllClose(knp.Blackman()(x), np.blackman(x))
+        self.assertAllClose(knp.Blackman()(x), np.blackman(x), **kwargs)
 
     def test_hamming(self):
         x = np.random.randint(1, 100 + 1)
-        self.assertAllClose(knp.hamming(x), np.hamming(x))
+        if backend.backend() == "openvino":
+            kwargs = {"atol": 1e-3}
+        else:
+            kwargs = {}
+        self.assertAllClose(knp.hamming(x), np.hamming(x), **kwargs)
 
-        self.assertAllClose(knp.Hamming()(x), np.hamming(x))
+        self.assertAllClose(knp.Hamming()(x), np.hamming(x), **kwargs)
 
     def test_hanning(self):
         x = np.random.randint(1, 100 + 1)
