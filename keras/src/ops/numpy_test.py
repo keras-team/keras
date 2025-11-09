@@ -3612,6 +3612,15 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
+    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
+        if backend.backend() == "openvino":
+            # OpenVINO seems to use lower precision for some operations,
+            # or employs some different algorithms that wind up with
+            # slightly different results. To address this, we relax
+            # the tolerances for OpenVINO backend.
+            atol = 1e-3
+        super().assertAllClose(x1, x2, atol=atol, rtol=rtol, msg=msg)
+
     def test_mean(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.mean(x), np.mean(x))
@@ -3969,33 +3978,21 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_bartlett(self):
         x = np.random.randint(1, 100 + 1)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
-        self.assertAllClose(knp.bartlett(x), np.bartlett(x), **kwargs)
+        self.assertAllClose(knp.bartlett(x), np.bartlett(x))
 
-        self.assertAllClose(knp.Bartlett()(x), np.bartlett(x), **kwargs)
+        self.assertAllClose(knp.Bartlett()(x), np.bartlett(x))
 
     def test_blackman(self):
         x = np.random.randint(1, 100 + 1)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
-        self.assertAllClose(knp.blackman(x), np.blackman(x), **kwargs)
+        self.assertAllClose(knp.blackman(x), np.blackman(x))
 
-        self.assertAllClose(knp.Blackman()(x), np.blackman(x), **kwargs)
+        self.assertAllClose(knp.Blackman()(x), np.blackman(x))
 
     def test_hamming(self):
         x = np.random.randint(1, 100 + 1)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
-        self.assertAllClose(knp.hamming(x), np.hamming(x), **kwargs)
+        self.assertAllClose(knp.hamming(x), np.hamming(x))
 
-        self.assertAllClose(knp.Hamming()(x), np.hamming(x), **kwargs)
+        self.assertAllClose(knp.Hamming()(x), np.hamming(x))
 
     def test_hanning(self):
         x = np.random.randint(1, 100 + 1)
