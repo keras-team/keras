@@ -673,9 +673,8 @@ def blackman(x):
     zero_const = ov_opset.constant(0, Type.i64)
     one_const = ov_opset.constant(1, Type.i64)
     two_pi = ov_opset.constant(2.0 * np.pi, Type.f64)
-    four_pi = ov_opset.multiply(two_pi, ov_opset.constant(2.0, Type.f64))
     term_1 = ov_opset.constant(0.42, Type.f64)
-    term_2 = ov_opset.constant(-0.5, Type.f64)
+    term_2 = ov_opset.constant(0.5, Type.f64)
     term_3 = ov_opset.constant(0.08, Type.f64)
     if x.get_element_type() != Type.i64:
         x = ov_opset.convert(x, Type.i64)
@@ -684,12 +683,12 @@ def blackman(x):
         ov_opset.convert(x, Type.f64), ov_opset.constant(1.0, Type.f64)
     ).output(0)
     angle_2pi = ov_opset.divide(ov_opset.multiply(two_pi, n), n_minus_1)
-    angle_4pi = ov_opset.divide(ov_opset.multiply(four_pi, n), n_minus_1)
+    angle_4pi = ov_opset.multiply(angle_2pi, ov_opset.constant(2.0, Type.f64))
     cos_2pi = ov_opset.cos(angle_2pi)
     cos_4pi = ov_opset.cos(angle_4pi)
     term_2_final = ov_opset.multiply(term_2, cos_2pi)
     term_3_final = ov_opset.multiply(term_3, cos_4pi)
-    window = ov_opset.add(ov_opset.add(term_1, term_2_final), term_3_final)
+    window = ov_opset.add(ov_opset.subtract(term_1, term_2_final), term_3_final)
     window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
         0
     )
