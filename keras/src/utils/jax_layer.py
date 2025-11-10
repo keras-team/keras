@@ -1,12 +1,13 @@
-import inspect
-
 import collections
 import functools
+import inspect
 import itertools
-import numpy as np
 import string
 
+import numpy as np
+
 from keras.src import backend
+from keras.src import ops
 from keras.src import random
 from keras.src import tree
 from keras.src.api_export import keras_export
@@ -16,7 +17,6 @@ from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
 from keras.src.utils import tracking
-from keras.src import ops
 from keras.src.utils.module_utils import jax
 from keras.src.utils.module_utils import tensorflow as tf
 

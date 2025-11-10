@@ -11,6 +11,8 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import metrics
 from keras.src import models
+from keras.src import ops
+from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src import tree
@@ -19,8 +21,6 @@ from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.saving import object_registration
 from keras.src.utils.jax_layer import FlaxLayer
 from keras.src.utils.jax_layer import JaxLayer
-from keras.src import ops
-from keras.src import random
 
 try:
     import flax

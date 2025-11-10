@@ -1147,7 +1147,7 @@ class Layer(BackendLayer, Operation):
             )
             try:
                 output_shape = self.compute_output_shape(**shapes_dict)
-            except NotImplementedError as e:
+            except NotImplementedError:
                 return super().compute_output_spec(*args, **kwargs)
 
             if (
