@@ -771,7 +771,8 @@ def empty(shape, dtype=None):
 
 
 def empty_like(x, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    x = convert_to_tensor(x)
+    dtype = to_torch_dtype(dtype or x.dtype)
     return torch.empty_like(x, dtype=dtype, device=get_device())
 
 

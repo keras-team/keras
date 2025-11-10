@@ -3134,6 +3134,15 @@ def empty_like(x, dtype=None):
 
     Returns:
         A tensor with the same shape and dtype as `x`, with arbitrary contents.
+
+    Example:
+    >>> from keras import ops
+    >>> x = ops.ones((2, 3), dtype="float32")
+    >>> y = ops.empty_like(x)
+    >>> y.shape
+    (2, 3)
+    >>> y.dtype
+    dtype('float32')
     """
     if any_symbolic_tensors((x,)):
         return EmptyLike().symbolic_call(x, dtype=dtype)
