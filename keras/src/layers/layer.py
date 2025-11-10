@@ -1145,7 +1145,10 @@ class Layer(BackendLayer, Operation):
                 call_spec=call_spec,
                 class_name=self.__class__.__name__,
             )
-            output_shape = self.compute_output_shape(**shapes_dict)
+            try:
+                output_shape = self.compute_output_shape(**shapes_dict)
+            except NotImplementedError as e:
+                return super().compute_output_spec(*args, **kwargs)
 
             if (
                 isinstance(output_shape, list)
