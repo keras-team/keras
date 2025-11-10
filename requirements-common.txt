@@ -1,6 +1,7 @@
 pre-commit
 namex>=0.0.8
 ruff
+# pytest 9.0.0 introduced some breaking changes - see https://github.com/pytest-dev/pytest/issues/13895
 pytest<9.0.0
 numpy
 scipy
