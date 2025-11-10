@@ -120,6 +120,9 @@ EXPECTED_FAILED_CHECKS = {
             "not an issue in sklearn>=1.6"
         ),
         "check_pipeline_consistency": "Neural networks are non-deterministic",
+        "check_transformer_data_not_an_array": "Neural networks are "
+        "non-deterministic",
+        "check_transformer_general": "Neural networks are non-deterministic",
     },
 }
 

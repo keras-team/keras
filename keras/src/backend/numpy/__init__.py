@@ -24,6 +24,3 @@ from keras.src.backend.numpy.rnn import cudnn_ok
 from keras.src.backend.numpy.rnn import gru
 from keras.src.backend.numpy.rnn import lstm
 from keras.src.backend.numpy.rnn import rnn
-
-# Numpy backend does not support distribution
-distribution_lib = None
