@@ -342,7 +342,7 @@ class GetFileTest(test_case.TestCase):
         orig_dir = self.get_temp_dir()
         text_file_path = os.path.join(orig_dir, "test.txt")
         with open(text_file_path, "w") as text_file:
-            text_file.write("Float like a butterfly, sting like a bee.")
+            text_file.write("Float like a butterfly, string like a bee.")
         self._test_file_extraction_and_validation(
             dest_dir, text_file_path, None
         )
@@ -370,7 +370,7 @@ class GetFileTest(test_case.TestCase):
         file_path = os.path.join(orig_dir, "test.txt")
 
         with open(file_path, "w") as text_file:
-            text_file.write("Float like a butterfly, sting like a bee.")
+            text_file.write("Float like a butterfly, string like a bee.")
 
         hashval = file_utils.hash_file(file_path)
 
@@ -386,7 +386,7 @@ class GetFileTest(test_case.TestCase):
         cache_dir = self.get_temp_dir()
         src_path = os.path.join(self.get_temp_dir(), "test.txt")
         with open(src_path, "w") as text_file:
-            text_file.write("Float like a butterfly, sting like a bee.")
+            text_file.write("Float like a butterfly, string like a bee.")
         orig_hash = file_utils.hash_file(src_path)
         origin = urllib.parse.urljoin(
             "file://", urllib.request.pathname2url(os.path.abspath(src_path))
@@ -398,7 +398,7 @@ class GetFileTest(test_case.TestCase):
         self.assertEqual(orig_hash, file_utils.hash_file(dest_path))
 
         with open(src_path, "w") as text_file:
-            text_file.write("Float like a zeppelin, sting like a jellyfish.")
+            text_file.write("Float like a zeppelin, string like a jellyfish.")
         new_hash = file_utils.hash_file(src_path)
         # Without a hash, we should get the cached version.
         dest_path = file_utils.get_file("test.txt", origin, cache_dir=cache_dir)
@@ -414,7 +414,7 @@ class GetFileTest(test_case.TestCase):
         cache_dir = self.get_temp_dir()
         src_path = os.path.join(self.get_temp_dir(), "test.txt")
         with open(src_path, "w") as text_file:
-            text_file.write("Float like a butterfly, sting like a bee.")
+            text_file.write("Float like a butterfly, string like a bee.")
         orig_hash = file_utils.hash_file(src_path)
         origin = urllib.parse.urljoin(
             "file://", urllib.request.pathname2url(os.path.abspath(src_path))
@@ -424,7 +424,7 @@ class GetFileTest(test_case.TestCase):
         self.assertEqual(orig_hash, file_utils.hash_file(dest_path))
 
         with open(src_path, "w") as text_file:
-            text_file.write("Float like a zeppelin, sting like a jellyfish.")
+            text_file.write("Float like a zeppelin, string like a jellyfish.")
         new_hash = file_utils.hash_file(src_path)
         # Get cached version.
         dest_path = file_utils.get_file("test.txt", origin, cache_dir=cache_dir)
@@ -441,7 +441,7 @@ class GetFileTest(test_case.TestCase):
         file_path = os.path.join(orig_dir, "test.txt")
 
         with open(file_path, "w") as text_file:
-            text_file.write("Float like a butterfly, sting like a bee.")
+            text_file.write("Float like a butterfly, string like a bee.")
 
         hashval = "0" * 64
 
@@ -459,7 +459,7 @@ class GetFileTest(test_case.TestCase):
         text_file_path = os.path.join(directory, "test.txt")
         tar_file_path = os.path.join(directory, "test.tar.gz")
         with open(text_file_path, "w") as text_file:
-            text_file.write("Float like a butterfly, sting like a bee.")
+            text_file.write("Float like a butterfly, string like a bee.")
 
         with tarfile.open(tar_file_path, "w:gz") as tar_file:
             tar_file.add(text_file_path, arcname="test.txt")
@@ -471,7 +471,7 @@ class GetFileTest(test_case.TestCase):
         text_file_path = os.path.join(directory, "test.txt")
         zip_file_path = os.path.join(directory, "test.zip")
         with open(text_file_path, "w") as text_file:
-            text_file.write("Float like a butterfly, sting like a bee.")
+            text_file.write("Float like a butterfly, string like a bee.")
 
         with zipfile.ZipFile(zip_file_path, "w") as zip_file:
             zip_file.write(text_file_path, arcname="test.txt")
