@@ -22,6 +22,8 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 
 def standardize_pytree_collections(pytree):
+    if isinstance(pytree, (str, bytes)):
+        return pytree
     if isinstance(pytree, collections.abc.Mapping):
         return {k: standardize_pytree_collections(v) for k, v in pytree.items()}
     elif isinstance(pytree, collections.abc.Sequence):
