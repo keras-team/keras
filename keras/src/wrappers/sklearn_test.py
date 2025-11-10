@@ -107,16 +107,19 @@ EXPECTED_FAILED_CHECKS = {
         ),
         "check_supervised_y_2d": "This test assumes reproducibility in fit.",
         "check_fit_idempotent": "This test assumes reproducibility in fit.",
+        "check_pipeline_consistency": "Neural networks are non-deterministic",
     },
     "SKLearnRegressor": {
         "check_parameters_default_constructible": (
             "not an issue in sklearn>=1.6"
         ),
+        "check_pipeline_consistency": "Neural networks are non-deterministic",
     },
     "SKLearnTransformer": {
         "check_parameters_default_constructible": (
             "not an issue in sklearn>=1.6"
         ),
+        "check_pipeline_consistency": "Neural networks are non-deterministic",
     },
 }
 
