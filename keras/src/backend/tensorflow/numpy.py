@@ -1489,6 +1489,11 @@ def empty(shape, dtype=None):
     return tf.zeros(shape, dtype=dtype)
 
 
+def empty_like(x, dtype=None):
+    dtype = dtype or config.floatx()
+    return tf.zeros_like(x, dtype=dtype)
+
+
 def equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

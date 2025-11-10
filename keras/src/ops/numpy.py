@@ -3114,6 +3114,32 @@ def empty(shape, dtype=None):
     return backend.numpy.empty(shape, dtype=dtype)
 
 
+class EmptyLike(Operation):
+    def call(self, x, dtype=None):
+        return backend.numpy.empty_like(x, dtype=dtype)
+
+    def compute_output_spec(self, x, dtype=None):
+        dtype = dtype or x.dtype
+        dtype = backend.standardize_dtype(dtype)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.empty_like", "keras.ops.numpy.empty_like"])
+def empty_like(x, dtype=None):
+    """Return a new uninitialized tensor with the same shape and dtype as `x`.
+
+    Args:
+        x: Input tensor to mimic shape and dtype.
+        dtype: Optional data type. If None, uses `x.dtype`.
+
+    Returns:
+        A tensor with the same shape and dtype as `x`, with arbitrary contents.
+    """
+    if any_symbolic_tensors((x,)):
+        return EmptyLike().symbolic_call(x, dtype=dtype)
+    return backend.numpy.empty_like(x, dtype=dtype)
+
+
 class Equal(Operation):
     def call(self, x1, x2):
         return backend.numpy.equal(x1, x2)
