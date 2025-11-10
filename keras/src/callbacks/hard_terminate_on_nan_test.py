@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import keras
+from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
@@ -14,6 +15,10 @@ from keras.src.callbacks import BackupAndRestore
 from keras.src.callbacks import HardTerminateOnNaN
 
 
+@pytest.mark.skipif(
+    backend.backend() in ["numpy", "openvino"],
+    reason="HardTerminateOnNaN not supported for NumPy or OpenVINO backend",
+)
 class HardTerminateOnNaNTest(testing.TestCase):
     """Test suite for HardTerminateOnNaN callback."""
 
