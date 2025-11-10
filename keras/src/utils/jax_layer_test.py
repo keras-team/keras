@@ -204,7 +204,7 @@ class TestJaxLayer(testing.TestCase):
         x_train = random.uniform(shape=(320, 28, 28, 1))
         y_train_indices = ops.cast(
             ops.random.uniform(shape=(320,), minval=0, maxval=num_classes),
-            dtype="int32"
+            dtype="int32",
         )
         y_train = ops.one_hot(y_train_indices, num_classes, dtype="int32")
         x_test = random.uniform(shape=(32, 28, 28, 1))
@@ -490,8 +490,9 @@ class TestJaxLayer(testing.TestCase):
             if backend.backend() == "jax":
                 return FlaxLayer(flax_model_class(), **kwargs)
             elif backend.backend() == "tensorflow":
-                return FlaxLayer(flax_model, stateless_compute_output_shape, **kwargs)
-
+                return FlaxLayer(
+                    flax_model, stateless_compute_output_shape, **kwargs
+                )
 
         self._test_layer(
             flax_model_class.__name__,

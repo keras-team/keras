@@ -23,13 +23,12 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 def standardize_pytree_collections(pytree):
     if isinstance(pytree, collections.abc.Mapping):
-        return {k: standardize_pytree_collections(v)
-                for k, v in pytree.items()}
+        return {k: standardize_pytree_collections(v) for k, v in pytree.items()}
     elif isinstance(pytree, collections.abc.Sequence):
-        return [standardize_pytree_collections(v)
-                for v in pytree]
+        return [standardize_pytree_collections(v) for v in pytree]
     else:
         return pytree
+
 
 @keras_export("keras.layers.JaxLayer")
 class JaxLayer(Layer):
@@ -275,12 +274,11 @@ class JaxLayer(Layer):
             self.init_fn_arguments = self._validate_signature(
                 init_fn, "init_fn", {"rng", "inputs", "training"}, {"inputs"}
             )
-        
+
         # Attributes for jax2tf functions
         self.jax2tf_training_false_fn = None
         self.jax2tf_training_true_fn = None
 
-            
     def _validate_signature(self, fn, fn_name, allowed, required):
         fn_parameters = inspect.signature(fn).parameters
         for parameter_name in required:
@@ -300,7 +298,7 @@ class JaxLayer(Layer):
             parameter_names.append(parameter.name)
 
         return parameter_names
-    
+
     def _get_jax2tf_input_shape(self, input_shape):
         """Convert input shape in a format suitable for `jax2tf`.
 
@@ -480,14 +478,16 @@ class JaxLayer(Layer):
         if jax_utils.is_in_jax_tracing_scope() or tf.inside_function():
             # This exception is not actually shown, it is caught and a detailed
             # warning about calling 'build' is printed.
-            raise ValueError("'JaxLayer' cannot be built in tracing scope"
-                             "or inside tf function")
+            raise ValueError(
+                "'JaxLayer' cannot be built in tracing scope"
+                "or inside tf function"
+            )
 
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
             shape = [d if d is not None else 1 for d in shape]
             return ops.ones(shape)
-        
+
         init_inputs = tree.map_shape_structure(create_input, input_shape)
         init_args = []
         for argument_name in self.init_fn_arguments:
@@ -509,7 +509,6 @@ class JaxLayer(Layer):
         )
         self.tracked_state = self._create_variables(init_state, trainable=False)
 
-                
     def build(self, input_shape):
         if self.params is None and self.state is None:
             self._initialize_weights(input_shape)
@@ -526,7 +525,9 @@ class JaxLayer(Layer):
                     polymorphic_shapes.append("...")
 
             if "training" in self.call_fn_arguments:
-                training_argument_index = self.call_fn_arguments.index("training")
+                training_argument_index = self.call_fn_arguments.index(
+                    "training"
+                )
                 self.jax2tf_training_false_fn = self._jax2tf_convert(
                     self._partial_with_positional(
                         self.call_fn, training_argument_index, False
@@ -546,7 +547,7 @@ class JaxLayer(Layer):
                 )
                 self.jax2tf_training_true_fn = None
             super().build(input_shape)
-    
+
     def call(self, inputs, training=False):
         def unwrap_variable(variable):
             return None if variable is None else variable.value
@@ -590,10 +591,12 @@ class JaxLayer(Layer):
                     jax.tree_util.tree_map(
                         assign_state_to_variable,
                         standardize_pytree_collections(new_state),
-                        standardize_pytree_collections(self.state))
+                        standardize_pytree_collections(self.state),
+                    )
                 return predictions
             else:
                 return fn(*call_args)
+
         if backend.backend() == "jax":
             return call_with_fn(self.call_fn)
         elif backend.backend() == "tensorflow":
@@ -610,7 +613,6 @@ class JaxLayer(Layer):
             return self.compute_output_shape_fn(input_shape)
         else:
             return super().compute_output_shape(input_shape)
-    
 
     def get_config(self):
         config = {
