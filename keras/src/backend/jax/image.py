@@ -216,12 +216,27 @@ def resize(
             height, width = shape[-3], shape[-2]
         else:
             height, width = shape[-2], shape[-1]
-        crop_height = int(float(width * target_height) / target_width)
-        crop_height = max(min(height, crop_height), 1)
-        crop_width = int(float(height * target_width) / target_height)
-        crop_width = max(min(width, crop_width), 1)
-        crop_box_hstart = int(float(height - crop_height) / 2)
-        crop_box_wstart = int(float(width - crop_width) / 2)
+        
+        # Add epsilon to prevent division by zero
+        epsilon = 1e-6
+        source_aspect_ratio = float(width) / (float(height) + epsilon)
+        target_aspect_ratio = float(target_width) / (float(target_height) + epsilon)
+        
+        # Only crop if aspect ratios differ (with epsilon tolerance)
+        aspect_ratio_diff = abs(source_aspect_ratio - target_aspect_ratio)
+        if aspect_ratio_diff > epsilon:
+            crop_height = int(float(width * target_height) / (target_width + epsilon))
+            crop_height = max(min(height, crop_height), 1)
+            crop_width = int(float(height * target_width) / (target_height + epsilon))
+            crop_width = max(min(width, crop_width), 1)
+            crop_box_hstart = int(float(height - crop_height) / 2)
+            crop_box_wstart = int(float(width - crop_width) / 2)
+        else:
+            # Skip cropping when aspect ratios match
+            crop_box_hstart = 0
+            crop_box_wstart = 0
+            crop_height = height
+            crop_width = width
         if data_format == "channels_last":
             if len(images.shape) == 4:
                 images = images[

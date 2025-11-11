@@ -248,17 +248,21 @@ class Resizing(BaseImagePreprocessingLayer):
     ):
         """Transforms bounding boxes for cropping to aspect ratio."""
         ops = self.backend
-        source_aspect_ratio = input_width / input_height
-        target_aspect_ratio = self.width / self.height
+        # Add epsilon to prevent division by zero
+        epsilon = ops.cast(ops.epsilon(), dtype=boxes.dtype)
+        source_aspect_ratio = input_width / (input_height + epsilon)
+        target_aspect_ratio = ops.cast(
+            self.width / (self.height + epsilon), dtype=boxes.dtype
+        )
         new_width = ops.numpy.where(
             source_aspect_ratio > target_aspect_ratio,
-            self.height * source_aspect_ratio,
-            self.width,
+            ops.cast(self.height, dtype=boxes.dtype) * source_aspect_ratio,
+            ops.cast(self.width, dtype=boxes.dtype),
         )
         new_height = ops.numpy.where(
             source_aspect_ratio > target_aspect_ratio,
-            self.height,
-            self.width / source_aspect_ratio,
+            ops.cast(self.height, dtype=boxes.dtype),
+            ops.cast(self.width, dtype=boxes.dtype) / source_aspect_ratio,
         )
         scale_x = new_width / input_width
         scale_y = new_height / input_height
