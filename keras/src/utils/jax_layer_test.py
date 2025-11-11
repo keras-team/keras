@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from absl.testing import parameterized
+import math
 
 from keras.src import backend
 from keras.src import layers
@@ -69,11 +70,6 @@ def jax_stateful_apply(params, state, inputs, training):
     if training:
         state = state + 1
     return outputs, state
-
-
-@object_registration.register_keras_serializable()
-def stateless_compute_output_shape(input_shape):
-    return (input_shape[0], num_classes)
 
 
 if flax is not None:
@@ -212,7 +208,7 @@ class TestJaxLayer(testing.TestCase):
         def _count_params(weights):
             count = 0
             for weight in weights:
-                count = count + ops.prod(ops.shape(weight))
+                count = count + math.prod(ops.shape(weight))
             return count
 
         def verify_weights_and_params(layer):
@@ -487,12 +483,7 @@ class TestJaxLayer(testing.TestCase):
             flax_model = flax_model_class()
             if flax_model_method:
                 kwargs["method"] = getattr(flax_model, flax_model_method)
-            if backend.backend() == "jax":
-                return FlaxLayer(flax_model_class(), **kwargs)
-            elif backend.backend() == "tensorflow":
-                return FlaxLayer(
-                    flax_model, stateless_compute_output_shape, **kwargs
-                )
+            return FlaxLayer(flax_model_class(), **kwargs)
 
         self._test_layer(
             flax_model_class.__name__,

@@ -540,12 +540,6 @@ class ExportArchive(BackendExportArchive):
             )
 
     def _convert_to_tf_variable(self, backend_variable):
-        if not isinstance(backend_variable, backend.Variable):
-            raise TypeError(
-                "`backend_variable` must be a `backend.Variable`. "
-                f"Recevied: backend_variable={backend_variable} of type "
-                f"({type(backend_variable)})"
-            )
         return tf.Variable(
             backend_variable.value,
             dtype=backend_variable.dtype,

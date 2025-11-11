@@ -19,7 +19,7 @@ from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import jax
 from keras.src.utils.module_utils import tensorflow as tf
-
+from keras.src.backend import jax as jax_backend
 
 def standardize_pytree_collections(pytree):
     if isinstance(pytree, (str, bytes)):
@@ -214,9 +214,6 @@ class JaxLayer(Layer):
         init_fn: the function to call to initialize the model. See description
             above for the list of arguments it takes and the outputs it returns.
             If `None`, then `params` and/or `state` must be provided.
-        compute_output_shape_fn: Function that takes the input shape
-            (a tuple or nested structure of tuples) and returns the output
-            shape (a tuple or nested structure of tuples).
       params: A `PyTree` containing all the model trainable parameters. This
             allows passing trained parameters or controlling the initialization.
             If both `params` and `state` are `None`, `init_fn` is called at
@@ -235,7 +232,6 @@ class JaxLayer(Layer):
         self,
         call_fn,
         init_fn=None,
-        compute_output_shape_fn=None,
         params=None,
         state=None,
         seed=None,
@@ -243,7 +239,7 @@ class JaxLayer(Layer):
     ):
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
-                "JaxLayer is only supported with the JAX or Tensorflow backend"
+                f"{self.__class__.__name__} is only supported with the JAX or Tensorflow backend"
                 f". Current backend: {backend.backend()}"
             )
 
@@ -255,10 +251,7 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        self.compute_output_shape_fn = compute_output_shape_fn
-        if seed is None:
-            seed = random.seed_generator.make_default_seed()
-        self.jax_rng = jax.random.PRNGKey(seed)
+        self.seed_generator = backend.random.SeedGenerator(seed, backend=jax_backend)
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
@@ -405,11 +398,7 @@ class JaxLayer(Layer):
                     dtype = None  # Use the layer dtype policy
                 return self.add_weight(
                     value.shape,
-                    initializer=(
-                        backend.convert_to_tensor(value)
-                        if value is not None
-                        else None
-                    ),
+                    initializer=backend.convert_to_tensor(value),
                     dtype=dtype,
                     trainable=trainable,
                 )
@@ -434,15 +423,8 @@ class JaxLayer(Layer):
         else:
             self.state = variables
 
-        if backend.backend() == "jax":
-            flat_variables, _ = jax.tree_util.tree_flatten(variables)
-            return flat_variables
-        elif backend.backend() == "tensorflow":
-            return variables
-
-    def _split_jax_rng(self):
-        self.jax_rng, subkey = jax.random.split(self.jax_rng)
-        return subkey
+        flat_variables, _ = jax.tree_util.tree_flatten(variables)
+        return flat_variables
 
     def _get_init_rng(self):
         """
@@ -456,7 +438,7 @@ class JaxLayer(Layer):
             a JAX `PRNGKey` or structure of `PRNGKey`s that will be passed as
             the `rng` argument of `init_fn`.
         """
-        return self._split_jax_rng()
+        return self.seed_generator.next()
 
     def _get_call_rng(self, training):
         """
@@ -472,7 +454,7 @@ class JaxLayer(Layer):
             the `rng` argument of `call_fn`.
         """
         if training:
-            return self._split_jax_rng()
+            return self.seed_generator.next()
         else:
             return None
 
@@ -488,7 +470,7 @@ class JaxLayer(Layer):
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
             shape = [d if d is not None else 1 for d in shape]
-            return ops.ones(shape)
+            return jax.numpy.ones(shape)
 
         init_inputs = tree.map_shape_structure(create_input, input_shape)
         init_args = []
@@ -602,19 +584,11 @@ class JaxLayer(Layer):
         if backend.backend() == "jax":
             return call_with_fn(self.call_fn)
         elif backend.backend() == "tensorflow":
-            if self.jax2tf_training_true_fn is None:
-                return call_with_fn(self.jax2tf_training_false_fn)
+            if training and self.jax2tf_training_true_fn is not None:
+                return call_with_fn(self.jax2tf_training_true_fn)
             else:
-                if training:
-                    return call_with_fn(self.jax2tf_training_true_fn)
-                else:
-                    return call_with_fn(self.jax2tf_training_false_fn)
-
-    def compute_output_shape(self, input_shape):
-        if self.compute_output_shape_fn:
-            return self.compute_output_shape_fn(input_shape)
-        else:
-            return super().compute_output_shape(input_shape)
+                return call_with_fn(self.jax2tf_training_false_fn)
+                    
 
     def get_config(self):
         config = {
@@ -727,7 +701,6 @@ class FlaxLayer(JaxLayer):
     def __init__(
         self,
         module,
-        compute_output_shape_fn=None,
         method=None,
         variables=None,
         **kwargs,
@@ -791,7 +764,6 @@ class FlaxLayer(JaxLayer):
         super().__init__(
             call_fn=call_fn,
             init_fn=init_fn,
-            compute_output_shape_fn=compute_output_shape_fn,
             params=params,
             state=state,
             **kwargs,
@@ -824,13 +796,13 @@ class FlaxLayer(JaxLayer):
 
     def _get_init_rng(self):
         return {
-            "params": self._split_jax_rng(),
-            "dropout": self._split_jax_rng(),
+            "params": self.seed_generator.next(),
+            "dropout": self.seed_generator.next(),
         }
 
     def _get_call_rng(self, training):
         if training:
-            return {"dropout": self._split_jax_rng()}
+            return {"dropout": self.seed_generator.next()}
         else:
             return {}
 
