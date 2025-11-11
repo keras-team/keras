@@ -16,10 +16,18 @@ from keras.src.utils.module_utils import ocp
 
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
-    # For JAX backend, preserve native arrays to avoid unnecessary conversions
-    # For other backends, convert to numpy arrays
+    # For JAX backend, preserve native arrays if JAX monitoring available
+    # to avoid unnecessary conversions. Otherwise convert to numpy.
     if backend.backend() == "jax":
-        state_tree = model.get_state_tree()
+        try:
+            import jax
+
+            # Check if jax.monitoring.record_scalar exists (JAX 0.7.0+)
+            jax.monitoring.record_scalar
+            state_tree = model.get_state_tree()
+        except (ImportError, AttributeError):
+            # Fallback to numpy conversion for older JAX versions
+            state_tree = model.get_state_tree(value_format="numpy_array")
     else:
         state_tree = model.get_state_tree(value_format="numpy_array")
 
