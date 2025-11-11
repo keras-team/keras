@@ -1,3 +1,4 @@
+import math
 import os
 
 import jax
@@ -6,7 +7,6 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from absl.testing import parameterized
-import math
 
 from keras.src import backend
 from keras.src import layers

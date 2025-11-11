@@ -7,10 +7,9 @@ import string
 import numpy as np
 
 from keras.src import backend
-from keras.src import ops
-from keras.src import random
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import jax as jax_backend
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.layers.layer import Layer
@@ -19,7 +18,7 @@ from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import jax
 from keras.src.utils.module_utils import tensorflow as tf
-from keras.src.backend import jax as jax_backend
+
 
 def standardize_pytree_collections(pytree):
     if isinstance(pytree, (str, bytes)):
@@ -239,8 +238,8 @@ class JaxLayer(Layer):
     ):
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
-                f"{self.__class__.__name__} is only supported with the JAX or Tensorflow backend"
-                f". Current backend: {backend.backend()}"
+                f"{self.__class__.__name__} is only supported with the JAX or"
+                f" Tensorflow backend. Current backend: {backend.backend()}"
             )
 
         if init_fn is None and params is None and state is None:
@@ -251,7 +250,8 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        self.seed_generator = backend.random.SeedGenerator(seed, backend=jax_backend)
+        self.seed_generator = backend.random.SeedGenerator(
+            seed, backend=jax_backend)
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
