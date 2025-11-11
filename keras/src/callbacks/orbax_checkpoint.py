@@ -154,18 +154,18 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Set up save_decision_policy if not provided
         if save_decision_policy is None:
-            if save_freq == "epoch":
-                # For epoch-based saving, save every epoch
-                save_decision_policy = (
-                    ocp.training.save_decision_policies.FixedIntervalPolicy(1)
-                )
-            else:
-                # For batch-based saving, save every save_freq batches
-                save_decision_policy = (
-                    ocp.training.save_decision_policies.FixedIntervalPolicy(
-                        save_freq
-                    )
-                )
+            # Let Keras handle all save decisions - configure Checkpointer
+            # to save unconditionally when save_pytree/save_pytree_async
+            # is called
+            class _AlwaysSavePolicy(
+                ocp.training.save_decision_policies.SaveDecisionPolicy
+            ):
+                def should_save(
+                    self, current_step_info, previous_steps=None, context=None
+                ):
+                    return True
+
+            save_decision_policy = _AlwaysSavePolicy()
 
         # --- Orbax Checkpointer Setup (V1 API) ---
         # Map V0 options to V1 parameters
@@ -281,7 +281,8 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # --- Save Logic (V1 API) ---
         # All processes participate in distributed checkpointing
-        # No wait loop needed. The Checkpointer handles overlapping saves.
+        # Checkpointer is configured to save unconditionally when
+        # save_pytree is called
         if self.verbose > 0:
             print_msg(
                 f"OrbaxCheckpoint: Triggering async save for step {step}..."
@@ -360,8 +361,8 @@ class OrbaxCheckpoint(MonitorCallback):
 
         if should_save:
             # Use epoch number as the step for Orbax save
-            # The Checkpointer will decide if it *actually* saves
-            # based on its internal SaveDecisionPolicy.
+            # Keras has already made the save decision - Checkpointer will
+            # save unconditionally
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
