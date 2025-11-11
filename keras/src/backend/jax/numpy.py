@@ -679,8 +679,6 @@ def empty(shape, dtype=None):
 
 
 def empty_like(x, dtype=None):
-    x = convert_to_tensor(x)
-    dtype = dtype or x.dtype
     return jnp.empty_like(x, dtype=dtype)
 
 

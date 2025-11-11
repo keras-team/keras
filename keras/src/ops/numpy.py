@@ -3115,12 +3115,19 @@ def empty(shape, dtype=None):
 
 
 class EmptyLike(Operation):
-    def call(self, x, dtype=None):
-        return backend.numpy.empty_like(x, dtype=dtype)
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
 
-    def compute_output_spec(self, x, dtype=None):
-        dtype = dtype or x.dtype
-        dtype = backend.standardize_dtype(dtype)
+    def call(self, x):
+        return backend.numpy.empty_like(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -3145,7 +3152,7 @@ def empty_like(x, dtype=None):
     dtype('float32')
     """
     if any_symbolic_tensors((x,)):
-        return EmptyLike().symbolic_call(x, dtype=dtype)
+        return EmptyLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.empty_like(x, dtype=dtype)
 
 
