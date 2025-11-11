@@ -134,47 +134,57 @@ class Muon(optimizer.Optimizer):
         # any {0,1}-D parameters should all be optimized by adam
         if not 1 < len(variable.shape) < 4:
             return True
-        if self.exclude_embeddings and "embedding" in variable.path.lower():
+        # Check .path only during build (where we have keras.Variable)
+        var_path = variable.path if hasattr(variable, "path") else None
+        if var_path is None:
+            return False
+        if self.exclude_embeddings and "embedding" in var_path.lower():
             return True
-        for keyword in self.exclude_layers:
-            if re.search(keyword, variable.path):
-                return True
+        # Exclude any user-specified layer patterns
+        for pattern in self.exclude_layers:
+            try:
+                if re.search(pattern, var_path):
+                    return True
+            except (re.error, TypeError):
+                # Skip invalid regex patterns in exclude_layers
+                continue
         return False
 
     def build(self, var_list):
         """Initialize optimizer variables.
 
-        Adam optimizer has 3 types of variables: momentums, velocities and
-        velocity_hat (only set when amsgrad is applied),
+        Muon optimizer has 2 types of variables: momentums and velocities.
+        Velocities are only set when using AdamW update step.
 
         Args:
-            var_list: list of model variables to build Adam variables on.
+            var_list: list of model variables to build Muon variables on.
         """
         if self.built:
             return
         super().build(var_list)
-        self.adam_momentums = {}
-        self.adam_velocities = {}
-
-        self.muon_momentums = {}
-        self.muon_velocities = {}
+        # Initialize lists with None for all variables
+        self.adam_momentums = [None] * len(var_list)
+        self.adam_velocities = [None] * len(var_list)
 
         for var in var_list:
             if not self._overwrite_variable_with_gradient(var):
-                self.adam_momentums[var.path] = (
+                var_idx = self._get_variable_index(var)
+                self.adam_momentums[var_idx] = (
                     self.add_variable_from_reference(
                         reference_variable=var, name="momentum"
                     )
                 )
                 if self._should_use_adamw(var):
-                    self.adam_velocities[var.path] = (
+                    self.adam_velocities[var_idx] = (
                         self.add_variable_from_reference(
                             reference_variable=var, name="velocity"
                         )
                     )
 
     def update_step(self, gradient, variable, learning_rate):
-        if self._should_use_adamw(variable):
+        var_idx = self._get_variable_index(variable)
+        # Check if velocity exists to determine if we should use AdamW
+        if self.adam_velocities[var_idx] is not None:
             # It should be noted that lr is one-tenth when using adamw.
             self._adamw_update_step(
                 gradient, variable, learning_rate * self.adam_lr_ratio
@@ -183,7 +193,8 @@ class Muon(optimizer.Optimizer):
             self._muon_update_step(gradient, variable, learning_rate)
 
     def _muon_update_step(self, gradient, variable, lr):
-        m = self.adam_momentums[variable.path]
+        var_idx = self._get_variable_index(variable)
+        m = self.adam_momentums[var_idx]
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
         shape = variable.shape
         if self.nesterov:
@@ -210,8 +221,9 @@ class Muon(optimizer.Optimizer):
             ops.cast(self.adam_beta_2, variable.dtype), local_step
         )
 
-        m = self.adam_momentums[variable.path]
-        v = self.adam_velocities[variable.path]
+        var_idx = self._get_variable_index(variable)
+        m = self.adam_momentums[var_idx]
+        v = self.adam_velocities[var_idx]
 
         alpha = lr * ops.sqrt(1 - adam_beta_2_power) / (1 - adam_beta_1_power)
 
