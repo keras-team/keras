@@ -4,7 +4,7 @@ Contributions can be made in a variety of ways, including coding, enriching docu
 
 
 ## Current items open for contributions
-At [this link](https://github.com/keras-team/keras/issues/18442), you'll find a list of items where you help is needed!
+At [this link](https://github.com/keras-team/keras/issues/18442), you'll find a list of items where your help is needed!
 
 
 ## How to contribute code

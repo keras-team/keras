@@ -310,7 +310,7 @@ def conv(
 ):
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
-        return tf.nn.convolution(
+        result = tf.nn.convolution(
             inputs,
             kernel,
             strides,
@@ -318,6 +318,20 @@ def conv(
             data_format=tf_data_format,
             dilations=dilation_rate,
         )
+        result_shape = result.shape
+        if (
+            result_shape.is_fully_defined()
+            and math.prod(result_shape.as_list()) == 0
+        ):
+            raise ValueError(
+                "The convolution operation resulted in an empty output. "
+                "Output shape:"
+                f" {result_shape}. This can happen if the input is too small "
+                "for the given kernel size, strides, dilation rate, and "
+                "padding mode. Please check the input shape and convolution "
+                "parameters."
+            )
+        return result
 
     # Certain ops are are broken in Tensorflow on CPU only.
     # We can work around by compiling the op with XLA.
