@@ -16,7 +16,12 @@ from keras.src.utils.module_utils import ocp
 
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
-    state_tree = model.get_state_tree(value_format="numpy_array")
+    # For JAX backend, preserve native arrays to avoid unnecessary conversions
+    # For other backends, convert to numpy arrays
+    if backend.backend() == "jax":
+        state_tree = model.get_state_tree()
+    else:
+        state_tree = model.get_state_tree(value_format="numpy_array")
 
     # Convert numpy scalar types to Python types for Orbax compatibility
     def convert_scalars(obj):
