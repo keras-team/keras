@@ -252,7 +252,8 @@ class JaxLayer(Layer):
         self.call_fn = call_fn
         self.init_fn = init_fn
         self.seed_generator = backend.random.SeedGenerator(
-            seed, backend=jax_backend)
+            seed, backend=jax_backend
+        )
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
@@ -589,7 +590,6 @@ class JaxLayer(Layer):
                 return call_with_fn(self.jax2tf_training_true_fn)
             else:
                 return call_with_fn(self.jax2tf_training_false_fn)
-                    
 
     def get_config(self):
         config = {
