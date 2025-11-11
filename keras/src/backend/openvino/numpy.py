@@ -569,8 +569,8 @@ def bartlett(x):
     return OpenVINOKerasTensor(window)
 
 
-def hamming(m):
-    m = get_ov_output(m)
+def hamming(x):
+    m = get_ov_output(x)
 
     m_i64 = (
         m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
