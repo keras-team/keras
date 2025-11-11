@@ -713,11 +713,10 @@ def dot_product_attention(
     value = get_ov_output(value)
     if query.get_element_type() != key.get_element_type():
         ov_type = OPENVINO_DTYPES[backend.floatx()]
-        query = ov_opset.convert(query, ov_type)
-        key = ov_opset.convert(key, ov_type)
+        query = ov_opset.convert(query, ov_type).output(0)
+        key = ov_opset.convert(key, ov_type).output(0)
     if value.get_element_type() != query.get_element_type():
-        ov_type = OPENVINO_DTYPES[backend.floatx()]
-        value = ov_opset.convert(value, ov_type)
+        value = ov_opset.convert(value, query.get_element_type()).output(0)
     axes_const = ov_opset.constant([0, 2, 1, 3], Type.i32).output(0)
 
     query = ov_opset.transpose(query, axes_const)
