@@ -7,6 +7,8 @@ on:
   push:
     branches: [ master ]
   pull_request:
+  pull_request_review:
+    types: [submitted]
   release:
     types: [created]
 
@@ -18,6 +20,11 @@ jobs:
   test-in-container:
     name: Run tests on TPU
     runs-on: linux-x86-ct6e-44-1tpu
+    # Only run on approved PRs, pushes to master, or releases
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'approved')
 
     strategy:
       fail-fast: false
