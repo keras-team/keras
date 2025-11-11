@@ -264,7 +264,6 @@ NNOpsDynamicShapeTest::test_categorical_crossentropy
 NNOpsDynamicShapeTest::test_multi_hot_dtype_
 NNOpsCorrectnessTest::test_conv_transpose_
 NNOpsCorrectnessTest::test_ctc_decode
-NNOpsCorrectnessTest::test_dot_product_attention_
 NNOpsCorrectnessTest::test_multi_hot_
 NNOpsCorrectnessTest::test_binary_crossentropy
 NNOpsCorrectnessTest::test_categorical_crossentropy
@@ -282,7 +281,6 @@ NNOpsCorrectnessTest::test_rms_normalization_10.0
 NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
-NNOpsDtypeTest::test_dot_product_attention_
 NNOpsDynamicShapeTest::test_glu
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsBehaviorTest::test_logit_recovery_binary_crossentropy

@@ -2448,7 +2448,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask = mask[None, None, ...]
             mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
-            if backend.backend() == "torch":
+            if backend.backend() in ("torch", "openvino"):
                 self.skipTest(
                     "torch does not support `bias` with `dot_product_attention`"
                 )
