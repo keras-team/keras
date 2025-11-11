@@ -1,5 +1,6 @@
 """Tests using Scikit-Learn's bundled estimator_checks."""
 
+import unittest
 from contextlib import contextmanager
 
 import pytest
@@ -156,5 +157,8 @@ def test_sklearn_estimator_checks(estimator, check):
             or "NotImplementedError" in str(exc)
         ):
             pytest.xfail("Backend not implemented")
+        elif isinstance(exc, unittest.SkipTest):
+            # Workaround for https://github.com/pytest-dev/pytest/issues/13895
+            pytest.skip(str(exc))
         else:
             raise
