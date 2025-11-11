@@ -3927,10 +3927,10 @@ def isreal(x):
         Output boolean tensor.
 
     Example:
-        >>> from keras import ops
-        >>> x = ops.array([1+1j, 1+0j, 4.5, 3, 2, 2j], dtype="complex64")
-        >>> ops.isreal(x)
-        array([False,  True,  True,  True,  True, False])
+    >>> from keras import ops
+    >>> x = ops.array([1+1j, 1+0j, 4.5, 3, 2, 2j], dtype="complex64")
+    >>> ops.isreal(x)
+    array([False,  True,  True,  True,  True, False])
     """
     if any_symbolic_tensors((x,)):
         return Isreal().symbolic_call(x)
@@ -5509,10 +5509,10 @@ def unravel_index(indices, shape):
         Tuple of arrays for each dimension with unraveled indices.
 
     Example:
-        >>> indices = 5
-        >>> shape = (3, 3)
-        >>> unravel_index(indices, shape)
-        (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
+    >>> indices = 5
+    >>> shape = (3, 3)
+    >>> unravel_index(indices, shape)
+    (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
     """
     if any_symbolic_tensors((indices,)):
         return UnravelIndex(shape).symbolic_call(indices)
