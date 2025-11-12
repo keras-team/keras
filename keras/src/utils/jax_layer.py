@@ -249,10 +249,6 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        if backend.backend() == "jax":
-            dtype = jax.numpy.uint32
-        elif backend.backend() == "tensorflow":
-            dtype = tf.uint32
         dtype = jax_random_seed_dtype()
         self.seed_generator = backend.random.SeedGenerator(
             seed=seed, dtype=dtype
