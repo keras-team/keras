@@ -1247,8 +1247,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_dict_input_adapter_creation(self):
         """Test that dict input adapter is created and works correctly."""
-        if not litert.available:
-            self.skipTest("LiteRT not available")
 
         # Create a model with dictionary inputs
         input1 = layers.Input(shape=(10,), name="x")
@@ -1297,8 +1295,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_dict_input_signature_inference(self):
         """Test automatic inference of dict input signatures."""
-        if not litert.available:
-            self.skipTest("LiteRT not available")
 
         # Create a model with dictionary inputs (without calling it first)
         input1 = layers.Input(shape=(5,), name="feature_a")
@@ -1333,8 +1329,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_dict_input_with_custom_signature(self):
         """Test dict input export with custom input signature."""
-        if not litert.available:
-            self.skipTest("LiteRT not available")
 
         # Create model with dict inputs
         input1 = layers.Input(shape=(10,), name="input_x")
@@ -1386,8 +1380,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_dict_input_numerical_accuracy(self):
         """Test numerical accuracy of dict input models with complex ops."""
-        if not litert.available:
-            self.skipTest("LiteRT not available")
 
         # Create a more complex model with dict inputs
         input1 = layers.Input(shape=(20,), name="tokens")
@@ -1436,8 +1428,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_dict_input_preserves_variable_sharing(self):
         """Test that adapter preserves variable sharing from original model."""
-        if not litert.available:
-            self.skipTest("LiteRT not available")
 
         # Create model with shared layers
         shared_dense = layers.Dense(8, activation="relu")
@@ -1494,8 +1484,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_dict_input_multi_output_model(self):
         """Test dict input model with multiple outputs exports successfully."""
-        if not litert.available:
-            self.skipTest("LiteRT not available")
 
         # Create model with dict inputs and multiple outputs
         input1 = layers.Input(shape=(10,), name="feature_1")
@@ -1536,7 +1524,3 @@ class ExportLitertTest(testing.TestCase):
         output_shapes = [tuple(d["shape"][1:]) for d in output_details]
         self.assertIn((5,), output_shapes)
         self.assertIn((3,), output_shapes)
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])
