@@ -1,0 +1,403 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.10, pytest-8.4.2, pluggy-1.6.0 -- /Users/wenyiguo/keras/venv/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /Users/wenyiguo/keras
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 28 items
+
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_independent_bound_method Model: "FlaxTrainingIndependentModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m 1/10[0m [32m━━[0m[37m━━━━━━━━━━━━━━━━━━[0m [1m5s[0m 655ms/step - categorical_accuracy: 0.0625 - loss: 2.2743[1m 7/10[0m [32m━━━━━━━━━━━━━━[0m[37m━━━━━━[0m [1m0s[0m 9ms/step - categorical_accuracy: 0.0810 - loss: 2.3819  [1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 10ms/step - categorical_accuracy: 0.1063 - loss: 2.3672
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 37ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 41ms/step
+Model: "FlaxTrainingIndependentModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 37ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 42ms/step
+Model: "FlaxTrainingIndependentModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 1,944,680 (7.42 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+ Optimizer params: 1,296,454 (4.95 MB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 37ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 42ms/step
+Saved artifact at '/var/folders/jk/kp6ss1yd1mx710fqvdvcrzfr00r8_1/T/tmprgwrpg8r/jax_layer_export'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): TensorSpec(shape=(None, 28, 28, 1), dtype=tf.float32, name='keras_tensor_2')
+Output Type:
+  TensorSpec(shape=(None, 10), dtype=tf.float32, name=None)
+Captures:
+  13552996560: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552996752: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552994064: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552996944: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552992912: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552993488: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552997904: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552997328: TensorSpec(shape=(), dtype=tf.resource, name=None)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_state_no_method Model: "FlaxBatchNormModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       354,794 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 354,794 (1.35 MB)
+ Trainable params: 354,258 (1.35 MB)
+ Non-trainable params: 536 (2.09 KB)
+[1m 1/10[0m [32m━━[0m[37m━━━━━━━━━━━━━━━━━━[0m [1m10s[0m 1s/step - categorical_accuracy: 0.0312 - loss: 2.8184[1m 4/10[0m [32m━━━━━━━━[0m[37m━━━━━━━━━━━━[0m [1m0s[0m 21ms/step - categorical_accuracy: 0.0482 - loss: 2.7029[1m 7/10[0m [32m━━━━━━━━━━━━━━[0m[37m━━━━━━[0m [1m0s[0m 21ms/step - categorical_accuracy: 0.0649 - loss: 2.6597[1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 21ms/step - categorical_accuracy: 0.0701 - loss: 2.6486[1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 22ms/step - categorical_accuracy: 0.0844 - loss: 2.6382
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 61ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 65ms/step
+Model: "FlaxBatchNormModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       354,794 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 354,794 (1.35 MB)
+ Trainable params: 354,258 (1.35 MB)
+ Non-trainable params: 536 (2.09 KB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 62ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 66ms/step
+Model: "FlaxBatchNormModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       354,794 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 1,063,312 (4.06 MB)
+ Trainable params: 354,258 (1.35 MB)
+ Non-trainable params: 536 (2.09 KB)
+ Optimizer params: 708,518 (2.70 MB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 60ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 64ms/step
+Saved artifact at '/var/folders/jk/kp6ss1yd1mx710fqvdvcrzfr00r8_1/T/tmp5f2wr2e9/jax_layer_export'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): TensorSpec(shape=(None, 28, 28, 1), dtype=tf.float32, name='keras_tensor_2')
+Output Type:
+  TensorSpec(shape=(None, 10), dtype=tf.float32, name=None)
+Captures:
+  15041532880: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041530384: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041533648: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041533072: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041530000: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041529232: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041539792: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041541328: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041534416: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041530192: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15041537680: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552998864: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552998672: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13553004048: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552998288: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552999440: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13553007888: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13553004432: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13553003280: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552998480: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13552995408: TensorSpec(shape=(), dtype=tf.resource, name=None)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method Model: "FlaxDropoutModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m 1/10[0m [32m━━[0m[37m━━━━━━━━━━━━━━━━━━[0m [1m5s[0m 666ms/step - categorical_accuracy: 0.0000e+00 - loss: 2.3471[1m 7/10[0m [32m━━━━━━━━━━━━━━[0m[37m━━━━━━[0m [1m0s[0m 9ms/step - categorical_accuracy: 0.0779 - loss: 2.3606      [1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 10ms/step - categorical_accuracy: 0.1187 - loss: 2.3308
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 36ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 40ms/step
+Model: "FlaxDropoutModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 36ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 41ms/step
+Model: "FlaxDropoutModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 1,944,680 (7.42 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+ Optimizer params: 1,296,454 (4.95 MB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 36ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 40ms/step
+Saved artifact at '/var/folders/jk/kp6ss1yd1mx710fqvdvcrzfr00r8_1/T/tmpa8wp4lmo/jax_layer_export'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): TensorSpec(shape=(None, 28, 28, 1), dtype=tf.float32, name='keras_tensor_2')
+Output Type:
+  TensorSpec(shape=(None, 10), dtype=tf.float32, name=None)
+Captures:
+  13553005968: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13553000400: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13553000592: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  13553002512: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15446802512: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15446807312: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15446809232: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15446806736: TensorSpec(shape=(), dtype=tf.resource, name=None)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method_dtype_policy Model: "FlaxDropoutModel1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flax_layer (FlaxLayer)          │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m 1/10[0m [32m━━[0m[37m━━━━━━━━━━━━━━━━━━[0m [1m6s[0m 733ms/step - categorical_accuracy: 0.0625 - loss: 2.3310[1m 7/10[0m [32m━━━━━━━━━━━━━━[0m[37m━━━━━━[0m [1m0s[0m 9ms/step - categorical_accuracy: 0.0840 - loss: 2.3561  [1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 10ms/step - categorical_accuracy: 0.0750 - loss: 2.3423
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 40ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 44ms/step
+Model: "FlaxDropoutModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 648,226 (2.47 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 40ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 45ms/step
+Model: "FlaxDropoutModel2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flax_layer_1 (FlaxLayer)        │ (None, 10)             │       648,226 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 1,944,680 (7.42 MB)
+ Trainable params: 648,226 (2.47 MB)
+ Non-trainable params: 0 (0.00 B)
+ Optimizer params: 1,296,454 (4.95 MB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 40ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 44ms/step
+Saved artifact at '/var/folders/jk/kp6ss1yd1mx710fqvdvcrzfr00r8_1/T/tmpumrh4fc7/jax_layer_export'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): TensorSpec(shape=(None, 28, 28, 1), dtype=tf.float32, name='keras_tensor_3')
+Output Type:
+  TensorSpec(shape=(None, 10), dtype=tf.float16, name=None)
+Captures:
+  15316476432: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15316482960: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15316476816: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15316477584: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15316482768: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15316471632: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15316473936: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15316472784: TensorSpec(shape=(), dtype=tf.resource, name=None)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_independent !!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([704741653         0], shape=(2,), dtype=uint32)
+Model: "jax_stateless_apply1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ jax_layer (JaxLayer)            │ (None, 10)             │       266,610 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 266,610 (1.02 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m 1/10[0m [32m━━[0m[37m━━━━━━━━━━━━━━━━━━[0m [1m3s[0m 404ms/step - categorical_accuracy: 0.0938 - loss: 2.3464[1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 2ms/step - categorical_accuracy: 0.1000 - loss: 2.6237  
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 24ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 29ms/step
+Model: "jax_stateless_apply2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ jax_layer_1 (JaxLayer)          │ (None, 10)             │       266,610 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 266,610 (1.02 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 0 (0.00 B)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 25ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 29ms/step
+!!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([766770715         0], shape=(2,), dtype=uint32)
+Model: "jax_stateless_apply2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ jax_layer_1 (JaxLayer)          │ (None, 10)             │       266,610 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 799,832 (3.05 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 0 (0.00 B)
+ Optimizer params: 533,222 (2.03 MB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 24ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 28ms/step
+Saved artifact at '/var/folders/jk/kp6ss1yd1mx710fqvdvcrzfr00r8_1/T/tmpq_facvuv/jax_layer_export'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): TensorSpec(shape=(None, 28, 28, 1), dtype=tf.float32, name='keras_tensor_2')
+Output Type:
+  TensorSpec(shape=(None, 10), dtype=tf.float32, name=None)
+Captures:
+  15448744848: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15448737360: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15448741008: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15448747728: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15448748112: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15448739664: TensorSpec(shape=(), dtype=tf.resource, name=None)
+!!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([852611657         0], shape=(2,), dtype=uint32)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_state !!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([248521834         0], shape=(2,), dtype=uint32)
+Model: "jax_stateful_apply1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ jax_layer (JaxLayer)            │ (None, 10)             │       266,611 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 266,611 (1.02 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 1 (4.00 B)
+[1m 1/10[0m [32m━━[0m[37m━━━━━━━━━━━━━━━━━━[0m [1m5s[0m 622ms/step - categorical_accuracy: 0.1250 - loss: 2.3601[1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 2ms/step - categorical_accuracy: 0.0875 - loss: 2.6616  
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 28ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 32ms/step
+Model: "jax_stateful_apply2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ jax_layer_1 (JaxLayer)          │ (None, 10)             │       266,611 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 266,611 (1.02 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 1 (4.00 B)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 26ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 31ms/step
+!!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([990546260         0], shape=(2,), dtype=uint32)
+Model: "jax_stateful_apply2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ jax_layer_1 (JaxLayer)          │ (None, 10)             │       266,611 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 799,833 (3.05 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 1 (4.00 B)
+ Optimizer params: 533,222 (2.03 MB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 27ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 31ms/step
+Saved artifact at '/var/folders/jk/kp6ss1yd1mx710fqvdvcrzfr00r8_1/T/tmpmmigd4b8/jax_layer_export'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): TensorSpec(shape=(None, 28, 28, 1), dtype=tf.float32, name='keras_tensor_2')
+Output Type:
+  TensorSpec(shape=(None, 10), dtype=tf.float32, name=None)
+Captures:
+  15562756688: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15562756880: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15562763216: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15562766672: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15562759376: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15562763600: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15562757456: TensorSpec(shape=(), dtype=tf.resource, name=None)
+!!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([971074536         0], shape=(2,), dtype=uint32)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_state_dtype_policy !!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([539657327         0], shape=(2,), dtype=uint32)
+Model: "jax_stateful_apply1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 28, 28, 1)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ jax_layer (JaxLayer)            │ (None, 10)             │       266,611 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 266,611 (1.02 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 1 (4.00 B)
+[1m 1/10[0m [32m━━[0m[37m━━━━━━━━━━━━━━━━━━[0m [1m3s[0m 443ms/step - categorical_accuracy: 0.0938 - loss: 2.3004[1m10/10[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 3ms/step - categorical_accuracy: 0.0906 - loss: 2.6952  
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 31ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 35ms/step
+Model: "jax_stateful_apply2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ jax_layer_1 (JaxLayer)          │ (None, 10)             │       266,611 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 266,611 (1.02 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 1 (4.00 B)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 31ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 35ms/step
+!!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([99170990        0], shape=(2,), dtype=uint32)
+Model: "jax_stateful_apply2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ jax_layer_1 (JaxLayer)          │ (None, 10)             │       266,611 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 799,833 (3.05 MB)
+ Trainable params: 266,610 (1.02 MB)
+ Non-trainable params: 1 (4.00 B)
+ Optimizer params: 533,222 (2.03 MB)
+[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 31ms/step[1m1/1[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 35ms/step
+Saved artifact at '/var/folders/jk/kp6ss1yd1mx710fqvdvcrzfr00r8_1/T/tmp2vkivmt3/jax_layer_export'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): TensorSpec(shape=(None, 28, 28, 1), dtype=tf.float32, name='keras_tensor_3')
+Output Type:
+  TensorSpec(shape=(None, 10), dtype=tf.float16, name=None)
+Captures:
+  15668397456: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15668397264: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15668397648: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15668402832: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15668400528: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15668400144: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  15668403408: TensorSpec(shape=(), dtype=tf.resource, name=None)
+!!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([506803281         0], shape=(2,), dtype=uint32)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_rng_seeding !!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([906691060         0], shape=(2,), dtype=uint32)
+!!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([906691060         0], shape=(2,), dtype=uint32)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_mapping_instead_of_sequence PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_missing_dict_key PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_missing_variable_in_list PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_no_initial_state PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_sequence_instead_of_mapping PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_state_mismatch_during_update_sequence_instead_of_variable PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_different_argument_order !!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([548977049         0], shape=(2,), dtype=uint32)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_flax_state_no_params PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_minimal_arguments PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_missing_inputs_in_call_fn PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_missing_inputs_in_init_fn PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_no_init_fn_and_no_params PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_polymorphic_shape_more_than_26_dimension_names PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_state_jax_registered_node_class PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_state_non_tensor_leaves PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_state_none_leaves PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_structures_as_inputs_and_outputs PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_training_in_call_fn_but_not_init_fn !!type <class 'tensorflow.python.framework.ops.EagerTensor'> tf.Tensor([957413343         0], shape=(2,), dtype=uint32)
+PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_unsupported_argument_in_call_fn PASSED
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_unsupported_argument_in_init_fn PASSED
+
+============================= 28 passed in 15.55s ==============================
