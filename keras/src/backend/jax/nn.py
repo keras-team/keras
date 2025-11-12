@@ -1182,19 +1182,45 @@ def wrap_flash_attention(
             " in TPU kernel attention"
         )
 
-    if custom_mask is not None:
-        mask = splash_attention_mask.NumpyMask(array=custom_mask)
-    else:
-        mask = splash_attention_mask.CausalMask(
-            shape=(query.shape[2], query.shape[2])
-        )
+    num_heads = query.shape[1]
+    q_len = query.shape[2]
+    kv_len = key.shape[2]
 
-    # Create multi-head mask
-    multi_head_mask = splash_attention_mask.MultiHeadMask(
-        masks=(mask,) * query.shape[1]
-    )
+    if custom_mask is not None:
+        mask = jnp.asarray(custom_mask, dtype=jnp.bool_)
+
+        if mask.ndim == 2:
+            mask = mask[None, ...]
+        elif mask.ndim == 3:
+            mask = mask.reshape(-1, mask.shape[-2], mask.shape[-1])
+        else:
+            raise ValueError(
+                "`custom_mask` must have rank 2 or 3. "
+                f"Received shape {mask.shape}."
+            )
+
+        if mask.shape[0] == 1 and num_heads > 1:
+            mask = jnp.broadcast_to(mask, (num_heads, mask.shape[1], mask.shape[2]))
+        elif mask.shape[0] not in (1, num_heads):
+            raise ValueError(
+                "Expected `custom_mask` to provide either a single mask "
+                "shared across heads or one mask per head. "
+                f"Received {mask.shape[0]} masks for {num_heads} heads."
+            )
+
+        if mask.shape[1] != q_len or mask.shape[2] != kv_len:
+            raise ValueError(
+                "The spatial dimensions of `custom_mask` must match the "
+                "query/key sequence lengths. "
+                f"Received mask shape {mask.shape}, expected "
+                f"(*, {q_len}, {kv_len})."
+            )
+    else:
+        mask = splash_attention_mask.CausalMask(shape=(q_len, kv_len))
+        mask = splash_attention_mask.MultiHeadMask(masks=(mask,) * num_heads)
+
     splash_kernel = splash_attention_kernel.make_splash_mha(
-        mask=multi_head_mask,
+        mask=mask,
         head_shards=head_shards,
         q_seq_shards=q_seq_shards,
         attn_logits_soft_cap=attn_logits_soft_cap,
