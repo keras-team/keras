@@ -10,9 +10,6 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.jax.core import (
-    random_seed_dtype as jax_random_seed_dtype,
-)
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
@@ -235,6 +232,10 @@ class JaxLayer(Layer):
         seed=None,
         **kwargs,
     ):
+        from keras.src.backend.jax.core import (
+            random_seed_dtype as jax_random_seed_dtype,
+        )
+        
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
                 f"{self.__class__.__name__} is only supported with the JAX or"
