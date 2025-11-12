@@ -235,7 +235,7 @@ class JaxLayer(Layer):
         from keras.src.backend.jax.core import (
             random_seed_dtype as jax_random_seed_dtype,
         )
-        
+
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
                 f"{self.__class__.__name__} is only supported with the JAX or"
