@@ -76,6 +76,70 @@ class LiteRTExporter:
         self.aot_compile_targets = aot_compile_targets
         self.kwargs = kwargs
 
+    def _has_dict_inputs(self):
+        """Check if the model expects dictionary inputs.
+
+        Returns:
+            bool: True if model has dict inputs, False otherwise.
+        """
+        # Check if model.inputs is a dict (most reliable for built models)
+        if hasattr(self.model, "inputs") and isinstance(
+            self.model.inputs, dict
+        ):
+            return True
+
+        # Check if _inputs_struct is a dict (for Functional models)
+        if hasattr(self.model, "_inputs_struct") and isinstance(
+            self.model._inputs_struct, dict
+        ):
+            return True
+
+        # Check if provided input_signature is a dict
+        if self.input_signature is not None:
+            if isinstance(self.input_signature, dict):
+                return True
+            # Check for wrapped dict (Functional model pattern)
+            if (
+                isinstance(self.input_signature, (list, tuple))
+                and len(self.input_signature) == 1
+                and isinstance(self.input_signature[0], dict)
+            ):
+                return True
+
+        return False
+
+    def _infer_dict_input_signature(self):
+        """Infer input signature from a model with dict inputs.
+
+        This reads the actual shapes and dtypes from model._inputs_struct.
+
+        Returns:
+            dict or None: Dictionary mapping input names to InputSpec, or None
+        """
+        # Check _inputs_struct first (preserves dict structure)
+        if hasattr(self.model, "_inputs_struct") and isinstance(
+            self.model._inputs_struct, dict
+        ):
+            from keras.src.export.export_utils import make_input_spec
+
+            return {
+                name: make_input_spec(inp)
+                for name, inp in self.model._inputs_struct.items()
+            }
+
+        # Fall back to model.inputs if it's a dict
+        if hasattr(self.model, "inputs") and isinstance(
+            self.model.inputs, dict
+        ):
+            from keras.src.export.export_utils import make_input_spec
+
+            return {
+                name: make_input_spec(inp)
+                for name, inp in self.model.inputs.items()
+            }
+
+        return None
+
     def export(self, filepath):
         """Exports the Keras model to a TFLite file and optionally performs AOT
         compilation.
@@ -97,12 +161,54 @@ class LiteRTExporter:
         if self.input_signature is None:
             if self.verbose:
                 io_utils.print_msg("Inferring input signature from model.")
-            from keras.src.export.export_utils import get_input_signature
 
-            self.input_signature = get_input_signature(self.model)
+            # Try dict-specific inference first (for models with dict inputs)
+            dict_signature = self._infer_dict_input_signature()
+            if dict_signature is not None:
+                self.input_signature = dict_signature
+                if self.verbose:
+                    io_utils.print_msg(
+                        f"Detected dictionary inputs with keys: "
+                        f"{list(dict_signature.keys())}"
+                    )
+            else:
+                # Fall back to standard inference
+                from keras.src.export.export_utils import get_input_signature
 
-        # 3. Convert the model to TFLite.
-        tflite_model = self._convert_to_tflite(self.input_signature)
+                self.input_signature = get_input_signature(self.model)
+
+        # 3. Handle dictionary inputs by creating an adapter
+        # Check if we have dict inputs that need adaptation
+        has_dict_inputs = isinstance(self.input_signature, dict)
+
+        if has_dict_inputs:
+            # Create adapter model that converts list to dict
+            adapted_model = self._create_dict_adapter(self.input_signature)
+
+            # Convert dict signature to list for TFLite conversion
+            # The adapter will handle the dict->list conversion
+            input_signature_list = list(self.input_signature.values())
+
+            # Use adapted model and list signature for conversion
+            model_to_convert = adapted_model
+            signature_for_conversion = input_signature_list
+        else:
+            # No dict inputs - use model as-is
+            model_to_convert = self.model
+            signature_for_conversion = self.input_signature
+
+        # Store original model reference for later use
+        original_model = self.model
+
+        # Temporarily replace self.model with the model to convert
+        self.model = model_to_convert
+
+        try:
+            # 4. Convert the model to TFLite.
+            tflite_model = self._convert_to_tflite(signature_for_conversion)
+        finally:
+            # Restore original model
+            self.model = original_model
 
         if self.verbose:
             # Calculate model size from the serialized bytes
@@ -150,6 +256,60 @@ class LiteRTExporter:
                 )
 
         return compiled_models if compiled_models else filepath
+
+    def _create_dict_adapter(self, input_signature_dict):
+        """Create an adapter model that converts list inputs to dict inputs.
+
+        This adapter allows models expecting dictionary inputs to be exported
+        to TFLite format (which only supports positional/list inputs).
+
+        Args:
+            input_signature_dict: Dictionary mapping input names to InputSpec
+
+        Returns:
+            A Functional model that accepts list inputs and converts to dict
+        """
+        if self.verbose:
+            io_utils.print_msg(
+                f"Creating adapter for dictionary inputs: "
+                f"{list(input_signature_dict.keys())}"
+            )
+
+        input_keys = list(input_signature_dict.keys())
+
+        # Create Input layers for TFLite (list-based)
+        input_layers = []
+        for name in input_keys:
+            spec = input_signature_dict[name]
+            input_layer = tf.keras.layers.Input(
+                shape=spec.shape[1:],  # Remove batch dimension
+                dtype=spec.dtype,
+                name=name,
+            )
+            input_layers.append(input_layer)
+
+        # Create dict from list inputs
+        inputs_dict = {
+            name: layer for name, layer in zip(input_keys, input_layers)
+        }
+
+        # Call the original model with dict inputs
+        outputs = self.model(inputs_dict)
+
+        # Build as Functional model (list inputs -> dict -> model -> output)
+        adapted_model = tf.keras.Model(inputs=input_layers, outputs=outputs)
+
+        # Preserve the original model's variables
+        adapted_model._variables = self.model.variables
+        adapted_model._trainable_variables = self.model.trainable_variables
+        adapted_model._non_trainable_variables = (
+            self.model.non_trainable_variables
+        )
+
+        if self.verbose:
+            io_utils.print_msg("Adapter created successfully.")
+
+        return adapted_model
 
     def _ensure_model_built(self):
         """
@@ -288,7 +448,15 @@ class LiteRTExporter:
                     if len(args) == 1:
                         return self._model(args[0])
                     else:
-                        return self._model(*args)
+                        # Multi-input case: Functional models expect a list,
+                        # not unpacked positional args
+                        if (
+                            hasattr(self._model, "inputs")
+                            and len(self._model.inputs) > 1
+                        ):
+                            return self._model(list(args))
+                        else:
+                            return self._model(*args)
                 elif kwargs and not args:
                     # Called with keyword arguments
                     if len(kwargs) == 1 and "inputs" in kwargs:
@@ -332,7 +500,28 @@ class LiteRTExporter:
         wrapper = KerasModelWrapper(self.model)
 
         # 2. Get a concrete function from the wrapper.
-        if not isinstance(input_signature, (list, tuple)):
+        # Handle dict input signatures for multi-input models
+        if isinstance(input_signature, dict):
+            # For Functional models with multiple inputs, convert dict to
+            # ordered list matching model.inputs order
+            if hasattr(self.model, "inputs") and len(self.model.inputs) > 1:
+                input_signature_list = []
+                for input_layer in self.model.inputs:
+                    input_name = input_layer.name
+                    if input_name not in input_signature:
+                        raise ValueError(
+                            f"Missing input '{input_name}' in input_signature. "
+                            f"Model expects inputs: "
+                            f"{[inp.name for inp in self.model.inputs]}, "
+                            f"but input_signature only has: "
+                            f"{list(input_signature.keys())}"
+                        )
+                    input_signature_list.append(input_signature[input_name])
+                input_signature = input_signature_list
+            else:
+                # Single-input model with dict signature
+                input_signature = [input_signature]
+        elif not isinstance(input_signature, (list, tuple)):
             input_signature = [input_signature]
 
         from keras.src.export.export_utils import make_tf_tensor_spec
