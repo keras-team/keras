@@ -1,4 +1,5 @@
 from keras.src import testing
+from keras.src.backend.common import global_state
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.name_scope import name_scope
 
@@ -46,3 +47,53 @@ class NameScopeTest(testing.TestCase):
                         current_path(), "absolute/path/middle/inner"
                     )
             self.assertEqual(current_path(), "outer")
+
+    def test_exit_with_empty_stack(self):
+        global_state.set_global_attribute("name_scope_stack", [])
+
+        scope = name_scope("test")
+        scope._pop_on_exit = True
+
+        try:
+            scope.__exit__()
+            success = True
+        except (AttributeError, IndexError):
+            success = False
+
+        self.assertTrue(success)
+
+    def test_exit_with_none_stack(self):
+        global_state.set_global_attribute("name_scope_stack", None)
+
+        scope = name_scope("test")
+        scope._pop_on_exit = True
+
+        try:
+            scope.__exit__()
+            success = True
+        except (AttributeError, IndexError):
+            success = False
+
+        self.assertTrue(success)
+
+    def test_exit_without_pop_on_exit(self):
+        global_state.set_global_attribute("name_scope_stack", ["dummy"])
+
+        scope = name_scope("test")
+        scope._pop_on_exit = False
+
+        scope.__exit__()
+
+        name_scope_stack = global_state.get_global_attribute("name_scope_stack")
+        self.assertEqual(len(name_scope_stack), 1)
+
+    def test_normal_exit_still_works(self):
+        self.assertEqual(current_path(), "")
+
+        with name_scope("test1"):
+            self.assertEqual(current_path(), "test1")
+            with name_scope("test2"):
+                self.assertEqual(current_path(), "test1/test2")
+            self.assertEqual(current_path(), "test1")
+
+        self.assertEqual(current_path(), "")
