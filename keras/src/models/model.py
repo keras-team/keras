@@ -667,11 +667,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         # Check if LiteRT export is available (requires TensorFlow backend)
         if format == "litert" and backend.backend() != "tensorflow":
-            raise ImportError(
-                "LiteRT export requires TensorFlow backend. "
-                "Please set the backend to TensorFlow: "
-                "`keras.backend.set_backend('tensorflow')`"
-            )
+            raise ImportError("LiteRT export requires TensorFlow backend.")
 
         if format == "tf_saved_model":
             export_saved_model(
@@ -701,7 +697,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             export_litert(
                 self,
                 filepath,
-                verbose=verbose,
                 input_signature=input_signature,
                 **kwargs,
             )
