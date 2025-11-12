@@ -468,10 +468,14 @@ class OrbaxCheckpoint(MonitorCallback):
         checkpoints if there might be pending save operations.
         """
         # Wait for any async operations to complete
-        while self.checkpointer.is_saving_in_progress():
-            import time
+        try:
+            self.checkpointer.wait()
+        except AttributeError:
+            # Fallback for older Orbax versions that don't have wait() method
+            while self.checkpointer.is_saving_in_progress():
+                import time
 
-            time.sleep(0.1)
+                time.sleep(0.1)
 
     def _restore_model_state_from_full_tree(self, state_tree, model=None):
         """Restore model state from full state tree (V1 format)."""
