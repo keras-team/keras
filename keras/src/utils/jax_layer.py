@@ -1,4 +1,3 @@
-import collections
 import functools
 import inspect
 import itertools
@@ -11,13 +10,15 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import standardize_dtype
+from keras.src.backend.jax.core import (
+    random_seed_dtype as jax_random_seed_dtype,
+)
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import jax
 from keras.src.utils.module_utils import tensorflow as tf
-
 
 if backend.backend() == "tensorflow":
     tf_no_automatic_dependency_tracking = (
@@ -252,6 +253,7 @@ class JaxLayer(Layer):
             dtype = jax.numpy.uint32
         elif backend.backend() == "tensorflow":
             dtype = tf.uint32
+        dtype = jax_random_seed_dtype()
         self.seed_generator = backend.random.SeedGenerator(
             seed=seed, dtype=dtype
         )
