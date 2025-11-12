@@ -19,17 +19,6 @@ from keras.src.utils.module_utils import jax
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-def standardize_pytree_collections(pytree):
-    if isinstance(pytree, (str, bytes)):
-        return pytree
-    if isinstance(pytree, collections.abc.Mapping):
-        return {k: standardize_pytree_collections(v) for k, v in pytree.items()}
-    elif isinstance(pytree, collections.abc.Sequence):
-        return [standardize_pytree_collections(v) for v in pytree]
-    else:
-        return pytree
-
-
 if backend.backend() == "tensorflow":
     tf_no_automatic_dependency_tracking = (
         tf.__internal__.tracking.no_automatic_dependency_tracking
@@ -455,7 +444,6 @@ class JaxLayer(Layer):
             as the `rng` argument of `init_fn`.
         """
         next = self.seed_generator.next()
-        print("!!type", type(next), next)
         return next
 
     def _get_call_rng(self, training):
