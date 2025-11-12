@@ -235,7 +235,6 @@ class JaxLayer(Layer):
         seed=None,
         **kwargs,
     ):
-        from keras.src.backend import jax as jax_backend
 
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
@@ -443,14 +442,14 @@ class JaxLayer(Layer):
         Returns:
             a JAX `PRNGKey` or structure of `PRNGKey`s that will be passed as
             the `rng` argument of `init_fn`.
-        
+
         """
 
         from keras.src.backend.jax.core import convert_to_tensor
-    
-        if backend.backend() == 'jax':
+
+        if backend.backend() == "jax":
             return self.seed_generator.next()
-        if backend.backend() == 'tensorflow':
+        if backend.backend() == "tensorflow":
             return convert_to_tensor(self.seed_generator.next())
 
     def _get_call_rng(self, training):
