@@ -251,8 +251,12 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
+        if backend.backend() == "jax":
+            dtype = jax.numpy.uint32
+        elif backend.backend() == "tensorflow":
+            dtype = tf.uint32
         self.seed_generator = backend.random.SeedGenerator(
-            seed, backend=jax_backend
+            seed=seed, dtype=dtype
         )
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
@@ -439,8 +443,15 @@ class JaxLayer(Layer):
         Returns:
             a JAX `PRNGKey` or structure of `PRNGKey`s that will be passed as
             the `rng` argument of `init_fn`.
+        
         """
-        return self.seed_generator.next()
+
+        from keras.src.backend.jax.core import convert_to_tensor
+    
+        if backend.backend() == 'jax':
+            return self.seed_generator.next()
+        if backend.backend() == 'tensorflow':
+            return convert_to_tensor(self.seed_generator.next())
 
     def _get_call_rng(self, training):
         """
@@ -797,13 +808,13 @@ class FlaxLayer(JaxLayer):
 
     def _get_init_rng(self):
         return {
-            "params": self.seed_generator.next(),
-            "dropout": self.seed_generator.next(),
+            "params": super()._get_init_rng(),
+            "dropout": super()._get_init_rng(),
         }
 
     def _get_call_rng(self, training):
         if training:
-            return {"dropout": self.seed_generator.next()}
+            return {"dropout": super()._get_call_rng(training)}
         else:
             return {}
 

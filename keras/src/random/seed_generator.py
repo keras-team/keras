@@ -63,6 +63,7 @@ class SeedGenerator:
         self.name = name
 
         custom_backend = kwargs.pop("backend", None)
+        dtype = kwargs.pop("dtype", None)
         if kwargs:
             raise ValueError(f"Unrecognized keyword arguments: {kwargs}")
         if custom_backend is not None:
@@ -84,10 +85,11 @@ class SeedGenerator:
             return self.backend.convert_to_tensor([seed, 0], dtype=dtype)
 
         with self.backend.name_scope(self.name, caller=self):
+            dtype = dtype if dtype else self.backend.random_seed_dtype()
             self.state = self.backend.Variable(
                 seed_initializer,
                 shape=(2,),
-                dtype=self.backend.random_seed_dtype(),
+                dtype=dtype,
                 trainable=False,
                 aggregation="none",
                 name="seed_generator_state",
