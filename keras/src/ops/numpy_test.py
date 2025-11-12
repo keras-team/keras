@@ -1495,6 +1495,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((5,))
         self.assertEqual(knp.dot(x, y).shape, ())
 
+    def test_empty(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.empty(x).shape, (None, 3))
+        self.assertEqual(knp.empty(x).dtype, backend.floatx())
+
     def test_empty_like(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.empty_like(x).shape, (None, 3))
@@ -2143,6 +2148,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3))
             knp.dot(x, y)
+
+    def test_empty(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.empty(x).shape, (2, 3))
+        self.assertEqual(knp.empty(x).dtype, backend.floatx())
 
     def test_empty_like(self):
         x = KerasTensor((2, 3))

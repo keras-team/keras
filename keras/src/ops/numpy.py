@@ -3100,6 +3100,22 @@ def einsum(subscripts, *operands, **kwargs):
     return backend.numpy.einsum(subscripts, *operands, **kwargs)
 
 
+class Empty(Operation):
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = (
+            backend.floatx()
+            if dtype is None
+            else backend.standardize_dtype(dtype)
+        )
+
+    def call(self, x):
+        return backend.numpy.empty(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=self.dtype)
+
+
 @keras_export(["keras.ops.empty", "keras.ops.numpy.empty"])
 def empty(shape, dtype=None):
     """Return a tensor of given shape and type filled with uninitialized data.
@@ -3111,6 +3127,8 @@ def empty(shape, dtype=None):
     Returns:
         The empty tensor.
     """
+    if any_symbolic_tensors((shape,)):
+        return Empty(dtype=dtype).symbolic_call(shape)
     return backend.numpy.empty(shape, dtype=dtype)
 
 
