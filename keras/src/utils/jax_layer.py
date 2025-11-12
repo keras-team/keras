@@ -460,16 +460,17 @@ class JaxLayer(Layer):
 
     def _get_call_rng(self, training):
         """
-        Returns a JAX `PRNGKey` or structure of `PRNGKey`s to pass to `call_fn`.
+        Returns a key in form of the backend array of size 2 dtype uint32
+        to pass to `call_fn`.
 
-        By default, this returns a single `PRNGKey` retrieved by calling
+        By default, this returns a Jax or TF array of size 2 by calling
         `self.seed_generator.next()` when `training` is `True`, and `None` when
         `training` is `False`. Override this to return a different structure or
         to pass RNGs in inference mode too.
 
         Returns:
-            a JAX `PRNGKey` or structure of `PRNGKey`s that will be passed as
-            the `rng` argument of `call_fn`.
+            a key as an Jax or TF array of size 2 dtype uint32 will be passed
+            as the `rng` argument of `call_fn`.
         """
         if training:
             return self.seed_generator.next()
