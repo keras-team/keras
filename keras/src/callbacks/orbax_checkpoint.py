@@ -16,33 +16,41 @@ from keras.src.utils.module_utils import ocp
 
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
-    # For JAX backend, preserve native arrays if JAX monitoring available
+    # For JAX backend, preserve native arrays if JAX >= 0.7.0
     # to avoid unnecessary conversions. Otherwise convert to numpy.
+    did_numpy_conversion = False
     if backend.backend() == "jax":
-        try:
-            import jax
+        import jax
+        from packaging import version
 
-            # Check if jax.monitoring.record_scalar exists (JAX 0.7.0+)
-            jax.monitoring.record_scalar
+        # Check JAX version directly (JAX 0.7.0+ supports better array handling)
+        if version.parse(jax.__version__) >= version.parse("0.7.0"):
             state_tree = model.get_state_tree()
-        except (ImportError, AttributeError):
+        else:
             # Fallback to numpy conversion for older JAX versions
             state_tree = model.get_state_tree(value_format="numpy_array")
+            did_numpy_conversion = True
     else:
         state_tree = model.get_state_tree(value_format="numpy_array")
+        did_numpy_conversion = True
 
     # Convert numpy scalar types to Python types for Orbax compatibility
-    def convert_scalars(obj):
-        if isinstance(obj, np.ndarray) and obj.ndim == 0:
-            # Convert 0-dimensional numpy arrays (scalars) to Python types
-            return obj.item()
-        elif isinstance(obj, np.generic):
-            # Convert numpy scalar types (like np.float32) to Python types
-            return obj.item()
-        else:
-            return obj
+    # Only needed when we did numpy conversion
+    if did_numpy_conversion:
 
-    return tree.map_structure(convert_scalars, state_tree)
+        def convert_scalars(obj):
+            if isinstance(obj, np.ndarray) and obj.ndim == 0:
+                # Convert 0-dimensional numpy arrays (scalars) to Python types
+                return obj.item()
+            elif isinstance(obj, np.generic):
+                # Convert numpy scalar types (like np.float32) to Python types
+                return obj.item()
+            else:
+                return obj
+
+        return tree.map_structure(convert_scalars, state_tree)
+    else:
+        return state_tree
 
 
 @keras_export("keras.callbacks.OrbaxCheckpoint")
@@ -181,7 +189,6 @@ class OrbaxCheckpoint(MonitorCallback):
             save_decision_policy = _AlwaysSavePolicy()
 
         # --- Orbax Checkpointer Setup (V1 API) ---
-        # Map V0 options to V1 parameters
         policies = []
         if keep_period is not None:
             policies.append(
@@ -227,34 +234,11 @@ class OrbaxCheckpoint(MonitorCallback):
             return True
         return False
 
-    def _get_current_step(self):
-        # A reliable way to get a global step count
-        # Using optimizer iterations is common
-        if hasattr(self.model, "optimizer") and hasattr(
-            self.model.optimizer, "iterations"
-        ):
-            # Convert potential backend tensor to int
-            return int(
-                backend.convert_to_numpy(self.model.optimizer.iterations)
-            )
-        else:
-            # Fallback: use global batch count
-            return self._total_batches_seen
-
     def _save_checkpoint(self, step, logs=None):
         """Save a checkpoint at the given step."""
-        if self.model is None:
-            return
 
         # --- Prepare Composite State (Backend-Agnostic) ---
         state_tree = _get_state_tree(self.model)
-
-        if state_tree is None:
-            raise RuntimeError(
-                "OrbaxCheckpoint: Failed to get model state tree. "
-                "The model may not be properly built or may have no "
-                "savable state."
-            )
 
         # Save the nested state structures directly (preserving layer
         # names and structure)
@@ -343,9 +327,8 @@ class OrbaxCheckpoint(MonitorCallback):
                     self.best = current
 
             if should_save:
-                # Use step number (e.g., optimizer iterations) for Orbax save
-                # step
-                step = self._get_current_step()
+                # Use global batch count for Orbax save step
+                step = self._total_batches_seen
                 self._save_checkpoint(step=step, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):
@@ -379,9 +362,6 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        if self.verbose > 0:
-            print_msg("OrbaxCheckpoint: Training completed.")
-
         # Close the Checkpointer to ensure all pending saves complete
         try:
             self.checkpointer.close()
@@ -484,14 +464,3 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.verbose > 0:
             print_msg("OrbaxCheckpoint: Successfully restored model state")
         return True
-
-
-# Export additional Orbax functionality for advanced users (only if available)
-if ocp.available:
-    Checkpointer = ocp.training.Checkpointer
-    save_pytree = ocp.save_pytree
-    load_pytree = ocp.load_pytree
-    save_pytree_async = ocp.save_pytree_async
-    load_pytree_async = ocp.load_pytree_async
-    preservation_policies = ocp.training.preservation_policies
-    save_decision_policies = ocp.training.save_decision_policies

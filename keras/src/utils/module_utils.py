@@ -64,6 +64,6 @@ ocp = LazyModule(
     pip_name="orbax-checkpoint",
     import_error_msg=(
         "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
-        "Install it with: pip install orbax-checkpoint"
+        "You can install it via pip install orbax-checkpoint"
     ),
 )
