@@ -242,7 +242,6 @@ class JaxLayer(Layer):
         seed=None,
         **kwargs,
     ):
-
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
                 f"{self.__class__.__name__} is only supported with the JAX or"
@@ -468,7 +467,6 @@ class JaxLayer(Layer):
             return None
 
     def _initialize_weights(self, input_shape):
-
         if jax_utils.is_in_jax_tracing_scope() or tf.inside_function():
             # This exception is not actually shown, it is caught and a detailed
             # warning about calling 'build' is printed.
