@@ -1,8 +1,6 @@
 import logging
 import os
-import traceback
 
-from keras.src import tree
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import litert
 from keras.src.utils.module_utils import tensorflow as tf
@@ -143,10 +141,7 @@ class LiteRTExporter:
             Path to exported model or compiled models if AOT compilation is
             performed
         """
-        # 1. Ensure the model is built
-        self._ensure_model_built()
-
-        # 2. Resolve / infer input signature
+        # 1. Resolve / infer input signature
         if self.input_signature is None:
             # Try dict-specific inference first (for models with dict inputs)
             dict_signature = self._infer_dict_input_signature()
@@ -262,44 +257,6 @@ class LiteRTExporter:
         )
 
         return adapted_model
-
-    def _ensure_model_built(self):
-        """
-        Ensures the model is built before conversion.
-
-        For models that are not yet built, this attempts to build them
-        using the input signature or model.inputs.
-        """
-        if self.model.built:
-            return
-
-        try:
-            # Try to build using input_signature if available
-            if self.input_signature:
-                input_shapes = tree.map_structure(
-                    lambda spec: spec.shape, self.input_signature
-                )
-                self.model.build(input_shapes)
-            # Fall back to model.inputs for Functional/Sequential models
-            elif hasattr(self.model, "inputs") and self.model.inputs:
-                input_shapes = [inp.shape for inp in self.model.inputs]
-                if len(input_shapes) == 1:
-                    self.model.build(input_shapes[0])
-                else:
-                    self.model.build(input_shapes)
-            else:
-                raise ValueError(
-                    "Cannot export model to the litert format as the "
-                    "input_signature could not be inferred. Either pass an "
-                    "`input_signature` to `model.export()` or ensure that the "
-                    "model is already built (called once on real inputs)."
-                )
-
-        except Exception as e:
-            raise ValueError(
-                f"Failed to build model: {e}. Please ensure the model is "
-                "properly defined or provide an input_signature."
-            )
 
     def _convert_to_tflite(self, input_signature):
         """Converts the Keras model to TFLite format.
