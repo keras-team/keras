@@ -20,7 +20,7 @@ def _cast_seed(seed):
         return seed
 
 
-def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
     dtype = dtype or floatx()
     seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_normal(
@@ -28,7 +28,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     )
 
 
-def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
+def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None, layout=None):
     dtype = dtype or floatx()
     seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_uniform(
@@ -61,7 +61,9 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     return tf.cast(output, dtype)
 
 
-def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+def truncated_normal(
+    shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None
+):
     dtype = dtype or floatx()
     seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_truncated_normal(

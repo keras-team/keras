@@ -9,6 +9,110 @@ from keras.src.utils import jax_utils
 from keras.src.utils import rng_utils
 
 
+def _distribute_initializer(
+    init_func=None, mean=0.0, stddev=1.0, seed=None, layout=None
+):
+    """
+    Distribution-aware initializer for JAX backend.
+    This function will create a Jax random array and
+    distribute it according to the current layout.
+    Args:
+        init_func: A functools.partial-wrapped object that takes the seed
+            as argument and returns a jax.Array. Must have shape and dtype
+            already bound via partial.
+        mean: Mean of distribution (applied to normal/truncated_normal).
+        stddev: Standard deviation of the distribution.
+        seed: JAX compatible seed array, if None use the Seed generator.
+        layout: TensorLayout for the distributed tensor.
+    Returns:
+        A distributed jax array.
+    Raises:
+        ValueError: If init_func or seed is None.
+                    If init_func.func is not a supported random function.
+                    Supported jax.random func: normal, truncated_normal, uniform
+        TypeError: If init_func is not a functools.partial object
+                   or seed is not a Jax array.
+
+    """
+    import warnings
+    from functools import partial
+
+    # Draw seed from the seed generator if seed is not a Jax Array
+    if seed is None or not isinstance(seed, jax.Array):
+        jax_compatible_seed = seed_generator.draw_seed(None)
+        # Convert to JAX PRNG key format (swap counter and seed value)
+        seed = jax_compatible_seed[::-1]
+
+    # Validate all required arguments
+    if init_func is None or init_func.func.__name__ not in [
+        "normal",
+        "truncated_normal",
+        "uniform",
+    ]:
+        raise ValueError(
+            "init_func cannot be None or "
+            "Unsupported initializer: {init_func.func.__name__}."
+            "only JAX-compatible random initializers are supported. "
+            "Supported jax.random funcs: normal, truncated_normal, uniform"
+        )
+
+    # Ensure init_func is a partial
+    if not isinstance(init_func, partial):
+        raise TypeError(
+            f"init_func must be functools.partial object, got {type(init_func)}"
+            "init_func is a jax.random.* function with shape and "
+            "dtype bound via partial"
+        )
+
+    # Shard based on tensor layout
+    if layout is None:
+        warnings.warn(
+            f"The layout is {layout}, sharding will default to single device"
+        )
+
+        sharding = None
+    else:
+        if not isinstance(layout, jax.sharding.NamedSharding):
+            from keras.src.distribution import TensorLayout
+
+            if isinstance(layout, TensorLayout):
+                layout = _to_backend_layout(layout)
+            else:
+                raise TypeError(
+                    f"layout must be Keras TensorLayout or "
+                    f"jax.sharding.NamedSharding, got {type(layout)}"
+                )
+        sharding = layout
+
+    # JAX PRNG key handling within JIT:
+    # The key is passed directly to jax.random.* functions which are
+    # JIT-compatible and functional. JAX automatically ensures different
+    # random values per shard when out_shardings is specified.
+    try:
+        compiled_init = jax.jit(
+            lambda seed: init_func(seed),
+            out_shardings=sharding,
+        )
+        sample = compiled_init(seed)
+
+    except RuntimeError as e:
+        warnings.warn(
+            f"Sharding at initialization failed due to: {e}, "
+            f"falling back to single device"
+        )
+        compiled_init = jax.jit(
+            lambda seed: init_func(seed),
+            out_shardings=None,
+        )
+        sample = compiled_init(seed)
+
+    # Apply mean/stddev only for distributions where it makes sense
+    if init_func.func in (jax.random.normal, jax.random.truncated_normal):
+        return sample * stddev + mean
+    elif init_func.func == jax.random.uniform:
+        return sample
+
+
 def list_devices(device_type=None):
     """Return all the available devices based on the device type.
 

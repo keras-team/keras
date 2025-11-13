@@ -134,8 +134,12 @@ def global_seed_generator():
             "```"
         )
     gen = global_state.get_global_attribute("global_seed_generator")
-    if gen is None:
+    global_seed = global_state.get_global_attribute("global_random_seed")
+    if gen is None and global_seed is None:
         gen = SeedGenerator()
+        global_state.set_global_attribute("global_seed_generator", gen)
+    elif gen is None and global_seed is not None:
+        gen = SeedGenerator(global_seed)
         global_state.set_global_attribute("global_seed_generator", gen)
     return gen
 
