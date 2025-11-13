@@ -24,7 +24,14 @@ class LazyModule:
 
     def initialize(self):
         try:
-            self.module = importlib.import_module(self.name)
+            # Special handling for orbax.checkpoint.v1
+            if self.name == "orbax.checkpoint.v1":
+                # Import the parent module and get the v1 submodule
+                parent_module = importlib.import_module("orbax.checkpoint")
+                self.module = parent_module.v1
+            else:
+                # Normal module import
+                self.module = importlib.import_module(self.name)
         except ImportError:
             raise ImportError(self.import_error_msg)
 
@@ -60,7 +67,7 @@ dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
 grain = LazyModule("grain")
 ocp = LazyModule(
-    "orbax.checkpoint.experimental.v1",
+    "orbax.checkpoint.v1",
     pip_name="orbax-checkpoint",
     import_error_msg=(
         "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
