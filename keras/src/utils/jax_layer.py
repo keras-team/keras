@@ -35,6 +35,7 @@ def _convert_to_jax_key(tensor):
                 return key_uint32
             else:
                 return jax.numpy.array(key_uint32)
+    return tensor
 
 
 @keras_export("keras.layers.JaxLayer")
