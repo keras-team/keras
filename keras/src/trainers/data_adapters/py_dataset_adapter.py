@@ -75,12 +75,12 @@ class PyDataset:
 
     class CIFAR10PyDataset(keras.utils.PyDataset):
 
-        def __init__(self, x_set, y_set, batch_size,shuffle=False, **kwargs):
+        def __init__(self, x_set, y_set, batch_size, shuffle=False, **kwargs):
             super().__init__(**kwargs)
             self.x, self.y = x_set, y_set
             self.batch_size = batch_size
             self.shuffle = shuffle
-            self.indices = np.arrange(len(self.x))
+            self.indices = np.arange(len(self.x))
 
         def __len__(self):
             # Return number of batches.
