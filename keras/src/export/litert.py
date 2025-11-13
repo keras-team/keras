@@ -1,8 +1,7 @@
-import logging
-import os
-
+from keras.src.export.export_utils import get_input_signature
+from keras.src.export.export_utils import make_input_spec
+from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils import io_utils
-from keras.src.utils.module_utils import litert
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -102,8 +101,6 @@ class LiteRTExporter:
         if hasattr(self.model, "_inputs_struct") and isinstance(
             self.model._inputs_struct, dict
         ):
-            from keras.src.export.export_utils import make_input_spec
-
             return {
                 name: make_input_spec(inp)
                 for name, inp in self.model._inputs_struct.items()
@@ -113,8 +110,6 @@ class LiteRTExporter:
         if hasattr(self.model, "inputs") and isinstance(
             self.model.inputs, dict
         ):
-            from keras.src.export.export_utils import make_input_spec
-
             return {
                 name: make_input_spec(inp)
                 for name, inp in self.model.inputs.items()
@@ -139,8 +134,6 @@ class LiteRTExporter:
                 self.input_signature = dict_signature
             else:
                 # Fall back to standard inference
-                from keras.src.export.export_utils import get_input_signature
-
                 self.input_signature = get_input_signature(self.model)
 
         # 3. Handle dictionary inputs by creating an adapter
@@ -383,8 +376,6 @@ class LiteRTExporter:
                 input_signature = [input_signature]
         elif not isinstance(input_signature, (list, tuple)):
             input_signature = [input_signature]
-
-        from keras.src.export.export_utils import make_tf_tensor_spec
 
         tensor_specs = [make_tf_tensor_spec(spec) for spec in input_signature]
 
