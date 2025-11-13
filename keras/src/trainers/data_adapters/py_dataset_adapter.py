@@ -41,11 +41,11 @@ class PyDataset:
             Reduce this value to reduce the CPU memory consumption of
             your dataset. Defaults to 10.
         shuffle: Whether to shuffle the sample ordering at the end of
-            each epoch.This argument passed to `model.fit()`. when 
-            `model.fit(.., shuffle=True)`, the training loop 
-            automatically calls `on_epoch_end()` at each epoch 
-            boundary, allowing datasets to implement custom 
-            shuffling logic. Defaults to False.
+            each epoch. This argument is passed to `model.fit()`. When
+            `model.fit(..., shuffle=True)`, the training loop
+            automatically calls `on_epoch_end()` at each epoch
+            boundary, allowing datasets to implement custom
+            shuffling logic. Defaults to `False`.
 
     Notes:
 
