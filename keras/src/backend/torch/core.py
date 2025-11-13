@@ -109,6 +109,12 @@ class Variable(KerasVariable):
                 requires_grad=self.trainable,
             ).to(get_device())
 
+    def _initialize_with_initializer(self, initializer):
+        value = self._convert_to_tensor(
+            initializer(self._shape, dtype=self._dtype)
+        )
+        self._initialize(value)
+
     def _direct_assign(self, value):
         with torch.no_grad():
             self.value.copy_(value)
