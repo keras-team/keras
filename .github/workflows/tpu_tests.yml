@@ -1,4 +1,4 @@
-name: Keras TPU Tests
+name: Keras Tests
 
 # TODO: Consider enabling all tests (pytest, applications, etc.) with NNX in the future
 # Currently only basic flow tests run with NNX enabled
@@ -6,7 +6,6 @@ name: Keras TPU Tests
 on:
   push:
     branches: [ master ]
-  pull_request:
   pull_request_review:
     types: [submitted]
   release:
