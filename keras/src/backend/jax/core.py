@@ -30,21 +30,50 @@ class JaxVariable(KerasVariable):
         self._layout = layout
         super().__init__(*args, **kwargs)
 
+    def set_tensor_layout(self):
+        # We can't import the keras/distribution/distribution_lib
+        # due to circular dependency.
+        if self._layout is None:
+            distribution = global_state.get_global_attribute("distribution")
+            if distribution is not None:
+                tensor_layout = distribution.get_variable_layout(self)
+                from keras.src.distribution import TensorLayout
+
+                if isinstance(tensor_layout, TensorLayout):
+                    self._layout = tensor_layout.backend_layout
+                else:
+                    self._layout = tensor_layout
+
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
         self._shape = self._validate_shape(value.shape)
-        # We can't import the keras/distribution/distribution_lib
-        # due to circular dependency.
-        distribution = global_state.get_global_attribute("distribution")
-        if self._layout is None and distribution is not None:
-            tensor_layout = distribution.get_variable_layout(self)
-            from keras.src.distribution import TensorLayout
-
-            if isinstance(tensor_layout, TensorLayout):
-                self._layout = tensor_layout.backend_layout
-            else:
-                self._layout = tensor_layout
+        self.set_tensor_layout()
         self._direct_assign(value)
+
+    def check_distributed_init(self, initializer):
+        # Check if 'layout' parameter is supported in the initializer call
+        import inspect
+
+        sig = inspect.signature(initializer.__call__)
+        layout_supported = "layout" in sig.parameters
+        # Check if PartitionSpec has any non-None values
+        spec = getattr(self._layout, "spec", None)
+        partition_spec = spec if spec is not None else ()
+        is_partitioned = any(dim is not None for dim in partition_spec)
+        return layout_supported and is_partitioned
+
+    def _initialize_with_initializer(self, initializer):
+        self.set_tensor_layout()
+        # Use layout-aware initialization for distributed embeddings
+        if self.check_distributed_init(initializer):
+            value = self._convert_to_tensor(
+                initializer(self._shape, dtype=self._dtype, layout=self._layout)
+            )
+        else:
+            value = self._convert_to_tensor(
+                initializer(self._shape, dtype=self._dtype)
+            )
+        self._initialize(value)
 
     def _direct_assign(self, value):
         if self._layout is not None:

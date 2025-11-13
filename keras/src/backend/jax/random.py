@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 
 from keras.src.backend.config import floatx
@@ -7,25 +9,61 @@ from keras.src.random.seed_generator import make_default_seed
 
 
 def jax_draw_seed(seed):
+    # Convert to JAX PRNG key format (swap counter and seed value)
     if isinstance(seed, jax.Array):
-        return seed
+        return seed[::-1]
     else:
-        return draw_seed(seed)
+        seed_array = draw_seed(seed)
+        return seed_array[::-1]
 
 
-def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
     dtype = dtype or floatx()
     seed = jax_draw_seed(seed)
-    sample = jax.random.normal(seed, shape=shape, dtype=dtype)
-    return sample * stddev + mean
+    if layout is not None:
+        from keras.src.backend import distribution_lib
+
+        init_func = partial(
+            jax.random.normal,
+            shape=shape,
+            dtype=dtype,
+        )
+        return distribution_lib._distribute_initializer(
+            init_func=init_func,
+            mean=mean,
+            stddev=stddev,
+            seed=seed,
+            layout=layout,
+        )
+    else:
+        sample = jax.random.normal(seed, shape=shape, dtype=dtype)
+        return sample * stddev + mean
 
 
-def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
+def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None, layout=None):
     dtype = dtype or floatx()
     seed = jax_draw_seed(seed)
-    return jax.random.uniform(
-        seed, shape=shape, dtype=dtype, minval=minval, maxval=maxval
-    )
+    if layout is not None:
+        from keras.src.backend import distribution_lib
+
+        init_func = partial(
+            jax.random.uniform,
+            shape=shape,
+            dtype=dtype,
+            minval=minval,
+            maxval=maxval,
+        )
+        return distribution_lib._distribute_initializer(
+            init_func=init_func,
+            mean=None,
+            stddev=None,
+            seed=seed,
+            layout=layout,
+        )
+    else:
+        return jax.random.uniform(
+            seed, shape=shape, dtype=dtype, minval=minval, maxval=maxval
+        )
 
 
 def categorical(logits, num_samples, dtype="int32", seed=None):
@@ -46,13 +84,33 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     )
 
 
-def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+def truncated_normal(
+    shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None
+):
     dtype = dtype or floatx()
     seed = jax_draw_seed(seed)
-    sample = jax.random.truncated_normal(
-        seed, shape=shape, lower=-2.0, upper=2.0, dtype=dtype
-    )
-    return sample * stddev + mean
+    if layout is not None:
+        from keras.src.backend import distribution_lib
+
+        init_func = partial(
+            jax.random.truncated_normal,
+            shape=shape,
+            dtype=dtype,
+            lower=-2.0,
+            upper=2.0,
+        )
+        return distribution_lib._distribute_initializer(
+            init_func=init_func,
+            mean=mean,
+            stddev=stddev,
+            seed=seed,
+            layout=layout,
+        )
+    else:
+        sample = jax.random.truncated_normal(
+            seed, shape=shape, lower=-2.0, upper=2.0, dtype=dtype
+        )
+        return sample * stddev + mean
 
 
 def _get_concrete_noise_shape(inputs, noise_shape):
