@@ -130,7 +130,7 @@ class HardTerminateOnNaNTest(testing.TestCase):
 
         callback = HardTerminateOnNaN()
 
-        # Should complete without raising
+        # Should complete without raising RuntimeError
         history = model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
 
         # Should have completed 2 epochs
