@@ -256,7 +256,7 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        self.seed_generator = backend.random.SeedGenerator(seed=seed)
+        self.seed_generator = backend.random.SeedGenerator(seed)
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
