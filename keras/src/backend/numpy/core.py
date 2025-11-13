@@ -23,6 +23,12 @@ class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = value
 
+    def _initialize_with_initializer(self, initializer):
+        value = self._convert_to_tensor(
+            initializer(self._shape, dtype=self._dtype)
+        )
+        self._initialize(value)
+
     def _direct_assign(self, value):
         self._value = np.array(value, dtype=self._dtype)
 

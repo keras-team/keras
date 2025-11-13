@@ -572,6 +572,12 @@ class Variable(KerasVariable):
             )
             self._value = OpenVINOKerasTensor(value_const.output(0))
 
+    def _initialize_with_initializer(self, initializer):
+        value = self._convert_to_tensor(
+            initializer(self._shape, dtype=self._dtype)
+        )
+        self._initialize(value)
+
     def _direct_assign(self, value):
         self._value = value
 
