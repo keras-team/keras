@@ -1,18 +1,24 @@
 import numpy as np
+import pytest
 
 import keras
+from keras import backend
 from keras import layers
 from keras import ops
-from keras.src.utils.arg_casts import _maybe_convert_to_int  # import helper
+from keras.src.utils.arg_casts import _maybe_convert_to_int
 
 
+@pytest.mark.skipif(
+    backend.backend() in ["numpy", "openvino"],
+    reason="fit() not implemented for NumPy/OpenVINO backends",
+)
 def test_dense_accepts_ops_prod_units_and_call_ops_prod():
     class ProdDenseLayer(layers.Layer):
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
 
         def build(self, input_shape):
-            units = ops.prod(input_shape[1:])  # uses ops.prod
+            units = ops.prod(input_shape[1:])
             self.dense = layers.Dense(_maybe_convert_to_int(units))
             self.dense.build(input_shape)
 
