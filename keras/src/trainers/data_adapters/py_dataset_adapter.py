@@ -92,16 +92,17 @@ class PyDataset:
             # Cap upper bound at array length; the last batch may be smaller
             # if the total number of items is not a multiple of batch size.
             high = min(low + self.batch_size, len(self.x))
-            batch_x = self.x[low:high]
-            batch_y = self.y[low:high]
+            # Retrieve a batch of data by index 
+            batch_indices = self.indices[low:high]
+            batch_x = self.x[batch_indices]
+            batch_y = self.y[batch_indices]
 
             return np.array([
                 resize(imread(file_name), (200, 200))
                    for file_name in batch_x]), np.array(batch_y)
         
         def on_epoch_end(self):
-            # Called automatically by model.fit() when shuffle=True
-            #
+            # Shuffle indices at the end of each epoch if enabled
             if self.shuffle:
                 np.random.shuffle(self.indices)
     ```
