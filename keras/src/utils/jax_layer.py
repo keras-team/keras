@@ -29,12 +29,7 @@ else:
 
 def _convert_to_jax_key(tensor):
     if backend.backend() == "tensorflow":
-        if tensor.dtype == tf.int64:
-            key_uint32 = tf.bitcast(tensor, tf.uint32)[0]
-            if tf.is_symbolic_tensor(key_uint32):
-                return key_uint32
-            else:
-                return jax.numpy.array(key_uint32)
+        return tf.bitcast(tensor, tf.uint32)[0]
     return tensor
 
 
@@ -487,7 +482,8 @@ class JaxLayer(Layer):
             if argument_name == "rng":
                 init_args.append(
                     jax.tree_util.tree_map(
-                        _convert_to_jax_key, self._get_init_rng()
+                        lambda x: jax.numpy.array(_convert_to_jax_key(x)),
+                        self._get_init_rng(),
                     )
                 )
             elif argument_name == "inputs":
