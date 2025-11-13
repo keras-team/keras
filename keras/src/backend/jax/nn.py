@@ -1800,7 +1800,7 @@ def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
     return pooled_w
 
 
-# ---------- Updated Dispatcher ----------
+# ---------- Dispatcher ----------
 def adaptive_avg_pool(inputs, output_size, data_format="channels_first"):
     """Dispatcher for adaptive average pooling (1D, 2D, or 3D)."""
     ndims = inputs.ndim - 2
