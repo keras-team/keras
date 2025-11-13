@@ -421,8 +421,8 @@ class ExportLitertTest(testing.TestCase):
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.txt")
 
-        # Should raise AssertionError for wrong extension
-        with self.assertRaises(AssertionError):
+        # Should raise ValueError for wrong extension
+        with self.assertRaises(ValueError):
             model.export(temp_filepath, format="litert")
 
     def test_export_subclass_model(self):

@@ -170,10 +170,11 @@ class LiteRTExporter:
             self.model = original_model
 
         # 4. Save the initial TFLite model to the specified file path.
-        assert filepath.endswith(".tflite"), (
-            "The LiteRT export requires the filepath to end with '.tflite'. "
-            f"Got: {filepath}"
-        )
+        if not filepath.endswith(".tflite"):
+            raise ValueError(
+                "The LiteRT export requires the filepath to end with "
+                "'.tflite'. Got: {filepath}"
+            )
 
         with open(filepath, "wb") as f:
             f.write(tflite_model)
