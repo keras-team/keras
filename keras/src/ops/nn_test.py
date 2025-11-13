@@ -2450,7 +2450,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
         if bias is not None:
             if backend.backend() in ("torch", "openvino"):
                 self.skipTest(
-                    "torch and openvino do not support `bias` with `dot_product_attention`"
+                    "torch and openvino do not support `bias` with "
+                    "`dot_product_attention`"
                 )
             bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
                 bias_shape
