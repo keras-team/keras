@@ -60,9 +60,6 @@ class OrbaxCheckpoint(MonitorCallback):
 
     This callback saves the model's weights and optimizer state asynchronously
     using Orbax, allowing training to continue without blocking for I/O.
-    It also provides methods to load checkpoints for resuming training or
-    inference.
-    It supports policies for keeping checkpoints and deciding when to save.
 
     Example:
 
@@ -81,10 +78,6 @@ class OrbaxCheckpoint(MonitorCallback):
     # Model is saved at the end of every epoch, if it's the best seen so far.
     model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
 
-    # The model can be loaded from a specific checkpoint step as -
-    checkpoint = keras.callbacks.OrbaxCheckpoint(directory=checkpoint_dir)
-    checkpoint.load_checkpoint(step=5, model=model)  # Load from step 5
-
     # Alternatively, save checkpoints every N batches -
     orbax_checkpoint_callback = keras.callbacks.OrbaxCheckpoint(
         directory=checkpoint_dir,
@@ -99,33 +92,17 @@ class OrbaxCheckpoint(MonitorCallback):
         verbose: Verbosity mode, 0 or 1.
         save_best_only: if `save_best_only=True`, it only saves when the model
             is considered the "best" based on the monitored quantity.
+        save_weights_only: if `save_weights_only=True`, only the model's weights
+            will be saved. Otherwise, both weights and optimizer state will be
+            saved. Defaults to False.
         mode: one of {'auto', 'min', 'max'}. Used with `save_best_only`.
         save_freq: `'epoch'` or integer. Frequency to save checkpoints.
         max_to_keep: Integer, maximum number of recent checkpoints to keep.
             If None, keeps all. Defaults to 5.
-        keep_period: Integer, keep one checkpoint every `keep_period` saves.
-            Useful for keeping checkpoints less frequently over long runs.
-        initial_value_threshold: Floating point initial "best" value for the
-            monitor, used with `save_best_only`.
-        save_optimizer_state: Boolean, whether to include optimizer variables
-            in the checkpoint. Defaults to True.
         save_on_background: Boolean, whether to save asynchronously in the
             background. Defaults to True.
-        save_metadata: Dict or callable, additional metadata to save with each
-            checkpoint. If callable, it will be called with (epoch, logs) and
-            should return a dict. Defaults to None.
-        save_data_iterator: Dict or callable, data iterator state to save with
-            each checkpoint. If callable, it will be called with (epoch, logs)
-            and should return a dict with serializable iterator state.
-            Defaults to None.
-        save_metrics_state: Boolean, whether to include stateful metrics
-            variables in the checkpoint. Defaults to False.
-        post_finalization_callback: Callable, function to call after async
-            checkpointing operations complete. Defaults to None.
-        save_decision_policy: orbax.checkpoint.SaveDecisionPolicy object to
-            control when checkpoints are saved. If None, defaults to saving
-            every epoch for save_freq="epoch" or every save_freq batches.
-            Defaults to None.
+        initial_value_threshold: Floating point initial "best" value for the
+            monitor, used with `save_best_only`.
     """
 
     def __init__(
@@ -134,18 +111,12 @@ class OrbaxCheckpoint(MonitorCallback):
         monitor="val_loss",
         verbose=0,
         save_best_only=False,
+        save_weights_only=False,
         mode="auto",
         save_freq="epoch",
         max_to_keep=5,
-        keep_period=None,
-        initial_value_threshold=None,
-        save_optimizer_state=True,
         save_on_background=True,
-        save_metadata=None,
-        save_data_iterator=None,
-        save_metrics_state=False,
-        post_finalization_callback=None,
-        save_decision_policy=None,
+        initial_value_threshold=None,
     ):
         # Ensure orbax is available
         ocp.initialize()
@@ -157,14 +128,10 @@ class OrbaxCheckpoint(MonitorCallback):
         self.directory = directory
         self.verbose = verbose
         self.save_best_only = save_best_only
+        self.save_weights_only = save_weights_only
         self.save_freq = save_freq
-        self.save_optimizer_state = save_optimizer_state
+        self.max_to_keep = max_to_keep
         self.save_on_background = save_on_background
-        self.save_metadata = save_metadata
-        self.save_data_iterator = save_data_iterator
-        self.save_metrics_state = save_metrics_state
-        self.post_finalization_callback = post_finalization_callback
-        self.save_decision_policy = save_decision_policy
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
@@ -173,27 +140,8 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError("Unrecognized save_freq")
 
-        # Set up save_decision_policy if not provided
-        if save_decision_policy is None:
-            # Let Keras handle all save decisions - configure Checkpointer
-            # to save unconditionally when save_pytree/save_pytree_async
-            # is called
-            class _AlwaysSavePolicy(
-                ocp.training.save_decision_policies.SaveDecisionPolicy
-            ):
-                def should_save(
-                    self, current_step_info, previous_steps=None, context=None
-                ):
-                    return True
-
-            save_decision_policy = _AlwaysSavePolicy()
-
         # --- Orbax Checkpointer Setup (V1 API) ---
         policies = []
-        if keep_period is not None:
-            policies.append(
-                ocp.training.preservation_policies.EveryNSteps(keep_period)
-            )
         if max_to_keep is not None:
             policies.append(
                 ocp.training.preservation_policies.LatestN(max_to_keep)
@@ -213,7 +161,6 @@ class OrbaxCheckpoint(MonitorCallback):
         self.checkpointer = ocp.training.Checkpointer(
             directory=directory,
             preservation_policy=preservation_policy,
-            save_decision_policy=save_decision_policy,
         )
 
     def _should_save_on_batch(self, batch):
@@ -246,35 +193,11 @@ class OrbaxCheckpoint(MonitorCallback):
             "trainable_variables": state_tree["trainable_variables"],
         }
 
-        if self.save_optimizer_state and "optimizer_variables" in state_tree:
+        # Include optimizer state unless save_weights_only is True
+        if not self.save_weights_only and "optimizer_variables" in state_tree:
             composite_state["optimizer_variables"] = state_tree[
                 "optimizer_variables"
             ]
-
-        if self.save_metrics_state and "metrics_variables" in state_tree:
-            composite_state["metrics_variables"] = state_tree[
-                "metrics_variables"
-            ]
-
-        # Add metadata if specified
-        if self.save_metadata is not None:
-            if callable(self.save_metadata):
-                metadata = self.save_metadata(self._current_epoch, logs)
-            else:
-                metadata = self.save_metadata
-            if metadata:
-                composite_state["metadata"] = metadata
-
-        # Add data iterator state if specified
-        if self.save_data_iterator is not None:
-            if callable(self.save_data_iterator):
-                iterator_state = self.save_data_iterator(
-                    self._current_epoch, logs
-                )
-            else:
-                iterator_state = self.save_data_iterator
-            if iterator_state:
-                composite_state["data_iterator"] = iterator_state
 
         # --- Save Logic (V1 API) ---
         # All processes participate in distributed checkpointing
@@ -285,23 +208,9 @@ class OrbaxCheckpoint(MonitorCallback):
                 f"OrbaxCheckpoint: Triggering async save for step {step}..."
             )
 
-        # Configure context if a callback is provided
-        context_options = {}
-        async_options = {}
-
-        if self.post_finalization_callback is not None:
-            async_options["post_finalization_callback"] = (
-                self.post_finalization_callback
-            )
-
-        if async_options:
-            context_options["async_options"] = ocp.options.AsyncOptions(
-                **async_options
-            )
-
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
-        with ocp.Context(**context_options):
+        with ocp.Context():
             if self.save_on_background:
                 self.checkpointer.save_pytree_async(step, composite_state)
             else:
@@ -368,81 +277,8 @@ class OrbaxCheckpoint(MonitorCallback):
         except Exception:
             pass  # Ignore errors during cleanup
 
-    def load_checkpoint(self, step, model=None):
-        """Load model and optimizer state from a specific checkpoint step.
-
-        Args:
-            step: The checkpoint step to load from.
-            model: Optional model to load into. If None, loads into self.model.
-
-        Returns:
-            tuple: (success, iterator_state) where success is True if loading
-            was successful, False otherwise, and iterator_state is the saved
-            data iterator state dict if available, None otherwise.
-        """
-        # All processes participate in distributed checkpoint loading
-        if self.verbose > 0:
-            print_msg(
-                f"OrbaxCheckpoint: Loading checkpoint from step {step}..."
-            )
-
-        # Load the checkpoint using V1 API
-        checkpoint_data = self.checkpointer.load_pytree(step)
-
-        # Extract model state (exclude metadata and data_iterator)
-        model_state = {}
-        iterator_state = None
-
-        for key, value in checkpoint_data.items():
-            if key == "data_iterator":
-                iterator_state = value
-            elif key == "metadata":
-                pass  # Metadata is not used in loading
-            else:
-                # This is model state (trainable_variables, optimizer_variables,
-                # etc.)
-                model_state[key] = value
-
-        # Restore the model state
-        target_model = model if model is not None else self.model
-        success = self._restore_model_state_from_full_tree(
-            model_state, target_model
-        )
-
-        return success, iterator_state
-
-    def load_latest(self, model=None):
-        """Load the most recent checkpoint.
-
-        Args:
-            model: Optional model to load into. If None, loads into self.model.
-
-        Returns:
-            tuple: (success, iterator_state) where success is True if loading
-            was successful, False otherwise, and iterator_state is the saved
-            data iterator state dict if available, None otherwise.
-        """
-        # Wait for any in-progress saves to complete
-        self.wait_until_finished()
-
-        # Get the latest step using V1 API
-        latest_metadata = self.checkpointer.latest
-        if latest_metadata is None:
-            raise FileNotFoundError("OrbaxCheckpoint: No checkpoints found")
-
-        return self.load_checkpoint(latest_metadata.step, model)
-
-    def all_steps(self):
-        """Get all available checkpoint steps.
-
-        Returns:
-            list: List of available checkpoint step numbers, sorted.
-        """
-        return sorted([int(cp.step) for cp in self.checkpointer.checkpoints])
-
     def wait_until_finished(self):
         """Wait for any in-progress checkpoint operations to complete.
-
         This method blocks until all asynchronous checkpoint save operations
         have completed. It should be called before attempting to load
         checkpoints if there might be pending save operations.
@@ -456,11 +292,3 @@ class OrbaxCheckpoint(MonitorCallback):
                 import time
 
                 time.sleep(0.1)
-
-    def _restore_model_state_from_full_tree(self, state_tree, model=None):
-        """Restore model state from full state tree (V1 format)."""
-        target_model = model if model is not None else self.model
-        target_model.set_state_tree(state_tree)
-        if self.verbose > 0:
-            print_msg("OrbaxCheckpoint: Successfully restored model state")
-        return True
