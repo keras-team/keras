@@ -27,6 +27,16 @@ else:
         return fn
 
 
+def _convert_to_jax_key(tensor):
+    if backend.backend() == "tensorflow":
+        if tensor.dtype == tf.int64:
+            key_uint32 = tf.bitcast(tensor, tf.uint32)[0]
+            if tf.is_symbolic_tensor(key_uint32):
+                return key_uint32
+            else:
+                return jax.numpy.array(key_uint32)
+
+
 @keras_export("keras.layers.JaxLayer")
 class JaxLayer(Layer):
     """Keras Layer that wraps a JAX model.
@@ -250,9 +260,8 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        dtype = jax_random_seed_dtype()
         self.seed_generator = backend.random.SeedGenerator(
-            seed=seed, dtype=dtype
+            seed=seed
         )
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
@@ -442,8 +451,7 @@ class JaxLayer(Layer):
             a key as an Jax or TF array of size 2 dtype uint32 will be passed
             as the `rng` argument of `init_fn`.
         """
-        next = self.seed_generator.next()
-        return next
+        return self.seed_generator.next()
 
     def _get_call_rng(self, training):
         """
@@ -486,7 +494,7 @@ class JaxLayer(Layer):
             if argument_name == "rng":
                 init_args.append(
                     jax.tree_util.tree_map(
-                        convert_to_tensor, self._get_init_rng()
+                        _convert_to_jax_key, self._get_init_rng()
                     )
                 )
             elif argument_name == "inputs":
@@ -559,7 +567,11 @@ class JaxLayer(Layer):
                     jax.tree_util.tree_map(unwrap_variable, self.state)
                 )
             elif argument_name == "rng":
-                call_args.append(self._get_call_rng(training))
+                call_args.append(
+                    jax.tree_util.tree_map(
+                        _convert_to_jax_key, self._get_call_rng(training)
+                    )
+                )
             elif argument_name == "inputs":
                 call_args.append(inputs)
             elif argument_name == "training":
