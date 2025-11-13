@@ -242,9 +242,6 @@ class JaxLayer(Layer):
         seed=None,
         **kwargs,
     ):
-        from keras.src.backend.jax.core import (
-            random_seed_dtype as jax_random_seed_dtype,
-        )
 
         if backend.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
@@ -260,9 +257,7 @@ class JaxLayer(Layer):
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        self.seed_generator = backend.random.SeedGenerator(
-            seed=seed
-        )
+        self.seed_generator = backend.random.SeedGenerator(seed=seed)
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
@@ -473,7 +468,6 @@ class JaxLayer(Layer):
             return None
 
     def _initialize_weights(self, input_shape):
-        from keras.src.backend.jax.core import convert_to_tensor
 
         if jax_utils.is_in_jax_tracing_scope() or tf.inside_function():
             # This exception is not actually shown, it is caught and a detailed
