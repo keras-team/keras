@@ -10,7 +10,6 @@ def export_litert(
     model,
     filepath,
     input_signature=None,
-    aot_compile_targets=None,
     **kwargs,
 ):
     """Export the model as a LiteRT artifact for inference.
@@ -20,15 +19,12 @@ def export_litert(
         filepath: The path to save the exported artifact.
         input_signature: Optional input signature specification. If
             `None`, it will be inferred.
-        aot_compile_targets: Optional list of LiteRT targets for AOT
-        compilation.
         **kwargs: Additional keyword arguments passed to the exporter.
     """
 
     exporter = LiteRTExporter(
         model=model,
         input_signature=input_signature,
-        aot_compile_targets=aot_compile_targets,
         **kwargs,
     )
     exporter.export(filepath)
@@ -41,15 +37,13 @@ class LiteRTExporter:
     This class handles the conversion of Keras models for LiteRT runtime and
     generates a `.tflite` model file. For efficient inference on mobile and
     embedded devices, it creates a single callable signature based on the
-    model's `call()` method and supports optional Ahead-of-Time (AOT)
-    compilation for specific hardware targets.
+    model's `call()` method.
     """
 
     def __init__(
         self,
         model,
         input_signature=None,
-        aot_compile_targets=None,
         **kwargs,
     ):
         """Initialize the LiteRT exporter.
@@ -58,12 +52,10 @@ class LiteRTExporter:
             model: The Keras model to export
             input_signature: Input signature specification (e.g., TensorFlow
                 TensorSpec or list of TensorSpec)
-            aot_compile_targets: List of LiteRT targets for AOT compilation
             **kwargs: Additional export parameters
         """
         self.model = model
         self.input_signature = input_signature
-        self.aot_compile_targets = aot_compile_targets
         self.kwargs = kwargs
 
     def _has_dict_inputs(self):
@@ -131,15 +123,13 @@ class LiteRTExporter:
         return None
 
     def export(self, filepath):
-        """Exports the Keras model to a TFLite file and optionally performs AOT
-        compilation.
+        """Exports the Keras model to a TFLite file.
 
         Args:
             filepath: Output path for the exported model
 
         Returns:
-            Path to exported model or compiled models if AOT compilation is
-            performed
+            Path to exported model
         """
         # 1. Resolve / infer input signature
         if self.input_signature is None:
@@ -195,18 +185,7 @@ class LiteRTExporter:
         with open(filepath, "wb") as f:
             f.write(tflite_model)
 
-        # 5. Perform AOT compilation if targets are specified and LiteRT is
-        # available
-        compiled_models = None
-        if self.aot_compile_targets and litert.available:
-            compiled_models = self._aot_compile(filepath)
-        elif self.aot_compile_targets and not litert.available:
-            logging.warning(
-                "AOT compilation requested but LiteRT is not available. "
-                "Skipping AOT compilation."
-            )
-
-        return compiled_models if compiled_models else filepath
+        return filepath
 
     def _create_dict_adapter(self, input_signature_dict):
         """Create an adapter model that converts list inputs to dict inputs.
@@ -474,81 +453,14 @@ class LiteRTExporter:
             return
 
         for key, value in self.kwargs.items():
-            if hasattr(converter, key):
-                setattr(converter, key, value)
-            elif key == "target_spec" and isinstance(value, dict):
+            if key == "target_spec" and isinstance(value, dict):
                 # Handle nested target_spec settings
                 for spec_key, spec_value in value.items():
                     if hasattr(converter.target_spec, spec_key):
                         setattr(converter.target_spec, spec_key, spec_value)
+            elif hasattr(converter, key):
+                setattr(converter, key, value)
             else:
                 io_utils.print_msg(
                     f"Warning: Unknown converter setting '{key}' - ignoring"
                 )
-
-    def _aot_compile(self, tflite_filepath):
-        """Performs AOT compilation using LiteRT."""
-        if not litert.available:
-            raise RuntimeError("LiteRT is not available for AOT compilation")
-
-        # Create a LiteRT model from the TFLite file
-        litert_model = litert.python.aot.core.types.Model.create_from_path(
-            tflite_filepath
-        )
-
-        # Determine output directory
-        base_dir = os.path.dirname(tflite_filepath)
-        model_name = os.path.splitext(os.path.basename(tflite_filepath))[0]
-        output_dir = os.path.join(base_dir, f"{model_name}_compiled")
-
-        # Perform AOT compilation
-        result = litert.python.aot.aot_compile(
-            input_model=litert_model,
-            output_dir=output_dir,
-            target=self.aot_compile_targets,
-            keep_going=True,  # Continue even if some targets fail
-        )
-
-        # Print compilation report if available
-        try:
-            report = result.compilation_report()
-            if report:
-                io_utils.print_msg("Compilation Report:")
-                io_utils.print_msg(report)
-        except Exception:
-            pass
-
-        return result
-
-    def _get_available_litert_targets(self):
-        """Get available LiteRT targets for AOT compilation."""
-        if not litert.available:
-            return []
-
-        try:
-            # Get all registered targets
-            targets = (
-                litert.python.aot.vendors.import_vendor.AllRegisteredTarget()
-            )
-            return targets if isinstance(targets, list) else [targets]
-        except Exception:
-            return []
-
-    @classmethod
-    def export_with_aot(cls, model, filepath, targets=None, **kwargs):
-        """
-        Convenience method to export a Keras model with AOT compilation.
-
-        Args:
-            model: Keras model to export
-            filepath: Output file path
-            targets: List of LiteRT targets for AOT compilation (e.g.,
-            ['qualcomm', 'mediatek'])
-            **kwargs: Additional arguments for the exporter
-
-        Returns:
-            CompilationResult if AOT compilation is performed, otherwise the
-            filepath
-        """
-        exporter = cls(model=model, aot_compile_targets=targets, **kwargs)
-        return exporter.export(filepath)
