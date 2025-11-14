@@ -698,7 +698,7 @@ def dot_product_attention(
             "`dot_product_attention` with `bias` is not supported "
             "with openvino backend"
         )
-    if flash_attention is not None:
+    if flash_attention:
         raise NotImplementedError(
             "`dot_product_attention` with `flash_attention` is not supported "
             "with openvino backend"

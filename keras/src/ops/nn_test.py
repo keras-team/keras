@@ -2458,7 +2458,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             )
 
         if flash_attention:
-            if backend.backend() in ("tensorflow", "numpy"):
+            if backend.backend() in ("tensorflow", "numpy", "openvino"):
                 self.skipTest(
                     "Flash attention is not supported in tensorflow and numpy "
                     "backends."
