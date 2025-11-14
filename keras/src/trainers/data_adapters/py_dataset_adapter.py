@@ -42,7 +42,7 @@ class PyDataset:
             your dataset. Defaults to 10.
         shuffle: Whether to shuffle the sample ordering at the end of
             each epoch. This argument is passed to `model.fit()`. When
-            `model.fit(..., shuffle=True)`, the training loop
+            calling `model.fit(..., shuffle=True)`, the training loop
             automatically calls `on_epoch_end()` at each epoch
             boundary, allowing datasets to implement custom
             shuffling logic. Defaults to `False`.
@@ -80,7 +80,12 @@ class PyDataset:
             self.x, self.y = x_set, y_set
             self.batch_size = batch_size
             self.shuffle = shuffle
+            # create index array for shuffling
             self.indices = np.arange(len(self.x))
+            # Shuffle once at initialization when shuffle=True
+            if self.shuffle:
+                np.random.shuffle(self.indices)
+
 
         def __len__(self):
             # Return number of batches.
@@ -92,7 +97,7 @@ class PyDataset:
             # Cap upper bound at array length; the last batch may be smaller
             # if the total number of items is not a multiple of batch size.
             high = min(low + self.batch_size, len(self.x))
-            # Retrieve a batch of data by index 
+            # Retrieve a batch using shuffled indices
             batch_indices = self.indices[low:high]
             batch_x = self.x[batch_indices]
             batch_y = self.y[batch_indices]
@@ -100,7 +105,7 @@ class PyDataset:
             return np.array([
                 resize(imread(file_name), (200, 200))
                    for file_name in batch_x]), np.array(batch_y)
-        
+
         def on_epoch_end(self):
             # Shuffle indices at the end of each epoch if enabled
             if self.shuffle:
