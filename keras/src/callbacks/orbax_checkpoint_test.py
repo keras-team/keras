@@ -315,3 +315,174 @@ class OrbaxCheckpointTest(testing.TestCase):
         self.assertTrue(
             os.path.exists(checkpoint_dir), "Checkpoint directory should exist"
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_checkpoint_loading(self):
+        """Test that saved checkpoints can be loaded and weights restored."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_loading")
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+
+        # Train for 1 epoch to save checkpoint
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Get original weights after training
+        original_weights = model.get_weights()
+
+        # Create a new model with same architecture
+        new_model = self._create_test_model()
+
+        # Load the checkpoint
+        checkpoint_path = os.path.join(checkpoint_dir, "0")  # epoch 0
+        loaded_state = load_pytree(checkpoint_path)
+
+        # Set the state back to the new model
+        # The loaded_state has 'trainable_variables' key
+        new_model.set_state_tree(
+            {"trainable_variables": loaded_state["trainable_variables"]}
+        )
+
+        # Compare weights
+        loaded_weights = new_model.get_weights()
+        for orig, loaded in zip(original_weights, loaded_weights):
+            np.testing.assert_array_almost_equal(orig, loaded)
+
+    @pytest.mark.requires_trainable_backend
+    def test_checkpoint_loading_weights_only(self):
+        """Test loading checkpoints saved with save_weights_only=True."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), "test_loading_weights"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, save_freq="epoch", save_weights_only=True
+        )
+
+        # Train for 1 epoch to save checkpoint
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Get original weights after training
+        original_weights = model.get_weights()
+
+        # Create a new model with same architecture
+        new_model = self._create_test_model()
+
+        # Load the checkpoint
+        checkpoint_path = os.path.join(checkpoint_dir, "0")  # epoch 0
+        loaded_state = load_pytree(checkpoint_path)
+
+        # For save_weights_only, the state should only have trainable_variables
+        new_model.set_state_tree(
+            {"trainable_variables": loaded_state["trainable_variables"]}
+        )
+
+        # Compare weights
+        loaded_weights = new_model.get_weights()
+        for orig, loaded in zip(original_weights, loaded_weights):
+            np.testing.assert_array_almost_equal(orig, loaded)
+
+    @pytest.mark.requires_trainable_backend
+    def test_checkpoint_loading_with_optimizer_state(self):
+        """Test loading checkpoints that include optimizer state."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data(num_samples=200)
+        # More data for optimizer state
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), "test_loading_optimizer"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, save_freq="epoch", save_weights_only=False
+        )
+
+        # Train for 1 epoch to build optimizer state
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Get original state after training
+        original_state_tree = model.get_state_tree()
+
+        # Create a new model with same architecture
+        new_model = self._create_test_model()
+        # Compile with same optimizer to initialize optimizer variables
+        new_model.compile(optimizer="adam", loss="mse")
+
+        # Run one training step to initialize optimizer variables
+        new_x, new_y = self._create_dummy_data(num_samples=10)
+        new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
+
+        # Load the checkpoint (epoch 0)
+        checkpoint_path = os.path.join(checkpoint_dir, "0")
+        loaded_state = load_pytree(checkpoint_path)
+
+        # Set the full state (weights + optimizer) back to the new model
+        new_model.set_state_tree(
+            {
+                "trainable_variables": loaded_state["trainable_variables"],
+                "optimizer_variables": loaded_state["optimizer_variables"],
+            }
+        )
+
+        # Get the loaded state
+        loaded_state_tree = new_model.get_state_tree()
+
+        # Compare trainable variables (weights)
+        def compare_nested_dicts(orig_dict, loaded_dict):
+            """Recursively compare nested dictionaries containing variables."""
+            for key in orig_dict:
+                if key not in loaded_dict:
+                    self.fail(f"Key {key} missing in loaded state")
+                orig_val = orig_dict[key]
+                loaded_val = loaded_dict[key]
+
+                if isinstance(orig_val, dict):
+                    compare_nested_dicts(orig_val, loaded_val)
+                else:
+                    # Handle different array types: JAX arrays, TF variables,
+                    # PyTorch tensors, numpy arrays
+                    if hasattr(orig_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # Try PyTorch-style conversion first
+                            # (detach().cpu().numpy())
+                            orig_array = orig_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            orig_array = orig_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        orig_array = orig_val
+
+                    if hasattr(loaded_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # Try PyTorch-style conversion first
+                            # (detach().cpu().numpy())
+                            loaded_array = loaded_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            loaded_array = loaded_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        loaded_array = loaded_val
+
+                    np.testing.assert_array_almost_equal(
+                        orig_array, loaded_array
+                    )
+
+        compare_nested_dicts(
+            original_state_tree["trainable_variables"],
+            loaded_state_tree["trainable_variables"],
+        )
+
+        # Compare optimizer variables
+        compare_nested_dicts(
+            original_state_tree["optimizer_variables"],
+            loaded_state_tree["optimizer_variables"],
+        )
