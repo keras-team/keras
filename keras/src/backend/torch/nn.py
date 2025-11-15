@@ -385,7 +385,7 @@ def max_pool(
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    """Adaptive max pooling (1D/2D/3D) with channels_last support."""
+    """Adaptive max pooling(1D/2D/3D) with channels_last support."""
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
@@ -504,7 +504,7 @@ def average_pool(
 
 
 def adaptive_avg_pool(inputs, output_size, data_format=None):
-    """Adaptive average pooling (1D/2D/3D) with channels_last support."""
+    """Adaptive average pooling(1D/2D/3D) with channels_last support."""
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
