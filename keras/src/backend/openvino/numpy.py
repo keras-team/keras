@@ -962,6 +962,12 @@ def empty(shape, dtype=None):
     return OpenVINOKerasTensor(empty_tensor)
 
 
+def empty_like(x, dtype=None):
+    raise NotImplementedError(
+        "`empty_like` is not supported with openvino backend"
+    )
+
+
 def equal(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):

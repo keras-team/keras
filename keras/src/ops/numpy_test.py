@@ -1495,6 +1495,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((5,))
         self.assertEqual(knp.dot(x, y).shape, ())
 
+    def test_empty_like(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.empty_like(x).shape, (None, 3))
+        self.assertEqual(knp.empty_like(x).dtype, x.dtype)
+
     def test_exp(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.exp(x).shape, (None, 3))
@@ -2138,6 +2143,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3))
             knp.dot(x, y)
+
+    def test_empty_like(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.empty_like(x).shape, (2, 3))
+        self.assertEqual(knp.empty_like(x).dtype, x.dtype)
 
     def test_exp(self):
         x = KerasTensor((2, 3))
@@ -7334,6 +7344,22 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertEqual(
             standardize_dtype(knp.empty([2, 3], dtype=dtype).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_empty_like(self, dtype):
+        import jax.numpy as jnp
+
+        x = jnp.empty([2, 3, 4], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.empty_like(x, dtype=dtype).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.empty_like(x, dtype=dtype).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.EmptyLike().symbolic_call(x).dtype),
             expected_dtype,
         )
 
