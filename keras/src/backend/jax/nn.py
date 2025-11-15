@@ -1276,8 +1276,8 @@ def dot_product_attention(
         # use flash attention
         _can_use_flash_attention(query, key, value, bias, raise_error=True)
 
-    # Check if mask is traced - cannot use flash attention with traced masks
-    if mask is not None and isinstance(mask, jax.core.Tracer):
+    # On TPU, flash attention cannot be used with traced masks.
+    if is_tpu and mask is not None and isinstance(mask, jax.core.Tracer):
         flash_attention = False
 
     # TPU-specific flash attention path
