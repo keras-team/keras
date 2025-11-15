@@ -170,6 +170,25 @@ class ComputeConvTransposePaddingArgsForTorchTest(test_case.TestCase):
         self.assertEqual(torch_padding, 0)
         self.assertEqual(torch_output_padding, 1)
 
+    def test_output_padding_clamped_for_torch_constraint(self):
+        """Test that output_padding is clamped
+        when >= stride (Torch constraint).
+        """
+        (
+            torch_paddings,
+            torch_output_paddings,
+        ) = compute_conv_transpose_padding_args_for_torch(
+            input_shape=(1, 8, 8, 8, 16),  # any shape
+            kernel_shape=(2, 2, 2, 16, 32),  # Keras kernel shape
+            strides=1,
+            padding="same",
+            output_padding=1,  # Keras wants this
+            dilation_rate=1,
+        )
+        # Torch expects output_padding < stride (1)
+        # so output_padding should be clamped to 0
+        self.assertEqual(torch_output_paddings, [0, 0, 0])
+
 
 class GetOutputShapeGivenTFPaddingTest(test_case.TestCase):
     def test_valid_padding_without_output_padding(self):
