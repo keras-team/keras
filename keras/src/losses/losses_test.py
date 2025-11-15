@@ -708,6 +708,40 @@ class HuberLossTest(testing.TestCase):
         loss = h_obj(self.y_true, self.y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_huber_memory_usage_debug_05(self):
+        import tensorflow as tf
+
+        import keras
+
+        print("\n[Huber GPU Memory Debug: delta=0.5]")
+        gpus = tf.config.experimental.list_physical_devices("GPU")
+        if not gpus:
+            print("No GPU found. Skipping test.")
+            return
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError as e:
+            print(f"[Info] GPU memory growth already set or initialized: {e}")
+
+        x = np.random.rand(1000, 1)
+        y = ((3 * x) + 2) + np.random.randn(1000, 1)
+        huber_loss = keras.losses.Huber(delta=0.5)
+        loss = huber_loss(y, x)
+        print(f"Huber loss: {loss.numpy():.6f}")
+
+        memory = sum(
+            tf.config.experimental.get_memory_info(f"GPU:{i}")["current"]
+            for i in range(len(gpus))
+        )
+        print(f"GPU memory usage: {memory} bytes")
+
+        # sanity check for stable GPU usage (adjust threshold as needed)
+        assert memory > 0, (
+            f"GPU memory not allocated or usage is zero. "
+            f"Current usage: {memory} bytes"
+        )
+
 
 class LogCoshTest(testing.TestCase):
     def setup(self):
