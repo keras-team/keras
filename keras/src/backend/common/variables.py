@@ -414,10 +414,7 @@ class Variable:
         raise NotImplementedError
 
     def _initialize_with_initializer(self, initializer):
-        value = self._convert_to_tensor(
-            initializer(self._shape, dtype=self._dtype)
-        )
-        self._initialize(value)
+        raise NotImplementedError
 
     def _convert_to_tensor(self, value, dtype=None):
         raise NotImplementedError
