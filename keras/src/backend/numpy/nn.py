@@ -1237,3 +1237,19 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
 
     # ---- reshape -> (N, C*kH*kW, L) ----
     return patches.reshape(N, C * k[0] * k[1], -1)
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    """Adaptive max pooling - Numpy backend not yet supported."""
+    raise NotImplementedError(
+        "Adaptive pooling not implemented for Numpy. "
+        "Use JAX, Torch or Tensorflow backend."
+    )
+
+
+def adaptive_avg_pool(inputs, output_size, data_format=None):
+    """Adaptive average pooling - Numpy backend not yet supported."""
+    raise NotImplementedError(
+        "Adaptive pooling not implemented for Numpy. "
+        "Use JAX, Torch or Tensorflow backend."
+    )
