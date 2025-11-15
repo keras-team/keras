@@ -1276,7 +1276,7 @@ def dot_product_attention(
         # use flash attention
         _can_use_flash_attention(query, key, value, bias, raise_error=True)
 
-    # On TPU, flash attention cannot be used with traced masks.
+    # On TPU, traced masks cause ConcretizationTypeError with flash attention.
     if is_tpu and mask is not None and isinstance(mask, jax.core.Tracer):
         flash_attention = False
 
