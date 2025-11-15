@@ -180,19 +180,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
     if file_format is None and isinstance(path, (str, pathlib.Path)):
         file_format = pathlib.Path(path).suffix[1:].lower()
 
-    # Normalize jpg → jpeg for Pillow compatibility
-    if file_format and file_format.lower() == "jpg":
-        file_format = "jpeg"
-
     img = array_to_img(x, data_format=data_format, scale=scale)
-
-    # Handle RGBA → RGB conversion for JPEG
-    if img.mode == "RGBA" and file_format == "jpeg":
-        warnings.warn(
-            "The JPEG format does not support RGBA images, converting to RGB."
-        )
-        img = img.convert("RGB")
-
     img.save(path, format=file_format, **kwargs)
 
 
@@ -464,6 +452,4 @@ def smart_resize(
         img, size=size, interpolation=interpolation, data_format=data_format
     )
 
-    if isinstance(x, np.ndarray):
-        return np.array(img)
     return img
