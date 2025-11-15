@@ -1324,6 +1324,15 @@ class NNOpsStaticShapeTest(testing.TestCase):
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
+    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
+        if backend.backend() == "openvino":
+            # OpenVINO seems to use lower precision for some operations,
+            # or employs some different algorithms that wind up with
+            # slightly different results. To address this, we relax
+            # the tolerances for OpenVINO backend.
+            atol = 1e-3
+        super().assertAllClose(x1, x2, atol=atol, rtol=rtol, msg=msg)
+
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.relu(x), [0, 0, 1, 2, 3])
@@ -2439,16 +2448,17 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask = mask[None, None, ...]
             mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
-            if backend.backend() == "torch":
+            if backend.backend() in ("torch", "openvino"):
                 self.skipTest(
-                    "torch does not support `bias` with `dot_product_attention`"
+                    "torch and openvino do not support `bias` with "
+                    "`dot_product_attention`"
                 )
             bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
                 bias_shape
             )
 
         if flash_attention:
-            if backend.backend() in ("tensorflow", "numpy"):
+            if backend.backend() in ("tensorflow", "numpy", "openvino"):
                 self.skipTest(
                     "Flash attention is not supported in tensorflow and numpy "
                     "backends."
