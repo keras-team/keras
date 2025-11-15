@@ -3,8 +3,8 @@ NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
-NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_empty_like
+NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
 NumpyDtypeTest::test_hypot
