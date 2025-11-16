@@ -161,13 +161,13 @@ class Muon(optimizer.Optimizer):
 
         for var in var_list:
             if not self._overwrite_variable_with_gradient(var):
-                self.adam_momentums[var.name] = (
+                self.adam_momentums[var.path] = (
                     self.add_variable_from_reference(
                         reference_variable=var, name="momentum"
                     )
                 )
                 if self._should_use_adamw(var):
-                    self.adam_velocities[var.name] = (
+                    self.adam_velocities[var.path] = (
                         self.add_variable_from_reference(
                             reference_variable=var, name="velocity"
                         )
