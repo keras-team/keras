@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
@@ -81,3 +83,25 @@ class MuonTest(testing.TestCase):
         grad = [np.array([100.0, 100.0])]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Runs only on TF backend"
+    )
+    def test_exclude_layers_with_variable_name(self):
+        """Ensure `exclude_layers` works with current TensorFlow versions.
+        Uses `variable.name` instead of the deprecated `variable.path`.
+        """
+        optimizer = Muon(learning_rate=0.01, exclude_layers=["last"])
+
+        model = keras.Sequential(
+            [
+                keras.layers.Dense(5, input_shape=(10,)),
+                keras.layers.Dense(1, name="last"),
+            ]
+        )
+
+        x_train = np.random.rand(10, 10).astype(np.float32)
+        y_train = np.random.rand(10, 1).astype(np.float32)
+
+        model.compile(optimizer=optimizer, loss="mse")
+        model.fit(x_train, y_train, epochs=1, batch_size=2, verbose=0)

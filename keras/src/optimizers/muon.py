@@ -24,7 +24,7 @@ class Muon(optimizer.Optimizer):
         will be used. This is not configurable.
     - If the argument `exclude_embeddings` (defaults to `True`) is set
     to `True`, the AdamW step will be used.
-    - For any variablewith a name that matches an expression
+    - For any variable with a name that matches an expression
         listed in the argument `exclude_layers` (a list), the
         AdamW step will be used.
     - Any other variable uses the Muon step.
@@ -46,7 +46,7 @@ class Muon(optimizer.Optimizer):
             that takes no arguments and returns the actual value to use.
             The exponential decay rate for the 1st moment estimates. Defaults to
             `0.9`.
-        adam_beta_2: A float value or a constant float tensor, ora callable
+        adam_beta_2: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use.
             The exponential decay rate for the 2nd moment estimates. Defaults to
             `0.999`.
@@ -54,9 +54,9 @@ class Muon(optimizer.Optimizer):
             "epsilon hat" in the Kingma and Ba paper
             (in the formula just before Section 2.1),
             not the epsilon in Algorithm 1 of the paper.
-            It be used at Adamw.Defaults to `1e-7`.
+            It be used at Adamw. Defaults to `1e-7`.
         exclude_layers: List of strings, keywords of layer names to exclude.
-            All layers with keywords in their path will use adamw.
+            All layers with keywords in their name will use adamw.
         exclude_embeddings: Boolean value
             If True, embedding layers will use adamw.
         muon_a: Float, parameter a of the muon algorithm.
@@ -134,10 +134,10 @@ class Muon(optimizer.Optimizer):
         # any {0,1}-D parameters should all be optimized by adam
         if not 1 < len(variable.shape) < 4:
             return True
-        if self.exclude_embeddings and "embedding" in variable.path.lower():
+        if self.exclude_embeddings and "embedding" in variable.name.lower():
             return True
         for keyword in self.exclude_layers:
-            if re.search(keyword, variable.path):
+            if re.search(keyword, variable.name):
                 return True
         return False
 
@@ -161,13 +161,13 @@ class Muon(optimizer.Optimizer):
 
         for var in var_list:
             if not self._overwrite_variable_with_gradient(var):
-                self.adam_momentums[var.path] = (
+                self.adam_momentums[var.name] = (
                     self.add_variable_from_reference(
                         reference_variable=var, name="momentum"
                     )
                 )
                 if self._should_use_adamw(var):
-                    self.adam_velocities[var.path] = (
+                    self.adam_velocities[var.name] = (
                         self.add_variable_from_reference(
                             reference_variable=var, name="velocity"
                         )
@@ -183,7 +183,14 @@ class Muon(optimizer.Optimizer):
             self._muon_update_step(gradient, variable, learning_rate)
 
     def _muon_update_step(self, gradient, variable, lr):
-        m = self.adam_momentums[variable.path]
+        if variable.name not in self.adam_momentums:
+            self.adam_momentums[variable.name] = (
+                self.add_variable_from_reference(
+                    reference_variable=variable, name="momentum"
+                )
+            )
+
+        m = self.adam_momentums[variable.name]
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
         shape = variable.shape
         if self.nesterov:
@@ -200,6 +207,19 @@ class Muon(optimizer.Optimizer):
 
     def _adamw_update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
+        if variable.name not in self.adam_momentums:
+            self.adam_momentums[variable.name] = (
+                self.add_variable_from_reference(
+                    reference_variable=variable, name="momentum"
+                )
+            )
+        if variable.name not in self.adam_velocities:
+            self.adam_velocities[variable.name] = (
+                self.add_variable_from_reference(
+                    reference_variable=variable, name="velocity"
+                )
+            )
+
         lr = ops.cast(learning_rate, variable.dtype)
         gradient = ops.cast(gradient, variable.dtype)
         local_step = ops.cast(self.iterations + 1, variable.dtype)
@@ -210,8 +230,8 @@ class Muon(optimizer.Optimizer):
             ops.cast(self.adam_beta_2, variable.dtype), local_step
         )
 
-        m = self.adam_momentums[variable.path]
-        v = self.adam_velocities[variable.path]
+        m = self.adam_momentums[variable.name]
+        v = self.adam_velocities[variable.name]
 
         alpha = lr * ops.sqrt(1 - adam_beta_2_power) / (1 - adam_beta_1_power)
 
