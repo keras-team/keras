@@ -62,16 +62,72 @@ class TFLayer(KerasAutoTrackable):
             self.test_function = test_function
             self.predict_function = predict_function
 
-            for tracked_attr in self._tracked:
-                tracked_item = getattr(self, tracked_attr)
-                if isinstance(tracked_item, tracking.TrackedList):
-                    children[tracked_attr] = list(tracked_item)
-                if isinstance(tracked_item, tracking.TrackedDict):
-                    children[tracked_attr] = dict(tracked_item)
-                if isinstance(tracked_item, tracking.TrackedSet):
-                    children[tracked_attr] = list(tracked_item)
+            # Convert Keras tracked collections to plain Python structures
+            # without creating TensorFlow trackable dependencies
+            self._convert_tracked_collections(children)
 
         return children
+
+    @tf.__internal__.tracking.no_automatic_dependency_tracking
+    def _convert_tracked_collections(self, children):
+        """Convert TrackedList/Dict/Set to plain Python structures.
+
+        The decorator prevents TensorFlow from automatically wrapping
+        these conversions in _DictWrapper objects.
+        """
+        for tracked_attr in self._tracked:
+            tracked_item = getattr(self, tracked_attr)
+            if isinstance(tracked_item, tracking.TrackedList):
+                children[tracked_attr] = list(tracked_item)
+            if isinstance(tracked_item, tracking.TrackedDict):
+                children[tracked_attr] = dict(tracked_item)
+            if isinstance(tracked_item, tracking.TrackedSet):
+                children[tracked_attr] = list(tracked_item)
+
+    def _get_save_spec(self, dynamic_batch=True):
+        """Compatibility shim for TensorFlow saving utilities.
+
+        TensorFlow's SavedModel / TFLite export paths (e.g.,
+        tf.lite.TFLiteConverter.from_keras_model) expect a `_get_save_spec`
+        method on models. This method generates TensorSpec objects
+        describing the model's input signature.
+
+        Args:
+            dynamic_batch: whether to set the batch dimension to `None`.
+
+        Returns:
+            A TensorSpec, list or dict mirroring the model inputs, or
+            `None` when specs cannot be inferred.
+        """
+        # Prefer the base implementation if available
+        try:
+            return super()._get_save_spec(dynamic_batch)
+        except AttributeError:
+            # Fall back to building specs from `self.inputs`
+            inputs = getattr(self, "inputs", None)
+            if inputs is None:
+                return None
+
+            def _make_spec(t):
+                # t is a tf.Tensor-like object
+                shape = list(t.shape)
+                if dynamic_batch and len(shape) > 0:
+                    shape[0] = None
+                # Convert to tuple for TensorSpec
+                try:
+                    name = getattr(t, "name", None)
+                    return tf.TensorSpec(
+                        shape=tuple(shape), dtype=t.dtype, name=name
+                    )
+                except (ImportError, ModuleNotFoundError):
+                    return None
+
+            # Handle dict/list/single tensor inputs
+            if isinstance(inputs, dict):
+                return {k: _make_spec(v) for k, v in inputs.items()}
+            if isinstance(inputs, (list, tuple)):
+                return [_make_spec(t) for t in inputs]
+            return _make_spec(inputs)
 
     @property
     def _default_save_signature(self):
