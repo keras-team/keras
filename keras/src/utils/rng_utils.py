@@ -5,6 +5,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.random import seed_generator
 from keras.src.utils.module_utils import tensorflow as tf
 
 GLOBAL_RANDOM_SEED = "global_random_seed"
@@ -60,6 +61,10 @@ def set_random_seed(seed):
         import torch
 
         torch.manual_seed(seed)
+    if backend.backend() == "jax":
+        # We create a global seed generator using the global random seed
+        gen = seed_generator.SeedGenerator(seed)
+        global_state.set_global_attribute("global_seed_generator", gen)
 
 
 def get_random_seed():

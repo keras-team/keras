@@ -38,10 +38,10 @@ def _distribute_initializer(
     from functools import partial
 
     # Draw seed from the seed generator if seed is not a Jax Array
+    # It is imperative for seed generation to happen before jit compilation
     if seed is None or not isinstance(seed, jax.Array):
-        jax_compatible_seed = seed_generator.draw_seed(None)
-        # Convert to JAX PRNG key format (swap counter and seed value)
-        seed = jax_compatible_seed[::-1]
+        seed = seed_generator.draw_seed(None)[0]
+        seed = jax.random.key(seed)
 
     # Validate all required arguments
     if init_func is None or init_func.func.__name__ not in [

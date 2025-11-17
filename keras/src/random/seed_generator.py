@@ -118,28 +118,13 @@ class SeedGenerator:
 
 def global_seed_generator():
     if jax_utils.is_in_jax_tracing_scope():
-        raise ValueError(
-            "[JAX RNG] When tracing a JAX function, "
-            "you should only use seeded random ops, e.g. "
-            "you should create a `SeedGenerator` instance, attach it "
-            "to your layer/model, and pass the instance as the `seed` "
-            "argument when calling random ops. Unseeded random ops "
-            "would get incorrectly traced by JAX and would become constant "
-            "after tracing. Example:\n\n"
-            "```\n"
-            "# Make sure to set the seed generator as a layer attribute\n"
-            "self.seed_generator = keras.random.SeedGenerator(seed=1337)\n"
-            "...\n"
-            "out = keras.random.normal(shape=(1,), seed=self.seed_generator)\n"
-            "```"
-        )
+        # When we are in Jax Tracing mode, we provide a lightweight
+        # object of the shape and dtype expected
+        return jax_utils.JAXTracingSeedGenerator()
+
     gen = global_state.get_global_attribute("global_seed_generator")
-    global_seed = global_state.get_global_attribute("global_random_seed")
-    if gen is None and global_seed is None:
+    if gen is None:
         gen = SeedGenerator()
-        global_state.set_global_attribute("global_seed_generator", gen)
-    elif gen is None and global_seed is not None:
-        gen = SeedGenerator(global_seed)
         global_state.set_global_attribute("global_seed_generator", gen)
     return gen
 

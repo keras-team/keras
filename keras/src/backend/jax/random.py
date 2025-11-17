@@ -9,12 +9,14 @@ from keras.src.random.seed_generator import make_default_seed
 
 
 def jax_draw_seed(seed):
-    # Convert to JAX PRNG key format (swap counter and seed value)
     if isinstance(seed, jax.Array):
-        return seed[::-1]
+        if seed.ndim == 0:
+            return jax.random.key(seed)
+        elif seed.ndim == 1 and seed.shape == (2,):
+            return seed
     else:
-        seed_array = draw_seed(seed)
-        return seed_array[::-1]
+        seed = draw_seed(seed)
+        return seed
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
@@ -37,6 +39,35 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
         )
     else:
         sample = jax.random.normal(seed, shape=shape, dtype=dtype)
+        return sample * stddev + mean
+
+
+def truncated_normal(
+    shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None
+):
+    dtype = dtype or floatx()
+    seed = jax_draw_seed(seed)
+    if layout is not None:
+        from keras.src.backend import distribution_lib
+
+        init_func = partial(
+            jax.random.truncated_normal,
+            shape=shape,
+            dtype=dtype,
+            lower=-2.0,
+            upper=2.0,
+        )
+        return distribution_lib._distribute_initializer(
+            init_func=init_func,
+            mean=mean,
+            stddev=stddev,
+            seed=seed,
+            layout=layout,
+        )
+    else:
+        sample = jax.random.truncated_normal(
+            seed, shape=shape, lower=-2.0, upper=2.0, dtype=dtype
+        )
         return sample * stddev + mean
 
 
@@ -82,35 +113,6 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     return jax.random.randint(
         seed, shape=shape, dtype=dtype, minval=minval, maxval=maxval
     )
-
-
-def truncated_normal(
-    shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None
-):
-    dtype = dtype or floatx()
-    seed = jax_draw_seed(seed)
-    if layout is not None:
-        from keras.src.backend import distribution_lib
-
-        init_func = partial(
-            jax.random.truncated_normal,
-            shape=shape,
-            dtype=dtype,
-            lower=-2.0,
-            upper=2.0,
-        )
-        return distribution_lib._distribute_initializer(
-            init_func=init_func,
-            mean=mean,
-            stddev=stddev,
-            seed=seed,
-            layout=layout,
-        )
-    else:
-        sample = jax.random.truncated_normal(
-            seed, shape=shape, lower=-2.0, upper=2.0, dtype=dtype
-        )
-        return sample * stddev + mean
 
 
 def _get_concrete_noise_shape(inputs, noise_shape):

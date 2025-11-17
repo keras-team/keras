@@ -33,16 +33,15 @@ class JaxVariable(KerasVariable):
     def set_tensor_layout(self):
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
-        if self._layout is None:
-            distribution = global_state.get_global_attribute("distribution")
-            if distribution is not None:
-                tensor_layout = distribution.get_variable_layout(self)
-                from keras.src.distribution import TensorLayout
+        distribution = global_state.get_global_attribute("distribution")
+        if self._layout is None and distribution is not None:
+            tensor_layout = distribution.get_variable_layout(self)
+            from keras.src.distribution import TensorLayout
 
-                if isinstance(tensor_layout, TensorLayout):
-                    self._layout = tensor_layout.backend_layout
-                else:
-                    self._layout = tensor_layout
+            if isinstance(tensor_layout, TensorLayout):
+                self._layout = tensor_layout.backend_layout
+            else:
+                self._layout = tensor_layout
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
@@ -50,24 +49,24 @@ class JaxVariable(KerasVariable):
         self.set_tensor_layout()
         self._direct_assign(value)
 
-    def check_distributed_init(self, initializer):
+    def check_distributed_init(self, initializer, init_layout):
         # Check if 'layout' parameter is supported in the initializer call
         import inspect
 
         sig = inspect.signature(initializer.__call__)
         layout_supported = "layout" in sig.parameters
         # Check if PartitionSpec has any non-None values
-        spec = getattr(self._layout, "spec", None)
+        spec = getattr(init_layout, "spec", None)
         partition_spec = spec if spec is not None else ()
         is_partitioned = any(dim is not None for dim in partition_spec)
-        return layout_supported and is_partitioned
+        return layout_supported and init_layout is not None and is_partitioned
 
     def _initialize_with_initializer(self, initializer):
-        self.set_tensor_layout()
+        init_layout = get_initialization_layout(self.path)
         # Use layout-aware initialization for distributed embeddings
-        if self.check_distributed_init(initializer):
+        if self.check_distributed_init(initializer, init_layout):
             value = self._convert_to_tensor(
-                initializer(self._shape, dtype=self._dtype, layout=self._layout)
+                initializer(self._shape, dtype=self._dtype, layout=init_layout)
             )
         else:
             value = self._convert_to_tensor(
@@ -140,6 +139,12 @@ if config.is_nnx_enabled():
 
             # The real value is now set in self._value, sync it to raw_value
             object.__setattr__(self, "raw_value", self._value)
+
+        def _initialize_with_initializer(self, initializer):
+            value = self._convert_to_tensor(
+                initializer(self._shape, dtype=self._dtype)
+            )
+            self._initialize(value)
 
         @property
         def _value(self):
@@ -262,6 +267,25 @@ if config.is_nnx_enabled():
             return self._maybe_autocast(current_value)
 
     Variable = NnxVariable
+
+
+def get_initialization_layout(path):
+    distribution = global_state.get_global_attribute("distribution")
+    if distribution is None:
+        return None
+    layout_map = getattr(distribution, "_layout_map", None)
+    if layout_map is None:
+        return None
+    layout_obj = layout_map.get(path)
+    if layout_obj is None:
+        return None
+    from keras.src.distribution import TensorLayout
+
+    if isinstance(layout_obj, TensorLayout):
+        layout_obj = layout_obj.backend_layout
+    if isinstance(layout_obj, jax.sharding.NamedSharding):
+        return layout_obj
+    return None
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):

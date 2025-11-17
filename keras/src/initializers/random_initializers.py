@@ -6,18 +6,19 @@ from keras.src.backend import backend
 from keras.src.backend import random
 from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
+from keras.src.utils import jax_utils
 
 
 class RandomInitializer(Initializer):
     def __init__(self, seed=None):
         self._init_seed = seed
         if seed is None and backend() == "jax":
-            seed = int(random.draw_seed(None)[0])
+            seed = jax_utils.get_jax_random_seed(seed)
         elif seed is None:
             seed = random.make_default_seed()
         elif isinstance(seed, dict):
             seed = serialization_lib.deserialize_keras_object(seed)
-        elif not isinstance(seed, (int, random.SeedGenerator)):
+        elif not isinstance(seed, (random.SeedGenerator, int)):
             raise ValueError(
                 "`seed` argument should be an instance of "
                 "`keras.random.SeedGenerator()` or an integer. "
