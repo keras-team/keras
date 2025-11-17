@@ -244,7 +244,8 @@ class LiteRTExporter:
                 tf.lite.OpsSet.TFLITE_BUILTINS,
                 tf.lite.OpsSet.SELECT_TF_OPS,
             ]
-            converter.experimental_enable_resource_variables = False
+            # Keras 3 only supports resource variables
+            converter.experimental_enable_resource_variables = True
 
             # Apply any additional converter settings from kwargs
             self._apply_converter_kwargs(converter)
@@ -299,40 +300,22 @@ class LiteRTExporter:
 
         concrete_func = model_fn.get_concrete_function(*tensor_specs)
 
-        # Try conversion with different strategies
-        conversion_strategies = [
-            {"experimental_enable_resource_variables": False},
-            {"experimental_enable_resource_variables": True},
-        ]
-
-        for strategy in conversion_strategies:
-            try:
-                converter = tf.lite.TFLiteConverter.from_concrete_functions(
-                    [concrete_func], self.model
-                )
-                converter.target_spec.supported_ops = [
-                    tf.lite.OpsSet.TFLITE_BUILTINS,
-                    tf.lite.OpsSet.SELECT_TF_OPS,
-                ]
-                converter.experimental_enable_resource_variables = strategy[
-                    "experimental_enable_resource_variables"
-                ]
-
-                # Apply any additional converter settings from kwargs
-                self._apply_converter_kwargs(converter)
-
-                tflite_model = converter.convert()
-                return tflite_model
-
-            except Exception:
-                continue
-
-        # If all strategies fail, raise an error
-        raise RuntimeError(
-            "Failed to convert model to TFLite. "
-            "Both direct Keras conversion and concrete function "
-            "conversion failed."
+        # Convert using concrete function
+        converter = tf.lite.TFLiteConverter.from_concrete_functions(
+            [concrete_func], self.model
         )
+        converter.target_spec.supported_ops = [
+            tf.lite.OpsSet.TFLITE_BUILTINS,
+            tf.lite.OpsSet.SELECT_TF_OPS,
+        ]
+        # Keras 3 only supports resource variables
+        converter.experimental_enable_resource_variables = True
+
+        # Apply any additional converter settings from kwargs
+        self._apply_converter_kwargs(converter)
+
+        tflite_model = converter.convert()
+        return tflite_model
 
     def _apply_converter_kwargs(self, converter):
         """Apply additional converter settings from kwargs.
