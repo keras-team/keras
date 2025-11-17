@@ -301,7 +301,9 @@ class LiteRTExporter:
                     if hasattr(converter.target_spec, spec_key):
                         setattr(converter.target_spec, spec_key, spec_value)
                     else:
-                        raise ValueError(f"Unknown target_spec attribute '{spec_key}'")
+                        raise ValueError(
+                            f"Unknown target_spec attribute '{spec_key}'"
+                        )
             elif hasattr(converter, attr):
                 setattr(converter, attr, value)
             else:
