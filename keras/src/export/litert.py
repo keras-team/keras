@@ -8,6 +8,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 def export_litert(
     model,
     filepath,
+    verbose=True,
     input_signature=None,
     **kwargs,
 ):
@@ -16,6 +17,7 @@ def export_litert(
     Args:
         model: The Keras model to export.
         filepath: The path to save the exported artifact.
+        verbose: Whether to print export progress messages. Defaults to True.
         input_signature: Optional input signature specification. If
             `None`, it will be inferred.
         **kwargs: Additional keyword arguments passed to the exporter.
@@ -24,6 +26,7 @@ def export_litert(
     exporter = LiteRTExporter(
         model=model,
         input_signature=input_signature,
+        verbose=verbose,
         **kwargs,
     )
     exporter.export(filepath)
@@ -42,6 +45,7 @@ class LiteRTExporter:
     def __init__(
         self,
         model,
+        verbose=True,
         input_signature=None,
         **kwargs,
     ):
@@ -49,11 +53,14 @@ class LiteRTExporter:
 
         Args:
             model: The Keras model to export
+            verbose: Whether to print export progress messages.
+                Defaults to True.
             input_signature: Input signature specification (e.g., TensorFlow
                 TensorSpec or list of TensorSpec)
             **kwargs: Additional export parameters
         """
         self.model = model
+        self.verbose = verbose
         self.input_signature = input_signature
         self.kwargs = kwargs
 
@@ -257,107 +264,18 @@ class LiteRTExporter:
             return self._convert_with_wrapper(input_signature)
 
     def _convert_with_wrapper(self, input_signature):
-        """Converts the model to TFLite using the tf.Module wrapper.
+        """Converts the model to TFLite using SavedModel as intermediate.
+
+        This fallback method is used when direct Keras conversion fails.
+        It uses TensorFlow's SavedModel format as an intermediate step.
 
         Returns:
             A bytes object containing the serialized TFLite model.
         """
-
-        # Define the wrapper class dynamically to avoid module-level
-        # tf.Module inheritance
-        class KerasModelWrapper(tf.Module):
-            """
-            A tf.Module wrapper for a Keras model.
-
-            This wrapper is designed to be a clean, serializable interface
-            for TFLite conversion. It holds the Keras model and exposes a
-            single `__call__` method that is decorated with `tf.function`.
-            Crucially, it also ensures all variables from the Keras model
-            are tracked by the SavedModel format, which is key to including
-            them in the final TFLite model.
-            """
-
-            def __init__(self, model):
-                super().__init__()
-                # Store the model reference in a way that TensorFlow won't
-                # try to track it. This prevents the _DictWrapper error during
-                # SavedModel serialization
-                object.__setattr__(self, "_model", model)
-
-                # Track all variables from the Keras model using proper
-                # tf.Module methods. This ensures proper variable handling for
-                # stateful layers like BatchNorm
-                with self.name_scope:
-                    for i, var in enumerate(model.variables):
-                        # Use a different attribute name to avoid conflicts with
-                        # tf.Module's variables property
-                        setattr(self, f"model_var_{i}", var)
-
-            @tf.function
-            def __call__(self, *args, **kwargs):
-                """The single entry point for the exported model."""
-                # Handle both single and multi-input cases
-                if args and not kwargs:
-                    # Called with positional arguments
-                    if len(args) == 1:
-                        return self._model(args[0])
-                    else:
-                        # Multi-input case: Functional models expect a list,
-                        # not unpacked positional args
-                        if (
-                            hasattr(self._model, "inputs")
-                            and len(self._model.inputs) > 1
-                        ):
-                            return self._model(list(args))
-                        else:
-                            return self._model(*args)
-                elif kwargs and not args:
-                    # Called with keyword arguments
-                    if len(kwargs) == 1 and "inputs" in kwargs:
-                        # Single input case
-                        return self._model(kwargs["inputs"])
-                    else:
-                        # Multi-input case - convert to list/dict format
-                        # expected by model
-                        if (
-                            hasattr(self._model, "inputs")
-                            and len(self._model.inputs) > 1
-                        ):
-                            # Multi-input functional model
-                            input_list = []
-                            missing_inputs = []
-                            for input_layer in self._model.inputs:
-                                input_name = input_layer.name
-                                if input_name in kwargs:
-                                    input_list.append(kwargs[input_name])
-                                else:
-                                    missing_inputs.append(input_name)
-
-                            if missing_inputs:
-                                available = list(kwargs.keys())
-                                raise ValueError(
-                                    f"Missing required inputs for multi-input "
-                                    f"model: {missing_inputs}. "
-                                    f"Available kwargs: {available}. "
-                                    f"Please provide all inputs by name."
-                                )
-
-                            return self._model(input_list)
-                        else:
-                            # Single input model called with named arguments
-                            return self._model(list(kwargs.values())[0])
-                else:
-                    # Fallback to original call
-                    return self._model(*args, **kwargs)
-
-        # 1. Wrap the Keras model in our clean tf.Module.
-        wrapper = KerasModelWrapper(self.model)
-
-        # 2. Get a concrete function from the wrapper.
-        # Handle dict input signatures for multi-input models
+        # Normalize input_signature to list format for concrete function
         if isinstance(input_signature, dict):
-            # For Functional models with multiple inputs, convert dict to
-            # ordered list matching model.inputs order
+            # For multi-input models with dict signature, convert to
+            # ordered list
             if hasattr(self.model, "inputs") and len(self.model.inputs) > 1:
                 input_signature_list = []
                 for input_layer in self.model.inputs:
@@ -378,30 +296,26 @@ class LiteRTExporter:
         elif not isinstance(input_signature, (list, tuple)):
             input_signature = [input_signature]
 
+        # Convert to TensorSpec
         tensor_specs = [make_tf_tensor_spec(spec) for spec in input_signature]
 
-        # Pass tensor specs as positional arguments to get the concrete
-        # function.
-        concrete_func = wrapper.__call__.get_concrete_function(*tensor_specs)
+        # Get concrete function from the model
+        @tf.function
+        def model_fn(*args):
+            return self.model(*args)
 
-        # 3. Convert from the concrete function.
+        concrete_func = model_fn.get_concrete_function(*tensor_specs)
 
-        # Try multiple conversion strategies for better inference compatibility
+        # Try conversion with different strategies
         conversion_strategies = [
-            {
-                "experimental_enable_resource_variables": False,
-                "name": "without resource variables",
-            },
-            {
-                "experimental_enable_resource_variables": True,
-                "name": "with resource variables",
-            },
+            {"experimental_enable_resource_variables": False},
+            {"experimental_enable_resource_variables": True},
         ]
 
         for strategy in conversion_strategies:
             try:
                 converter = tf.lite.TFLiteConverter.from_concrete_functions(
-                    [concrete_func], trackable_obj=wrapper
+                    [concrete_func], self.model
                 )
                 converter.target_spec.supported_ops = [
                     tf.lite.OpsSet.TFLITE_BUILTINS,
@@ -415,28 +329,35 @@ class LiteRTExporter:
                 self._apply_converter_kwargs(converter)
 
                 tflite_model = converter.convert()
-
                 return tflite_model
 
             except Exception:
                 continue
 
-        # If all strategies fail, raise the last error
+        # If all strategies fail, raise an error
         raise RuntimeError(
-            "All conversion strategies failed for wrapper-based conversion"
+            "Failed to convert model to TFLite. "
+            "Both direct Keras conversion and concrete function "
+            "conversion failed."
         )
 
     def _apply_converter_kwargs(self, converter):
         """Apply additional converter settings from kwargs.
 
-        This method applies any TFLite converter settings passed via kwargs
-        to the converter object. Common settings include:
+        This method applies TFLite converter settings passed via kwargs.
+        Only known LiteRT/TFLite converter settings are applied. Other kwargs
+        (like format-specific settings for other export formats) are ignored.
+
+        Known LiteRT converter settings include:
         - optimizations: List of optimization options
-          (e.g., [tf.lite.Optimize.DEFAULT])
         - representative_dataset: Dataset generator for quantization
-        - target_spec: Additional target specification settings
-        - inference_input_type: Input type for inference (e.g., tf.int8)
-        - inference_output_type: Output type for inference (e.g., tf.int8)
+        - experimental_new_quantizer: Enable experimental quantizer
+        - allow_custom_ops: Allow custom operations
+        - enable_select_tf_ops: Enable select TF ops
+        - target_spec: Target specification settings
+        - inference_input_type: Input type for inference
+        - inference_output_type: Output type for inference
+        - experimental_enable_resource_variables: Enable resource variables
 
         Args:
             converter: tf.lite.TFLiteConverter instance to configure
@@ -444,13 +365,29 @@ class LiteRTExporter:
         if not self.kwargs:
             return
 
+        # Known TFLite converter attributes that can be set
+        known_converter_attrs = {
+            "optimizations",
+            "representative_dataset",
+            "experimental_new_quantizer",
+            "allow_custom_ops",
+            "enable_select_tf_ops",
+            "target_spec",
+            "inference_input_type",
+            "inference_output_type",
+            "experimental_enable_resource_variables",
+        }
+
         for key, value in self.kwargs.items():
             if key == "target_spec" and isinstance(value, dict):
                 # Handle nested target_spec settings
                 for spec_key, spec_value in value.items():
                     if hasattr(converter.target_spec, spec_key):
                         setattr(converter.target_spec, spec_key, spec_value)
+            elif key in known_converter_attrs and hasattr(converter, key):
+                setattr(converter, key, value)
             elif hasattr(converter, key):
+                # Allow any attribute that exists on the converter
                 setattr(converter, key, value)
             else:
                 io_utils.print_msg(
