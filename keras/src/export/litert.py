@@ -57,38 +57,6 @@ class LiteRTExporter:
         self.input_signature = input_signature
         self.kwargs = kwargs
 
-    def _has_dict_inputs(self):
-        """Check if the model expects dictionary inputs.
-
-        Returns:
-            bool: True if model has dict inputs, False otherwise.
-        """
-        # Check if model.inputs is a dict (most reliable for built models)
-        if hasattr(self.model, "inputs") and isinstance(
-            self.model.inputs, dict
-        ):
-            return True
-
-        # Check if _inputs_struct is a dict (for Functional models)
-        if hasattr(self.model, "_inputs_struct") and isinstance(
-            self.model._inputs_struct, dict
-        ):
-            return True
-
-        # Check if provided input_signature is a dict
-        if self.input_signature is not None:
-            if isinstance(self.input_signature, dict):
-                return True
-            # Check for wrapped dict (Functional model pattern)
-            if (
-                isinstance(self.input_signature, (list, tuple))
-                and len(self.input_signature) == 1
-                and isinstance(self.input_signature[0], dict)
-            ):
-                return True
-
-        return False
-
     def _infer_dict_input_signature(self):
         """Infer input signature from a model with dict inputs.
 
