@@ -1,4 +1,5 @@
 import re
+
 import numpy as np
 
 from keras.src import ops
@@ -47,7 +48,7 @@ class CoordinatedOptimizer:
         This method inspects the variables created by the base optimizer and
         maps them to model parameters.
 
-        
+
 
         Note:
             Since the Keras BaseOptimizer does not expose a direct mapping
@@ -80,7 +81,7 @@ class CoordinatedOptimizer:
 
             found_param = None
             slot_name = None
-            
+
             for norm_param_path, param in normalized_params:
                 if state_suffix.startswith(norm_param_path):
                     found_param = param
@@ -215,12 +216,9 @@ class CoordinatedOptimizer:
         """
         for shard_idx in range(self.device_count):
             local_states = self._get_local_optimizer_states(shard_idx)
-            # Access the base optimizer inside the TensorParallelOptimizer wrapper
-            shard_optimizer = shard_models[shard_idx].optimizer.base_optimizer 
+            shard_optimizer = shard_models[shard_idx].optimizer.base_optimizer
 
-            self._update_optimizer_internal_state(
-                shard_optimizer, local_states
-            )
+            self._update_optimizer_internal_state(shard_optimizer, local_states)
 
             shard_grads_and_vars = synchronized_gradients[shard_idx]
             shard_optimizer.apply_gradients(shard_grads_and_vars)
@@ -314,7 +312,7 @@ class CoordinatedOptimizer:
         """
         Synchronizes gradients across shards based on tensor parallel rules.
 
-        
+
 
         Args:
             gradients_and_vars (list): A list of (gradient, variable) tuples.
@@ -351,7 +349,7 @@ class CoordinatedOptimizer:
                     if g_and_v[i][0] is not None
                 ]
                 if grads_to_reduce:
-                    synced_grad = self._allreduce_gradients(grads_to_reduce)[0] 
+                    synced_grad = self._allreduce_gradients(grads_to_reduce)[0]
                     for shard_idx in range(self.device_count):
                         if gradients_and_vars[shard_idx][i][0] is not None:
                             gradients_and_vars[shard_idx][i] = (
@@ -472,7 +470,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             grads_and_vars (list): A list of (gradient, variable) tuples or a
                 list of lists for sharded execution.
             **kwargs: Additional arguments, such as `shard_models`.
-        
+
         Raises:
             ValueError: If `shard_models` is missing when applying sharded
                 gradients.
@@ -494,25 +492,6 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             )
         else:
             self.base_optimizer.apply_gradients(grads_and_vars)
-
-    def get_config(self):
-        """Returns the optimizer configuration as a dictionary."""
-        from keras.src import saving
-
-        config = super().get_config()
-        config.pop("learning_rate", None)
-        config.pop("name", None)
-
-        config.update(
-            {
-                "base_optimizer": saving.serialize_keras_object(
-                    self.base_optimizer
-                ),
-                "device_count": self.device_count,
-                "tensor_parallel_config": self.coordinated_optimizer.tensor_parallel_config,
-            }
-        )
-        return config
 
     def update_step(self, gradient, variable, *args, **kwargs):
         """
@@ -546,13 +525,13 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         base_optimizer = saving.deserialize_keras_object(base_optimizer_config)
 
         init_kwargs = {
-            "device_count": config.get("device_count"), 
+            "device_count": config.get("device_count"),
             "tensor_parallel_config": config.get("tensor_parallel_config"),
         }
 
-        config.pop("device_count", None) 
-        config.pop("tensor_parallel_config", None) 
-        
+        config.pop("device_count", None)
+        config.pop("tensor_parallel_config", None)
+
         return cls(base_optimizer=base_optimizer, **init_kwargs)
 
     def build(self, variables):
@@ -570,9 +549,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             iterations = self.base_optimizer.iterations
             original_iterations_val = None
             if iterations is not None:
-                original_iterations_val = ops.convert_to_numpy(
-                    iterations.value
-                )
+                original_iterations_val = ops.convert_to_numpy(iterations.value)
 
             zero_grads = [ops.zeros_like(v) for v in variables]
             self.base_optimizer.apply_gradients(zip(zero_grads, variables))
