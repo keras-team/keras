@@ -288,52 +288,21 @@ class LiteRTExporter:
     def _apply_converter_kwargs(self, converter):
         """Apply additional converter settings from kwargs.
 
-        This method applies TFLite converter settings passed via kwargs.
-        Only known LiteRT/TFLite converter settings are applied. Other kwargs
-        (like format-specific settings for other export formats) are ignored.
-
-        Known LiteRT converter settings include:
-        - optimizations: List of optimization options
-        - representative_dataset: Dataset generator for quantization
-        - experimental_new_quantizer: Enable experimental quantizer
-        - allow_custom_ops: Allow custom operations
-        - enable_select_tf_ops: Enable select TF ops
-        - target_spec: Target specification settings
-        - inference_input_type: Input type for inference
-        - inference_output_type: Output type for inference
-        - experimental_enable_resource_variables: Enable resource variables
-
         Args:
             converter: tf.lite.TFLiteConverter instance to configure
+
+        Raises:
+            ValueError: If any kwarg is not a valid converter attribute
         """
-        if not self.kwargs:
-            return
-
-        # Known TFLite converter attributes that can be set
-        known_converter_attrs = {
-            "optimizations",
-            "representative_dataset",
-            "experimental_new_quantizer",
-            "allow_custom_ops",
-            "enable_select_tf_ops",
-            "target_spec",
-            "inference_input_type",
-            "inference_output_type",
-            "experimental_enable_resource_variables",
-        }
-
-        for key, value in self.kwargs.items():
-            if key == "target_spec" and isinstance(value, dict):
+        for attr, value in self.kwargs.items():
+            if attr == "target_spec" and isinstance(value, dict):
                 # Handle nested target_spec settings
                 for spec_key, spec_value in value.items():
                     if hasattr(converter.target_spec, spec_key):
                         setattr(converter.target_spec, spec_key, spec_value)
-            elif key in known_converter_attrs and hasattr(converter, key):
-                setattr(converter, key, value)
-            elif hasattr(converter, key):
-                # Allow any attribute that exists on the converter
-                setattr(converter, key, value)
+                    else:
+                        raise ValueError(f"Unknown target_spec attribute '{spec_key}'")
+            elif hasattr(converter, attr):
+                setattr(converter, attr, value)
             else:
-                io_utils.print_msg(
-                    f"Warning: Unknown converter setting '{key}' - ignoring"
-                )
+                raise ValueError(f"Unknown converter attribute '{attr}'")
