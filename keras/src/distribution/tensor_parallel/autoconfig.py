@@ -9,14 +9,40 @@ _split_fn_internal = split_tensor_for_parallelism
 
 def _split_rule(device_count, dim):
     """
-    Returns a sharding rule (lambda) that calls split_tensor_for_parallelism.
-    The lambda accepts (tensor, index) as expected by LayoutMap.
+    Creates a sharding rule for a specific dimension.
+
+    Returns a lambda function compatible with LayoutMap that defines
+    how a tensor should be split across the available devices.
+
+    Args:
+        device_count (int): The total number of devices available for parallelism.
+        dim (int): The dimension of the tensor to split.
+
+    Returns:
+        callable: A lambda function accepting (tensor, index) that returns the
+        sharded layout.
     """
     return lambda x, index: _split_fn_internal(x, index, device_count, dim=dim)
 
 
 def analyze_dense_layer(layer):
-    """Analyzes a Keras Dense layer to classify its sharding strategy."""
+    """
+    Classifies a Dense layer based on its input/output dimensions.
+
+    This function determines if a Dense layer represents an 'up_projection'
+    (expansion) or a 'down_projection' (contraction) based on a heuristic
+    threshold. This classification dictates how the weights are sharded.
+
+    Heuristic:
+        - Expansion: Output dimension > (Input dimension * 1.5)
+        - Contraction: Input dimension > (Output dimension * 1.5)
+
+    Args:
+        layer (keras.layers.Layer): The layer instance to analyze.
+
+    Returns:
+        str: One of 'up_projection', 'down_projection', or 'dense'.
+    """
     if not isinstance(layer, layers.Dense):
         return 'dense'
 
@@ -63,15 +89,28 @@ def _recursive_layer_traversal(
     output_rules,
     processed_layers,
 ):
-    """Recursively traverses the model graph to apply sharding rules."""
-    
+    """
+    Traverses the model graph recursively to apply sharding rules.
+
+    This function visits layers, checks their type, and populates the
+    state_rules (weights) and output_rules (activations) dictionaries
+    required for Tensor Parallelism.
+
+    Args:
+        current_layer (keras.layers.Layer): The current layer being visited.
+        prefix (str): The naming prefix for the current layer (used for nested models).
+        device_count (int): Total number of devices.
+        state_rules (dict): The dictionary accumulating variable sharding rules.
+        output_rules (dict): The dictionary accumulating output layout rules.
+        processed_layers (set): A set of object IDs to prevent infinite recursion on cycles.
+    """
     if id(current_layer) in processed_layers:
         return
     processed_layers.add(id(current_layer))
 
     name = current_layer.name
     full_name = f"{prefix}.{name}" if prefix else name
-    
+
     if isinstance(current_layer, layers.Dense):
         mlp_type = analyze_dense_layer(current_layer)
 
@@ -144,8 +183,21 @@ def _recursive_layer_traversal(
 
 
 def get_default_config_keras(module, device_ids):
-    """Generates a default tensor parallelism sharding configuration for a model."""
-    
+    """
+    Generates a default tensor parallelism configuration for a model.
+
+    This function inspects the model structure and automatically generates
+    a `LayoutMap` containing sharding rules for weights (kernels/biases) and
+    outputs (activations).
+
+    Args:
+        module (keras.Model or keras.layers.Layer): The Keras model or layer to config.
+        device_ids (list): A list of device identifiers (e.g., strings or Mesh IDs).
+
+    Returns:
+        keras.src.distribution.tensor_parallel.tensor_layout.LayoutMap:
+        The configuration map applied to the model distribution API.
+    """
     device_count = len(device_ids)
     state_rules = {}
     output_rules = {}
