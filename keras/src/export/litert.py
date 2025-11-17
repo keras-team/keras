@@ -8,7 +8,6 @@ from keras.src.utils.module_utils import tensorflow as tf
 def export_litert(
     model,
     filepath,
-    verbose=True,
     input_signature=None,
     **kwargs,
 ):
@@ -17,7 +16,6 @@ def export_litert(
     Args:
         model: The Keras model to export.
         filepath: The path to save the exported artifact.
-        verbose: Whether to print export progress messages. Defaults to True.
         input_signature: Optional input signature specification. If
             `None`, it will be inferred.
         **kwargs: Additional keyword arguments passed to the exporter.
@@ -26,7 +24,6 @@ def export_litert(
     exporter = LiteRTExporter(
         model=model,
         input_signature=input_signature,
-        verbose=verbose,
         **kwargs,
     )
     exporter.export(filepath)
@@ -45,7 +42,6 @@ class LiteRTExporter:
     def __init__(
         self,
         model,
-        verbose=True,
         input_signature=None,
         **kwargs,
     ):
@@ -53,14 +49,11 @@ class LiteRTExporter:
 
         Args:
             model: The Keras model to export
-            verbose: Whether to print export progress messages.
-                Defaults to True.
             input_signature: Input signature specification (e.g., TensorFlow
                 TensorSpec or list of TensorSpec)
             **kwargs: Additional export parameters
         """
         self.model = model
-        self.verbose = verbose
         self.input_signature = input_signature
         self.kwargs = kwargs
 
