@@ -15,14 +15,14 @@ class CoordinatedOptimizer:
     synchronizing gradients according to tensor parallelism rules.
 
     Args:
-        base_optimizer (Optimizer): The Keras optimizer instance.
-        device_count (int): The total number of devices/processes in the
-            distributed setup.
-        shard_optimizer_states (bool): If `True`, the optimizer's state
-            variables will be partitioned across `device_count` devices.
-            Defaults to `True`.
-        tensor_parallel_config (object): An optional configuration object that
-            defines rules for tensor parallelism. Defaults to `None`.
+        base_optimizer: The Keras optimizer instance.
+        device_count: The total number of devices/processes in the distributed
+            setup.
+        shard_optimizer_states: If `True`, the optimizer's state variables
+            will be partitioned across `device_count` devices. Defaults to
+            `True`.
+        tensor_parallel_config: An optional configuration object that defines
+            rules for tensor parallelism. Defaults to `None`.
     """
 
     def __init__(
@@ -42,8 +42,7 @@ class CoordinatedOptimizer:
         self._variable_to_slot_name = {}
 
     def _initialize_sharded_states(self):
-        """
-        Partitions the optimizer's state variables across shards.
+        """Partitions the optimizer's state variables across shards.
 
         This method inspects the variables created by the base optimizer and
         maps them to model parameters.
@@ -51,9 +50,9 @@ class CoordinatedOptimizer:
 
 
         Note:
-            Since the Keras BaseOptimizer does not expose a direct mapping
-            from a model parameter to its optimizer state variables, this
-            method infers the mapping by string parsing their paths/names.
+            Since the Keras BaseOptimizer does not expose a direct mapping from
+            a model parameter to its optimizer state variables, this method
+            infers the mapping by string parsing their paths/names.
         """
         if not self.shard_optimizer_states or not self.base_optimizer.built:
             return
@@ -117,12 +116,11 @@ class CoordinatedOptimizer:
             )
 
     def _partition_state(self, state_variable, dim):
-        """
-        Splits a single state variable numpy array into chunks.
+        """Splits a single state variable numpy array into chunks.
 
         Args:
-            state_variable (array-like): The state variable to split.
-            dim (int): The dimension along which to split the variable.
+            state_variable: The state variable to split.
+            dim: The dimension along which to split the variable.
 
         Returns:
             list: A list of numpy arrays representing the split state.
@@ -137,14 +135,12 @@ class CoordinatedOptimizer:
             return [np.copy(state_array) for _ in range(self.device_count)]
 
     def apply_gradients(self, gradients_and_vars, shard_models):
-        """
-        Coordinates gradient synchronization and application.
+        """Coordinates gradient synchronization and application.
 
         Args:
-            gradients_and_vars (list): A list containing lists of (gradient,
-                variable) tuples for each device.
-            shard_models (list): A list of model shards corresponding to the
-                devices.
+            gradients_and_vars: A list containing lists of (gradient, variable)
+                tuples for each device.
+            shard_models: A list of model shards corresponding to the devices.
 
         Raises:
             ValueError: If the number of gradient sets does not match the
@@ -170,14 +166,13 @@ class CoordinatedOptimizer:
     def _apply_gradients_with_replicated_states(
         self, synchronized_gradients, shard_models
     ):
-        """
-        Averages gradients across all shards and applies them once.
+        """Averages gradients across all shards and applies them once.
 
         This is used when `shard_optimizer_states` is False.
 
         Args:
-            synchronized_gradients (list): The list of synchronized gradients.
-            shard_models (list): The list of model shards.
+            synchronized_gradients: The list of synchronized gradients.
+            shard_models: The list of model shards.
         """
         num_vars = len(synchronized_gradients[0])
         averaged_grads_and_vars = []
@@ -207,12 +202,11 @@ class CoordinatedOptimizer:
     def _apply_gradients_with_sharded_states(
         self, synchronized_gradients, shard_models
     ):
-        """
-        Applies gradients to each shard using its local optimizer state.
+        """Applies gradients to each shard using its local optimizer state.
 
         Args:
-            synchronized_gradients (list): The list of synchronized gradients.
-            shard_models (list): The list of model shards.
+            synchronized_gradients: The list of synchronized gradients.
+            shard_models: The list of model shards.
         """
         for shard_idx in range(self.device_count):
             local_states = self._get_local_optimizer_states(shard_idx)
@@ -226,11 +220,10 @@ class CoordinatedOptimizer:
             self._update_global_sharded_states(shard_optimizer, shard_idx)
 
     def _get_local_optimizer_states(self, shard_idx):
-        """
-        Constructs the state dictionary for a single shard.
+        """Constructs the state dictionary for a single shard.
 
         Args:
-            shard_idx (int): The index of the current shard.
+            shard_idx: The index of the current shard.
 
         Returns:
             dict: A dictionary mapping state names to their local values.
@@ -248,12 +241,11 @@ class CoordinatedOptimizer:
         return local_states
 
     def _update_optimizer_internal_state(self, optimizer, local_states):
-        """
-        Assigns local sharded state values to the optimizer's variables.
+        """Assigns local sharded state values to the optimizer's variables.
 
         Args:
-            optimizer (Optimizer): The local optimizer instance for the shard.
-            local_states (dict): The local state dictionary.
+            optimizer: The local optimizer instance for the shard.
+            local_states: The local state dictionary.
         """
         if not optimizer.built:
             return
@@ -278,12 +270,11 @@ class CoordinatedOptimizer:
                     var.assign(local_param_state)
 
     def _update_global_sharded_states(self, optimizer, shard_idx):
-        """
-        Updates the main sharded_states dictionary after a gradient step.
+        """Updates the main sharded_states dictionary after a gradient step.
 
         Args:
-            optimizer (Optimizer): The local optimizer instance.
-            shard_idx (int): The index of the current shard.
+            optimizer: The local optimizer instance.
+            shard_idx: The index of the current shard.
         """
         if not optimizer.built:
             return
@@ -309,13 +300,12 @@ class CoordinatedOptimizer:
                 )
 
     def _synchronize_gradients(self, gradients_and_vars):
-        """
-        Synchronizes gradients across shards based on tensor parallel rules.
+        """Synchronizes gradients across shards using tensor parallel rules.
 
 
 
         Args:
-            gradients_and_vars (list): A list of (gradient, variable) tuples.
+            gradients_and_vars: A list of (gradient, variable) tuples.
 
         Returns:
             list: The synchronized list of gradients and variables.
@@ -359,14 +349,13 @@ class CoordinatedOptimizer:
         return gradients_and_vars
 
     def _allreduce_gradients(self, gradients):
-        """
-        Performs a mean all-reduce operation on a list of gradients.
+        """Performs a mean all-reduce operation on a list of gradients.
 
         This method uses the on-device communication primitive from the backend
         (e.g., JAX's lax.pmean) when multiple devices are detected.
 
         Args:
-            gradients (list): A list of gradient tensors to reduce.
+            gradients: A list of gradient tensors to reduce.
 
         Returns:
             list: A list containing the reduced gradient repeated for each
@@ -404,11 +393,10 @@ class CoordinatedOptimizer:
         self.base_optimizer.set_weights(weights)
 
     def enable_optimizer_state_sharding(self, variables):
-        """
-        Enables and initializes optimizer state sharding.
+        """Enables and initializes optimizer state sharding.
 
         Args:
-            variables (list): A list of model variables to track.
+            variables: A list of model variables to track.
         """
         self.shard_optimizer_states = True
         self._variables = variables
@@ -424,12 +412,11 @@ class TensorParallelOptimizer(optimizers.Optimizer):
     `CoordinatedOptimizer` instance.
 
     Args:
-        base_optimizer (Optimizer or str): A Keras optimizer instance or a
-            string identifier.
-        device_count (int): The total number of devices/processes in the
-            distributed setup.
-        tensor_parallel_config (object): An optional configuration object.
-            Defaults to `None`.
+        base_optimizer: A Keras optimizer instance or a string identifier.
+        device_count: The total number of devices/processes in the distributed
+            setup.
+        tensor_parallel_config: An optional configuration object. Defaults to
+            `None`.
     """
 
     def __init__(
@@ -462,84 +449,27 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             tensor_parallel_config=tensor_parallel_config,
         )
 
-    def apply_gradients(self, grads_and_vars, **kwargs):
-        """
-        Applies gradients to the model variables.
-
-        Args:
-            grads_and_vars (list): A list of (gradient, variable) tuples or a
-                list of lists for sharded execution.
-            **kwargs: Additional arguments, such as `shard_models`.
-
-        Raises:
-            ValueError: If `shard_models` is missing when applying sharded
-                gradients.
-        """
-        is_sharded_grads = (
-            isinstance(grads_and_vars, list)
-            and grads_and_vars
-            and isinstance(grads_and_vars[0], list)
-        )
-        if is_sharded_grads:
-            if "shard_models" not in kwargs:
-                raise ValueError(
-                    "The `shard_models` keyword argument is required when "
-                    "applying sharded gradients (a list of lists)."
-                )
-            shard_models = kwargs.get("shard_models")
-            self.coordinated_optimizer.apply_gradients(
-                grads_and_vars, shard_models
-            )
-        else:
-            self.base_optimizer.apply_gradients(grads_and_vars)
-
     def update_step(self, gradient, variable, *args, **kwargs):
-        """
-        Delegates the update step to the base optimizer.
+        """Delegates the update step to the base optimizer.
 
         Args:
-            gradient (Tensor): The gradient tensor.
-            variable (Variable): The variable to update.
+            gradient: The gradient tensor.
+            variable: The variable to update.
             *args: Additional arguments for the update.
             **kwargs: Additional keyword arguments for the update.
         """
         if hasattr(self.base_optimizer, "update_step"):
-            try:
-                return self.base_optimizer.update_step(
-                    gradient, variable, *args, **kwargs
-                )
-            except TypeError:
-                return self.base_optimizer.update_step(gradient, variable)
+            return self.base_optimizer.update_step(
+                gradient, variable, *args, **kwargs
+            )
 
-        try:
-            return super().update_step(gradient, variable, *args, **kwargs)
-        except TypeError:
-            return super().update_step(gradient, variable)
-
-    @classmethod
-    def from_config(cls, config):
-        """Creates an optimizer instance from its configuration."""
-        from keras.src import saving
-
-        base_optimizer_config = config.pop("base_optimizer")
-        base_optimizer = saving.deserialize_keras_object(base_optimizer_config)
-
-        init_kwargs = {
-            "device_count": config.get("device_count"),
-            "tensor_parallel_config": config.get("tensor_parallel_config"),
-        }
-
-        config.pop("device_count", None)
-        config.pop("tensor_parallel_config", None)
-
-        return cls(base_optimizer=base_optimizer, **init_kwargs)
+        return super().update_step(gradient, variable, *args, **kwargs)
 
     def build(self, variables):
-        """
-        Builds the optimizer and initializes sharded states.
+        """Builds the optimizer and initializes sharded states.
 
         Args:
-            variables (list): The list of variables to optimize.
+            variables: The list of variables to optimize.
         """
         if self.built:
             return
