@@ -1,3 +1,5 @@
+from keras.src import layers
+from keras.src import models
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_input_spec
 from keras.src.utils import io_utils
@@ -171,7 +173,7 @@ class LiteRTExporter:
         input_layers = []
         for name in input_keys:
             spec = input_signature_dict[name]
-            input_layer = tf.keras.layers.Input(
+            input_layer = layers.Input(
                 shape=spec.shape[1:],  # Remove batch dimension
                 dtype=spec.dtype,
                 name=name,
@@ -187,7 +189,7 @@ class LiteRTExporter:
         outputs = self.model(inputs_dict)
 
         # Build as Functional model (list inputs -> dict -> model -> output)
-        adapted_model = tf.keras.Model(inputs=input_layers, outputs=outputs)
+        adapted_model = models.Model(inputs=input_layers, outputs=outputs)
 
         # Preserve the original model's variables
         adapted_model._variables = self.model.variables
