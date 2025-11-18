@@ -2648,7 +2648,7 @@ def take_along_axis(x, indices, axis=None):
         # not always XLA compilable with dynamic dimensions.
         # We replace `None`s with the dynamic dimensions.
         # `maximum` is the correct formula only when shapes are broadcastable,
-        # we rely on the broacast itself to fail in the incorrect case rather
+        # we rely on the broadcast itself to fail in the incorrect case rather
         # than make some expensive dynamic checks here.
         broadcast_shape = [
             tf.maximum(x_original_shape[i], indices_original_shape[i])
