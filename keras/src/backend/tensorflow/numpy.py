@@ -998,6 +998,51 @@ def array(x, dtype=None):
     return convert_to_tensor(x, dtype=dtype)
 
 
+def view(x, dtype=None):
+    from keras.src import backend
+
+    x = convert_to_tensor(x)
+    old_dtype = tf.as_dtype(backend.standardize_dtype(x.dtype))
+    new_dtype = tf.as_dtype(
+        backend.standardize_dtype(dtype if dtype else x.dtype)
+    )
+
+    old_itemsize = old_dtype.size
+    new_itemsize = new_dtype.size
+
+    old_shape = list(shape_op(x))
+    last_dim_size = old_shape[-1] if len(old_shape) > 0 else -1
+    if (last_dim_size == -1 and old_itemsize != new_itemsize) or (
+        last_dim_size * old_itemsize % new_itemsize != 0
+    ):
+        raise ValueError(
+            f"Cannot view array of shape {x.shape} and dtype {old_dtype} "
+            f"as dtype {new_dtype} because the total number of bytes "
+            f"is not divisible by the new itemsize."
+        )
+
+    if old_itemsize == new_itemsize:
+        return tf.bitcast(x, type=new_dtype)
+    elif old_itemsize > new_itemsize:
+        ratio = old_itemsize // new_itemsize
+        new_shape = list(shape_op(x))
+        new_shape[-1] *= ratio
+        flat_tensor = tf.reshape(x, [-1])
+        cast_tensor = tf.bitcast(flat_tensor, type=new_dtype)
+        return tf.reshape(cast_tensor, new_shape)
+    else:
+        ratio = new_itemsize // old_itemsize
+        if isinstance(last_dim_size, int) and last_dim_size % ratio != 0:
+            raise ValueError(
+                f"Cannot view dtype. Last dimension size ({last_dim_size}) "
+                f"must be divisible by the ratio of new/old item sizes "
+                f"({ratio})."
+            )
+        intermediate_shape = old_shape[:-1] + [last_dim_size // ratio, ratio]
+        reshaped_tensor = tf.reshape(x, intermediate_shape)
+        return tf.bitcast(reshaped_tensor, new_dtype)
+
+
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
 
@@ -1444,6 +1489,10 @@ def empty(shape, dtype=None):
     return tf.zeros(shape, dtype=dtype)
 
 
+def empty_like(x, dtype=None):
+    return tf.zeros_like(x, dtype=dtype)
+
+
 def equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1710,6 +1759,14 @@ def isposinf(x):
     if dtype_as_dtype.is_integer or not dtype_as_dtype.is_numeric:
         return tf.zeros_like(x, dtype=tf.bool)
     return tf.math.equal(x, tf.constant(float("inf"), dtype=x.dtype))
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    if x.dtype.is_complex:
+        return tf.equal(tf.math.imag(x), 0)
+    else:
+        return tf.ones_like(x, dtype=tf.bool)
 
 
 def kron(x1, x2):
@@ -2250,7 +2307,7 @@ def _quantile(x, q, axis=None, method="linear", keepdims=False):
         return gathered_y
     perm = collections.deque(range(ndims))
     perm.rotate(shift_value_static)
-    return tf.transpose(a=gathered_y, perm=perm)
+    return tf.transpose(a=gathered_y, perm=list(perm))
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
@@ -2441,6 +2498,17 @@ def split(x, indices_or_sections, axis=0):
     else:
         num_or_size_splits = indices_or_sections
     return tf.split(x, num_or_size_splits, axis=axis)
+
+
+def array_split(x, indices_or_sections, axis=0):
+    x = tf.convert_to_tensor(x)
+    num_splits = indices_or_sections
+    total_size = shape_op(x)[axis]
+    avg_size = total_size // num_splits
+    remainder = total_size % num_splits
+    sizes = [avg_size + 1] * remainder + [avg_size] * (num_splits - remainder)
+
+    return tf.split(x, sizes, axis=axis)
 
 
 def stack(x, axis=0):
@@ -2693,8 +2761,11 @@ def tile(x, repeats):
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype not in ("int64", "uint32", "uint64"):
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    x = tf.cast(x, dtype)
     x_shape = tf.shape(x)
     x = moveaxis(x, (axis1, axis2), (-2, -1))
     # Mask out the diagonal and reduce.
@@ -2703,10 +2774,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
         x,
         tf.zeros_like(x),
     )
-    # The output dtype is set to "int32" if the input dtype is "bool"
-    if standardize_dtype(x.dtype) == "bool":
-        x = tf.cast(x, "int32")
-    return tf.cast(tf.reduce_sum(x, axis=(-2, -1)), dtype)
+    return tf.reduce_sum(x, axis=(-2, -1))
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -2976,6 +3044,42 @@ def transpose(x, axes=None):
     return tf.transpose(x, perm=axes)
 
 
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    def _move_axis_to_last(tensor, axis):
+        if axis == -1:
+            return tensor
+        rank = tf.rank(tensor)
+        if axis < 0:
+            axis = rank + axis
+        perm = tf.concat(
+            [
+                tf.range(axis, dtype=tf.int32),
+                tf.range(axis + 1, rank, dtype=tf.int32),
+                tf.constant([axis], dtype=tf.int32),
+            ],
+            axis=0,
+        )
+        return tf.transpose(tensor, perm=perm)
+
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(y.dtype, float)
+    y = tf.cast(y, dtype)
+
+    if x is None:
+        dx_array = tf.cast(dx, dtype)
+    else:
+        x = convert_to_tensor(x, dtype=dtype)
+        dx_array = diff(x, axis=axis)
+        dx_array = _move_axis_to_last(dx_array, axis)
+
+    y = _move_axis_to_last(y, axis)
+
+    avg_heights = 0.5 * (y[..., 1:] + y[..., :-1])
+    result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
+
+    return result
+
+
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
@@ -3086,30 +3190,57 @@ def correlate(x1, x2, mode="valid"):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
 
-    x1_len, x2_len = int(x1.shape[0]), int(x2.shape[0])
+    def _pack(a, b):
+        # a: input [N] -> [1,N,1];
+        # b: filter [M] -> [M,1,1]
+        return (
+            tf.reshape(a, (1, shape_op(a)[0], 1)),
+            tf.reshape(b, (shape_op(b)[0], 1, 1)),
+        )
+
+    def _full_corr(x1, x2):
+        """Compute 'full' correlation result (length = n + m - 1)."""
+        m = shape_op(x2)[0]
+        pad = (
+            builtins.max(m - 1, 0)
+            if isinstance(m, int)
+            else tf.maximum(m - 1, 0)
+        )
+        x1 = tf.pad(x1, [[pad, pad]])  # pad input with zeros
+        x1, x2 = _pack(x1, x2)
+        out = tf.nn.conv1d(x1, x2, stride=1, padding="VALID")
+        return tf.squeeze(out, axis=[0, 2])
+
+    n = shape_op(x1)[0]
+    m = shape_op(x2)[0]
 
     if mode == "full":
-        full_len = x1_len + x2_len - 1
-
-        x1_pad = (full_len - x1_len) / 2
-        x2_pad = (full_len - x2_len) / 2
-
-        x1 = tf.pad(
-            x1, paddings=[[tf.math.floor(x1_pad), tf.math.ceil(x1_pad)]]
+        return _full_corr(x1, x2)
+    elif mode == "same":
+        # unfortunately we can't leverage 'SAME' padding directly like
+        # we can with "valid"
+        # it works fine for odd-length filters, but for even-length filters
+        # the output is off by 1 compared to numpy, due to how
+        # tf handles centering
+        full_corr = _full_corr(x1, x2)
+        full_len = n + m - 1
+        out_len = (
+            max([n, m])
+            if isinstance(n, int) and isinstance(m, int)
+            else tf.maximum(n, m)
         )
-        x2 = tf.pad(
-            x2, paddings=[[tf.math.floor(x2_pad), tf.math.ceil(x2_pad)]]
+        start = (full_len - out_len) // 2
+        return tf.slice(full_corr, [start], [out_len])
+    elif mode == "valid":
+        x1, x2 = _pack(x1, x2)
+        return tf.squeeze(
+            tf.nn.conv1d(x1, x2, stride=1, padding="VALID"), axis=[0, 2]
         )
-
-        x1 = tf.reshape(x1, (1, full_len, 1))
-        x2 = tf.reshape(x2, (full_len, 1, 1))
-
-        return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding="SAME"))
-
-    x1 = tf.reshape(x1, (1, x1_len, 1))
-    x2 = tf.reshape(x2, (x2_len, 1, 1))
-
-    return tf.squeeze(tf.nn.conv1d(x1, x2, stride=1, padding=mode.upper()))
+    else:
+        raise ValueError(
+            f"Invalid mode: '{mode}'. Mode must be one of:"
+            f" 'full', 'same', 'valid'."
+        )
 
 
 def select(condlist, choicelist, default=0):
@@ -3161,10 +3292,14 @@ def histogram(x, bins=10, range=None):
 
     x = tf.boolean_mask(x, (x >= min_val) & (x <= max_val))
     bin_edges = tf.linspace(min_val, max_val, bins + 1)
-    bin_edges_list = bin_edges.numpy().tolist()
-    bin_indices = tf.raw_ops.Bucketize(input=x, boundaries=bin_edges_list[1:-1])
+    bin_edges = tf.cast(bin_edges, x.dtype)
+    bin_indices = tf.searchsorted(bin_edges[1:-1], x, side="right")
 
-    bin_counts = tf.math.bincount(
-        bin_indices, minlength=bins, maxlength=bins, dtype=x.dtype
+    # tf.math.bincount does not work with XLA in this case. So, we use
+    # `scatter_nd`.
+    bin_counts = tf.scatter_nd(
+        indices=tf.expand_dims(bin_indices, axis=-1),
+        updates=tf.ones_like(bin_indices, dtype=x.dtype),
+        shape=(bins,),
     )
     return bin_counts, bin_edges

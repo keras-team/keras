@@ -25,7 +25,7 @@ NUM_SAMPLES = 16
 W_BITS = 4
 NUM_CLASSES = 32
 
-CALIBRATION_TEXT = """
+CALIBRATION_TEXT = r"""
 GPTQ (Generative Pre-trained Transformer Quantization) is an advanced 
 post-training quantization (PTQ) algorithm designed to compress large 
 language models with minimal accuracy degradation. It addresses the 

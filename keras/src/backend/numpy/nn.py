@@ -404,7 +404,7 @@ def conv(
             f"kernel in_channels {kernel_in_channels}. "
         )
     feature_group_count = channels // kernel_in_channels
-    return np.array(
+    result = np.array(
         jax.lax.conv_general_dilated(
             inputs,
             kernel if is_tensor(kernel) else kernel.numpy(),
@@ -415,6 +415,14 @@ def conv(
             feature_group_count=feature_group_count,
         )
     )
+    if result.size == 0:
+        raise ValueError(
+            "The convolution operation resulted in an empty output. "
+            "This can happen if the input is too small for the given "
+            "kernel size, strides, dilation rate, and padding mode. "
+            "Please check the input shape and convolution parameters."
+        )
+    return result
 
 
 def depthwise_conv(
