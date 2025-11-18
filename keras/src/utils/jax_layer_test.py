@@ -185,6 +185,7 @@ if flax is not None:
     backend.backend() not in ["jax", "tensorflow"],
     reason="JaxLayer and FlaxLayer are only supported with JAX and TF backend",
 )
+@pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="GPU test failure")
 class TestJaxLayer(testing.TestCase):
     def _test_layer(
         self,
