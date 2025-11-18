@@ -27,6 +27,6 @@ class JAXTracingSeedGenerator:
         self._shape = (2,)
         self._dtype = "uint32"
 
-    def __call__(self, ordered=False):
+    def next(self, ordered=False):
         # Return a dummy key for tracing
         return backend.random.jax.random.key(0)
