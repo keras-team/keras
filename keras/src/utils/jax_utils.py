@@ -1,5 +1,3 @@
-from jax import random
-
 from keras.src import backend
 
 
@@ -29,6 +27,6 @@ class JAXTracingSeedGenerator:
         self._shape = (2,)
         self._dtype = "uint32"
 
-    def next(self, ordered=False):
+    def __call__(self, ordered=False):
         # Return a dummy key for tracing
-        return random.key(0)
+        return backend.random.jax.random.key(0)
