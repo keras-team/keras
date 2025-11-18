@@ -81,3 +81,20 @@ class MuonTest(testing.TestCase):
         grad = [np.array([100.0, 100.0])]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    def test_muon_weight_decay(self):
+        variable = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        weight_decay = 0.01
+        except_varable = variable - variable * weight_decay
+        optimizer = Muon(learning_rate=1.0, weight_decay=weight_decay)
+        optimizer._apply_weight_decay([variable])
+        self.assertAllClose(variable, except_varable, rtol=1e-4, atol=1e-4)
+
+    def test_adamw_weight_decay(self):
+        variable = backend.Variable(2.0)
+        weight_decay = 0.01
+        except_varable = variable - variable * weight_decay
+        optimizer = Muon(learning_rate=1.0, adam_weight_decay=weight_decay)
+        optimizer._apply_weight_decay([variable])
+
+        self.assertAllClose(variable, except_varable, rtol=1e-4, atol=1e-4)
