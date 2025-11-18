@@ -1,13 +1,39 @@
-from autoconfig import analyze_dense_layer
-from autoconfig import get_default_config_keras
+from unittest.mock import patch
 
+from autoconfig import analyze_dense_layer
+from autoconfig import get_default_config
+
+import keras
 from keras.src import layers
-from keras.src import models
-from keras.src import ops
 from keras.src import testing
 
 
 class AutoConfigTest(testing.TestCase):
+    def check_rule(self, rule, expected_device_count, expected_dim):
+        """
+        Helper to verify a rule lambda.
+        Since the rule is a lambda, we mock the internal function it calls
+        to verify it captured the correct device_count and dim.
+        """
+        self.assertTrue(callable(rule), "Rule must be a callable (lambda)")
+
+        # Patch the internal function imported in autoconfig
+        with patch("autoconfig._split_fn_internal") as mock_split:
+            # Call the rule with dummy arguments
+            rule(keras.ops.zeros((2, 2)), 0)
+
+            # Verify _split_fn_internal was called
+            self.assertTrue(mock_split.called)
+
+            # Inspect arguments: (tensor, index, device_count, dim=dim)
+            args, kwargs = mock_split.call_args
+
+            # device_count is the 3rd positional argument (index 2)
+            self.assertEqual(args[2], expected_device_count)
+
+            # dim is passed as a keyword argument
+            self.assertEqual(kwargs["dim"], expected_dim)
+
     def test_analyze_dense_layer_directly(self):
         """Tests the heuristic for classifying Dense layers."""
 
@@ -31,29 +57,31 @@ class AutoConfigTest(testing.TestCase):
         device_count = 2
         devices = [f"gpu:{i}" for i in range(device_count)]
 
-        model = models.Sequential(
+        model = keras.Sequential(
             [
-                layers.Input(shape=(32,)),
-                layers.Dense(128, name="mlp_up"),
-                layers.Dense(32, name="mlp_down"),
+                keras.Input(shape=(32,)),
+                layers.Dense(128, name="mlp_up"),  # Up-projection
+                layers.Dense(32, name="mlp_down"),  # Down-projection
             ],
             name="mlp_block",
         )
 
-        layout_map = get_default_config_keras(model, devices)
+        layout_map = get_default_config(model, devices)
         state_rules = layout_map.state_rules
         output_rules = layout_map.output_rules
 
+        # Assertions for State (Weight) Sharding Rules
         up_kernel_key = "mlp_block.mlp_up.kernel"
-        up_kernel_rule = state_rules[up_kernel_key]
-        self.assertEqual(up_kernel_rule.device_count, device_count)
-        self.assertEqual(up_kernel_rule.dim, 1)
+        self.assertIn(up_kernel_key, state_rules)
+        # Verify Up Projection (split on dim 1)
+        self.check_rule(state_rules[up_kernel_key], device_count, 1)
 
         down_kernel_key = "mlp_block.mlp_down.kernel"
-        down_kernel_rule = state_rules[down_kernel_key]
-        self.assertEqual(down_kernel_rule.device_count, device_count)
-        self.assertEqual(down_kernel_rule.dim, 0)
+        self.assertIn(down_kernel_key, state_rules)
+        # Verify Down Projection (split on dim 0)
+        self.check_rule(state_rules[down_kernel_key], device_count, 0)
 
+        # Assertions for Output Communication Rules
         self.assertEqual(output_rules["mlp_block.mlp_up"], {0: "gather"})
         self.assertEqual(output_rules["mlp_block.mlp_down"], {0: "allreduce"})
 
@@ -88,47 +116,44 @@ class AutoConfigTest(testing.TestCase):
                 return x
 
         model = SimpleTransformer(name="transformer")
-        model(ops.zeros((1, 10)))
+        model(keras.ops.zeros((1, 10)))
 
-        layout_map = get_default_config_keras(model, devices)
+        layout_map = get_default_config(model, devices)
         state_rules = layout_map.state_rules
 
+        # Check Embedding
         expected_key = "transformer.embedding.embeddings"
         self.assertIn(expected_key, state_rules)
-        emb_rule = state_rules[expected_key]
-        self.assertEqual(emb_rule.device_count, device_count)
-        self.assertEqual(emb_rule.dim, 1)
+        self.check_rule(state_rules[expected_key], device_count, 1)
 
+        # Check QKV Projection
         qkv_key = "transformer.qkv_proj.kernel"
-        qkv_rule = state_rules[qkv_key]
-        self.assertEqual(qkv_rule.device_count, device_count)
-        self.assertEqual(qkv_rule.dim, 1)
+        self.assertIn(qkv_key, state_rules)
+        self.check_rule(state_rules[qkv_key], device_count, 1)
 
+        # Check Attention Output
         attn_out_key = "transformer.attention_output.kernel"
-        attn_out_rule = state_rules[attn_out_key]
-        self.assertEqual(attn_out_rule.device_count, device_count)
-        self.assertEqual(attn_out_rule.dim, 0)
+        self.assertIn(attn_out_key, state_rules)
+        self.check_rule(state_rules[attn_out_key], device_count, 0)
 
     def test_nested_model(self):
         """Tests that the recursive traversal finds layers in nested models."""
         device_count = 2
         devices = [f"gpu:{i}" for i in range(device_count)]
-        inner_model = models.Sequential(
+        inner_model = keras.Sequential(
             [layers.Dense(64, name="inner_dense")], name="inner_block"
         )
-        outer_model = models.Sequential(
+        outer_model = keras.Sequential(
             [
-                layers.Input(shape=(32,)),
+                keras.Input(shape=(32,)),
                 layers.Dense(32, name="outer_dense_1"),
                 inner_model,
             ],
             name="outer_block",
         )
-        layout_map = get_default_config_keras(outer_model, devices)
+        layout_map = get_default_config(outer_model, devices)
         state_rules = layout_map.state_rules
 
         expected_key = "outer_block.inner_block.inner_dense.kernel"
         self.assertIn(expected_key, state_rules)
-        inner_rule = state_rules[expected_key]
-        self.assertEqual(inner_rule.device_count, device_count)
-        self.assertEqual(inner_rule.dim, 1)
+        self.check_rule(state_rules[expected_key], device_count, 1)

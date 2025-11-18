@@ -1,28 +1,48 @@
 from keras.src import layers
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
-from keras.src.distribution.tensor_parallel.tensor_layout import Split
+from keras.src.distribution.tensor_parallel.tensor_layout import (
+    split_tensor_for_parallelism,
+)
+
+_split_fn_internal = split_tensor_for_parallelism
+
+
+def _split_rule(device_count, dim):
+    """
+    Creates a sharding rule for a specific dimension.
+
+    Returns a lambda function compatible with LayoutMap that defines
+    how a tensor should be split across the available devices.
+
+    Args:
+        device_count: The total number of devices available for parallelism.
+        dim: The dimension of the tensor to split.
+
+    Returns:
+        callable: A lambda function accepting (tensor, index) that returns the
+        sharded layout.
+    """
+    return lambda x, index: _split_fn_internal(x, index, device_count, dim=dim)
 
 
 def analyze_dense_layer(layer):
-    """Analyzes a Keras Dense layer to classify its sharding strategy.
+    """
+    Classifies a Dense layer based on its input/output dimensions.
 
-    This function inspects the input and output dimensions of a Dense layer
-    to determine if it functions as an expansion layer ("up-projection"), a
-    contraction layer ("down-projection"), or neither ("dense"). This
-    classification is a heuristic commonly used to apply tensor parallelism
-    in Transformer-based models, such as in an MLP block where an up-projection
-    is followed by a down-projection.
+    This function determines if a Dense layer represents an 'up_projection'
+    (expansion) or a 'down_projection' (contraction) based on a heuristic
+    threshold. This classification dictates how the weights are sharded.
 
-    The classification is based on an `expansion_threshold` (set to 1.5).
+    Heuristic:
+        - Expansion: Output dimension > (Input dimension * 1.5)
+        - Contraction: Input dimension > (Output dimension * 1.5)
 
     Args:
-        layer: The Keras `layers.Dense` instance to analyze.
+        layer (keras.layers.Layer): The layer instance to analyze.
 
     Returns:
-        str: A string classifying the layer as 'up_projection',
-        'down_projection', or 'dense'.
+        str: One of 'up_projection', 'down_projection', or 'dense'.
     """
-
     if not isinstance(layer, layers.Dense):
         return "dense"
 
@@ -65,196 +85,178 @@ def analyze_dense_layer(layer):
         return "dense"
 
 
-def _recursive_layer_traversal(
-    current_layer,
-    prefix,
-    device_count,
-    state_rules,
-    output_rules,
-    processed_layers,
+def _apply_layer_sharding_rules(
+    layer, full_name, device_count, state_rules, output_rules
 ):
-    """Recursively traverses the model graph to apply sharding rules.
+    """Applies sharding rules to a single layer instance based on its type.
 
-    This function is necessary because Keras Model.layers property does not
-    recursively find all sub-layers in all architectures. It applies sharding
-    rules based on layer type and heuristic classification (e.g., up/down
-    projection).
-
-    - Split Logic:
-        - 'up_projection' (or general 'dense'): Column-wise sharding
-          (`Split(..., 1, "column")`) on kernel. Requires output to be
-          gathered (`gather`).
-        - 'down_projection' (or attention output): Row-wise sharding
-          (`Split(..., 0, "row")`) on kernel. Requires output to be
-          reduced (`allreduce`).
-        - Embedding: Column-wise sharding (`Split(..., 1, "column")`).
+    This function populates the `state_rules` and `output_rules` dictionaries
+    by analyzing the specific layer type (Dense, EinsumDense, Embedding).
 
     Args:
-        current_layer: The Keras layer instance currently being inspected.
-        prefix: The fully qualified name prefix for the current layer's scope.
-        device_count: The number of devices (replicas) in the parallelism group.
-        state_rules: A dictionary to accumulate variable sharding rules
-          (`LayoutMap.state_rules`).
-        output_rules: A dictionary to accumulate layer output communication
-          rules (`LayoutMap.output_rules`).
-        processed_layers: A set of layer IDs to prevent infinite recursion
-          in graph structures.
+        layer (keras.layers.Layer): The layer instance to process.
+        full_name: The full hierarchical name of the layer (prefix + name).
+        device_count: Total number of devices.
+        state_rules: The dictionary to update with variable sharding rules.
+        output_rules: The dictionary to update with output layout rules.
     """
-    if id(current_layer) in processed_layers:
-        return
-    processed_layers.add(id(current_layer))
-
-    name = current_layer.name
-    full_name = f"{prefix}.{name}" if prefix else name
-
-    if isinstance(current_layer, layers.Dense):
-        mlp_type = analyze_dense_layer(current_layer)
+    if isinstance(layer, layers.Dense):
+        mlp_type = analyze_dense_layer(layer)
 
         if mlp_type == "up_projection":
-            # Column-wise sharding for the first MLP layer
-            state_rules[f"{full_name}.kernel"] = Split(
-                device_count, 1, "column"
+            state_rules[f"{full_name}.kernel"] = _split_rule(
+                device_count, dim=1
             )
-            if current_layer.use_bias:
-                state_rules[f"{full_name}.bias"] = Split(
-                    device_count, 0, "column"
+            if layer.use_bias:
+                state_rules[f"{full_name}.bias"] = _split_rule(
+                    device_count, dim=0
                 )
-            # The result needs to be gathered back to a full tensor.
             output_rules[f"{full_name}"] = {0: "gather"}
 
         elif mlp_type == "down_projection":
-            # Row-wise sharding for the second MLP layer (down-projection)
-            state_rules[f"{full_name}.kernel"] = Split(device_count, 0, "row")
-            # Results from different devices needs to be summed (all-reduced).
+            state_rules[f"{full_name}.kernel"] = _split_rule(
+                device_count, dim=0
+            )
             output_rules[f"{full_name}"] = {0: "allreduce"}
 
         else:
-            # Fallback for generic dense layers (treat as column-wise split)
-            state_rules[f"{full_name}.kernel"] = Split(
-                device_count, 1, "column"
+            state_rules[f"{full_name}.kernel"] = _split_rule(
+                device_count, dim=1
             )
-            if current_layer.use_bias:
-                state_rules[f"{full_name}.bias"] = Split(
-                    device_count, 0, "column"
+            if layer.use_bias:
+                state_rules[f"{full_name}.bias"] = _split_rule(
+                    device_count, dim=0
                 )
             output_rules[f"{full_name}"] = {0: "gather -1"}
 
-    elif isinstance(current_layer, layers.EinsumDense):
+    elif isinstance(layer, layers.EinsumDense):
         if "attention_output" in full_name:
-            # Row-wise sharding for the attention output layer
-            state_rules[f"{full_name}.kernel"] = Split(device_count, 0, "row")
+            state_rules[f"{full_name}.kernel"] = _split_rule(
+                device_count, dim=0
+            )
             output_rules[f"{full_name}"] = {0: "allreduce"}
         else:
-            # Column-wise sharding for key/query/value projections
-            state_rules[f"{full_name}.kernel"] = Split(
-                device_count, 1, "column"
+            state_rules[f"{full_name}.kernel"] = _split_rule(
+                device_count, dim=1
             )
-            if (
-                hasattr(current_layer, "bias")
-                and current_layer.bias is not None
-            ):
-                state_rules[f"{full_name}.bias"] = Split(
-                    device_count, 0, "column"
+            if hasattr(layer, "bias") and layer.bias is not None:
+                state_rules[f"{full_name}.bias"] = _split_rule(
+                    device_count, dim=0
                 )
             output_rules[f"{full_name}"] = {0: "gather -1"}
 
-    elif isinstance(current_layer, (layers.Embedding,)):
-        weight_name = None
-
-        if hasattr(current_layer, "embeddings"):
-            weight_name = "embeddings"
-        elif hasattr(current_layer, "position_embeddings"):
-            weight_name = "position_embeddings"
-
-        if weight_name:
-            # Column-wise sharding on the embedding dimension
-            state_rules[f"{full_name}.{weight_name}"] = Split(
-                device_count, 1, "column"
-            )
-            # Output requires no communication
-            output_rules[f"{full_name}"] = {0: "no_comm"}
-
-    elif isinstance(
-        current_layer,
-        (
-            layers.LayerNormalization,
-            layers.BatchNormalization,
-            layers.GroupNormalization,
-        ),
+    elif (
+        isinstance(layer, (layers.Embedding,))
+        or "Embedding" in layer.__class__.__name__
     ):
-        pass
+        if hasattr(layer, "weights"):
+            for weight in layer.weights:
+                if "embedding" in weight.name or "weight" in weight.name:
+                    key_found = False
+                    for attr_candidate in [
+                        "embeddings",
+                        "position_embeddings",
+                        "weight",
+                    ]:
+                        if getattr(layer, attr_candidate, None) is weight:
+                            state_rules[f"{full_name}.{attr_candidate}"] = (
+                                _split_rule(device_count, dim=1)
+                            )
+                            key_found = True
+                            break
 
-    if hasattr(current_layer, "layers") and current_layer.layers:
-        for sub_layer in current_layer.layers:
-            _recursive_layer_traversal(
-                sub_layer,
-                full_name,
-                device_count,
-                state_rules,
-                output_rules,
-                processed_layers,
-            )
-
-    for attr_name in dir(current_layer):
-        if attr_name.startswith("__") and attr_name.endswith("__"):
-            continue
-        if hasattr(current_layer, attr_name):
-            attr = getattr(current_layer, attr_name)
-
-            if isinstance(attr, layers.Layer) and attr is not current_layer:
-                _recursive_layer_traversal(
-                    attr,
-                    full_name,
-                    device_count,
-                    state_rules,
-                    output_rules,
-                    processed_layers,
-                )
-            elif isinstance(attr, (list, tuple)):
-                for item in attr:
-                    if isinstance(item, layers.Layer):
-                        _recursive_layer_traversal(
-                            item,
-                            full_name,
-                            device_count,
-                            state_rules,
-                            output_rules,
-                            processed_layers,
+                    if not key_found:
+                        clean_name = weight.name.split("/")[-1].split(":")[0]
+                        state_rules[f"{full_name}.{clean_name}"] = _split_rule(
+                            device_count, dim=1
                         )
 
+            output_rules[f"{full_name}"] = {0: "no_comm"}
 
-def get_default_config_keras(module, device_ids):
-    """Generates a default tensor parallelism sharding configuration.
 
-    This function leverages model-traversal and heuristic layer analysis to
-    automatically generate sharding rules (for state and layer outputs)
-    optimized for large-scale language models (Transformers).
+def get_default_config(module, device_ids):
+    """Generates a default tensor parallelism configuration for a Keras model.
+
+    This function performs an iterative Depth-First Search traversal of the
+    model graph. It automatically detects layers suitable for Tensor Parallelism
+    (Embeddings, MLPs, Attention Heads) and generates a `LayoutMap`.
+
+    The traversal uses a LIFO stack and processes children in reverse order
+    to mimic the behavior of standard recursive traversal, ensuring correct
+    path naming and rule application for nested KerasNLP backbones.
 
     Args:
-        module: The root Keras `Model` or `Layer` instance representing the
-                module to be sharded.
-        device_ids: A list of device identifiers (e.g., strings) that define
-                    the parallelism group. The length of this list determines
-                    the number of slices (`device_count`).
+        module: The Keras model or layer to configure.
+        device_ids (list): A list of device identifiers (e.g., strings).
 
     Returns:
-        LayoutMap: An object containing the generated `state_rules` (variable
-                   sharding) and `output_rules` (layer communication).
+        keras.src.distribution.tensor_parallel.tensor_layout.LayoutMap:
+        The configuration map applied to the model distribution API.
     """
-
     device_count = len(device_ids)
     state_rules = {}
     output_rules = {}
 
     processed_layers = set()
 
-    _recursive_layer_traversal(
-        current_layer=module,
-        prefix="",
-        device_count=device_count,
-        state_rules=state_rules,
-        output_rules=output_rules,
-        processed_layers=processed_layers,
-    )
+    stack = [(module, "")]
+
+    while stack:
+        current_layer, prefix = stack.pop()
+
+        if id(current_layer) in processed_layers:
+            continue
+        processed_layers.add(id(current_layer))
+
+        name = current_layer.name
+        full_name = f"{prefix}.{name}" if prefix else name
+
+        _apply_layer_sharding_rules(
+            current_layer, full_name, device_count, state_rules, output_rules
+        )
+
+        children_to_add = []
+
+        if hasattr(current_layer, "layers") and current_layer.layers:
+            for sub_layer in current_layer.layers:
+                children_to_add.append((sub_layer, full_name))
+
+        for specific_attr in [
+            "token_embedding",
+            "embeddings",
+            "position_embedding",
+        ]:
+            if hasattr(current_layer, specific_attr):
+                attr_val = getattr(current_layer, specific_attr)
+                if isinstance(attr_val, layers.Layer):
+                    children_to_add.append((attr_val, full_name))
+
+        for attr_name in dir(current_layer):
+            if attr_name.startswith("__") and attr_name.endswith("__"):
+                continue
+
+            if attr_name in [
+                "trainable_variables",
+                "non_trainable_variables",
+                "weights",
+            ]:
+                continue
+
+            attr_value = getattr(current_layer, attr_name, None)
+
+            if attr_value is None:
+                continue
+
+            if (
+                isinstance(attr_value, layers.Layer)
+                and attr_value is not current_layer
+            ):
+                children_to_add.append((attr_value, full_name))
+            elif isinstance(attr_value, (list, tuple)):
+                for item in attr_value:
+                    if isinstance(item, layers.Layer):
+                        children_to_add.append((item, full_name))
+
+        stack.extend(reversed(children_to_add))
 
     return LayoutMap(state_rules=state_rules, output_rules=output_rules)
