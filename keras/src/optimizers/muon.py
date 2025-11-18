@@ -273,15 +273,17 @@ class Muon(optimizer.Optimizer):
         return x
 
     def _apply_weight_decay(self, variables):
-        if self.weight_decay is None:
-            return
         for variable in variables:
             if self._use_weight_decay(variable):
-                lr = ops.cast(self.learning_rate, variable.dtype)
                 if self._should_use_adamw(variable):
+                    if self.adam_weight_decay is None:
+                        return
                     wd = ops.cast(self.adam_weight_decay, variable.dtype)
                 else:
+                    if self.weight_decay is None:
+                        return
                     wd = ops.cast(self.weight_decay, variable.dtype)
+                lr = ops.cast(self.learning_rate, variable.dtype)
                 variable.assign(variable - variable * wd * lr)
 
     def get_config(self):
