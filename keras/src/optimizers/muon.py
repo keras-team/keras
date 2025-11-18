@@ -50,6 +50,8 @@ class Muon(optimizer.Optimizer):
             that takes no arguments and returns the actual value to use.
             The exponential decay rate for the 2nd moment estimates. Defaults to
             `0.999`.
+        adam_weight_decay: Float. If set, weight decay is applied when using
+            the Adam optimizer.
         epsilon: A small constant for numerical stability. This is
             "epsilon hat" in the Kingma and Ba paper
             (in the formula just before Section 2.1),
@@ -79,6 +81,7 @@ class Muon(optimizer.Optimizer):
         learning_rate=0.001,
         adam_beta_1=0.9,
         adam_beta_2=0.999,
+        adam_weight_decay=0.004,
         epsilon=1e-7,
         weight_decay=0.1,
         clipnorm=None,
@@ -127,6 +130,7 @@ class Muon(optimizer.Optimizer):
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
         self.exclude_layers = exclude_layers or []
+        self.adam_weight_decay = adam_weight_decay
 
     def _should_use_adamw(self, variable):
         # To use it with 4D convolutional filters,
@@ -268,6 +272,18 @@ class Muon(optimizer.Optimizer):
             x = self.transpose_last_axis(x)
         return x
 
+    def _apply_weight_decay(self, variables):
+        if self.weight_decay is None:
+            return
+        for variable in variables:
+            if self._use_weight_decay(variable):
+                lr = ops.cast(self.learning_rate, variable.dtype)
+                if self._should_use_adamw(variable):
+                    wd = ops.cast(self.adam_weight_decay, variable.dtype)
+                else:
+                    wd = ops.cast(self.weight_decay, variable.dtype)
+                variable.assign(variable - variable * wd * lr)
+
     def get_config(self):
         config = super().get_config()
         config.update(
@@ -284,6 +300,7 @@ class Muon(optimizer.Optimizer):
                 "ns_steps": self.ns_steps,
                 "nesterov": self.nesterov,
                 "exclude_embeddings": self.exclude_embeddings,
+                "adam_weight_decay": self.adam_weight_decay,
             }
         )
         return config
