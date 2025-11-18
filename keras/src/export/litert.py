@@ -1,6 +1,5 @@
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_input_spec
-from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -222,68 +221,12 @@ class LiteRTExporter:
 
             return tflite_model
 
-        except Exception:
-            return self._convert_with_wrapper(input_signature)
-
-    def _convert_with_wrapper(self, input_signature):
-        """Converts the model to TFLite using SavedModel as intermediate.
-
-        This fallback method is used when direct Keras conversion fails.
-        It uses TensorFlow's SavedModel format as an intermediate step.
-
-        Returns:
-            A bytes object containing the serialized TFLite model.
-        """
-        # Normalize input_signature to list format for concrete function
-        if isinstance(input_signature, dict):
-            # For multi-input models with dict signature, convert to
-            # ordered list
-            if hasattr(self.model, "inputs") and len(self.model.inputs) > 1:
-                input_signature_list = []
-                for input_layer in self.model.inputs:
-                    input_name = input_layer.name
-                    if input_name not in input_signature:
-                        raise ValueError(
-                            f"Missing input '{input_name}' in input_signature. "
-                            f"Model expects inputs: "
-                            f"{[inp.name for inp in self.model.inputs]}, "
-                            f"but input_signature only has: "
-                            f"{list(input_signature.keys())}"
-                        )
-                    input_signature_list.append(input_signature[input_name])
-                input_signature = input_signature_list
-            else:
-                # Single-input model with dict signature
-                input_signature = [input_signature]
-        elif not isinstance(input_signature, (list, tuple)):
-            input_signature = [input_signature]
-
-        # Convert to TensorSpec
-        tensor_specs = [make_tf_tensor_spec(spec) for spec in input_signature]
-
-        # Get concrete function from the model
-        @tf.function
-        def model_fn(*args):
-            return self.model(*args)
-
-        concrete_func = model_fn.get_concrete_function(*tensor_specs)
-
-        # Convert using concrete function
-        converter = tf.lite.TFLiteConverter.from_concrete_functions(
-            [concrete_func], self.model
-        )
-        converter.target_spec.supported_ops = [
-            tf.lite.OpsSet.TFLITE_BUILTINS,
-            tf.lite.OpsSet.SELECT_TF_OPS,
-        ]
-        # Keras 3 only supports resource variables
-        converter.experimental_enable_resource_variables = True
-
-        # Apply any additional converter settings from kwargs
-        self._apply_converter_kwargs(converter)
-
-        tflite_model = converter.convert()
-        return tflite_model
+        except Exception as e:
+            # If direct conversion fails, raise the error with helpful message
+            raise RuntimeError(
+                f"Direct TFLite conversion failed. This may be due to model "
+                f"complexity or unsupported operations. Error: {e}"
+            ) from e
 
     def _apply_converter_kwargs(self, converter):
         """Apply additional converter settings from kwargs.
