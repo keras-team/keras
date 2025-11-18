@@ -404,7 +404,7 @@ def conv(
             f"kernel in_channels {kernel_in_channels}. "
         )
     feature_group_count = channels // kernel_in_channels
-    return np.array(
+    result = np.array(
         jax.lax.conv_general_dilated(
             inputs,
             kernel if is_tensor(kernel) else kernel.numpy(),
@@ -415,6 +415,14 @@ def conv(
             feature_group_count=feature_group_count,
         )
     )
+    if result.size == 0:
+        raise ValueError(
+            "The convolution operation resulted in an empty output. "
+            "This can happen if the input is too small for the given "
+            "kernel size, strides, dilation rate, and padding mode. "
+            "Please check the input shape and convolution parameters."
+        )
+    return result
 
 
 def depthwise_conv(
@@ -1176,3 +1184,56 @@ def dot_product_attention(
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """NumPy implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = np.pad(
+            input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])), mode="constant"
+        )
+
+    # ----  spatial size ----
+    oH = (input.shape[2] - (k[0] - 1) * d[0] - 1) // s[0] + 1
+    oW = (input.shape[3] - (k[1] - 1) * d[1] - 1) // s[1] + 1
+
+    i0 = np.arange(0, oH) * s[0]
+    j0 = np.arange(0, oW) * s[1]
+    i, j = np.meshgrid(i0, j0, indexing="ij")  # shape (oH, oW)
+    i = i.reshape(-1)
+    j = j.reshape(-1)
+
+    # ---- flatten patches ----
+    patches = np.empty((N, C, k[0], k[1], oH * oW), dtype=input.dtype)
+    for idx in range(k[0]):
+        for jdx in range(k[1]):
+            patches[:, :, idx, jdx, :] = input[
+                :, :, i + idx * d[0], j + jdx * d[1]
+            ]
+
+    # ---- reshape -> (N, C*kH*kW, L) ----
+    return patches.reshape(N, C * k[0] * k[1], -1)

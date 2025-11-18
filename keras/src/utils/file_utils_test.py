@@ -142,7 +142,7 @@ class FilterSafePathsTest(test_case.TestCase):
         with tarfile.open(self.tar_path, "w") as tar:
             tar.add(__file__, arcname="safe_path.txt")
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_paths(tar.getmembers()))
+            members = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "safe_path.txt")
 
@@ -156,7 +156,7 @@ class FilterSafePathsTest(test_case.TestCase):
         with tarfile.open(self.tar_path, "w") as tar:
             tar.add(symlink_path, arcname="symlink.txt")
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_paths(tar.getmembers()))
+            members = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "symlink.txt")
         os.remove(symlink_path)
@@ -173,7 +173,7 @@ class FilterSafePathsTest(test_case.TestCase):
             )  # Path intended to be outside of base dir
         with tarfile.open(self.tar_path, "r") as tar:
             with patch("warnings.warn") as mock_warn:
-                _ = list(file_utils.filter_safe_paths(tar.getmembers()))
+                _ = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
                 warning_msg = (
                     "Skipping invalid path during archive extraction: "
                     "'../../invalid.txt'."
@@ -196,7 +196,7 @@ class FilterSafePathsTest(test_case.TestCase):
             tar.add(symlink_path, arcname="symlink.txt")
 
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_paths(tar.getmembers()))
+            members = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "symlink.txt")
             self.assertTrue(

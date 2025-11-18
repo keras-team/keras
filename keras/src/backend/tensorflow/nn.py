@@ -310,7 +310,7 @@ def conv(
 ):
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
-        return tf.nn.convolution(
+        result = tf.nn.convolution(
             inputs,
             kernel,
             strides,
@@ -318,6 +318,20 @@ def conv(
             data_format=tf_data_format,
             dilations=dilation_rate,
         )
+        result_shape = result.shape
+        if (
+            result_shape.is_fully_defined()
+            and math.prod(result_shape.as_list()) == 0
+        ):
+            raise ValueError(
+                "The convolution operation resulted in an empty output. "
+                "Output shape:"
+                f" {result_shape}. This can happen if the input is too small "
+                "for the given kernel size, strides, dilation rate, and "
+                "padding mode. Please check the input shape and convolution "
+                "parameters."
+            )
+        return result
 
     # Certain ops are are broken in Tensorflow on CPU only.
     # We can work around by compiling the op with XLA.
@@ -1077,3 +1091,50 @@ def dot_product_attention(
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """Tensorflow implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+    k = (
+        (kernel_size, kernel_size)
+        if isinstance(kernel_size, int)
+        else kernel_size
+    )
+    d = (dilation, dilation) if isinstance(dilation, int) else dilation
+    p = (padding, padding) if isinstance(padding, int) else padding
+    s = (stride, stride) if isinstance(stride, int) else stride
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = tf.pad(input, [[0, 0], [0, 0], [p[0], p[0]], [p[1], p[1]]])
+    x = tf.transpose(input, [0, 2, 3, 1])  # (N, H, W, C)
+    patches = tf.image.extract_patches(
+        images=x,
+        sizes=[1, k[0], k[1], 1],
+        strides=[1, s[0], s[1], 1],
+        rates=[1, d[0], d[1], 1],
+        padding="VALID",
+    )  # (N, nH, nW, kH*kW*C)
+
+    N, nH, nW, D = patches.shape
+    patches = tf.reshape(
+        patches, [N, nH, nW, k[0], k[1], C]
+    )  # (N, nH, nW, kH, kW, C)
+    patches = tf.transpose(
+        patches, [0, 5, 3, 4, 1, 2]
+    )  # (N, C, kH, kW, nH, nW)
+    patches = tf.reshape(patches, [N, C * k[0] * k[1], nH * nW])
+    return patches

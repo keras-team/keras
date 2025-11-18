@@ -43,10 +43,12 @@ class Normalization(DataLayer):
             will be broadcast to the shape of the kept axes above;
             if the value(s) cannot be broadcast, an error will be raised when
             this layer's `build()` method is called.
+            `mean` and `variance` must be specified together.
         variance: The variance value(s) to use during normalization. The passed
             value(s) will be broadcast to the shape of the kept axes above;
             if the value(s) cannot be broadcast, an error will be raised when
             this layer's `build()` method is called.
+            `mean` and `variance` must be specified together.
         invert: If `True`, this layer will apply the inverse transformation
             to its inputs: it would turn a normalized input back into its
             original form.

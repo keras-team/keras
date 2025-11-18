@@ -80,3 +80,7 @@ def lstsq(a, b, rcond=None):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return torch.linalg.lstsq(a, b, rcond=rcond)[0]
+
+
+def jvp(fun, primals, tangents, has_aux=False):
+    return torch.func.jvp(fun, primals, tangents, has_aux=has_aux)

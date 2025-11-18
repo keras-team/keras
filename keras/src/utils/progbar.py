@@ -3,7 +3,8 @@ import os
 import sys
 import time
 
-from keras.src import backend
+import numpy as np
+
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
@@ -162,12 +163,10 @@ class Progbar:
             for k in self._values_order:
                 info += f" - {k}:"
                 if isinstance(self._values[k], list):
-                    avg = backend.convert_to_numpy(
-                        backend.numpy.mean(
-                            self._values[k][0] / max(1, self._values[k][1])
-                        )
-                    )
-                    avg = float(avg)
+                    values, count = self._values[k]
+                    if not isinstance(values, float):
+                        values = np.mean(values)
+                    avg = values / max(1, count)
                     if abs(avg) > 1e-3:
                         info += f" {avg:.4f}"
                     else:
@@ -194,11 +193,10 @@ class Progbar:
                 info += f" -{self._format_time(time_per_unit, self.unit_name)}"
                 for k in self._values_order:
                     info += f" - {k}:"
-                    avg = backend.convert_to_numpy(
-                        backend.numpy.mean(
-                            self._values[k][0] / max(1, self._values[k][1])
-                        )
-                    )
+                    values, count = self._values[k]
+                    if not isinstance(values, float):
+                        values = np.mean(values)
+                    avg = values / max(1, count)
                     if avg > 1e-3:
                         info += f" {avg:.4f}"
                     else:

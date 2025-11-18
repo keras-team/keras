@@ -755,12 +755,26 @@ def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
 
+    # We only apply the squeeze fix if we are on an MPS device,
+    # as this change breaks tests on other platforms that
+    # expect the original tensor shape to be preserved.
+    if (
+        torch.backends.mps.is_available()
+        and target.ndim > 1
+        and output.ndim == target.ndim
+        and target.shape[-1] == 1
+        and output.shape[-1] == 1
+    ):
+        target = torch.squeeze(target, -1).contiguous()
+        output = torch.squeeze(output, -1).contiguous()
+
     if target.shape != output.shape:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape. "
             "Received: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
+
     # By default, PyTorch, does reduction of `sum` over all rows,
     # change reduction to `none` to keep dim
     if from_logits:
@@ -1092,3 +1106,26 @@ def dot_product_attention(
             scale=scale,
         )
     return torch.transpose(attention_output, axis1, axis0)
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """Native PyTorch implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+    return tnn.unfold(
+        input,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )

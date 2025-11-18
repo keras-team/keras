@@ -678,7 +678,7 @@ class LayerTest(testing.TestCase):
             def call(self, x):
                 # Should not autocast.
                 assertDType(self.v, "float32")
-                return ops.cast(x, "float32") + self.v
+                return ops.add(ops.cast(x, "float32"), self.v)
 
         # A layer that is explicitly full precision.
         class InnerLayerTwo(layers.Layer):
@@ -694,7 +694,7 @@ class LayerTest(testing.TestCase):
             def call(self, x):
                 # Should not autocast.
                 assertDType(self.v, "float32")
-                return x + self.v
+                return ops.add(x, self.v)
 
         # A layer that is explicitly mixed precision but with autocast=False
         # weight.
@@ -732,7 +732,7 @@ class LayerTest(testing.TestCase):
                 # Should autocast.
                 assertDType(self.v, "float16")
                 return self.inner_three(
-                    self.inner_two(self.inner_one(x + self.v))
+                    self.inner_two(self.inner_one(ops.add(x, self.v)))
                 )
 
         layer = MixedPrecisionLayer()
@@ -935,7 +935,7 @@ class LayerTest(testing.TestCase):
                 x = x + backend.random.normal(
                     shape=(), seed=self._seed_generator
                 )
-                return x + self.tw + self.ntw
+                return ops.add(x, ops.add(self.tw, self.ntw))
 
         data = np.random.random((3, 4))
         layer = TestLayer()

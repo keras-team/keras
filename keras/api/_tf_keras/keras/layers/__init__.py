@@ -73,6 +73,9 @@ from keras.src.layers.core.input_layer import Input as Input
 from keras.src.layers.core.input_layer import InputLayer as InputLayer
 from keras.src.layers.core.lambda_layer import Lambda as Lambda
 from keras.src.layers.core.masking import Masking as Masking
+from keras.src.layers.core.reversible_embedding import (
+    ReversibleEmbedding as ReversibleEmbedding,
+)
 from keras.src.layers.core.wrapper import Wrapper as Wrapper
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.layers.layer import Layer as Layer
