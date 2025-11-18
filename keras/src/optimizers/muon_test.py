@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
@@ -98,3 +100,40 @@ class MuonTest(testing.TestCase):
         optimizer._apply_weight_decay([variable])
 
         self.assertAllClose(variable, except_varable, rtol=1e-4, atol=1e-4)
+
+    def test_rms_matching_none(self):
+        opt = Muon(rms_rate=None)
+        x = ops.ones((4, 4))
+        want = x
+        self.assertAllClose(opt.rms_macthing(x), want)
+
+    def test_rms_matching_2d(self):
+        opt = Muon(rms_rate=0.2)
+        x = ops.ones((4, 2))
+        want = x * 0.2 * 2
+        self.assertAllClose(opt.rms_macthing(x), want)
+
+    def test_rms_matching_3d(self):
+        opt = Muon(rms_rate=0.1)
+        x = ops.ones((2, 4, 4))
+        want = x
+        self.assertAllClose(opt.rms_macthing(x), want)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Runs only on TF backend"
+    )
+    def test_exclude_layers_with_variable_name(self):
+        optimizer = Muon(learning_rate=0.01, exclude_layers=["last"])
+
+        model = keras.Sequential(
+            [
+                keras.layers.Dense(5, input_shape=(10,)),
+                keras.layers.Dense(1, name="last"),
+            ]
+        )
+
+        x_train = np.random.rand(10, 10).astype(np.float32)
+        y_train = np.random.rand(10, 1).astype(np.float32)
+
+        model.compile(optimizer=optimizer, loss="mse")
+        model.fit(x_train, y_train, epochs=1, batch_size=2, verbose=0)

@@ -46,7 +46,7 @@ class Muon(optimizer.Optimizer):
             that takes no arguments and returns the actual value to use.
             The exponential decay rate for the 1st moment estimates. Defaults to
             `0.9`.
-        adam_beta_2: A float value or a constant float tensor, ora callable
+        adam_beta_2: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use.
             The exponential decay rate for the 2nd moment estimates. Defaults to
             `0.999`.
@@ -74,6 +74,11 @@ class Muon(optimizer.Optimizer):
         ns_steps: Integer, number of Newton-Schulz iterations to run.
         nesterov: Boolean, whether to use Nesterov-style momentum
         {{base_optimizer_keyword_args}}
+        `rms_rate`: A trick from https://arxiv.org/abs/2502.16982.
+            This parameter can enhance the stability of Muon,
+            allowing it to use the same learning rate and weight decay as Adam.
+            It is disabled by default.
+            If you wish to enable it, it is recommended to set it to `0.2`.
     """
 
     def __init__(
@@ -102,6 +107,7 @@ class Muon(optimizer.Optimizer):
         momentum=0.95,
         ns_steps=6,
         nesterov=True,
+        rms_rate=None,
         **kwargs,
     ):
         super().__init__(
@@ -131,6 +137,7 @@ class Muon(optimizer.Optimizer):
         self.exclude_embeddings = exclude_embeddings
         self.exclude_layers = exclude_layers or []
         self.adam_weight_decay = adam_weight_decay
+        self.rms_rate = rms_rate
 
     def _should_use_adamw(self, variable):
         # To use it with 4D convolutional filters,
@@ -189,17 +196,15 @@ class Muon(optimizer.Optimizer):
     def _muon_update_step(self, gradient, variable, lr):
         m = self.adam_momentums[variable.path]
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
-        shape = variable.shape
         if self.nesterov:
             g = ops.add(gradient, self.momentum * m)
         else:
             g = m
+        update = self.zeropower_via_newtonschulz5(g, self.ns_steps)
 
         self.assign_sub(
             variable,
-            lr
-            * self.zeropower_via_newtonschulz5(g, self.ns_steps)
-            * max(1, shape[0] / shape[1]) ** 0.5,
+            lr * self.rms_macthing(update),
         )
 
     def _adamw_update_step(self, gradient, variable, learning_rate):
@@ -242,6 +247,20 @@ class Muon(optimizer.Optimizer):
         temp_order[-1] = len(shape) - 2
         X = ops.transpose(X, temp_order)
         return X
+
+    def rms_macthing(self, x):
+        """
+        You can check the details at https://arxiv.org/pdf/2502.16982.
+        For a 2D matrix of size m,the analytical solution provided in the paper
+        rate * x * sqrt(max(n,m))
+        """
+        if self.rms_rate is None or len(x.shape) != 2:
+            # KellerJordan version in muon github
+            # https://github.com/KellerJordan/Muon
+            return x * max(1, x.shape[-2] / x.shape[-1]) ** 0.5
+        # moonlight version
+        # https://github.com/MoonshotAI/Moonlight/blob/master/examples/toy_train.py
+        return x * ops.sqrt(ops.maximum(x.shape[0], x.shape[1])) * self.rms_rate
 
     def zeropower_via_newtonschulz5(self, x, steps: int):
         """We apply the Newton-Schulz iteration to compute matrix G.
@@ -303,6 +322,7 @@ class Muon(optimizer.Optimizer):
                 "nesterov": self.nesterov,
                 "exclude_embeddings": self.exclude_embeddings,
                 "adam_weight_decay": self.adam_weight_decay,
+                "rms_rate": self.rms_rate,
             }
         )
         return config
