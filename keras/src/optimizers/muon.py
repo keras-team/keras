@@ -20,7 +20,7 @@ class Muon(optimizer.Optimizer):
     The Muon optimizer can use both the Muon update step or the
     AdamW update step based on the following:
 
-    - For any variable that isn't 2D, 3D or 4D, the AdamW step
+    - For any variable that isn't 2D or 3D , the AdamW step
         will be used. This is not configurable.
     - If the argument `exclude_embeddings` (defaults to `True`) is set
     to `True`, the AdamW step will be used.
