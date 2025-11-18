@@ -277,11 +277,11 @@ class Muon(optimizer.Optimizer):
             if self._use_weight_decay(variable):
                 if self._should_use_adamw(variable):
                     if self.adam_weight_decay is None:
-                        return
+                        continue
                     wd = ops.cast(self.adam_weight_decay, variable.dtype)
                 else:
                     if self.weight_decay is None:
-                        return
+                        continue
                     wd = ops.cast(self.weight_decay, variable.dtype)
                 lr = ops.cast(self.learning_rate, variable.dtype)
                 variable.assign(variable - variable * wd * lr)
