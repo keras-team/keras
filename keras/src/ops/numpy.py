@@ -6411,6 +6411,15 @@ class Tile(Operation):
         repeats = self.repeats
         if isinstance(repeats, int):
             repeats = [repeats]
+        
+        # Convert repeats to list if it's a tuple or other iterable
+        # and extract concrete integer values
+        if not isinstance(repeats, list):
+            try:
+                repeats = list(repeats)
+            except TypeError:
+                repeats = [repeats]
+        
         if len(x_shape) > len(repeats):
             repeats = [1] * (len(x_shape) - len(repeats)) + repeats
         else:
@@ -6418,10 +6427,15 @@ class Tile(Operation):
 
         output_shape = []
         for x_size, repeat in zip(x_shape, repeats):
+            # Check if repeat is a concrete integer value
+            # If it's a symbolic tensor or unknown, we can't infer the size
             if x_size is None:
                 output_shape.append(None)
-            else:
+            elif isinstance(repeat, int):
                 output_shape.append(x_size * repeat)
+            else:
+                # repeat is symbolic (e.g., KerasTensor, tf.Tensor, etc.)
+                output_shape.append(None)
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
