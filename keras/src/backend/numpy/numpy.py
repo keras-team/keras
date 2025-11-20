@@ -784,8 +784,6 @@ def ldexp(x1, x2):
             f"Received: x2 dtype={x2.dtype}"
         )
 
-    x1 = np.asarray(x1).astype(np.float32)
-    x2 = np.asarray(x2).astype(np.int32)
     return np.ldexp(x1, x2).astype(dtype)
 
 

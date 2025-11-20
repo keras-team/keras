@@ -1855,9 +1855,12 @@ def ldexp(x1, x2):
             f"Received: x2 dtype={x2.dtype}"
         )
 
-    x1 = tf.cast(x1, tf.float32)
-    x2 = tf.cast(x2, tf.float32)
-    return tf.cast(x1 * tf.pow(2.0, x2), dtype)
+    x1 = tf.cast(x1, dtypes.result_type(x1.dtype, float))
+
+    x1 = tf.cast(x1, tf.float32 if not x1.dtype.is_floating else x1.dtype)
+    x2 = tf.cast(x2, x1.dtype)
+    result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    return tf.cast(tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result), dtype)
 
 
 def less(x1, x2):
