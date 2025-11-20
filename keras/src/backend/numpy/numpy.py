@@ -773,6 +773,13 @@ def lcm(x1, x2):
     return np.lcm(x1, x2).astype(dtype)
 
 
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.ldexp(x1, x2).astype(dtype)
+
+
 def less(x1, x2):
     return np.less(x1, x2)
 
