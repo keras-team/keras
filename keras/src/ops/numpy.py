@@ -4070,7 +4070,7 @@ class Ldexp(Operation):
 
         x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
         x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type)
+        dtype = dtypes.result_type(x1_type, x2_type, float)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -4081,19 +4081,12 @@ def ldexp(x1, x2):
     This function computes:
         ldexp(x1, x2) = x1 * 2**x2
 
-    Notes:
-    - TensorFlow does *not* provide a built-in `tf.math.ldexp`.
-    - The `backend.numpy.ldexp` implementation in TF NumPy is currently
-      unreliable due to a naming-collision bug and should not be used.
-    - This implementation provides correct broadcasting, dtype inference,
-      and gradient support.
-
     Args:
-        x1: Floating-point input tensor.
-        x2: Integer or floating-point exponent tensor.
+        x1: Float input tensor.
+        x2: Integer exponent tensor.
 
     Returns:
-        Output tensor, element-wise equal to `x1 * 2**x2`.
+        Output tensor
 
     Example:
     >>> x1 = keras.ops.convert_to_tensor([0.75, 1.5])

@@ -776,7 +776,16 @@ def lcm(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            f"ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+
+    x1 = np.asarray(x1).astype(np.float32)
+    x2 = np.asarray(x2).astype(np.int32)
     return np.ldexp(x1, x2).astype(dtype)
 
 
