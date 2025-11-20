@@ -276,7 +276,7 @@ class Variable:
         return self._maybe_autocast(self._value)
 
     def assign(self, value):
-        value = self._convert_to_tensor(value, dtype=self.dtype)
+        value = self._convert_to_tensor(value, dtype=self._dtype)
         if not shape_equal(value.shape, self.shape):
             raise ValueError(
                 "The shape of the target variable and "
