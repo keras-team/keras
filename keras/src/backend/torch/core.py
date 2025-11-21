@@ -676,10 +676,10 @@ def remat(f):
     def wrapped(*args, **kwargs):
         if not kwargs:
             return checkpoint(f, *args, use_reentrant=False)
-    
+
         def positional_wrapper(*pos_arg):
             return f(*pos_arg, **kwargs)
-        
+
         return checkpoint(positional_wrapper, *args, use_reentrant=False)
 
     return wrapped
