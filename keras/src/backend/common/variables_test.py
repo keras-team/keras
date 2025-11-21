@@ -176,8 +176,8 @@ class VariablePropertiesTest(test_case.TestCase):
             v.trainable = False
             self.assertFalse(v._value.requires_grad)
 
-    def test_autocasting(self):
-        """Tests autocasting of float variables."""
+    def test_autocasting_float(self):
+        # Tests autocasting of float variables
         v = backend.Variable(
             initializer=initializers.RandomNormal(),
             shape=(2, 2),
@@ -191,6 +191,33 @@ class VariablePropertiesTest(test_case.TestCase):
             )
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
+    def test_autocasting_float_assign(self):
+        # Tests assigning value to variable within an autocast scope
+        v = backend.Variable(
+            initializer=initializers.RandomNormal(),
+            shape=(2, 2),
+            dtype="float32",
+        )
+        self.assertEqual(v.dtype, "float32")
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+        # Assign float16 value within float16 scope
+        with AutocastScope("float16"):
+            self.assertEqual(
+                backend.standardize_dtype(v.value.dtype), "float16"
+            )
+            v.assign(ops.ones((2, 2), "float16"))
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+        # Assign float32 value within float16 scope
+        with AutocastScope("float16"):
+            self.assertEqual(
+                backend.standardize_dtype(v.value.dtype), "float16"
+            )
+            v.assign(ops.zeros((2, 2), "float32"))
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+    def test_autocasting_int(self):
         # Test non-float variables are not affected
         v = backend.Variable(
             initializer=initializers.Ones(),
@@ -204,6 +231,7 @@ class VariablePropertiesTest(test_case.TestCase):
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
 
+    def test_autocasting_float_with_autocast_off(self):
         # Test autocast argument
         v = backend.Variable(
             initializer=initializers.RandomNormal(),
