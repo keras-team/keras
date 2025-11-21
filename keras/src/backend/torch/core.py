@@ -5,6 +5,7 @@ import functools
 import ml_dtypes
 import numpy as np
 import torch
+from torch.utils.checkpoint import checkpoint
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
@@ -673,7 +674,13 @@ def remat(f):
     """
 
     def wrapped(*args, **kwargs):
-        return torch.utils.checkpoint.checkpoint(f, *args, use_reentrant=False)
+        if not kwargs:
+            return checkpoint(f, *args, use_reentrant=False)
+    
+        def positional_wrapper(*pos_arg):
+            return f(*pos_arg, **kwargs)
+        
+        return checkpoint(positional_wrapper, *args, use_reentrant=False)
 
     return wrapped
 
