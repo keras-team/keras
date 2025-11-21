@@ -677,8 +677,8 @@ def remat(f):
         if not kwargs:
             return checkpoint(f, *args, use_reentrant=False)
 
-        def positional_wrapper(*pos_arg):
-            return f(*pos_arg, **kwargs)
+        def positional_wrapper(*pos_args):
+            return f(*pos_args, **kwargs)
 
         return checkpoint(positional_wrapper, *args, use_reentrant=False)
 
