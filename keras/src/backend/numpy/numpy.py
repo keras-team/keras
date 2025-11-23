@@ -612,6 +612,10 @@ def empty(shape, dtype=None):
     return np.empty(shape, dtype=dtype)
 
 
+def empty_like(x, dtype=None):
+    return np.empty_like(x, dtype=dtype)
+
+
 def equal(x1, x2):
     return np.equal(x1, x2)
 
