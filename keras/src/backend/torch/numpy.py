@@ -770,6 +770,12 @@ def empty(shape, dtype=None):
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
+def empty_like(x, dtype=None):
+    x = convert_to_tensor(x)
+    dtype = to_torch_dtype(dtype or x.dtype)
+    return torch.empty_like(x, dtype=dtype, device=get_device())
+
+
 def equal(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.eq(x1, x2)
