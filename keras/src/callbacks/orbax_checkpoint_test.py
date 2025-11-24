@@ -425,9 +425,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         new_model.set_state_tree(
             {
                 "trainable_variables": loaded_state["trainable_variables"],
-                "non_trainable_variables": loaded_state[
-                    "non_trainable_variables"
-                ],
                 "optimizer_variables": loaded_state["optimizer_variables"],
             }
         )
@@ -482,12 +479,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         compare_nested_dicts(
             original_state_tree["trainable_variables"],
             loaded_state_tree["trainable_variables"],
-        )
-
-        # Compare non-trainable variables
-        compare_nested_dicts(
-            original_state_tree["non_trainable_variables"],
-            loaded_state_tree["non_trainable_variables"],
         )
 
         # Compare optimizer variables

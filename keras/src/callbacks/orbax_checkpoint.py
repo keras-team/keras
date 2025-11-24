@@ -13,19 +13,24 @@ from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
 
+# JAX monitoring compatibility: ensure record_scalar exists
+# to prevent AttributeError in older JAX versions
+try:
+    import jax
+
+    if not hasattr(jax.monitoring, "record_scalar"):
+        jax.monitoring.record_scalar = lambda *args, **kwargs: None
+except ImportError:
+    pass
+
 
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
-    # For JAX backend, preserve native arrays when possible
-    # Fall back to numpy conversion if JAX arrays cause issues
-    did_numpy_conversion = False
+    # For JAX backend, preserve native arrays for performance
+    # For other backends, convert to numpy arrays
     if backend.backend() == "jax":
-        try:
-            state_tree = model.get_state_tree()
-        except Exception:
-            # Fallback to numpy conversion if JAX arrays cause issues
-            state_tree = model.get_state_tree(value_format="numpy_array")
-            did_numpy_conversion = True
+        state_tree = model.get_state_tree()
+        did_numpy_conversion = False
     else:
         state_tree = model.get_state_tree(value_format="numpy_array")
         did_numpy_conversion = True
@@ -285,7 +290,7 @@ class OrbaxCheckpoint(MonitorCallback):
         checkpoints if there might be pending save operations.
         """
         # Wait for any async operations to complete
-        if hasattr(self.checkpointer, 'wait'):
+        if hasattr(self.checkpointer, "wait"):
             self.checkpointer.wait()
         else:
             # Fallback for older Orbax versions that don't have wait() method
