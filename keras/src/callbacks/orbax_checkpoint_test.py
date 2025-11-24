@@ -425,6 +425,9 @@ class OrbaxCheckpointTest(testing.TestCase):
         new_model.set_state_tree(
             {
                 "trainable_variables": loaded_state["trainable_variables"],
+                "non_trainable_variables": loaded_state[
+                    "non_trainable_variables"
+                ],
                 "optimizer_variables": loaded_state["optimizer_variables"],
             }
         )
@@ -481,8 +484,128 @@ class OrbaxCheckpointTest(testing.TestCase):
             loaded_state_tree["trainable_variables"],
         )
 
+        # Compare non-trainable variables
+        compare_nested_dicts(
+            original_state_tree["non_trainable_variables"],
+            loaded_state_tree["non_trainable_variables"],
+        )
+
         # Compare optimizer variables
         compare_nested_dicts(
             original_state_tree["optimizer_variables"],
             loaded_state_tree["optimizer_variables"],
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_checkpoint_loading_with_metrics_state(self):
+        """Test loading checkpoints that include metrics state."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data(num_samples=200)
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), "test_loading_metrics"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, save_freq="epoch", save_weights_only=False
+        )
+
+        # Train for 1 epoch to build metrics state
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Get original state after training
+        original_state_tree = model.get_state_tree()
+
+        # Create a new model with same architecture and compile with metrics
+        new_model = self._create_test_model()
+        new_model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+
+        # Run one training step to initialize metrics variables
+        new_x, new_y = self._create_dummy_data(num_samples=10)
+        new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
+
+        # Load the checkpoint (epoch 0)
+        checkpoint_path = os.path.join(checkpoint_dir, "0")
+        loaded_state = load_pytree(checkpoint_path)
+
+        # Set the full state (weights + optimizer + metrics) to new model
+        new_model.set_state_tree(
+            {
+                "trainable_variables": loaded_state["trainable_variables"],
+                "non_trainable_variables": loaded_state[
+                    "non_trainable_variables"
+                ],
+                "optimizer_variables": loaded_state["optimizer_variables"],
+                "metrics_variables": loaded_state["metrics_variables"],
+            }
+        )
+
+        # Get the loaded state
+        loaded_state_tree = new_model.get_state_tree()
+
+        # Compare trainable variables (weights)
+        def compare_nested_dicts(orig_dict, loaded_dict):
+            """Recursively compare nested dictionaries containing variables."""
+            for key in orig_dict:
+                if key not in loaded_dict:
+                    self.fail(f"Key {key} missing in loaded state")
+                orig_val = orig_dict[key]
+                loaded_val = loaded_dict[key]
+
+                if isinstance(orig_val, dict):
+                    compare_nested_dicts(orig_val, loaded_val)
+                else:
+                    # Handle different array types: JAX arrays, TF variables,
+                    # PyTorch tensors, numpy arrays
+                    if hasattr(orig_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # Try PyTorch-style conversion first
+                            # (detach().cpu().numpy())
+                            orig_array = orig_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            orig_array = orig_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        orig_array = orig_val
+
+                    if hasattr(loaded_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # Try PyTorch-style conversion first
+                            # (detach().cpu().numpy())
+                            loaded_array = loaded_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            loaded_array = loaded_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        loaded_array = loaded_val
+
+                    np.testing.assert_array_almost_equal(
+                        orig_array, loaded_array
+                    )
+
+        compare_nested_dicts(
+            original_state_tree["trainable_variables"],
+            loaded_state_tree["trainable_variables"],
+        )
+
+        # Compare non-trainable variables
+        compare_nested_dicts(
+            original_state_tree["non_trainable_variables"],
+            loaded_state_tree["non_trainable_variables"],
+        )
+
+        # Compare optimizer variables
+        compare_nested_dicts(
+            original_state_tree["optimizer_variables"],
+            loaded_state_tree["optimizer_variables"],
+        )
+
+        # Compare metrics variables
+        compare_nested_dicts(
+            original_state_tree["metrics_variables"],
+            loaded_state_tree["metrics_variables"],
         )

@@ -16,18 +16,14 @@ from keras.src.utils.module_utils import ocp
 
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
-    # For JAX backend, preserve native arrays if JAX >= 0.7.0
-    # to avoid unnecessary conversions. Otherwise convert to numpy.
+    # For JAX backend, preserve native arrays when possible
+    # Fall back to numpy conversion if JAX arrays cause issues
     did_numpy_conversion = False
     if backend.backend() == "jax":
-        import jax
-        from packaging import version
-
-        # Check JAX version directly (JAX 0.7.0+ supports better array handling)
-        if version.parse(jax.__version__) >= version.parse("0.7.0"):
+        try:
             state_tree = model.get_state_tree()
-        else:
-            # Fallback to numpy conversion for older JAX versions
+        except Exception:
+            # Fallback to numpy conversion if JAX arrays cause issues
             state_tree = model.get_state_tree(value_format="numpy_array")
             did_numpy_conversion = True
     else:
@@ -87,14 +83,15 @@ class OrbaxCheckpoint(MonitorCallback):
     ```
 
     Args:
-        directory: string, path to the directory where to save the checkpoints.
+        directory: path to the directory where to save the checkpoints.
         monitor: The metric name to monitor (e.g., 'val_loss').
         verbose: Verbosity mode, 0 or 1.
         save_best_only: if `save_best_only=True`, it only saves when the model
             is considered the "best" based on the monitored quantity.
-        save_weights_only: if `save_weights_only=True`, only the model's weights
-            will be saved. Otherwise, both weights and optimizer state will be
-            saved. Defaults to False.
+        save_weights_only: if `save_weights_only=True`, only the model's
+            weights will be saved. Otherwise, the full model state
+            (weights, non-trainable variables, optimizer state, and
+            metrics state) will be saved. Defaults to False.
         mode: one of {'auto', 'min', 'max'}. Used with `save_best_only`.
         save_freq: `'epoch'` or integer. Frequency to save checkpoints.
         max_to_keep: Integer, maximum number of recent checkpoints to keep.
@@ -138,7 +135,10 @@ class OrbaxCheckpoint(MonitorCallback):
         self._total_batches_seen = 0  # Global batch counter for step tracking
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
-            raise ValueError("Unrecognized save_freq")
+            raise ValueError(
+                f"Unrecognized save_freq: {self.save_freq}. "
+                "Expected save_freq are 'epoch' or integer values"
+            )
 
         # --- Orbax Checkpointer Setup (V1 API) ---
         policies = []
@@ -189,15 +189,16 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Save the nested state structures directly (preserving layer
         # names and structure)
-        composite_state = {
-            "trainable_variables": state_tree["trainable_variables"],
-        }
-
-        # Include optimizer state unless save_weights_only is True
-        if not self.save_weights_only and "optimizer_variables" in state_tree:
-            composite_state["optimizer_variables"] = state_tree[
-                "optimizer_variables"
-            ]
+        if self.save_weights_only:
+            composite_state = {
+                "trainable_variables": state_tree["trainable_variables"],
+            }
+            if "non_trainable_variables" in state_tree:
+                composite_state["non_trainable_variables"] = state_tree[
+                    "non_trainable_variables"
+                ]
+        else:
+            composite_state = state_tree
 
         # --- Save Logic (V1 API) ---
         # All processes participate in distributed checkpointing
@@ -284,11 +285,4 @@ class OrbaxCheckpoint(MonitorCallback):
         checkpoints if there might be pending save operations.
         """
         # Wait for any async operations to complete
-        try:
-            self.checkpointer.wait()
-        except AttributeError:
-            # Fallback for older Orbax versions that don't have wait() method
-            while self.checkpointer.is_saving_in_progress():
-                import time
-
-                time.sleep(0.1)
+        self.checkpointer.wait()
