@@ -285,4 +285,11 @@ class OrbaxCheckpoint(MonitorCallback):
         checkpoints if there might be pending save operations.
         """
         # Wait for any async operations to complete
-        self.checkpointer.wait()
+        try:
+            self.checkpointer.wait()
+        except AttributeError:
+            # Fallback for environments where wait() method is not available
+            while self.checkpointer.is_saving_in_progress():
+                import time
+
+                time.sleep(0.1)
