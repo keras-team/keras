@@ -55,7 +55,7 @@ def export_openvino(
     )
 
     import openvino as ov
-    from openvino.runtime import opset14 as ov_opset
+    import openvino.opset14 as ov_opset
 
     from keras.src.backend.openvino.core import OPENVINO_DTYPES
     from keras.src.backend.openvino.core import OpenVINOKerasTensor
