@@ -6,7 +6,6 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.data_layer import DataLayer
-from keras.src.trainers.data_adapters import get_data_adapter
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.utils import PyDataset
 
@@ -232,12 +231,11 @@ class Normalization(DataLayer):
                 data = data.batch(128)
             input_shape = tuple(data.element_spec.shape)
         elif isinstance(data, PyDataset):
-            adapter = get_data_adapter(data)
-            tf_dataset = adapter.get_tf_dataset()
-            # args will either be (samples,), (samples, labels) pairs,
-            # or (samples, labels, sample_weights) tuples
-            data = tf_dataset.map(lambda *args: args[0])
-            input_shape = data.element_spec.shape
+            data = data[0]
+            if isinstance(data, tuple):
+                # handling (x, y) or (x, y, sample_weight)
+                data = data[0]
+            input_shape = data.shape
         else:
             raise TypeError(
                 f"Unsupported data type: {type(data)}. `adapt` supports "
@@ -263,7 +261,7 @@ class Normalization(DataLayer):
         elif backend.is_tensor(data):
             total_mean = ops.mean(data, axis=self._reduce_axis)
             total_var = ops.var(data, axis=self._reduce_axis)
-        elif isinstance(data, tf.data.Dataset):
+        elif isinstance(data, (tf.data.Dataset, PyDataset)):
             total_mean = ops.zeros(self._mean_and_var_shape)
             total_var = ops.zeros(self._mean_and_var_shape)
             total_count = 0

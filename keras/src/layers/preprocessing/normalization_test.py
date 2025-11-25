@@ -170,7 +170,7 @@ class NormalizationTest(testing.TestCase):
         layer = layers.Normalization(mean=3.0, variance=2.0)
         layer(input_data)
 
-    @parameterized.parameters([("x",), ("x_and_y",), ("x_y_and_weights")])
+    @parameterized.parameters([("x",), ("x_and_y",), ("x_y_and_weights",)])
     def test_adapt_pydataset_compat(self, pydataset_type):
         import keras
 
