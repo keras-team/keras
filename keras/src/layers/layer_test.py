@@ -516,6 +516,49 @@ class LayerTest(testing.TestCase):
         layer(x1=backend.KerasTensor((3, 4)), x2=backend.KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
+        class DictLayerWithUnbuiltState(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, xs):
+                result = self.dense(xs["x1"])
+                if xs.get("x2", None) is not None:
+                    result += self.dense(xs["x2"])
+                return result
+
+        layer = DictLayerWithUnbuiltState(2)
+        layer(
+            {
+                "x1": backend.KerasTensor((3, 4)),
+                "x2": backend.KerasTensor((3, 4)),
+            }
+        )
+        self.assertLen(layer.weights, 2)
+
+        layer = DictLayerWithUnbuiltState(2)
+        layer({"x1": backend.KerasTensor((3, 4)), "x2": None})
+        self.assertLen(layer.weights, 2)
+
+        class ListLayerWithUnbuiltState(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, xs):
+                result = self.dense(xs[0])
+                if xs[1] is not None:
+                    result += self.dense(xs[1])
+                return result
+
+        layer = ListLayerWithUnbuiltState(2)
+        layer([backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))])
+        self.assertLen(layer.weights, 2)
+
+        layer = ListLayerWithUnbuiltState(2)
+        layer([backend.KerasTensor((3, 4)), None])
+        self.assertLen(layer.weights, 2)
+
     def test_activity_regularization(self):
         class ActivityRegularizer(layers.Layer):
             def call(self, x):

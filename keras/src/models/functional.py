@@ -254,9 +254,9 @@ class Functional(Function, Model):
         return converted
 
     def _adjust_input_rank(self, flat_inputs):
-        flat_ref_shapes = [x.shape for x in self._inputs]
         adjusted = []
-        for x, ref_shape in zip(flat_inputs, flat_ref_shapes):
+        for i, x in enumerate(flat_inputs):
+            ref_shape = self._inputs[i].shape
             if x is None:
                 adjusted.append(x)
                 continue
@@ -273,8 +273,11 @@ class Functional(Function, Model):
                 if ref_shape[-1] == 1:
                     adjusted.append(ops.expand_dims(x, axis=-1))
                     continue
+            flat_paths_and_inputs = tree.flatten_with_path(self._inputs_struct)
+            path = ".".join(str(p) for p in flat_paths_and_inputs[i][0])
             raise ValueError(
-                f"Invalid input shape for input {x}. Expected shape "
+                f"Invalid input shape for input {x} with name "
+                f"'{self._inputs[i].name}' and path '{path}'. Expected shape "
                 f"{ref_shape}, but input has incompatible shape {x.shape}"
             )
         # Add back metadata.
