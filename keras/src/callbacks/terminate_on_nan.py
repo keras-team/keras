@@ -15,13 +15,14 @@ class TerminateOnNaN(Callback):
     by setting `model.stop_training = True`, which triggers all callback cleanup
     methods including `on_train_end()`.
 
-    Alternatively, you can use `hard=True` to immediately raise a RuntimeError
-    when NaN/Inf is detected. This hard termination prevents `on_train_end()`
-    from being called on other callbacks, which is useful for preserving backup
-    states or preventing unintended cleanup when training fails.
+    Alternatively, you can use `raise_error=True` to immediately raise a
+    RuntimeError when NaN/Inf is detected. This raise_error termination
+    prevents `on_train_end()` from being called on other callbacks, which
+    is useful for preserving backup states or preventing unintended cleanup
+    when training fails.
 
     Args:
-        hard: Boolean, default False. If False, uses graceful stop via
+        raise_error: Boolean, default False. If False, uses graceful stop via
             `model.stop_training = True`. If True, immediately raises
             RuntimeError on NaN/Inf loss, bypassing callback cleanup methods.
 
@@ -32,15 +33,15 @@ class TerminateOnNaN(Callback):
     callback = keras.callbacks.TerminateOnNaN()
     model.fit(x, y, callbacks=[callback])
 
-    # Hard termination (strict failure)
-    callback = keras.callbacks.TerminateOnNaN(hard=True)
+    # raise_error termination (strict failure)
+    callback = keras.callbacks.TerminateOnNaN(raise_error=True)
     model.fit(x, y, callbacks=[callback])
     ```
     """
 
-    def __init__(self, hard: bool = False):
+    def __init__(self, raise_error: bool = False):
         super().__init__()
-        self.hard = hard
+        self.raise_error = raise_error
         self._supports_tf_logs = True
 
     def on_batch_end(self, batch, logs=None):
@@ -51,13 +52,13 @@ class TerminateOnNaN(Callback):
             logs: Dict, contains the return value of `model.train_step()`.
 
         Raises:
-            RuntimeError: If loss is NaN/Inf and hard=True.
+            RuntimeError: If loss is NaN/Inf and raise_error=True.
         """
         logs = logs or {}
         loss = logs.get("loss")
         if loss is not None:
             if np.isnan(loss) or np.isinf(loss):
-                if self.hard:
+                if self.raise_error:
                     raise RuntimeError(
                         f"NaN or Inf loss encountered at batch {batch}. "
                         f"Loss value: {loss}. Terminating training immediately."
