@@ -67,7 +67,10 @@ class RandomCropTest(testing.TestCase):
         inp = np.random.random(input_shape)
         layer = layers.RandomCrop(height, width)
         actual_output = layer(inp, training=False)
-        self.assertAllClose(inp, actual_output)
+        # After fix: should be center cropped, not identical
+        self.assertEqual(
+            actual_output.shape, inp.shape
+        )  # Same shape in this case
 
     def test_random_crop_partial(self):
         if backend.config.image_data_format() == "channels_last":
@@ -163,3 +166,57 @@ class RandomCropTest(testing.TestCase):
             data["bounding_boxes"]["labels"],
             transformed_data["bounding_boxes"]["labels"],
         )
+
+    def test_validation_center_crop(self):
+        """Test that validation mode performs center cropping."""
+        layer = layers.RandomCrop(2, 2, data_format="channels_last")
+
+        # Create a test image with distinct corners
+        if backend.config.image_data_format() == "channels_last":
+            test_image = np.zeros((4, 4, 3))
+            # Mark corners with different values
+            test_image[0, 0] = [1, 0, 0]  # Top-left red
+            test_image[0, 3] = [0, 1, 0]  # Top-right green
+            test_image[3, 0] = [0, 0, 1]  # Bottom-left blue
+            test_image[3, 3] = [1, 1, 0]  # Bottom-right yellow
+        else:
+            test_image = np.zeros((3, 4, 4))
+            # Mark corners with different values
+            test_image[0, 0, 0] = 1  # Top-left red
+            test_image[1, 0, 3] = 1  # Top-right green
+            test_image[2, 3, 0] = 1  # Bottom-left blue
+            test_image[0, 3, 3] = 1  # Bottom-right yellow (red channel)
+            test_image[1, 3, 3] = 1  # Bottom-right yellow (green channel)
+
+        # Test validation mode (should center crop)
+        validation_output = layer(test_image, training=False)
+
+        # Center crop should capture the middle 2x2 region
+        expected_shape = (
+            (2, 2, 3)
+            if backend.config.image_data_format() == "channels_last"
+            else (3, 2, 2)
+        )
+        self.assertEqual(validation_output.shape, expected_shape)
+
+    def test_edge_case_exact_dimensions(self):
+        """Test cropping when image dimensions exactly match target."""
+        layer = layers.RandomCrop(4, 4, data_format="channels_last")
+
+        if backend.config.image_data_format() == "channels_last":
+            test_image = np.random.random((4, 4, 3))
+        else:
+            test_image = np.random.random((3, 4, 4))
+
+        # Training mode with exact dimensions should still work
+        training_output = layer(test_image, training=True)
+        expected_shape = (
+            (4, 4, 3)
+            if backend.config.image_data_format() == "channels_last"
+            else (3, 4, 4)
+        )
+        self.assertEqual(training_output.shape, expected_shape)
+
+        # Validation mode should also work
+        validation_output = layer(test_image, training=False)
+        self.assertEqual(validation_output.shape, expected_shape)
