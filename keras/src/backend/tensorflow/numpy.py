@@ -1858,7 +1858,7 @@ def ldexp(x1, x2):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, x1.dtype)
     result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
-    return tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result)
+    return tf.cast(tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result), dtype)
 
 
 def less(x1, x2):
