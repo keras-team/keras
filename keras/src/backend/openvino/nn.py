@@ -70,12 +70,9 @@ def soft_shrink(x, threshold=0.5):
 def hard_shrink(x, threshold=0.5):
     x = get_ov_output(x)
     et = x.get_element_type()
-
     thr = get_ov_output(threshold, et)
     zero = get_ov_output(0.0, et)
-
     cond = ov_opset.greater(ov_opset.abs(x), thr)
-
     out = ov_opset.select(cond, x, zero)
     return OpenVINOKerasTensor(out.output(0))
 
@@ -116,13 +113,10 @@ def leaky_relu(x, negative_slope=0.2):
 def sparse_sigmoid(x):
     x = get_ov_output(x)
     et = x.get_element_type()
-
     one = get_ov_output(1.0, et)
     neg_one = get_ov_output(-1.0, et)
     half = get_ov_output(0.5, et)
-
     y = ov_opset.minimum(ov_opset.maximum(x, neg_one), one)
-
     out = ov_opset.multiply(half, ov_opset.add(y, one))
     return OpenVINOKerasTensor(out.output(0))
 
@@ -193,17 +187,13 @@ def log_softmax(x, axis=-1):
 def squareplus(x, b=4):
     x = get_ov_output(x)
     et = x.get_element_type()
-
     b = get_ov_output(b, et)
     two = get_ov_output(2.0, et)
-
     x_squared = ov_opset.multiply(x, x)
     inside = ov_opset.add(x_squared, b)
     root = ov_opset.sqrt(inside)
     summed = ov_opset.add(x, root)
-
     out = ov_opset.divide(summed, two)
-
     return OpenVINOKerasTensor(out.output(0))
 
 
@@ -234,14 +224,10 @@ def sparse_plus(x):
 def threshold(x, threshold, default_value):
     x = get_ov_output(x)
     et = x.get_element_type()
-
     thr = get_ov_output(threshold, et)
     dv = get_ov_output(default_value, et)
-
     cond = ov_opset.greater(x, thr)
-
     out = ov_opset.select(cond, x, dv)
-
     return OpenVINOKerasTensor(out.output(0))
 
 
