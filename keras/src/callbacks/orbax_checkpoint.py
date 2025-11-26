@@ -65,8 +65,7 @@ class OrbaxCheckpoint(MonitorCallback):
     Example:
 
     ```python
-    model.compile(loss=..., optimizer=...,
-                  metrics=['accuracy'])
+    model.compile(loss=..., optimizer=..., metrics=['accuracy'])
 
     EPOCHS = 10
     checkpoint_dir = '/tmp/ckpt'
@@ -100,7 +99,7 @@ class OrbaxCheckpoint(MonitorCallback):
         mode: one of {'auto', 'min', 'max'}. Used with `save_best_only`.
         save_freq: `'epoch'` or integer. Frequency to save checkpoints.
         max_to_keep: Integer, maximum number of recent checkpoints to keep.
-            If None, keeps all. Defaults to 5.
+            If None, keeps all. Defaults to 1.
         save_on_background: Boolean, whether to save asynchronously in the
             background. Defaults to True.
         initial_value_threshold: Floating point initial "best" value for the
@@ -115,9 +114,9 @@ class OrbaxCheckpoint(MonitorCallback):
         save_best_only=False,
         save_weights_only=False,
         mode="auto",
-        save_freq="epoch",
-        max_to_keep=5,
+        max_to_keep=1,
         save_on_background=True,
+        save_freq="epoch",
         initial_value_threshold=None,
     ):
         # Ensure orbax is available

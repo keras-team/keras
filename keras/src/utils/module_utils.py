@@ -24,14 +24,7 @@ class LazyModule:
 
     def initialize(self):
         try:
-            # Special handling for orbax.checkpoint.v1
-            if self.name == "orbax.checkpoint.v1":
-                # Import the parent module and get the v1 submodule
-                parent_module = importlib.import_module("orbax.checkpoint")
-                self.module = parent_module.v1
-            else:
-                # Normal module import
-                self.module = importlib.import_module(self.name)
+            self.module = importlib.import_module(self.name)
         except ImportError:
             raise ImportError(self.import_error_msg)
 
@@ -44,6 +37,15 @@ class LazyModule:
 
     def __repr__(self):
         return f"LazyModule({self.name})"
+
+
+class OrbaxLazyModule(LazyModule):
+    def initialize(self):
+        try:
+            parent_module = importlib.import_module("orbax.checkpoint")
+            self.module = parent_module.v1
+        except ImportError:
+            raise ImportError(self.import_error_msg)
 
 
 tensorflow = LazyModule("tensorflow")
@@ -66,7 +68,7 @@ optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
 grain = LazyModule("grain")
-ocp = LazyModule(
+ocp = OrbaxLazyModule(
     "orbax.checkpoint.v1",
     pip_name="orbax-checkpoint",
     import_error_msg=(

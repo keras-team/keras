@@ -6,39 +6,17 @@ import pytest
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
 from keras.src.utils.module_utils import ocp
 
 # Import advanced Orbax functionality directly from the LazyModule
-# These will only be available if orbax-checkpoint is installed
-if ocp.available:
-    Checkpointer = ocp.training.Checkpointer
-    save_pytree = ocp.save_pytree
-    load_pytree = ocp.load_pytree
-    preservation_policies = ocp.training.preservation_policies
-    save_decision_policies = ocp.training.save_decision_policies
-    _orbax_available = True
-else:
-    Checkpointer = None
-    save_pytree = None
-    load_pytree = None
-    preservation_policies = None
-    save_decision_policies = None
-    _orbax_available = False
-
-# Import our OrbaxCheckpoint callback
-try:
-    from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
-
-    _orbax_available = _orbax_available and True
-except ImportError:
-    OrbaxCheckpoint = None
-    _orbax_available = False
+Checkpointer = ocp.training.Checkpointer
+save_pytree = ocp.save_pytree
+load_pytree = ocp.load_pytree
+preservation_policies = ocp.training.preservation_policies
+save_decision_policies = ocp.training.save_decision_policies
 
 
-@pytest.mark.skipif(
-    not _orbax_available,
-    reason="OrbaxCheckpoint requires the 'orbax-checkpoint' package",
-)
 class OrbaxCheckpointTest(testing.TestCase):
     def _create_test_model(self):
         """Create a simple test model."""
@@ -218,22 +196,21 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
         callback.wait_until_finished()
 
-        # Should have checkpoints for epochs 0, 1, 2
+        # Should have only the latest checkpoint (epoch 2) due to max_to_keep=1
         checkpoint_files = os.listdir(checkpoint_dir)
-        self.assertGreaterEqual(
+        self.assertEqual(
             len(checkpoint_files),
-            3,
-            f"Should have at least 3 checkpoints, "
+            1,
+            f"Should have exactly 1 checkpoint due to max_to_keep=1, "
             f"found {len(checkpoint_files)}",
         )
 
-        # Check for specific epoch directories
-        for epoch in [0, 1, 2]:
-            epoch_dir = os.path.join(checkpoint_dir, str(epoch))
-            self.assertTrue(
-                os.path.exists(epoch_dir),
-                f"Epoch {epoch} checkpoint should exist",
-            )
+        # Check for the latest epoch directory (epoch 2)
+        epoch_dir = os.path.join(checkpoint_dir, "2")
+        self.assertTrue(
+            os.path.exists(epoch_dir),
+            "Epoch 2 checkpoint should exist (latest due to max_to_keep=1)",
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_max_to_keep(self):
