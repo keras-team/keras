@@ -1276,10 +1276,6 @@ def dot_product_attention(
         # use flash attention
         _can_use_flash_attention(query, key, value, bias, raise_error=True)
 
-    # On TPU, traced masks cause ConcretizationTypeError with flash attention.
-    if is_tpu and mask is not None and isinstance(mask, jax.core.Tracer):
-        flash_attention = False
-
     # TPU-specific flash attention path
     if is_tpu and flash_attention:
         # Get sharding parameters from distribution context
@@ -1357,7 +1353,10 @@ def dot_product_attention(
             )
             # Transpose output back to Keras layout
             return jnp.transpose(output, axes=(0, 2, 1, 3))
-        except Exception:
+        except jax.errors.ConcretizationTypeError:
+            # Mask is traced
+            # Fall back to native attention
+            flash_attention = False
             logging.exception(
                 "Failed to apply Splash kernel for flash attention. "
                 "Falling back to JAX native dot_product_attention."
