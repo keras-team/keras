@@ -65,6 +65,7 @@ from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
+from keras.src.ops.numpy import empty_like as empty_like
 from keras.src.ops.numpy import equal as equal
 from keras.src.ops.numpy import exp as exp
 from keras.src.ops.numpy import exp2 as exp2

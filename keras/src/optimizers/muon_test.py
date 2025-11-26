@@ -38,11 +38,11 @@ class MuonTest(testing.TestCase):
             True,
             optimizer._should_use_adamw(vars),
         )
-        embeding = Embedding(2, 2)
-        embeding.build()
+        embedding = Embedding(2, 2)
+        embedding.build()
         self.assertAllClose(
             True,
-            optimizer._should_use_adamw(embeding.weights[0]),
+            optimizer._should_use_adamw(embedding.weights[0]),
         )
         vars = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         optimizer = Muon()
