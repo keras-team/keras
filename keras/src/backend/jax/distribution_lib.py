@@ -160,13 +160,13 @@ def initialize_rng():
     # Check if the global seed generator is set and ensure it has an initialized
     # seed.  Otherwise, reset the seed to the global seed.
     global_seed_generator = global_state.get_global_attribute(
-        "global_seed_generator"
+        seed_generator.GLOBAL_SEED_GENERATOR
     )
     if global_seed_generator is not None:
         seed = global_seed_generator.get_config()["seed"]
         if seed is None:
             global_state.set_global_attribute(
-                "global_seed_generator",
+                seed_generator.GLOBAL_SEED_GENERATOR,
                 seed_generator.SeedGenerator(
                     seed=global_seed,
                     name=global_seed_generator.name,
