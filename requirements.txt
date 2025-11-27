@@ -4,6 +4,7 @@
 tensorflow-cpu~=2.18.1;sys_platform != 'darwin'
 tensorflow~=2.18.1;sys_platform == 'darwin'
 tf2onnx
+ai-edge-litert
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
