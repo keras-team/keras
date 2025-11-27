@@ -13,7 +13,6 @@ class TFLayer(KerasAutoTrackable):
         self._saved_model_arg_spec = None
         self._tracked = []
 
-    @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
         """Defines the save spec so that serialization can trace layer calls.
 
@@ -45,6 +44,7 @@ class TFLayer(KerasAutoTrackable):
             kwargs_spec,
         )
 
+    @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _trackable_children(self, save_type="checkpoint", **kwargs):
         if save_type == "savedmodel":
             # SavedModel needs to ignore the execution functions.
@@ -68,13 +68,8 @@ class TFLayer(KerasAutoTrackable):
 
         return children
 
-    @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _convert_tracked_collections(self, children):
-        """Convert TrackedList/Dict/Set to plain Python structures.
-
-        The decorator prevents TensorFlow from automatically wrapping
-        these conversions in _DictWrapper objects.
-        """
+        """Convert TrackedList/Dict/Set to plain Python structures."""
         for tracked_attr in self._tracked:
             tracked_item = getattr(self, tracked_attr)
             if isinstance(tracked_item, tracking.TrackedList):
@@ -103,31 +98,18 @@ class TFLayer(KerasAutoTrackable):
         try:
             return super()._get_save_spec(dynamic_batch)
         except AttributeError:
+            # Lazy import to avoid circular dependency
+            from keras.src.export.export_utils import make_tf_tensor_spec
+
             # Fall back to building specs from `self.inputs`
             inputs = getattr(self, "inputs", None)
             if inputs is None:
                 return None
 
-            def _make_spec(t):
-                # t is a tf.Tensor-like object
-                shape = list(t.shape)
-                if dynamic_batch and len(shape) > 0:
-                    shape[0] = None
-                # Convert to tuple for TensorSpec
-                try:
-                    name = getattr(t, "name", None)
-                    return tf.TensorSpec(
-                        shape=tuple(shape), dtype=t.dtype, name=name
-                    )
-                except (ImportError, ModuleNotFoundError):
-                    return None
-
-            # Handle dict/list/single tensor inputs
-            if isinstance(inputs, dict):
-                return {k: _make_spec(v) for k, v in inputs.items()}
-            if isinstance(inputs, (list, tuple)):
-                return [_make_spec(t) for t in inputs]
-            return _make_spec(inputs)
+            return tree.map_structure(
+                lambda x: make_tf_tensor_spec(x, dynamic_batch=dynamic_batch),
+                inputs,
+            )
 
     @property
     def _default_save_signature(self):
