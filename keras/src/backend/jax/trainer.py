@@ -267,19 +267,16 @@ class JAXTrainer(base_trainer.Trainer):
                 state_shardings = self._get_state_sharding_spec()
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
-                train_step = jit(
-                    lambda state, data: type(self).train_step(
-                        self, state, data
-                    ),
-                    donate_argnums=0,
-                    out_shardings=out_shardings,
+                step_fn = lambda state, data: type(self).train_step(
+                    self, state, data
                 )
             else:
-                train_step = jit(
-                    self.train_step,
-                    donate_argnums=0,
-                    out_shardings=out_shardings,
-                )
+                step_fn = self.train_step
+            train_step = jit(
+                step_fn,
+                donate_argnums=0,
+                out_shardings=out_shardings,
+            )
         else:
             train_step = self.train_step
 
@@ -306,17 +303,16 @@ class JAXTrainer(base_trainer.Trainer):
                 )
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
-                test_step = jit(
-                    lambda state, data: type(self).test_step(self, state, data),
-                    donate_argnums=0,
-                    out_shardings=out_shardings,
+                step_fn = lambda state, data: type(self).test_step(
+                    self, state, data
                 )
             else:
-                test_step = jit(
-                    self.test_step,
-                    donate_argnums=0,
-                    out_shardings=out_shardings,
-                )
+                step_fn = self.test_step
+            test_step = jit(
+                step_fn,
+                donate_argnums=0,
+                out_shardings=out_shardings,
+            )
         else:
             test_step = self.test_step
 
