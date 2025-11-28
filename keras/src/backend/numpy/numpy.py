@@ -783,7 +783,6 @@ def ldexp(x1, x2):
             f"ldexp exponent must be an integer type. "
             f"Received: x2 dtype={x2.dtype}"
         )
-
     return np.ldexp(x1, x2).astype(dtype)
 
 
