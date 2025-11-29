@@ -68,9 +68,7 @@ class RandomCropTest(testing.TestCase):
         layer = layers.RandomCrop(height, width)
         actual_output = layer(inp, training=False)
         # After fix: should be center cropped, not identical
-        self.assertEqual(
-            actual_output.shape, inp.shape
-        )  # Same shape in this case
+        self.assertEqual(actual_output.shape, inp.shape)  # Same shape in this case
 
     def test_random_crop_partial(self):
         if backend.config.image_data_format() == "channels_last":
@@ -220,3 +218,11 @@ class RandomCropTest(testing.TestCase):
         # Validation mode should also work
         validation_output = layer(test_image, training=False)
         self.assertEqual(validation_output.shape, expected_shape)
+
+    def test_validation_resize_mode(self):
+        """Test that validation mode performs direct resize when center_crop=False."""
+        layer = layers.RandomCrop(2, 2, data_format="channels_last", center_crop=False)
+        test_image = np.random.random((4, 4, 3))
+        validation_output = layer(test_image, training=False)
+        # Output should be resized to target size (2,2,3)
+        self.assertEqual(validation_output.shape, (2, 2, 3))

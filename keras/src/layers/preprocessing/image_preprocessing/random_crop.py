@@ -50,16 +50,23 @@ class RandomCrop(BaseImagePreprocessingLayer):
     """
 
     def __init__(
-        self, height, width, seed=None, data_format=None, name=None, **kwargs
+        self,
+        height,
+        width,
+        seed=None,
+        data_format=None,
+        name=None,
+        center_crop=True,
+        **kwargs,
     ):
         super().__init__(name=name, **kwargs)
         self.height = height
         self.width = width
-        self.seed = (
-            seed if seed is not None else backend.random.make_default_seed()
-        )
+        self.seed = seed if seed is not None else backend.random.make_default_seed()
         self.generator = SeedGenerator(seed)
         self.data_format = backend.standardize_data_format(data_format)
+        # New flag to control validation behavior: center crop if True, otherwise resize.
+        self.center_crop = center_crop
 
         if self.data_format == "channels_first":
             self.height_axis = -2
@@ -92,11 +99,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 f"height and width. Received: images.shape={input_shape}"
             )
 
-        if (
-            training
-            and input_height >= self.height
-            and input_width >= self.width
-        ):
+        if training and input_height >= self.height and input_width >= self.width:
             h_start = self.backend.cast(
                 self.backend.random.uniform(
                     (),
@@ -116,11 +119,15 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 "int32",
             )
         else:
-            # During validation or when image is too small, use center crop
-            h_start = self.backend.cast(
-                (input_height - self.height) / 2, "int32"
-            )
-            w_start = self.backend.cast((input_width - self.width) / 2, "int32")
+            # Validation (training=False) behavior based on self.center_crop flag
+            if self.center_crop:
+                # Center crop
+                h_start = self.backend.cast((input_height - self.height) / 2, "int32")
+                w_start = self.backend.cast((input_width - self.width) / 2, "int32")
+            else:
+                # Direct resize: set offsets to zero; cropping will be bypassed later
+                h_start = self.backend.cast(0, "int32")
+                w_start = self.backend.cast(0, "int32")
 
         return h_start, w_start
 
@@ -129,6 +136,17 @@ class RandomCrop(BaseImagePreprocessingLayer):
         crop_box_hstart, crop_box_wstart = transformation
         crop_height = self.height
         crop_width = self.width
+
+        # If we are in validation mode and center_crop is False, skip cropping and directly resize.
+        if not training and not self.center_crop:
+            # Direct resize to target size
+            images = self.backend.image.resize(
+                images,
+                size=(self.height, self.width),
+                data_format=self.data_format,
+            )
+            images = self.backend.cast(images, self.compute_dtype)
+            return images
 
         if self.data_format == "channels_last":
             if len(images.shape) == 4:
@@ -272,6 +290,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 "width": self.width,
                 "seed": self.seed,
                 "data_format": self.data_format,
+                "center_crop": self.center_crop,
             }
         )
         return config
