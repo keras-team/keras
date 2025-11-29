@@ -545,7 +545,7 @@ class KerasFileEditor:
             # ------------------------------------------------------
             # Validate TOTAL memory size
             # ------------------------------------------------------
-            max_bytes = 1 << 30  # 1 GiB
+            MAX_BYTES = 1 << 30  # 1 GiB
 
             try:
                 size_bytes = num_elems * dtype.itemsize
@@ -555,10 +555,10 @@ class KerasFileEditor:
                     "refusing to load."
                 ) from e
 
-            if size_bytes > max_bytes:
+            if size_bytes > MAX_BYTES:
                 raise ValueError(
                     f"HDF5 dataset too large to load safely "
-                    f"({size_bytes} bytes; limit is {max_bytes})."
+                    f"({size_bytes} bytes; limit is {MAX_BYTES})."
                 )
 
             # ------------------------------------------------------
