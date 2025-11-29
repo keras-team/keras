@@ -1359,6 +1359,11 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     return np.trapezoid(y, x, dx=dx, axis=axis).astype(result_dtype)
 
 
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    return np.vander(x, N=N, increasing=increasing)
+
+
 def var(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
