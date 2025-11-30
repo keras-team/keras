@@ -181,6 +181,7 @@ from keras.src.ops.numpy import triu as triu
 from keras.src.ops.numpy import true_divide as true_divide
 from keras.src.ops.numpy import trunc as trunc
 from keras.src.ops.numpy import unravel_index as unravel_index
+from keras.src.ops.numpy import vander as vander
 from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize

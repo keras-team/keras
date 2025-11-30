@@ -3090,9 +3090,9 @@ def vander(x, N=None, increasing=False):
             raise ValueError("N must be nonnegative")
 
     if increasing:
-        powers = tf.range(N, dtype=x.dtype)
+        powers = tf.range(N)
     else:
-        powers = tf.range(N - 1, -1, -1, dtype=x.dtype)
+        powers = tf.range(N - 1, -1, -1)
 
     x_exp = tf.expand_dims(x, axis=-1)
     vander = tf.math.pow(x_exp, powers)

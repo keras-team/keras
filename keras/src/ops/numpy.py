@@ -7279,6 +7279,43 @@ def mean(x, axis=None, keepdims=False):
     return backend.numpy.mean(x, axis=axis, keepdims=keepdims)
 
 
+class Vander(Operation):
+    def __init__(self, N=None, increasing=False, *, name=None):
+        super().__init__(name=name)
+        self.N = N
+        self.increasing = increasing
+
+    def call(self, x):
+        return backend.numpy.vander(x, self.N, self.increasing)
+
+    def compute_output_spec(self, x):
+        if self.N is None:
+            N = x.shape[0]
+        else:
+            N = self.N
+
+        out_shape = list(x.shape)
+        out_shape.append(N)
+        return KerasTensor(tuple(out_shape), dtype=x.dtype)
+
+
+@keras_export(["keras.ops.vander", "keras.ops.numpy.vander"])
+def vander(x, N=None, increasing=False):
+    """Generate a Vandermonde matrix.
+
+    Args:
+        x: 1D input tensor.
+        N: Number of columns. If None, N = len(x).
+        increasing: Order of powers. If True, powers increase left to right.
+
+    Returns:
+        Vandermonde matrix of shape (len(x), N).
+    """
+    if any_symbolic_tensors((x,)):
+        return Vander(N=N, increasing=increasing).symbolic_call(x)
+    return backend.numpy.vander(x, N=N, increasing=increasing)
+
+
 class Var(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
