@@ -1821,7 +1821,8 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
 
 def vander(x, N=None, increasing=False):
     x = convert_to_tensor(x)
-    return torch.vander(x, N=N, increasing=increasing)
+    result_dtype = dtypes.result_type(x.dtype)
+    return cast(torch.vander(x, N=N, increasing=increasing), result_dtype)
 
 
 def var(x, axis=None, keepdims=False):
