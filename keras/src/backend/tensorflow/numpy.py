@@ -2742,7 +2742,7 @@ def round(x, decimals=0):
 
 def tile(x, repeats):
     x = convert_to_tensor(x)
-    
+
     # Check if repeats contains only concrete integers
     # If so, keep it as a Python list/tuple for better shape inference
     try:
@@ -2752,14 +2752,14 @@ def tile(x, repeats):
             for r in repeats:
                 if isinstance(r, int):
                     concrete_repeats.append(r)
-                elif hasattr(r, 'numpy') and r.shape == ():
+                elif hasattr(r, "numpy") and r.shape == ():
                     # Scalar tensor with concrete value
                     concrete_repeats.append(int(r.numpy()))
                 else:
                     # Not a concrete value, fall back to tensor path
                     concrete_repeats = None
                     break
-            
+
             if concrete_repeats is not None:
                 # Use concrete repeats directly for better shape inference
                 repeats = concrete_repeats
@@ -2770,13 +2770,18 @@ def tile(x, repeats):
                         repeats = [1] * (x_rank - len(repeats)) + repeats
                     elif len(repeats) > x_rank:
                         # Need to reshape x to match repeats length
-                        x_shape_list = [1] * (len(repeats) - x_rank) + [d if d is not None else -1 for d in x.shape.as_list()]
+                        x_shape_list = [1] * (
+                            len(repeats) - x_rank
+                        ) + [
+                            d if d is not None else -1
+                            for d in x.shape.as_list()
+                        ]
                         x = tf.reshape(x, x_shape_list)
                 return tf.tile(x, repeats)
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         # If anything goes wrong, fall back to original implementation
         pass
-    
+
     # Original dynamic implementation for non-concrete repeats
     repeats = tf.reshape(convert_to_tensor(repeats, dtype="int32"), [-1])
     repeats_size = tf.size(repeats)

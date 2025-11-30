@@ -1820,7 +1820,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.tile(x, [2]).shape, (None, 6))
         self.assertEqual(knp.tile(x, [1, 2]).shape, (None, 6))
         self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, None, 6))
-        
+
         # Test with multi-dimensional input
         x = KerasTensor((None, 3, 2, 2))
         self.assertEqual(knp.tile(x, [1, 2, 1, 1]).shape, (None, 6, 2, 2))
@@ -9513,12 +9513,13 @@ class HistogramTest(testing.TestCase):
         model.predict(np.random.randn(1, 8))
 
     def test_tile_shape_inference_in_layer(self):
-        """Test that ops.tile properly infers output shape when used in a Layer.
-        
+        """Test that ops.tile properly infers output shape in a Layer.
+
         This is a regression test for issue #20914 where TensorFlow backend
         would return all-None shapes when tile was called inside a Layer's
         call method with concrete integer repeats.
         """
+
         class TileLayer(keras.layers.Layer):
             def call(self, x):
                 # Use concrete integer repeats
@@ -9527,7 +9528,7 @@ class HistogramTest(testing.TestCase):
 
         inputs = keras.Input(shape=(3, 2, 2))
         output = TileLayer()(inputs)
-        
+
         # With the fix, output shape should be (None, 6, 2, 2)
         # Before the fix, it was (None, None, None, None)
         self.assertEqual(output.shape, (None, 6, 2, 2))

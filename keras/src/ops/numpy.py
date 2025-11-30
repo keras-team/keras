@@ -6411,7 +6411,7 @@ class Tile(Operation):
         repeats = self.repeats
         if isinstance(repeats, int):
             repeats = [repeats]
-        
+
         # Convert repeats to list if it's a tuple or other iterable
         # and extract concrete integer values
         if not isinstance(repeats, list):
@@ -6419,7 +6419,7 @@ class Tile(Operation):
                 repeats = list(repeats)
             except TypeError:
                 repeats = [repeats]
-        
+
         if len(x_shape) > len(repeats):
             repeats = [1] * (len(x_shape) - len(repeats)) + repeats
         else:
