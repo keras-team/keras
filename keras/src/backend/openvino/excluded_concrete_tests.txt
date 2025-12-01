@@ -49,6 +49,7 @@ NumpyDtypeTest::test_trace
 NumpyDtypeTest::test_trapezoid
 NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
+NumpyDtypeTest::test_vander
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_vdot
 NumpyDtypeTest::test_view
@@ -91,6 +92,7 @@ NumpyOneInputOpsCorrectnessTest::test_trace
 NumpyOneInputOpsCorrectnessTest::test_trapezoid
 NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_unravel_index
+NumpyOneInputOpsCorrectnessTest::test_vander
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_vstack
 NumpyOneInputOpsCorrectnessTest::test_view
