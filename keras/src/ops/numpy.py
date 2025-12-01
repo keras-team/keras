@@ -7321,6 +7321,30 @@ def vander(x, N=None, increasing=False):
            [ 27,   9,   3,   1],
            [125,  25,   5,   1]])
     """
+
+    if len(x.shape) != 1:
+        raise ValueError(
+            "Input tensor must be 1-dimensional. "
+            f"Received: input.shape={x.shape}"
+        )
+
+    if N is not None:
+        if N < 0:
+            raise ValueError(
+                f"Argument 'N' must be nonnegative. Received: N={N}"
+            )
+
+        if not isinstance(N, int):
+            raise TypeError(
+                f"Argument `N` must be of type `int`. Received: dtype={type(N)}"
+            )
+
+    if not isinstance(increasing, bool):
+        raise TypeError(
+            f"Argument `increasing` must be of type `bool`. "
+            f"Received: dtype={type(increasing)}"
+        )
+
     if any_symbolic_tensors((x,)):
         return Vander(N=N, increasing=increasing).symbolic_call(x)
     return backend.numpy.vander(x, N=N, increasing=increasing)

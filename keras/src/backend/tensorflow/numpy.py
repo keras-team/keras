@@ -3082,30 +3082,6 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
 
 def vander(x, N=None, increasing=False):
     x = convert_to_tensor(x)
-
-    if x.shape.rank != 1:
-        raise ValueError(
-            "Input must be a one-dimensional array. "
-            f"Received: x.ndim={x.shape.rank}"
-        )
-
-    if N is not None:
-        if N < 0:
-            raise ValueError(
-                f"Argument 'N' must be nonnegative. Received: N={N}"
-            )
-
-        if not isinstance(N, int):
-            raise TypeError(
-                f"Argument 'N' must be integer. Received: dtype={type(N)}"
-            )
-
-    if not isinstance(increasing, bool):
-        raise TypeError(
-            "Argument 'increasing' must be bool. "
-            f"Received: dtype={type(increasing)}"
-        )
-
     result_dtype = dtypes.result_type(x.dtype)
 
     if N is None:
@@ -3118,9 +3094,10 @@ def vander(x, N=None, increasing=False):
 
     x_exp = tf.expand_dims(x, axis=-1)
 
-    x_exp = tf.cast(x_exp, tf.float32)
-    powers = tf.cast(powers, tf.float32)
-    vander = tf.math.pow(x_exp, powers)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    vander = tf.math.pow(
+        tf.cast(x_exp, compute_dtype), tf.cast(powers, compute_dtype)
+    )
     return tf.cast(vander, result_dtype)
 
 
