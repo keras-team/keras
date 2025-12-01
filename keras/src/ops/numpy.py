@@ -7305,11 +7305,11 @@ def vander(x, N=None, increasing=False):
 
     Args:
         x: 1D input tensor.
-        N: Number of columns. If None, `N` = len(x).
+        N: Number of columns. If None, `N` = `len(x)`.
         increasing: Order of powers. If True, powers increase left to right.
 
     Returns:
-        Vandermonde matrix of shape (len(x), N).
+        Output tensor, vandermonde matrix of shape `(len(x), N)`.
 
     Example:
     >>> import numpy as np
