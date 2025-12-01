@@ -2770,9 +2770,7 @@ def tile(x, repeats):
                         repeats = [1] * (x_rank - len(repeats)) + repeats
                     elif len(repeats) > x_rank:
                         # Need to reshape x to match repeats length
-                        x_shape_list = [1] * (
-                            len(repeats) - x_rank
-                        ) + [
+                        x_shape_list = [1] * (len(repeats) - x_rank) + [
                             d if d is not None else -1
                             for d in x.shape.as_list()
                         ]
