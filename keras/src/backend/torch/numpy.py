@@ -1821,6 +1821,29 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
 
 def vander(x, N=None, increasing=False):
     x = convert_to_tensor(x)
+
+    if x.ndim != 1:
+        raise ValueError(
+            f"Input must be a one-dimensional array. Received: x.ndim={x.ndim}"
+        )
+
+    if N is not None:
+        if N < 0:
+            raise ValueError(
+                f"Argument 'N' must be nonnegative. Received: N={N}"
+            )
+
+        if not isinstance(N, int):
+            raise TypeError(
+                f"Argument 'N' must be integer. Received: dtype={type(N)}"
+            )
+
+    if not isinstance(increasing, bool):
+        raise TypeError(
+            "Argument 'increasing' must be bool. "
+            f"Received: dtype={type(increasing)}"
+        )
+
     result_dtype = dtypes.result_type(x.dtype)
     return cast(torch.vander(x, N=N, increasing=increasing), result_dtype)
 
