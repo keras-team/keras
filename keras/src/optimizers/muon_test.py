@@ -38,11 +38,11 @@ class MuonTest(testing.TestCase):
             True,
             optimizer._should_use_adamw(vars),
         )
-        embeding = Embedding(2, 2)
-        embeding.build()
+        embedding = Embedding(2, 2)
+        embedding.build()
         self.assertAllClose(
             True,
-            optimizer._should_use_adamw(embeding.weights[0]),
+            optimizer._should_use_adamw(embedding.weights[0]),
         )
         vars = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         optimizer = Muon()
@@ -67,7 +67,10 @@ class MuonTest(testing.TestCase):
         optimizer.build([vars])
         optimizer._muon_update_step(grads, vars, 0.5)
         self.assertAllClose(
-            vars, [[1.13, 1.51], [2.57, 4.06]], rtol=1e-2, atol=1e-2
+            vars,
+            [[0.988775, 1.887053], [2.873428, 3.97035]],
+            rtol=1e-2,
+            atol=1e-2,
         )
 
     def test_clip_norm(self):
@@ -81,3 +84,32 @@ class MuonTest(testing.TestCase):
         grad = [np.array([100.0, 100.0])]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    def test_muon_weight_decay(self):
+        variable = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        weight_decay = 0.01
+        expected_variable = variable - variable * weight_decay
+        optimizer = Muon(learning_rate=1.0, weight_decay=weight_decay)
+        optimizer._apply_weight_decay([variable])
+        self.assertAllClose(variable, expected_variable, rtol=1e-4, atol=1e-4)
+
+    def test_adamw_weight_decay(self):
+        variable = backend.Variable(2.0)
+        weight_decay = 0.01
+        expected_variable = variable - variable * weight_decay
+        optimizer = Muon(learning_rate=1.0, adam_weight_decay=weight_decay)
+        optimizer._apply_weight_decay([variable])
+
+        self.assertAllClose(variable, expected_variable, rtol=1e-4, atol=1e-4)
+
+    def test_lr_adjust_none(self):
+        opt = Muon(rms_rate=None)
+        x = ops.ones((4, 4))
+        want = x
+        self.assertAllClose(opt.lr_adjust(x), want)
+
+    def test_lr_adjust_2d(self):
+        opt = Muon(rms_rate=0.2)
+        x = ops.ones((4, 2))
+        want = x * 0.2 * 2
+        self.assertAllClose(opt.lr_adjust(x), want)
