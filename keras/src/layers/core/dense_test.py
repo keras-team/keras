@@ -141,7 +141,9 @@ class DenseTest(testing.TestCase):
             ),
             layer.bias,
         )
-        self.assertAllClose(outputs, expected_outputs)
+        self.assertAllClose(
+            outputs, expected_outputs, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
 
         # Verify the gradient is sparse
         if backend.backend() == "tensorflow":

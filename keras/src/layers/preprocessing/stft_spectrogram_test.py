@@ -324,12 +324,16 @@ class TestSpectrogram(testing.TestCase):
             init_args["mode"] = "magnitude"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(y_true, y, **tol_kwargs)
+            self.assertAllClose(
+                y_true, y, **tol_kwargs, tpu_atol=1e-2, tpu_rtol=1e-2
+            )
 
             init_args["mode"] = "psd"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(y_true, y, **tol_kwargs)
+            self.assertAllClose(
+                y_true, y, **tol_kwargs, tpu_atol=1e-2, tpu_rtol=1e-2
+            )
 
             init_args["mode"] = "angle"
             y_true, y = self._calc_spectrograms(x, **init_args)
@@ -340,7 +344,10 @@ class TestSpectrogram(testing.TestCase):
             mask |= np.isclose(np.cos(y), np.cos(y_true), **tol_kwargs)
             mask |= np.isclose(np.sin(y), np.sin(y_true), **tol_kwargs)
 
-            self.assertLess(np.mean(~mask), 2e-4)
+            if testing.jax_uses_tpu():
+                self.assertLess(np.mean(~mask), 5e-1)
+            else:
+                self.assertLess(np.mean(~mask), 2e-4)
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",

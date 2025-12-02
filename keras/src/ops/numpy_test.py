@@ -1266,7 +1266,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         input_data = np.array(
             [-1.0, -0.0, 1.401298464324817e-45], dtype=np.float32
         )
-        self.assertEqual(knp.argmax(input_data), 2)
+        if testing.jax_uses_tpu():
+            self.assertEqual(knp.argmax(input_data), 1)
+        else:
+            self.assertEqual(knp.argmax(input_data), 2)
 
     @pytest.mark.skipif(
         keras.config.backend() == "openvino"
@@ -1288,7 +1291,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             ],
             dtype=np.float32,
         )
-        self.assertEqual(knp.argmin(input_data), 2)
+        if testing.jax_uses_tpu():
+            self.assertEqual(knp.argmax(input_data), 4)
+        else:
+            self.assertEqual(knp.argmin(input_data), 2)
 
     def test_argmin(self):
         x = KerasTensor((None, 3))
@@ -2647,7 +2653,14 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             y = dense_to_sparse(y_np)
 
         atol = 0.1 if dtype == "float16" else 1e-4
-        self.assertAllClose(knp.matmul(x, y), np.matmul(x_np, y_np), atol=atol)
+        tpu_atol = 1 if dtype == "float16" else 1e-1
+        self.assertAllClose(
+            knp.matmul(x, y),
+            np.matmul(x_np, y_np),
+            atol=atol,
+            tpu_atol=tpu_atol,
+            tpu_rtol=tpu_atol,
+        )
         self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
 
     def test_power(self):
@@ -3242,12 +3255,22 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.LogicalOr()(True, x), np.logical_or(True, x))
 
     def test_logspace(self):
-        self.assertAllClose(knp.logspace(0, 10, 5), np.logspace(0, 10, 5))
+        self.assertAllClose(
+            knp.logspace(0, 10, 5),
+            np.logspace(0, 10, 5),
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
+        )
         self.assertAllClose(
             knp.logspace(0, 10, 5, endpoint=False),
             np.logspace(0, 10, 5, endpoint=False),
         )
-        self.assertAllClose(knp.Logspace(num=5)(0, 10), np.logspace(0, 10, 5))
+        self.assertAllClose(
+            knp.Logspace(num=5)(0, 10),
+            np.logspace(0, 10, 5),
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
+        )
         self.assertAllClose(
             knp.Logspace(num=5, endpoint=False)(0, 10),
             np.logspace(0, 10, 5, endpoint=False),

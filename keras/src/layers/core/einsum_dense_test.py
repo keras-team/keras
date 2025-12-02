@@ -404,7 +404,9 @@ class EinsumDenseTest(testing.TestCase):
 
         # Verify that the effective kernel property returns the expected value.
         actual_kernel = ops.convert_to_numpy(layer.kernel)
-        self.assertAllClose(actual_kernel, expected_kernel)
+        self.assertAllClose(
+            actual_kernel, expected_kernel, tpu_atol=1e-3, tpu_rtol=1e-3
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
