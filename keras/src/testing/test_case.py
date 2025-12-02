@@ -45,7 +45,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         elif backend.backend() == "tensorflow":
             import tensorflow as tf
 
-            try: 
+            try:
                 resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
                 tf.config.experimental_connect_to_cluster(resolver)
                 tf.tpu.experimental.initialize_tpu_system(resolver)
@@ -55,7 +55,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                     self.on_tpu = True
             except (ValueError, RuntimeError):
                 # No TPU found or initialization failed.
-                pass 
+                pass
 
     def get_temp_dir(self):
         temp_dir = tempfile.mkdtemp()
