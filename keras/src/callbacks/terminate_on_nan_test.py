@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import callbacks
 from keras.src import initializers
@@ -89,7 +90,10 @@ class TerminateOnNaNTest(testing.TestCase):
         callback = TerminateOnNaN(raise_error=True)
 
         # Training should raise RuntimeError
-        with pytest.raises(RuntimeError, match="NaN or Inf loss encountered"):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "NaN or Inf loss encountered",
+        ):
             model.fit(
                 x, y, epochs=1, batch_size=1, callbacks=[callback], verbose=0
             )
@@ -117,7 +121,7 @@ class TerminateOnNaNTest(testing.TestCase):
         raise_error_terminate_callback = TerminateOnNaN(raise_error=True)
 
         # Should raise RuntimeError
-        with pytest.raises(RuntimeError):
+        with self.assertRaises(RuntimeError):
             model.fit(
                 x,
                 y,
@@ -154,7 +158,7 @@ class TerminateOnNaNTest(testing.TestCase):
         backup_callback.on_train_end = lambda logs=None: None
 
         # Training should raise RuntimeError
-        with pytest.raises(RuntimeError):
+        with self.assertRaises(RuntimeError):
             model.fit(
                 x_nan,
                 y_nan,
@@ -173,7 +177,11 @@ class TerminateOnNaNTest(testing.TestCase):
             "Backup file missing unexpectedly.",
         )
 
-    def test_normal_training_does_not_raise(self):
+    @parameterized.named_parameters(
+        ("raise_error_false", False),
+        ("raise_error_true", True),
+    )
+    def test_normal_training_does_not_raise(self, raise_error):
         """Test that TerminateOnNaN does not raise on normal training."""
         model = models.Sequential([layers.Dense(1, input_shape=(1,))])
         model.compile(optimizer="sgd", loss="mse")
@@ -181,15 +189,13 @@ class TerminateOnNaNTest(testing.TestCase):
         x = np.array([[1.0], [2.0]])
         y = np.array([[1.0], [2.0]])
 
-        # Test both raise_error=False and raise_error=True with normal data
-        for raise_error in [False, True]:
-            callback = TerminateOnNaN(raise_error=raise_error)
+        callback = TerminateOnNaN(raise_error=raise_error)
 
-            # Should complete without raising RuntimeError
-            history = model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+        # Should complete without raising RuntimeError
+        history = model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
 
-            # Should have completed 2 epochs
-            self.assertEqual(len(history.history["loss"]), 2)
+        # Should have completed 2 epochs
+        self.assertEqual(len(history.history["loss"]), 2)
 
     def test_raise_error_terminate_stops_on_later_batch(self):
         """Ensure TerminateOnNaN(raise_error=True) stops training
@@ -204,9 +210,9 @@ class TerminateOnNaNTest(testing.TestCase):
 
         callback = TerminateOnNaN(raise_error=True)
 
-        with pytest.raises(RuntimeError) as exc:
+        with self.assertRaises(RuntimeError) as exc:
             model.fit(
                 x, y, epochs=1, batch_size=1, callbacks=[callback], verbose=0
             )
 
-        assert any(f"batch {i}" in str(exc.value) for i in [0, 1])
+        self.assertTrue(any(f"batch {i}" in str(exc.exception) for i in [0, 1]))
