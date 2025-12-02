@@ -42,6 +42,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             self.on_tpu = any(
                 d.platform.lower() == "tpu" for d in available_devices
             )
+            jax.clear_caches()
         elif backend.backend() == "tensorflow":
             import tensorflow as tf
 
