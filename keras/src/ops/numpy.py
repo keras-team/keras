@@ -4059,6 +4059,46 @@ def lcm(x1, x2):
     return backend.numpy.lcm(x1, x2)
 
 
+class Ldexp(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.ldexp(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.ldexp", "keras.ops.numpy.ldexp"])
+def ldexp(x1, x2):
+    """Multiply `x1` by 2 raised to the power of `x2`, element-wise.
+
+    This function computes:
+        ldexp(x1, x2) = x1 * 2**x2
+
+    Args:
+        x1: Float input tensor.
+        x2: Integer exponent tensor.
+
+    Returns:
+        Output tensor
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([0.75, 1.5])
+    >>> x2 = keras.ops.convert_to_tensor([1, 2])
+    >>> keras.ops.ldexp(x1, x2)
+    array([1.5, 6. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Ldexp().symbolic_call(x1, x2)
+    return backend.numpy.ldexp(x1, x2)
+
+
 class Less(Operation):
     def call(self, x1, x2):
         return backend.numpy.less(x1, x2)
