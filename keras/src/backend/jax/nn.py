@@ -1356,7 +1356,6 @@ def dot_product_attention(
         except jax.errors.ConcretizationTypeError:
             # Mask is traced
             # Fall back to native attention
-            flash_attention = False
             logging.exception(
                 "Failed to apply Splash kernel for flash attention. "
                 "Falling back to JAX native dot_product_attention."
