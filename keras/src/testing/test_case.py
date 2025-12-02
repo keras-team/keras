@@ -45,13 +45,17 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         elif backend.backend() == "tensorflow":
             import tensorflow as tf
 
-            resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
-            tf.config.experimental_connect_to_cluster(resolver)
-            tf.tpu.experimental.initialize_tpu_system(resolver)
-            devices = tf.config.list_logical_devices()
-            tpu_devices = [d for d in devices if "TPU" in d.device_type]
-            if len(tpu_devices) > 0:
-                self.on_tpu = True
+            try: 
+                resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
+                tf.config.experimental_connect_to_cluster(resolver)
+                tf.tpu.experimental.initialize_tpu_system(resolver)
+                devices = tf.config.list_logical_devices()
+                tpu_devices = [d for d in devices if "TPU" in d.device_type]
+                if len(tpu_devices) > 0:
+                    self.on_tpu = True
+            except (ValueError, RuntimeError):
+                # No TPU found or initialization failed.
+                pass 
 
     def get_temp_dir(self):
         temp_dir = tempfile.mkdtemp()

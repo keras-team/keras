@@ -1292,7 +1292,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             dtype=np.float32,
         )
         if testing.jax_uses_tpu():
-            self.assertEqual(knp.argmax(input_data), 4)
+            self.assertEqual(knp.argmin(input_data), 0)
         else:
             self.assertEqual(knp.argmin(input_data), 2)
 

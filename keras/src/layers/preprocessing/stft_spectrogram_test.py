@@ -345,6 +345,8 @@ class TestSpectrogram(testing.TestCase):
             mask |= np.isclose(np.sin(y), np.sin(y_true), **tol_kwargs)
 
             if testing.jax_uses_tpu():
+                # Due to tpu matmul precision, the max error is ~0.43.
+                # Tolerance is set accordingly.
                 self.assertLess(np.mean(~mask), 5e-1)
             else:
                 self.assertLess(np.mean(~mask), 2e-4)
