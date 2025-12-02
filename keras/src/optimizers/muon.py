@@ -69,16 +69,15 @@ class Muon(optimizer.Optimizer):
             It is recommended to use the default value
         adam_lr_ratio: Float, the ratio of the learning rate when
                 using Adam to the main learning rate.
-                it is recommended to set it to 1
+                It is recommended to set it to 1
         momentum: Float, momentum used by internal SGD.
         ns_steps: Integer, number of Newton-Schulz iterations to run.
         nesterov: Boolean, whether to use Nesterov-style momentum
         {{base_optimizer_keyword_args}}
-        `rms_rate`: A trick from https://arxiv.org/abs/2502.16982.
-            This parameter can enhance the stability of Muon,
-            allowing it to use the same learning rate and weight decay as Adam.
-            It is default  to set it to `0.2`
-            If you wish to disable it, it is set None.
+        rms_rate: Float. A parameter from https://arxiv.org/abs/2502.16982
+            that can enhance the stability of Muon, allowing it to use the
+            same learning rate and weight decay as Adam. Defaults to `0.2`.
+            Set to `None` to disable this feature.
     """
 
     def __init__(
@@ -140,7 +139,6 @@ class Muon(optimizer.Optimizer):
         self.rms_rate = rms_rate
 
     def _should_use_adamw(self, variable):
-        # To use it with 4D convolutional filters,
         # it works well to just flatten their last 3 dimensions.
         # any {0,1}-D parameters should all be optimized by adam
         if len(variable.shape) != 2:
@@ -249,10 +247,12 @@ class Muon(optimizer.Optimizer):
         return X
 
     def lr_adjust(self, x):
-        """
-        You can check the details at https://arxiv.org/pdf/2502.16982.
-        For a 2D matrix of size m,the analytical solution provided in the paper
-        rate * x * sqrt(max(n,m))
+        """Adjusts learning rate based on the Moonlight implementation.
+        This method enhances the stability of Muon, allowing it to use the same
+        learning rate and weight decay as Adam. For details, see
+        https://arxiv.org/abs/2502.16982.
+        For a 2D matrix, the update is scaled by `sqrt(max(n, m)) * rms_rate`,
+        where `n` and `m` are the dimensions of the matrix.
         """
         if self.rms_rate is None:
             return x
@@ -291,17 +291,17 @@ class Muon(optimizer.Optimizer):
 
     def _apply_weight_decay(self, variables):
         for variable in variables:
-            if self._use_weight_decay(variable):
-                if self._should_use_adamw(variable):
-                    if self.adam_weight_decay is None:
-                        continue
-                    wd = ops.cast(self.adam_weight_decay, variable.dtype)
-                else:
-                    if self.weight_decay is None:
-                        continue
-                    wd = ops.cast(self.weight_decay, variable.dtype)
-                lr = ops.cast(self.learning_rate, variable.dtype)
-                variable.assign(variable - variable * wd * lr)
+            if not self._use_weight_decay(variable):
+                continue
+            if self._should_use_adamw(variable):
+                weight_decay_value = self.adam_weight_decay
+            else:
+                weight_decay_value = self.weight_decay
+            if weight_decay_value is None:
+                continue
+            wd = ops.cast(weight_decay_value, variable.dtype)
+            lr = ops.cast(self.learning_rate, variable.dtype)
+            variable.assign(variable - variable * wd * lr)
 
     def get_config(self):
         config = super().get_config()
