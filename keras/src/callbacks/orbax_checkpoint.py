@@ -114,10 +114,10 @@ class OrbaxCheckpoint(MonitorCallback):
         save_best_only=False,
         save_weights_only=False,
         mode="auto",
-        max_to_keep=1,
-        save_on_background=True,
         save_freq="epoch",
         initial_value_threshold=None,
+        max_to_keep=1,
+        save_on_background=True,
     ):
         # Ensure orbax is available
         ocp.initialize()
