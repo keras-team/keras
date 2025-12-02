@@ -1,8 +1,8 @@
 # Tensorflow.
 # Note: when the version of Tensorflow is changed, the version tf_keras must be
 # changed in .github/workflows/actions.yml (pip install --no-deps tf_keras).
-tensorflow-cpu~=2.19.0;sys_platform != 'darwin'
-tensorflow~=2.19.0;sys_platform == 'darwin'
+tensorflow-cpu~=2.20.0;sys_platform != 'darwin'
+tensorflow~=2.20.0;sys_platform == 'darwin'
 tf2onnx
 
 # Torch.
