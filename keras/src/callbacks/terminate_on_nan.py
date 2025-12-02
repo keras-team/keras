@@ -42,7 +42,6 @@ class TerminateOnNaN(Callback):
     def __init__(self, raise_error: bool = False):
         super().__init__()
         self.raise_error = raise_error
-        self._supports_tf_logs = True
 
     def on_batch_end(self, batch, logs=None):
         """Check for NaN/Inf loss at the end of each batch.

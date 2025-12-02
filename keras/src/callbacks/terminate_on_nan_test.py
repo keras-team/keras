@@ -1,10 +1,8 @@
 import os
-import tempfile
 
 import numpy as np
 import pytest
 
-import keras
 from keras.src import callbacks
 from keras.src import initializers
 from keras.src import layers
@@ -101,7 +99,7 @@ class TerminateOnNaNTest(testing.TestCase):
         TerminateOnNaN(raise_error=True) raises.
         """
 
-        class TrackingCallback(keras.src.callbacks.Callback):
+        class TrackingCallback(callbacks.Callback):
             def __init__(self):
                 super().__init__()
                 self.train_end_called = False
@@ -135,45 +133,45 @@ class TerminateOnNaNTest(testing.TestCase):
         """Ensure BackupAndRestore directory is preserved when
         TerminateOnNaN(raise_error=True) triggers.
         """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            backup_dir = os.path.join(tmpdir, "backups")
-            os.makedirs(backup_dir, exist_ok=True)
+        tmpdir = self.get_temp_dir()
+        backup_dir = os.path.join(tmpdir, "backups")
+        os.makedirs(backup_dir, exist_ok=True)
 
-            fake_file = os.path.join(backup_dir, "checkpoint.txt")
-            with open(fake_file, "w") as f:
-                f.write("dummy checkpoint")
+        fake_file = os.path.join(backup_dir, "checkpoint.txt")
+        with open(fake_file, "w") as f:
+            f.write("dummy checkpoint")
 
-            model = models.Sequential([layers.Dense(1, input_shape=(1,))])
-            model.compile(optimizer="sgd", loss="mse")
+        model = models.Sequential([layers.Dense(1, input_shape=(1,))])
+        model.compile(optimizer="sgd", loss="mse")
 
-            x_nan = np.array([[1.0]])
-            y_nan = np.array([[np.inf]])
+        x_nan = np.array([[1.0]])
+        y_nan = np.array([[np.inf]])
 
-            raise_error_terminate_callback = TerminateOnNaN(raise_error=True)
-            backup_callback = BackupAndRestore(backup_dir=backup_dir)
+        raise_error_terminate_callback = TerminateOnNaN(raise_error=True)
+        backup_callback = BackupAndRestore(backup_dir=backup_dir)
 
-            # Monkeypatch BackupAndRestore to prevent cleanup on train_end
-            backup_callback.on_train_end = lambda logs=None: None
+        # Monkeypatch BackupAndRestore to prevent cleanup on train_end
+        backup_callback.on_train_end = lambda logs=None: None
 
-            # Training should raise RuntimeError
-            with pytest.raises(RuntimeError):
-                model.fit(
-                    x_nan,
-                    y_nan,
-                    epochs=1,
-                    callbacks=[backup_callback, raise_error_terminate_callback],
-                    verbose=0,
-                )
-
-            # Verify backup directory still exists and file inside is untouched
-            self.assertTrue(
-                os.path.exists(backup_dir),
-                f"Backup dir deleted: {backup_dir}",
+        # Training should raise RuntimeError
+        with pytest.raises(RuntimeError):
+            model.fit(
+                x_nan,
+                y_nan,
+                epochs=1,
+                callbacks=[backup_callback, raise_error_terminate_callback],
+                verbose=0,
             )
-            self.assertTrue(
-                os.path.exists(fake_file),
-                "Backup file missing unexpectedly.",
-            )
+
+        # Verify backup directory still exists and file inside is untouched
+        self.assertTrue(
+            os.path.exists(backup_dir),
+            f"Backup dir deleted: {backup_dir}",
+        )
+        self.assertTrue(
+            os.path.exists(fake_file),
+            "Backup file missing unexpectedly.",
+        )
 
     def test_normal_training_does_not_raise(self):
         """Test that TerminateOnNaN does not raise on normal training."""
