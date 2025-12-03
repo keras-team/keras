@@ -23,8 +23,9 @@ class Dense(Layer):
     where `activation` is the element-wise activation function
     passed as the `activation` argument, `kernel` is a weights matrix
     created by the layer, and `bias` is a bias vector created by the layer
-    (only applicable if `use_bias` is `True`), we can set use_bias as False if 
-    we add batch_normalization as it has it's own inbuild parameters.
+    (only applicable if `use_bias` is `True`). When this layer is
+    followed by a `BatchNormalization` layer, it is recommended to set
+    `use_bias=False` as `BatchNormalization` has its own bias term.
 
     Note: If the input to the layer has a rank greater than 2, `Dense`
     computes the dot product between the `inputs` and the `kernel` along the
