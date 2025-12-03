@@ -1259,8 +1259,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3, 3))
 
     @pytest.mark.skipif(
-        keras.config.backend() == "openvino"
-        or testing.uses_tpu(),
+        keras.config.backend() == "openvino" or testing.uses_tpu(),
         reason="OpenVINO doesn't support this change",
     )
     def test_argmax_negative_zero(self):

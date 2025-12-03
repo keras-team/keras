@@ -93,9 +93,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             f"The two values are close at all elements. \n{msg}.\nValues: {x1}"
         )
 
-    def assertAlmostEqual(
-        self, x1, x2, decimal=3, tpu_decimal=None, msg=None
-    ):
+    def assertAlmostEqual(self, x1, x2, decimal=3, tpu_decimal=None, msg=None):
         if tpu_decimal is not None and self.on_tpu:
             decimal = tpu_decimal
         msg = msg or ""
@@ -677,10 +675,13 @@ def uses_gpu():
 
 def uses_tpu():
     # Condition used to skip tests when using the TPU
+    if backend.backend() not in ["tensorflow", "jax"]:
+        pass
     devices = distribution.list_devices()
     if any(d.startswith("tpu") for d in devices):
         return True
     return False
+
 
 def uses_cpu():
     devices = distribution.list_devices()
