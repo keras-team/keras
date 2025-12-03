@@ -1149,6 +1149,10 @@ def lcm(x1, x2):
     raise NotImplementedError("`lcm` is not supported with openvino backend")
 
 
+def ldexp(x1, x2):
+    raise NotImplementedError("`ldexp` is not supported with openvino backend")
+
+
 def less(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):

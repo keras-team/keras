@@ -1844,6 +1844,23 @@ def lcm(x1, x2):
     return result
 
 
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            f"ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, x1.dtype)
+    result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    return tf.cast(tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result), dtype)
+
+
 def less(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
