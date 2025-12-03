@@ -116,10 +116,11 @@ def make_tf_tensor_spec(x, dynamic_batch=True):
         tensor_spec = x
         # Adjust batch dimension if needed
         if dynamic_batch and len(tensor_spec.shape) > 0:
-            shape = list(tensor_spec.shape)
-            shape[0] = None
+            shape = tuple(
+                None if i == 0 else s for i, s in enumerate(tensor_spec.shape)
+            )
             tensor_spec = tf.TensorSpec(
-                tuple(shape), dtype=tensor_spec.dtype, name=tensor_spec.name
+                shape, dtype=tensor_spec.dtype, name=tensor_spec.name
             )
     else:
         input_spec = make_input_spec(x)
