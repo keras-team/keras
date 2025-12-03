@@ -83,6 +83,10 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     or testing.torch_uses_gpu(),
     reason="Fails on GPU",
 )
+@pytest.mark.skipif(
+    np.version.version.startswith("2."),
+    reason="ONNX export is currently incompatible with NumPy 2.0",
+)
 class ExportONNXTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
