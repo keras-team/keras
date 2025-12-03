@@ -61,7 +61,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 )
 @pytest.mark.skipif(
     backend.backend() == "torch" and np.version.version.startswith("2."),
-    reason="Torch backend export (via torch_xla) is incompatible with NumPy 2.0",
+    reason="Torch backend export (via torch_xla) is incompatible with np 2.0",
 )
 class ExportSavedModelTest(testing.TestCase):
     @parameterized.named_parameters(
