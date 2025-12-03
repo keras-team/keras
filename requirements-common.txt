@@ -2,7 +2,7 @@ pre-commit
 namex>=0.0.8
 ruff
 pytest
-numpy<2.0.0
+numpy
 scipy
 scikit-learn
 pillow
