@@ -249,7 +249,7 @@ class ExportONNXTest(testing.TestCase):
         }
         ort_session.run(None, ort_inputs)
 
-    @parameterized.named_parameters(named_product(opset_version=[None, 18]))
+    @parameterized.named_parameters(named_product(opset_version=[None, 17]))
     def test_export_with_opset_version(self, opset_version):
         import onnx as onnx_lib
 
