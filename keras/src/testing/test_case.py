@@ -675,11 +675,12 @@ def uses_gpu():
 
 def uses_tpu():
     # Condition used to skip tests when using the TPU
-    if backend.backend() not in ["tensorflow", "jax"]:
-        pass
-    devices = distribution.list_devices()
-    if any(d.startswith("tpu") for d in devices):
-        return True
+    try:
+        devices = distribution.list_devices()
+        if any(d.startswith("tpu") for d in devices):
+            return True
+    except AttributeError:
+        return False
     return False
 
 
