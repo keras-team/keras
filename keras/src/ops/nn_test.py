@@ -1327,8 +1327,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_dot_product_attention_inside_scan(self):
         if backend.backend() != "jax":
             self.skipTest("JAX-specific test")
-        
+
         import jax
+
         try:
             if jax.devices()[0].platform != "tpu":
                 self.skipTest("TPU-specific test")
@@ -1336,19 +1337,20 @@ class NNOpsCorrectnessTest(testing.TestCase):
             self.skipTest("TPU-specific test")
 
         import jax.numpy as jnp
+
         from keras.src.backend.jax import nn as jax_nn
 
         def attention_scan_body(carry, x):
             query, key, value = x
             # Use a mask to trigger the issue
-            mask = jnp.ones((1, 4, 8), dtype="bool") 
+            mask = jnp.ones((1, 4, 8), dtype="bool")
             out = jax_nn.dot_product_attention(query, key, value, mask=mask)
             return carry, out
 
         query = jnp.ones((2, 1, 4, 8))
         key = jnp.ones((2, 1, 4, 8))
         value = jnp.ones((2, 1, 4, 8))
-        
+
         # Scan over the first dimension
         _, out = jax.lax.scan(attention_scan_body, None, (query, key, value))
         self.assertEqual(out.shape, (2, 1, 4, 8))
