@@ -21,3 +21,4 @@ examples/**/*.jpg
 .coverage
 *coverage.xml
 .ruff_cache
+*.log
