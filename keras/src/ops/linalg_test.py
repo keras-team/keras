@@ -417,7 +417,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             linalg.det(x)
 
     def test_eig(self):
-        if testing.jax_uses_tpu():
+        if testing.uses_tpu():
             self.skipTest("Skipping test with JAX + TPU as it's not supported")
         x = np.random.rand(2, 3, 3)
         x = x @ x.transpose((0, 2, 1))

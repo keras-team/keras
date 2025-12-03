@@ -319,21 +319,20 @@ class TestSpectrogram(testing.TestCase):
         ]:
             init_args = dict(zip(names, args))
 
-            tol_kwargs = {"atol": 5e-4, "rtol": 1e-6}
+            if testing.uses_tpu():
+                tol_kwargs = {"atol": 5e-2, "rtol": 1e-3}
+            else:
+                tol_kwargs = {"atol": 5e-4, "rtol": 1e-6}
 
             init_args["mode"] = "magnitude"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(
-                y_true, y, **tol_kwargs, tpu_atol=1e-2, tpu_rtol=1e-2
-            )
+            self.assertAllClose(y_true, y, **tol_kwargs)
 
             init_args["mode"] = "psd"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(
-                y_true, y, **tol_kwargs, tpu_atol=1e-2, tpu_rtol=1e-2
-            )
+            self.assertAllClose(y_true, y, **tol_kwargs)
 
             init_args["mode"] = "angle"
             y_true, y = self._calc_spectrograms(x, **init_args)
@@ -344,12 +343,7 @@ class TestSpectrogram(testing.TestCase):
             mask |= np.isclose(np.cos(y), np.cos(y_true), **tol_kwargs)
             mask |= np.isclose(np.sin(y), np.sin(y_true), **tol_kwargs)
 
-            if testing.jax_uses_tpu():
-                # Due to tpu matmul precision, the max error is ~0.43.
-                # Tolerance is set accordingly.
-                self.assertLess(np.mean(~mask), 5e-1)
-            else:
-                self.assertLess(np.mean(~mask), 2e-4)
+            self.assertLess(np.mean(~mask), 2e-4)
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",

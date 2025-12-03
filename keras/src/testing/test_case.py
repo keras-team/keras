@@ -69,8 +69,8 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         x2,
         atol=1e-6,
         rtol=1e-6,
-        tpu_atol: float | None = None,
-        tpu_rtol: float | None = None,
+        tpu_atol=None,
+        tpu_rtol=None,
         msg=None,
     ):
         if tpu_atol is not None and self.on_tpu:
@@ -94,7 +94,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         )
 
     def assertAlmostEqual(
-        self, x1, x2, decimal=3, tpu_decimal: int | None = None, msg=None
+        self, x1, x2, decimal=3, tpu_decimal=None, msg=None
     ):
         if tpu_decimal is not None and self.on_tpu:
             decimal = tpu_decimal
@@ -235,8 +235,8 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         run_training_check=True,
         run_mixed_precision_check=True,
         assert_built_after_instantiation=False,
-        tpu_atol: int | None = None,
-        tpu_rtol: int | None = None,
+        tpu_atol=None,
+        tpu_rtol=None,
     ):
         """Run basic checks on a layer.
 
@@ -675,15 +675,12 @@ def uses_gpu():
     return False
 
 
-def jax_uses_tpu():
+def uses_tpu():
     # Condition used to skip tests when using the TPU
-    if backend.backend() != "jax":
-        return False
-    import jax
-
-    available_devices = jax.devices()
-    return any(d.platform.lower() == "tpu" for d in available_devices)
-
+    devices = distribution.list_devices()
+    if any(d.startswith("tpu") for d in devices):
+        return True
+    return False
 
 def uses_cpu():
     devices = distribution.list_devices()
