@@ -1342,18 +1342,18 @@ class NNOpsCorrectnessTest(testing.TestCase):
             query = jnp.expand_dims(query, axis=0)
             key = jnp.expand_dims(key, axis=0)
             value = jnp.expand_dims(value, axis=0)
-            
+
             # Use a mask to trigger the issue
             mask = jnp.ones((1, 4, 8), dtype="bool")
             out = knn.dot_product_attention(query, key, value, mask=mask)
-            
+
             out = jnp.squeeze(out, axis=0)
             return carry, out
 
         query = jnp.ones((2, 1, 4, 8))
         key = jnp.ones((2, 1, 4, 8))
         value = jnp.ones((2, 1, 4, 8))
-        
+
         # Scan over the first dimension
         _, out = jax.lax.scan(attention_scan_body, None, (query, key, value))
         self.assertEqual(out.shape, (2, 1, 4, 8))
