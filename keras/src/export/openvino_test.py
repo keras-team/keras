@@ -228,7 +228,12 @@ class ExportOpenVINOTest(testing.TestCase):
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input_x, ref_input_y)
 
-        openvino.export_openvino(model, temp_filepath)
+        try:
+            openvino.export_openvino(model, temp_filepath)
+        except Exception as e:
+            if "XlaCallModule" in str(e):
+                self.skipTest("OpenVINO does not support XlaCallModule yet")
+            raise e
 
         # Load and run inference with OpenVINO
         core = ov.Core()
