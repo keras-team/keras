@@ -1324,9 +1324,8 @@ class NNOpsStaticShapeTest(testing.TestCase):
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
     def test_dot_product_attention_inside_scan(self):
-        if backend.backend() != "jax":
-            self.skipTest("JAX-specific test")
 
         import jax
 
@@ -1338,13 +1337,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
         import jax.numpy as jnp
 
-        from keras.src.backend.jax import nn as jax_nn
-
         def attention_scan_body(carry, x):
             query, key, value = x
             # Use a mask to trigger the issue
             mask = jnp.ones((1, 4, 8), dtype="bool")
-            out = jax_nn.dot_product_attention(query, key, value, mask=mask)
+            out = knn.dot_product_attention(query, key, value, mask=mask)
             return carry, out
 
         query = jnp.ones((2, 1, 4, 8))
