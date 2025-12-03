@@ -6,6 +6,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 
 
 class NormalizationTest(testing.TestCase):
@@ -174,7 +175,7 @@ class NormalizationTest(testing.TestCase):
     def test_adapt_pydataset_compat(self, pydataset_type):
         import keras
 
-        class CustomDataset(keras.utils.PyDataset):
+        class CustomDataset(PyDataset):
             def __len__(self):
                 return 100
 
