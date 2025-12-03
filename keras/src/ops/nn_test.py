@@ -1326,7 +1326,6 @@ class NNOpsStaticShapeTest(testing.TestCase):
 class NNOpsCorrectnessTest(testing.TestCase):
     @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
     def test_dot_product_attention_inside_scan(self):
-
         import jax
 
         try:
