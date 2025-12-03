@@ -200,10 +200,7 @@ class Muon(optimizer.Optimizer):
             g = m
         update = self.zeropower_via_newtonschulz5(g, self.ns_steps)
 
-        self.assign_sub(
-            variable,
-            self.lr_adjust(lr * update),
-        )
+        self.assign_sub(variable, self.lr_adjust(lr * update))
 
     def _adamw_update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
