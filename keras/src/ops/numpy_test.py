@@ -254,6 +254,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.lcm(x, y).shape, (2, 3))
 
+    def test_ldexp(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.ldexp(x, y).shape, (None, 3))
+
     def test_less(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -836,6 +841,15 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.lcm(x, y).shape, (2, 3))
+
+    def test_ldexp(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.ldexp(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.ldexp(x, y).shape, (2, 3))
 
     def test_less(self):
         x = KerasTensor((2, 3))
@@ -1495,6 +1509,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((5,))
         self.assertEqual(knp.dot(x, y).shape, ())
 
+    def test_empty_like(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.empty_like(x).shape, (None, 3))
+        self.assertEqual(knp.empty_like(x).dtype, x.dtype)
+
     def test_exp(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.exp(x).shape, (None, 3))
@@ -2138,6 +2157,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3))
             knp.dot(x, y)
+
+    def test_empty_like(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.empty_like(x).shape, (2, 3))
+        self.assertEqual(knp.empty_like(x).dtype, x.dtype)
 
     def test_exp(self):
         x = KerasTensor((2, 3))
@@ -3103,6 +3127,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([4])
         self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
         self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
+
+    def test_ldexp(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.ldexp(x, y), np.ldexp(x, y))
+        self.assertAllClose(knp.Ldexp()(x, y), np.ldexp(x, y))
 
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -5230,8 +5260,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_correlate_different_size(self):
-        x = np.array([1, 2, 3, 4, 5, 6])
-        y = np.array([0, 1, 0.5])
+        x = np.array([1, 3, 5])
+        y = np.array([7, 9])
         self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
         self.assertAllClose(
             knp.correlate(x, y, mode="same"), np.correlate(x, y, mode="same")
@@ -7328,6 +7358,22 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_empty_like(self, dtype):
+        import jax.numpy as jnp
+
+        x = jnp.empty([2, 3, 4], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.empty_like(x, dtype=dtype).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.empty_like(x, dtype=dtype).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.EmptyLike().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
@@ -7855,6 +7901,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Lcm().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=list(itertools.product(ALL_DTYPES, INT_DTYPES)))
+    )
+    def test_ldexp(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.ldexp(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.ldexp(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Ldexp().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 

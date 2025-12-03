@@ -1,3 +1,4 @@
+import math
 import os
 
 import jax
@@ -11,6 +12,8 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import metrics
 from keras.src import models
+from keras.src import ops
+from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src import tree
@@ -179,9 +182,10 @@ if flax is not None:
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="JaxLayer and FlaxLayer are only supported with JAX backend",
+    backend.backend() not in ["jax", "tensorflow"],
+    reason="JaxLayer and FlaxLayer are only supported with JAX and TF backend",
 )
+@pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="GPU test failure")
 class TestJaxLayer(testing.TestCase):
     def _test_layer(
         self,
@@ -194,16 +198,18 @@ class TestJaxLayer(testing.TestCase):
         non_trainable_params,
     ):
         # Fake MNIST data
-        x_train = np.random.uniform(size=(320, 28, 28, 1))
-        y_train = np.eye(num_classes, dtype="int32")[
-            (np.random.uniform(size=(320,)) * num_classes).astype("int32")
-        ]
-        x_test = np.random.uniform(size=(32, 28, 28, 1))
+        x_train = random.uniform(shape=(320, 28, 28, 1))
+        y_train_indices = ops.cast(
+            ops.random.uniform(shape=(320,), minval=0, maxval=num_classes),
+            dtype="int32",
+        )
+        y_train = ops.one_hot(y_train_indices, num_classes, dtype="int32")
+        x_test = random.uniform(shape=(32, 28, 28, 1))
 
         def _count_params(weights):
             count = 0
             for weight in weights:
-                count = count + np.prod(weight.shape)
+                count = count + math.prod(ops.shape(weight))
             return count
 
         def verify_weights_and_params(layer):
@@ -257,7 +263,7 @@ class TestJaxLayer(testing.TestCase):
         for before, after in zip(ntw1_before_fit, ntw1_after_fit):
             self.assertNotAllClose(before, after)
 
-        expected_ouput_shape = (x_test.shape[0], num_classes)
+        expected_ouput_shape = (ops.shape(x_test)[0], num_classes)
         output1 = model1(x_test)
         self.assertEqual(output1.shape, expected_ouput_shape)
         predict1 = model1.predict(x_test, steps=1)
