@@ -1353,7 +1353,7 @@ def dot_product_attention(
             )
             # Transpose output back to Keras layout
             return jnp.transpose(output, axes=(0, 2, 1, 3))
-        except Exception:
+        except (jax.errors.ConcretizationTypeError, Exception):
             logging.exception(
                 "Failed to apply Splash kernel for flash attention. "
                 "Falling back to JAX native dot_product_attention."
