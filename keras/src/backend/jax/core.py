@@ -234,6 +234,59 @@ if config.is_nnx_enabled():
 
     Variable = NnxVariable
 
+    def _flatten_nnx_variable(variable):
+        children = (variable.raw_value,)
+        # We copy __dict__ to avoid side effects
+        keras_state = variable.__dict__.copy()
+        # Remove elements that might be problematic or redundant if
+        # nnx.Variable's __getstate__
+        keras_state.pop("raw_value", None)
+        aux_data = (
+            variable._var_metadata,
+            getattr(variable, "_trace_state", None),
+            keras_state,
+        )
+        return children, aux_data
+
+    def _unflatten_nnx_variable(aux_data, children):
+        var_metadata, trace_state, keras_state = aux_data
+        raw_value = children[0]
+
+        # Create uninitialized instance
+        variable = NnxVariable.__new__(NnxVariable)
+
+        # Restore state
+        variable._var_metadata = var_metadata
+        if trace_state is not None:
+            variable._trace_state = trace_state
+        variable.__dict__.update(keras_state)
+        variable.raw_value = raw_value
+
+        return variable
+
+    try:
+        jax.tree_util.register_pytree_node(
+            NnxVariable,
+            _flatten_nnx_variable,
+            _unflatten_nnx_variable,
+        )
+    except ValueError:
+        pass
+
+    def __setattr__(self, name, value):
+        # Mirror Keras attributes to _var_metadata to ensure persistence
+        # if the Pytree registration is not respected by NNX.
+        if (
+            name != "_var_metadata"
+            and name not in ("_raw_value", "_trace_state")
+            and hasattr(self, "_var_metadata")
+        ):
+            self._var_metadata[name] = value
+
+        object.__setattr__(self, name, value)
+
+    NnxVariable.__setattr__ = __setattr__
+
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if ragged:
