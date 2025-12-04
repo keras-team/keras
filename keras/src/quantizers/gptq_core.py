@@ -12,6 +12,7 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.utils import should_quantize_layer
 
 
 @contextmanager
@@ -209,11 +210,24 @@ def find_layers_in_block(block):
     return found_layers
 
 
-def apply_gptq_layerwise(model, dataloader, config, structure):
+def apply_gptq_layerwise(model, dataloader, config, structure, filters=None):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
     This function uses the provided `structure` to identify pre-quantization
     layers and sequential blocks.
+
+    The core logic operates as follows:
+
+    1.  It processes the model sequentially, one block at a time. For each
+        block, it uses temporary hooks to capture the input activations of
+        each target layer during a forward pass with the calibration data.
+    2.  These captured activations are used to compute the Hessian matrix for
+        each layer's weights.
+    3.  The GPTQ algorithm is then applied to each layer to find the optimal
+        quantized weights that minimize the error introduced.
+    4.  The output activations from the current block are then used as the
+        input for the next block, ensuring that quantization errors are
+        accounted for throughout the model.
 
     Args:
         model: The Keras model instance to be quantized.
@@ -221,6 +235,7 @@ def apply_gptq_layerwise(model, dataloader, config, structure):
         config: A GPTQConfiguration object.
         structure: A dictionary with keys "pre_block_layers" and
             "sequential_blocks".
+        filters: Optional filters to exclude layers from quantization.
     """
 
     num_samples = config.num_samples
@@ -252,11 +267,16 @@ def apply_gptq_layerwise(model, dataloader, config, structure):
         sub_layers_map = find_layers_in_block(block)
 
         # Filter out layers that are not quantized with GPTQ
-        sub_layers_map = {
-            name: layer
-            for name, layer in sub_layers_map.items()
-            if getattr(layer, "quantization_mode", None) == "gptq"
-        }
+        # We also apply the explicit `filters` argument here.
+        final_sub_layers_map = {}
+        for name, layer in sub_layers_map.items():
+            # 2. Apply explicit filters
+            if not should_quantize_layer(layer, filters):
+                continue
+
+            final_sub_layers_map[name] = layer
+
+        sub_layers_map = final_sub_layers_map
 
         if not sub_layers_map:
             logging.info(
@@ -298,11 +318,31 @@ def apply_gptq_layerwise(model, dataloader, config, structure):
     logging.info("Quantization process complete.")
 
 
-def gptq_quantize(model, config, structure):
+def gptq_quantize(model, config, quantization_layer_structure, filters=None):
     """
-    Top-level function to quantize a Keras model using GPTQ.
+    Quantizes the model using GPTQ.
+
+    Args:
+        model: The model to be quantized.
+        config: The GPTQ configuration.
+        quantization_layer_structure: A dictionary describing the model's layer
+        structure for quantization.
+        filters: Optional filters to exclude layers from quantization.
     """
-    logging.info("Starting GPTQ quantization process...")
+    if config.dataset is None or config.tokenizer is None:
+        raise ValueError(
+            "GPTQ quantization requires a dataset and a tokenizer. "
+            "Please provide them in the `GPTQConfig`."
+        )
+
+    if quantization_layer_structure is None:
+        raise ValueError(
+            "For 'gptq' mode, a valid quantization structure must be provided "
+            "either via `config.quantization_layer_structure` or by overriding "
+            "`model.get_quantization_layer_structure(mode)`. The structure "
+            "should be a dictionary with keys 'pre_block_layers' and "
+            "'sequential_blocks'."
+        )
 
     # Load all data needed from the generator/source in a single call.
     total_samples_to_request = config.num_samples
@@ -317,7 +357,13 @@ def gptq_quantize(model, config, structure):
     # is now a NumPy array, which can be sliced and reused.
     calibration_dataloader = dataloader[: config.num_samples]
 
-    apply_gptq_layerwise(model, calibration_dataloader, config, structure)
+    apply_gptq_layerwise(
+        model,
+        calibration_dataloader,
+        config,
+        quantization_layer_structure,
+        filters=filters,
+    )
 
 
 def get_group_size_for_layer(layer, config):

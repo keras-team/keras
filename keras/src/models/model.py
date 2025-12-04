@@ -2,6 +2,7 @@ import inspect
 import json
 import typing
 import warnings
+from collections.abc import Callable
 
 from keras.src import backend
 from keras.src import utils
@@ -10,6 +11,7 @@ from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
@@ -422,7 +424,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def get_quantization_structure(self, mode):
+    def get_quantization_layer_structure(self, mode):
         """Returns the quantization structure for the model.
 
         This method is intended to be overridden by model authors to provide
@@ -436,8 +438,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             A dictionary describing the topology, e.g.:
             `{'pre_block_layers': [list], 'sequential_blocks': [list]}`
             or `None` if the mode does not require structure or is not
-            supported.
+            supported. `'pre_block_layers'` is a list of layers that
+            the inputs should be passed through, before being passed to
+            the sequential blocks. For example, inputs to an LLM must
+            first be passed through an embedding layer, followed by
+            the transformer.
         """
+        del mode  # Unused.
         return None
 
     def quantize(self, mode, config=None, filters=None, **kwargs):
@@ -448,15 +455,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         will be skipped if the layer doesn't implement the function.
 
         Args:
-            mode: The mode of the quantization. Only 'int8' and 'gptq' are
-                supported at this time.
-            config: The configuration for the quantization.
-            filters: Optional filters to apply to the quantization.
-                Can be a regex string or a callable.
-                For 'gptq' mode, this filters the `sequential_blocks`.
-                For other modes, this filters the layers to be quantized.
+            mode: The mode of the quantization. Supported modes are: 'int4',
+            'int8', 'float8', 'gptq'.
+            config: The configuration object specifying additional
+            quantization options for supported modes.
+            filters: Optional filters to apply to the quantization. Can be a
+             regex string, a list of regex strings, or a callable. Only the
+             layers which match the filter conditions will be quantized.
         """
-        import re
 
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
@@ -475,10 +481,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             )
 
         if filters is not None:
-            if not isinstance(filters, (str, typing.Callable)):
+            if not isinstance(filters, (str, Callable, list, tuple)):
                 raise ValueError(
-                    "The `filters` argument must be a regex string or a "
-                    f"callable. Received: {type(filters)}"
+                    "The `filters` argument must be a regex string, a list of "
+                    "regex strings, or a callable. Received: "
+                    f"{type(filters)}"
                 )
 
         if mode == "gptq":
@@ -497,13 +504,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         graph_modified = False
         for layer in self._flatten_layers():
             # Apply filters
-            if filters is not None:
-                if isinstance(filters, str):
-                    if not re.search(filters, layer.name):
-                        continue
-                elif callable(filters):
-                    if not filters(layer):
-                        continue
+            if not should_quantize_layer(layer, filters):
+                continue
 
             if len(list(layer._flatten_layers())) == 1:
                 try:
@@ -515,20 +517,25 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     pass
 
         if mode == "gptq":
-            # Resolve structure
-            structure = config.layer_structure
+            # Resolve model structure.
+            # 1. If quantization_layer_structure is provided inside the config,
+            # use that.
+            structure = config.quantization_layer_structure
+            # 2. If no layer structure is provided in the config, try to fetch
+            # it using the `get_quantization_layer_structure` hook.
             if structure is None:
-                structure = self.get_quantization_structure(mode)
+                structure = self.get_quantization_layer_structure(mode)
 
             if structure is None:
                 raise ValueError(
                     "For 'gptq' mode, a valid quantization structure must be "
-                    "provided either via `config.layer_structure` or by "
-                    "overriding `model.get_quantization_structure(mode)`. "
-                    "The structure should be a dictionary with keys "
+                    "provided either via `config.quantization_layer_structure` "
+                    "or by overriding "
+                    "`model.get_quantization_layer_structure(mode)`. The "
+                    "structure should be a dictionary with keys "
                     "'pre_block_layers' and 'sequential_blocks'."
                 )
-            gptq_quantize(self, config, structure)
+            gptq_quantize(self, config, structure, filters=filters)
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:

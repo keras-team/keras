@@ -131,12 +131,12 @@ class GPTQConfig:
         activation_order: (bool, optional) If `True`, reorders weight columns
             based on activation magnitude, which can improve quantization
             accuracy. Defaults to `False`.
-        layer_structure: (dict, optional) A dictionary defining the model's
-            quantization structure. It should contain:
+        quantization_layer_structure: (dict, optional) A dictionary defining the
+            model's quantization structure. It should contain:
             - "pre_block_layers": list of layers to run before the first block.
             - "sequential_blocks": list of blocks to be quantized sequentially.
             If not provided, the model must implement
-            `get_quantization_structure`.
+            `get_quantization_layer_structure`.
     """
 
     def __init__(
@@ -152,7 +152,7 @@ class GPTQConfig:
         group_size: int = 128,
         symmetric: bool = False,
         activation_order: bool = False,
-        layer_structure: dict = None,
+        quantization_layer_structure: dict = None,
     ):
         if weight_bits not in [2, 3, 4, 8]:
             raise ValueError(
@@ -181,7 +181,7 @@ class GPTQConfig:
         self.group_size = group_size
         self.symmetric = symmetric
         self.activation_order = activation_order
-        self.layer_structure = layer_structure
+        self.quantization_layer_structure = quantization_layer_structure
 
     def dtype_policy_string(self):
         """Returns the dtype policy string for this configuration.
