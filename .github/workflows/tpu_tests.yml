@@ -31,7 +31,7 @@ jobs:
         backend: [jax]
 
     container:
-      image: python:3.10-slim
+      image: python:3.11-slim
       options: --privileged --network host
 
     steps:
