@@ -210,7 +210,7 @@ def find_layers_in_block(block):
     return found_layers
 
 
-def apply_gptq_layerwise(model, dataloader, config, structure, filters=None):
+def apply_gptq_layerwise(dataloader, config, structure, filters=None):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
     This function uses the provided `structure` to identify pre-quantization
@@ -230,12 +230,15 @@ def apply_gptq_layerwise(model, dataloader, config, structure, filters=None):
         accounted for throughout the model.
 
     Args:
-        model: The Keras model instance to be quantized.
         dataloader: An iterable providing calibration data.
         config: A GPTQConfiguration object.
         structure: A dictionary with keys "pre_block_layers" and
             "sequential_blocks".
         filters: Optional filters to exclude layers from quantization.
+
+    Raises:
+        ValueError: If the function cannot automatically find an embedding
+            layer or any transformer-like blocks to quantize within the model.
     """
 
     num_samples = config.num_samples
@@ -318,12 +321,11 @@ def apply_gptq_layerwise(model, dataloader, config, structure, filters=None):
     logging.info("Quantization process complete.")
 
 
-def gptq_quantize(model, config, quantization_layer_structure, filters=None):
+def gptq_quantize(config, quantization_layer_structure, filters=None):
     """
     Quantizes the model using GPTQ.
 
     Args:
-        model: The model to be quantized.
         config: The GPTQ configuration.
         quantization_layer_structure: A dictionary describing the model's layer
         structure for quantization.
@@ -358,7 +360,6 @@ def gptq_quantize(model, config, quantization_layer_structure, filters=None):
     calibration_dataloader = dataloader[: config.num_samples]
 
     apply_gptq_layerwise(
-        model,
         calibration_dataloader,
         config,
         quantization_layer_structure,

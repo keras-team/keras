@@ -319,4 +319,4 @@ class TestGPTQCore(testing.TestCase):
         config = GPTQConfig(dataset=["test"], tokenizer=MockTokenizer())
         with self.assertRaisesRegex(ValueError, error_message):
             # We pass None as structure to trigger the error
-            gptq_quantize(model, config, quantization_layer_structure=None)
+            gptq_quantize(config, quantization_layer_structure=None)

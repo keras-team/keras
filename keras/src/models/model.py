@@ -535,7 +535,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     "structure should be a dictionary with keys "
                     "'pre_block_layers' and 'sequential_blocks'."
                 )
-            gptq_quantize(self, config, structure, filters=filters)
+            gptq_quantize(config, structure, filters=filters)
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:
