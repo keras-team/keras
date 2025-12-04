@@ -270,10 +270,8 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
         sub_layers_map = find_layers_in_block(block)
 
         # Filter out layers that are not quantized with GPTQ
-        # We also apply the explicit `filters` argument here.
         final_sub_layers_map = {}
         for name, layer in sub_layers_map.items():
-            # 2. Apply explicit filters
             if not should_quantize_layer(layer, filters):
                 continue
 
