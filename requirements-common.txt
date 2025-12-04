@@ -28,3 +28,5 @@ onnxruntime
 onnxscript!=0.3.2
 openvino
 grain
+# for orbax_checkpoint_test.py
+orbax-checkpoint

@@ -266,8 +266,14 @@ class JAXTrainer(base_trainer.Trainer):
             if distribution_lib.distribution() is not None:
                 state_shardings = self._get_state_sharding_spec()
                 out_shardings = (None, state_shardings)
+            if is_nnx_enabled():
+                step_fn = lambda state, data: type(self).train_step(
+                    self, state, data
+                )
+            else:
+                step_fn = self.train_step
             train_step = jit(
-                self.train_step,
+                step_fn,
                 donate_argnums=0,
                 out_shardings=out_shardings,
             )
@@ -296,8 +302,14 @@ class JAXTrainer(base_trainer.Trainer):
                     metrics_shardings,
                 )
                 out_shardings = (None, state_shardings)
+            if is_nnx_enabled():
+                step_fn = lambda state, data: type(self).test_step(
+                    self, state, data
+                )
+            else:
+                step_fn = self.test_step
             test_step = jit(
-                self.test_step,
+                step_fn,
                 donate_argnums=0,
                 out_shardings=out_shardings,
             )
