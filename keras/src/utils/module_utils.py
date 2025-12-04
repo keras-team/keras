@@ -68,6 +68,7 @@ optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
 grain = LazyModule("grain")
+litert = LazyModule("ai_edge_litert")
 ocp = OrbaxLazyModule(
     "orbax.checkpoint.v1",
     pip_name="orbax-checkpoint",
