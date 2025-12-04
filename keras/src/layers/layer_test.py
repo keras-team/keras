@@ -233,6 +233,16 @@ class LayerTest(testing.TestCase):
         self.assertLen(mock_remat.rematted_functions, 1)
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
+    def test_gptq_quantization_by_setting_dtype(self):
+        """Tests error being raised when dtype is set to GPTQ."""
+        with self.assertRaisesRegex(
+            ValueError,
+            "enables GPTQ quantization mode.This is unsupported",
+        ):
+            layer = layers.Dense(3)
+            layer.build((2, 4))
+            layer.dtype_policy = "gptq/4/-1_from_float32"
+
     def test_functional_model_with_remat(self):
         if backend.backend() in ("openvino", "numpy"):
             self.skipTest(

@@ -757,6 +757,13 @@ class Layer(BackendLayer, Operation):
             self._dtype_policy = policy
         if policy.quantization_mode is not None:
             if self.built and not getattr(self, "_is_quantized", False):
+                if policy.quantization_mode == "gptq":
+                    raise ValueError(
+                        f"{value=} enables GPTQ quantization mode."
+                        "This is unsupported since GPTQ requires "
+                        "a calibration dataset and a GPTQConfig."
+                        "Use the `.quantize()` method instead."
+                    )
                 self.quantize(policy.quantization_mode)
 
     @property
