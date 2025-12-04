@@ -5,7 +5,7 @@ ai-edge-litert
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.9.0+cpu
+torch==2.9.1+cpu
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]

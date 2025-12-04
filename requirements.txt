@@ -8,8 +8,8 @@ ai-edge-litert
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0
-torch-xla==2.6.0;sys_platform != 'darwin'
+torch==2.9.1+cpu
+torch-xla==2.9.0;sys_platform != 'darwin'
 
 # Jax.
 # Pinned to 0.8.0 on CPU for CI compatibility with older backends.
