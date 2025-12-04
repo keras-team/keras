@@ -26,6 +26,7 @@ NumpyDtypeTest::test_isin
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
+NumpyDtypeTest::test_ldexp
 NumpyDtypeTest::test_logaddexp2
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
@@ -102,6 +103,7 @@ NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_isin
 NumpyTwoInputOpsCorrectnessTest::test_kron
 NumpyTwoInputOpsCorrectnessTest::test_lcm
+NumpyTwoInputOpsCorrectnessTest::test_ldexp
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
 NumpyTwoInputOpsCorrectnessTest::test_vdot
@@ -122,11 +124,13 @@ NumpyTwoInputOpsDynamicShapeTest::test_hypot
 NumpyTwoInputOpsDynamicShapeTest::test_isin
 NumpyTwoInputOpsDynamicShapeTest::test_kron
 NumpyTwoInputOpsDynamicShapeTest::test_lcm
+NumpyTwoInputOpsDynamicShapeTest::test_ldexp
 NumpyTwoInputOpsStaticShapeTest::test_gcd
 NumpyTwoInputOpsStaticShapeTest::test_hypot
 NumpyTwoInputOpsStaticShapeTest::test_isin
 NumpyTwoInputOpsStaticShapeTest::test_kron
 NumpyTwoInputOpsStaticShapeTest::test_lcm
+NumpyTwoInputOpsStaticShapeTest::test_ldexp
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments
 CoreOpsCallsTests::test_associative_scan_basic_call
