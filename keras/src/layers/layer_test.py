@@ -237,7 +237,7 @@ class LayerTest(testing.TestCase):
         """Tests error being raised when dtype is set to GPTQ."""
         with self.assertRaisesRegex(
             ValueError,
-            "enables GPTQ quantization mode.This is unsupported",
+            "Implicitly enabling GPTQ quantization.*is not supported",
         ):
             layer = layers.Dense(3)
             layer.build((2, 4))
