@@ -1411,6 +1411,11 @@ def dot_product_attention(
 
     def _reshape_to_grouped(t):
         if t is not None:
+            while t.ndim < 4:
+                if t.ndim == 3 and t.shape[1] == N:
+                    t = jnp.expand_dims(t, axis=2)
+                else:
+                    t = jnp.expand_dims(t, axis=1)
             tB, tN, tT, tS = t.shape
             if tN == 1:
                 t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
