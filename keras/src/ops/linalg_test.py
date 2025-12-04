@@ -620,7 +620,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             b_symb = backend.KerasTensor((5, 4))
         out = linalg.lstsq(a, b, rcond=rcond)
         ref_out = np.linalg.lstsq(a, b, rcond=rcond)[0]
-        self.assertAllClose(out, ref_out, atol=1e-5)
+        self.assertAllClose(
+            out, ref_out, atol=1e-5, tpu_atol=1e-4, tpu_rtol=1e-4
+        )
 
         out_symb = linalg.lstsq(a_symb, b_symb)
         self.assertEqual(out_symb.shape, out.shape)
