@@ -6,6 +6,8 @@ name: Keras Tests
 on:
   push:
     branches: [ master ]
+  pull_request:
+    types: [labeled]
   pull_request_review:
     types: [submitted]
   release:
@@ -19,10 +21,11 @@ jobs:
   test-in-container:
     name: Run tests on TPU
     runs-on: linux-x86-ct6e-44-1tpu
-    # Only run on approved PRs, pushes to master, or releases
+    # Only run on approved PRs, pushes to master, releases or "run_tpu_tests" labels
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'run_tpu_tests') ||
       (github.event_name == 'pull_request_review' && github.event.review.state == 'approved')
 
     strategy:
