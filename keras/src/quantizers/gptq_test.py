@@ -582,6 +582,22 @@ class TestModelQuantization(testing.TestCase):
         # Baseline logits
         y_ref = model.predict(x_eval)
 
+        # Define structure for the test model
+        # The model is: Embedding -> SimpleTransformerBlock -> GAP -> Dense
+        # The SimpleTransformerBlock is the sequential block.
+        # The Embedding is the pre-block layer.
+
+        # We need to access the layers from the model.
+        # model.layers[1] is Embedding
+        # model.layers[2] is SimpleTransformerBlock
+        embedding_layer = model.layers[1]
+        transformer_block = model.layers[2]
+
+        layer_structure = {
+            "pre_block_layers": [embedding_layer],
+            "sequential_blocks": [transformer_block],
+        }
+
         base_cfg = dict(
             dataset=calibration_set,
             tokenizer=tokenizer,
@@ -591,6 +607,7 @@ class TestModelQuantization(testing.TestCase):
             group_size=32,
             symmetric=False,
             activation_order=False,
+            layer_structure=layer_structure,
         )
         gptq_cfg = GPTQConfig(**{**base_cfg, **config})
 
@@ -625,6 +642,13 @@ class TestModelQuantization(testing.TestCase):
             "expected_exception": ValueError,
             "error_msg": "only supported for 'gptq'",
         },
+        {
+            "testcase_name": "gptq_missing_structure",
+            "mode": "gptq",
+            "config": GPTQConfig(dataset=["a"], tokenizer=lambda x: x),
+            "expected_exception": ValueError,
+            "error_msg": "For 'gptq' mode, a valid quantization structure",
+        },
     )
     def test_quantize_scenarios(
         self, mode, config, expected_exception, error_msg
@@ -632,3 +656,42 @@ class TestModelQuantization(testing.TestCase):
         model = _get_simple_model()
         with self.assertRaisesRegex(expected_exception, error_msg):
             model.quantize(mode, config=config)
+
+    def test_gptq_filtering(self):
+        """Tests that filters argument works for GPTQ."""
+        model = _get_sequence_classifier()
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        # Structure
+        embedding_layer = model.layers[1]
+        transformer_block = model.layers[2]
+        layer_structure = {
+            "pre_block_layers": [embedding_layer],
+            "sequential_blocks": [transformer_block],
+        }
+
+        config = GPTQConfig(
+            dataset=[np.zeros((1, SEQ_LEN), dtype="int32")],
+            tokenizer=tokenizer,
+            layer_structure=layer_structure,
+            weight_bits=4,
+            group_size=32,
+        )
+
+        target_layer = transformer_block.ffn.layers[0]
+
+        def filter_fn(layer):
+            return layer.name != target_layer.name
+
+        model.quantize("gptq", config=config, filters=filter_fn)
+
+        # Check that target_layer is NOT quantized
+        self.assertIsNone(getattr(target_layer, "quantization_mode", None))
+        self.assertFalse(hasattr(target_layer, "quantized_kernel"))
+
+        # Check that other dense layers ARE quantized
+        other_dense = transformer_block.ffn.layers[1]
+        self.assertEqual(
+            getattr(other_dense, "quantization_mode", None), "gptq"
+        )
+        self.assertTrue(hasattr(other_dense, "quantized_kernel"))

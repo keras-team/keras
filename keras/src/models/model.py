@@ -422,7 +422,25 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def quantize(self, mode, config=None, **kwargs):
+    def get_quantization_structure(self, mode):
+        """Returns the quantization structure for the model.
+
+        This method is intended to be overridden by model authors to provide
+        topology information required for structure-aware quantization modes
+        like 'gptq'.
+
+        Args:
+            mode: The quantization mode.
+
+        Returns:
+            A dictionary describing the topology, e.g.:
+            `{'pre_block_layers': [list], 'sequential_blocks': [list]}`
+            or `None` if the mode does not require structure or is not
+            supported.
+        """
+        return None
+
+    def quantize(self, mode, config=None, filters=None, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -430,9 +448,16 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         will be skipped if the layer doesn't implement the function.
 
         Args:
-            mode: The mode of the quantization. Only 'int8' is supported at this
-                time.
+            mode: The mode of the quantization. Only 'int8' and 'gptq' are
+                supported at this time.
+            config: The configuration for the quantization.
+            filters: Optional filters to apply to the quantization.
+                Can be a regex string or a callable.
+                For 'gptq' mode, this filters the `sequential_blocks`.
+                For other modes, this filters the layers to be quantized.
         """
+        import re
+
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
         # Validate inputs.
@@ -449,6 +474,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
             )
 
+        if filters is not None:
+            if not isinstance(filters, (str, typing.Callable)):
+                raise ValueError(
+                    "The `filters` argument must be a regex string or a "
+                    f"callable. Received: {type(filters)}"
+                )
+
         if mode == "gptq":
             if not isinstance(config, GPTQConfig):
                 raise ValueError(
@@ -464,6 +496,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         graph_modified = False
         for layer in self._flatten_layers():
+            # Apply filters
+            if filters is not None:
+                if isinstance(filters, str):
+                    if not re.search(filters, layer.name):
+                        continue
+                elif callable(filters):
+                    if not filters(layer):
+                        continue
+
             if len(list(layer._flatten_layers())) == 1:
                 try:
                     layer.quantize(mode, type_check=type_check, config=config)
@@ -474,7 +515,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     pass
 
         if mode == "gptq":
-            gptq_quantize(self, config)
+            # Resolve structure
+            structure = config.layer_structure
+            if structure is None:
+                structure = self.get_quantization_structure(mode)
+
+            if structure is None:
+                raise ValueError(
+                    "For 'gptq' mode, a valid quantization structure must be "
+                    "provided either via `config.layer_structure` or by "
+                    "overriding `model.get_quantization_structure(mode)`. "
+                    "The structure should be a dictionary with keys "
+                    "'pre_block_layers' and 'sequential_blocks'."
+                )
+            gptq_quantize(self, config, structure)
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:
