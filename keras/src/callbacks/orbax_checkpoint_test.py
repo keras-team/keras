@@ -577,3 +577,152 @@ class OrbaxCheckpointTest(testing.TestCase):
             original_state_tree["metrics_variables"],
             loaded_state_tree["metrics_variables"],
         )
+
+    @pytest.mark.requires_trainable_backend
+    def _flatten_nested_dict(self, nested_dict):
+        """Flatten a nested dictionary into a flat dictionary with path keys."""
+        flat_dict = {}
+
+        def _flatten(current_dict, prefix=""):
+            for key, value in current_dict.items():
+                if isinstance(value, dict):
+                    _flatten(value, f"{prefix}{key}/")
+                else:
+                    flat_dict[f"{prefix}{key}"] = value
+
+        _flatten(nested_dict)
+        return flat_dict
+
+    @pytest.mark.requires_trainable_backend
+    def test_model_load_method(self):
+        """Test the Model.load() method for loading Orbax checkpoints."""
+        # Test both synchronous and asynchronous saving modes
+        self._test_model_load_with_saving_mode(save_on_background=False)
+        self._test_model_load_with_saving_mode(save_on_background=True)
+
+    def _test_model_load_with_saving_mode(self, save_on_background):
+        """Helper method to test Model.load() with different saving modes."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(),
+            f"test_model_load_{'async' if save_on_background else 'sync'}",
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_on_background=save_on_background,
+        )
+
+        # Train for a few epochs to create checkpoints
+        model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
+
+        # Wait for async operations to complete if using async saving
+        if save_on_background:
+            callback.wait_until_finished()
+
+        # Get the state of the trained model
+        trained_state = model.get_state_tree()
+
+        # Create a new model with same architecture
+        new_model = self._create_test_model()
+        original_weights = new_model.get_weights()
+
+        # Test loading the latest checkpoint
+        new_model.load(checkpoint_dir)
+        loaded_weights = new_model.get_weights()
+        loaded_state = new_model.get_state_tree()
+
+        # Weights should be different after loading
+        # (from random init to trained)
+        weights_changed = False
+        for orig, loaded in zip(original_weights, loaded_weights):
+            if not np.allclose(orig, loaded):
+                weights_changed = True
+                break
+        self.assertTrue(
+            weights_changed, "Weights should change after loading checkpoint"
+        )
+
+        # Verify that loaded weights match the trained model's weights
+        trained_weights = model.get_weights()
+        for trained_w, loaded_w in zip(trained_weights, loaded_weights):
+            self.assertTrue(
+                np.allclose(trained_w, loaded_w),
+                "Loaded weights should match trained model's weights",
+            )
+
+        # Verify that optimizer state was loaded
+        trained_opt_flat = self._flatten_nested_dict(
+            trained_state["optimizer_variables"]
+        )
+        loaded_opt_flat = self._flatten_nested_dict(
+            loaded_state["optimizer_variables"]
+        )
+        self.assertEqual(
+            set(trained_opt_flat.keys()),
+            set(loaded_opt_flat.keys()),
+            "Optimizer variable keys should match",
+        )
+        for key in trained_opt_flat:
+            # Convert tensors to numpy for comparison
+            trained_val = trained_opt_flat[key]
+            loaded_val = loaded_opt_flat[key]
+
+            # Handle different tensor types
+            if hasattr(trained_val, "detach"):  # PyTorch tensor
+                trained_np = trained_val.detach().cpu().numpy()
+            elif hasattr(trained_val, "numpy"):  # TF variable
+                trained_np = trained_val.numpy()
+            else:  # numpy array
+                trained_np = trained_val
+
+            if hasattr(loaded_val, "detach"):  # PyTorch tensor
+                loaded_np = loaded_val.detach().cpu().numpy()
+            elif hasattr(loaded_val, "numpy"):  # TF variable
+                loaded_np = loaded_val.numpy()
+            else:  # numpy array
+                loaded_np = loaded_val
+
+            self.assertTrue(
+                np.allclose(trained_np, loaded_np),
+                f"Optimizer variable {key} should match",
+            )
+
+        # Verify that metrics state was loaded
+        trained_met_flat = self._flatten_nested_dict(
+            trained_state["metrics_variables"]
+        )
+        loaded_met_flat = self._flatten_nested_dict(
+            loaded_state["metrics_variables"]
+        )
+        self.assertEqual(
+            set(trained_met_flat.keys()),
+            set(loaded_met_flat.keys()),
+            "Metrics variable keys should match",
+        )
+        for key in trained_met_flat:
+            # Convert tensors to numpy for comparison
+            trained_val = trained_met_flat[key]
+            loaded_val = loaded_met_flat[key]
+
+            # Handle different tensor types
+            if hasattr(trained_val, "detach"):  # PyTorch tensor
+                trained_np = trained_val.detach().cpu().numpy()
+            elif hasattr(trained_val, "numpy"):  # TF variable
+                trained_np = trained_val.numpy()
+            else:  # numpy array
+                trained_np = trained_val
+
+            if hasattr(loaded_val, "detach"):  # PyTorch tensor
+                loaded_np = loaded_val.detach().cpu().numpy()
+            elif hasattr(loaded_val, "numpy"):  # TF variable
+                loaded_np = loaded_val.numpy()
+            else:  # numpy array
+                loaded_np = loaded_val
+
+            self.assertTrue(
+                np.allclose(trained_np, loaded_np),
+                f"Metrics variable {key} should match",
+            )
