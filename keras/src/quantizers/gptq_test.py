@@ -14,6 +14,7 @@ from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
@@ -621,18 +622,26 @@ class TestModelQuantization(testing.TestCase):
 
     @parameterized.named_parameters(
         {
-            "testcase_name": "gptq_with_invalid_config",
+            "testcase_name": "gptq_with_invalid_config_type",
             "mode": "gptq",
             "config": {"weight_bits": 4},
+            "expected_exception": ValueError,
+            "error_msg": "Argument `config` must be an instance of "
+            "`QuantizationConfig`",
+        },
+        {
+            "testcase_name": "gptq_with_none_config",
+            "mode": "gptq",
+            "config": None,
             "expected_exception": ValueError,
             "error_msg": "Mode 'gptq' requires a valid `config`",
         },
         {
-            "testcase_name": "non_gptq_with_unsupported_config",
-            "mode": "int8",
-            "config": GPTQConfig(dataset=["a"], tokenizer=lambda x: x),
+            "testcase_name": "gptq_with_base_quantization_config",
+            "mode": "gptq",
+            "config": QuantizationConfig(),
             "expected_exception": ValueError,
-            "error_msg": "only supported for 'gptq'",
+            "error_msg": "Mode 'gptq' requires a valid `config`",
         },
         {
             "testcase_name": "gptq_missing_structure",

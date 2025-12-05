@@ -17,9 +17,67 @@ from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
 
 class DenseTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("int8", "int8", {"axis": 0}, {"axis": -1}),
+        (
+            "int4",
+            "int4",
+            {"axis": 0, "value_range": (-8, 7), "output_dtype": "int8"},
+            {"axis": -1},
+        ),
+        ("int8_weight_only", "int8", {"axis": 0}, None),
+    )
+    def test_dense_quantize_config(
+        self, mode, weight_quantizer_args, activation_quantizer_args
+    ):
+        """Test Dense quantization with QuantizationConfig."""
+        layer = layers.Dense(units=32)
+        layer.build((None, 8))
+
+        weight_quantizer = AbsMaxQuantizer(**weight_quantizer_args)
+        if activation_quantizer_args is not None:
+            activation_quantizer = AbsMaxQuantizer(**activation_quantizer_args)
+        else:
+            activation_quantizer = None
+
+        if mode == "int8":
+            config = Int8QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+        elif mode == "int4":
+            config = Int4QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+
+        layer.quantize(mode, config=config)
+
+        if activation_quantizer_args is not None:
+            # Verify inputs_quantizer is set correctly
+            self.assertIsInstance(layer.inputs_quantizer, AbsMaxQuantizer)
+            self.assertEqual(layer.inputs_quantizer.axis, (-1,))
+        else:
+            # Verify inputs_quantizer is None
+            self.assertIsNone(layer.inputs_quantizer)
+
+        # Verify call works
+        x = np.random.random((2, 8)).astype("float32")
+        y = layer(x)
+        self.assertEqual(y.shape, (2, 32))
+
+        if mode == "int4":
+            # Verify kernel is int8 (packed int4)
+            self.assertEqual(
+                backend.standardize_dtype(layer._kernel.dtype), "int8"
+            )
+
     @pytest.mark.requires_trainable_backend
     def test_dense_basics(self):
         # 2D case, no bias.

@@ -11,6 +11,8 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
@@ -378,9 +380,9 @@ class Dense(Layer):
 
     def quantized_build(self, kernel_shape, mode, config=None):
         if mode == "int8":
-            self._int8_build(kernel_shape)
+            self._int8_build(kernel_shape, config)
         elif mode == "int4":
-            self._int4_build(kernel_shape)
+            self._int4_build(kernel_shape, config)
         elif mode == "float8":
             self._float8_build()
         elif mode == "gptq":
@@ -389,8 +391,13 @@ class Dense(Layer):
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
 
-    def _int8_build(self, kernel_shape):
-        self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+    def _int8_build(self, kernel_shape, config=None):
+        self.inputs_quantizer = (
+            QuantizationConfig.activation_quantizer_or_default(
+                config, quantizers.AbsMaxQuantizer(axis=-1)
+            )
+        )
+
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
@@ -489,7 +496,7 @@ class Dense(Layer):
             y = self.activation(y)
         return y
 
-    def _int4_build(self, kernel_shape):
+    def _int4_build(self, kernel_shape, config=None):
         """Build variables for int4 quantization.
 
         `kernel_shape` is the *original* float32 kernel shape
@@ -498,8 +505,10 @@ class Dense(Layer):
         int8 byte.
         """
         # Per-channel int8 quantizer for the last axis (features).
-        self.inputs_quantizer = quantizers.AbsMaxQuantizer(
-            axis=-1,
+        self.inputs_quantizer = (
+            QuantizationConfig.activation_quantizer_or_default(
+                config, quantizers.AbsMaxQuantizer(axis=-1)
+            )
         )
         input_dim, output_dim = kernel_shape
         packed_rows = (input_dim + 1) // 2  # ceil for odd dims
@@ -588,7 +597,15 @@ class Dense(Layer):
                 inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
                 return (inputs_grad, None, None)
 
-            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            if self.inputs_quantizer:
+                inputs, inputs_scale = self.inputs_quantizer(inputs)
+            else:
+                # Weight-only quantization: inputs are not quantized
+                # We still need inputs_scale for the formula:
+                # x = x / (inputs_scale * kernel_scale)
+                # If inputs are not quantized, inputs_scale should be 1.
+                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
+
             x = ops.matmul(inputs, kernel)
             # De-scale outputs
             x = ops.cast(x, self.compute_dtype)
@@ -639,7 +656,10 @@ class Dense(Layer):
                 inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
                 return (inputs_grad, None, None)
 
-            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            if self.inputs_quantizer:
+                inputs, inputs_scale = self.inputs_quantizer(inputs)
+            else:
+                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
             x = ops.matmul(inputs, unpacked_kernel)
             x = ops.cast(x, self.compute_dtype)
             x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
@@ -759,25 +779,33 @@ class Dense(Layer):
         if type_check and (type(self) is not Dense):
             raise self._not_implemented_error(self.quantize)
 
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
+
         kernel_shape = self._kernel.shape
         if mode == "int8":
-            kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                self._kernel, axis=0, to_numpy=True
+            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
+                config, quantizers.AbsMaxQuantizer(axis=0)
+            )
+            kernel_value, kernel_scale = weight_quantizer(
+                self._kernel, to_numpy=True
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             del self._kernel
             # Build variables for int8 mode
-            self.quantized_build(kernel_shape, mode)
+            self.quantized_build(kernel_shape, mode, config)
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
         elif mode == "int4":
             # 1. Quantize to int4 values (still int8 dtype, range [-8,7])
-            kernel_value_int4, kernel_scale = quantizers.abs_max_quantize(
-                self._kernel,
-                axis=0,
-                value_range=(-8, 7),
-                dtype="int8",
-                to_numpy=True,
+            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
+                config,
+                quantizers.AbsMaxQuantizer(
+                    axis=0, value_range=(-8, 7), output_dtype="int8"
+                ),
+            )
+            kernel_value_int4, kernel_scale = weight_quantizer(
+                self._kernel, to_numpy=True
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             # 2. Pack two int4 values into a single int8 byte.
@@ -785,7 +813,7 @@ class Dense(Layer):
             del self._kernel
             # Build variables using the original kernel shape; _int4_build will
             # compute the packed shape internally.
-            self.quantized_build(kernel_shape, mode)
+            self.quantized_build(kernel_shape, mode, config)
             # Assign packed values.
             self._kernel.assign(packed_kernel_value)
             self.kernel_scale.assign(kernel_scale)

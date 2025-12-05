@@ -9,8 +9,8 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
-from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
@@ -424,7 +424,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def get_quantization_layer_structure(self, mode):
+    def get_quantization_layer_structure(self, mode=None):
         """Returns the quantization structure for the model.
 
         This method is intended to be overridden by model authors to provide
@@ -464,8 +464,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
              layers which match the filter conditions will be quantized.
         """
 
-        from keras.src.dtype_policies import QUANTIZATION_MODES
-
         # Validate inputs.
         type_check = kwargs.pop("type_check", True)
         if kwargs:
@@ -488,18 +486,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        if mode == "gptq":
-            if not isinstance(config, GPTQConfig):
-                raise ValueError(
-                    "Mode 'gptq' requires a valid `config` argument of type "
-                    f"`GPTQConfig`. Received: {type(config)}"
-                )
-        elif config is not None:
-            # All other modes must not receive a config
-            raise ValueError(
-                f"The `config` argument is only supported for 'gptq' mode, "
-                f"but received mode='{mode}' and a non-None config."
-            )
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
 
         graph_modified = False
         for layer in self._flatten_layers():

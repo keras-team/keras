@@ -117,9 +117,14 @@ class AbsMaxQuantizer(Quantizer):
         self.value_range = value_range
         self.epsilon = epsilon
 
-    def __call__(self, x):
+    def __call__(self, x, to_numpy=False):
         quantized_x, scale = abs_max_quantize(
-            x, self.axis, self.value_range, self.output_dtype, self.epsilon
+            x,
+            self.axis,
+            self.value_range,
+            self.output_dtype,
+            self.epsilon,
+            to_numpy,
         )
         return quantized_x, scale
 
