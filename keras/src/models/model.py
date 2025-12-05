@@ -8,8 +8,8 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
-from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
@@ -422,7 +422,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def quantize(self, mode, config=None, **kwargs):
+    def quantize(self, mode=None, config=None, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -432,8 +432,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Args:
             mode: The mode of the quantization. Only 'int8' is supported at this
                 time.
+            config: The configuration of the quantization.
         """
-        from keras.src.dtype_policies import QUANTIZATION_MODES
 
         # Validate inputs.
         type_check = kwargs.pop("type_check", True)
@@ -443,24 +443,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"passed to {self.__class__.__name__}: {kwargs}"
             )
 
-        if mode not in QUANTIZATION_MODES:
-            raise ValueError(
-                "Invalid quantization mode. "
-                f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
-            )
-
-        if mode == "gptq":
-            if not isinstance(config, GPTQConfig):
-                raise ValueError(
-                    "Mode 'gptq' requires a valid `config` argument of type "
-                    f"`GPTQConfig`. Received: {type(config)}"
-                )
-        elif config is not None:
-            # All other modes must not receive a config
-            raise ValueError(
-                f"The `config` argument is only supported for 'gptq' mode, "
-                f"but received mode='{mode}' and a non-None config."
-            )
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
 
         graph_modified = False
         for layer in self._flatten_layers():

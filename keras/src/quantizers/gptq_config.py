@@ -1,8 +1,9 @@
 from keras.src.api_export import keras_export
+from keras.src.quantizers.quantization_config import QuantizationConfig
 
 
 @keras_export("keras.quantizers.GPTQConfig")
-class GPTQConfig:
+class GPTQConfig(QuantizationConfig):
     """Configuration class for the GPTQ (Gradient-based Post-Training
     Quantization) algorithm.
 
@@ -147,6 +148,7 @@ class GPTQConfig:
         symmetric: bool = False,
         activation_order: bool = False,
     ):
+        super().__init__()
         if weight_bits not in [2, 3, 4, 8]:
             raise ValueError(
                 f"Unsupported weight_bits {weight_bits}. "
@@ -174,6 +176,10 @@ class GPTQConfig:
         self.group_size = group_size
         self.symmetric = symmetric
         self.activation_order = activation_order
+
+    @property
+    def mode(self):
+        return "gptq"
 
     def dtype_policy_string(self):
         """Returns the dtype policy string for this configuration.
