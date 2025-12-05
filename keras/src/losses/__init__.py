@@ -45,6 +45,8 @@ from keras.src.losses.losses import poisson
 from keras.src.losses.losses import sparse_categorical_crossentropy
 from keras.src.losses.losses import squared_hinge
 from keras.src.losses.losses import tversky
+from keras.src.losses.lpips import LPIPS
+from keras.src.losses.lpips import lpips
 from keras.src.saving import serialization_lib
 
 ALL_OBJECTS = {
@@ -76,6 +78,8 @@ ALL_OBJECTS = {
     Tversky,
     # Similarity
     Circle,
+    # Feature extraction perceptual
+    LPIPS,
     # Sequence
     CTC,
     # Probabilistic
@@ -94,6 +98,8 @@ ALL_OBJECTS = {
     cosine_similarity,
     log_cosh,
     huber,
+    # Feature extraction perceptual
+    lpips,
     # Hinge
     hinge,
     squared_hinge,
