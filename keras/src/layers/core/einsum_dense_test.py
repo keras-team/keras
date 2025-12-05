@@ -16,9 +16,71 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
 
 class EinsumDenseTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("int8", "int8", {"axis": 0}, {"axis": -1}),
+        (
+            "int4",
+            "int4",
+            {"axis": 0, "value_range": (-8, 7), "output_dtype": "int8"},
+            {"axis": -1},
+        ),
+        ("int8_weight_only", "int8", {"axis": 0}, None),
+    )
+    def test_einsum_dense_quantize(
+        self, mode, weight_quantizer_args, activation_quantizer_args
+    ):
+        """Test EinsumDense quantization with QuantizationConfig."""
+        layer = layers.EinsumDense(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer.build((None, 3))
+
+        weight_quantizer = AbsMaxQuantizer(**weight_quantizer_args)
+        if activation_quantizer_args is not None:
+            activation_quantizer = AbsMaxQuantizer(**activation_quantizer_args)
+        else:
+            activation_quantizer = None
+
+        if mode == "int8":
+            config = Int8QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+        elif mode == "int4":
+            config = Int4QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+
+        layer.quantize(mode, config=config)
+
+        if activation_quantizer_args is not None:
+            # Verify inputs_quantizer is set correctly
+            self.assertIsInstance(layer.inputs_quantizer, AbsMaxQuantizer)
+            self.assertEqual(layer.inputs_quantizer.axis, (-1,))
+        else:
+            # Verify inputs_quantizer is None
+            self.assertIsNone(layer.inputs_quantizer)
+
+        # Verify call works
+        x = np.random.random((2, 3)).astype("float32")
+        y = layer(x)
+        self.assertEqual(y.shape, (2, 8, 32))
+
+        if mode == "int4":
+            # Verify kernel is int8 (packed int4)
+            self.assertEqual(
+                backend.standardize_dtype(layer._kernel.dtype), "int8"
+            )
+
     @parameterized.named_parameters(
         {
             "testcase_name": "_1d_end_weight",
