@@ -58,7 +58,7 @@ def wrapped_parametrize_with_checks(
     return parametrize_with_checks(estimators)
 
 
-def dynamic_model(X, y, loss, layers=[10]):
+def dynamic_model(X, y, loss, out_activation_function="softmax", layers=[10]):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
     classification loss and output activations.
     """
@@ -70,7 +70,7 @@ def dynamic_model(X, y, loss, layers=[10]):
         hidden = Dense(layer_size, activation="relu")(hidden)
 
     n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-    out = [Dense(n_outputs, activation="softmax")(hidden)]
+    out = [Dense(n_outputs, activation=out_activation_function)(hidden)]
     model = Model(inp, out)
     model.compile(loss=loss, optimizer="rmsprop")
 
@@ -108,6 +108,9 @@ EXPECTED_FAILED_CHECKS = {
         ),
         "check_supervised_y_2d": "This test assumes reproducibility in fit.",
         "check_fit_idempotent": "This test assumes reproducibility in fit.",
+        "check_classifiers_train": (
+            "decision_function can return both probabilities and logits"
+        ),
     },
     "SKLearnRegressor": {
         "check_parameters_default_constructible": (
@@ -160,5 +163,53 @@ def test_sklearn_estimator_checks(estimator, check):
         elif isinstance(exc, unittest.SkipTest):
             # Workaround for https://github.com/pytest-dev/pytest/issues/13895
             pytest.skip(str(exc))
+        else:
+            raise
+
+
+@pytest.mark.parametrize(
+    "estimator",
+    [
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "softmax",
+                "loss": "binary_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
+        ),
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "linear",
+                "loss": "binary_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
+        ),
+    ],
+)
+def test_sklearn_estimator_decision_function(estimator):
+    """Checks that the argmax of ``decision_function`` is the same as
+    ``predict`` for classifiers.
+    """
+    try:
+        X, y = sklearn.datasets.make_classification(
+            n_samples=10,
+            n_features=10,
+            n_informative=4,
+            n_classes=2,
+            random_state=42,
+        )
+        estimator.fit(X, y)
+        assert (
+            estimator.decision_function(X[:1]).argmax(axis=-1)
+            == estimator.predict(X[:1]).flatten()
+        )
+    except Exception as exc:
+        if keras.config.backend() in ["numpy", "openvino"] and (
+            isinstance(exc, NotImplementedError)
+            or "NotImplementedError" in str(exc)
+        ):
+            pytest.xfail("Backend not implemented")
         else:
             raise
