@@ -12,7 +12,7 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
-def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
+def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed.data)
@@ -20,7 +20,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
     return OpenVINOKerasTensor(ov_opset.constant(normal_const).output(0))
 
 
-def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None, layout=None):
+def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed_val = draw_seed(seed)
     if isinstance(seed_val, OpenVINOKerasTensor):
@@ -96,9 +96,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     )
 
 
-def truncated_normal(
-    shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None
-):
+def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed.data)

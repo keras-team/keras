@@ -2,23 +2,19 @@ import math
 
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.backend import backend
 from keras.src.backend import random
 from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
-from keras.src.utils import jax_utils
 
 
 class RandomInitializer(Initializer):
     def __init__(self, seed=None):
         self._init_seed = seed
-        if seed is None and backend() == "jax":
-            seed = jax_utils.get_jax_random_seed(seed)
-        elif seed is None:
+        if seed is None:
             seed = random.make_default_seed()
         elif isinstance(seed, dict):
             seed = serialization_lib.deserialize_keras_object(seed)
-        elif not isinstance(seed, (random.SeedGenerator, int)):
+        elif not isinstance(seed, (int, random.SeedGenerator)):
             raise ValueError(
                 "`seed` argument should be an instance of "
                 "`keras.random.SeedGenerator()` or an integer. "
@@ -72,14 +68,13 @@ class RandomNormal(RandomInitializer):
         self.stddev = stddev
         super().__init__(seed=seed)
 
-    def __call__(self, shape, dtype=None, layout=None):
+    def __call__(self, shape, dtype=None):
         return random.normal(
             shape=shape,
             mean=self.mean,
             stddev=self.stddev,
             seed=self.seed,
             dtype=dtype,
-            layout=layout,
         )
 
     def get_config(self):
@@ -132,14 +127,13 @@ class TruncatedNormal(RandomInitializer):
         self.stddev = stddev
         super().__init__(seed=seed)
 
-    def __call__(self, shape, dtype=None, layout=None):
+    def __call__(self, shape, dtype=None):
         return random.truncated_normal(
             shape=shape,
             mean=self.mean,
             stddev=self.stddev,
             seed=self.seed,
             dtype=dtype,
-            layout=layout,
         )
 
     def get_config(self):
@@ -189,14 +183,13 @@ class RandomUniform(RandomInitializer):
         self.maxval = maxval
         super().__init__(seed=seed)
 
-    def __call__(self, shape, dtype=None, layout=None):
+    def __call__(self, shape, dtype=None):
         return random.uniform(
             shape=shape,
             minval=self.minval,
             maxval=self.maxval,
             seed=self.seed,
             dtype=dtype,
-            layout=layout,
         )
 
     def get_config(self):
@@ -289,7 +282,7 @@ class VarianceScaling(RandomInitializer):
         self.distribution = distribution
         super().__init__(seed=seed)
 
-    def __call__(self, shape, dtype=None, layout=None):
+    def __call__(self, shape, dtype=None):
         scale = self.scale
         fan_in, fan_out = compute_fans(shape)
         if self.mode == "fan_in":
@@ -298,36 +291,20 @@ class VarianceScaling(RandomInitializer):
             scale /= max(1.0, fan_out)
         else:
             scale /= max(1.0, (fan_in + fan_out) / 2.0)
-
         if self.distribution == "truncated_normal":
             stddev = math.sqrt(scale) / 0.87962566103423978
             return random.truncated_normal(
-                shape,
-                mean=0.0,
-                stddev=stddev,
-                dtype=dtype,
-                seed=self.seed,
-                layout=layout,
+                shape, mean=0.0, stddev=stddev, dtype=dtype, seed=self.seed
             )
         elif self.distribution == "untruncated_normal":
             stddev = math.sqrt(scale)
             return random.normal(
-                shape,
-                mean=0.0,
-                stddev=stddev,
-                dtype=dtype,
-                seed=self.seed,
-                layout=layout,
+                shape, mean=0.0, stddev=stddev, dtype=dtype, seed=self.seed
             )
         else:
             limit = math.sqrt(3.0 * scale)
             return random.uniform(
-                shape,
-                minval=-limit,
-                maxval=limit,
-                dtype=dtype,
-                seed=self.seed,
-                layout=layout,
+                shape, minval=-limit, maxval=limit, dtype=dtype, seed=self.seed
             )
 
     def get_config(self):

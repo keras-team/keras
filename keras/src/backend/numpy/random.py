@@ -7,14 +7,14 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
-def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
+def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed)
     return rng.normal(size=shape, loc=mean, scale=stddev).astype(dtype)
 
 
-def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None, layout=None):
+def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed)
@@ -40,9 +40,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     return output
 
 
-def truncated_normal(
-    shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None
-):
+def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
     rng = np.random.default_rng(seed)

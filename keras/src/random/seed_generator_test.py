@@ -84,8 +84,11 @@ class SeedGeneratorTest(testing.TestCase):
         def traced_function():
             return seed_generator.global_seed_generator().next()
 
-        result = traced_function()
-        self.assertIsNotNone(result)
+        with self.assertRaisesRegex(
+            ValueError,
+            "When tracing a JAX function, you should only use seeded random",
+        ):
+            traced_function()
 
     def test_seed_generator_serialization(self):
         random_generator = seed_generator.SeedGenerator(seed=42)

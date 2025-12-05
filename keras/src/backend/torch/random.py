@@ -25,7 +25,7 @@ def torch_seed_generator(seed):
     return generator
 
 
-def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None):
+def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
     # Do not use generator during symbolic execution.
@@ -64,7 +64,7 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
     ).type(dtype)
 
 
-def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None, layout=None):
+def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
     requested_shape = shape
@@ -108,9 +108,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     )
 
 
-def truncated_normal(
-    shape, mean=0.0, stddev=1.0, dtype=None, seed=None, layout=None
-):
+def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = to_torch_dtype(dtype)
     # Take a larger standard normal dist, discard values outside 2 * stddev
     # Offset by mean and stddev
