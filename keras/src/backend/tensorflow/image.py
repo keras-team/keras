@@ -177,40 +177,59 @@ def resize(
 
     if crop_to_aspect_ratio:
         shape = tf.shape(images)
-        height, width = shape[-3], shape[-2]
-        target_height, target_width = size
-        crop_height = tf.cast(
-            tf.cast(width * target_height, "float32") / target_width,
-            "int32",
-        )
-        crop_height = tf.maximum(tf.minimum(height, crop_height), 1)
-        crop_height = tf.cast(crop_height, "int32")
-        crop_width = tf.cast(
-            tf.cast(height * target_width, "float32") / target_height,
-            "int32",
-        )
-        crop_width = tf.maximum(tf.minimum(width, crop_width), 1)
-        crop_width = tf.cast(crop_width, "int32")
+        height = tf.cast(shape[-3], "float32")
+        width = tf.cast(shape[-2], "float32")
+        target_height = tf.cast(size[0], "float32")
+        target_width = tf.cast(size[1], "float32")
+        
+        # Add epsilon to prevent division by zero
+        epsilon = tf.constant(1e-6, dtype="float32")
+        source_aspect_ratio = width / (height + epsilon)
+        target_aspect_ratio = target_width / (target_height + epsilon)
+        
+        # Only crop if aspect ratios differ (with epsilon tolerance)
+        aspect_ratio_diff = tf.abs(source_aspect_ratio - target_aspect_ratio)
+        should_crop = aspect_ratio_diff > epsilon
+        
+        def apply_crop():
+            crop_height = tf.cast(
+                tf.cast(width * target_height, "float32") / (target_width + epsilon),
+                "int32",
+            )
+            crop_height = tf.maximum(
+                tf.minimum(tf.cast(height, "int32"), crop_height), 1
+            )
+            crop_height = tf.cast(crop_height, "int32")
+            crop_width = tf.cast(
+                tf.cast(height * target_width, "float32") / (target_height + epsilon),
+                "int32",
+            )
+            crop_width = tf.maximum(
+                tf.minimum(tf.cast(width, "int32"), crop_width), 1
+            )
+            crop_width = tf.cast(crop_width, "int32")
 
-        crop_box_hstart = tf.cast(
-            tf.cast(height - crop_height, "float32") / 2, "int32"
-        )
-        crop_box_wstart = tf.cast(
-            tf.cast(width - crop_width, "float32") / 2, "int32"
-        )
-        if len(images.shape) == 4:
-            images = images[
-                :,
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-                :,
-            ]
-        else:
-            images = images[
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-                :,
-            ]
+            crop_box_hstart = tf.cast(
+                tf.cast(tf.cast(height, "int32") - crop_height, "float32") / 2, "int32"
+            )
+            crop_box_wstart = tf.cast(
+                tf.cast(tf.cast(width, "int32") - crop_width, "float32") / 2, "int32"
+            )
+            if len(images.shape) == 4:
+                return images[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+            else:
+                return images[
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+        
+        images = tf.cond(should_crop, apply_crop, lambda: images)
     elif pad_to_aspect_ratio:
         shape = tf.shape(images)
         height, width = shape[-3], shape[-2]
