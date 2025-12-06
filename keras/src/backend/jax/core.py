@@ -30,9 +30,7 @@ class JaxVariable(KerasVariable):
         self._layout = layout
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, value):
-        # Note that variable.shape is needed by distribution_lib
-        self._shape = self._validate_shape(value.shape)
+    def set_tensor_layout(self):
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
@@ -44,6 +42,29 @@ class JaxVariable(KerasVariable):
                 self._layout = tensor_layout.backend_layout
             else:
                 self._layout = tensor_layout
+
+    def _initialize(self, value):
+        # Note that variable.shape is needed by distribution_lib
+        self._shape = self._validate_shape(value.shape)
+        self.set_tensor_layout()
+        self._direct_assign(value)
+
+    def _initialize_with_initializer(self, initializer):
+        self.set_tensor_layout()
+        layout = self._layout
+        if check_layout_spec_nnx(layout):
+            jitted_initializer = jax.jit(
+                initializer.__call__,
+                out_shardings=layout,
+                static_argnames=["shape", "dtype"],
+            )
+            value = jax.device_put(
+                jitted_initializer(self._shape, dtype=self._dtype), layout
+            )
+        else:
+            value = self._convert_to_tensor(
+                initializer(self._shape, dtype=self._dtype)
+            )
         self._direct_assign(value)
 
     def _direct_assign(self, value):
@@ -111,6 +132,12 @@ if config.is_nnx_enabled():
 
             # The real value is now set in self._value, sync it to raw_value
             object.__setattr__(self, "raw_value", self._value)
+
+        def _initialize_with_initializer(self, initializer):
+            value = self._convert_to_tensor(
+                initializer(self._shape, dtype=self._dtype)
+            )
+            self._initialize(value)
 
         @property
         def _value(self):
@@ -286,6 +313,16 @@ if config.is_nnx_enabled():
         object.__setattr__(self, name, value)
 
     NnxVariable.__setattr__ = __setattr__
+
+
+def check_layout_spec_nnx(init_layout):
+    nnx_enabled = config.is_nnx_enabled()
+    is_named_sharding = isinstance(init_layout, jax.sharding.NamedSharding)
+    # Check if PartitionSpec has any non-None values
+    spec = getattr(init_layout, "spec", None)
+    partition_spec = spec if spec is not None else ()
+    is_partitioned = any(dim is not None for dim in partition_spec)
+    return is_partitioned and is_named_sharding and not nnx_enabled
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
