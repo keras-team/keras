@@ -63,6 +63,18 @@ from keras.src.layers.normalization.spectral_normalization import (
     SpectralNormalization,
 )
 from keras.src.layers.normalization.unit_normalization import UnitNormalization
+from keras.src.layers.pooling.adaptive_average_pooling1d import (
+    AdaptiveAveragePooling1D,
+)
+from keras.src.layers.pooling.adaptive_average_pooling2d import (
+    AdaptiveAveragePooling2D,
+)
+from keras.src.layers.pooling.adaptive_average_pooling3d import (
+    AdaptiveAveragePooling3D,
+)
+from keras.src.layers.pooling.adaptive_max_pooling1d import AdaptiveMaxPooling1D
+from keras.src.layers.pooling.adaptive_max_pooling2d import AdaptiveMaxPooling2D
+from keras.src.layers.pooling.adaptive_max_pooling3d import AdaptiveMaxPooling3D
 from keras.src.layers.pooling.average_pooling1d import AveragePooling1D
 from keras.src.layers.pooling.average_pooling2d import AveragePooling2D
 from keras.src.layers.pooling.average_pooling3d import AveragePooling3D
