@@ -19,6 +19,8 @@ NumpyDtypeTest::test_corrcoef
 NumpyDtypeTest::test_correlate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
+NumpyDtypeTest::test_diagflat
+NumpyDtypeTest::test_diagonal
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_flip
