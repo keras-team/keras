@@ -573,7 +573,7 @@ def _compute_affine_transform_coordinates(image, transform):
     # transform the indices
     coordinates = np.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = np.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += np.reshape(offset, newshape=(*offset.shape, 1, 1, 1))
+    coordinates += np.reshape(offset, (*offset.shape, 1, 1, 1))
     if need_squeeze:
         coordinates = np.squeeze(coordinates, axis=0)
     return coordinates
