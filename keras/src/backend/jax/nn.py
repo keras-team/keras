@@ -17,6 +17,9 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    compute_adaptive_pooling_window_sizes,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
 from keras.src.backend.jax.core import cast
@@ -1478,14 +1481,9 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches.reshape(N, CKK, oH * oW)
 
 
-def get_static_window_sizes(input_dim, output_dim):
-    """Calculate small and big window sizes for adaptive pooling."""
-    small_window = math.ceil(input_dim / output_dim)
-    big_window = small_window + 1
-    return small_window, big_window
-
-
-def compute_static_gather_indices(input_dim, output_size, big_window):
+def _compute_adaptive_pooling_gather_indices(
+    input_dim, output_size, big_window
+):
     """Compute gather indices for Two-Pool Gather method."""
     window_starts = jnp.floor(
         (jnp.arange(output_size) * input_dim) / output_size
@@ -1496,262 +1494,303 @@ def compute_static_gather_indices(input_dim, output_size, big_window):
     ).astype(jnp.int32)
 
     window_sizes = window_ends - window_starts
-    is_big_window = window_sizes == big_window
+    is_big = window_sizes == big_window
 
     small_window = big_window - 1
-    small_pool_len = input_dim - small_window + 1
+    small_len = input_dim - small_window + 1
 
     small_indices = window_starts
-    big_indices = window_starts + small_pool_len
+    big_indices = window_starts + small_len
 
-    gather_indices = jnp.where(is_big_window, big_indices, small_indices)
-    return gather_indices.astype(jnp.int32)
+    gather = jnp.where(is_big, big_indices, small_indices)
+    return gather.astype(jnp.int32)
 
 
-# ---------- 1D Adaptive Pooling ----------
-def adaptive_avg_pool1d(inputs, output_size, data_format="channels_first"):
-    """Adaptive Average Pooling 1D using Two-Pool Gather method."""
+def _adaptive_avg_pool1d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size,)
 
     if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 1))  # NCL -> NLC
+        inputs = jnp.transpose(inputs, (0, 2, 1))  # NCL → NLC
 
     n, l, c = inputs.shape
     out_l = output_size[0]
 
-    small_l, big_l = get_static_window_sizes(l, out_l)
-    gather_l = compute_static_gather_indices(l, out_l, big_l)
+    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
+    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
 
-    small_pool_l = lax.reduce_window(
-        inputs, 0.0, lax.add, (1, small_l, 1), (1, 1, 1), "valid"
+    small_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, small, 1), (1, 1, 1), "valid"
+        )
+        / small
     )
-    small_pool_l = small_pool_l / small_l
 
-    big_pool_l = lax.reduce_window(
-        inputs, 0.0, lax.add, (1, big_l, 1), (1, 1, 1), "valid"
+    big_pool = (
+        lax.reduce_window(inputs, 0.0, lax.add, (1, big, 1), (1, 1, 1), "valid")
+        / big
     )
-    big_pool_l = big_pool_l / big_l
 
-    combined_l = jnp.concatenate([small_pool_l, big_pool_l], axis=1)
-    pooled_l = jnp.take(combined_l, gather_l, axis=1)
+    combined = jnp.concatenate([small_pool, big_pool], axis=1)
+    out = jnp.take(combined, gather, axis=1)
 
     if data_format == "channels_first":
-        pooled_l = jnp.transpose(pooled_l, (0, 2, 1))  # NLC -> NCL
+        out = jnp.transpose(out, (0, 2, 1))
 
-    return pooled_l
+    return out
 
 
-def adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
-    """Adaptive Max Pooling 1D using Two-Pool Gather method."""
+def _adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size,)
 
     if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 1))  # NCL -> NLC
+        inputs = jnp.transpose(inputs, (0, 2, 1))
 
     n, l, c = inputs.shape
     out_l = output_size[0]
 
-    small_l, big_l = get_static_window_sizes(l, out_l)
-    gather_l = compute_static_gather_indices(l, out_l, big_l)
+    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
+    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
 
-    small_pool_l = lax.reduce_window(
-        inputs, -jnp.inf, lax.max, (1, small_l, 1), (1, 1, 1), "valid"
-    )
-    big_pool_l = lax.reduce_window(
-        inputs, -jnp.inf, lax.max, (1, big_l, 1), (1, 1, 1), "valid"
+    small_pool = lax.reduce_window(
+        inputs, -jnp.inf, lax.max, (1, small, 1), (1, 1, 1), "valid"
     )
 
-    combined_l = jnp.concatenate([small_pool_l, big_pool_l], axis=1)
-    pooled_l = jnp.take(combined_l, gather_l, axis=1)
+    big_pool = lax.reduce_window(
+        inputs, -jnp.inf, lax.max, (1, big, 1), (1, 1, 1), "valid"
+    )
+
+    combined = jnp.concatenate([small_pool, big_pool], axis=1)
+    out = jnp.take(combined, gather, axis=1)
 
     if data_format == "channels_first":
-        pooled_l = jnp.transpose(pooled_l, (0, 2, 1))  # NLC -> NCL
+        out = jnp.transpose(out, (0, 2, 1))
 
-    return pooled_l
+    return out
 
 
-# ---------- 2D Adaptive Pooling ----------
-def adaptive_avg_pool2d(inputs, output_size, data_format="channels_first"):
-    """Adaptive Average Pooling 2D using Two-Pool Gather method."""
+def _adaptive_avg_pool2d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size, output_size)
 
     if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 1))  # NCHW -> NHWC
+        inputs = jnp.transpose(inputs, (0, 2, 3, 1))
 
     n, h, w, c = inputs.shape
     out_h, out_w = output_size
 
-    small_h, big_h = get_static_window_sizes(h, out_h)
-    gather_h = compute_static_gather_indices(h, out_h, big_h)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
 
-    small_w, big_w = get_static_window_sizes(w, out_w)
-    gather_w = compute_static_gather_indices(w, out_w, big_w)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
 
-    small_pool_h = lax.reduce_window(
-        inputs, 0.0, lax.add, (1, small_h, 1, 1), (1, 1, 1, 1), "valid"
+    small_h_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, small_h, 1, 1), (1, 1, 1, 1), "valid"
+        )
+        / small_h
     )
-    small_pool_h = small_pool_h / small_h
 
-    big_pool_h = lax.reduce_window(
-        inputs, 0.0, lax.add, (1, big_h, 1, 1), (1, 1, 1, 1), "valid"
+    big_h_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, big_h, 1, 1), (1, 1, 1, 1), "valid"
+        )
+        / big_h
     )
-    big_pool_h = big_pool_h / big_h
 
-    combined_h = jnp.concatenate([small_pool_h, big_pool_h], axis=1)
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=1)
     pooled_h = jnp.take(combined_h, gather_h, axis=1)
 
-    small_pool_w = lax.reduce_window(
-        pooled_h, 0.0, lax.add, (1, 1, small_w, 1), (1, 1, 1, 1), "valid"
+    small_w_pool = (
+        lax.reduce_window(
+            pooled_h, 0.0, lax.add, (1, 1, small_w, 1), (1, 1, 1, 1), "valid"
+        )
+        / small_w
     )
-    small_pool_w = small_pool_w / small_w
 
-    big_pool_w = lax.reduce_window(
-        pooled_h, 0.0, lax.add, (1, 1, big_w, 1), (1, 1, 1, 1), "valid"
+    big_w_pool = (
+        lax.reduce_window(
+            pooled_h, 0.0, lax.add, (1, 1, big_w, 1), (1, 1, 1, 1), "valid"
+        )
+        / big_w
     )
-    big_pool_w = big_pool_w / big_w
 
-    combined_w = jnp.concatenate([small_pool_w, big_pool_w], axis=2)
-    pooled_w = jnp.take(combined_w, gather_w, axis=2)
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=2)
+    out = jnp.take(combined_w, gather_w, axis=2)
 
     if data_format == "channels_first":
-        pooled_w = jnp.transpose(pooled_w, (0, 3, 1, 2))  # NHWC -> NCHW
+        out = jnp.transpose(out, (0, 3, 1, 2))
 
-    return pooled_w
+    return out
 
 
-def adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
-    """Adaptive Max Pooling 2D using Two-Pool Gather method."""
+def _adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size, output_size)
 
     if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 1))  # NCHW -> NHWC
+        inputs = jnp.transpose(inputs, (0, 2, 3, 1))
 
     n, h, w, c = inputs.shape
     out_h, out_w = output_size
 
-    small_h, big_h = get_static_window_sizes(h, out_h)
-    gather_h = compute_static_gather_indices(h, out_h, big_h)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
 
-    small_w, big_w = get_static_window_sizes(w, out_w)
-    gather_w = compute_static_gather_indices(w, out_w, big_w)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
 
-    small_pool_h = lax.reduce_window(
+    small_h_pool = lax.reduce_window(
         inputs, -jnp.inf, lax.max, (1, small_h, 1, 1), (1, 1, 1, 1), "valid"
     )
-    big_pool_h = lax.reduce_window(
+
+    big_h_pool = lax.reduce_window(
         inputs, -jnp.inf, lax.max, (1, big_h, 1, 1), (1, 1, 1, 1), "valid"
     )
 
-    combined_h = jnp.concatenate([small_pool_h, big_pool_h], axis=1)
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=1)
     pooled_h = jnp.take(combined_h, gather_h, axis=1)
 
-    small_pool_w = lax.reduce_window(
+    small_w_pool = lax.reduce_window(
         pooled_h, -jnp.inf, lax.max, (1, 1, small_w, 1), (1, 1, 1, 1), "valid"
     )
-    big_pool_w = lax.reduce_window(
+
+    big_w_pool = lax.reduce_window(
         pooled_h, -jnp.inf, lax.max, (1, 1, big_w, 1), (1, 1, 1, 1), "valid"
     )
 
-    combined_w = jnp.concatenate([small_pool_w, big_pool_w], axis=2)
-    pooled_w = jnp.take(combined_w, gather_w, axis=2)
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=2)
+    out = jnp.take(combined_w, gather_w, axis=2)
 
     if data_format == "channels_first":
-        pooled_w = jnp.transpose(pooled_w, (0, 3, 1, 2))  # NHWC -> NCHW
+        out = jnp.transpose(out, (0, 3, 1, 2))
 
-    return pooled_w
+    return out
 
 
-# ---------- 3D Adaptive Pooling ----------
-def adaptive_avg_pool3d(inputs, output_size, data_format="channels_first"):
-    """Adaptive Average Pooling 3D using Two-Pool Gather method."""
+def _adaptive_avg_pool3d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size, output_size, output_size)
 
     if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))  # NCDHW -> NDHWC
+        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))
 
     n, d, h, w, c = inputs.shape
     out_d, out_h, out_w = output_size
 
-    small_d, big_d = get_static_window_sizes(d, out_d)
-    gather_d = compute_static_gather_indices(d, out_d, big_d)
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
+    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
 
-    small_h, big_h = get_static_window_sizes(h, out_h)
-    gather_h = compute_static_gather_indices(h, out_h, big_h)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
 
-    small_w, big_w = get_static_window_sizes(w, out_w)
-    gather_w = compute_static_gather_indices(w, out_w, big_w)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
 
-    small_pool_d = lax.reduce_window(
-        inputs, 0.0, lax.add, (1, small_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
+    small_d_pool = (
+        lax.reduce_window(
+            inputs,
+            0.0,
+            lax.add,
+            (1, small_d, 1, 1, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / small_d
     )
-    small_pool_d = small_pool_d / small_d
 
-    big_pool_d = lax.reduce_window(
-        inputs, 0.0, lax.add, (1, big_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
+    big_d_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, big_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
+        )
+        / big_d
     )
-    big_pool_d = big_pool_d / big_d
 
-    combined_d = jnp.concatenate([small_pool_d, big_pool_d], axis=1)
+    combined_d = jnp.concatenate([small_d_pool, big_d_pool], axis=1)
     pooled_d = jnp.take(combined_d, gather_d, axis=1)
 
-    small_pool_h = lax.reduce_window(
-        pooled_d, 0.0, lax.add, (1, 1, small_h, 1, 1), (1, 1, 1, 1, 1), "valid"
+    small_h_pool = (
+        lax.reduce_window(
+            pooled_d,
+            0.0,
+            lax.add,
+            (1, 1, small_h, 1, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / small_h
     )
-    small_pool_h = small_pool_h / small_h
 
-    big_pool_h = lax.reduce_window(
-        pooled_d, 0.0, lax.add, (1, 1, big_h, 1, 1), (1, 1, 1, 1, 1), "valid"
+    big_h_pool = (
+        lax.reduce_window(
+            pooled_d,
+            0.0,
+            lax.add,
+            (1, 1, big_h, 1, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / big_h
     )
-    big_pool_h = big_pool_h / big_h
 
-    combined_h = jnp.concatenate([small_pool_h, big_pool_h], axis=2)
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=2)
     pooled_h = jnp.take(combined_h, gather_h, axis=2)
 
-    small_pool_w = lax.reduce_window(
-        pooled_h, 0.0, lax.add, (1, 1, 1, small_w, 1), (1, 1, 1, 1, 1), "valid"
+    small_w_pool = (
+        lax.reduce_window(
+            pooled_h,
+            0.0,
+            lax.add,
+            (1, 1, 1, small_w, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / small_w
     )
-    small_pool_w = small_pool_w / small_w
 
-    big_pool_w = lax.reduce_window(
-        pooled_h, 0.0, lax.add, (1, 1, 1, big_w, 1), (1, 1, 1, 1, 1), "valid"
+    big_w_pool = (
+        lax.reduce_window(
+            pooled_h,
+            0.0,
+            lax.add,
+            (1, 1, 1, big_w, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / big_w
     )
-    big_pool_w = big_pool_w / big_w
 
-    combined_w = jnp.concatenate([small_pool_w, big_pool_w], axis=3)
-    pooled_w = jnp.take(combined_w, gather_w, axis=3)
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=3)
+    out = jnp.take(combined_w, gather_w, axis=3)
 
     if data_format == "channels_first":
-        pooled_w = jnp.transpose(pooled_w, (0, 4, 1, 2, 3))  # NDHWC -> NCDHW
+        out = jnp.transpose(out, (0, 4, 1, 2, 3))
 
-    return pooled_w
+    return out
 
 
-def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
-    """Adaptive Max Pooling 3D using Two-Pool Gather method."""
+def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size, output_size, output_size)
 
     if data_format == "channels_first":
-        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))  # NCDHW -> NDHWC
+        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))
 
     n, d, h, w, c = inputs.shape
     out_d, out_h, out_w = output_size
 
-    small_d, big_d = get_static_window_sizes(d, out_d)
-    gather_d = compute_static_gather_indices(d, out_d, big_d)
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
+    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
 
-    small_h, big_h = get_static_window_sizes(h, out_h)
-    gather_h = compute_static_gather_indices(h, out_h, big_h)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
 
-    small_w, big_w = get_static_window_sizes(w, out_w)
-    gather_w = compute_static_gather_indices(w, out_w, big_w)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
 
-    small_pool_d = lax.reduce_window(
+    small_d_pool = lax.reduce_window(
         inputs,
         -jnp.inf,
         lax.max,
@@ -1759,14 +1798,15 @@ def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
         (1, 1, 1, 1, 1),
         "valid",
     )
-    big_pool_d = lax.reduce_window(
+
+    big_d_pool = lax.reduce_window(
         inputs, -jnp.inf, lax.max, (1, big_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
     )
 
-    combined_d = jnp.concatenate([small_pool_d, big_pool_d], axis=1)
+    combined_d = jnp.concatenate([small_d_pool, big_d_pool], axis=1)
     pooled_d = jnp.take(combined_d, gather_d, axis=1)
 
-    small_pool_h = lax.reduce_window(
+    small_h_pool = lax.reduce_window(
         pooled_d,
         -jnp.inf,
         lax.max,
@@ -1774,7 +1814,8 @@ def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
         (1, 1, 1, 1, 1),
         "valid",
     )
-    big_pool_h = lax.reduce_window(
+
+    big_h_pool = lax.reduce_window(
         pooled_d,
         -jnp.inf,
         lax.max,
@@ -1783,10 +1824,10 @@ def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
         "valid",
     )
 
-    combined_h = jnp.concatenate([small_pool_h, big_pool_h], axis=2)
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=2)
     pooled_h = jnp.take(combined_h, gather_h, axis=2)
 
-    small_pool_w = lax.reduce_window(
+    small_w_pool = lax.reduce_window(
         pooled_h,
         -jnp.inf,
         lax.max,
@@ -1794,7 +1835,8 @@ def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
         (1, 1, 1, 1, 1),
         "valid",
     )
-    big_pool_w = lax.reduce_window(
+
+    big_w_pool = lax.reduce_window(
         pooled_h,
         -jnp.inf,
         lax.max,
@@ -1803,41 +1845,32 @@ def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
         "valid",
     )
 
-    combined_w = jnp.concatenate([small_pool_w, big_pool_w], axis=3)
-    pooled_w = jnp.take(combined_w, gather_w, axis=3)
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=3)
+    out = jnp.take(combined_w, gather_w, axis=3)
 
     if data_format == "channels_first":
-        pooled_w = jnp.transpose(pooled_w, (0, 4, 1, 2, 3))  # NDHWC -> NCDHW
+        out = jnp.transpose(out, (0, 4, 1, 2, 3))
 
-    return pooled_w
+    return out
 
 
-# ---------- Dispatcher ----------
 def adaptive_avg_pool(inputs, output_size, data_format="channels_first"):
-    """Dispatcher for adaptive average pooling (1D, 2D, or 3D)."""
-    ndims = inputs.ndim - 2
-    if ndims == 1:
-        return adaptive_avg_pool1d(inputs, output_size, data_format)
-    elif ndims == 2:
-        return adaptive_avg_pool2d(inputs, output_size, data_format)
-    elif ndims == 3:
-        return adaptive_avg_pool3d(inputs, output_size, data_format)
-    else:
-        raise ValueError(
-            "adaptive_avg_pool supports 1D, 2D, or 3D inputs only."
-        )
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_avg_pool1d(inputs, output_size, data_format)
+    if dims == 2:
+        return _adaptive_avg_pool2d(inputs, output_size, data_format)
+    if dims == 3:
+        return _adaptive_avg_pool3d(inputs, output_size, data_format)
+    raise ValueError("adaptive_avg_pool supports only 1D/2D/3D inputs")
 
 
 def adaptive_max_pool(inputs, output_size, data_format="channels_first"):
-    """Dispatcher for adaptive max pooling (1D, 2D, or 3D)."""
-    ndims = inputs.ndim - 2
-    if ndims == 1:
-        return adaptive_max_pool1d(inputs, output_size, data_format)
-    elif ndims == 2:
-        return adaptive_max_pool2d(inputs, output_size, data_format)
-    elif ndims == 3:
-        return adaptive_max_pool3d(inputs, output_size, data_format)
-    else:
-        raise ValueError(
-            "adaptive_max_pool supports 1D, 2D, or 3D inputs only."
-        )
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_max_pool1d(inputs, output_size, data_format)
+    if dims == 2:
+        return _adaptive_max_pool2d(inputs, output_size, data_format)
+    if dims == 3:
+        return _adaptive_max_pool3d(inputs, output_size, data_format)
+    raise ValueError("adaptive_max_pool supports only 1D/2D/3D inputs")

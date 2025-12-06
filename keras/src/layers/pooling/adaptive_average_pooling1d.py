@@ -1,13 +1,13 @@
 """Adaptive Average Pooling 1D layer."""
 
-from keras import config
-from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.layers.layer import Layer
+from keras.src.layers.pooling.base_adaptive_pooling import (
+    BaseAdaptiveAveragePooling,
+)
 
 
 @keras_export("keras.layers.AdaptiveAveragePooling1D")
-class AdaptiveAveragePooling1D(Layer):
+class AdaptiveAveragePooling1D(BaseAdaptiveAveragePooling):
     """Adaptive average pooling operation for 1D temporal or spatial data.
 
     This layer applies an adaptive average pooling operation, which pools the
@@ -38,47 +38,21 @@ class AdaptiveAveragePooling1D(Layer):
             `(batch_size, channels, output_length)`
 
     Examples:
-
-    >>> import numpy as np
-    >>> input_seq = np.random.rand(1, 64, 3)
-    >>> layer = AdaptiveAveragePooling1D(output_size=32)
-    >>> output_seq = layer(input_seq)
-    >>> output_seq.shape
-    (1, 32, 3)
+        >>> import numpy as np
+        >>> input_seq = np.random.rand(1, 64, 3)
+        >>> layer = AdaptiveAveragePooling1D(output_size=32)
+        >>> output_seq = layer(input_seq)
+        >>> output_seq.shape
+        (1, 32, 3)
     """
 
     def __init__(self, output_size, data_format=None, **kwargs):
-        super().__init__(**kwargs)
         if not isinstance(output_size, int):
             raise TypeError(
                 f"`output_size` must be an integer. "
                 f"Received: {output_size} of type {type(output_size)}"
             )
 
-        self.output_size = output_size
-        self.data_format = data_format or config.image_data_format()
+        output_size_tuple = (output_size,)
 
-        if self.data_format not in {"channels_first", "channels_last"}:
-            raise ValueError(
-                f"Invalid data_format: {self.data_format}. "
-                "Must be either 'channels_first' or 'channels_last'."
-            )
-
-    def call(self, inputs):
-        return ops.adaptive_avg_pool(
-            inputs, output_size=self.output_size, data_format=self.data_format
-        )
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == "channels_last":
-            return (input_shape[0], self.output_size, input_shape[2])
-        else:  # channels_first
-            return (input_shape[0], input_shape[1], self.output_size)
-
-    def get_config(self):
-        config_dict = {
-            "output_size": self.output_size,
-            "data_format": self.data_format,
-        }
-        base_config = super().get_config()
-        return {**base_config, **config_dict}
+        super().__init__(output_size_tuple, data_format, **kwargs)

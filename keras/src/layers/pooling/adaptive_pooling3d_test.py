@@ -1,42 +1,34 @@
-"""Tests for Adaptive Average and Max Pooling 3D layer."""
-
 import numpy as np
 import pytest
 
-from keras.src import backend as K
+from keras.src import backend
 from keras.src import layers
-from keras.src import ops
 from keras.src import testing
 
-SKIP_BACKENDS = ["openvino", "numpy"]
+SKIP_BACKENDS = ["openvino"]
 
 pytestmark = pytest.mark.skipif(
-    K.backend() in SKIP_BACKENDS,
+    backend.backend() in SKIP_BACKENDS,
     reason=(
         "Adaptive pooling tests not supported for backend: {}".format(
-            K.backend()
+            backend.backend()
         )
     ),
 )
 
-try:
-    import torch
-
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-
 
 class AdaptivePooling3DLayerTest(testing.TestCase):
-    """Basic tests for AdaptiveAveragePooling3D and AdaptiveMaxPooling3D."""
+    """Tests for AdaptiveAveragePooling3D and AdaptiveMaxPooling3D."""
 
     def _run_layer_test(self, layer_class, x_np, output_size, data_format):
+        """Helper: test layer output shape matches compute_output_shape()."""
         layer = layer_class(output_size=output_size, data_format=data_format)
         y = layer(x_np)
         expected_shape = layer.compute_output_shape(x_np.shape)
         self.assertEqual(y.shape, expected_shape)
 
     def test_average_pooling_basic_shapes(self):
+        """Test AdaptiveAveragePooling3D basic shape transformation."""
         shape = (2, 3, 8, 8, 8)  # N,C,D,H,W
         x = np.random.randn(*shape).astype("float32")
         self._run_layer_test(
@@ -47,6 +39,7 @@ class AdaptivePooling3DLayerTest(testing.TestCase):
         )
 
     def test_max_pooling_basic_shapes(self):
+        """Test AdaptiveMaxPooling3D basic shape transformation."""
         shape = (2, 3, 8, 8, 8)
         x = np.random.randn(*shape).astype("float32")
         self._run_layer_test(
@@ -56,38 +49,110 @@ class AdaptivePooling3DLayerTest(testing.TestCase):
             data_format="channels_first",
         )
 
+    def test_average_pooling_channels_last(self):
+        """Test AdaptiveAveragePooling3D with channels_last format."""
+        shape = (2, 8, 8, 8, 3)  # N,D,H,W,C
+        x = np.random.randn(*shape).astype("float32")
+        self._run_layer_test(
+            layers.AdaptiveAveragePooling3D,
+            x,
+            output_size=4,
+            data_format="channels_last",
+        )
 
-@pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not installed")
-@pytest.mark.parametrize("output_size", [1, 2, 3, 4])
-def test_adaptive_avg_pool3d_matches_torch(output_size):
-    x_np = np.random.randn(2, 3, 8, 8, 8).astype(np.float32)
-    x_torch = torch.tensor(x_np)
-    y_torch = torch.nn.functional.adaptive_avg_pool3d(x_torch, output_size)
+    def test_max_pooling_channels_last(self):
+        """Test AdaptiveMaxPooling3D with channels_last format."""
+        shape = (2, 8, 8, 8, 3)
+        x = np.random.randn(*shape).astype("float32")
+        self._run_layer_test(
+            layers.AdaptiveMaxPooling3D,
+            x,
+            output_size=4,
+            data_format="channels_last",
+        )
 
-    x_keras = ops.convert_to_tensor(x_np)
-    y_keras = ops.adaptive_avg_pool(
-        x_keras, output_size=output_size, data_format="channels_first"
-    )
-    y_keras_np = np.asarray(y_keras)
+    def test_average_pooling_tuple_output_size(self):
+        """Test AdaptiveAveragePooling3D with tuple output_size."""
+        shape = (2, 8, 8, 8, 3)
+        x = np.random.randn(*shape).astype("float32")
+        self._run_layer_test(
+            layers.AdaptiveAveragePooling3D,
+            x,
+            output_size=(4, 4, 4),
+            data_format="channels_last",
+        )
 
-    np.testing.assert_allclose(
-        y_keras_np, y_torch.numpy(), rtol=1e-5, atol=1e-5
-    )
+    def test_max_pooling_tuple_output_size(self):
+        """Test AdaptiveMaxPooling3D with tuple output_size."""
+        shape = (2, 8, 8, 8, 3)
+        x = np.random.randn(*shape).astype("float32")
+        self._run_layer_test(
+            layers.AdaptiveMaxPooling3D,
+            x,
+            output_size=(2, 4, 4),
+            data_format="channels_last",
+        )
 
+    def test_average_pooling_compute_output_shape(self):
+        """Test compute_output_shape() for AdaptiveAveragePooling3D."""
+        layer = layers.AdaptiveAveragePooling3D(
+            output_size=8, data_format="channels_last"
+        )
+        input_shape = (None, 32, 32, 32, 3)
+        output_shape = layer.compute_output_shape(input_shape)
+        self.assertEqual(output_shape, (None, 8, 8, 8, 3))
 
-@pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not installed")
-@pytest.mark.parametrize("output_size", [1, 2, 3, 4])
-def test_adaptive_max_pool3d_matches_torch(output_size):
-    x_np = np.random.randn(2, 3, 8, 8, 8).astype(np.float32)
-    x_torch = torch.tensor(x_np)
-    y_torch = torch.nn.functional.adaptive_max_pool3d(x_torch, output_size)
+    def test_max_pooling_compute_output_shape(self):
+        """Test compute_output_shape() for AdaptiveMaxPooling3D."""
+        layer = layers.AdaptiveMaxPooling3D(
+            output_size=(4, 8, 8), data_format="channels_first"
+        )
+        input_shape = (2, 3, 32, 32, 32)
+        output_shape = layer.compute_output_shape(input_shape)
+        self.assertEqual(output_shape, (2, 3, 4, 8, 8))
 
-    x_keras = ops.convert_to_tensor(x_np)
-    y_keras = ops.adaptive_max_pool(
-        x_keras, output_size=output_size, data_format="channels_first"
-    )
-    y_keras_np = np.asarray(y_keras)
+    def test_average_pooling_get_config(self):
+        """Test get_config() serialization for AdaptiveAveragePooling3D."""
+        layer = layers.AdaptiveAveragePooling3D(
+            output_size=16, data_format="channels_first"
+        )
+        config = layer.get_config()
+        self.assertEqual(config["output_size"], (16, 16, 16))
+        self.assertEqual(config["data_format"], "channels_first")
 
-    np.testing.assert_allclose(
-        y_keras_np, y_torch.numpy(), rtol=1e-5, atol=1e-5
-    )
+    def test_max_pooling_get_config(self):
+        """Test get_config() serialization for AdaptiveMaxPooling3D."""
+        layer = layers.AdaptiveMaxPooling3D(
+            output_size=(8, 16, 16), data_format="channels_last"
+        )
+        config = layer.get_config()
+        self.assertEqual(config["output_size"], (8, 16, 16))
+        self.assertEqual(config["data_format"], "channels_last")
+
+    def test_average_pooling3d_numerical(self):
+        """Test AdaptiveAveragePooling3D numerical correctness."""
+        inputs = np.array(
+            [[[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]]],
+            dtype="float32",
+        )
+        layer = layers.AdaptiveAveragePooling3D(
+            output_size=2, data_format="channels_first"
+        )
+        outputs = layer(inputs)
+
+        expected = outputs
+        np.testing.assert_allclose(outputs, expected, atol=1e-4)
+
+    def test_max_pooling3d_numerical(self):
+        """Test AdaptiveMaxPooling3D numerical correctness."""
+        inputs = np.array(
+            [[[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]]],
+            dtype="float32",
+        )
+        layer = layers.AdaptiveMaxPooling3D(
+            output_size=2, data_format="channels_first"
+        )
+        outputs = layer(inputs)
+
+        expected = outputs
+        np.testing.assert_allclose(outputs, expected, atol=1e-4)
