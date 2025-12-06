@@ -5,6 +5,9 @@ import tensorflow as tf
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    compute_adaptive_pooling_window_sizes,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras.src.backend.tensorflow.core import cast
@@ -240,22 +243,6 @@ def max_pool(
     return outputs
 
 
-def get_static_window_sizes(input_dim, output_dim):
-    """Calculate small and big window sizes for adaptive pooling."""
-    if input_dim < output_dim:
-        small_window = 1
-    else:
-        small_window = max(1, math.ceil(input_dim / output_dim))
-
-    big_window = small_window + 1
-
-    # Ensure windows don't exceed input dimension
-    small_window = min(small_window, input_dim)
-    big_window = min(big_window, input_dim)
-
-    return small_window, big_window
-
-
 def compute_static_gather_indices(
     input_dim, output_size, small_window, big_window
 ):
@@ -292,7 +279,7 @@ def compute_static_gather_indices(
     return tf.cast(gather_indices, tf.int32)
 
 
-def adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
+def _adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size,)
     if data_format == "channels_first":
@@ -307,7 +294,7 @@ def adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
             "Input length must be statically known for adaptive pooling"
         )
 
-    small_l, big_l = get_static_window_sizes(l_static, out_l)
+    small_l, big_l = compute_adaptive_pooling_window_sizes(l_static, out_l)
     gather_l = compute_static_gather_indices(l_static, out_l, small_l, big_l)
 
     small_pool_l = tf.nn.pool(
@@ -335,7 +322,7 @@ def adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
     return pooled_l
 
 
-def adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
+def _adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
     """Adaptive Max Pooling 2D using Two-Pool Gather method."""
     if isinstance(output_size, int):
         output_size = (output_size, output_size)
@@ -354,8 +341,8 @@ def adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
             "statically known for adaptive pooling"
         )
 
-    small_h, big_h = get_static_window_sizes(h_static, out_h)
-    small_w, big_w = get_static_window_sizes(w_static, out_w)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
 
     gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
     gather_w = compute_static_gather_indices(w_static, out_w, small_w, big_w)
@@ -406,7 +393,7 @@ def adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
     return pooled_w
 
 
-def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
+def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
     """Adaptive Max Pooling 3D using Two-Pool Gather method."""
     if isinstance(output_size, int):
         output_size = (output_size, output_size, output_size)
@@ -426,9 +413,9 @@ def adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
             "statically known for adaptive pooling"
         )
 
-    small_d, big_d = get_static_window_sizes(d_static, out_d)
-    small_h, big_h = get_static_window_sizes(h_static, out_h)
-    small_w, big_w = get_static_window_sizes(w_static, out_w)
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d_static, out_d)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
 
     gather_d = compute_static_gather_indices(d_static, out_d, small_d, big_d)
     gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
@@ -504,11 +491,11 @@ def adaptive_max_pool(inputs, output_size, data_format="channels_first"):
     """Dispatcher for adaptive max pooling (1D, 2D, or 3D)."""
     ndims = len(inputs.shape) - 2
     if ndims == 1:
-        return adaptive_max_pool1d(inputs, output_size, data_format)
+        return _adaptive_max_pool1d(inputs, output_size, data_format)
     elif ndims == 2:
-        return adaptive_max_pool2d(inputs, output_size, data_format)
+        return _adaptive_max_pool2d(inputs, output_size, data_format)
     elif ndims == 3:
-        return adaptive_max_pool3d(inputs, output_size, data_format)
+        return _adaptive_max_pool3d(inputs, output_size, data_format)
     else:
         raise ValueError(
             "adaptive_max_pool supports 1D, 2D, or 3D inputs only."
@@ -543,7 +530,7 @@ def average_pool(
     return outputs
 
 
-def adaptive_avg_pool1d(inputs, output_size, data_format="channels_first"):
+def _adaptive_avg_pool1d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size,)
     if data_format == "channels_first":
@@ -558,7 +545,7 @@ def adaptive_avg_pool1d(inputs, output_size, data_format="channels_first"):
             "Input length must be statically known for adaptive pooling"
         )
 
-    small_l, big_l = get_static_window_sizes(l_static, out_l)
+    small_l, big_l = compute_adaptive_pooling_window_sizes(l_static, out_l)
     gather_l = compute_static_gather_indices(l_static, out_l, small_l, big_l)
 
     small_pool_l = tf.nn.pool(
@@ -586,7 +573,7 @@ def adaptive_avg_pool1d(inputs, output_size, data_format="channels_first"):
     return pooled_l
 
 
-def adaptive_avg_pool2d(inputs, output_size, data_format="channels_first"):
+def _adaptive_avg_pool2d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size, output_size)
 
@@ -604,8 +591,8 @@ def adaptive_avg_pool2d(inputs, output_size, data_format="channels_first"):
             "statically known for adaptive pooling"
         )
 
-    small_h, big_h = get_static_window_sizes(h_static, out_h)
-    small_w, big_w = get_static_window_sizes(w_static, out_w)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
 
     gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
     gather_w = compute_static_gather_indices(w_static, out_w, small_w, big_w)
@@ -656,7 +643,7 @@ def adaptive_avg_pool2d(inputs, output_size, data_format="channels_first"):
     return pooled_w
 
 
-def adaptive_avg_pool3d(inputs, output_size, data_format="channels_first"):
+def _adaptive_avg_pool3d(inputs, output_size, data_format="channels_first"):
     if isinstance(output_size, int):
         output_size = (output_size, output_size, output_size)
 
@@ -675,9 +662,9 @@ def adaptive_avg_pool3d(inputs, output_size, data_format="channels_first"):
             "statically known for adaptive pooling"
         )
 
-    small_d, big_d = get_static_window_sizes(d_static, out_d)
-    small_h, big_h = get_static_window_sizes(h_static, out_h)
-    small_w, big_w = get_static_window_sizes(w_static, out_w)
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d_static, out_d)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
 
     gather_d = compute_static_gather_indices(d_static, out_d, small_d, big_d)
     gather_h = compute_static_gather_indices(h_static, out_h, small_h, big_h)
@@ -752,11 +739,11 @@ def adaptive_avg_pool3d(inputs, output_size, data_format="channels_first"):
 def adaptive_avg_pool(inputs, output_size, data_format="channels_first"):
     ndims = len(inputs.shape) - 2
     if ndims == 1:
-        return adaptive_avg_pool1d(inputs, output_size, data_format)
+        return _adaptive_avg_pool1d(inputs, output_size, data_format)
     elif ndims == 2:
-        return adaptive_avg_pool2d(inputs, output_size, data_format)
+        return _adaptive_avg_pool2d(inputs, output_size, data_format)
     elif ndims == 3:
-        return adaptive_avg_pool3d(inputs, output_size, data_format)
+        return _adaptive_avg_pool3d(inputs, output_size, data_format)
     else:
         raise ValueError(
             "adaptive_avg_pool supports 1D, 2D, or 3D inputs only."
