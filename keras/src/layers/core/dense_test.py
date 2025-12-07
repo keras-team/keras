@@ -57,6 +57,22 @@ class DenseTest(testing.TestCase):
             expected_num_losses=2,  # we have 2 regularizers.
             supports_masking=True,
         )
+        
+    def test_dense_invalid_units_raises(self):
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            layers.Dense(0)
+
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            layers.Dense(-3)
+
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            layers.Dense(2.5)
+
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            layers.Dense(None)
+
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            layers.Dense("64")
 
     def test_dense_correctness(self):
         # With bias and activation.
