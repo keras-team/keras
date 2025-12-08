@@ -597,19 +597,15 @@ class Dense(Layer):
                 inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
                 return (inputs_grad, None, None)
 
+            output_scale = kernel_scale
             if self.inputs_quantizer:
                 inputs, inputs_scale = self.inputs_quantizer(inputs)
-            else:
-                # Weight-only quantization: inputs are not quantized
-                # We still need inputs_scale for the formula:
-                # x = x / (inputs_scale * kernel_scale)
-                # If inputs are not quantized, inputs_scale should be 1.
-                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
+                output_scale = ops.multiply(output_scale, inputs_scale)
 
             x = ops.matmul(inputs, kernel)
             # De-scale outputs
             x = ops.cast(x, self.compute_dtype)
-            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+            x = ops.divide(x, output_scale)
             return x, grad_fn
 
         x = matmul_with_inputs_gradient(
@@ -656,13 +652,15 @@ class Dense(Layer):
                 inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
                 return (inputs_grad, None, None)
 
+            output_scale = kernel_scale
+
             if self.inputs_quantizer:
                 inputs, inputs_scale = self.inputs_quantizer(inputs)
-            else:
-                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
+                output_scale = ops.multiply(output_scale, inputs_scale)
+
             x = ops.matmul(inputs, unpacked_kernel)
             x = ops.cast(x, self.compute_dtype)
-            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+            x = ops.divide(x, output_scale)
             return x, grad_fn
 
         x = matmul_with_inputs_gradient(

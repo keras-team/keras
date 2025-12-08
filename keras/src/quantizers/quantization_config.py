@@ -5,6 +5,16 @@ from keras.src.saving import serialization_lib
 
 @keras_export("keras.quantizers.QuantizationConfig")
 class QuantizationConfig:
+    """Base class for quantization configs.
+
+    Subclasses must implement the `mode` property and the `get_config` and
+    `from_config` class methods.
+
+    Args:
+        weight_quantizer: Quantizer for weights.
+        activation_quantizer: Quantizer for activations.
+    """
+
     def __init__(self, weight_quantizer=None, activation_quantizer=None):
         self.weight_quantizer = weight_quantizer
         self.activation_quantizer = activation_quantizer
@@ -56,6 +66,14 @@ class QuantizationConfig:
 
 @keras_export("keras.quantizers.Int8QuantizationConfig")
 class Int8QuantizationConfig(QuantizationConfig):
+    """Int8 quantization config.
+
+    Args:
+        weight_quantizer: Quantizer for weights.
+        activation_quantizer: Quantizer for activations. If "default", uses
+            AbsMaxQuantizer with axis=-1.
+    """
+
     def __init__(self, weight_quantizer=None, activation_quantizer="default"):
         from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
@@ -78,6 +96,14 @@ class Int8QuantizationConfig(QuantizationConfig):
 
 @keras_export("keras.quantizers.Int4QuantizationConfig")
 class Int4QuantizationConfig(QuantizationConfig):
+    """Int4 quantization config.
+
+    Args:
+        weight_quantizer: Quantizer for weights.
+        activation_quantizer: Quantizer for activations. If "default", uses
+            AbsMaxQuantizer with axis=-1.
+    """
+
     def __init__(self, weight_quantizer=None, activation_quantizer="default"):
         from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
@@ -100,8 +126,15 @@ class Int4QuantizationConfig(QuantizationConfig):
 
 @keras_export("keras.quantizers.Float8QuantizationConfig")
 class Float8QuantizationConfig(QuantizationConfig):
-    def __init__(self, weight_quantizer=None, activation_quantizer=None):
-        super().__init__(weight_quantizer, activation_quantizer)
+    """FP8 quantization config.
+
+    FP8 mixed-precision training does not support user defined quantizers.
+    This config is only used to indicate that FP8 mixed-precision training
+    should be used.
+    """
+
+    def __init__(self):
+        super().__init__(None, None)
 
     @property
     def mode(self):
@@ -109,6 +142,17 @@ class Float8QuantizationConfig(QuantizationConfig):
 
 
 def validate_and_resolve_config(mode, config, name=None):
+    """Validate and resolve quantization config.
+
+    This function validates the quantization config and resolves the mode.
+    If mode is not provided, it is inferred from the config.
+    If config is not provided, a default config is inferred from the mode.
+
+    Args:
+        mode: Quantization mode.
+        config: Quantization config.
+        name: Name of the quantization config.
+    """
     # 1. Backwards Compatibility: Handle string shortcuts
     if isinstance(config, str):
         mode = config
