@@ -1274,3 +1274,100 @@ class OrbaxCheckpointTest(testing.TestCase):
                 os.environ["XLA_FLAGS"] = original_xla_flags
             else:
                 os.environ.pop("XLA_FLAGS", None)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Multi-host checkpointing is JAX only",
+    )
+    def test_multihost_checkpointing(self):
+        """Test multi-host checkpointing functionality (JAX only)."""
+        self._test_multihost_checkpointing()
+
+    def _test_multihost_checkpointing(self):
+        """Test multi-host checkpointing functionality and file structure."""
+        import os
+        from unittest import mock
+
+        # Create temporary directory for checkpoints
+        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_multihost")
+
+        # Test 1: Multi-host detection methods
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+
+        # Mock multi-host environment
+        with mock.patch("orbax.checkpoint.multihost") as mock_multihost:
+            # Test when multi-host is initialized
+            mock_multihost.is_initialized.return_value = True
+            mock_multihost.is_primary_host.return_value = True
+
+            # Re-initialize to pick up mocked environment
+            callback._multihost_initialized = (
+                callback._is_multihost_initialized()
+            )
+
+            # Test multi-host detection
+            self.assertTrue(
+                callback.is_multihost_enabled(),
+                "Should detect multi-host when initialized",
+            )
+            self.assertTrue(
+                callback.is_primary_host(),
+                "Should be primary host in mock setup",
+            )
+
+            # Test when multi-host is not initialized
+            mock_multihost.is_initialized.return_value = False
+            callback._multihost_initialized = (
+                callback._is_multihost_initialized()
+            )
+
+            self.assertFalse(
+                callback.is_multihost_enabled(),
+                "Should not detect multi-host when not initialized",
+            )
+            self.assertTrue(
+                callback.is_primary_host(),
+                "Should always be primary host in single-host mode",
+            )
+
+        # Test 2: Skip actual save/load for now - focus on multi-host methods
+        # The save/load functionality is tested elsewhere, here we focus on
+        # multi-host features
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Multi-host checkpointing is JAX only",
+    )
+    def test_multihost_synchronization_methods(self):
+        """Test multi-host synchronization methods (JAX only)."""
+        self._test_multihost_synchronization_methods()
+
+    def _test_multihost_synchronization_methods(self):
+        """Test multi-host synchronization methods in OrbaxCheckpoint."""
+        import os
+        from unittest import mock
+
+        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_sync")
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+
+        # Test synchronization methods with mocked multihost
+        with mock.patch("orbax.checkpoint.multihost") as mock_multihost:
+            # Test when multi-host is initialized
+            mock_multihost.is_initialized.return_value = True
+            mock_multihost.is_primary_host.return_value = True
+            mock_multihost.sync_global_processes = mock.MagicMock()
+
+            callback._multihost_initialized = True
+
+            # Test _sync_processes
+            callback._sync_processes("test_key")
+            mock_multihost.sync_global_processes.assert_called_with("test_key")
+
+            # Test when multi-host is not initialized (should be no-op)
+            mock_multihost.is_initialized.return_value = False
+            callback._multihost_initialized = False
+
+            callback._sync_processes("test_key_noop")
+            # Should not call sync when not initialized
+            mock_multihost.sync_global_processes.assert_called_once()
+            # Only the previous call

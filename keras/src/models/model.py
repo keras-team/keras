@@ -500,6 +500,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         # Load the checkpoint with appropriate strategy
         # For now, use preservation mode to avoid memory corruption issues
         # with abstract pytree when optimizer states don't match
+
+        # Load checkpoint - Orbax handles distribution automatically
         loaded_state = ocp.load_pytree(checkpoint_path)
 
         # Set the state in the model, but only for components that exist
