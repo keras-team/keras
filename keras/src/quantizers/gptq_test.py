@@ -642,8 +642,7 @@ class TestModelQuantization(testing.TestCase):
             "mode": "gptq",
             "config": QuantizationConfig(),
             "expected_exception": NotImplementedError,
-            "error_msg": "Do not instantiate "
-            "QuantizationConfig directly.",
+            "error_msg": "Do not instantiate QuantizationConfig directly.",
         },
         {
             "testcase_name": "gptq_missing_structure",

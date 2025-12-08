@@ -7,6 +7,7 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers.gptq_core import gptq_quantize
