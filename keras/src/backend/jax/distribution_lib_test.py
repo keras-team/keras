@@ -471,7 +471,7 @@ class JaxDistributionLibTest(testing.TestCase):
         num_devices = len(devices)
 
         input_data = np.arange(num_devices, dtype="float32").reshape(
-            num_devices, 1
+            num_devices, 1, 1
         )
 
         def gather_fn(x):
