@@ -6,6 +6,7 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import activations
+from keras.src import backend
 from keras.src import constraints
 from keras.src import dtype_policies
 from keras.src import initializers
@@ -741,12 +742,27 @@ class EinsumDense(Layer):
                 inputs_scale = self._adjust_scale_for_quant(
                     inputs_scale, "input"
                 )
+                x = ops.einsum(self.equation, inputs, kernel)
+                # De-scale outputs
+                x = ops.cast(x, self.compute_dtype)
+                x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
             else:
-                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
-            x = ops.einsum(self.equation, inputs, kernel)
-            # De-scale outputs
-            x = ops.cast(x, self.compute_dtype)
-            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+                # Weight-only quantization: dequantize kernel and use float
+                # einsum. This is a workaround for PyTorch's einsum which
+                # doesn't support mixed-precision inputs (float input,
+                # int8 kernel).
+                if backend.backend() == "torch":
+                    kernel_scale = self._adjust_scale_for_dequant(kernel_scale)
+                    float_kernel = ops.divide(
+                        ops.cast(kernel, dtype=self.compute_dtype),
+                        kernel_scale,
+                    )
+                    x = ops.einsum(self.equation, inputs, float_kernel)
+                else:
+                    x = ops.einsum(self.equation, inputs, kernel)
+                    # De-scale outputs
+                    x = ops.cast(x, self.compute_dtype)
+                    x = ops.divide(x, kernel_scale)
             return x, grad_fn
 
         x = einsum_with_inputs_gradient(
@@ -823,16 +839,29 @@ class EinsumDense(Layer):
                 inputs_scale = self._adjust_scale_for_quant(
                     inputs_scale, "input"
                 )
+                x = ops.einsum(self.equation, inputs_q, unpacked_kernel)
+                # De-scale outputs
+                x = ops.cast(x, self.compute_dtype)
+                x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
             else:
-                inputs_q = inputs
-                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
-
-            # Compute einsum on quantized inputs and unpacked int4 kernel.
-            x = ops.einsum(self.equation, inputs_q, unpacked_kernel)
-
-            # De-scale outputs.
-            x = ops.cast(x, self.compute_dtype)
-            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+                # Weight-only quantization: dequantize kernel and use float
+                # einsum. This is a workaround for PyTorch's einsum which
+                # doesn't support mixed-precision inputs (float input,
+                # int4 kernel).
+                if backend.backend() == "torch":
+                    # Align `kernel_scale` to the same layout as
+                    # `unpacked_kernel`.
+                    kernel_scale = self._adjust_scale_for_dequant(kernel_scale)
+                    float_kernel = ops.divide(
+                        ops.cast(unpacked_kernel, dtype=self.compute_dtype),
+                        kernel_scale,
+                    )
+                    x = ops.einsum(self.equation, inputs, float_kernel)
+                else:
+                    x = ops.einsum(self.equation, inputs, unpacked_kernel)
+                    # De-scale outputs
+                    x = ops.cast(x, self.compute_dtype)
+                    x = ops.divide(x, kernel_scale)
             return x, grad_fn
 
         x = einsum_with_inputs_gradient(

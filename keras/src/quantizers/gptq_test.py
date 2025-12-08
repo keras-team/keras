@@ -634,14 +634,16 @@ class TestModelQuantization(testing.TestCase):
             "mode": "gptq",
             "config": None,
             "expected_exception": ValueError,
-            "error_msg": "Mode 'gptq' requires a valid `config`",
+            "error_msg": "For GPTQ, you must pass a GPTQConfig "
+            "object explicitly.",
         },
         {
             "testcase_name": "gptq_with_base_quantization_config",
             "mode": "gptq",
             "config": QuantizationConfig(),
-            "expected_exception": ValueError,
-            "error_msg": "Mode 'gptq' requires a valid `config`",
+            "expected_exception": NotImplementedError,
+            "error_msg": "Do not instantiate "
+            "QuantizationConfig directly.",
         },
         {
             "testcase_name": "gptq_missing_structure",

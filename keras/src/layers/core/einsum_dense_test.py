@@ -31,6 +31,12 @@ class EinsumDenseTest(testing.TestCase):
             {"axis": -1},
         ),
         ("int8_weight_only", "int8", {"axis": 0}, None),
+        (
+            "int4_weight_only",
+            "int4",
+            {"axis": 0, "value_range": (-8, 7), "output_dtype": "int8"},
+            None,
+        ),
     )
     def test_einsum_dense_quantize(
         self, mode, weight_quantizer_args, activation_quantizer_args

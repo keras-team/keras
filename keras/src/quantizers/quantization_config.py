@@ -11,7 +11,10 @@ class QuantizationConfig:
 
     @property
     def mode(self):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Subclasses must implement this property. Do not instantiate "
+            "QuantizationConfig directly."
+        )
 
     def get_config(self):
         return {
