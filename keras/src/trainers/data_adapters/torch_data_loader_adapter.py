@@ -15,7 +15,7 @@ class TorchDataLoaderAdapter(DataAdapter):
         import torch
 
         backend_name = backend.backend()
-
+        # Added value error here
         if backend_name not in (
             "tensorflow",
             "numpy",
