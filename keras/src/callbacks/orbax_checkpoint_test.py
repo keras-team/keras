@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pytest
 
+from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
@@ -19,10 +20,10 @@ save_decision_policies = ocp.training.save_decision_policies
 
 class OrbaxCheckpointTest(testing.TestCase):
     def _create_test_model(self):
-        """Create a simple test model."""
+        """Create a simple test model compatible with 2-device sharding."""
         inputs = layers.Input(shape=(10,), name="input_layer")
-        x = layers.Dense(5, name="dense_layer")(inputs)
-        outputs = layers.Dense(1, name="output_layer")(x)
+        x = layers.Dense(6, name="dense_layer")(inputs)  # 6 units (div by 2)
+        outputs = layers.Dense(2, name="output_layer")(x)
         model = models.Model(inputs, outputs, name="test_model")
         model.compile(optimizer="adam", loss="mse")
         return model
@@ -30,7 +31,7 @@ class OrbaxCheckpointTest(testing.TestCase):
     def _create_dummy_data(self, num_samples=100):
         """Create dummy training data."""
         x = np.random.randn(num_samples, 10)
-        y = np.random.randn(num_samples, 1)
+        y = np.random.randn(num_samples, 2)  # Match 2 outputs
         return x, y
 
     @pytest.mark.requires_trainable_backend
@@ -609,11 +610,28 @@ class OrbaxCheckpointTest(testing.TestCase):
             self.get_temp_dir(),
             f"test_model_load_{'async' if save_on_background else 'sync'}",
         )
-        callback = OrbaxCheckpoint(
-            directory=checkpoint_dir,
-            save_freq="epoch",
-            save_on_background=save_on_background,
-        )
+
+        if save_on_background:
+            # For async saving, use a custom callback that waits between saves
+            # to avoid conflicts between concurrent async operations
+            class AsyncSafeOrbaxCheckpoint(OrbaxCheckpoint):
+                def on_epoch_end(self, epoch, logs=None):
+                    # Wait for any previous async operations to complete
+                    if hasattr(self, "wait_until_finished"):
+                        self.wait_until_finished()
+                    super().on_epoch_end(epoch, logs)
+
+            callback = AsyncSafeOrbaxCheckpoint(
+                directory=checkpoint_dir,
+                save_freq="epoch",
+                save_on_background=True,
+            )
+        else:
+            callback = OrbaxCheckpoint(
+                directory=checkpoint_dir,
+                save_freq="epoch",
+                save_on_background=False,
+            )
 
         # Train for a few epochs to create checkpoints
         model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
@@ -726,3 +744,548 @@ class OrbaxCheckpointTest(testing.TestCase):
                 np.allclose(trained_np, loaded_np),
                 f"Metrics variable {key} should match",
             )
+
+    @pytest.mark.requires_trainable_backend
+    def test_load_checkpoint_preserves_layout(self):
+        """Test Model.load() preserves layout when no distribution is set."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), "test_preserve_layout"
+        )
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+
+        # Train and save checkpoints
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Create new model and load checkpoint
+        new_model = self._create_test_model()
+        original_weights = new_model.get_weights()
+
+        # Load checkpoint using Model.load() - should preserve original layout
+        new_model.load(checkpoint_dir)
+
+        # Verify weights changed (loading worked)
+        loaded_weights = new_model.get_weights()
+        weights_changed = any(
+            not np.allclose(orig, loaded)
+            for orig, loaded in zip(original_weights, loaded_weights)
+        )
+        self.assertTrue(weights_changed, "Weights should change after loading")
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="Sharding tests require JAX backend"
+    )
+    def test_load_checkpoint_resharding_jax(self):
+        """Test load_checkpoint works with distribution set (JAX only)."""
+        import os
+
+        import jax
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import LayoutMap
+        from keras.src.distribution import ModelParallel
+        from keras.src.distribution import TensorLayout
+        from keras.src.distribution import set_distribution
+
+        # Check if we have at least 1 device
+        devices = jax.devices()
+        if len(devices) < 1:
+            self.skipTest("Test requires at least 1 JAX device")
+
+        num_devices = min(2, len(devices))
+
+        # Configure JAX to use virtual devices if needed
+        original_xla_flags = os.environ.get("XLA_FLAGS", "")
+        if num_devices < 2:
+            os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+            # Re-check devices after setting flag
+            devices = jax.devices()
+            num_devices = min(2, len(devices))
+
+        try:
+            print(f"Available devices: {devices}, using {num_devices} devices")
+
+            # Set up distribution based on available devices
+            if num_devices >= 2:
+                # Multi-device distribution
+                device_mesh = DeviceMesh((2,), axis_names=["data"])
+                layout_map = LayoutMap(device_mesh)
+                layout_map["dense_layer/kernel"] = TensorLayout(
+                    axes=("data", None)
+                )
+                layout_map["dense_layer/bias"] = TensorLayout(axes=(None,))
+                layout_map["output_layer/kernel"] = TensorLayout(
+                    axes=(None, "data")
+                )
+                layout_map["output_layer/bias"] = TensorLayout(axes=(None,))
+            else:
+                # Single device distribution
+                device_mesh = DeviceMesh((1,), axis_names=["data"])
+                layout_map = LayoutMap(device_mesh)
+                layout_map["dense_layer/kernel"] = TensorLayout(
+                    axes=(None, None)
+                )
+                layout_map["dense_layer/bias"] = TensorLayout(axes=(None,))
+                layout_map["output_layer/kernel"] = TensorLayout(
+                    axes=(None, None)
+                )
+                layout_map["output_layer/bias"] = TensorLayout(axes=(None,))
+
+            distribution = ModelParallel(
+                device_mesh=device_mesh, layout_map=layout_map
+            )
+
+            # Save original distribution state
+            original_distribution = None
+            try:
+                from keras.src.distribution import (
+                    distribution as get_distribution,
+                )
+
+                original_distribution = get_distribution()
+            except:
+                pass
+
+            try:
+                # Set distribution
+                set_distribution(distribution)
+
+                # Create model with distribution
+                model = self._create_test_model()
+                x, y = self._create_dummy_data()
+
+                checkpoint_dir = os.path.join(
+                    self.get_temp_dir(), "test_resharding"
+                )
+                callback = OrbaxCheckpoint(
+                    directory=checkpoint_dir, save_freq="epoch"
+                )
+
+                # Train and save with original distribution
+                model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+                callback.wait_until_finished()
+
+                # Create new model and load with same distribution
+                new_model = self._create_test_model()
+                # Initialize optimizer state by running a dummy training step
+                batch_size = min(2, len(x))  # Compatible with distribution
+                new_model.fit(
+                    x[:batch_size], y[:batch_size], epochs=0, verbose=0
+                )
+
+                # Get initial weights before loading
+                initial_weights = new_model.get_weights()
+
+                new_model.load(checkpoint_dir)
+                loaded_weights = new_model.get_weights()
+
+                # Get original weights for comparison
+                original_weights = model.get_weights()
+
+                # Check that loading actually changed some weights
+                loading_changed_weights = any(
+                    not np.allclose(init, loaded)
+                    for init, loaded in zip(initial_weights, loaded_weights)
+                )
+                self.assertTrue(
+                    loading_changed_weights,
+                    "Loading should change weights from initial random values",
+                )
+
+                # Check that shapes match (basic sanity check)
+                shapes_match = all(
+                    orig.shape == loaded.shape
+                    for orig, loaded in zip(original_weights, loaded_weights)
+                )
+                self.assertTrue(
+                    shapes_match,
+                    "Loaded weights should have same shapes as original "
+                    "weights",
+                )
+
+            finally:
+                # Restore original distribution
+                if original_distribution is not None:
+                    set_distribution(original_distribution)
+                else:
+                    # Clear distribution if it was None originally
+                    try:
+                        set_distribution(None)
+                    except:
+                        pass
+
+        finally:
+            # Restore original XLA_FLAGS
+            if original_xla_flags:
+                os.environ["XLA_FLAGS"] = original_xla_flags
+            else:
+                os.environ.pop("XLA_FLAGS", None)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Checkpoint structure tests require JAX backend",
+    )
+    def test_distributed_checkpoint_directory_structure(self):
+        """Test OrbaxCheckpoint directory structure for distributed training."""
+        import os
+
+        import jax
+
+        from keras.src.distribution import DeviceMesh
+        from keras.src.distribution import LayoutMap
+        from keras.src.distribution import ModelParallel
+        from keras.src.distribution import TensorLayout
+        from keras.src.distribution import set_distribution
+
+        # Check if we have at least 1 device
+        devices = jax.devices()
+        if len(devices) < 1:
+            self.skipTest("Test requires at least 1 JAX device")
+
+        num_devices = min(2, len(devices))
+
+        # Configure JAX to use virtual devices if needed
+        original_xla_flags = os.environ.get("XLA_FLAGS", "")
+        if num_devices < 2:
+            os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+            # Re-check devices after setting flag
+            devices = jax.devices()
+            num_devices = min(2, len(devices))
+
+        try:
+            print(f"Available devices: {devices}, using {num_devices} devices")
+
+            # Set up distribution based on available devices
+            if num_devices >= 2:
+                # Multi-device distribution for distributed checkpointing test
+                device_mesh = DeviceMesh((2,), axis_names=["data"])
+                layout_map = LayoutMap(device_mesh)
+                layout_map["dense_layer/kernel"] = TensorLayout(
+                    axes=("data", None)
+                )
+                layout_map["dense_layer/bias"] = TensorLayout(axes=(None,))
+                layout_map["output_layer/kernel"] = TensorLayout(
+                    axes=(None, "data")
+                )
+                layout_map["output_layer/bias"] = TensorLayout(axes=(None,))
+                is_distributed = True
+            else:
+                # Single device distribution
+                device_mesh = DeviceMesh((1,), axis_names=["data"])
+                layout_map = LayoutMap(device_mesh)
+                layout_map["dense_layer/kernel"] = TensorLayout(
+                    axes=(None, None)
+                )
+                layout_map["dense_layer/bias"] = TensorLayout(axes=(None,))
+                layout_map["output_layer/kernel"] = TensorLayout(
+                    axes=(None, None)
+                )
+                layout_map["output_layer/bias"] = TensorLayout(axes=(None,))
+                is_distributed = False
+
+            distribution = ModelParallel(
+                device_mesh=device_mesh, layout_map=layout_map
+            )
+
+            # Save original distribution
+            original_distribution = None
+            try:
+                from keras.src.distribution import (
+                    distribution as get_distribution,
+                )
+
+                original_distribution = get_distribution()
+            except:
+                pass
+
+            try:
+                # Apply distribution
+                set_distribution(distribution)
+
+                # Create and compile model
+                model = self._create_test_model()
+                x, y = self._create_dummy_data(num_samples=50)
+
+                # Set up checkpointing
+                checkpoint_dir = os.path.join(
+                    self.get_temp_dir(), "test_structure"
+                )
+                callback = OrbaxCheckpoint(
+                    directory=checkpoint_dir,
+                    save_freq="epoch",
+                    save_weights_only=False,  # Save full state
+                    max_to_keep=3,
+                )
+
+                # Train for 2 epochs to create checkpoints
+                model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+                callback.wait_until_finished()
+
+                # Verify checkpoint directory structure
+                self.assertTrue(
+                    os.path.exists(checkpoint_dir),
+                    "Checkpoint directory should exist",
+                )
+
+                # List checkpoint directories (should be step numbers)
+                checkpoint_steps = os.listdir(checkpoint_dir)
+                print(f"Checkpoint directory contents: {checkpoint_steps}")
+                self.assertGreater(
+                    len(checkpoint_steps),
+                    0,
+                    "Should have checkpoint step directories",
+                )
+
+                # Check that we have step directories (named with numbers)
+                step_dirs = [d for d in checkpoint_steps if d.isdigit()]
+                self.assertGreater(
+                    len(step_dirs), 0, "Should have numeric step directories"
+                )
+
+                # Examine the latest checkpoint structure (step "1" for epoch 1)
+                latest_step = max(int(d) for d in step_dirs if d.isdigit())
+                latest_checkpoint_dir = os.path.join(
+                    checkpoint_dir, str(latest_step)
+                )
+
+                self.assertTrue(
+                    os.path.exists(latest_checkpoint_dir),
+                    f"Latest checkpoint dir exists: {latest_checkpoint_dir}",
+                )
+
+                # List contents of the checkpoint directory
+                checkpoint_contents = os.listdir(latest_checkpoint_dir)
+                print(f"Checkpoint contents: {checkpoint_contents}")
+
+                # Check for expected Orbax files
+                expected_files = ["pytree", "_CHECKPOINT_METADATA"]
+                for expected_file in expected_files:
+                    file_path = os.path.join(
+                        latest_checkpoint_dir, expected_file
+                    )
+                    self.assertTrue(
+                        os.path.exists(file_path),
+                        f"Expected file {expected_file} should exist",
+                    )
+
+                # The pytree directory contains the sharded model state
+                pytree_dir = os.path.join(latest_checkpoint_dir, "pytree")
+                self.assertTrue(
+                    os.path.isdir(pytree_dir), "Pytree should be a directory"
+                )
+
+                # Check that pytree directory has content
+                pytree_contents = os.listdir(pytree_dir)
+                print(f"Pytree directory contents: {pytree_contents}")
+                self.assertGreater(
+                    len(pytree_contents), 0, "Pytree directory not empty"
+                )
+
+                if is_distributed:
+                    # Check for sharding metadata files (only for distributed)
+                    expected_sharding_files = [
+                        "_sharding",
+                        "_METADATA",
+                        "array_metadatas",
+                    ]
+                    for sharding_file in expected_sharding_files:
+                        file_path = os.path.join(pytree_dir, sharding_file)
+                        self.assertTrue(
+                            os.path.exists(file_path),
+                            f"Sharding file exists: {sharding_file}",
+                        )
+
+                    # Check for process-specific data
+                    process_files = [
+                        f
+                        for f in pytree_contents
+                        if f.startswith("ocdbt.process_")
+                    ]
+                    self.assertGreater(
+                        len(process_files),
+                        0,
+                        f"Process-specific files found: {process_files}",
+                    )
+                else:
+                    # For single device, we still expect some basic structure
+                    expected_files = ["_METADATA", "array_metadatas"]
+                    for expected_file in expected_files:
+                        file_path = os.path.join(pytree_dir, expected_file)
+                        self.assertTrue(
+                            os.path.exists(file_path),
+                            f"Expected file {expected_file} should exist",
+                        )
+
+                # Load and inspect the checkpoint
+                loaded_state = load_pytree(latest_checkpoint_dir)
+
+                # Verify that the loaded state contains sharded variables
+                self.assertIn(
+                    "trainable_variables", loaded_state, "Has trainable vars"
+                )
+                self.assertIn(
+                    "optimizer_variables", loaded_state, "Has optimizer vars"
+                )
+
+                # Check that variables are properly structured (sharded)
+                trainable_vars = loaded_state["trainable_variables"]
+                # The checkpoint structure matches the layer names directly
+                self.assertIn(
+                    "dense_layer", trainable_vars, "Should have dense_layer"
+                )
+                self.assertIn(
+                    "output_layer", trainable_vars, "Should have output_layer"
+                )
+
+                # Verify layer variables exist and have expected structure
+                dense_layer = trainable_vars["dense_layer"]
+                output_layer = trainable_vars["output_layer"]
+
+                # Check kernel and bias exist (sharded according to layout_map)
+                self.assertIn("kernel", dense_layer, "Dense layer has kernel")
+                self.assertIn("bias", dense_layer, "Dense layer has bias")
+                self.assertIn("kernel", output_layer, "Output layer has kernel")
+                self.assertIn("bias", output_layer, "Output layer has bias")
+
+                # Verify shapes are correct (kernel should be sharded)
+                dense_kernel = dense_layer["kernel"]
+                output_kernel = output_layer["kernel"]
+                dense_bias = dense_layer["bias"]
+                output_bias = output_layer["bias"]
+
+                # Check shapes - kernels should have the expected dimensions
+                self.assertEqual(
+                    dense_kernel.shape,
+                    (10, 6),
+                    f"Dense kernel shape (10, 6), got {dense_kernel.shape}",
+                )
+                self.assertEqual(
+                    output_kernel.shape,
+                    (6, 2),
+                    f"Output kernel shape (6, 2), got {output_kernel.shape}",
+                )
+                self.assertEqual(
+                    dense_bias.shape,
+                    (6,),
+                    f"Dense bias shape should be (6,), got {dense_bias.shape}",
+                )
+                self.assertEqual(
+                    output_bias.shape,
+                    (2,),
+                    f"Output bias shape should be (2,), got "
+                    f"{output_bias.shape}",
+                )
+
+                # Check optimizer variables (should also be sharded)
+                optimizer_vars = loaded_state["optimizer_variables"]
+                self.assertIn("adam", optimizer_vars, "Has Adam optimizer")
+
+                adam_vars = optimizer_vars["adam"]
+                # Adam optimizer should have multiple variable types
+                optimizer_var_types = list(adam_vars.keys())
+                self.assertGreater(
+                    len(optimizer_var_types), 0, "Has optimizer variable types"
+                )
+
+                # Verify optimizer has variables for each layer
+                expected_adam_vars = [
+                    "dense_layer_bias_momentum",
+                    "dense_layer_bias_velocity",
+                    "dense_layer_kernel_momentum",
+                    "dense_layer_kernel_velocity",
+                    "output_layer_bias_momentum",
+                    "output_layer_bias_velocity",
+                    "output_layer_kernel_momentum",
+                    "output_layer_kernel_velocity",
+                    "iteration",
+                    "learning_rate",
+                ]
+
+                for expected_var in expected_adam_vars:
+                    self.assertIn(expected_var, adam_vars, expected_var)
+
+                # Verify shapes of optimizer variables match the layer variables
+                # Dense layer bias optimizer vars should have shape (6,)
+                self.assertEqual(
+                    adam_vars["dense_layer_bias_momentum"].shape,
+                    (6,),
+                    "Dense bias momentum shape should be (6,)",
+                )
+                self.assertEqual(
+                    adam_vars["dense_layer_bias_velocity"].shape,
+                    (6,),
+                    "Dense bias velocity shape should be (6,)",
+                )
+
+                # Dense layer kernel optimizer vars should have shape (10, 6)
+                self.assertEqual(
+                    adam_vars["dense_layer_kernel_momentum"].shape,
+                    (10, 6),
+                    "Dense kernel momentum shape should be (10, 6)",
+                )
+                self.assertEqual(
+                    adam_vars["dense_layer_kernel_velocity"].shape,
+                    (10, 6),
+                    "Dense kernel velocity shape should be (10, 6)",
+                )
+
+                # Output layer bias optimizer vars should have shape (2,)
+                self.assertEqual(
+                    adam_vars["output_layer_bias_momentum"].shape,
+                    (2,),
+                    "Output bias momentum shape should be (2,)",
+                )
+                self.assertEqual(
+                    adam_vars["output_layer_bias_velocity"].shape,
+                    (2,),
+                    "Output bias velocity shape should be (2,)",
+                )
+
+                # Output layer kernel optimizer vars should have shape (6, 2)
+                self.assertEqual(
+                    adam_vars["output_layer_kernel_momentum"].shape,
+                    (6, 2),
+                    "Output kernel momentum shape should be (6, 2)",
+                )
+                self.assertEqual(
+                    adam_vars["output_layer_kernel_velocity"].shape,
+                    (6, 2),
+                    "Output kernel velocity shape should be (6, 2)",
+                )
+
+                print(f"Verification complete for step {latest_step}")
+                print(f"Total checkpoints created: {len(step_dirs)}")
+                print(f"Devices used: {num_devices}")
+                if is_distributed:
+                    process_files = [
+                        f
+                        for f in pytree_contents
+                        if f.startswith("ocdbt.process_")
+                    ]
+                    process_count = len(process_files)
+                    print(f"Process files: {process_count}")
+                print(f"Optimizer variable types: {optimizer_var_types}")
+                if is_distributed:
+                    print("Distributed checkpoint structure verified")
+                else:
+                    print("Single-device checkpoint structure verified")
+
+            finally:
+                # Restore original distribution
+                if original_distribution is not None:
+                    set_distribution(original_distribution)
+                else:
+                    try:
+                        set_distribution(None)
+                    except:
+                        pass
+
+        finally:
+            # Restore original XLA_FLAGS
+            if original_xla_flags:
+                os.environ["XLA_FLAGS"] = original_xla_flags
+            else:
+                os.environ.pop("XLA_FLAGS", None)

@@ -437,6 +437,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         latest checkpoint. If it points to a specific step directory
         (e.g., "checkpoint_dir/5"), it will load that specific checkpoint.
 
+        The loading behavior automatically adapts based on the current
+        distribution context:
+        - For JAX backend: Data is automatically resharded to fit the current
+          distribution strategy or single-device layout.
+        - For other backends: Layout is preserved from the checkpoint.
+          Raises an error if the current hardware topology differs from save.
+
         Args:
             filepath: `str` or `pathlib.Path` object. Path to the Orbax
                 checkpoint directory or specific step directory.
@@ -464,6 +471,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         new_model.load('/tmp/checkpoints')  # Loads latest checkpoint
         ```
         """
+        from keras.src.distribution import distribution as get_distribution
         from keras.src.saving.saving_api import _find_latest_orbax_checkpoint
         from keras.src.saving.saving_api import _is_orbax_checkpoint
         from keras.src.utils.module_utils import ocp
@@ -490,8 +498,42 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             # It's a checkpoint directory, find the latest checkpoint
             checkpoint_path = _find_latest_orbax_checkpoint(filepath)
 
-        # Load the checkpoint state
-        loaded_state = ocp.load_pytree(checkpoint_path)
+        # Determine loading strategy based on current distribution
+        current_distribution = get_distribution()
+        should_reshard = current_distribution is not None
+
+        # Load the checkpoint with appropriate strategy
+        if backend.backend() == "jax" and should_reshard:
+            # For JAX with distribution, use abstract pytree to ensure proper
+            # resharding and avoid OOM issues from mismatched sharding
+            # layouts
+            import jax
+            from jax import tree_util
+
+            def create_abstract_leaf(tensor):
+                """Create abstract leaf with current sharding."""
+                if hasattr(tensor, "sharding") and tensor.sharding is not None:
+                    return jax.ShapeDtypeStruct(
+                        shape=tensor.shape,
+                        dtype=tensor.dtype,
+                        sharding=tensor.sharding,
+                    )
+                else:
+                    return jax.ShapeDtypeStruct(
+                        shape=tensor.shape, dtype=tensor.dtype
+                    )
+
+            # Get current state tree with sharding information
+            current_state = self.get_state_tree()
+            abstract_pytree = tree_util.tree_map(
+                create_abstract_leaf, current_state
+            )
+
+            # Load with resharding
+            loaded_state = ocp.load_pytree(checkpoint_path, abstract_pytree)
+        else:
+            # Preservation mode: load without abstract pytree
+            loaded_state = ocp.load_pytree(checkpoint_path)
 
         # Set the state in the model, but only for components that exist
         state_to_set = {}
@@ -516,8 +558,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             # apply_gradients. This creates the momentum/velocity
             # variables that are needed
             import numpy as np
-
-            from keras.src import backend
 
             # Create zero gradients for all trainable variables
             zero_grads = [
@@ -750,8 +790,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"` and `"onnx"`.  Defaults to
-                `"tf_saved_model"`.
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.
+                Defaults to `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
                 backends and formats.
@@ -774,6 +814,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     provided, they will be automatically computed.
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
+                - LiteRT-specific options: Optional keyword arguments specific
+                    to `format="litert"`. These are passed directly to the
+                    TensorFlow Lite converter and include options like
+                    `optimizations`, `representative_dataset`,
+                    `experimental_new_quantizer`, `allow_custom_ops`,
+                    `enable_select_tf_ops`, etc. See TensorFlow Lite
+                    documentation for all available options.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -808,17 +855,40 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         }
         predictions = ort_session.run(None, ort_inputs)
         ```
+
+        Here's how to export a LiteRT (TFLite) for inference.
+
+        ```python
+        # Export the model as a LiteRT artifact
+        model.export("path/to/location", format="litert")
+
+        # Load the artifact in a different process/environment
+        interpreter = tf.lite.Interpreter(model_path="path/to/location")
+        interpreter.allocate_tensors()
+        interpreter.set_tensor(
+            interpreter.get_input_details()[0]['index'], input_data
+        )
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(
+            interpreter.get_output_details()[0]['index']
+        )
+        ```
         """
+        from keras.src.export import export_litert
         from keras.src.export import export_onnx
         from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx", "openvino")
+        available_formats = ("tf_saved_model", "onnx", "openvino", "litert")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
                 f"{list(available_formats)}."
             )
+
+        # Check if LiteRT export is available (requires TensorFlow backend)
+        if format == "litert" and backend.backend() != "tensorflow":
+            raise ImportError("LiteRT export requires TensorFlow backend.")
 
         if format == "tf_saved_model":
             export_saved_model(
@@ -841,6 +911,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 self,
                 filepath,
                 verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "litert":
+            export_litert(
+                self,
+                filepath,
                 input_signature=input_signature,
                 **kwargs,
             )
@@ -1017,29 +1094,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             current_dict[parts[-1]] = value
 
         return nested_dict
-
-    def _create_flat_dict(self, variables, value_format):
-        flat_dict = {}
-        for v in variables:
-            if v.path in flat_dict:
-                raise ValueError(
-                    "The following variable path is found twice in the model: "
-                    f"'{v.path}'. `get_state_tree()` can only be called when "
-                    "all variable paths are unique. Make sure to give unique "
-                    "names to your layers (and other objects)."
-                )
-            if value_format == "backend_tensor":
-                flat_dict[v.path] = v.value
-            elif value_format == "numpy_array":
-                flat_dict[v.path] = v.numpy()
-            else:
-                raise ValueError(
-                    "Invalid `value_format` argument. Expected one of "
-                    "{'numpy_array', 'backend_tensor'}. Received: "
-                    f"value_format={value_format}"
-                )
-
-        return flat_dict
 
     def set_state_tree(self, state_tree):
         """Assigns values to variables of the model.
