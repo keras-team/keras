@@ -441,6 +441,50 @@ class JaxDistributionLibTest(testing.TestCase):
         for shard in result.addressable_shards:
             self.assertEqual(shard.data.shape, (3, 4))
 
+    def test_all_reduce(self):
+        devices = jax.devices()
+        num_devices = len(devices)
+        input_data = np.ones((num_devices, 2), dtype="float32")
+
+        def sum_fn(x):
+            return backend_dlib.all_reduce(x, op="sum", axis_name="batch")
+
+        result_sum = jax.pmap(sum_fn, axis_name="batch")(input_data)
+
+        expected_sum = np.full((num_devices, 2), num_devices, dtype="float32")
+        self.assertAllClose(result_sum, expected_sum)
+
+        def mean_fn(x):
+            return backend_dlib.all_reduce(x, op="mean", axis_name="batch")
+
+        result_mean = jax.pmap(mean_fn, axis_name="batch")(input_data)
+
+        self.assertAllClose(result_mean, input_data)
+
+        with self.assertRaisesRegex(
+            ValueError, "Unsupported reduction operation"
+        ):
+            backend_dlib.all_reduce(input_data[0], op="max", axis_name="batch")
+
+    def test_all_gather(self):
+        devices = jax.devices()
+        num_devices = len(devices)
+
+        input_data = np.arange(num_devices, dtype="float32").reshape(
+            num_devices, 1
+        )
+
+        def gather_fn(x):
+            return backend_dlib.all_gather(x, axis=0, axis_name="batch")
+
+        results = jax.pmap(gather_fn, axis_name="batch")(input_data)
+
+        expected_gathered = np.arange(num_devices, dtype="float32").reshape(
+            num_devices, 1
+        )
+        for i in range(num_devices):
+            self.assertAllClose(results[i], expected_gathered)
+
 
 class ShardingCaptureLayer(layers.Layer):
     def __init__(self, **kwargs):
