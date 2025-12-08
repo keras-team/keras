@@ -225,25 +225,20 @@ def _resolve_weak_type(dtype, precision="32"):
     if dtype_indicator == "b":
         return "bool"
     elif dtype_indicator == "i":
-        return "int" + precision
+        return f"int{precision}"
     elif dtype_indicator == "u":
-        return "uint" + precision
+        return f"uint{precision}"
     else:
-        return "float" + precision
+        return f"float{precision}"
 
 
-BIT64_TO_BIT16_DTYPE = {
-    "int32": "int16",
-    "int64": "int16",
-    "uint32": "uint16",
-    "uint64": "uint16",
-    "float32": "float16",
-    "float64": "float16",
-}
 BIT64_TO_BIT32_DTYPE = {
-    "int64": "int32",
+    # Since TF variables require int64 to be placed on the GPU, we exclusively
+    # enable the int64 dtype for TF.
+    "int64": "int64" if config.backend() == "tensorflow" else "int32",
     "uint64": "uint32",
-    "float64": "float32",
+    "float64": "float64" if config.backend() == "tensorflow" else "float32",
+    "complex128": "complex64",
 }
 
 
@@ -275,6 +270,10 @@ def _lattice_result_type(*args):
     precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+
+    # Force to be 32-bit dtype when encountering 64-bit dtype. This is to
+    # be aligned with JAX's default behavior.
+    out_dtype = BIT64_TO_BIT32_DTYPE.get(out_dtype, out_dtype)
     return out_dtype
 
 

@@ -4,6 +4,7 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.config import backend
+from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.operation import Operation
 
 
@@ -81,6 +82,16 @@ class Function(Operation):
         self._nodes_by_depth = nodes_by_depth
         self._operations = operations
         self._operations_by_depth = operations_by_depth
+        for input in self._inputs:
+            if (
+                input._keras_history.operation
+                and not input._keras_history.operation._outbound_nodes
+            ):
+                raise ValueError("`inputs` not connected to `outputs`")
+
+        # Special handling for NNX to ensure consistent operation instance usage
+        if is_nnx_enabled():
+            self._setup_nnx_op_mapping()
 
     @property
     def operations(self):
@@ -95,6 +106,26 @@ class Function(Operation):
     def outputs(self):
         """Flat list of the symbolic outputs of the Function."""
         return self._outputs
+
+    def _setup_nnx_op_mapping(self):
+        """Setup operation mapping for NNX"""
+        # Create a mapping from operation id to operation instance
+        self._nnx_op_mapping = {}
+
+        # Assign the list of operations to a single attribute for NNX traversal
+        self.nnx_operations = self._operations[:]
+        for operation in self._operations:
+            # Map the operation id to this operation instance
+            self._nnx_op_mapping[id(operation)] = operation
+
+    def _get_operation_for_node(self, node):
+        """Get the operation for a node, using NNX mapping if enabled."""
+        operation = node.operation
+        if hasattr(self, "_nnx_op_mapping") and id(operation) in getattr(
+            self, "_nnx_op_mapping", {}
+        ):
+            return self._nnx_op_mapping[id(operation)]
+        return operation
 
     def compute_output_spec(self, inputs):
         self._assert_input_compatibility(inputs)
@@ -164,10 +195,14 @@ class Function(Operation):
                     continue  # Node is not computable, try skipping.
 
                 args, kwargs = node.arguments.fill_in(tensor_dict)
-                op = operation_fn(node.operation)
                 if call_fn is not None:
+                    # Use call_fn if provided (e.g., for symbolic execution)
+                    op = operation_fn(node.operation)
                     outputs = call_fn(op, *args, **kwargs)
                 else:
+                    # Use NNX operation mapping
+                    operation = self._get_operation_for_node(node)
+                    op = operation_fn(operation)
                     outputs = op(*args, **kwargs)
 
                 # Update tensor_dict.
@@ -209,7 +244,7 @@ class Function(Operation):
 
 
 def make_node_key(op, node_index):
-    return str(id(op)) + "_ib-" + str(node_index)
+    return f"{id(op)}_ib-{node_index}"
 
 
 def map_graph(inputs, outputs):

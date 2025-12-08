@@ -1,3 +1,4 @@
+import base64
 import io
 
 from packaging.version import parse
@@ -7,6 +8,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers import Layer
 from keras.src.ops import convert_to_numpy
 from keras.src.ops import convert_to_tensor
+from keras.src.saving.serialization_lib import in_safe_mode
 
 
 @keras_export("keras.layers.TorchModuleWrapper")
@@ -25,6 +27,8 @@ class TorchModuleWrapper(Layer):
             instance, then its parameters must be initialized before
             passing the instance to `TorchModuleWrapper` (e.g. by calling
             it once).
+        output_shape :The shape of the output of this layer. It helps Keras
+            perform automatic shape inference.
         name: The name of the layer (string).
 
     Example:
@@ -80,7 +84,7 @@ class TorchModuleWrapper(Layer):
     ```
     """
 
-    def __init__(self, module, name=None, **kwargs):
+    def __init__(self, module, name=None, output_shape=None, **kwargs):
         super().__init__(name=name, **kwargs)
         import torch.nn as nn
 
@@ -98,6 +102,7 @@ class TorchModuleWrapper(Layer):
 
         self.module = module.to(get_device())
         self._track_module_parameters()
+        self.output_shape = output_shape
 
     def parameters(self, recurse=True):
         return self.module.parameters(recurse=recurse)
@@ -138,13 +143,23 @@ class TorchModuleWrapper(Layer):
             state_dict[key] = convert_to_tensor(store[key])
         self.module.load_state_dict(state_dict)
 
+    def compute_output_shape(self, input_shape):
+        if self.output_shape is None:
+            return super().compute_output_shape(input_shape)
+        return self.output_shape
+
     def get_config(self):
         base_config = super().get_config()
         import torch
 
         buffer = io.BytesIO()
         torch.save(self.module, buffer)
-        config = {"module": buffer.getvalue()}
+        # Encode the buffer using base64 to ensure safe serialization
+        buffer_b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
+        config = {
+            "module": buffer_b64,
+            "output_shape": self.output_shape,
+        }
         return {**base_config, **config}
 
     @classmethod
@@ -152,7 +167,20 @@ class TorchModuleWrapper(Layer):
         import torch
 
         if "module" in config:
-            buffer = io.BytesIO(config["module"])
+            if in_safe_mode():
+                raise ValueError(
+                    "Requested the deserialization of a `torch.nn.Module` "
+                    "object via `torch.load()`. This carries a potential risk "
+                    "of arbitrary code execution and thus it is disallowed by "
+                    "default. If you trust the source of the artifact, you can "
+                    "override this error by passing `safe_mode=False` to the "
+                    "loading function, or calling "
+                    "`keras.config.enable_unsafe_deserialization()."
+                )
+
+            # Decode the base64 string back to bytes
+            buffer_bytes = base64.b64decode(config["module"].encode("ascii"))
+            buffer = io.BytesIO(buffer_bytes)
             config["module"] = torch.load(buffer, weights_only=False)
         return cls(**config)
 

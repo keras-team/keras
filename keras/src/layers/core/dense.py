@@ -1,8 +1,9 @@
+import math
+
 import ml_dtypes
 
 from keras.src import activations
 from keras.src import constraints
-from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
@@ -10,6 +11,7 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
 @keras_export("keras.layers.Dense")
@@ -21,7 +23,9 @@ class Dense(Layer):
     where `activation` is the element-wise activation function
     passed as the `activation` argument, `kernel` is a weights matrix
     created by the layer, and `bias` is a bias vector created by the layer
-    (only applicable if `use_bias` is `True`).
+    (only applicable if `use_bias` is `True`). When this layer is
+    followed by a `BatchNormalization` layer, it is recommended to set
+    `use_bias=False` as `BatchNormalization` has its own bias term.
 
     Note: If the input to the layer has a rank greater than 2, `Dense`
     computes the dot product between the `inputs` and the `kernel` along the
@@ -57,6 +61,11 @@ class Dense(Layer):
             computation cost of fine-tuning large dense layers.
             You can also enable LoRA on an existing
             `Dense` layer by calling `layer.enable_lora(rank)`.
+        lora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta (computed as the product of two lower-rank
+            trainable matrices) during the forward pass. The delta is scaled by
+            `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
+            the LoRA adjustment independently of `lora_rank`.
 
     Input shape:
         N-D tensor with shape: `(batch_size, ..., input_dim)`.
@@ -82,6 +91,7 @@ class Dense(Layer):
         kernel_constraint=None,
         bias_constraint=None,
         lora_rank=None,
+        lora_alpha=None,
         **kwargs,
     ):
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
@@ -95,20 +105,22 @@ class Dense(Layer):
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
 
     def build(self, input_shape):
-        input_dim = input_shape[-1]
+        kernel_shape = (input_shape[-1], self.units)
         if self.quantization_mode:
-            self.quantized_build(input_shape, mode=self.quantization_mode)
-        if self.quantization_mode != "int8":
-            # If the layer is quantized to int8, `self._kernel` will be added
-            # in `self._int8_build`. Therefore, we skip it here.
+            self.quantized_build(kernel_shape, mode=self.quantization_mode)
+        if self.quantization_mode not in ("int8", "int4", "gptq"):
+            # If the layer is quantized to int8 or int4, `self._kernel` will be
+            # added in `self._int8_build` or `_int4_build`. Therefore, we skip
+            # it here.
             self._kernel = self.add_weight(
                 name="kernel",
-                shape=(input_dim, self.units),
+                shape=kernel_shape,
                 initializer=self.kernel_initializer,
                 regularizer=self.kernel_regularizer,
                 constraint=self.kernel_constraint,
@@ -123,22 +135,55 @@ class Dense(Layer):
             )
         else:
             self.bias = None
-        self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
+        self.input_spec = InputSpec(min_ndim=2, axes={-1: input_shape[-1]})
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
 
     @property
     def kernel(self):
+        from keras.src.quantizers import gptq_core
+
         if not self.built:
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
+
+        mode = self.quantization_mode
+        is_gptq = mode == "gptq"
+        is_int4 = mode == "int4"
+        calibrated = bool(getattr(self, "is_gptq_calibrated", False))
+        gptq_bits = (
+            gptq_core.get_weight_bits_for_layer(self, None) if is_gptq else None
+        )
+
+        # Decide the source tensor first (packed vs already-quantized vs plain
+        # kernel)
+        if is_gptq and calibrated and gptq_bits != 4:
+            # calibrated GPTQ, not 4-bit, no unpacking needed
+            kernel = self.quantized_kernel
+        else:
+            # Start with the stored kernel
+            kernel = getattr(self, "_kernel", None)
+
+            # Handle int4 unpacking cases in one place
+            if is_int4:
+                kernel = quantizers.unpack_int4(kernel, self._orig_input_dim)
+            elif is_gptq and calibrated and gptq_bits == 4:
+                kernel = quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.units,
+                    axis=0,
+                    dtype="uint8",
+                )
+
+        # Apply LoRA once at the end.
         if self.lora_enabled:
-            return self._kernel + ops.matmul(
+            kernel = kernel + (self.lora_alpha / self.lora_rank) * ops.matmul(
                 self.lora_kernel_a, self.lora_kernel_b
             )
-        return self._kernel
+
+        return kernel
 
     def call(self, inputs, training=None):
         x = ops.matmul(inputs, self.kernel)
@@ -154,7 +199,11 @@ class Dense(Layer):
         return tuple(output_shape)
 
     def enable_lora(
-        self, rank, a_initializer="he_uniform", b_initializer="zeros"
+        self,
+        rank,
+        lora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
     ):
         if self.kernel_constraint:
             raise ValueError(
@@ -170,10 +219,27 @@ class Dense(Layer):
             raise ValueError(
                 "lora is already enabled. This can only be done once per layer."
             )
+        if self.quantization_mode == "gptq":
+            raise NotImplementedError(
+                "lora is not currently supported with GPTQ quantization."
+            )
         self._tracker.unlock()
+        # Determine the correct input dimension for the LoRA A matrix. When
+        # the layer has been int4-quantized, `self._kernel` stores a *packed*
+        # representation whose first dimension is `ceil(input_dim/2)`. We
+        # saved the true, *unpacked* input dimension in `self._orig_input_dim`
+        # during quantization. Use it if available; otherwise fall back to the
+        # first dimension of `self.kernel`.
+        if self.quantization_mode == "int4" and hasattr(
+            self, "_orig_input_dim"
+        ):
+            input_dim_for_lora = self._orig_input_dim
+        else:
+            input_dim_for_lora = self.kernel.shape[0]
+
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
-            shape=(self.kernel.shape[0], rank),
+            shape=(input_dim_for_lora, rank),
             initializer=initializers.get(a_initializer),
             regularizer=self.kernel_regularizer,
         )
@@ -187,31 +253,32 @@ class Dense(Layer):
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
+        self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
-        # The keys of the `store` will be saved as determined because the
-        # default ordering will change after quantization
-        kernel_value, kernel_scale = self._get_kernel_with_merged_lora()
-        target_variables = [kernel_value]
-        if self.use_bias:
-            target_variables.append(self.bias)
-        if self.quantization_mode is not None:
-            if self.quantization_mode == "int8":
-                target_variables.append(kernel_scale)
-            elif self.quantization_mode == "float8":
-                target_variables.append(self.inputs_scale)
-                target_variables.append(self.inputs_amax_history)
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_amax_history)
-                target_variables.append(self.outputs_grad_scale)
-                target_variables.append(self.outputs_grad_amax_history)
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+
+        # Kernel plus optional merged LoRA-aware scale (returns (kernel, None)
+        # for None/gptq)
+        kernel_value, merged_kernel_scale = self._get_kernel_with_merged_lora()
+        idx = 0
+        for name in self.variable_serialization_spec[mode]:
+            if name == "kernel":
+                store[str(idx)] = kernel_value
+            elif name == "bias" and self.bias is None:
+                continue
+            elif name == "kernel_scale" and mode in ("int4", "int8"):
+                # For int4/int8, the merged LoRA scale (if any) comes from
+                # `_get_kernel_with_merged_lora()`
+                store[str(idx)] = merged_kernel_scale
             else:
-                raise self._quantization_mode_error(self.quantization_mode)
-        for i, variable in enumerate(target_variables):
-            store[str(i)] = variable
+                store[str(idx)] = getattr(self, name)
+            idx += 1
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -219,25 +286,22 @@ class Dense(Layer):
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
-        # The keys of the `store` will be saved as determined because the
-        # default ordering will change after quantization
-        target_variables = [self._kernel]
-        if self.use_bias:
-            target_variables.append(self.bias)
-        if self.quantization_mode is not None:
-            if self.quantization_mode == "int8":
-                target_variables.append(self.kernel_scale)
-            elif self.quantization_mode == "float8":
-                target_variables.append(self.inputs_scale)
-                target_variables.append(self.inputs_amax_history)
-                target_variables.append(self.kernel_scale)
-                target_variables.append(self.kernel_amax_history)
-                target_variables.append(self.outputs_grad_scale)
-                target_variables.append(self.outputs_grad_amax_history)
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+
+        # A saved GPTQ quantized model will always be calibrated.
+        self.is_gptq_calibrated = mode == "gptq"
+
+        idx = 0
+        for name in self.variable_serialization_spec[mode]:
+            if name == "kernel":
+                self._kernel.assign(store[str(idx)])
+            elif name == "bias" and self.bias is None:
+                continue
             else:
-                raise self._quantization_mode_error(self.quantization_mode)
-        for i, variable in enumerate(target_variables):
-            variable.assign(store[str(i)])
+                getattr(self, name).assign(store[str(idx)])
+            idx += 1
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
@@ -261,75 +325,196 @@ class Dense(Layer):
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
+            config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
 
-    def _check_load_own_variables(self, store):
-        all_vars = self._trainable_variables + self._non_trainable_variables
-        if len(store.keys()) != len(all_vars):
-            if len(all_vars) == 0 and not self.built:
-                raise ValueError(
-                    f"Layer '{self.name}' was never built "
-                    "and thus it doesn't have any variables. "
-                    f"However the weights file lists {len(store.keys())} "
-                    "variables for this layer.\n"
-                    "In most cases, this error indicates that either:\n\n"
-                    "1. The layer is owned by a parent layer that "
-                    "implements a `build()` method, but calling the "
-                    "parent's `build()` method did NOT create the state of "
-                    f"the child layer '{self.name}'. A `build()` method "
-                    "must create ALL state for the layer, including "
-                    "the state of any children layers.\n\n"
-                    "2. You need to implement "
-                    "the `def build_from_config(self, config)` method "
-                    f"on layer '{self.name}', to specify how to rebuild "
-                    "it during loading. "
-                    "In this case, you might also want to implement the "
-                    "method that generates the build config at saving time, "
-                    "`def get_build_config(self)`. "
-                    "The method `build_from_config()` is meant "
-                    "to create the state "
-                    "of the layer (i.e. its variables) upon deserialization.",
-                )
-            raise ValueError(
-                f"Layer '{self.name}' expected {len(all_vars)} variables, "
-                "but received "
-                f"{len(store.keys())} variables during loading. "
-                f"Expected: {[v.name for v in all_vars]}"
-            )
+    @property
+    def variable_serialization_spec(self):
+        """Returns a dict mapping quantization modes to variable names in order.
 
-    # Quantization-related (int8 and float8) methods
+        This spec is used by `save_own_variables` and `load_own_variables` to
+        determine the correct ordering of variables during serialization for
+        each quantization mode. `None` means no quantization.
+        """
+        return {
+            None: [
+                "kernel",
+                "bias",
+            ],
+            "int8": [
+                "kernel",
+                "bias",
+                "kernel_scale",
+            ],
+            "int4": [
+                "kernel",
+                "bias",
+                "kernel_scale",
+            ],
+            "float8": [
+                "kernel",
+                "bias",
+                "inputs_scale",
+                "inputs_amax_history",
+                "kernel_scale",
+                "kernel_amax_history",
+                "outputs_grad_scale",
+                "outputs_grad_amax_history",
+            ],
+            "gptq": [
+                "bias",
+                "quantized_kernel",
+                "kernel_scale",
+                "kernel_zero",
+                "g_idx",
+            ],
+        }
 
-    def quantized_build(self, input_shape, mode):
+    def quantized_build(self, kernel_shape, mode, config=None):
         if mode == "int8":
-            input_dim = input_shape[-1]
-            kernel_shape = (input_dim, self.units)
             self._int8_build(kernel_shape)
+        elif mode == "int4":
+            self._int4_build(kernel_shape)
         elif mode == "float8":
             self._float8_build()
+        elif mode == "gptq":
+            self._gptq_build(kernel_shape, config)
         else:
             raise self._quantization_mode_error(mode)
+        self._is_quantized = True
 
-    def _int8_build(
-        self,
-        kernel_shape,
-        kernel_initializer="zeros",
-        kernel_scale_initializer="ones",
-    ):
+    def _int8_build(self, kernel_shape):
         self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
-            initializer=kernel_initializer,
+            initializer="zeros",
             dtype="int8",
             trainable=False,
         )
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
             shape=(self.units,),
-            initializer=kernel_scale_initializer,
+            initializer="ones",
             trainable=False,
         )
-        self._is_quantized = True
+
+    def _gptq_build(self, kernel_shape, config):
+        from keras.src.quantizers import gptq_core
+
+        # Ensures the forward pass uses the original high-precision kernel
+        # until calibration has been performed.
+        self.is_gptq_calibrated = False
+        self.kernel_shape = kernel_shape
+
+        weight_bits = gptq_core.get_weight_bits_for_layer(self, config)
+        # For 4-bit weights, we pack two values per byte.
+        units = (
+            (kernel_shape[1] + 1) // 2 if weight_bits == 4 else kernel_shape[1]
+        )
+
+        self.quantized_kernel = self.add_weight(
+            name="kernel",
+            shape=(units, kernel_shape[0]),
+            initializer="zeros",
+            dtype="uint8",
+            trainable=False,
+        )
+
+        group_size = gptq_core.get_group_size_for_layer(self, config)
+        n_groups = (
+            1
+            if group_size == -1
+            else math.ceil(self.kernel_shape[0] / group_size)
+        )
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=(self.units, n_groups),
+            initializer="ones",
+            trainable=False,
+        )
+        self.kernel_zero = self.add_weight(
+            name="kernel_zero",
+            shape=(self.units, n_groups),
+            initializer="zeros",
+            dtype="uint8",
+            trainable=False,
+        )
+        self.g_idx = self.add_weight(
+            name="g_idx",
+            shape=(self.kernel_shape[0],),
+            initializer="zeros",
+            dtype="float32",
+            trainable=False,
+        )
+
+    def _gptq_call(self, inputs, training=False):
+        from keras.src.quantizers import gptq_core
+
+        if not self.is_gptq_calibrated:
+            W = self._kernel
+        else:
+            should_unpack = (
+                gptq_core.get_weight_bits_for_layer(self, config=None) == 4
+            )
+            W = (
+                quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.units,
+                    axis=0,
+                    dtype="uint8",
+                )
+                if should_unpack
+                else self.quantized_kernel
+            )
+            W = ops.transpose(
+                dequantize_with_sz_map(
+                    W,
+                    self.kernel_scale,
+                    self.kernel_zero,
+                    self.g_idx,
+                )
+            )
+
+        y = ops.matmul(inputs, W)
+        if self.bias is not None:
+            y = ops.add(y, self.bias)
+        if self.activation is not None:
+            y = self.activation(y)
+        return y
+
+    def _int4_build(self, kernel_shape):
+        """Build variables for int4 quantization.
+
+        `kernel_shape` is the *original* float32 kernel shape
+        `(input_dim, units)`. We allocate the stored kernel with rows
+        `ceil(input_dim/2)` because two int4 values are packed into a single
+        int8 byte.
+        """
+        # Per-channel int8 quantizer for the last axis (features).
+        self.inputs_quantizer = quantizers.AbsMaxQuantizer(
+            axis=-1,
+        )
+        input_dim, output_dim = kernel_shape
+        packed_rows = (input_dim + 1) // 2  # ceil for odd dims
+
+        # Kernel is stored *packed*: each int8 byte contains two int4 values.
+        self._kernel = self.add_weight(
+            name="kernel",
+            shape=(packed_rows, output_dim),
+            initializer="zeros",
+            dtype="int8",
+            trainable=False,
+        )
+        # One scale per output unit (per-channel).
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=(self.units,),
+            initializer="ones",
+            trainable=False,
+        )
+        # Record original input_dim for unpacking at runtime.
+        self._orig_input_dim = input_dim
 
     def _float8_build(self):
         from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
@@ -349,6 +534,7 @@ class Dense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         amax_history_kwargs = {
             "shape": (amax_history_length,),
@@ -356,6 +542,7 @@ class Dense(Layer):
             "dtype": "float32",  # Always be float32
             "trainable": True,
             "autocast": False,
+            "overwrite_with_gradient": True,
         }
         self.inputs_scale = self.add_weight(name="inputs_scale", **scale_kwargs)
         self.inputs_amax_history = self.add_weight(
@@ -371,20 +558,20 @@ class Dense(Layer):
         self.outputs_grad_amax_history = self.add_weight(
             name="outputs_grad_amax_history", **amax_history_kwargs
         )
-        # We need to set `overwrite_with_gradient=True` to instruct the
-        # optimizer to directly overwrite these variables with their computed
-        # gradients during training
-        self.inputs_scale.overwrite_with_gradient = True
-        self.inputs_amax_history.overwrite_with_gradient = True
-        self.kernel_scale.overwrite_with_gradient = True
-        self.kernel_amax_history.overwrite_with_gradient = True
-        self.outputs_grad_scale.overwrite_with_gradient = True
-        self.outputs_grad_amax_history.overwrite_with_gradient = True
-        self._is_quantized = True
 
     def _int8_call(self, inputs, training=None):
         @ops.custom_gradient
         def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
+            """Custom gradient function to handle the int8 quantized weights.
+
+            Automatic differentiation will not know how to handle the int8
+            quantized weights. So a custom gradient function is needed to
+            handle the int8 quantized weights.
+
+            The custom gradient function will use the dequantized kernel to
+            compute the gradient.
+            """
+
             def grad_fn(*args, upstream=None):
                 if upstream is None:
                     (upstream,) = args
@@ -410,7 +597,60 @@ class Dense(Layer):
         if self.lora_enabled:
             lora_x = ops.matmul(inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
-            x = ops.add(x, lora_x)
+            x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
+    def _int4_call(self, inputs, training=None):
+        """Forward pass for int4 quantized Dense layer."""
+
+        @ops.custom_gradient
+        def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
+            """Custom gradient function for int4 quantized weights.
+
+            Automatic differentiation will not know how to handle the
+            int4 quantized weights. So a custom gradient function is needed
+            to handle the int4 quantized weights.
+
+            The custom gradient function will use the dequantized kernel to
+            compute the gradient.
+            """
+
+            unpacked_kernel = quantizers.unpack_int4(
+                kernel, self._orig_input_dim
+            )
+
+            def grad_fn(*args, upstream=None):
+                if upstream is None:
+                    (upstream,) = args
+                float_kernel = ops.divide(
+                    ops.cast(unpacked_kernel, dtype=self.compute_dtype),
+                    kernel_scale,
+                )
+                inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
+                return (inputs_grad, None, None)
+
+            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            x = ops.matmul(inputs, unpacked_kernel)
+            x = ops.cast(x, self.compute_dtype)
+            x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
+            return x, grad_fn
+
+        x = matmul_with_inputs_gradient(
+            inputs,
+            ops.convert_to_tensor(self._kernel),
+            ops.convert_to_tensor(self.kernel_scale),
+        )
+
+        if self.lora_enabled:
+            lora_x = ops.matmul(inputs, self.lora_kernel_a)
+            lora_x = ops.matmul(lora_x, self.lora_kernel_b)
+            x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
+
+        # Add bias and activation
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -508,47 +748,139 @@ class Dense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode, type_check=True):
+    def quantize(self, mode, type_check=True, config=None):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not Dense):
             raise self._not_implemented_error(self.quantize)
 
+        kernel_shape = self._kernel.shape
         if mode == "int8":
-            # Quantize `self._kernel` to int8 and compute corresponding scale
             kernel_value, kernel_scale = quantizers.abs_max_quantize(
                 self._kernel, axis=0, to_numpy=True
             )
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
-            kernel_shape = tuple(self._kernel.shape)
             del self._kernel
-            # Utilize a lambda expression as an initializer to prevent adding a
-            # large constant to the computation graph.
-            self._int8_build(kernel_shape, kernel_value, kernel_scale)
+            # Build variables for int8 mode
+            self.quantized_build(kernel_shape, mode)
+            self._kernel.assign(kernel_value)
+            self.kernel_scale.assign(kernel_scale)
+        elif mode == "int4":
+            # 1. Quantize to int4 values (still int8 dtype, range [-8,7])
+            kernel_value_int4, kernel_scale = quantizers.abs_max_quantize(
+                self._kernel,
+                axis=0,
+                value_range=(-8, 7),
+                dtype="int8",
+                to_numpy=True,
+            )
+            kernel_scale = ops.squeeze(kernel_scale, axis=0)
+            # 2. Pack two int4 values into a single int8 byte.
+            packed_kernel_value, _, _ = quantizers.pack_int4(kernel_value_int4)
+            del self._kernel
+            # Build variables using the original kernel shape; _int4_build will
+            # compute the packed shape internally.
+            self.quantized_build(kernel_shape, mode)
+            # Assign packed values.
+            self._kernel.assign(packed_kernel_value)
+            self.kernel_scale.assign(kernel_scale)
+        elif mode == "gptq":
+            self.quantized_build(kernel_shape, mode, config)
         elif mode == "float8":
-            self._float8_build()
+            self.quantized_build(kernel_shape, mode)
         else:
             raise self._quantization_mode_error(mode)
 
-        # Set new dtype policy
+        # Set new dtype policy only for modes that already have a policy.
         if self.dtype_policy.quantization_mode is None:
-            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            from keras.src import dtype_policies  # local import to avoid cycle
+
+            policy_name = mode
+            if mode == "gptq":
+                policy_name = config.dtype_policy_string()
+            policy = dtype_policies.get(
+                f"{policy_name}_from_{self.dtype_policy.name}"
+            )
             self.dtype_policy = policy
 
     def _get_kernel_with_merged_lora(self):
-        if self.dtype_policy.quantization_mode is not None:
-            kernel_value = self._kernel
-            kernel_scale = self.kernel_scale
-            if self.lora_enabled:
-                # Dequantize & quantize to merge lora weights into int8 kernel
-                # Note that this is a lossy compression
-                kernel_value = ops.divide(kernel_value, kernel_scale)
-                kernel_value = ops.add(
-                    kernel_value,
-                    ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
-                )
-                kernel_value, kernel_scale = quantizers.abs_max_quantize(
-                    kernel_value, axis=0, to_numpy=True
-                )
-                kernel_scale = ops.squeeze(kernel_scale, axis=0)
+        """Returns the kernel with LoRA matrices merged, for serialization.
+
+        This method is called by `save_own_variables` to produce a single
+        kernel tensor that includes the adaptations from LoRA. This is useful
+        for deploying the model or for continuing training after permanently
+        applying the LoRA update.
+
+        If the layer is quantized (`int8` or `int4`), the process is:
+        1. Dequantize the base kernel to float.
+        2. Compute the LoRA delta (`lora_kernel_a @ lora_kernel_b`) and add
+            it to the dequantized kernel.
+        3. Re-quantize the merged result back to the original quantized
+            type (`int8` or packed `int4`), calculating a new scale factor.
+
+        If the layer is not quantized, this method returns the result of the
+        `kernel` property (which computes the merge in floating-point) and a
+        scale of `None`.
+
+        If LoRA is not enabled, it returns the original kernel and scale
+        without modification.
+
+        Returns:
+            A tuple `(kernel_value, kernel_scale)`:
+                `kernel_value`: The merged kernel. A quantized tensor if
+                    quantization is active, otherwise a high precision tensor.
+                `kernel_scale`: The quantization scale for the merged kernel.
+                    This is `None` if the layer is not quantized.
+        """
+        if self.dtype_policy.quantization_mode in (None, "gptq"):
+            return self.kernel, None
+
+        kernel_value = self._kernel
+        kernel_scale = self.kernel_scale
+
+        if not self.lora_enabled:
             return kernel_value, kernel_scale
-        return self.kernel, None
+
+        # Dequantize, Merge, and Re-quantize
+
+        # Dequantize kernel to float
+        if self.quantization_mode == "int4":
+            unpacked_kernel = quantizers.unpack_int4(
+                kernel_value, self._orig_input_dim
+            )
+            float_kernel = ops.divide(
+                ops.cast(unpacked_kernel, self.compute_dtype),
+                kernel_scale,
+            )
+            quant_range = (-8, 7)
+        elif self.quantization_mode == "int8":
+            float_kernel = ops.divide(
+                ops.cast(kernel_value, self.compute_dtype), kernel_scale
+            )
+            quant_range = (-127, 127)
+        else:
+            raise ValueError(
+                f"Unsupported quantization mode: {self.quantization_mode}"
+            )
+
+        # Merge LoRA weights in float domain
+        lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
+            self.lora_kernel_a, self.lora_kernel_b
+        )
+        merged_float_kernel = ops.add(float_kernel, lora_delta)
+
+        # Requantize
+        requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
+            merged_float_kernel,
+            axis=0,
+            value_range=quant_range,
+            dtype="int8",
+            to_numpy=True,
+        )
+        kernel_scale = ops.squeeze(kernel_scale, axis=0)
+
+        # Pack if int4
+        if self.quantization_mode == "int4":
+            kernel_value, _, _ = quantizers.pack_int4(requantized_kernel)
+        else:
+            kernel_value = requantized_kernel
+        return kernel_value, kernel_scale

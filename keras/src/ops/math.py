@@ -32,8 +32,8 @@ def _segment_reduce_validation(data, segment_ids):
 
 
 class SegmentReduction(Operation):
-    def __init__(self, num_segments=None, sorted=False):
-        super().__init__()
+    def __init__(self, num_segments=None, sorted=False, *, name=None):
+        super().__init__(name=name)
         self.num_segments = num_segments
         self.sorted = sorted
 
@@ -134,8 +134,8 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
 
 class TopK(Operation):
-    def __init__(self, k, sorted=False):
-        super().__init__()
+    def __init__(self, k, sorted=True, *, name=None):
+        super().__init__(name=name)
         self.k = k
         self.sorted = sorted
 
@@ -183,8 +183,8 @@ def top_k(x, k, sorted=True):
 
 
 class InTopK(Operation):
-    def __init__(self, k):
-        super().__init__()
+    def __init__(self, k, *, name=None):
+        super().__init__(name=name)
         self.k = k
 
     def compute_output_spec(self, targets, predictions):
@@ -223,8 +223,8 @@ def in_top_k(targets, predictions, k):
 
 
 class Logsumexp(Operation):
-    def __init__(self, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         self.axis = axis
         self.keepdims = keepdims
 
@@ -264,8 +264,8 @@ def logsumexp(x, axis=None, keepdims=False):
 
 
 class ExtractSequences(Operation):
-    def __init__(self, sequence_length, sequence_stride):
-        super().__init__()
+    def __init__(self, sequence_length, sequence_stride, *, name=None):
+        super().__init__(name=name)
         self.sequence_length = sequence_length
         self.sequence_stride = sequence_stride
 
@@ -328,10 +328,6 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 
 class FFT(Operation):
-    def __init__(self, axis=-1):
-        super().__init__()
-        self.axis = axis
-
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
@@ -360,7 +356,7 @@ class FFT(Operation):
         m = real.shape[-1]
         if m is None:
             raise ValueError(
-                f"Input should have its {self.axis}th axis fully-defined. "
+                f"Input should have its last dimension fully-defined. "
                 f"Received: input.shape = {real.shape}"
             )
 
@@ -400,11 +396,8 @@ def fft(x):
 
 
 class FFT2(Operation):
-    def __init__(self):
-        super().__init__()
-        self.axes = (-2, -1)
-
     def compute_output_spec(self, x):
+        axes = (-2, -1)
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
                 "Input `x` should be a tuple of two tensors - real and "
@@ -428,11 +421,11 @@ class FFT2(Operation):
             )
 
         # The axes along which we are calculating FFT should be fully-defined.
-        m = real.shape[self.axes[0]]
-        n = real.shape[self.axes[1]]
+        m = real.shape[axes[0]]
+        n = real.shape[axes[1]]
         if m is None or n is None:
             raise ValueError(
-                f"Input should have its {self.axes} axes fully-defined. "
+                f"Input should have its {axes} axes fully-defined. "
                 f"Received: input.shape = {real.shape}"
             )
 
@@ -474,11 +467,8 @@ def fft2(x):
 
 
 class IFFT2(Operation):
-    def __init__(self):
-        super().__init__()
-        self.axes = (-2, -1)
-
     def compute_output_spec(self, x):
+        axes = (-2, -1)
         if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
                 "Input `x` should be a tuple of two tensors - real and "
@@ -502,11 +492,11 @@ class IFFT2(Operation):
             )
 
         # The axes along which we are calculating IFFT should be fully-defined.
-        m = real.shape[self.axes[0]]
-        n = real.shape[self.axes[1]]
+        m = real.shape[axes[0]]
+        n = real.shape[axes[1]]
         if m is None or n is None:
             raise ValueError(
-                f"Input should have its {self.axes} axes fully-defined. "
+                f"Input should have its {axes} axes fully-defined. "
                 f"Received: input.shape = {real.shape}"
             )
 
@@ -549,8 +539,8 @@ def ifft2(x):
 
 
 class RFFT(Operation):
-    def __init__(self, fft_length=None):
-        super().__init__()
+    def __init__(self, fft_length=None, *, name=None):
+        super().__init__(name=name)
         self.fft_length = fft_length
 
     def compute_output_spec(self, x):
@@ -620,8 +610,8 @@ def rfft(x, fft_length=None):
 
 
 class IRFFT(Operation):
-    def __init__(self, fft_length=None):
-        super().__init__()
+    def __init__(self, fft_length=None, *, name=None):
+        super().__init__(name=name)
         self.fft_length = fft_length
 
     def compute_output_spec(self, x):
@@ -712,8 +702,10 @@ class STFT(Operation):
         fft_length,
         window="hann",
         center=True,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.sequence_length = sequence_length
         self.sequence_stride = sequence_stride
         self.fft_length = fft_length
@@ -813,8 +805,10 @@ class ISTFT(Operation):
         length=None,
         window="hann",
         center=True,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.sequence_length = sequence_length
         self.sequence_stride = sequence_stride
         self.fft_length = fft_length
@@ -1021,9 +1015,6 @@ def erfinv(x):
 
 
 class Logdet(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return backend.math.logdet(x)
 
@@ -1044,3 +1035,101 @@ def logdet(x):
     if any_symbolic_tensors((x,)):
         return Logdet().symbolic_call(x)
     return backend.math.logdet(x)
+
+
+class ViewAsComplex(Operation):
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        if len(x.shape) < 1 or x.shape[-1] != 2:
+            raise ValueError(
+                "Input tensor's last dimension must be 2 (real and imaginary)."
+            )
+        return x[..., 0] + 1j * x[..., 1]
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape[:-1], dtype="complex64")
+
+
+class ViewAsReal(Operation):
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        real_part = backend.numpy.real(x)
+        imag_part = backend.numpy.imag(x)
+        return backend.numpy.stack((real_part, imag_part), axis=-1)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape + (2,), dtype="float32")
+
+
+@keras_export("keras.ops.view_as_complex")
+def view_as_complex(x):
+    """Converts a real tensor with shape `(..., 2)` to a complex tensor,
+    where the last dimension represents the real and imaginary components
+    of a complex tensor.
+
+    Args:
+        x: A real tensor with last dimension of size 2.
+
+    Returns:
+        A complex tensor with shape `x.shape[:-1]`.
+
+    Example:
+
+    ```
+    >>> import numpy as np
+    >>> from keras import ops
+
+    >>> real_imag = np.array([[1.0, 2.0], [3.0, 4.0]])
+    >>> complex_tensor = ops.view_as_complex(real_imag)
+    >>> complex_tensor
+    array([1.+2.j, 3.+4.j])
+    ```
+    """
+    if any_symbolic_tensors((x,)):
+        return ViewAsComplex().symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) < 1 or x.shape[-1] != 2:
+        raise ValueError(
+            "Last dimension of input must be size 2 (real and imaginary). "
+            f"Received shape: {x.shape}"
+        )
+    real_part = x[..., 0]
+    imag_part = x[..., 1]
+
+    return backend.cast(real_part, dtype="complex64") + 1j * backend.cast(
+        imag_part, dtype="complex64"
+    )
+
+
+@keras_export("keras.ops.view_as_real")
+def view_as_real(x):
+    """Converts a complex tensor to a real tensor with shape `(..., 2)`,
+    where the last dimension represents the real and imaginary components.
+
+    Args:
+        x: A complex tensor.
+
+    Returns:
+        A real tensor where the last dimension contains the
+        real and imaginary parts.
+
+    Example:
+    ```
+    >>> import numpy as np
+    >>> from keras import ops
+
+    >>> complex_tensor = np.array([1 + 2j, 3 + 4j])
+    >>> real = ops.view_as_real(complex_tensor)
+    >>> real
+    array([[1., 2.],
+           [3., 4.]])
+    ```
+    """
+    if any_symbolic_tensors((x,)):
+        return ViewAsReal().symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    real_part = backend.numpy.real(x)
+    imag_part = backend.numpy.imag(x)
+    return backend.numpy.stack((real_part, imag_part), axis=-1)

@@ -152,7 +152,23 @@ class PyDataset:
         Returns:
             A batch
         """
+        del index
         raise NotImplementedError
+
+    def __iter__(self):
+        index_range = None
+        try:
+            num_batches = self.num_batches
+            if num_batches is not None:
+                index_range = range(num_batches)
+        except NotImplementedError:
+            pass
+
+        if index_range is None:
+            index_range = itertools.count()
+
+        for index in index_range:
+            yield self[index]
 
     @property
     def num_batches(self):

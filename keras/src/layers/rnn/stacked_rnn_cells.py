@@ -117,7 +117,6 @@ class StackedRNNCells(Layer):
                 output_dim = cell.state_size
             batch_size = tree.flatten(input_shape)[0]
             input_shape = (batch_size, output_dim)
-        self.built = True
 
     def get_config(self):
         cells = []

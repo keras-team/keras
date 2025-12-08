@@ -1,5 +1,5 @@
 import pickle
-from unittest.mock import patch
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -14,9 +14,24 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
-from keras.src.backend.common import remat
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
+from keras.src.utils import traceback_utils
+
+
+class MockRemat:
+    """Mock remat by returning a wrapper Mock calling the original function"""
+
+    def __init__(self):
+        self.rematted_functions = {}
+
+    def __call__(self, func):
+        if func in self.rematted_functions:
+            return self.rematted_functions[func]
+
+        wrapped_func = mock.Mock(wraps=func)
+        self.rematted_functions[func] = wrapped_func
+        return wrapped_func
 
 
 class LayerTest(testing.TestCase):
@@ -173,9 +188,10 @@ class LayerTest(testing.TestCase):
     def test_layer_with_remat(self):
         """Test rematerialization on a simple layer."""
         # Create a mock to track calls to remat
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class SomeLayer(layers.Layer):
                 def call(self, x):
@@ -194,14 +210,16 @@ class LayerTest(testing.TestCase):
             # Assert outputs are the same
             self.assertAllClose(output_no_remat, output_with_remat)
 
-            # Ensure remat was applied in the second case
-            mock_remat.assert_called()
+        # Ensure remat was applied in the second case
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_quantized_layer_with_remat(self):
         """Test rematerialization on a quantized layer."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
             input_tensor = backend.random.uniform((2, 4))
 
             # Case 2: With rematerialization
@@ -211,17 +229,30 @@ class LayerTest(testing.TestCase):
                 layer.quantize("float8")
                 layer(input_tensor)
 
-            # Ensure remat was applied
-            mock_remat.assert_called()
+        # Ensure remat was applied
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
+
+    def test_gptq_quantization_by_setting_dtype(self):
+        """Tests error being raised when dtype is set to GPTQ."""
+        with self.assertRaisesRegex(
+            ValueError,
+            "Implicitly enabling GPTQ quantization.*is not supported",
+        ):
+            layer = layers.Dense(3)
+            layer.build((2, 4))
+            layer.dtype_policy = "gptq/4/-1_from_float32"
 
     def test_functional_model_with_remat(self):
         if backend.backend() in ("openvino", "numpy"):
             self.skipTest(
                 "remat is not supported in openvino and numpy backends."
             )
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        traceback_utils.enable_traceback_filtering()
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
             # Define model inputs
             inputs = Input(shape=(32, 32, 3))
 
@@ -241,14 +272,17 @@ class LayerTest(testing.TestCase):
             y_train = np.random.random((10, 64)).astype(np.float32)
 
             # Run training to ensure `RematScope` is applied correctly
-            model.fit(x_train, y_train, epochs=1, batch_size=2)
-            self.assertGreater(mock_remat.call_count, 1)
+            model.fit(x_train, y_train, epochs=1, batch_size=2, verbose=0)
+
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_remat_wrapper_list_of_layers(self):
         """Test rematerialization using list_of_layers mode."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class TestLayer(layers.Layer):
                 def call(self, x):
@@ -270,14 +304,16 @@ class LayerTest(testing.TestCase):
             self.assertAllClose(output_test, input_tensor + 1)
             self.assertAllClose(output_other, input_tensor * 2)
 
-            # Ensure remat was applied to the correct layer
-            mock_remat.assert_called_once()
+        # Ensure remat was applied to the correct layer
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_remat_larger_than_mode(self):
         """Test rematerialization using larger_than mode."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class TestLayer(layers.Layer):
                 def compute_output_shape(self, input_shape):
@@ -294,14 +330,16 @@ class LayerTest(testing.TestCase):
 
             self.assertAllClose(output, input_tensor + 1)
 
-            # Ensure remat was applied
-            mock_remat.assert_called()
+        # Ensure remat was applied
+        self.assertLen(mock_remat.rematted_functions, 1)
+        next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_remat_larger_than_mode_high_threshold(self):
         """Test rematerialization using larger_than mode."""
-        with patch(
-            "keras.src.backend.common.remat.remat", wraps=remat.remat
-        ) as mock_remat:
+        mock_remat = MockRemat()
+        with mock.patch(
+            "keras.src.backend.common.remat.remat", wraps=mock_remat
+        ):
 
             class TestLayer(layers.Layer):
                 def compute_output_shape(self, input_shape):
@@ -318,8 +356,8 @@ class LayerTest(testing.TestCase):
 
             self.assertAllClose(output, input_tensor + 1)
 
-            # Ensure remat was applied
-            mock_remat.assert_not_called()
+        # Ensure remat was not applied
+        self.assertLen(mock_remat.rematted_functions, 0)
 
     def test_rng_seed_tracking(self):
         class RNGLayer(layers.Layer):
@@ -488,6 +526,49 @@ class LayerTest(testing.TestCase):
         layer(x1=backend.KerasTensor((3, 4)), x2=backend.KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
+        class DictLayerWithUnbuiltState(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, xs):
+                result = self.dense(xs["x1"])
+                if xs.get("x2", None) is not None:
+                    result += self.dense(xs["x2"])
+                return result
+
+        layer = DictLayerWithUnbuiltState(2)
+        layer(
+            {
+                "x1": backend.KerasTensor((3, 4)),
+                "x2": backend.KerasTensor((3, 4)),
+            }
+        )
+        self.assertLen(layer.weights, 2)
+
+        layer = DictLayerWithUnbuiltState(2)
+        layer({"x1": backend.KerasTensor((3, 4)), "x2": None})
+        self.assertLen(layer.weights, 2)
+
+        class ListLayerWithUnbuiltState(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, xs):
+                result = self.dense(xs[0])
+                if xs[1] is not None:
+                    result += self.dense(xs[1])
+                return result
+
+        layer = ListLayerWithUnbuiltState(2)
+        layer([backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))])
+        self.assertLen(layer.weights, 2)
+
+        layer = ListLayerWithUnbuiltState(2)
+        layer([backend.KerasTensor((3, 4)), None])
+        self.assertLen(layer.weights, 2)
+
     def test_activity_regularization(self):
         class ActivityRegularizer(layers.Layer):
             def call(self, x):
@@ -645,12 +726,12 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     dtype="float32",
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast.
                 assertDType(self.v, "float32")
-                return ops.cast(x, "float32") + self.v
+                return ops.add(ops.cast(x, "float32"), self.v)
 
         # A layer that is explicitly full precision.
         class InnerLayerTwo(layers.Layer):
@@ -661,12 +742,12 @@ class LayerTest(testing.TestCase):
                     initializer="ones",
                     trainable=True,
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast.
                 assertDType(self.v, "float32")
-                return x + self.v
+                return ops.add(x, self.v)
 
         # A layer that is explicitly mixed precision but with autocast=False
         # weight.
@@ -679,7 +760,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     autocast=False,
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should not autocast `self.v`.
@@ -698,13 +779,13 @@ class LayerTest(testing.TestCase):
                 self.inner_one = InnerLayerOne()
                 self.inner_two = InnerLayerTwo()
                 self.inner_three = InnerLayerThree()
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 # Should autocast.
                 assertDType(self.v, "float16")
                 return self.inner_three(
-                    self.inner_two(self.inner_one(x + self.v))
+                    self.inner_two(self.inner_one(ops.add(x, self.v)))
                 )
 
         layer = MixedPrecisionLayer()
@@ -740,7 +821,7 @@ class LayerTest(testing.TestCase):
         )
         model.compile(loss="mse")
         targets = np.array([[[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [1.0, 1.0]]])
-        loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets)
+        loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets, verbose=0)
         self.assertAllClose(loss, 0.0)
 
     @pytest.mark.skipif(
@@ -846,6 +927,42 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertAllClose(y._keras_mask, mask)
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
+    def test_masking_with_explicit_kwarg_propagation(self):
+        """This test validates that an explicit `mask` kwarg is correctly
+        used to compute the output mask.
+        """
+
+        class PassthroughMaskLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.supports_masking = True
+
+            def call(self, x, mask=None):
+                # The layer itself can use the mask.
+                self.used_mask = mask is not None
+                return x
+
+        layer = PassthroughMaskLayer()
+        # Create an input tensor WITHOUT an attached mask.
+        x = backend.numpy.ones((4, 4))
+        self.assertIsNone(getattr(x, "_keras_mask", None))
+
+        # Create a mask to be passed explicitly.
+        explicit_mask = backend.numpy.array([True, True, False, False])
+
+        # Call the layer, passing the mask as a keyword argument.
+        y = layer(x, mask=explicit_mask)
+
+        # Assert that the layer's internal call received the mask.
+        self.assertTrue(layer.used_mask)
+
+        # Assert that the output tensor 'y' now has the explicit mask attached
+        # for propagation to the next layer.
+        self.assertAllClose(backend.get_keras_mask(y), explicit_mask)
+
     def test_stateless_call(self):
         class TestLayer(layers.Layer):
             def __init__(self):
@@ -862,7 +979,7 @@ class LayerTest(testing.TestCase):
                     trainable=True,
                     regularizer="l1",
                 )
-                self.built = True
+                self._build_at_init()
 
             def call(self, x):
                 x = backend.convert_to_tensor(x, dtype="float32")
@@ -871,7 +988,7 @@ class LayerTest(testing.TestCase):
                 x = x + backend.random.normal(
                     shape=(), seed=self._seed_generator
                 )
-                return x + self.tw + self.ntw
+                return ops.add(x, ops.add(self.tw, self.ntw))
 
         data = np.random.random((3, 4))
         layer = TestLayer()
@@ -1007,7 +1124,6 @@ class LayerTest(testing.TestCase):
             def build(self, bar_shape, foo_shape):
                 self.foo_shape = foo_shape
                 self.bar_shape = bar_shape
-                self.built = True
 
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
@@ -1016,7 +1132,6 @@ class LayerTest(testing.TestCase):
             def build(self, baz_shape, foo_shape):
                 self.foo_shape = foo_shape
                 self.baz_shape = baz_shape
-                self.built = True
 
             def call(self, foo, bar=None, baz=None):
                 return foo[:, 0] + bar[:, 0] + baz[:, 0]
@@ -1024,7 +1139,6 @@ class LayerTest(testing.TestCase):
         class SingleArgument(layers.Layer):
             def build(self, anything_whatsoever):
                 self.foo_shape = anything_whatsoever
-                self.built = True
 
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
@@ -1519,3 +1633,181 @@ class LayerTest(testing.TestCase):
         layer = MyDenseLayer(10)
         output = layer(inputs)
         self.assertAllEqual(output.shape, (10, 10))
+
+    def test_call_context_args_with_custom_layers(self):
+        class Inner(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+                self.inner = Inner()
+
+            def call(self, x):
+                # Outer doesn’t even need to re‑inject explicitly:
+                # our base class will propagate foo_mode automatically
+                return self.inner(x)
+
+        layer = Outer()
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
+        self.assertEqual(int(layer(np.array(0))), 0)
+
+    def test_register_call_context_arguments(self):
+        """Validate that registering call-context args works as expected."""
+
+        class MyLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = MyLayer()
+
+        layer._register_call_context_args("foo_mode")
+
+        self.assertCountEqual(
+            layer._call_context_args, ("foo_mode", "training")
+        )
+
+    def test_register_call_context_arguments_after_call(self):
+        """Validate that registering call-context args after the layer has
+        been called raises an error."""
+
+        class MyLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = MyLayer()
+        layer(np.array(0))
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Cannot add call-context args after the layer has been called.",
+        ):
+            layer._register_call_context_args("foo_mode")
+
+    def test_context_args_with_triple_nesting_and_priority(self):
+        """Validate that call-context args are propagated correctly
+        through multiple layers, and that the most specific value is used
+        when multiple values are passed down the call-stack.
+        """
+
+        class Inner(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Middle(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                return self.inner(x)
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.middle = Middle()
+
+            def call(self, x):
+                # Outer explicitly sets foo_mode=False when calling Inner,
+                # so the value being passed here should be ignored.
+                return self.middle(x)
+
+        layer = Outer()
+        layer._register_call_context_args("foo_mode")
+
+        # The value of foo_mode is set to True in the call to Outer,
+        # so it should automatically propagate to Inner through Middle.
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 1)
+        self.assertEqual(int(layer(np.array(0))), 0)
+
+    def test_context_arg_propagation_without_declaration(self):
+        """Validate that layer does not resolve a propagated arg if it is not
+        declared as a call-context arg in the layer itself."""
+
+        class Inner(layers.Layer):
+            def call(self, x, foo_mode=None):
+                return x + (1 if foo_mode else 0)
+
+        class Wrapper(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                return self.inner(x)
+
+        layer = Wrapper()
+        layer._register_call_context_args("foo_mode")
+
+        # The value of foo_mode is set to True in the call to Wrapper,
+        # However, it is not declared as a call-context arg in Inner,
+        # so it should not resolve to True inside Inner (and instead
+        # default to False).
+        self.assertEqual(int(layer(np.array(0), foo_mode=True)), 0)
+
+    def test_call_context_args_with_func_seq_models_as_layers(self):
+        """Validate that call-context args are propagated correctly
+        through functional and sequential models when used as layers.
+        """
+
+        class Inner(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+
+            def call(self, x, foo_mode=False):
+                # If foo_mode=True add 1, otherwise add 0
+                add_val = ops.where(foo_mode, 1.0, 0.0)
+                return x + add_val
+
+        class Outer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.inner = Inner()
+
+            def call(self, x):
+                # We don’t explicitly pass foo_mode here—Base Layer.__call__
+                # should inject it into `self.inner`
+                return self.inner(x)
+
+        sample_input = np.array([[1.0], [2.0]])
+
+        # Sequential model
+        seq = models.Sequential([layers.Identity(), Outer()])
+        # Tell the Sequential model to propagate foo_mode down
+        # the call-stack
+        seq._register_call_context_args("foo_mode")
+
+        # foo_mode=True -> input + 1
+        out_true = seq(sample_input, foo_mode=True)
+        self.assertAllClose(out_true, sample_input + 1.0)
+
+        # foo_mode omitted -> foo_mode defaults to False -> no change
+        out_false = seq(sample_input)
+        self.assertAllClose(out_false, sample_input)
+
+        # Functional model
+        inp = Input(shape=(1,))
+        out = layers.Identity()(inp)
+        out = Outer()(out)
+        model = models.Model(inp, out)
+        # Tell the Functional model to propagate foo_mode down
+        # the call-stack
+        model._register_call_context_args("foo_mode")
+
+        # foo_mode=True -> input + 1
+        y1 = model(sample_input, foo_mode=True)
+        self.assertAllClose(y1, sample_input + 1.0)
+
+        # foo_mode omitted -> foo_mode defaults to False -> no change
+        y2 = model(sample_input)
+        self.assertAllClose(y2, sample_input)

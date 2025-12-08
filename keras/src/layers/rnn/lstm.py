@@ -191,7 +191,6 @@ class LSTMCell(Layer, DropoutRNNCell):
             )
         else:
             self.bias = None
-        self.built = True
 
     def _compute_carry_and_output(self, x, h_tm1, c_tm1):
         """Computes carry and output using split kernels."""
@@ -277,9 +276,9 @@ class LSTMCell(Layer, DropoutRNNCell):
 
             z = ops.matmul(inputs, self.kernel)
 
-            z += ops.matmul(h_tm1, self.recurrent_kernel)
+            z = ops.add(z, ops.matmul(h_tm1, self.recurrent_kernel))
             if self.use_bias:
-                z += self.bias
+                z = ops.add(z, self.bias)
 
             z = ops.split(z, 4, axis=1)
             c, o = self._compute_carry_and_output_fused(z, c_tm1)

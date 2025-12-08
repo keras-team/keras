@@ -47,25 +47,41 @@ class Softmax(Layer):
         super().__init__(**kwargs)
         self.axis = axis
         self.supports_masking = True
-        self.built = True
+
+        self._build_at_init()
 
     def call(self, inputs, mask=None):
         if mask is not None:
-            adder = (
-                1.0 - backend.cast(mask, inputs.dtype)
-            ) * _large_negative_number(inputs.dtype)
-            inputs += adder
+            # We keep the positions where the mask is True or > 0.5, and set the
+            # other (masked) positions to -1e.9.
+            if backend.standardize_dtype(mask.dtype) != "bool":
+                mask = backend.numpy.greater(
+                    mask, backend.cast(0.5, dtype=mask.dtype)
+                )
+            inputs = backend.numpy.where(
+                mask, inputs, _large_negative_number(inputs.dtype)
+            )
         if isinstance(self.axis, (tuple, list)):
             if len(self.axis) > 1:
-                return backend.numpy.exp(
+                outputs = backend.numpy.exp(
                     inputs
                     - backend.math.logsumexp(
                         inputs, axis=self.axis, keepdims=True
                     )
                 )
             else:
-                return activations.softmax(inputs, axis=self.axis[0])
-        return activations.softmax(inputs, axis=self.axis)
+                outputs = activations.softmax(inputs, axis=self.axis[0])
+        else:
+            outputs = activations.softmax(inputs, axis=self.axis)
+
+        if mask is not None:
+            # Apply the mask to the softmax output to ensure that masked
+            # values are set to 0 in case the entire axis is masked.
+            outputs = backend.numpy.multiply(
+                outputs, backend.cast(mask, outputs.dtype)
+            )
+
+        return outputs
 
     def get_config(self):
         config = super().get_config()

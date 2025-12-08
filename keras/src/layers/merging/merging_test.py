@@ -124,7 +124,7 @@ class MergingLayersTest(testing.TestCase):
         res = model([x1, x2])
 
         self.assertEqual(res.shape, expected_output_shape)
-        self.assertAllClose(res, x3, atol=1e-4)
+        self.assertAllClose(res, x3, atol=1e-4, tpu_atol=1e-2, tpu_rtol=1e-2)
         self.assertIsNone(layer.compute_mask([input_1, input_2], [None, None]))
         self.assertIsNone(layer.compute_mask([x1, x2], [None, None]))
         if not skip_mask_test:
@@ -161,7 +161,7 @@ class MergingLayersTest(testing.TestCase):
         res = model([x1, x2])
 
         self.assertEqual(res.shape, expected_output_shape)
-        self.assertAllClose(res, x3, atol=1e-4)
+        self.assertAllClose(res, x3, atol=1e-4, tpu_atol=1e-2, tpu_rtol=1e-2)
         self.assertIsNone(layer.compute_mask([input_1, input_2], [None, None]))
         if not skip_mask_test:
             self.assertTrue(
@@ -339,6 +339,18 @@ class MergingLayersTest(testing.TestCase):
             [[[0, 0, 0, 0], [1, 2, 0, 0], [0, 0, 1, 2], [3, 4, 3, 4]]],
         )
         self.assertAllClose(output._keras_mask, [[1, 1, 1, 1]])
+
+    def test_concatenate_with_mask_symbolic(self):
+        input1 = layers.Input((4, 2))
+        input2 = layers.Input((4, 2))
+        mask = layers.Masking()
+        output = layers.Concatenate(axis=1)([mask(input1), input2])
+        model = models.Model(
+            inputs=[input1, input2], outputs=output._keras_mask
+        )
+        x1 = backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        self.assertAllClose(model([x1, x2]), [[0, 1, 0, 1, 1, 1, 1, 1]])
 
     def test_concatenate_errors(self):
         # This should work

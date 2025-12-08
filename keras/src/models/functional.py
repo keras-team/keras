@@ -170,7 +170,7 @@ class Functional(Function, Model):
             "Please use another name."
         )
 
-    def call(self, inputs, training=None, mask=None):
+    def call(self, inputs, training=None, mask=None, **kwargs):
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -181,7 +181,10 @@ class Functional(Function, Model):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
         outputs = self._run_through_graph(
-            inputs, operation_fn=lambda op: operation_fn(op, training=training)
+            inputs,
+            operation_fn=lambda op: operation_fn(
+                op, training=training, **kwargs
+            ),
         )
         return unpack_singleton(outputs)
 
@@ -251,9 +254,9 @@ class Functional(Function, Model):
         return converted
 
     def _adjust_input_rank(self, flat_inputs):
-        flat_ref_shapes = [x.shape for x in self._inputs]
         adjusted = []
-        for x, ref_shape in zip(flat_inputs, flat_ref_shapes):
+        for i, x in enumerate(flat_inputs):
+            ref_shape = self._inputs[i].shape
             if x is None:
                 adjusted.append(x)
                 continue
@@ -270,8 +273,11 @@ class Functional(Function, Model):
                 if ref_shape[-1] == 1:
                     adjusted.append(ops.expand_dims(x, axis=-1))
                     continue
+            flat_paths_and_inputs = tree.flatten_with_path(self._inputs_struct)
+            path = ".".join(str(p) for p in flat_paths_and_inputs[i][0])
             raise ValueError(
-                f"Invalid input shape for input {x}. Expected shape "
+                f"Invalid input shape for input {x} with name "
+                f"'{self._inputs[i].name}' and path '{path}'. Expected shape "
                 f"{ref_shape}, but input has incompatible shape {x.shape}"
             )
         # Add back metadata.
@@ -285,11 +291,17 @@ class Functional(Function, Model):
 
     def _standardize_inputs(self, inputs):
         raise_exception = False
-        if isinstance(inputs, dict) and not isinstance(
+        if (
+            isinstance(self._inputs_struct, list)
+            and len(self._inputs_struct) == 1
+            and ops.is_tensor(inputs)
+        ):
+            inputs = [inputs]
+        elif isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
         ):
             # This is to avoid warning
-            # when we have reconciable dict/list structs
+            # when we have reconcilable dict/list structs
             if hasattr(self._inputs_struct, "__len__") and all(
                 isinstance(i, backend.KerasTensor) for i in self._inputs_struct
             ):
@@ -347,7 +359,7 @@ class Functional(Function, Model):
                 x[0] = None
             return tuple(x)
 
-        def make_spec_for_tensor(x):
+        def make_spec_for_tensor(x, name=None):
             optional = False
             if isinstance(x._keras_history[0], InputLayer):
                 if x._keras_history[0].optional:
@@ -355,7 +367,7 @@ class Functional(Function, Model):
             return InputSpec(
                 shape=shape_with_no_batch_size(x.shape),
                 allow_last_axis_squeeze=True,
-                name=x._keras_history[0].name,
+                name=x._keras_history[0].name if name is None else name,
                 optional=optional,
             )
 
@@ -367,13 +379,7 @@ class Functional(Function, Model):
                 # Case where `_nested_inputs` is a plain dict of Inputs.
                 names = sorted(self._inputs_struct.keys())
                 return [
-                    InputSpec(
-                        shape=shape_with_no_batch_size(
-                            self._inputs_struct[name].shape
-                        ),
-                        allow_last_axis_squeeze=True,
-                        name=name,
-                    )
+                    make_spec_for_tensor(self._inputs_struct[name], name=name)
                     for name in names
                 ]
             return None  # Deeply nested dict: skip checks.
@@ -450,8 +456,6 @@ class Functional(Function, Model):
             return [operation.name, new_node_index, tensor_index]
 
         def map_tensors(tensors):
-            if isinstance(tensors, backend.KerasTensor):
-                return [get_tensor_config(tensors)]
             return tree.map_structure(get_tensor_config, tensors)
 
         config["input_layers"] = map_tensors(self._inputs_struct)
@@ -618,10 +622,6 @@ def functional_from_config(cls, config, custom_objects=None):
 
     input_tensors = map_tensors(functional_config["input_layers"])
     output_tensors = map_tensors(functional_config["output_layers"])
-    if isinstance(input_tensors, list) and len(input_tensors) == 1:
-        input_tensors = input_tensors[0]
-    if isinstance(output_tensors, list) and len(output_tensors) == 1:
-        output_tensors = output_tensors[0]
 
     return cls(
         inputs=input_tensors,
@@ -632,14 +632,18 @@ def functional_from_config(cls, config, custom_objects=None):
     )
 
 
-def operation_fn(operation, training):
+def operation_fn(operation, **call_context_args):
+    """Wraps each op to inject the call-context args."""
+
     def call(*args, **kwargs):
-        if (
-            hasattr(operation, "_call_has_training_arg")
-            and operation._call_has_training_arg
-            and training is not None
-        ):
-            kwargs["training"] = training
+        # Propagate all registered call-context args
+        for name, value in call_context_args.items():
+            if (
+                name in getattr(operation, "_call_context_args", {})
+                and value is not None
+            ):
+                kwargs[name] = value
+
         return operation(*args, **kwargs)
 
     return call
@@ -772,7 +776,7 @@ def is_input_keras_tensor(x):
 
 def clone_single_keras_tensor(x):
     return backend.KerasTensor(
-        shape=x.shape, dtype=x.dtype, sparse=x.sparse, name=x.name + "_clone"
+        shape=x.shape, dtype=x.dtype, sparse=x.sparse, name=f"{x.name}_clone"
     )
 
 
@@ -831,11 +835,16 @@ def clone_graph_nodes(inputs, outputs):
             kt_id_mapping[id(kt_input)] = kt_input
         else:
             # We need to create a new Keras tensor for any intermediate tensor
+            original_op = kt_input._keras_history.operation
+            optional = False
+            if isinstance(original_op, InputLayer):
+                optional = original_op.optional
             cloned_input = Input(
                 batch_shape=kt_input.shape,
                 dtype=kt_input.dtype,
                 sparse=kt_input.sparse,
-                name=kt_input.name + "CLONE",
+                name=f"{kt_input.name}CLONE",
+                optional=optional,
             )
             cloned_inputs.append(cloned_input)
             kt_id_mapping[id(kt_input)] = cloned_input

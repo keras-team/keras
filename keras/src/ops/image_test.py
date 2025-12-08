@@ -1,5 +1,6 @@
 import math
 
+import jax
 import numpy as np
 import pytest
 import scipy.ndimage
@@ -8,8 +9,11 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import image as kimage
+from keras.src.ops import numpy as knp
+from keras.src.ops import random as krandom
 from keras.src.testing.test_utils import named_product
 
 
@@ -112,6 +116,24 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (None, 75, 4, 4))
 
+    def test_extract_patches_3d(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 20, 3])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_patches_3d(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (None, 4, 4, 4, 375))
+        out = kimage.extract_patches_3d(x, 5)
+        self.assertEqual(out.shape, (None, 4, 4, 4, 375))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20, 20])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_patches_3d(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (None, 375, 4, 4, 4))
+        out = kimage.extract_patches_3d(x, 5)
+        self.assertEqual(out.shape, (None, 375, 4, 4, 4))
+
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, None])
         coordinates = KerasTensor([3, 15, 15, None])
@@ -190,6 +212,33 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 3, 20, 20])
         out = kimage.gaussian_blur(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
+
+    def test_elastic_transform(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
+
+    def test_scale_and_translate(self):
+        images = KerasTensor([None, 20, 20, 3])
+        output_shape = (None, 25, 25, 3)
+        scale = KerasTensor([2])
+        translation = KerasTensor([2])
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(1, 2),
+            method="linear",
+        )
+        self.assertEqual(out.shape, output_shape)
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
@@ -282,6 +331,24 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (75, 4, 4))
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (75, 4, 4))
+
+    def test_extract_patches_3d(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 20, 3])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_patches_3d(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (4, 4, 4, 375))
+        out = kimage.extract_patches_3d(x, 5)
+        self.assertEqual(out.shape, (4, 4, 4, 375))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20, 20])
+        p_d, p_h, p_w = 5, 5, 5
+        out = kimage.extract_patches_3d(x, (p_d, p_h, p_w))
+        self.assertEqual(out.shape, (375, 4, 4, 4))
+        out = kimage.extract_patches_3d(x, 5)
+        self.assertEqual(out.shape, (375, 4, 4, 4))
 
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, 3])
@@ -438,6 +505,33 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         out = kimage.gaussian_blur(x, kernel_size, sigma)
         self.assertEqual(out.shape, (3, 20, 20))
 
+    def test_elastic_transform(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_scale_and_translate(self):
+        images = KerasTensor([20, 20, 3])
+        output_shape = (25, 25, 3)
+        scale = KerasTensor([2])
+        translation = KerasTensor([2])
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method="linear",
+        )
+        self.assertEqual(out.shape, output_shape)
+
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
     "nearest": 0,
@@ -479,7 +573,7 @@ def _compute_affine_transform_coordinates(image, transform):
     # transform the indices
     coordinates = np.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = np.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += np.reshape(offset, newshape=(*offset.shape, 1, 1, 1))
+    coordinates += np.reshape(offset, (*offset.shape, 1, 1, 1))
     if need_squeeze:
         coordinates = np.squeeze(coordinates, axis=0)
     return coordinates
@@ -668,6 +762,112 @@ def gaussian_blur_np(
         blurred_images = np.squeeze(blurred_images, axis=0)
 
     return blurred_images
+
+
+def elastic_transform_np(
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
+    seed=None,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+
+    images = np.asarray(images)
+    input_dtype = images.dtype
+
+    alpha = np.asarray(alpha, dtype=input_dtype)
+    sigma = np.asarray(sigma, dtype=input_dtype)
+
+    kernel_size = (int(6 * sigma) | 1, int(6 * sigma) | 1)
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        batch_size, height, width, channels = images.shape
+        channel_axis = -1
+    else:
+        batch_size, channels, height, width = images.shape
+        channel_axis = 1
+
+    rng = np.random.default_rng([seed, 0])
+    dx = (
+        rng.normal(size=(batch_size, height, width), loc=0.0, scale=1.0).astype(
+            input_dtype
+        )
+        * sigma
+    )
+    dy = (
+        rng.normal(size=(batch_size, height, width), loc=0.0, scale=1.0).astype(
+            input_dtype
+        )
+        * sigma
+    )
+
+    dx = gaussian_blur_np(
+        np.expand_dims(dx, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+    dy = gaussian_blur_np(
+        np.expand_dims(dy, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+
+    dx = np.squeeze(dx)
+    dy = np.squeeze(dy)
+
+    x, y = np.meshgrid(np.arange(width), np.arange(height))
+    x, y = x[None, :, :], y[None, :, :]
+
+    distorted_x = x + alpha * dx
+    distorted_y = y + alpha * dy
+
+    transformed_images = np.zeros_like(images)
+
+    if data_format == "channels_last":
+        for i in range(channels):
+            transformed_images[..., i] = np.stack(
+                [
+                    _fixed_map_coordinates(
+                        images[b, ..., i],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
+                    )
+                    for b in range(batch_size)
+                ]
+            )
+    else:
+        for i in range(channels):
+            transformed_images[:, i, :, :] = np.stack(
+                [
+                    _fixed_map_coordinates(
+                        images[b, i, ...],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
+                    )
+                    for b in range(batch_size)
+                ]
+            )
+
+    if need_squeeze:
+        transformed_images = np.squeeze(transformed_images, axis=0)
+    transformed_images = transformed_images.astype(input_dtype)
+
+    return transformed_images
 
 
 def _compute_homography_matrix(start_points, end_points):
@@ -1231,7 +1431,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             fill_mode=fill_mode,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         x = np.random.uniform(size=(2, 50, 50, 3)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
@@ -1256,7 +1456,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             axis=0,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1277,7 +1477,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=1, tpu_rtol=1)
 
         x = np.random.uniform(size=(2, 3, 50, 50)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
@@ -1305,13 +1505,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         # Test class
         out = kimage.AffineTransform(
             interpolation=interpolation, fill_mode=fill_mode
         )(x, transform)
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
     @parameterized.named_parameters(
         named_product(
@@ -1676,6 +1876,301 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
 
+    def test_elastic_transform(self):
+        # Test channels_last
+        backend.set_image_data_format("channels_last")
+        np.random.seed(42)
+        x = np.random.uniform(size=(50, 50, 3)).astype("float32")
+        alpha, sigma, seed = 20.0, 5.0, 42
+
+        out = kimage.elastic_transform(
+            x,
+            alpha=alpha,
+            sigma=sigma,
+            seed=seed,
+            data_format="channels_last",
+        )
+
+        ref_out = elastic_transform_np(
+            x,
+            alpha=alpha,
+            sigma=sigma,
+            seed=seed,
+            data_format="channels_last",
+        )
+
+        out = backend.convert_to_numpy(out)
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(
+            np.mean(ref_out), np.mean(out), atol=1e-2, rtol=1e-2
+        )
+        self.assertAllClose(np.var(ref_out), np.var(out), atol=1e-2, rtol=1e-2)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = np.random.uniform(size=(3, 50, 50)).astype("float32")
+        alpha, sigma, seed = 20.0, 5.0, 42
+
+        ref_out = elastic_transform_np(
+            x,
+            alpha=alpha,
+            sigma=sigma,
+            seed=seed,
+            data_format="channels_first",
+        )
+
+        out = kimage.elastic_transform(
+            x,
+            alpha=alpha,
+            sigma=sigma,
+            seed=seed,
+            data_format="channels_first",
+        )
+        out = backend.convert_to_numpy(out)
+
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(
+            np.mean(ref_out), np.mean(out), atol=1e-2, rtol=1e-2
+        )
+        self.assertAllClose(np.var(ref_out), np.var(out), atol=1e-2, rtol=1e-2)
+
+    def test_map_coordinates_constant_padding(self):
+        input_img = tf.ones((2, 2), dtype=tf.uint8)
+        # one pixel outside of the input space around the edges
+        grid = tf.stack(
+            tf.meshgrid(
+                tf.range(-1, 3, dtype=tf.float32),
+                tf.range(-1, 3, dtype=tf.float32),
+                indexing="ij",
+            ),
+            axis=0,
+        )
+        out = backend.convert_to_numpy(
+            kimage.map_coordinates(
+                input_img, grid, order=0, fill_mode="constant", fill_value=0
+            )
+        )
+
+        # check for ones in the middle and zeros around the edges
+        self.assertTrue(np.all(out[:1] == 0))
+        self.assertTrue(np.all(out[-1:] == 0))
+        self.assertTrue(np.all(out[:, :1] == 0))
+        self.assertTrue(np.all(out[:, -1:] == 0))
+        self.assertTrue(np.all(out[1:3, 1:3] == 1))
+
+    @parameterized.named_parameters(
+        named_product(
+            method=["linear", "cubic", "lanczos3", "lanczos5"],
+            antialias=[True, False],
+        )
+    )
+    def test_scale_and_translate(self, method, antialias):
+        images = np.random.random((30, 30, 3)).astype("float32") * 255
+        scale = np.array([2.0, 2.0]).astype("float32")
+        translation = -(scale / 2.0 - 0.5)
+        out = kimage.scale_and_translate(
+            images,
+            output_shape=(15, 15, 3),
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method=method,
+            antialias=antialias,
+        )
+        ref_out = jax.image.scale_and_translate(
+            images,
+            shape=(15, 15, 3),
+            spatial_dims=(0, 1),
+            scale=scale,
+            translation=translation,
+            method=method,
+            antialias=antialias,
+        )
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-4)
+
+
+class ImageOpsDtypeTest(testing.TestCase):
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+
+    if backend.backend() == "torch":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+
+    def setUp(self):
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_affine_transform(self, dtype):
+        images = knp.ones((50, 50, 3), dtype=dtype)
+        transform = knp.ones((8,), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.affine_transform(images, transform), expected_dtype
+        )
+        self.assertDType(
+            kimage.AffineTransform().symbolic_call(images, transform),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_crop_images(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.crop_images(images, 0, 0, 3, 3), expected_dtype)
+        self.assertDType(
+            kimage.CropImages(0, 0, 3, 3).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_elastic_transform(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.elastic_transform(images), expected_dtype)
+        self.assertDType(
+            kimage.ElasticTransform().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.extract_patches(images, (3, 3)), expected_dtype)
+        self.assertDType(
+            kimage.ExtractPatches((3, 3)).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_gaussian_blur(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.gaussian_blur(images), expected_dtype)
+        self.assertDType(
+            kimage.GaussianBlur().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_hsv_to_rgb(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.hsv_to_rgb(images), expected_dtype)
+        self.assertDType(
+            kimage.HSVToRGB().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_map_coordinates(self, dtype):
+        inputs = knp.ones((3, 4, 5), dtype=dtype)
+        coordinates = knp.stack([knp.ones((2, 3, 4), dtype=dtype)] * 3)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.map_coordinates(inputs, coordinates, 0), expected_dtype
+        )
+        self.assertDType(
+            kimage.MapCoordinates(0).symbolic_call(inputs, coordinates),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_pad_images(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.pad_images(images, 0, 0, 3, 3), expected_dtype)
+        self.assertDType(
+            kimage.PadImages(0, 0, 3, 3).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_perspective_transform(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        start_points = krandom.uniform((1, 4, 2), dtype=dtype)
+        end_points = krandom.uniform((1, 4, 2), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.perspective_transform(images, start_points, end_points),
+            expected_dtype,
+        )
+        self.assertDType(
+            kimage.PerspectiveTransform().symbolic_call(
+                images, start_points, end_points
+            ),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_resize(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.resize(images, (5, 5)), expected_dtype)
+        self.assertDType(
+            kimage.Resize((5, 5)).symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_rgb_to_grayscale(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.rgb_to_grayscale(images), expected_dtype)
+        self.assertDType(
+            kimage.RGBToGrayscale().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_rgb_to_hsv(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(kimage.rgb_to_hsv(images), expected_dtype)
+        self.assertDType(
+            kimage.RGBToHSV().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_scale_and_translate(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        scale = knp.ones((2,), dtype=dtype)
+        translation = knp.ones((2,), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertDType(
+            kimage.scale_and_translate(
+                images,
+                output_shape=(15, 15, 3),
+                scale=scale,
+                translation=translation,
+                spatial_dims=(0, 1),
+                method="linear",
+            ),
+            expected_dtype,
+        )
+        self.assertDType(
+            kimage.ScaleAndTranslate(
+                spatial_dims=(0, 1), method="linear"
+            ).symbolic_call(images, (15, 15, 3), scale, translation),
+            expected_dtype,
+        )
+
 
 class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
@@ -2031,3 +2526,218 @@ class ImageOpsBehaviorTests(testing.TestCase):
             kimage.gaussian_blur(
                 invalid_image, kernel_size=kernel_size, sigma=sigma
             )
+
+    def test_elastic_transform_invalid_images_rank(self):
+        # Test rank=2
+        invalid_image = np.random.uniform(size=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.elastic_transform(
+                invalid_image,
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.ElasticTransform()(invalid_image)
+
+        # Test rank=5
+        invalid_image = np.random.uniform(size=(2, 10, 10, 3, 1))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.elastic_transform(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.ElasticTransform()(invalid_image)
+
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.elastic_transform(invalid_image)
+
+
+class ExtractPatches3DTest(testing.TestCase):
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+
+    def setUp(self):
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=FLOAT_DTYPES, data_format=["channels_last", "channels_first"]
+        )
+    )
+    def test_extract_patches_3d_basic(self, dtype, data_format):
+        if data_format == "channels_last":
+            volume = np.ones((1, 96, 96, 96, 4), dtype=dtype)
+            expected_shape = (1, 24, 24, 24, 256)
+        else:
+            volume = np.ones((1, 4, 96, 96, 96), dtype=dtype)
+            expected_shape = (1, 256, 24, 24, 24)
+        patches = kimage.extract_patches_3d(
+            volume, size=(4, 4, 4), strides=(4, 4, 4), data_format=data_format
+        )
+
+        self.assertEqual(patches.shape, expected_shape)
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_valid_padding(self, dtype):
+        volume = np.random.rand(2, 32, 32, 32, 3)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_patches_3d(
+            volume, size=(8, 8, 8), strides=(8, 8, 8), padding="valid"
+        )
+        self.assertEqual(patches.shape, (2, 4, 4, 4, 1536))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_same_padding(self, dtype):
+        volume = np.random.rand(1, 33, 33, 33, 1)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_patches_3d(
+            volume, size=(4, 4, 4), strides=(4, 4, 4), padding="same"
+        )
+        expected_patches = (33 + 3) // 4  # = 9
+        self.assertEqual(
+            patches.shape,
+            (1, expected_patches, expected_patches, expected_patches, 64),
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=FLOAT_DTYPES, data_format=["channels_last", "channels_first"]
+        )
+    )
+    def test_extract_patches_3d_with_dilation(self, dtype, data_format):
+        # Shape input according to data_format
+        if data_format == "channels_last":
+            volume = np.random.rand(1, 64, 64, 64, 2).astype(dtype)
+        else:
+            volume = np.random.rand(1, 2, 64, 64, 64).astype(dtype)
+
+        if backend.backend() == "tensorflow":
+            # TensorFlow backend does not support dilation > 1 and strides > 1
+            with self.assertRaises(ValueError):
+                kimage.extract_patches_3d(
+                    volume,
+                    size=(3, 3, 3),
+                    strides=(8, 8, 8),
+                    dilation_rate=(2, 2, 2),
+                    data_format=data_format,
+                )
+        else:
+            # Runs without error; check shape
+            patches = kimage.extract_patches_3d(
+                volume,
+                size=(3, 3, 3),
+                strides=(8, 8, 8),
+                dilation_rate=(2, 2, 2),
+                data_format=data_format,
+            )
+            # eff_p = 3 + (3 - 1) * (2 - 1) = 5
+            # out = (64 - 5) // 8 + 1 = 8
+            expected_patches = 8
+            if data_format == "channels_last":
+                expected_shape = (
+                    1,
+                    expected_patches,
+                    expected_patches,
+                    expected_patches,
+                    54,  # 2*3*3*3
+                )
+            else:
+                expected_shape = (
+                    1,
+                    54,  # 2*3*3*3
+                    expected_patches,
+                    expected_patches,
+                    expected_patches,
+                )
+            self.assertEqual(patches.shape, expected_shape)
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_overlapping(self, dtype):
+        volume = np.random.rand(1, 16, 16, 16, 1)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_patches_3d(
+            volume, size=(4, 4, 4), strides=(2, 2, 2)
+        )
+        expected_patches = (16 - 4) // 2 + 1  # = 7
+        self.assertEqual(
+            patches.shape,
+            (1, expected_patches, expected_patches, expected_patches, 64),
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_int_size(self, dtype):
+        volume = np.random.rand(1, 24, 24, 24, 2)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_patches_3d(volume, size=6, strides=6)
+        self.assertEqual(patches.shape, (1, 4, 4, 4, 432))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_no_stride_provided(self, dtype):
+        volume = np.random.rand(1, 24, 24, 24, 2)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_patches_3d(volume, size=6)
+        # should default to strides = size - same results as above test
+        self.assertEqual(patches.shape, (1, 4, 4, 4, 432))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_unbatched(self, dtype):
+        volume = np.random.rand(24, 24, 24, 2)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_patches_3d(volume, size=6)
+        self.assertEqual(patches.shape, (4, 4, 4, 432))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_value_check(self, dtype):
+        if dtype == "bfloat16" and backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO's bfloat16 fails this test, "
+                "possibly due to precision. "
+                "Should be revisited."
+            )
+        volume = np.arange(8 * 8 * 8).reshape(1, 8, 8, 8, 1)
+        volume = volume.astype(dtype)
+        patches = kimage.extract_patches_3d(
+            volume, size=(2, 2, 2), strides=(2, 2, 2)
+        )
+        first_patch = patches[0, 0, 0, 0, :]
+        first_patch_np = backend.convert_to_numpy(first_patch)
+
+        expected = volume[0, 0:2, 0:2, 0:2, 0].flatten()
+        np.testing.assert_array_equal(first_patch_np, expected)
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_invalid_size(self, dtype):
+        volume = np.random.rand(1, 32, 32, 32, 1).astype(dtype)
+        with self.assertRaises(TypeError):
+            kimage.extract_patches_3d(volume, size=(4, 4))
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_extract_patches_3d_invalid_strides(self, dtype):
+        volume = np.random.rand(1, 32, 32, 32, 1).astype(dtype)
+        with self.assertRaises(ValueError):
+            kimage.extract_patches_3d(volume, size=(4, 4, 4), strides=(2, 2))
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=FLOAT_DTYPES, data_format=["channels_last", "channels_first"]
+        )
+    )
+    def test_extract_patches_3d_non_cubic(self, dtype, data_format):
+        if data_format == "channels_last":
+            volume = np.random.rand(1, 32, 32, 32, 3).astype(dtype)
+            expected_shape = (1, 16, 10, 8, 72)
+        else:
+            volume = np.random.rand(1, 3, 32, 32, 32).astype(dtype)
+            expected_shape = (1, 72, 16, 10, 8)
+        patches = kimage.extract_patches_3d(
+            volume, size=(2, 3, 4), strides=(2, 3, 4), data_format=data_format
+        )
+        self.assertEqual(patches.shape, expected_shape)

@@ -2,8 +2,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import layers
+from keras.src import models
 from keras.src import ops
 from keras.src import testing
 
@@ -112,12 +114,21 @@ class FlattenTest(testing.TestCase):
             expected_output=expected_output,
         )
 
-    def test_flatten_with_dynamic_batch_size(self):
+    def test_flatten_symbolic_with_dynamic_batch_size(self):
         input_layer = layers.Input(batch_shape=(None, 2, 3))
         flattened = layers.Flatten()(input_layer)
         self.assertEqual(flattened.shape, (None, 2 * 3))
 
-    def test_flatten_with_dynamic_dimension(self):
+    def test_flatten_symbolic_with_dynamic_dimension(self):
         input_layer = layers.Input(batch_shape=(5, 2, None))
         flattened = layers.Flatten()(input_layer)
         self.assertEqual(flattened.shape, (5, None))
+
+    @skip_if_backend("openvino", "Dynamic dimensions not supported by OpenVino")
+    def test_flatten_with_dynamic_batch_size_and_dynamic_dimenstions(self):
+        def generator():
+            yield (np.ones((3, 5, 7), dtype="float32"),)
+            yield (np.ones((2, 7, 5), dtype="float32"),)
+
+        model = models.Sequential([layers.Flatten()])
+        model.predict(generator())

@@ -194,7 +194,10 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         )
     if str(filepath).endswith((".h5", ".hdf5")):
         return legacy_h5_format.load_model_from_hdf5(
-            filepath, custom_objects=custom_objects, compile=compile
+            filepath,
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
         )
     elif str(filepath).endswith(".keras"):
         raise ValueError(
@@ -219,48 +222,80 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
 
 
 @keras_export("keras.saving.save_weights")
-def save_weights(model, filepath, overwrite=True, **kwargs):
-    if not str(filepath).endswith(".weights.h5"):
+def save_weights(
+    model, filepath, overwrite=True, max_shard_size=None, **kwargs
+):
+    filepath_str = str(filepath)
+    if max_shard_size is None and not filepath_str.endswith(".weights.h5"):
         raise ValueError(
             "The filename must end in `.weights.h5`. "
-            f"Received: filepath={filepath}"
+            f"Received: filepath={filepath_str}"
+        )
+    elif max_shard_size is not None and not filepath_str.endswith(
+        ("weights.h5", "weights.json")
+    ):
+        raise ValueError(
+            "The filename must end in `.weights.json` when `max_shard_size` is "
+            f"specified. Received: filepath={filepath_str}"
         )
     try:
         exists = os.path.exists(filepath)
     except TypeError:
         exists = False
     if exists and not overwrite:
-        proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
+        proceed = io_utils.ask_to_proceed_with_overwrite(filepath_str)
         if not proceed:
             return
-    saving_lib.save_weights_only(model, filepath, **kwargs)
+    saving_lib.save_weights_only(model, filepath, max_shard_size, **kwargs)
 
 
 @keras_export("keras.saving.load_weights")
 def load_weights(model, filepath, skip_mismatch=False, **kwargs):
-    if str(filepath).endswith(".keras"):
-        if kwargs:
-            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+    filepath_str = str(filepath)
+
+    # Get the legacy kwargs.
+    objects_to_skip = kwargs.pop("objects_to_skip", None)
+    by_name = kwargs.pop("by_name", None)
+    if kwargs:
+        raise ValueError(f"Invalid keyword arguments: {kwargs}")
+
+    if filepath_str.endswith(".keras"):
+        if objects_to_skip is not None:
+            raise ValueError(
+                "`objects_to_skip` only supports loading '.weights.h5' files."
+                f"Received: {filepath}"
+            )
+        if by_name is not None:
+            raise ValueError(
+                "`by_name` only supports loading legacy '.h5' or '.hdf5' "
+                f"files. Received: {filepath}"
+            )
         saving_lib.load_weights_only(
             model, filepath, skip_mismatch=skip_mismatch
         )
-    elif str(filepath).endswith(".weights.h5"):
-        objects_to_skip = kwargs.pop("objects_to_skip", None)
-        if kwargs:
-            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+    elif filepath_str.endswith(".weights.h5") or filepath_str.endswith(
+        ".weights.json"
+    ):
+        if by_name is not None:
+            raise ValueError(
+                "`by_name` only supports loading legacy '.h5' or '.hdf5' "
+                f"files. Received: {filepath}"
+            )
         saving_lib.load_weights_only(
             model,
             filepath,
             skip_mismatch=skip_mismatch,
             objects_to_skip=objects_to_skip,
         )
-    elif str(filepath).endswith(".h5") or str(filepath).endswith(".hdf5"):
-        by_name = kwargs.pop("by_name", False)
-        if kwargs:
-            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+    elif filepath_str.endswith(".h5") or filepath_str.endswith(".hdf5"):
         if not h5py:
             raise ImportError(
                 "Loading a H5 file requires `h5py` to be installed."
+            )
+        if objects_to_skip is not None:
+            raise ValueError(
+                "`objects_to_skip` only supports loading '.weights.h5' files."
+                f"Received: {filepath}"
             )
         with h5py.File(filepath, "r") as f:
             if "layer_names" not in f.attrs and "model_weights" in f:
@@ -270,7 +305,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                     f, model, skip_mismatch
                 )
             else:
-                legacy_h5_format.load_weights_from_hdf5_group(f, model)
+                legacy_h5_format.load_weights_from_hdf5_group(
+                    f, model, skip_mismatch
+                )
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "

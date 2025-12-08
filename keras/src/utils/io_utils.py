@@ -93,7 +93,7 @@ def print_msg(message, line_break=True):
     """Print the message to absl logging or stdout."""
     message = str(message)
     if is_interactive_logging_enabled():
-        message = message + "\n" if line_break else message
+        message = f"{message}\n" if line_break else message
         try:
             sys.stdout.write(message)
         except UnicodeEncodeError:
@@ -101,8 +101,12 @@ def print_msg(message, line_break=True):
             # To address this, replace special unicode characters in the
             # message, and then encode and decode using the target encoding.
             message = _replace_special_unicode_character(message)
-            message_bytes = message.encode(sys.stdout.encoding, errors="ignore")
-            message = message_bytes.decode(sys.stdout.encoding)
+            # Fallback to UTF-8 when `sys.stdout.encoding` is `None` (e.g. when
+            # stdout is redirected). This prevents a `TypeError` that would be
+            # raised by `bytes.encode(None)` / `bytes.decode(None)`.
+            encoding = sys.stdout.encoding or "utf-8"
+            message_bytes = message.encode(encoding, errors="ignore")
+            message = message_bytes.decode(encoding)
             sys.stdout.write(message)
         sys.stdout.flush()
     else:

@@ -5,12 +5,13 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
+from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils.module_utils import tensorflow as tf
 
 
 @keras_export("keras.layers.Normalization")
-class Normalization(TFDataLayer):
+class Normalization(DataLayer):
     """A preprocessing layer that normalizes continuous features.
 
     This layer will shift and scale inputs into a distribution centered around
@@ -22,6 +23,9 @@ class Normalization(TFDataLayer):
     construction or learned via `adapt()`. `adapt()` will compute the mean and
     variance of the data and store them as the layer's weights. `adapt()` should
     be called before `fit()`, `evaluate()`, or `predict()`.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         axis: Integer, tuple of integers, or None. The axis or axes that should
@@ -40,10 +44,12 @@ class Normalization(TFDataLayer):
             will be broadcast to the shape of the kept axes above;
             if the value(s) cannot be broadcast, an error will be raised when
             this layer's `build()` method is called.
+            `mean` and `variance` must be specified together.
         variance: The variance value(s) to use during normalization. The passed
             value(s) will be broadcast to the shape of the kept axes above;
             if the value(s) cannot be broadcast, an error will be raised when
             this layer's `build()` method is called.
+            `mean` and `variance` must be specified together.
         invert: If `True`, this layer will apply the inverse transformation
             to its inputs: it would turn a normalized input back into its
             original form.
@@ -194,7 +200,6 @@ class Normalization(TFDataLayer):
             variance = ops.broadcast_to(variance, self._broadcast_shape)
             self.mean = ops.cast(mean, dtype=self.compute_dtype)
             self.variance = ops.cast(variance, dtype=self.compute_dtype)
-            self.built = True
 
     def adapt(self, data):
         """Computes the mean and variance of values in a dataset.
@@ -225,6 +230,18 @@ class Normalization(TFDataLayer):
                 # Batch dataset if it isn't batched
                 data = data.batch(128)
             input_shape = tuple(data.element_spec.shape)
+        elif isinstance(data, PyDataset):
+            data = data[0]
+            if isinstance(data, tuple):
+                # handling (x, y) or (x, y, sample_weight)
+                data = data[0]
+            input_shape = data.shape
+        else:
+            raise TypeError(
+                f"Unsupported data type: {type(data)}. `adapt` supports "
+                f"`np.ndarray`, backend tensors, `tf.data.Dataset`, and "
+                f"`keras.utils.PyDataset`."
+            )
 
         if not self.built:
             self.build(input_shape)
@@ -244,7 +261,7 @@ class Normalization(TFDataLayer):
         elif backend.is_tensor(data):
             total_mean = ops.mean(data, axis=self._reduce_axis)
             total_var = ops.var(data, axis=self._reduce_axis)
-        elif isinstance(data, tf.data.Dataset):
+        elif isinstance(data, (tf.data.Dataset, PyDataset)):
             total_mean = ops.zeros(self._mean_and_var_shape)
             total_var = ops.zeros(self._mean_and_var_shape)
             total_count = 0

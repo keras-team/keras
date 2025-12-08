@@ -15,7 +15,9 @@ class TorchParallelOptimizer(BaseOptimizer):
 
     @torch_utils.no_grad
     def _backend_reset_gradient_accumulators(self):
-        acc_list = [v.value for v in self._accumulated_gradients]
+        acc_list = [
+            v.value for v in self._accumulated_gradients if v is not None
+        ]
         torch._foreach_mul_(acc_list, 0.0)
 
     @torch_utils.no_grad

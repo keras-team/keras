@@ -201,6 +201,7 @@ class Metric(KerasSaveable):
                 dtype=dtype,
                 trainable=False,
                 aggregation=aggregation,
+                synchronization="on_read",
                 name=name,
             )
         # Prevent double-tracking

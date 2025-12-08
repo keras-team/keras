@@ -50,7 +50,7 @@ def distribute_value(value, tensor_layout):
     pass
 
 
-def _to_dtensor_mesh(device_mesh):
+def _to_backend_mesh(device_mesh):
     """Convert the DeviceMesh to Tensorflow backend specific Mesh.
 
     Args:
@@ -65,7 +65,7 @@ def _to_dtensor_mesh(device_mesh):
     )
 
 
-def _to_dtensor_layout(tensor_layout):
+def _to_backend_layout(tensor_layout):
     """Convert the TensorLayout to Tensorflow backend specific Sharding.
 
     Args:
@@ -83,5 +83,5 @@ def _to_dtensor_layout(tensor_layout):
     sharding_specs = [
         axis if axis else dtensor.UNSHARDED for axis in tensor_layout.axes
     ]
-    dtensor_mesh = _to_dtensor_mesh(tensor_layout.device_mesh)
+    dtensor_mesh = tensor_layout.device_mesh.backend_mesh
     return dtensor.Layout(sharding_specs=sharding_specs, mesh=dtensor_mesh)

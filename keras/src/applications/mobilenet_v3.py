@@ -91,6 +91,8 @@ Args:
     alpha: controls the width of the network. This is known as the
         depth multiplier in the MobileNetV3 paper, but the name is kept for
         consistency with MobileNetV1 in Keras.
+        When `weights` is `imagenet`, `alpha` can be one of `0.75` or `1.0`
+        for non-minimalistic models, and `1.0` for minimalistic models.
         - If `alpha < 1.0`, proportionally decreases the number
             of filters in each layer.
         - If `alpha > 1.0`, proportionally increases the number
@@ -383,10 +385,10 @@ def MobileNetV3(
             model_type, "_minimalistic" if minimalistic else "", str(alpha)
         )
         if include_top:
-            file_name = "weights_mobilenet_v3_" + model_name + ".h5"
+            file_name = f"weights_mobilenet_v3_{model_name}.h5"
             file_hash = WEIGHTS_HASHES[model_name][0]
         else:
-            file_name = "weights_mobilenet_v3_" + model_name + "_no_top_v2.h5"
+            file_name = f"weights_mobilenet_v3_{model_name}_no_top_v2.h5"
             file_hash = WEIGHTS_HASHES[model_name][1]
         weights_path = file_utils.get_file(
             file_name,
@@ -568,23 +570,23 @@ def _depth(v, divisor=8, min_value=None):
 
 def _se_block(inputs, filters, se_ratio, prefix):
     x = layers.GlobalAveragePooling2D(
-        keepdims=True, name=prefix + "squeeze_excite_avg_pool"
+        keepdims=True, name=f"{prefix}squeeze_excite_avg_pool"
     )(inputs)
     x = layers.Conv2D(
         _depth(filters * se_ratio),
         kernel_size=1,
         padding="same",
-        name=prefix + "squeeze_excite_conv",
+        name=f"{prefix}squeeze_excite_conv",
     )(x)
-    x = layers.ReLU(name=prefix + "squeeze_excite_relu")(x)
+    x = layers.ReLU(name=f"{prefix}squeeze_excite_relu")(x)
     x = layers.Conv2D(
         filters,
         kernel_size=1,
         padding="same",
-        name=prefix + "squeeze_excite_conv_1",
+        name=f"{prefix}squeeze_excite_conv_1",
     )(x)
     x = hard_sigmoid(x)
-    x = layers.Multiply(name=prefix + "squeeze_excite_mul")([inputs, x])
+    x = layers.Multiply(name=f"{prefix}squeeze_excite_mul")([inputs, x])
     return x
 
 
@@ -603,33 +605,33 @@ def _inverted_res_block(
             kernel_size=1,
             padding="same",
             use_bias=False,
-            name=prefix + "expand",
+            name=f"{prefix}expand",
         )(x)
         x = layers.BatchNormalization(
             axis=channel_axis,
             epsilon=1e-3,
             momentum=0.999,
-            name=prefix + "expand_bn",
+            name=f"{prefix}expand_bn",
         )(x)
         x = activation(x)
 
     if stride == 2:
         x = layers.ZeroPadding2D(
             padding=imagenet_utils.correct_pad(x, kernel_size),
-            name=prefix + "depthwise_pad",
+            name=f"{prefix}depthwise_pad",
         )(x)
     x = layers.DepthwiseConv2D(
         kernel_size,
         strides=stride,
         padding="same" if stride == 1 else "valid",
         use_bias=False,
-        name=prefix + "depthwise",
+        name=f"{prefix}depthwise",
     )(x)
     x = layers.BatchNormalization(
         axis=channel_axis,
         epsilon=1e-3,
         momentum=0.999,
-        name=prefix + "depthwise_bn",
+        name=f"{prefix}depthwise_bn",
     )(x)
     x = activation(x)
 
@@ -641,17 +643,17 @@ def _inverted_res_block(
         kernel_size=1,
         padding="same",
         use_bias=False,
-        name=prefix + "project",
+        name=f"{prefix}project",
     )(x)
     x = layers.BatchNormalization(
         axis=channel_axis,
         epsilon=1e-3,
         momentum=0.999,
-        name=prefix + "project_bn",
+        name=f"{prefix}project_bn",
     )(x)
 
     if stride == 1 and infilters == filters:
-        x = layers.Add(name=prefix + "add")([shortcut, x])
+        x = layers.Add(name=f"{prefix}add")([shortcut, x])
     return x
 
 

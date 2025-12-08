@@ -35,8 +35,16 @@ class KerasTensor:
         ragged=False,
         record_history=True,
         name=None,
+        **kwargs,
     ):
         from keras.src import backend
+
+        ragged_rank = kwargs.pop("ragged_rank", None)
+        row_splits_dtype = kwargs.pop("row_splits_dtype", None)
+        if kwargs:
+            raise TypeError(
+                f"Unexpected keyword arguments: {', '.join(kwargs.keys())}"
+            )
 
         self._shape = backend.standardize_shape(shape)
         self._dtype = backend.standardize_dtype(dtype)
@@ -47,6 +55,14 @@ class KerasTensor:
                 "KerasTensor cannot have `sparse=True` and `ragged=True` at "
                 "the same time."
             )
+        self._ragged_rank = (
+            int(ragged_rank) if ragged_rank is not None else None
+        )
+        self._row_splits_dtype = (
+            backend.standardize_dtype(row_splits_dtype)
+            if row_splits_dtype is not None
+            else None
+        )
         self.name = name or auto_name(self.__class__.__name__)
         self.record_history = record_history
 
@@ -81,6 +97,28 @@ class KerasTensor:
         raise AttributeError(
             "The `sparse` attribute of KerasTensor is immutable. One should "
             "create a new instance of KerasTensor for this."
+        )
+
+    @property
+    def ragged_rank(self):
+        return self._ragged_rank
+
+    @ragged_rank.setter
+    def ragged_rank(self, value):
+        raise AttributeError(
+            "The `ragged_rank` attribute of KerasTensor is immutable. One "
+            "should create a new instance of KerasTensor for this."
+        )
+
+    @property
+    def row_splits_dtype(self):
+        return self._row_splits_dtype
+
+    @row_splits_dtype.setter
+    def row_splits_dtype(self, value):
+        raise AttributeError(
+            "The `row_splits_dtype` attribute of KerasTensor is immutable. One "
+            "should create a new instance of KerasTensor for this."
         )
 
     @property

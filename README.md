@@ -27,15 +27,14 @@ pip install keras --upgrade
 
 2. Install backend package(s).
 
-To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
-Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
-as well as `tf.data` pipelines.
+To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`. Additionally,
+The `openvino` backend is available with support for model inference only.
 
 ### Local installation
 
 #### Minimal installation
 
-Keras 3 is compatible with Linux and MacOS systems. For Windows users, we recommend using WSL2 to run Keras.
+Keras 3 is compatible with Linux and macOS systems. For Windows users, we recommend using WSL2 to run Keras.
 To install a local development version:
 
 1. Install dependencies:
@@ -56,12 +55,23 @@ python pip_build.py --install
 ./shell/api_gen.sh
 ```
 
+## Backend Compatibility Table
+
+The following table lists the minimum supported versions of each backend for the latest stable release of Keras (v3.x):
+
+| Backend    | Minimum Supported Version |
+|------------|---------------------------|
+| TensorFlow | 2.16.1                    |
+| JAX        | 0.4.20                    |
+| PyTorch    | 2.1.0                     |
+| OpenVINO   | 2025.3.0                  |
+
 #### Adding GPU support
 
 The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX, and PyTorch. For GPU support, we also
 provide a separate `requirements-{backend}-cuda.txt` for TensorFlow, JAX, and PyTorch. These install all CUDA
-dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recommend a clean python environment for each
-backend to avoid CUDA version mismatches. As an example, here is how to create a Jax GPU environment with `conda`:
+dependencies via `pip` and expect a NVIDIA driver to be pre-installed. We recommend a clean Python environment for each
+backend to avoid CUDA version mismatches. As an example, here is how to create a JAX GPU environment with `conda`:
 
 ```shell
 conda create -y -n keras-jax python=3.10
@@ -88,12 +98,11 @@ os.environ["KERAS_BACKEND"] = "jax"
 import keras
 ```
 
-**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
+**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after
 the package has been imported.
 
 **Note:** The OpenVINO backend is an inference-only backend, meaning it is designed only for running model
 predictions using `model.predict()` method.
-To use `openvino` backend, install the required dependencies from the `requirements-openvino.txt` file.
 
 ## Backwards compatibility
 

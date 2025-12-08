@@ -9,8 +9,8 @@ from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
 
 
-def cholesky(a):
-    out = jnp.linalg.cholesky(a)
+def cholesky(a, upper=False):
+    out = jnp.linalg.cholesky(a, upper=upper)
     try:
         # In eager mode, raise for nan to
         # achieve behavior consistency with numpy
@@ -24,6 +24,16 @@ def cholesky(a):
         # Cannot raise for nan in tracing mode
         pass
     return out
+
+
+def cholesky_inverse(a, upper=False):
+    identity = jnp.eye(a.shape[-1], dtype=a.dtype)
+    inv_chol = solve_triangular(a, identity, lower=not upper)
+    if upper:
+        a_inv = jnp.matmul(inv_chol, jnp.transpose(inv_chol))
+    else:
+        a_inv = jnp.matmul(jnp.transpose(inv_chol), inv_chol)
+    return a_inv
 
 
 def det(a):
@@ -87,3 +97,7 @@ def lstsq(a, b, rcond=None):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return jnp.linalg.lstsq(a, b, rcond=rcond)[0]
+
+
+def jvp(fun, primals, tangents, has_aux=False):
+    return jax.jvp(fun, primals, tangents, has_aux=has_aux)

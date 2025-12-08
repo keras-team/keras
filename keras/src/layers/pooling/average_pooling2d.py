@@ -17,7 +17,7 @@ class AveragePooling2D(BasePooling):
     (when `input_shape >= pool_size`)
 
     The resulting output shape when using the `"same"` padding option is:
-    `output_shape = math.floor((input_shape - 1) / strides) + 1`
+    `output_shape = input_shape`
 
     Args:
         pool_size: int or tuple of 2 integers, factors by which to downscale

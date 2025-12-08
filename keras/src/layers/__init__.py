@@ -29,6 +29,7 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.core.lambda_layer import Lambda
 from keras.src.layers.core.masking import Masking
+from keras.src.layers.core.reversible_embedding import ReversibleEmbedding
 from keras.src.layers.core.wrapper import Wrapper
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
@@ -116,6 +117,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_contrast import (
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_crop import (
     RandomCrop,
+)
+from keras.src.layers.preprocessing.image_preprocessing.random_elastic_transform import (
+    RandomElasticTransform,
 )
 from keras.src.layers.preprocessing.image_preprocessing.random_erasing import (
     RandomErasing,

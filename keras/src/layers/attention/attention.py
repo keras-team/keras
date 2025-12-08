@@ -107,7 +107,6 @@ class Attention(Layer):
                 dtype=self.dtype,
                 trainable=True,
             )
-        self.built = True
 
     def _calculate_scores(self, query, key):
         """Calculates attention scores as a query-key dot product.
@@ -122,7 +121,7 @@ class Attention(Layer):
         if self.score_mode == "dot":
             scores = ops.matmul(query, ops.transpose(key, axes=[0, 2, 1]))
             if self.scale is not None:
-                scores *= self.scale
+                scores = ops.multiply(scores, self.scale)
         elif self.score_mode == "concat":
             # Reshape tensors to enable broadcasting.
             # Reshape into [batch_size, Tq, 1, dim].
@@ -177,6 +176,8 @@ class Attention(Layer):
             # Bias so padding positions do not contribute to attention
             # distribution.  Note 65504. is the max float16 value.
             max_value = 65504.0 if scores.dtype == "float16" else 1.0e9
+            if len(padding_mask.shape) == 2:
+                padding_mask = ops.expand_dims(padding_mask, axis=-2)
             scores -= max_value * ops.cast(padding_mask, dtype=scores.dtype)
 
         weights = ops.softmax(scores, axis=-1)

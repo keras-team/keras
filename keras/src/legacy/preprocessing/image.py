@@ -30,11 +30,14 @@ class Iterator(PyDataset):
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
         seed: Random seeding for data shuffling.
+        **kwargs: Additional keyword arguments for the `PyDataset` base class,
+            such as `workers`, `use_multiprocessing`, and `max_queue_size`.
     """
 
     white_list_formats = ("png", "jpg", "jpeg", "bmp", "ppm", "tif", "tiff")
 
-    def __init__(self, n, batch_size, shuffle, seed):
+    def __init__(self, n, batch_size, shuffle, seed, **kwargs):
+        super().__init__(**kwargs)
         self.n = n
         self.batch_size = batch_size
         self.seed = seed
@@ -617,17 +620,12 @@ class NumpyArrayIterator(Iterator):
         channels_axis = 3 if data_format == "channels_last" else 1
         if self.x.shape[channels_axis] not in {1, 3, 4}:
             warnings.warn(
-                'NumpyArrayIterator is set to use the data format convention "'
-                + data_format
-                + '" (channels on axis '
-                + str(channels_axis)
-                + "), i.e. expected either 1, 3, or 4 channels on axis "
-                + str(channels_axis)
-                + ". However, it was passed an array with shape "
-                + str(self.x.shape)
-                + " ("
-                + str(self.x.shape[channels_axis])
-                + " channels)."
+                f"NumpyArrayIterator is set to use the data format convention"
+                f' "{data_format}" (channels on axis {channels_axis})'
+                ", i.e. expected either 1, 3, or 4 channels "
+                f"on axis {channels_axis}. "
+                f"However, it was passed an array with shape {self.x.shape}"
+                f" ({self.x.shape[channels_axis]} channels)."
             )
         if y is not None:
             self.y = np.asarray(y)
@@ -1494,17 +1492,11 @@ class ImageDataGenerator:
         if x.shape[self.channel_axis] not in {1, 3, 4}:
             warnings.warn(
                 "Expected input to be images (as Numpy array) "
-                'following the data format convention "'
-                + self.data_format
-                + '" (channels on axis '
-                + str(self.channel_axis)
-                + "), i.e. expected either 1, 3 or 4 channels on axis "
-                + str(self.channel_axis)
-                + ". However, it was passed an array with shape "
-                + str(x.shape)
-                + " ("
-                + str(x.shape[self.channel_axis])
-                + " channels)."
+                f'following the data format convention "{self.data_format}'
+                f'" (channels on axis {self.channel_axis})'
+                ", i.e. expected either 1, 3 or 4 channels on axis "
+                f"{self.channel_axis}. However, it was passed an array with"
+                f" shape {x.shape} ({x.shape[self.channel_axis]} channels)."
             )
 
         if seed is not None:

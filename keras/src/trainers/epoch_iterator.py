@@ -42,6 +42,7 @@ or until there is no data
 import contextlib
 import warnings
 
+from keras.src.backend import config
 from keras.src.trainers import data_adapters
 
 
@@ -57,6 +58,14 @@ class EpochIterator:
         class_weight=None,
         steps_per_execution=1,
     ):
+        # Possibly cap steps_per_epoch for debugging runs.
+        max_steps_per_epoch = config.max_steps_per_epoch()
+        if max_steps_per_epoch:
+            if not steps_per_epoch or max_steps_per_epoch < steps_per_epoch:
+                warnings.warn(
+                    "Limiting steps_per_epoch to %d" % max_steps_per_epoch
+                )
+                steps_per_epoch = max_steps_per_epoch
         self.steps_per_epoch = steps_per_epoch
         self.steps_per_execution = steps_per_execution
         self._current_iterator = None
@@ -107,7 +116,11 @@ class EpochIterator:
                         self._interrupted_warning()
                     break
                 self._steps_seen += self.steps_per_execution
-                yield step, self._current_iterator
+                yield (
+                    step,
+                    step + self.steps_per_execution - 1,
+                    self._current_iterator,
+                )
             if self._num_batches and self._steps_seen >= self._num_batches:
                 self._current_iterator = iter(self._get_iterator())
                 self._steps_seen = 0
@@ -117,7 +130,7 @@ class EpochIterator:
             while True:
                 step += self.steps_per_execution
                 self._steps_seen = step + self.steps_per_execution
-                yield step, iterator
+                yield step, step + self.steps_per_execution - 1, iterator
         self.data_adapter.on_epoch_end()
 
     def __iter__(self):
@@ -126,19 +139,19 @@ class EpochIterator:
 
     def __next__(self):
         buffer = []
-        step, iterator = next(self._epoch_iterator)
+        begin_step, end_step, iterator = next(self._epoch_iterator)
         with self.catch_stop_iteration():
             for _ in range(self.steps_per_execution):
                 data = next(iterator)
                 buffer.append(data)
-            return step, buffer
+            return begin_step, end_step, buffer
         if buffer:
-            return step, buffer
+            return begin_step, end_step, buffer
         raise StopIteration
 
     def enumerate_epoch(self):
-        for step, data in self:
-            yield step, data
+        for begin_step, end_step, data in self:
+            yield begin_step, end_step, data
 
     @contextlib.contextmanager
     def catch_stop_iteration(self):

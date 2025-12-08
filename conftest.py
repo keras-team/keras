@@ -1,16 +1,10 @@
-import os
-
-# When using jax.experimental.enable_x64 in unit test, we want to keep the
-# default dtype with 32 bits, aligning it with Keras's default.
-os.environ["JAX_DEFAULT_DTYPE_BITS"] = "32"
-
 try:
     # When using torch and tensorflow, torch needs to be imported first,
     # otherwise it will segfault upon import. This should force the torch
     # import to happen first for all tests.
     import torch  # noqa: F401
 except ImportError:
-    pass
+    torch = None
 
 import pytest  # noqa: E402
 
@@ -37,8 +31,23 @@ def pytest_collection_modifyitems(config, items):
                 line.strip() for line in openvino_skipped_tests if line.strip()
             ]
 
+    tpu_skipped_tests = []
+    if backend() == "jax":
+        try:
+            with open(
+                "keras/src/backend/jax/excluded_tpu_tests.txt", "r"
+            ) as file:
+                tpu_skipped_tests = file.readlines()
+                # it is necessary to check if stripped line is not empty
+                # and exclude such lines
+                tpu_skipped_tests = [
+                    line.strip() for line in tpu_skipped_tests if line.strip()
+                ]
+        except FileNotFoundError:
+            pass  # File doesn't exist, no tests to skip
+
     requires_trainable_backend = pytest.mark.skipif(
-        backend() == "numpy" or backend() == "openvino",
+        backend() in ["numpy", "openvino"],
         reason="Trainer not implemented for NumPy and OpenVINO backend.",
     )
     for item in items:
@@ -53,6 +62,14 @@ def pytest_collection_modifyitems(config, items):
                     skip_if_backend(
                         "openvino",
                         "Not supported operation by openvino backend",
+                    )
+                )
+        # also, skip concrete tests for TPU when using JAX backend
+        for skipped_test in tpu_skipped_tests:
+            if skipped_test in item.nodeid:
+                item.add_marker(
+                    pytest.mark.skip(
+                        reason="Known TPU test failure",
                     )
                 )
 

@@ -198,7 +198,6 @@ class GroupedQueryAttention(Layer):
         self._output_dense.build(
             (None, None, self.num_query_heads, self.head_dim)
         )
-        self.built = True
 
     def _get_common_kwargs_for_sublayer(self):
         common_kwargs = dict(
@@ -465,7 +464,8 @@ class GroupedQueryAttention(Layer):
             raise ValueError(
                 "The last dimension of `query_shape` and `value_shape` "
                 f"must be equal, but are {query_shape[-1]}, {value_shape[-1]}. "
-                "Received: query_shape={query_shape}, value_shape={value_shape}"
+                f"Received: query_shape={query_shape}, "
+                f"value_shape={value_shape}"
             )
 
         if value_shape[1:-1] != key_shape[1:-1]:

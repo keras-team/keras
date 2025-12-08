@@ -214,7 +214,7 @@ class Hashing(Layer):
 
         inputs = tf_utils.ensure_tensor(inputs)
         if self.output_mode == "one_hot" and inputs.shape[-1] == 1:
-            # One hot only unpranks if the final dimension is not 1.
+            # One hot only upranks if the final dimension is not 1.
             inputs = tf_backend.numpy.squeeze(inputs, axis=-1)
         if isinstance(inputs, tf.SparseTensor):
             indices = tf.SparseTensor(

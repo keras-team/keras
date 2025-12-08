@@ -1,10 +1,15 @@
 import warnings
 
 from keras.src.api_export import keras_export
+from keras.src.backend.config import backend
 from keras.src.utils.module_utils import dmtree
 from keras.src.utils.module_utils import optree
 
-if optree.available:
+if backend() == "torch":
+    # torchtree_impl is especially used for Torch backend, as it works better
+    # with torch.compile.
+    from keras.src.tree import torchtree_impl as tree_impl
+elif optree.available:
     from keras.src.tree import optree_impl as tree_impl
 elif dmtree.available:
     from keras.src.tree import dmtree_impl as tree_impl
@@ -160,7 +165,7 @@ def flatten_with_path(structure):
 
 
 @keras_export("keras.tree.map_structure")
-def map_structure(func, *structures):
+def map_structure(func, *structures, none_is_leaf=True):
     """Maps `func` through given structures.
 
     Examples:
@@ -179,6 +184,9 @@ def map_structure(func, *structures):
     Args:
         func: A callable that accepts as many arguments as there are structures.
         *structures: Arbitrarily nested structures of the same layout.
+        none_is_leaf: If True, `func` will be called on `None` leaves. If False,
+            `None` values are not passed to `func` and are returned in the
+            output directly.
 
     Returns:
         A new structure with the same layout as the given ones.
@@ -189,7 +197,7 @@ def map_structure(func, *structures):
             the nested structures don't match according to the rules of
             `assert_same_structure`.
     """
-    return tree_impl.map_structure(func, *structures)
+    return tree_impl.map_structure(func, *structures, none_is_leaf=none_is_leaf)
 
 
 @keras_export("keras.tree.map_structure_up_to")

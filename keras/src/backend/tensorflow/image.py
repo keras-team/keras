@@ -2,10 +2,13 @@ import functools
 import itertools
 import operator
 
+import numpy as np
 import tensorflow as tf
 
 from keras.src import backend
 from keras.src.backend.tensorflow.core import convert_to_tensor
+from keras.src.backend.tensorflow.numpy import moveaxis
+from keras.src.random.seed_generator import draw_seed
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -15,6 +18,34 @@ RESIZE_INTERPOLATIONS = (
     "bicubic",
     "area",
 )
+AFFINE_TRANSFORM_INTERPOLATIONS = (
+    "nearest",
+    "bilinear",
+)
+AFFINE_TRANSFORM_FILL_MODES = (
+    "constant",
+    "nearest",
+    "wrap",
+    # "mirror", not supported by TF
+    "reflect",
+)
+MAP_COORDINATES_FILL_MODES = {
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
+}
+SCALE_AND_TRANSLATE_METHODS = {
+    "linear",
+    "bilinear",
+    "trilinear",
+    "cubic",
+    "bicubic",
+    "tricubic",
+    "lanczos3",
+    "lanczos5",
+}
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -299,19 +330,6 @@ def resize(
         elif len(images.shape) == 3:
             resized = tf.transpose(resized, (2, 0, 1))
     return resized
-
-
-AFFINE_TRANSFORM_INTERPOLATIONS = (
-    "nearest",
-    "bilinear",
-)
-AFFINE_TRANSFORM_FILL_MODES = (
-    "constant",
-    "nearest",
-    "wrap",
-    # "mirror", not supported by TF
-    "reflect",
-)
 
 
 def affine_transform(
@@ -606,15 +624,6 @@ def _reflect_index_fixer(index, size):
     )
 
 
-_INDEX_FIXERS = {
-    "constant": lambda index, size: index,
-    "nearest": lambda index, size: tf.clip_by_value(index, 0, size - 1),
-    "wrap": lambda index, size: index % size,
-    "mirror": _mirror_index_fixer,
-    "reflect": _reflect_index_fixer,
-}
-
-
 def _nearest_indices_and_weights(coordinate):
     coordinate = (
         coordinate if coordinate.dtype.is_integer else tf.round(coordinate)
@@ -649,6 +658,12 @@ def map_coordinates(
         raise ValueError(
             "Invalid coordinates rank: expected at least rank 2."
             f" Received input with shape: {coordinate_arrs.shape}"
+        )
+    if fill_mode not in MAP_COORDINATES_FILL_MODES:
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Expected one of "
+            f"{set(MAP_COORDINATES_FILL_MODES.keys())}. Received: "
+            f"fill_mode={fill_mode}"
         )
 
     fill_value = convert_to_tensor(fill_value, dtype=input_arr.dtype)
@@ -705,15 +720,17 @@ def map_coordinates(
 
         gathered = tf.transpose(tf.gather_nd(input_arr, indices))
 
-        if fill_mode == "constant":
-            all_valid = tf.reduce_all(validities)
-            gathered = tf.where(all_valid, gathered, fill_value)
+        # Cast to computation dtype early to avoid type issues
+        dtype = weights[0].dtype
+        gathered = tf.cast(gathered, dtype)
+        gathered = tf.cast(gathered, weights[0].dtype)
 
-        contribution = gathered
-        outputs.append(
-            functools.reduce(operator.mul, weights)
-            * tf.cast(contribution, weights[0].dtype)
-        )
+        if fill_mode == "constant":
+            all_valid = tf.reduce_all(validities, axis=0)
+            fill_value_typed = tf.cast(fill_value, dtype)
+            gathered = tf.where(all_valid, gathered, fill_value_typed)
+
+        outputs.append(functools.reduce(operator.mul, weights) * gathered)
 
     result = functools.reduce(operator.add, outputs)
 
@@ -744,9 +761,9 @@ def gaussian_blur(
         return kernel
 
     images = convert_to_tensor(images)
-    kernel_size = convert_to_tensor(kernel_size)
-    sigma = convert_to_tensor(sigma)
-    dtype = images.dtype
+    dtype = backend.standardize_dtype(images.dtype)
+    kernel_size = convert_to_tensor(kernel_size, dtype=dtype)
+    sigma = convert_to_tensor(sigma, dtype=dtype)
 
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -776,3 +793,284 @@ def gaussian_blur(
         blurred_images = tf.squeeze(blurred_images, axis=0)
 
     return blurred_images
+
+
+def elastic_transform(
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
+    seed=None,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{AFFINE_TRANSFORM_INTERPOLATIONS}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Expected of one "
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
+        )
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    images = convert_to_tensor(images)
+    input_dtype = images.dtype
+
+    alpha = convert_to_tensor(alpha, dtype=input_dtype)
+    sigma = convert_to_tensor(sigma, dtype=input_dtype)
+    kernel_factor = convert_to_tensor(sigma, dtype="int32")
+    kernel_size = (6 * kernel_factor | 1, 6 * kernel_factor | 1)
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = tf.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        batch_size, height, width, channels = images.shape
+        channel_axis = -1
+    else:
+        batch_size, channels, height, width = images.shape
+        channel_axis = 1
+
+    seed = draw_seed(seed)
+
+    if batch_size is None:
+        batch_size = 1
+
+    dx = (
+        tf.random.stateless_normal(
+            shape=(batch_size, height, width),
+            mean=0.0,
+            stddev=1.0,
+            dtype=input_dtype,
+            seed=seed,
+        )
+        * sigma
+    )
+    dy = (
+        tf.random.stateless_normal(
+            shape=(batch_size, height, width),
+            mean=0.0,
+            stddev=1.0,
+            dtype=input_dtype,
+            seed=seed,
+        )
+        * sigma
+    )
+
+    dx = gaussian_blur(
+        tf.expand_dims(dx, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+    dy = gaussian_blur(
+        tf.expand_dims(dy, axis=channel_axis),
+        kernel_size=kernel_size,
+        sigma=(sigma, sigma),
+        data_format=data_format,
+    )
+
+    dx = tf.squeeze(dx, axis=channel_axis)
+    dy = tf.squeeze(dy, axis=channel_axis)
+
+    x, y = tf.meshgrid(
+        tf.range(width, dtype=input_dtype),
+        tf.range(height, dtype=input_dtype),
+        indexing="xy",
+    )
+    x = tf.expand_dims(x, axis=0)
+    y = tf.expand_dims(y, axis=0)
+
+    distorted_x = x + alpha * dx
+    distorted_y = y + alpha * dy
+
+    channel_outputs = []
+    if data_format == "channels_last":
+        for i in range(channels):
+            channel_transformed = tf.stack(
+                [
+                    map_coordinates(
+                        images[b, ..., i],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS.index(
+                            interpolation
+                        ),
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
+                    )
+                    for b in range(batch_size)
+                ],
+                axis=0,
+            )
+            channel_outputs.append(channel_transformed)
+        transformed_images = tf.stack(channel_outputs, axis=-1)
+    else:
+        for i in range(channels):
+            channel_transformed = tf.stack(
+                [
+                    map_coordinates(
+                        images[b, i, ...],
+                        [distorted_y[b], distorted_x[b]],
+                        order=AFFINE_TRANSFORM_INTERPOLATIONS.index(
+                            interpolation
+                        ),
+                        fill_mode=fill_mode,
+                        fill_value=fill_value,
+                    )
+                    for b in range(batch_size)
+                ],
+                axis=0,
+            )
+            channel_outputs.append(channel_transformed)
+        transformed_images = tf.stack(channel_outputs, axis=1)
+
+    if need_squeeze:
+        transformed_images = tf.squeeze(transformed_images, axis=0)
+    transformed_images = tf.cast(transformed_images, input_dtype)
+
+    return transformed_images
+
+
+def _fill_triangle_kernel(x):
+    return tf.maximum(tf.constant(0, dtype=x.dtype), 1 - tf.abs(x))
+
+
+def _fill_keys_cubic_kernel(x):
+    out = ((1.5 * x - 2.5) * x) * x + 1.0
+    out = tf.where(x >= 1.0, ((-0.5 * x + 2.5) * x - 4.0) * x + 2.0, out)
+    return tf.where(x >= 2.0, 0.0, out)
+
+
+def _fill_lanczos_kernel(radius, x):
+    y = radius * tf.sin(np.pi * x) * tf.sin(np.pi * x / radius)
+    out = tf.where(
+        x > 1e-3, tf.divide(y, tf.where(x != 0, np.pi**2 * x**2, 1)), 1
+    )
+    return tf.where(x > radius, 0.0, out)
+
+
+_kernels = {
+    "linear": _fill_triangle_kernel,
+    "cubic": _fill_keys_cubic_kernel,
+    "lanczos3": lambda x: _fill_lanczos_kernel(3.0, x),
+    "lanczos5": lambda x: _fill_lanczos_kernel(5.0, x),
+}
+
+
+def _compute_weight_mat(
+    input_size, output_size, scale, translation, kernel, antialias
+):
+    dtype = backend.result_type(scale.dtype, translation.dtype)
+    inv_scale = 1.0 / scale
+    kernel_scale = tf.maximum(inv_scale, 1.0) if antialias else 1.0
+    sample_f = (
+        (tf.range(output_size, dtype=dtype) + 0.5) * inv_scale
+        - translation * inv_scale
+        - 0.5
+    )
+    x = (
+        tf.abs(
+            sample_f[tf.newaxis, :]
+            - tf.range(input_size, dtype=dtype)[:, tf.newaxis]
+        )
+        / kernel_scale
+    )
+    weights = kernel(x)
+    total_weight_sum = tf.reduce_sum(weights, axis=0, keepdims=True)
+    weights = tf.where(
+        tf.abs(total_weight_sum) > 1000.0 * float(np.finfo(np.float32).eps),
+        tf.divide(
+            weights, tf.where(total_weight_sum != 0, total_weight_sum, 1)
+        ),
+        0,
+    )
+    input_size_minus_0_5 = tf.cast(input_size, dtype=dtype) - 0.5
+    return tf.where(
+        tf.logical_and(sample_f >= -0.5, sample_f <= input_size_minus_0_5)[
+            tf.newaxis, :
+        ],
+        weights,
+        0,
+    )
+
+
+def _scale_and_translate(
+    x, output_shape, spatial_dims, scale, translation, kernel, antialias
+):
+    x = convert_to_tensor(x)
+    input_shape = tf.shape(x)
+    if len(spatial_dims) == 0:
+        return x
+    if backend.is_int_dtype(x.dtype):
+        output = tf.cast(x, tf.float32)
+        use_rounding = True
+    else:
+        output = tf.identity(x)
+        use_rounding = False
+    for i, d in enumerate(spatial_dims):
+        d = d % x.ndim
+        m, n = input_shape[d], output_shape[d]
+        w = tf.cast(
+            _compute_weight_mat(
+                m, n, scale[i], translation[i], kernel, antialias
+            ),
+            output.dtype,
+        )
+        output = tf.tensordot(output, w, axes=(d, 0))
+        output = moveaxis(output, -1, d)
+    if use_rounding:
+        output = tf.clip_by_value(
+            tf.round(output), tf.reduce_min(x), tf.reduce_max(x)
+        )
+        output = tf.cast(output, x.dtype)
+    return output
+
+
+def scale_and_translate(
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
+):
+    if method not in SCALE_AND_TRANSLATE_METHODS:
+        raise ValueError(
+            "Invalid value for argument `method`. Expected of one "
+            f"{SCALE_AND_TRANSLATE_METHODS}. Received: method={method}"
+        )
+    if method in ("linear", "bilinear", "trilinear", "triangle"):
+        method = "linear"
+    elif method in ("cubic", "bicubic", "tricubic"):
+        method = "cubic"
+
+    images = convert_to_tensor(images)
+    scale = convert_to_tensor(scale)
+    translation = convert_to_tensor(translation)
+    kernel = _kernels[method]
+    dtype = backend.result_type(scale.dtype, translation.dtype)
+    scale = tf.cast(scale, dtype)
+    translation = tf.cast(translation, dtype)
+    return _scale_and_translate(
+        images,
+        output_shape,
+        spatial_dims,
+        scale,
+        translation,
+        kernel,
+        antialias,
+    )

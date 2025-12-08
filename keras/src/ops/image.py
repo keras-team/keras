@@ -8,8 +8,8 @@ from keras.src.ops.operation_utils import compute_conv_output_shape
 
 
 class RGBToGrayscale(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -77,8 +77,8 @@ def rgb_to_grayscale(images, data_format=None):
 
 
 class RGBToHSV(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -149,8 +149,8 @@ def rgb_to_hsv(images, data_format=None):
 
 
 class HSVToRGB(Operation):
-    def __init__(self, data_format=None):
-        super().__init__()
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
@@ -228,8 +228,10 @@ class Resize(Operation):
         fill_mode="constant",
         fill_value=0.0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.size = tuple(size)
         self.interpolation = interpolation
         self.antialias = antialias
@@ -413,8 +415,10 @@ class AffineTransform(Operation):
         fill_mode="constant",
         fill_value=0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_mode = fill_mode
         self.fill_value = fill_value
@@ -554,8 +558,10 @@ class ExtractPatches(Operation):
         dilation_rate=1,
         padding="valid",
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         if isinstance(size, int):
             size = (size, size)
         self.size = size
@@ -706,9 +712,190 @@ def _extract_patches(
     return patches
 
 
+class ExtractPatches3D(Operation):
+    def __init__(
+        self,
+        size,
+        strides=None,
+        dilation_rate=1,
+        padding="valid",
+        data_format=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        if isinstance(size, int):
+            size = (size, size, size)
+        elif len(size) != 3:
+            raise TypeError(
+                "Invalid `size` argument. Expected an "
+                f"int or a tuple of length 3. Received: size={size}"
+            )
+        self.size = size
+        if strides is not None:
+            if isinstance(strides, int):
+                strides = (strides, strides, strides)
+            elif len(strides) != 3:
+                raise ValueError(f"Invalid `strides` argument. Got: {strides}")
+        else:
+            strides = size
+        self.strides = strides
+        self.dilation_rate = dilation_rate
+        self.padding = padding
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, volumes):
+        return _extract_patches_3d(
+            volumes,
+            self.size,
+            self.strides,
+            self.dilation_rate,
+            self.padding,
+            self.data_format,
+        )
+
+    def compute_output_spec(self, volumes):
+        volumes_shape = list(volumes.shape)
+        original_ndim = len(volumes_shape)
+        strides = self.strides
+        if self.data_format == "channels_last":
+            channels_in = volumes_shape[-1]
+        else:
+            channels_in = volumes_shape[-4]
+        if original_ndim == 4:
+            volumes_shape = [1] + volumes_shape
+        filters = self.size[0] * self.size[1] * self.size[2] * channels_in
+        kernel_size = (self.size[0], self.size[1], self.size[2])
+        out_shape = compute_conv_output_shape(
+            volumes_shape,
+            filters,
+            kernel_size,
+            strides=strides,
+            padding=self.padding,
+            data_format=self.data_format,
+            dilation_rate=self.dilation_rate,
+        )
+        if original_ndim == 4:
+            out_shape = out_shape[1:]
+        return KerasTensor(shape=out_shape, dtype=volumes.dtype)
+
+
+def _extract_patches_3d(
+    volumes,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    if isinstance(size, int):
+        patch_d = patch_h = patch_w = size
+    elif len(size) == 3:
+        patch_d, patch_h, patch_w = size
+    else:
+        raise TypeError(
+            "Invalid `size` argument. Expected an "
+            f"int or a tuple of length 3. Received: size={size}"
+        )
+    if strides is None:
+        strides = size
+    if isinstance(strides, int):
+        strides = (strides, strides, strides)
+    if len(strides) != 3:
+        raise ValueError(f"Invalid `strides` argument. Got: {strides}")
+    data_format = backend.standardize_data_format(data_format)
+    if data_format == "channels_last":
+        channels_in = volumes.shape[-1]
+    elif data_format == "channels_first":
+        channels_in = volumes.shape[-4]
+    out_dim = patch_d * patch_w * patch_h * channels_in
+    kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
+    kernel = backend.numpy.reshape(
+        kernel, (patch_d, patch_h, patch_w, channels_in, out_dim)
+    )
+    _unbatched = False
+    if len(volumes.shape) == 4:
+        _unbatched = True
+        volumes = backend.numpy.expand_dims(volumes, axis=0)
+    patches = backend.nn.conv(
+        inputs=volumes,
+        kernel=kernel,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+    )
+    if _unbatched:
+        patches = backend.numpy.squeeze(patches, axis=0)
+    return patches
+
+
+@keras_export("keras.ops.image.extract_patches_3d")
+def extract_patches_3d(
+    volumes,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    """Extracts patches from the volume(s).
+
+    Args:
+        volumes: Input volume or batch of volumes. Must be 4D or 5D.
+        size: Patch size int or tuple (patch_depth, patch_height, patch_width)
+        strides: strides along depth, height, and width. If not specified, or
+            if `None`, it defaults to the same value as `size`.
+        dilation_rate: This is the input stride, specifying how far two
+            consecutive patch samples are in the input. Note that using
+            `dilation_rate > 1` is not supported in conjunction with
+            `strides > 1` on the TensorFlow backend.
+        padding: The type of padding algorithm to use: `"same"` or `"valid"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, depth, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape
+            `(batch, channels, depth, height, width)`. If not specified,
+             the value will default to `keras.config.image_data_format()`.
+
+    Returns:
+        Extracted patches 4D (if not batched) or 5D (if batched)
+
+    Examples:
+
+    >>> import numpy as np
+    >>> import keras
+    >>> # Batched case
+    >>> volumes = np.random.random(
+    ...     (2, 10, 10, 10, 3)
+    ... ).astype("float32") # batch of 2 volumes
+    >>> patches = keras.ops.image.extract_patches_3d(volumes, (3, 3, 3))
+    >>> patches.shape
+    (2, 3, 3, 3, 81)
+    >>> # Unbatched case
+    >>> volume = np.random.random((10, 10, 10, 3)).astype("float32") # 1 volume
+    >>> patches = keras.ops.image.extract_patches_3d(volume, (3, 3, 3))
+    >>> patches.shape
+    (3, 3, 3, 81)
+    """
+    if any_symbolic_tensors((volumes,)):
+        return ExtractPatches3D(
+            size=size,
+            strides=strides,
+            dilation_rate=dilation_rate,
+            padding=padding,
+            data_format=data_format,
+        ).symbolic_call(volumes)
+
+    return _extract_patches_3d(
+        volumes, size, strides, dilation_rate, padding, data_format=data_format
+    )
+
+
 class MapCoordinates(Operation):
-    def __init__(self, order, fill_mode="constant", fill_value=0):
-        super().__init__()
+    def __init__(self, order, fill_mode="constant", fill_value=0, *, name=None):
+        super().__init__(name=name)
         self.order = order
         self.fill_mode = fill_mode
         self.fill_value = fill_value
@@ -803,8 +990,10 @@ class PadImages(Operation):
         target_height=None,
         target_width=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.top_padding = top_padding
         self.left_padding = left_padding
         self.bottom_padding = bottom_padding
@@ -1007,15 +1196,17 @@ def _pad_images(
 class CropImages(Operation):
     def __init__(
         self,
-        top_cropping,
-        left_cropping,
-        bottom_cropping,
-        right_cropping,
-        target_height,
-        target_width,
+        top_cropping=None,
+        left_cropping=None,
+        bottom_cropping=None,
+        right_cropping=None,
+        target_height=None,
+        target_width=None,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.top_cropping = top_cropping
         self.bottom_cropping = bottom_cropping
         self.left_cropping = left_cropping
@@ -1238,8 +1429,10 @@ class PerspectiveTransform(Operation):
         interpolation="bilinear",
         fill_value=0,
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_value = fill_value
         self.data_format = backend.standardize_data_format(data_format)
@@ -1381,8 +1574,10 @@ class GaussianBlur(Operation):
         kernel_size=(3, 3),
         sigma=(1.0, 1.0),
         data_format=None,
+        *,
+        name=None,
     ):
-        super().__init__()
+        super().__init__(name=name)
         self.kernel_size = kernel_size
         self.sigma = sigma
         self.data_format = backend.standardize_data_format(data_format)
@@ -1457,4 +1652,244 @@ def gaussian_blur(
         kernel_size=kernel_size,
         sigma=sigma,
         data_format=data_format,
+    )
+
+
+class ElasticTransform(Operation):
+    def __init__(
+        self,
+        alpha=20.0,
+        sigma=5.0,
+        interpolation="bilinear",
+        fill_mode="reflect",
+        fill_value=0.0,
+        seed=None,
+        data_format=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.alpha = alpha
+        self.sigma = sigma
+        self.interpolation = interpolation
+        self.fill_mode = fill_mode
+        self.fill_value = fill_value
+        self.seed = seed
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.elastic_transform(
+            images,
+            alpha=self.alpha,
+            sigma=self.sigma,
+            interpolation=self.interpolation,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
+            seed=self.seed,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, images):
+        if len(images.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
+            )
+        return KerasTensor(images.shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.elastic_transform")
+def elastic_transform(
+    images,
+    alpha=20.0,
+    sigma=5.0,
+    interpolation="bilinear",
+    fill_mode="reflect",
+    fill_value=0.0,
+    seed=None,
+    data_format=None,
+):
+    """Applies elastic deformation to the image(s).
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        alpha: Scaling factor that controls the intensity of the deformation.
+        sigma: Standard deviation of the Gaussian filter used for
+            smoothing the displacement fields.
+        interpolation: Interpolation method. Available methods are `"nearest"`,
+            and `"bilinear"`. Defaults to `"bilinear"`.
+        fill_mode: Points outside the boundaries of the input are filled
+            according to the given mode. Available methods are `"constant"`,
+            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"constant"`.
+            - `"reflect"`: `(d c b a | a b c d | d c b a)`
+                The input is extended by reflecting about the edge of the last
+                pixel.
+            - `"constant"`: `(k k k k | a b c d | k k k k)`
+                The input is extended by filling all values beyond
+                the edge with the same constant value k specified by
+                `fill_value`.
+            - `"wrap"`: `(a b c d | a b c d | a b c d)`
+                The input is extended by wrapping around to the opposite edge.
+            - `"nearest"`: `(a a a a | a b c d | d d d d)`
+                The input is extended by the nearest pixel.
+        fill_value: Value used for points outside the boundaries of the input if
+            `fill_mode="constant"`. Defaults to `0`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        Transformed image or batch of images with elastic deformation.
+
+    Examples:
+
+    >>> x = np.random.random((2, 64, 80, 3))  # batch of 2 RGB images
+    >>> y = keras.ops.image.elastic_transform(x)
+    >>> y.shape
+    (2, 64, 80, 3)
+
+    >>> x = np.random.random((64, 80, 3))  # single RGB image
+    >>> y = keras.ops.image.elastic_transform(x)
+    >>> y.shape
+    (64, 80, 3)
+
+    >>> x = np.random.random((2, 3, 64, 80))  # batch of 2 RGB images
+    >>> y = keras.ops.image.elastic_transform(
+    ...     x, data_format="channels_first")
+    >>> y.shape
+    (2, 3, 64, 80)
+    """
+    if any_symbolic_tensors((images,)):
+        return ElasticTransform(
+            alpha=alpha,
+            sigma=sigma,
+            interpolation=interpolation,
+            fill_mode=fill_mode,
+            fill_value=fill_value,
+            seed=seed,
+            data_format=data_format,
+        ).symbolic_call(images)
+    return backend.image.elastic_transform(
+        images,
+        alpha=alpha,
+        sigma=sigma,
+        interpolation=interpolation,
+        fill_mode=fill_mode,
+        fill_value=fill_value,
+        seed=seed,
+        data_format=data_format,
+    )
+
+
+class ScaleAndTranslate(Operation):
+    def __init__(self, spatial_dims, method, antialias=True, *, name=None):
+        super().__init__(name=name)
+        self.spatial_dims = spatial_dims
+        self.method = method
+        self.antialias = antialias
+
+    def call(self, images, output_shape, scale, translation):
+        return backend.image.scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=self.spatial_dims,
+            method=self.method,
+            antialias=self.antialias,
+        )
+
+    def compute_output_spec(self, images, output_shape, scale, translation):
+        return KerasTensor(output_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.scale_and_translate")
+def scale_and_translate(
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
+):
+    """Apply a scale and translation to the images.
+
+    Generates a new image of `output_shape` by resampling from the input image
+    using the sampling method corresponding to method. For 2D images, this
+    operation transforms a location in the input images, (x, y), to a location
+    in the output image according to:
+
+    `(x * scale[1] + translation[1], y * scale[0] + translation[0])`.
+
+    (Note the inverse warp is used to generate the sample locations.) Assumes
+    half-centered pixels, i.e the pixel at integer location row, col has
+    coordinates y, x = row + 0.5, col + 0.5, and similarly for other input image
+    dimensions.
+
+    If an output location(pixel) maps to an input sample location that is
+    outside the input boundaries then the value for the output location will be
+    set to zero.
+
+    The `method` argument expects one of the following resize methods:
+
+    - `"linear"`, `"bilinear"`, `"trilinear"`, `"triangle"`: Linear
+        interpolation. If `antialias` is True, uses a triangular filter when
+        downsampling.
+    - `"cubic"`, `"bicubic"`, `"tricubic"`: Cubic interpolation, using the Keys
+        cubic kernel.
+    - `"lanczos3"`: Lanczos resampling, using a kernel of radius 3.
+    - `"lanczos5"`: Lanczos resampling, using a kernel of radius 5.
+
+    Args:
+        images: The input array.
+        output_shape: The output shape, as a sequence of integers with length
+            equal to the number of dimensions of image.
+        scale: A [K] array with the same number of dimensions as `images`,
+            containing the scale to apply in each dimension.
+        translation: A [K] array with the same number of dimensions as `images`,
+            containing the translation to apply in each dimension.
+        spatial_dims: A length K tuple specifying the spatial dimensions that
+            the passed `scale` and `translation` should be applied to.
+        method: A string specifying the resizing method to use. Available
+            methods are `"linear"`, `"bilinear"`, `"trilinear"`, `"triangle"`,
+            `"cubic"`, `"bicubic"`, `"tricubic"`, `"lanczos3"` and `"lanczos5"`.
+        antialias: Whether an antialiasing filter should be applied when
+            downsampling. Has no effect when upsampling. Defaults to `True`.
+
+    Returns:
+        The scale and translated images.
+
+    Example:
+
+    >>> images = np.arange(9, dtype="float32").reshape((3, 3))
+    >>> scale = np.array([2.0, 2.0]).astype("float32")
+    >>> translation = -(scale / 2.0 - 0.5)
+    >>> resized_images = keras.image.scale_and_translate(
+    ...     images, (5, 5), scale, translation, (0, 1), "linear"
+    ... )
+    >>> resized_images
+    array([[0.0 0.5 1.0 1.5 2.0]
+           [1.5 2.0 2.5 3.0 3.5]
+           [3.0 3.5 4.0 4.5 5.0]
+           [4.5 5.0 5.5 6.0 6.5]
+           [6.0 6.5 7.0 7.5 8.0]], dtype=float32)
+    """
+    if any_symbolic_tensors((images, scale, translation)):
+        return ScaleAndTranslate(spatial_dims, method, antialias).symbolic_call(
+            images, output_shape, scale, translation
+        )
+    return backend.image.scale_and_translate(
+        images,
+        output_shape,
+        scale,
+        translation,
+        spatial_dims,
+        method,
+        antialias,
     )

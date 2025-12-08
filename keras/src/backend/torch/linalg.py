@@ -7,8 +7,12 @@ from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 
 
-def cholesky(x):
-    return torch.linalg.cholesky(x)
+def cholesky(x, upper=False):
+    return torch.linalg.cholesky(x, upper=upper)
+
+
+def cholesky_inverse(x, upper=False):
+    return torch.cholesky_inverse(x, upper=upper)
 
 
 def det(x):
@@ -76,3 +80,7 @@ def lstsq(a, b, rcond=None):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return torch.linalg.lstsq(a, b, rcond=rcond)[0]
+
+
+def jvp(fun, primals, tangents, has_aux=False):
+    return torch.func.jvp(fun, primals, tangents, has_aux=has_aux)

@@ -9,7 +9,6 @@ from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.numpy import expand_dims
-from keras.src.backend.torch.numpy import maximum
 from keras.src.backend.torch.numpy import where
 from keras.src.utils.argument_validation import standardize_tuple
 
@@ -27,6 +26,19 @@ def relu6(x):
 def sigmoid(x):
     x = convert_to_tensor(x)
     return tnn.sigmoid(x)
+
+
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return torch.where(
+        x <= -1,
+        torch.tensor(0.0, device=x.device, dtype=x.dtype),
+        torch.where(
+            x >= 1,
+            torch.tensor(1.0, device=x.device, dtype=x.dtype),
+            0.5 * (x + 1),
+        ),
+    )
 
 
 def tanh(x):
@@ -178,9 +190,9 @@ def log_softmax(x, axis=-1):
     return cast(output, dtype)
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted, _ = torch.sort(logits, dim=axis, descending=True)
     logits_cumsum = torch.cumsum(logits_sorted, dim=axis)
     r = torch.arange(
@@ -643,7 +655,7 @@ def conv_transpose(
     return outputs
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
     # Axis is the output axis. By default, PyTorch, outputs to last axis.
@@ -655,7 +667,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     # manual handling for negatives in the input to one_hot by using max(x, 0).
     # The output will have some invalid results, so we set them back to 0 using
     # `where` afterwards.
-    output = tnn.one_hot(maximum(x, 0), num_classes)
+    output = tnn.one_hot(torch.clamp(x, min=0), num_classes)
     output = where(expand_dims(x, axis=-1) >= 0, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
@@ -669,7 +681,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     return output
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
     x = convert_to_tensor(x)
@@ -720,7 +732,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "Received: "
             f"output.shape={output.shape}"
         )
-    if target.shape != output.shape[:-1]:
+    output_shape_without_class_dim = list(output.shape)
+    del output_shape_without_class_dim[axis]
+
+    if list(target.shape) != output_shape_without_class_dim:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape "
             "up until the last dimension: "
@@ -740,12 +755,26 @@ def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
 
+    # We only apply the squeeze fix if we are on an MPS device,
+    # as this change breaks tests on other platforms that
+    # expect the original tensor shape to be preserved.
+    if (
+        torch.backends.mps.is_available()
+        and target.ndim > 1
+        and output.ndim == target.ndim
+        and target.shape[-1] == 1
+        and output.shape[-1] == 1
+    ):
+        target = torch.squeeze(target, -1).contiguous()
+        output = torch.squeeze(output, -1).contiguous()
+
     if target.shape != output.shape:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape. "
             "Received: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
+
     # By default, PyTorch, does reduction of `sum` over all rows,
     # change reduction to `none` to keep dim
     if from_logits:
@@ -832,13 +861,7 @@ def batch_normalization(
     )
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
-    mask_index=0,
-):
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length)
@@ -1018,6 +1041,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     if bias is not None:
         raise ValueError(
@@ -1032,6 +1056,11 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
+    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    query = cast(query, compute_dtype)
+    key = cast(key, compute_dtype)
+    value = cast(value, compute_dtype)
+
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
@@ -1077,3 +1106,26 @@ def dot_product_attention(
             scale=scale,
         )
     return torch.transpose(attention_output, axis1, axis0)
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """Native PyTorch implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+    return tnn.unfold(
+        input,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )

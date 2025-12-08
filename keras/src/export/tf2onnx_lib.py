@@ -5,6 +5,9 @@ import traceback
 
 import numpy as np
 
+if not hasattr(np, "object"):
+    np.object = object
+
 
 @functools.lru_cache()
 def patch_tf2onnx():
@@ -157,9 +160,7 @@ def patch_tf2onnx():
         ):
             a = copy.deepcopy(a)
             tensor_name = (
-                self.name.strip()
-                + "_"
-                + str(external_tensor_storage.name_counter)
+                f"{self.name.strip()}_{external_tensor_storage.name_counter}"
             )
             for c in '~"#%&*:<>?/\\{|}':
                 tensor_name = tensor_name.replace(c, "_")

@@ -31,6 +31,17 @@ def sigmoid(x):
     return np.array(1.0, x.dtype) / (np.array(1.0, x.dtype) + np.exp(-x))
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return np.where(
+        x <= -1,
+        np.array(0.0, x.dtype),
+        np.where(
+            x >= 1, np.array(1.0, x.dtype), np.array(0.5 * (x + 1), x.dtype)
+        ),
+    )
+
+
 def tanh(x):
     return np.tanh(x)
 
@@ -114,11 +125,9 @@ def elu(x, alpha=1.0):
     )
 
 
-def selu(
-    x,
-    alpha=1.6732632423543772848170429916717,
-    scale=1.0507009873554804934193349852946,
-):
+def selu(x):
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
     return np.array(scale, x.dtype) * elu(x, alpha)
 
@@ -155,13 +164,14 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = x.dtype
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
             f"Received: x.shape={x.shape} with axis={axis}"
         )
     x1, x2 = np.split(x, 2, axis)
-    return x1 * (1 / (1 + np.exp(-x2)))
+    return (x1 * sigmoid(x2)).astype(dtype)
 
 
 def hard_tanh(x):
@@ -185,20 +195,20 @@ def threshold(x, threshold, default_value):
     return np.where(x > threshold, x, np.array(default_value, dtype=x.dtype))
 
 
-def softmax(x, axis=None):
+def softmax(x, axis=-1):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 
-def log_softmax(x, axis=None):
+def log_softmax(x, axis=-1):
     max_x = np.max(x, axis=axis, keepdims=True)
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
     logits_cumsum = np.cumsum(logits_sorted, axis=axis)
     r = np.arange(1, logits.shape[axis] + 1)
@@ -293,8 +303,8 @@ def max_pool(
 def average_pool(
     inputs,
     pool_size,
-    strides,
-    padding,
+    strides=None,
+    padding="valid",
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
@@ -394,7 +404,7 @@ def conv(
             f"kernel in_channels {kernel_in_channels}. "
         )
     feature_group_count = channels // kernel_in_channels
-    return np.array(
+    result = np.array(
         jax.lax.conv_general_dilated(
             inputs,
             kernel if is_tensor(kernel) else kernel.numpy(),
@@ -405,6 +415,14 @@ def conv(
             feature_group_count=feature_group_count,
         )
     )
+    if result.size == 0:
+        raise ValueError(
+            "The convolution operation resulted in an empty output. "
+            "This can happen if the input is too small for the given "
+            "kernel size, strides, dilation rate, and padding mode. "
+            "Please check the input shape and convolution parameters."
+        )
+    return result
 
 
 def depthwise_conv(
@@ -532,9 +550,11 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")
+    if dtype is None:
+        dtype = "float32"
     x = convert_to_tensor(x)
     input_shape = x.shape
 
@@ -558,7 +578,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     return categorical
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with numpy backend")
     x = convert_to_tensor(x)
@@ -1133,6 +1153,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     if flash_attention is None:
         flash_attention = False
@@ -1151,8 +1172,68 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
+    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    query = cast(query, compute_dtype)
+    key = cast(key, compute_dtype)
+    value = cast(value, compute_dtype)
+    if bias is not None:
+        bias = convert_to_tensor(bias, dtype=compute_dtype)
+
     _, _, _, H = key.shape
     scale = (1.0 / np.sqrt(H)) if scale is None else scale
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """NumPy implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = np.pad(
+            input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])), mode="constant"
+        )
+
+    # ----  spatial size ----
+    oH = (input.shape[2] - (k[0] - 1) * d[0] - 1) // s[0] + 1
+    oW = (input.shape[3] - (k[1] - 1) * d[1] - 1) // s[1] + 1
+
+    i0 = np.arange(0, oH) * s[0]
+    j0 = np.arange(0, oW) * s[1]
+    i, j = np.meshgrid(i0, j0, indexing="ij")  # shape (oH, oW)
+    i = i.reshape(-1)
+    j = j.reshape(-1)
+
+    # ---- flatten patches ----
+    patches = np.empty((N, C, k[0], k[1], oH * oW), dtype=input.dtype)
+    for idx in range(k[0]):
+        for jdx in range(k[1]):
+            patches[:, :, idx, jdx, :] = input[
+                :, :, i + idx * d[0], j + jdx * d[1]
+            ]
+
+    # ---- reshape -> (N, C*kH*kW, L) ----
+    return patches.reshape(N, C * k[0] * k[1], -1)

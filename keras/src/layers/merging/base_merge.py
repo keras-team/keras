@@ -139,7 +139,6 @@ class Merge(Layer):
             self._reshape_required = False
         else:
             self._reshape_required = True
-        self.built = True
 
     def call(self, inputs):
         if not isinstance(inputs, (list, tuple)):

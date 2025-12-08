@@ -7,6 +7,7 @@ from unittest import mock
 import jax
 import numpy as np
 import pytest
+from jax.experimental import layout as jax_layout
 
 from keras.src import backend
 from keras.src import layers
@@ -23,15 +24,28 @@ if backend.backend() == "jax":
     # Don't override user-specified device count, or other XLA flags.
     if "xla_force_host_platform_device_count" not in xla_flags:
         os.environ["XLA_FLAGS"] = (
-            xla_flags + " --xla_force_host_platform_device_count=8"
+            f"{xla_flags} --xla_force_host_platform_device_count=8"
         )
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Backend specific test",
+    backend.backend() != "jax" or len(jax.devices()) != 8,
+    reason="Backend specific test and requires 8 devices",
 )
 class JaxDistributionLibTest(testing.TestCase):
+    def _create_jax_layout(self, sharding):
+        # Use jax_layout.Format or jax_layout.Layout if available.
+        if hasattr(jax_layout, "Format"):
+            return jax_layout.Format(sharding=sharding)
+        elif hasattr(jax_layout, "Layout"):
+            return jax_layout.Layout(sharding=sharding)
+
+        return sharding
+
+    def test_get_device_count(self):
+        self.assertEqual(backend_dlib.get_device_count(), 8)
+        self.assertEqual(backend_dlib.get_device_count("cpu"), 8)
+
     def test_list_devices(self):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
@@ -42,7 +56,7 @@ class JaxDistributionLibTest(testing.TestCase):
         jax_devices = jax.devices("cpu")
 
         for d, jax_d in zip(devices, jax_devices):
-            converted_jax_device = backend_dlib._to_jax_device(d)
+            converted_jax_device = backend_dlib._to_backend_device(d)
             self.assertIsInstance(converted_jax_device, jax.Device)
             self.assertEqual(jax_d, converted_jax_device)
 
@@ -92,7 +106,6 @@ class JaxDistributionLibTest(testing.TestCase):
 
     def test_distribute_variable(self):
         # This test only verify the single worker/process behavior.
-        # The multi-process test lives in g3.
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
         )
@@ -126,30 +139,102 @@ class JaxDistributionLibTest(testing.TestCase):
         # layout specified.
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
+    def test_distribute_tensor_with_jax_layout(self):
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+        )
+
+        inputs = jax.numpy.array(np.random.normal(size=(16, 8)))
+        target_layout = self._create_jax_layout(
+            sharding=jax.sharding.NamedSharding(
+                jax_mesh, jax.sharding.PartitionSpec("batch", None)
+            )
+        )
+
+        @functools.partial(jax.jit, static_argnames="target_layout")
+        def test_function(inputs, target_layout):
+            return distribution_lib.distribute_tensor(inputs, target_layout)
+
+        result = test_function(inputs, target_layout)
+        # Note that the returned tensor has a different sharding implementation
+        # which is GSPMDSharding, but it should be equivalent as the target
+        # layout specified.
+        self.assertTrue(
+            result.sharding.is_equivalent_to(target_layout.sharding, ndim=2)
+        )
+
+        # Test without jit.
+        result = distribution_lib.distribute_tensor(inputs, target_layout)
+        self.assertTrue(
+            result.sharding.is_equivalent_to(target_layout.sharding, ndim=2)
+        )
+
+    def test_distribute_variable_with_jax_layout(self):
+        # This test only verify the single worker/process behavior.
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+        )
+
+        variable = jax.numpy.array(np.random.normal(size=(16, 8)))
+        target_layout = self._create_jax_layout(
+            sharding=jax.sharding.NamedSharding(
+                jax_mesh, jax.sharding.PartitionSpec("model", None)
+            )
+        )
+
+        result = backend_dlib.distribute_variable(variable, target_layout)
+        # Note that the returned tensor has a different sharding implementation
+        # which is GSPMDSharding, but it should be equivalent as the target
+        # layout specified.
+        self.assertTrue(
+            result.sharding.is_equivalent_to(target_layout.sharding, ndim=2)
+        )
+
+    def test_distribute_input_data_with_jax_layout(self):
+        # This test only verify the single worker/process behavior.
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+        )
+
+        input_data = jax.numpy.array(np.random.normal(size=(16, 8)))
+        target_layout = self._create_jax_layout(
+            sharding=jax.sharding.NamedSharding(
+                jax_mesh, jax.sharding.PartitionSpec("batch", None)
+            )
+        )
+
+        result = backend_dlib.distribute_variable(input_data, target_layout)
+        # Note that the returned tensor has a different sharding implementation
+        # which is GSPMDSharding, but it should be equivalent as the target
+        # layout specified.
+        self.assertTrue(
+            result.sharding.is_equivalent_to(target_layout.sharding, ndim=2)
+        )
+
     def test_processes(self):
         self.assertEqual(backend_dlib.process_id(), 0)
         self.assertEqual(backend_dlib.num_processes(), 1)
 
-    def test_to_jax_mesh(self):
+    def test_to_backend_mesh(self):
         devices = [f"cpu:{i}" for i in range(8)]
         shape = (4, 2)
         axis_names = ["batch", "model"]
 
         mesh = distribution_lib.DeviceMesh(shape, axis_names, devices)
-        jax_mesh = backend_dlib._to_jax_mesh(mesh)
+        jax_mesh = backend_dlib._to_backend_mesh(mesh)
 
         self.assertIsInstance(jax_mesh, jax.sharding.Mesh)
         self.assertEqual(jax_mesh.devices.shape, shape)
         self.assertEqual(jax_mesh.axis_names, ("batch", "model"))
 
-    def test_to_jax_layout(self):
+    def test_to_backend_layout(self):
         axes = ["data", None]
         mesh = distribution_lib.DeviceMesh(
             (4, 2), ["data", "model"], [f"cpu:{i}" for i in range(8)]
         )
         layout = distribution_lib.TensorLayout(axes, mesh)
-        jax_sharding = backend_dlib._to_jax_layout(layout)
-        jax_mesh = backend_dlib._to_jax_mesh(mesh)
+        jax_sharding = backend_dlib._to_backend_layout(layout)
+        jax_mesh = backend_dlib._to_backend_mesh(mesh)
         self.assertEqual(
             jax_sharding,
             jax.sharding.NamedSharding(
@@ -164,7 +249,7 @@ class JaxDistributionLibTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Cannot create sharding when device mesh is not set"
         ):
-            backend_dlib._to_jax_layout(layout)
+            backend_dlib._to_backend_layout(layout)
 
     def test_variable_assignment_reuse_layout(self):
         shape = (4, 2)
@@ -314,7 +399,7 @@ class JaxDistributionLibTest(testing.TestCase):
         # Note that the intermediate_tensor_layout is only captured during the
         # actual training, and not at the model building time.
         intermediate_tensor_layout = jax.sharding.NamedSharding(
-            backend_dlib._to_jax_mesh(distribution.device_mesh),
+            backend_dlib._to_backend_mesh(distribution.device_mesh),
             jax.sharding.PartitionSpec("batch", None),
         )
         self.assertTrue(

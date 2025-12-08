@@ -112,6 +112,7 @@ class BaseConvTranspose(Layer):
                 output_padding,
                 rank,
                 "output_padding",
+                allow_zero=True,
             )
         self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)
@@ -186,7 +187,6 @@ class BaseConvTranspose(Layer):
             )
         else:
             self.bias = None
-        self.built = True
 
     def call(self, inputs):
         outputs = ops.conv_transpose(

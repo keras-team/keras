@@ -187,6 +187,7 @@ def elu(x, alpha=1.0):
 
     Args:
         x: Input tensor.
+        alpha: A scalar, slope of positive section. Defaults to `1.0`.
 
     Reference:
 
@@ -549,6 +550,27 @@ def log_sigmoid(x):
 
     """
     return ops.log_sigmoid(x)
+
+
+@keras_export("keras.activations.sparse_sigmoid")
+def sparse_sigmoid(x):
+    """Sparse sigmoid activation function.
+
+    It is defined as
+
+    `f(x) = 0` for `x <= -1`,
+    `f(x) = 0.5 * (x + 1)` for `-1 < x < 1`,
+    `f(x) = 1` for `x >= 1`.
+
+    Args:
+        x: Input tensor.
+
+    Reference:
+
+    - [M. Blondel, A. F. T. Martins, V. Niculae, 2019](https://arxiv.org/pdf/1901.02324)
+
+    """
+    return ops.sparse_sigmoid(x)
 
 
 @keras_export(["keras.activations.hard_silu", "keras.activations.hard_swish"])

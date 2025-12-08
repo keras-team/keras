@@ -1,14 +1,12 @@
 import warnings
 
-from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.callbacks.callback import Callback
-from keras.src.trainers import compile_utils
+from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.utils import io_utils
 
 
 @keras_export("keras.callbacks.EarlyStopping")
-class EarlyStopping(Callback):
+class EarlyStopping(MonitorCallback):
     """Stop training when a monitored metric has stopped improving.
 
     Assuming the goal of a training is to minimize the loss. With this, the
@@ -76,72 +74,20 @@ class EarlyStopping(Callback):
         restore_best_weights=False,
         start_from_epoch=0,
     ):
-        super().__init__()
-
-        self.monitor = monitor
+        super().__init__(monitor, mode, min_delta=min_delta)
         self.patience = patience
         self.verbose = verbose
         self.baseline = baseline
-        self.min_delta = abs(min_delta)
         self.wait = 0
         self.stopped_epoch = 0
         self.restore_best_weights = restore_best_weights
         self.best_weights = None
         self.start_from_epoch = start_from_epoch
 
-        if mode not in ["auto", "min", "max"]:
-            warnings.warn(
-                f"EarlyStopping mode {mode} is unknown, fallback to auto mode.",
-                stacklevel=2,
-            )
-            mode = "auto"
-        self.mode = mode
-        self.monitor_op = None
-
-    def _set_monitor_op(self):
-        if self.mode == "min":
-            self.monitor_op = ops.less
-        elif self.mode == "max":
-            self.monitor_op = ops.greater
-        else:
-            metric_name = self.monitor.removeprefix("val_")
-            if metric_name == "loss":
-                self.monitor_op = ops.less
-            if hasattr(self.model, "metrics"):
-                all_metrics = []
-                for m in self.model.metrics:
-                    if isinstance(
-                        m,
-                        (
-                            compile_utils.CompileMetrics,
-                            compile_utils.MetricsList,
-                        ),
-                    ):
-                        all_metrics.extend(m.metrics)
-                for m in all_metrics:
-                    if m.name == metric_name:
-                        if hasattr(m, "_direction"):
-                            if m._direction == "up":
-                                self.monitor_op = ops.greater
-                            else:
-                                self.monitor_op = ops.less
-        if self.monitor_op is None:
-            raise ValueError(
-                f"EarlyStopping callback received monitor={self.monitor} "
-                "but Keras isn't able to automatically determine whether "
-                "that metric should be maximized or minimized. "
-                "Pass `mode='max'` in order to do early stopping based "
-                "on the highest metric value, or pass `mode='min'` "
-                "in order to use the lowest value."
-            )
-        if self.monitor_op == ops.less:
-            self.min_delta *= -1
-
     def on_train_begin(self, logs=None):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
-        self.best = None
         self.best_weights = None
         self.best_epoch = 0
 
@@ -206,8 +152,3 @@ class EarlyStopping(Callback):
                 stacklevel=2,
             )
         return monitor_value
-
-    def _is_improvement(self, monitor_value, reference_value):
-        if reference_value is None:
-            return True
-        return self.monitor_op(monitor_value - self.min_delta, reference_value)

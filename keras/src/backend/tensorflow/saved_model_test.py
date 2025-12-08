@@ -191,31 +191,44 @@ class SavedModelTest(testing.TestCase):
     def test_multi_input_model(self):
         input_1 = layers.Input(shape=(3,))
         input_2 = layers.Input(shape=(5,))
-        model = models.Model([input_1, input_2], [input_1, input_2])
-        path = os.path.join(self.get_temp_dir(), "my_keras_model")
 
-        tf.saved_model.save(model, path)
-        restored_model = tf.saved_model.load(path)
+        y1 = layers.Dense(1)(input_1)
+        y2 = layers.Dense(1)(input_2)
+        layer_2 = layers.Dense(1, activation="relu")
+        output_1 = layer_2(y1)
+        output_2 = layer_2(y2)
+        model = models.Model([input_1, input_2], [output_1, output_2])
+
         input_arr_1 = np.random.random((1, 3)).astype("float32")
         input_arr_2 = np.random.random((1, 5)).astype("float32")
 
-        outputs = restored_model.signatures["serving_default"](
+        model = models.Model([input_1, input_2], [output_1, output_2])
+        path = os.path.join(self.get_temp_dir(), "my_keras_model")
+        outputs_1 = model(
+            inputs=[
+                tf.convert_to_tensor(input_arr_1, dtype=tf.float32),
+                tf.convert_to_tensor(input_arr_2, dtype=tf.float32),
+            ],
+        )
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+
+        outputs_2 = restored_model.signatures["serving_default"](
             inputs=tf.convert_to_tensor(input_arr_1, dtype=tf.float32),
             inputs_1=tf.convert_to_tensor(input_arr_2, dtype=tf.float32),
         )
-
         self.assertAllClose(
-            input_arr_1, outputs["output_0"], rtol=1e-4, atol=1e-4
+            outputs_1[0], outputs_2["output_0"], rtol=1e-4, atol=1e-4
         )
         self.assertAllClose(
-            input_arr_2, outputs["output_1"], rtol=1e-4, atol=1e-4
+            outputs_1[1], outputs_2["output_1"], rtol=1e-4, atol=1e-4
         )
 
     def test_multi_input_custom_model_and_layer(self):
         @object_registration.register_keras_serializable(package="my_package")
         class CustomLayer(layers.Layer):
             def build(self, *input_shape):
-                self.built = True
+                pass
 
             def call(self, *input_list):
                 self.add_loss(input_list[-2] * 2)
@@ -226,7 +239,6 @@ class SavedModelTest(testing.TestCase):
             def build(self, *input_shape):
                 self.layer = CustomLayer()
                 self.layer.build(*input_shape)
-                self.built = True
 
             @tf.function
             def call(self, *inputs):

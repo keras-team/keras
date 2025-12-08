@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import warnings
 
 import numpy as np
@@ -9,6 +10,7 @@ from keras.src import callbacks as callbacks_module
 from keras.src import metrics as metrics_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.losses import loss as loss_module
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
@@ -66,7 +68,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             )
             self._loss_tracker.update_state(
                 loss_module.unscale_loss_for_distribution(loss),
-                sample_weight=tf.shape(tree.flatten(x)[0])[0],
+                sample_weight=tf.shape(
+                    next(i for i in tree.flatten(x) if i is not None)
+                )[0],
             )
             if self.optimizer is not None:
                 loss = self.optimizer.scale_loss(loss)
@@ -94,7 +98,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
         )
         self._loss_tracker.update_state(
             loss_module.unscale_loss_for_distribution(loss),
-            sample_weight=tf.shape(tree.flatten(x)[0])[0],
+            sample_weight=tf.shape(
+                next(i for i in tree.flatten(x) if i is not None)
+            )[0],
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
@@ -105,6 +111,21 @@ class TensorFlowTrainer(base_trainer.Trainer):
         else:
             y_pred = self(x)
         return y_pred
+
+    def _autoconvert_optionals(self, step_func):
+        # Wrapper converting (nested) TF Optional in input data to None
+        @functools.wraps(step_func)
+        def wrapper(data):
+            converted_data = tree.map_structure(
+                lambda i: (
+                    None if isinstance(i, tf.experimental.Optional) else i
+                ),
+                data,
+            )
+            result = step_func(converted_data)
+            return result
+
+        return wrapper
 
     def _make_function(self, step_function):
         @tf.autograph.experimental.do_not_convert
@@ -124,6 +145,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 reduce_retracing=True,
                 jit_compile=self.jit_compile,
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def multi_step_on_iterator(iterator):
@@ -252,6 +274,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             one_step_on_data = tf.function(
                 one_step_on_data, reduce_retracing=True, jit_compile=True
             )
+        one_step_on_data = self._autoconvert_optionals(one_step_on_data)
 
         @tf.autograph.experimental.do_not_convert
         def one_step_on_data_distributed(data):
@@ -309,6 +332,11 @@ class TensorFlowTrainer(base_trainer.Trainer):
         validation_freq=1,
     ):
         self._assert_compile_called("fit")
+        # Possibly cap epochs for debugging runs.
+        max_epochs = config.max_epochs()
+        if max_epochs and max_epochs < epochs:
+            warnings.warn("Limiting epochs to %d" % max_epochs)
+            epochs = max_epochs
         # TODO: respect compiled trainable state
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
@@ -366,10 +394,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
             with epoch_iterator.catch_stop_iteration():
-                for step, iterator in epoch_iterator:
-                    callbacks.on_train_batch_begin(step)
+                for begin_step, end_step, iterator in epoch_iterator:
+                    callbacks.on_train_batch_begin(begin_step)
                     logs = self.train_function(iterator)
-                    callbacks.on_train_batch_end(step, logs)
+                    callbacks.on_train_batch_end(end_step, logs)
                     if self.stop_training:
                         break
 
@@ -403,7 +431,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                     _use_cached_eval_dataset=True,
                 )
                 val_logs = {
-                    "val_" + name: val for name, val in val_logs.items()
+                    f"val_{name}": val for name, val in val_logs.items()
                 }
                 epoch_logs.update(val_logs)
 
@@ -478,10 +506,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
         logs = {}
         self.reset_metrics()
         with epoch_iterator.catch_stop_iteration():
-            for step, iterator in epoch_iterator:
-                callbacks.on_test_batch_begin(step)
+            for begin_step, end_step, iterator in epoch_iterator:
+                callbacks.on_test_batch_begin(begin_step)
                 logs = self.test_function(iterator)
-                callbacks.on_test_batch_end(step, logs)
+                callbacks.on_test_batch_end(end_step, logs)
                 if self.stop_evaluating:
                     break
         logs = self._get_metrics_result_or_logs(logs)
@@ -554,12 +582,14 @@ class TensorFlowTrainer(base_trainer.Trainer):
         callbacks.on_predict_begin()
         outputs = None
         with epoch_iterator.catch_stop_iteration():
-            for step, iterator in epoch_iterator:
-                callbacks.on_predict_batch_begin(step)
+            for begin_step, end_step, iterator in epoch_iterator:
+                callbacks.on_predict_batch_begin(begin_step)
                 data = get_data(iterator)
                 batch_outputs = self.predict_function(data)
                 outputs = append_to_outputs(batch_outputs, outputs)
-                callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+                callbacks.on_predict_batch_end(
+                    end_step, {"outputs": batch_outputs}
+                )
                 if self.stop_predicting:
                     break
         callbacks.on_predict_end()
@@ -690,7 +720,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         # Unlike jax/torch iterator, tf iterator returns an iterator instead
         # of data batch in `iterator`.
         if iterator is not None:
-            for _, it in iterator:
+            for _, _, it in iterator:
                 maybe_distributed_data_batch = next(it)
                 has_distributed_values = tree.map_structure(
                     lambda x: isinstance(x, tf.distribute.DistributedValues),

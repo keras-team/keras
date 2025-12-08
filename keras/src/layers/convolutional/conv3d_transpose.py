@@ -29,6 +29,14 @@ class Conv3DTranspose(BaseConvTranspose):
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input. When `padding="same"` and
             `strides=1`, the output has the same size as the input.
+         output_padding: An integer or tuple/list of 3 integers,
+            specifying the amount of padding along the depth, height, and
+            width.
+            Can be a single integer to specify the same value for all
+            spatial dimensions.
+            The amount of output padding along a given dimension must be
+            lower than the stride along that same dimension.
+            If set to `None` (default), the output shape is inferred.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape
@@ -38,8 +46,12 @@ class Conv3DTranspose(BaseConvTranspose):
             It defaults to the `image_data_format` value found in your Keras
             config file at `~/.keras/keras.json`. If you never set it, then it
             will be `"channels_last"`.
-        dilation_rate: int or tuple/list of 1 integers, specifying the dilation
-            rate to use for dilated transposed convolution.
+        dilation_rate: an integer or tuple/list of 3 integers, specifying
+            the dilation rate to use for dilated convolution.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
+            Currently, specifying any `dilation_rate` value != 1 is
+            incompatible with specifying any stride value != 1.
         activation: Activation function. If `None`, no activation is applied.
         use_bias: bool, if `True`, bias will be added to the output.
         kernel_initializer: Initializer for the convolution kernel. If `None`,
@@ -105,6 +117,7 @@ class Conv3DTranspose(BaseConvTranspose):
         strides=(1, 1, 1),
         padding="valid",
         data_format=None,
+        output_padding=None,
         dilation_rate=(1, 1, 1),
         activation=None,
         use_bias=True,
@@ -123,6 +136,7 @@ class Conv3DTranspose(BaseConvTranspose):
             kernel_size=kernel_size,
             strides=strides,
             padding=padding,
+            output_padding=output_padding,
             data_format=data_format,
             dilation_rate=dilation_rate,
             activation=activation,

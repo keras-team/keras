@@ -1,3 +1,4 @@
+pre-commit
 namex>=0.0.8
 ruff
 pytest
@@ -19,6 +20,13 @@ pytest-cov
 packaging
 # for tree_test.py
 dm_tree
-coverage!=7.6.5  # 7.6.5 breaks CI
+coverage
 # for onnx_test.py
 onnxruntime
+# https://github.com/keras-team/keras/issues/21390
+# onnxscript==0.3.2 breaks LSTM model export.
+onnxscript!=0.3.2
+openvino
+grain
+# for orbax_checkpoint_test.py
+orbax-checkpoint

@@ -326,10 +326,10 @@ class RandomBehaviorTest(testing.TestCase):
     def test_beta_tf_data_compatibility(self):
         import tensorflow as tf
 
-        from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+        from keras.src.layers.preprocessing.data_layer import DataLayer
         from keras.src.random.seed_generator import SeedGenerator
 
-        class BetaLayer(TFDataLayer):
+        class BetaLayer(DataLayer):
             def __init__(self, seed=None, **kwargs):
                 super().__init__(**kwargs)
                 self.seed = seed
@@ -440,26 +440,12 @@ class RandomBehaviorTest(testing.TestCase):
 
 
 class RandomDTypeTest(testing.TestCase):
-    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint16, uint32 and uint64
-        INT_DTYPES = [
-            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-
-    def setUp(self):
-        if backend.backend() == "jax":
-            from jax.experimental import enable_x64
-
-            self.jax_enable_x64 = enable_x64()
-            self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        if backend.backend() == "jax":
-            self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_normal(self, dtype):

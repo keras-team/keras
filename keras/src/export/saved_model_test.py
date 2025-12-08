@@ -59,6 +59,10 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 @pytest.mark.skipif(
     testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
 )
+@pytest.mark.skipif(
+    backend.backend() == "torch" and np.version.version.startswith("2."),
+    reason="Torch backend export (via torch_xla) is incompatible with np 2.0",
+)
 class ExportSavedModelTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
@@ -728,19 +732,7 @@ class ExportArchiveTest(testing.TestCase):
         ref_inputs = [tf.random.normal((3, 2)), tf.random.normal((3, 2))]
         ref_outputs = model(ref_inputs)
 
-        export_archive = saved_model.ExportArchive()
-        export_archive.track(model)
-        export_archive.add_endpoint(
-            "serve",
-            model.__call__,
-            input_signature=[
-                [
-                    tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
-                    tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
-                ]
-            ],
-        )
-        export_archive.write_out(temp_filepath)
+        model.export(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_outputs[0], revived_model.serve(ref_inputs)[0])
         self.assertAllClose(ref_outputs[1], revived_model.serve(ref_inputs)[1])
@@ -758,19 +750,7 @@ class ExportArchiveTest(testing.TestCase):
         }
         ref_outputs = model(ref_inputs)
 
-        export_archive = saved_model.ExportArchive()
-        export_archive.track(model)
-        export_archive.add_endpoint(
-            "serve",
-            model.__call__,
-            input_signature=[
-                {
-                    "x1": tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
-                    "x2": tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
-                }
-            ],
-        )
-        export_archive.write_out(temp_filepath)
+        model.export(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_outputs[0], revived_model.serve(ref_inputs)[0])
         self.assertAllClose(ref_outputs[1], revived_model.serve(ref_inputs)[1])

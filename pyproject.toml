@@ -9,15 +9,14 @@ authors = [
 ]
 description = "Multi-backend Keras"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = {text = "Apache License 2.0"}
 dynamic = ["version"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: Unix",
     "Operating System :: MacOS",
@@ -44,11 +43,14 @@ Repository = "https://github.com/keras-team/keras"
 [tool.setuptools.dynamic]
 version = {attr = "keras.src.version.__version__"}
 
-[tool.setuptools.packages.find]
-include = ["keras", "keras.*"]
+[tool.setuptools.package-dir]
+"" = "."
+"keras" = "keras/api"  # Remap api/ to the root of the package.
+"keras.src" = "keras/src"
 
 [tool.ruff]
 line-length = 80
+exclude = ["keras/src/namex"]
 
 [tool.ruff.lint]
 select = [

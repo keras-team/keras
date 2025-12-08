@@ -7,10 +7,23 @@ from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
 
 
-def cholesky(a):
+def cholesky(a, upper=False):
     out = tf.linalg.cholesky(a)
     # tf.linalg.cholesky simply returns NaNs for non-positive definite matrices
-    return tf.debugging.check_numerics(out, "Cholesky")
+    out = tf.debugging.check_numerics(out, "Cholesky")
+    if upper:
+        return tf.linalg.adjoint(out)
+    return out
+
+
+def cholesky_inverse(a, upper=False):
+    identity = tf.eye(num_rows=tf.shape(a)[-1], dtype=a.dtype)
+    inv_chol = tf.linalg.triangular_solve(a, identity, lower=not upper)
+    if upper:
+        a_inv = tf.matmul(inv_chol, inv_chol, transpose_b=True)
+    else:
+        a_inv = tf.matmul(inv_chol, inv_chol, transpose_a=True)
+    return a_inv
 
 
 def det(a):
@@ -231,3 +244,27 @@ def lstsq(a, b, rcond=None):
     if b_orig_ndim == 1:
         x = tf.reshape(x, [-1])
     return x
+
+
+def jvp(fun, primals, tangents, has_aux=False):
+    primal_flat = tf.nest.flatten(primals)
+    tangent_flat = tf.nest.flatten(tangents)
+
+    tangent_flat = [
+        tf.cast(t, p.dtype) for t, p in zip(tangent_flat, primal_flat)
+    ]
+
+    with tf.autodiff.ForwardAccumulator(primal_flat, tangent_flat) as acc:
+        if has_aux:
+            primals_out, aux = fun(*primals)
+        else:
+            primals_out = fun(*primals)
+
+        primals_out_flat = tf.nest.flatten(primals_out)
+        tangents_out_flat = [acc.jvp(po) for po in primals_out_flat]
+
+    tangents_out = tf.nest.pack_sequence_as(primals_out, tangents_out_flat)
+
+    if has_aux:
+        return primals_out, tangents_out, aux
+    return primals_out, tangents_out

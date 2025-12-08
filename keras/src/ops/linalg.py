@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
@@ -7,11 +8,12 @@ from keras.src.ops.operation_utils import reduce_shape
 
 
 class Cholesky(Operation):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, upper=False, *, name=None):
+        super().__init__(name=name)
+        self.upper = upper
 
     def call(self, x):
-        return _cholesky(x)
+        return _cholesky(x, self.upper)
 
     def compute_output_spec(self, x):
         _assert_2d(x)
@@ -20,36 +22,79 @@ class Cholesky(Operation):
 
 
 @keras_export(["keras.ops.cholesky", "keras.ops.linalg.cholesky"])
-def cholesky(x):
+def cholesky(x, upper=False):
     """Computes the Cholesky decomposition of a positive semi-definite matrix.
 
     Args:
         x: Input tensor of shape `(..., M, M)`.
+        upper (bool): If True, returns the upper-triangular Cholesky factor.
+            If False (default), returns the lower-triangular Cholesky factor.
 
     Returns:
-        A tensor of shape `(..., M, M)` representing the lower triangular
-        Cholesky factor of `x`.
-
+        A tensor of shape `(..., M, M)` representing the Cholesky factor of `x`.
     """
     if any_symbolic_tensors((x,)):
-        return Cholesky().symbolic_call(x)
-    return _cholesky(x)
+        return Cholesky(upper=upper).symbolic_call(x)
+    return _cholesky(x, upper=upper)
 
 
-def _cholesky(x):
+def _cholesky(x, upper=False):
     x = backend.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
     try:
-        return backend.linalg.cholesky(x)
+        return backend.linalg.cholesky(x, upper=upper)
     except Exception as e:
         raise ValueError(f"Cholesky decomposition failed: {e}")
 
 
-class Det(Operation):
-    def __init__(self):
-        super().__init__()
+class CholeskyInverse(Operation):
+    def __init__(self, upper=False, *, name=None):
+        super().__init__(name=name)
+        self.upper = upper
 
+    def call(self, x):
+        return _cholesky_inverse(x, self.upper)
+
+    def compute_output_spec(self, x):
+        _assert_2d(x)
+        _assert_square(x)
+        return KerasTensor(x.shape, x.dtype)
+
+
+@keras_export(
+    ["keras.ops.cholesky_inverse", "keras.ops.linalg.cholesky_inverse"]
+)
+def cholesky_inverse(x, upper=False):
+    """Computes the inverse of a symmetric positive-definite matrix.
+
+    Args:
+        x: Input tensor of shape `(..., M, M)`.
+        upper (bool): Determines whether to use the upper- or lower-triangular
+            factor for the internal computation. Defaults to False.
+
+    Returns:
+        A tensor of shape `(..., M, M)` representing the inverse of `x`.
+
+    Raises:
+        ValueError: If `x` is not a symmetric positive-definite matrix.
+    """
+    if any_symbolic_tensors((x,)):
+        return CholeskyInverse(upper=upper).symbolic_call(x)
+    return _cholesky_inverse(x, upper=upper)
+
+
+def _cholesky_inverse(x, upper=False):
+    x = backend.convert_to_tensor(x)
+    _assert_2d(x)
+    _assert_square(x)
+    try:
+        return backend.linalg.cholesky_inverse(x, upper=upper)
+    except Exception as e:
+        raise ValueError(f"Cholesky inverse failed: {e}")
+
+
+class Det(Operation):
     def call(self, x):
         return _det(x)
 
@@ -83,9 +128,6 @@ def _det(x):
 
 
 class Eig(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eig(x)
 
@@ -122,9 +164,6 @@ def _eig(x):
 
 
 class Eigh(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _eigh(x)
 
@@ -162,9 +201,6 @@ def _eigh(x):
 
 
 class Inv(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _inv(x)
 
@@ -198,9 +234,6 @@ def _inv(x):
 
 
 class LuFactor(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, x):
         return _lu_factor(x)
 
@@ -248,8 +281,8 @@ def _lu_factor(x):
 
 
 class Norm(Operation):
-    def __init__(self, ord=None, axis=None, keepdims=False):
-        super().__init__()
+    def __init__(self, ord=None, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
         if isinstance(ord, str):
             if ord not in ("fro", "nuc"):
                 raise ValueError(
@@ -367,8 +400,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
 
 
 class Qr(Operation):
-    def __init__(self, mode="reduced"):
-        super().__init__()
+    def __init__(self, mode="reduced", *, name=None):
+        super().__init__(name=name)
         if mode not in {"reduced", "complete"}:
             raise ValueError(
                 "`mode` argument value not supported. "
@@ -440,9 +473,6 @@ def qr(x, mode="reduced"):
 
 
 class Solve(Operation):
-    def __init__(self):
-        super().__init__()
-
     def call(self, a, b):
         return _solve(a, b)
 
@@ -484,8 +514,8 @@ def _solve(a, b):
 
 
 class SolveTriangular(Operation):
-    def __init__(self, lower=False):
-        super().__init__()
+    def __init__(self, lower=False, *, name=None):
+        super().__init__(name=name)
         self.lower = lower
 
     def call(self, a, b):
@@ -531,8 +561,8 @@ def _solve_triangular(a, b, lower=False):
 
 
 class SVD(Operation):
-    def __init__(self, full_matrices=True, compute_uv=True):
-        super().__init__()
+    def __init__(self, full_matrices=True, compute_uv=True, *, name=None):
+        super().__init__(name=name)
         self.full_matrices = full_matrices
         self.compute_uv = compute_uv
 
@@ -586,8 +616,8 @@ def _svd(x, full_matrices=True, compute_uv=True):
 
 
 class Lstsq(Operation):
-    def __init__(self, rcond=None):
-        super().__init__()
+    def __init__(self, rcond=None, *, name=None):
+        super().__init__(name=name)
         self.rcond = rcond
 
     def call(self, a, b):
@@ -665,7 +695,7 @@ def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
             raise ValueError(
-                "Expected input to have rank >= 1. Received scalar input {a}."
+                f"Expected input to have rank >= 1. Received scalar input {a}."
             )
 
 
@@ -674,7 +704,7 @@ def _assert_2d(*arrays):
         if a.ndim < 2:
             raise ValueError(
                 "Expected input to have rank >= 2. "
-                "Received input with shape {a.shape}."
+                f"Received input with shape {a.shape}."
             )
 
 
@@ -703,3 +733,95 @@ def _assert_a_b_compat(a, b):
                 "Expected `a.shape[-1] == b.shape[-1]`. "
                 f"Received: a.shape={a.shape}, b.shape={b.shape}"
             )
+
+
+class JVP(Operation):
+    def __init__(self, has_aux=False, *, name=None):
+        super().__init__(name=name)
+        self.has_aux = has_aux
+
+    def call(self, fun, primals, tangents):
+        """Computes the JVP of `fun` at `primals` along `tangents`.
+
+        Args:
+            fun: A callable that takes tensors (or nested structures) as input
+                 and returns a tensor (or nested structure) as output.
+            primals: Input tensors (or nested structures) at which the Jacobian
+                     of `fun` is evaluated.
+            tangents: Tensors (or nested structures) representing the direction
+                      vectors for the JVP. Must have the same structure as
+                      `primals`.
+
+        Returns:
+            If `has_aux` is False:
+                A tuple (primals_out, tangents_out) where:
+                - primals_out: Output of `fun(*primals)`
+                - tangents_out: JVP of `fun` at `primals` along `tangents`
+            If `has_aux` is True:
+                A tuple (primals_out, tangents_out, aux) where:
+                - aux: Auxiliary data returned by `fun`
+        """
+        return backend.linalg.jvp(fun, primals, tangents, has_aux=self.has_aux)
+
+    def compute_output_spec(self, fun, primals, tangents):
+        # Infer primal output spec
+        if self.has_aux:
+            primals_out_spec, aux_spec = backend.compute_output_spec(
+                fun, *primals
+            )
+        else:
+            primals_out_spec = backend.compute_output_spec(fun, *primals)
+
+        # Tangents output should match primals output in structure and shape
+        tangents_out_spec = tree.map_structure(
+            lambda x: KerasTensor(x.shape, x.dtype), primals_out_spec
+        )
+
+        if self.has_aux:
+            return primals_out_spec, tangents_out_spec, aux_spec
+        return primals_out_spec, tangents_out_spec
+
+
+@keras_export(["keras.ops.jvp", "keras.ops.linalg.jvp"])
+def jvp(fun, primals, tangents, has_aux=False):
+    """Computes a (forward-mode) Jacobian-vector product of `fun`.
+    Args:
+        fun: Function to be differentiated. Its arguments should be arrays,
+            scalars, or standard Python containers of arrays or scalars. It
+            should return an array, scalar, or standard Python container of
+            arrays or scalars.
+        primals: The primal values at which the Jacobian of `fun` should be
+                evaluated. Should be either a tuple or a list of arguments,
+                and its length should be equal to the number of positional
+                parameters of `fun`.
+        tangents: The tangent vector for which the Jacobian-vector product
+                should be evaluated. Should be either a tuple or a list of
+                tangents, with the same tree structure and array shapes as
+                `primals`.
+        has_aux: Optional, bool. Indicates whether `fun` returns a pair where
+                the first element is considered the output of the mathematical
+                function to be differentiated and the second element is
+                auxiliary data. Default is False.
+
+    Returns:
+        If `has_aux` is False, returns a (`primals_out`, `tangents_out`) pair,
+        where `primals_out` is `fun(*primals)`, and `tangents_out` is the
+        Jacobian-vector product of `fun` evaluated at `primals` with
+        `tangents`. The `tangents_out` value has the same Python tree
+        structure and shapes as `primals_out`.
+
+        If `has_aux` is True, returns a (`primals_out`, `tangents_out`, `aux`)
+        tuple where `aux` is the auxiliary data returned by `fun`.
+
+    Example:
+    >>> from keras import ops
+    >>> a1, a2 = ops.convert_to_tensor(0.1), ops.convert_to_tensor(0.2)
+    >>> primals, tangents = ops.jvp(ops.sin, (a1,), (a2,))
+    >>> primals
+    0.09983342
+    >>> tangents
+    0.19900084
+    """
+    if any_symbolic_tensors((primals, tangents)):
+        return JVP(has_aux=has_aux).symbolic_call(fun, primals, tangents)
+    return backend.linalg.jvp(fun, primals, tangents, has_aux=has_aux)

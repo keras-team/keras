@@ -26,6 +26,15 @@ def sigmoid(x):
     return output
 
 
+def sparse_sigmoid(x):
+    x = convert_to_tensor(x)
+    return tf.where(
+        x <= -1,
+        tf.constant(0.0, dtype=x.dtype),
+        tf.where(x >= 1, tf.constant(1.0, dtype=x.dtype), 0.5 * (x + 1)),
+    )
+
+
 def tanh(x):
     return tf.nn.tanh(x)
 
@@ -155,9 +164,9 @@ def log_softmax(x, axis=-1):
     return tf.nn.log_softmax(x, axis=axis)
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted = tf.sort(logits, direction="DESCENDING", axis=axis)
     logits_cumsum = tf.cumsum(logits_sorted, axis=axis)
     r = tf.range(1, tf.shape(logits)[axis] + 1, dtype=logits.dtype)
@@ -301,7 +310,7 @@ def conv(
 ):
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
-        return tf.nn.convolution(
+        result = tf.nn.convolution(
             inputs,
             kernel,
             strides,
@@ -309,6 +318,20 @@ def conv(
             data_format=tf_data_format,
             dilations=dilation_rate,
         )
+        result_shape = result.shape
+        if (
+            result_shape.is_fully_defined()
+            and math.prod(result_shape.as_list()) == 0
+        ):
+            raise ValueError(
+                "The convolution operation resulted in an empty output. "
+                "Output shape:"
+                f" {result_shape}. This can happen if the input is too small "
+                "for the given kernel size, strides, dilation rate, and "
+                "padding mode. Please check the input shape and convolution "
+                "parameters."
+            )
+        return result
 
     # Certain ops are are broken in Tensorflow on CPU only.
     # We can work around by compiling the op with XLA.
@@ -344,7 +367,7 @@ def depthwise_conv(
     if num_spatial_dims > 2:
         raise ValueError(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
-            "{inputs.ndim}."
+            f"{inputs.ndim}."
         )
     # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
@@ -496,7 +519,7 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     x = convert_to_tensor(x, dtype="int64")
     if dtype is None:
         dtype = "float32"
@@ -532,7 +555,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     )
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     reduction_axis = 1 if len(x.shape) > 1 else 0
     if backend.standardize_dtype(dtype) == "bool":
         if sparse:
@@ -877,13 +900,7 @@ def batch_normalization(
     )
 
 
-def ctc_loss(
-    target,
-    output,
-    target_length,
-    output_length,
-    mask_index=0,
-):
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     target = tf.cast(target, dtype="int32")
@@ -1041,6 +1058,7 @@ def dot_product_attention(
     scale=None,
     is_causal=False,
     flash_attention=None,
+    attn_logits_soft_cap=None,
 ):
     if flash_attention is None:
         flash_attention = False
@@ -1061,8 +1079,62 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
+    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    query = cast(query, compute_dtype)
+    key = cast(key, compute_dtype)
+    value = cast(value, compute_dtype)
+    if bias is not None:
+        bias = convert_to_tensor(bias, dtype=compute_dtype)
+
     H = tf.shape(key)[-1]
     scale = (1.0 / tf.sqrt(tf.cast(H, "float32"))) if scale is None else scale
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """Tensorflow implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+    k = (
+        (kernel_size, kernel_size)
+        if isinstance(kernel_size, int)
+        else kernel_size
+    )
+    d = (dilation, dilation) if isinstance(dilation, int) else dilation
+    p = (padding, padding) if isinstance(padding, int) else padding
+    s = (stride, stride) if isinstance(stride, int) else stride
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = tf.pad(input, [[0, 0], [0, 0], [p[0], p[0]], [p[1], p[1]]])
+    x = tf.transpose(input, [0, 2, 3, 1])  # (N, H, W, C)
+    patches = tf.image.extract_patches(
+        images=x,
+        sizes=[1, k[0], k[1], 1],
+        strides=[1, s[0], s[1], 1],
+        rates=[1, d[0], d[1], 1],
+        padding="VALID",
+    )  # (N, nH, nW, kH*kW*C)
+
+    N, nH, nW, D = patches.shape
+    patches = tf.reshape(
+        patches, [N, nH, nW, k[0], k[1], C]
+    )  # (N, nH, nW, kH, kW, C)
+    patches = tf.transpose(
+        patches, [0, 5, 3, 4, 1, 2]
+    )  # (N, C, kH, kW, nH, nW)
+    patches = tf.reshape(patches, [N, C * k[0] * k[1], nH * nW])
+    return patches

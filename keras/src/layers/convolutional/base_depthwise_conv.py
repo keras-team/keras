@@ -190,7 +190,6 @@ class BaseDepthwiseConv(Layer):
             )
         else:
             self.bias = None
-        self.built = True
 
     def _get_input_channel(self, input_shape):
         if self.data_format == "channels_last":

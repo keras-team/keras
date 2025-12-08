@@ -47,6 +47,21 @@ class DataAdapter:
         raise NotImplementedError
 
     @property
+    def builtin_prefetch(self):
+        """Whether the DataAdapter has built-in prefetching capabilities.
+
+        Prefetching is an optimization technique where data is loaded and
+        prepared in advance while the model is processing the current batch,
+        reducing training time by overlapping data loading with computation.
+
+        Returns:
+            bool: True if the DataAdapter implements its own prefetching
+            mechanism and handles data loading asynchronously. False if the
+            caller should implement prefetching externally.
+        """
+        return False
+
+    @property
     def num_batches(self):
         """Return the size (number of batches) for the dataset created.
 

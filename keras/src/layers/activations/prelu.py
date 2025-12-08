@@ -70,7 +70,6 @@ class PReLU(Layer):
                 if i not in self.shared_axes:
                     axes[i] = input_shape[i]
         self.input_spec = InputSpec(ndim=len(input_shape), axes=axes)
-        self.built = True
 
     def call(self, inputs):
         pos = activations.relu(inputs)

@@ -23,6 +23,9 @@ class RandomShear(BaseImagePreprocessingLayer):
     regions created during the transformation are filled according to the
     `fill_mode` and `fill_value` parameters.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         x_factor: A tuple of two floats. For each augmented image, a value
             is sampled from the provided range. If a float is passed, the

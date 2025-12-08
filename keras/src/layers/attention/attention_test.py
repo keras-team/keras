@@ -53,10 +53,18 @@ class AttentionTest(testing.TestCase):
             return_attention_scores=True,
         )
         self.assertAllClose(
-            output, [[[2.462, 3.462], [1.538, 2.538]]], atol=1e-3
+            output,
+            [[[2.462, 3.462], [1.538, 2.538]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            scores, [[[0.269, 0.731], [0.731, 0.269]]], atol=1e-3
+            scores,
+            [[[0.269, 0.731], [0.731, 0.269]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
         # Concat.
@@ -66,10 +74,18 @@ class AttentionTest(testing.TestCase):
             return_attention_scores=True,
         )
         self.assertAllClose(
-            output, [[[1.727, 2.727], [2.272, 3.272]]], atol=1e-3
+            output,
+            [[[1.727, 2.727], [2.272, 3.272]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            scores, [[[0.636, 0.363], [0.363, 0.636]]], atol=1e-3
+            scores,
+            [[[0.636, 0.363], [0.363, 0.636]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_attention_with_mask(self):
@@ -85,6 +101,23 @@ class AttentionTest(testing.TestCase):
         )
         self.assertAllClose(output, [[[1.0, 1.0], [0.0, 0.0]]])
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
+
+    def test_attention_2D_mask_shape_mismatch(self):
+        layer = layers.Attention()
+        batch_size, Tq, Tv, dim = 2, 3, 4, 5
+        query = np.random.random((batch_size, Tq, dim)).astype(np.float32)
+        value = np.random.random((batch_size, Tv, dim)).astype(np.float32)
+        query_mask = np.array([[True, False, True], [True, False, True]])
+        value_mask = np.array(
+            [[True, False, True, True], [True, False, True, True]]
+        )
+        output, scores = layer(
+            [query, value],
+            mask=[query_mask, value_mask],
+            return_attention_scores=True,
+        )
+        self.assertEqual(output.shape, (batch_size, Tq, dim))
+        self.assertEqual(scores.shape, (batch_size, Tq, Tv))
 
     def test_attention_errors(self):
         layer = layers.Attention()
@@ -132,7 +165,9 @@ class AttentionTest(testing.TestCase):
         expected_scores = np.matmul(query, key.transpose((0, 2, 1)))
         expected_scores *= layer.scale.numpy()
         actual_scores = layer._calculate_scores(query, key)
-        self.assertAllClose(actual_scores, expected_scores)
+        self.assertAllClose(
+            actual_scores, expected_scores, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
 
     def test_attention_calculate_score_mask_no_causal_no_vmask(self):
         scores = np.random.random((2, 3, 4))

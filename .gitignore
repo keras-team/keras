@@ -6,6 +6,7 @@ __pycache__
 **/.vscode test/**
 **/.vscode-smoke/**
 **/.venv*/
+venv
 bin/**
 build/**
 obj/**
@@ -13,7 +14,7 @@ obj/**
 tmp/**
 .vs/
 dist/**
-*.egg-info/*
+**/*.egg-info/*
 .vscode
 examples/**/*.jpg
 .python-version

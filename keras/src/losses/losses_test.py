@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import pytest
 
@@ -1325,6 +1327,297 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, logits)
         self.assertAllClose([[0.0, 1.480129]], loss)
 
+    def test_binary_segmentation(self):
+        y_true = np.array(
+            [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [1.0, 0.0]],
+                [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+                [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
+                [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.0, 1.0]],
+            ]
+        )
+        output = losses.SparseCategoricalCrossentropy()(y_true, y_pred)
+        self.assertAllClose(output, 0.0)
+
+        y_true = np.array(
+            [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [0.2, 0.8]],
+                [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+                [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
+                [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.6, 0.4]],
+            ]
+        )
+        expected = np.array([-np.log(0.2), -np.log(0.4)])
+        output = losses.SparseCategoricalCrossentropy()(y_true, y_pred)
+        self.assertAllClose(output, expected.sum() / 16.0)  # 16 pixels
+
+    def test_binary_segmentation_different_axis(self):
+        y_true = np.array(
+            [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [1.0, 0.0]],
+                [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+                [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
+                [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.0, 1.0]],
+            ]
+        )
+        y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
+        if backend.backend() == "tensorflow":
+            expected_message = (
+                "Only axis=-1 is currently supported. Received: axis=0"
+            )
+            escaped_message = re.escape(expected_message)
+
+            with pytest.raises(ValueError, match=escaped_message):
+                losses.SparseCategoricalCrossentropy(axis=0)(
+                    y_true, y_pred_reshaped
+                )
+        elif backend.backend() == "jax":
+            expected_message = (
+                "Arguments `target` and `output` "
+                "must have the same shape up until"
+                " the last dimension: target.shape=(4, 4),"
+                " output.shape=(2, 4, 4)"
+            )
+            escaped_message = re.escape(expected_message)
+
+            with pytest.raises(ValueError, match=escaped_message):
+                losses.SparseCategoricalCrossentropy(axis=0)(
+                    y_true, y_pred_reshaped
+                )
+        elif backend.backend() == "torch":
+            output = losses.SparseCategoricalCrossentropy(axis=0)(
+                y_true, y_pred_reshaped
+            )
+            self.assertAllClose(output, 0.0)
+
+        if backend.backend() == "torch":
+            y_true = np.array(
+                [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+            )
+            y_pred = np.array(
+                [
+                    [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [0.2, 0.8]],
+                    [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+                    [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
+                    [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.6, 0.4]],
+                ]
+            )
+            y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
+            expected = np.array([-np.log(0.2), -np.log(0.4)])
+            output = losses.SparseCategoricalCrossentropy(axis=0)(
+                y_true, y_pred_reshaped
+            )
+            self.assertAllClose(output, expected.sum() / 16.0)
+
+            y_true = np.array([y_true, y_true, y_true])
+            y_pred_reshaped = np.array(
+                [y_pred_reshaped, y_pred_reshaped, y_pred_reshaped]
+            )
+            output = losses.SparseCategoricalCrossentropy(axis=1)(
+                y_true, y_pred_reshaped
+            )
+            self.assertAllClose(output, expected.sum() / 16.0)
+
+    def test_multi_class_segmentation(self):
+        y_true = np.array(
+            [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+            ]
+        )
+        output = losses.SparseCategoricalCrossentropy()(y_true, y_pred)
+        self.assertAllClose(output, 0.0)
+
+        y_true = np.array(
+            [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [0.2, 0.0, 0.8],
+                ],
+                [
+                    [0.7, 0.3, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.5, 0.5, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+            ]
+        )
+        expected = np.array(
+            [
+                -np.log(0.2),
+                -np.log(0.3),
+                -np.log(0.5),
+            ]
+        )
+        output = losses.SparseCategoricalCrossentropy()(y_true, y_pred)
+        self.assertAllClose(output, expected.sum() / 16.0)  # 16 pixels
+
+    def test_multi_class_segmentation_different_axis(self):
+        y_true = np.array(
+            [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+            ]
+        )
+        y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
+        if backend.backend() == "tensorflow":
+            expected_message = (
+                "Only axis=-1 is currently supported. Received: axis=0"
+            )
+            escaped_message = re.escape(expected_message)
+
+            with pytest.raises(ValueError, match=escaped_message):
+                losses.SparseCategoricalCrossentropy(axis=0)(
+                    y_true, y_pred_reshaped
+                )
+        elif backend.backend() == "jax":
+            expected_message = (
+                "Arguments `target` and `output` "
+                "must have the same shape up until"
+                " the last dimension: target.shape=(4, 4),"
+                " output.shape=(3, 4, 4)"
+            )
+            escaped_message = re.escape(expected_message)
+
+            with pytest.raises(ValueError, match=escaped_message):
+                losses.SparseCategoricalCrossentropy(axis=0)(
+                    y_true, y_pred_reshaped
+                )
+        elif backend.backend() == "torch":
+            output = losses.SparseCategoricalCrossentropy(axis=0)(
+                y_true, y_pred_reshaped
+            )
+            self.assertAllClose(output, 0.0)
+
+        if backend.backend() == "torch":
+            y_true = np.array(
+                [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+            )
+            y_pred = np.array(
+                [
+                    [
+                        [1.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                        [0.2, 0.0, 0.8],
+                    ],
+                    [
+                        [0.7, 0.3, 0.0],
+                        [1.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [1.0, 0.0, 0.0],
+                    ],
+                    [
+                        [1.0, 0.0, 0.0],
+                        [1.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                    ],
+                    [
+                        [0.0, 1.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                        [0.5, 0.5, 0.0],
+                        [0.0, 1.0, 0.0],
+                    ],
+                ]
+            )
+            expected = np.array(
+                [
+                    -np.log(0.2),
+                    -np.log(0.3),
+                    -np.log(0.5),
+                ]
+            )
+            y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
+            output = losses.SparseCategoricalCrossentropy(axis=0)(
+                y_true, y_pred_reshaped
+            )
+            self.assertAllClose(output, expected.sum() / 16.0)
+            y_true = np.array([y_true, y_true, y_true])
+            y_pred_reshaped = np.array(
+                [y_pred_reshaped, y_pred_reshaped, y_pred_reshaped]
+            )
+            output = losses.SparseCategoricalCrossentropy(axis=1)(
+                y_true, y_pred_reshaped
+            )
+            self.assertAllClose(output, expected.sum() / 16.0)
+
     def test_dtype_arg(self):
         y_true = np.array([[0], [1], [2]], dtype="int64")
         y_pred = np.array(
@@ -1558,7 +1851,7 @@ class CTCTest(testing.TestCase):
         logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
         y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
         output = losses.CTC()(y_true, logits)
-        self.assertAllClose(output, 2.448645)
+        self.assertAllClose(output, 2.448645, tpu_atol=1e-3, tpu_rtol=1e-3)
 
     def test_dtype_arg(self):
         logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
@@ -1671,6 +1964,7 @@ class TverskyTest(testing.TestCase):
 
 class CircleTest(testing.TestCase):
     def setup(self):
+        super().setUp()
         self.y_true = np.array([1, 1, 2, 2, 3])
         self.y_pred = np.array(
             [
@@ -1702,11 +1996,11 @@ class CircleTest(testing.TestCase):
         self.setup()
         circle_loss = losses.Circle(gamma=80.0, margin=0.4)
         loss = circle_loss(self.y_true, self.y_pred)
-        self.assertAlmostEqual(loss, 188.3883)
+        self.assertAlmostEqual(loss, 188.3883, tpu_decimal=0)
 
         circle_loss = losses.Circle(gamma=256, margin=0.25)
         loss = circle_loss(self.y_true, self.y_pred)
-        self.assertAlmostEqual(loss, 652.7617)
+        self.assertAlmostEqual(loss, 652.7617, tpu_decimal=0)
 
         loss = losses.circle(
             self.y_true,
@@ -1719,7 +2013,10 @@ class CircleTest(testing.TestCase):
         )
 
         self.assertAllClose(
-            loss, (61.5844, 94.3465, 276.9344, 90.9873, 48.8963)
+            loss,
+            (61.5844, 94.3465, 276.9344, 90.9873, 48.8963),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_correctness_weighted(self):
@@ -1729,7 +2026,7 @@ class CircleTest(testing.TestCase):
         loss = circle_loss(
             self.y_true, self.y_pred, sample_weight=sample_weight
         )
-        self.assertAlmostEqual(loss, 244.91918)
+        self.assertAlmostEqual(loss, 244.91918, tpu_decimal=0)
 
     def test_no_reduction(self):
         self.setup()
@@ -1737,7 +2034,10 @@ class CircleTest(testing.TestCase):
         loss = circle_loss(self.ref_labels, self.ref_embeddings)
 
         self.assertAllClose(
-            loss, [82.9116, 36.7942, 92.4590, 52.6798, 0.0, 0.0]
+            loss,
+            [82.9116, 36.7942, 92.4590, 52.6798, 0.0, 0.0],
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_sum_reduction(self):
@@ -1745,7 +2045,7 @@ class CircleTest(testing.TestCase):
         circle_loss = losses.Circle(gamma=80.0, margin=0.4, reduction="sum")
         loss = circle_loss(self.ref_labels, self.ref_embeddings)
 
-        self.assertAlmostEqual(loss, 264.845)
+        self.assertAlmostEqual(loss, 264.845, tpu_decimal=0)
 
     def test_mean_with_sample_weight_reduction(self):
         self.setup()
@@ -1756,10 +2056,215 @@ class CircleTest(testing.TestCase):
         loss = circle_loss(
             self.y_true, self.y_pred, sample_weight=sample_weight
         )
-        self.assertAlmostEqual(loss, 163.27948)
+        self.assertAlmostEqual(loss, 163.27948, tpu_decimal=0)
 
     def test_dtype_arg(self):
         self.setup()
         circle_loss = losses.Circle(dtype="bfloat16")
         loss = circle_loss(self.y_true, self.y_pred)
         self.assertDType(loss, "bfloat16")
+
+
+class CategoricalGeneralizedCrossEntropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.CategoricalGeneralizedCrossEntropy(name="gce")
+        )
+        self.run_class_serialization_test(
+            losses.CategoricalGeneralizedCrossEntropy(q=0.1, name="gce")
+        )
+
+    def test_basic_correctness_for_binary(self):
+        y_true = np.array([0, 1, 0, 1])
+        y_pred = np.array([[0.7, 0.3], [0.2, 0.8], [0.6, 0.4], [0.4, 0.6]])
+        # Calculate expected GCE loss manually
+        # For q=0.5:
+        # First sample (class 0): gce = (1 - 0.7^0.5) / 0.5
+        # Second sample (class 1): gce = (1 - 0.8^0.5) / 0.5
+        # Third sample (class 0): gce = (1 - 0.6^0.5) / 0.5
+        # Fourth sample (class 1): gce = (1 - 0.6^0.5) / 0.5
+        expected = np.array(
+            [
+                (1 - np.power(0.7, 0.5)) / 0.5,
+                (1 - np.power(0.8, 0.5)) / 0.5,
+                (1 - np.power(0.6, 0.5)) / 0.5,
+                (1 - np.power(0.6, 0.5)) / 0.5,
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy()(y_true, y_pred)
+        self.assertAllClose(output, expected.sum() / len(expected))
+
+        expected_q_08 = np.array(
+            [
+                (1 - np.power(0.7, 0.8)) / 0.8,
+                (1 - np.power(0.8, 0.8)) / 0.8,
+                (1 - np.power(0.6, 0.8)) / 0.8,
+                (1 - np.power(0.6, 0.8)) / 0.8,
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy(q=0.8)(
+            y_true, y_pred
+        )
+        self.assertAllClose(output, expected_q_08.sum() / len(expected_q_08))
+
+    def test_basic_correctness_for_multi_class(self):
+        y_true = np.array([0, 1, 0, 1])
+        y_pred = np.array(
+            [[0.7, 0.3, 0.0], [0.2, 0.2, 0.6], [0.6, 0.4, 0.0], [0.2, 0.2, 0.6]]
+        )
+        # Calculate expected GCE loss manually
+        # For q=0.5:
+        # First sample (class 0): gce = (1 - 0.7^0.5) / 0.5
+        # Second sample (class 1): gce = (1 - 0^0.5) / 0.5
+        # Third sample (class 0): gce = (1 - 0.6^0.5) / 0.5
+        # Fourth sample (class 1): gce = (1 - 0.0^0.5) / 0.5
+        expected = np.array(
+            [
+                (1 - np.power(0.7, 0.5)) / 0.5,
+                (1 - np.power(0.2, 0.5)) / 0.5,
+                (1 - np.power(0.6, 0.5)) / 0.5,
+                (1 - np.power(0.2, 0.5)) / 0.5,
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy()(y_true, y_pred)
+        self.assertAllClose(output, expected.sum() / len(expected))
+
+        expected_q_08 = np.array(
+            [
+                (1 - np.power(0.7, 0.8)) / 0.8,
+                (1 - np.power(0.2, 0.8)) / 0.8,
+                (1 - np.power(0.6, 0.8)) / 0.8,
+                (1 - np.power(0.2, 0.8)) / 0.8,
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy(q=0.8)(
+            y_true, y_pred
+        )
+        self.assertAllClose(output, expected_q_08.sum() / len(expected_q_08))
+
+    def test_binary_segmentation(self):
+        y_true = np.array(
+            [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [1.0, 0.0]],
+                [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+                [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
+                [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.0, 1.0]],
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy(q=0.5)(
+            y_true, y_pred
+        )
+        self.assertAllClose(output, 0.0)
+
+        y_true = np.array(
+            [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [0.2, 0.8]],
+                [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+                [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
+                [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.6, 0.4]],
+            ]
+        )
+        expected = np.array(
+            [
+                (1 - np.power(0.2, 0.5)) / 0.5,
+                (1 - np.power(0.4, 0.5)) / 0.5,
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy(q=0.5)(
+            y_true, y_pred
+        )
+        self.assertAllClose(output, expected.sum() / 16.0)  # 16 pixels
+
+    def test_multi_class_segmentation(self):
+        y_true = np.array(
+            [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy(q=0.5)(
+            y_true, y_pred
+        )
+        self.assertAllClose(output, 0.0)
+
+        y_true = np.array(
+            [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [0.2, 0.0, 0.8],
+                ],
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.5, 0.5, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+            ]
+        )
+        expected = np.array(
+            [
+                (1 - np.power(0.2, 0.5)) / 0.5,
+                (1 - np.power(0.0, 0.5)) / 0.5,
+                (1 - np.power(0.5, 0.5)) / 0.5,
+            ]
+        )
+        output = losses.CategoricalGeneralizedCrossEntropy(q=0.5)(
+            y_true, y_pred
+        )
+        self.assertAllClose(output, expected.sum() / 16.0)  # 16 pixels
+
+    def test_dtype_arg(self):
+        y_true = np.array([0, 1, 0, 1])
+        y_pred = np.array([[0.7, 0.3], [0.2, 0.8], [0.6, 0.4], [0.4, 0.6]])
+        output = losses.CategoricalGeneralizedCrossEntropy(dtype="bfloat16")(
+            y_true, y_pred
+        )
+        self.assertDType(output, "bfloat16")

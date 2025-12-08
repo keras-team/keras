@@ -229,7 +229,6 @@ class STFTSpectrogram(layers.Layer):
                     "imag", self.window, self.scaling, self.periodic
                 ),
             )
-        self.built = True
 
     def _adjust_shapes(self, outputs):
         _, channels, freq_channels, time_seq = ops.shape(outputs)

@@ -1,11 +1,11 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.Rescaling")
-class Rescaling(TFDataLayer):
+class Rescaling(DataLayer):
     """A preprocessing layer which rescales input values to a new range.
 
     This layer rescales every value of an input (often an image) by multiplying
@@ -23,7 +23,7 @@ class Rescaling(TFDataLayer):
     of integer or floating point dtype, and by default the layer will output
     floats.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Args:
