@@ -1,28 +1,11 @@
+import functools
+
 from keras.src import layers
+from keras.src.backend import distribution_lib
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
 from keras.src.distribution.tensor_parallel.tensor_layout import (
     split_tensor_for_parallelism,
 )
-
-_split_fn_internal = split_tensor_for_parallelism
-
-
-def _split_rule(device_count, dim):
-    """
-    Creates a sharding rule for a specific dimension.
-
-    Returns a lambda function compatible with LayoutMap that defines
-    how a tensor should be split across the available devices.
-
-    Args:
-        device_count: The total number of devices available for parallelism.
-        dim: The dimension of the tensor to split.
-
-    Returns:
-        callable: A lambda function accepting (tensor, index) that returns the
-        sharded layout.
-    """
-    return lambda x, index: _split_fn_internal(x, index, device_count, dim=dim)
 
 
 def analyze_dense_layer(layer):
@@ -44,162 +27,127 @@ def analyze_dense_layer(layer):
         str: One of 'up_projection', 'down_projection', or 'dense'.
     """
     if not isinstance(layer, layers.Dense):
-        return "dense"
+        return 'dense'
 
     input_dim = None
     output_dim = None
 
-    if hasattr(layer, "kernel") and layer.kernel is not None:
+    if hasattr(layer, '_kernel') and layer._kernel is not None:
+        kernel_shape = layer._kernel.shape
+        if len(kernel_shape) == 2:
+            input_dim = kernel_shape[0]
+            output_dim = kernel_shape[1]
+    elif hasattr(layer, 'kernel') and layer.kernel is not None:
         kernel_shape = layer.kernel.shape
         if len(kernel_shape) == 2:
             input_dim = kernel_shape[0]
             output_dim = kernel_shape[1]
 
     if input_dim is None or output_dim is None:
-        if hasattr(layer, "units"):
+        if hasattr(layer, 'units'):
             output_dim = layer.units
         else:
-            return "dense"
+            return 'dense'
 
-        if (
-            hasattr(layer, "input_shape")
-            and layer.input_shape
-            and len(layer.input_shape) > 1
-        ):
+        if hasattr(layer, 'input_shape') and layer.input_shape and len(layer.input_shape) > 1:
             input_dim = layer.input_shape[-1]
         else:
-            return "dense"
+            return 'dense'
 
     if not input_dim or not output_dim:
-        return "dense"
+        return 'dense'
 
     expansion_threshold = 1.5
     is_expansion = output_dim > input_dim * expansion_threshold
     is_contraction = input_dim > output_dim * expansion_threshold
 
     if is_expansion:
-        return "up_projection"
+        return 'up_projection'
     elif is_contraction:
-        return "down_projection"
+        return 'down_projection'
     else:
-        return "dense"
+        return 'dense'
 
 
-def _apply_layer_sharding_rules(
-    layer, full_name, device_count, state_rules, output_rules
-):
-    """Applies sharding rules to a single layer instance based on its type.
+def _reduce_sum(x):
+    return distribution_lib.all_reduce(x, op="sum", axis_name="model")
 
-    This function populates the `state_rules` and `output_rules` dictionaries
-    by analyzing the specific layer type (Dense, EinsumDense, Embedding).
 
-    Args:
-        layer (keras.layers.Layer): The layer instance to process.
-        full_name: The full hierarchical name of the layer (prefix + name).
-        device_count: Total number of devices.
-        state_rules: The dictionary to update with variable sharding rules.
-        output_rules: The dictionary to update with output layout rules.
+def _gather(x, axis):
+    return distribution_lib.all_gather(x, axis=axis, axis_name="model")
+
+
+def _apply_layer_sharding_rules(layer, full_name, device_count, state_rules, output_rules):
     """
+    Helper function that applies rules to a single layer instance.
+    """
+    def split_rule(dim):
+        return functools.partial(
+            split_tensor_for_parallelism, device_count=device_count, dim=dim
+        )
+
+    def gather_rule(axis):
+        return functools.partial(_gather, axis=axis)
+
     if isinstance(layer, layers.Dense):
         mlp_type = analyze_dense_layer(layer)
 
-        if mlp_type == "up_projection":
-            state_rules[f"{full_name}.kernel"] = _split_rule(
-                device_count, dim=1
-            )
+        if mlp_type == 'up_projection':
+            state_rules[f"{full_name}.kernel"] = split_rule(dim=1)
             if layer.use_bias:
-                state_rules[f"{full_name}.bias"] = _split_rule(
-                    device_count, dim=0
-                )
-            output_rules[f"{full_name}"] = {0: "gather"}
+                state_rules[f"{full_name}.bias"] = split_rule(dim=0)
+            output_rules[f"{full_name}"] = {0: gather_rule(axis=-1)}
 
-        elif mlp_type == "down_projection":
-            state_rules[f"{full_name}.kernel"] = _split_rule(
-                device_count, dim=0
-            )
-            output_rules[f"{full_name}"] = {0: "allreduce"}
+        elif mlp_type == 'down_projection':
+            state_rules[f"{full_name}.kernel"] = split_rule(dim=0)
+            output_rules[f"{full_name}"] = {0: _reduce_sum}
 
         else:
-            state_rules[f"{full_name}.kernel"] = _split_rule(
-                device_count, dim=1
-            )
+            state_rules[f"{full_name}.kernel"] = split_rule(dim=1)
             if layer.use_bias:
-                state_rules[f"{full_name}.bias"] = _split_rule(
-                    device_count, dim=0
-                )
-            output_rules[f"{full_name}"] = {0: "gather -1"}
+                state_rules[f"{full_name}.bias"] = split_rule(dim=0)
+            output_rules[f"{full_name}"] = {0: gather_rule(axis=-1)}
 
     elif isinstance(layer, layers.EinsumDense):
         if "attention_output" in full_name:
-            state_rules[f"{full_name}.kernel"] = _split_rule(
-                device_count, dim=0
-            )
-            output_rules[f"{full_name}"] = {0: "allreduce"}
+            state_rules[f"{full_name}.kernel"] = split_rule(dim=0)
+            output_rules[f"{full_name}"] = {0: _reduce_sum}
         else:
-            state_rules[f"{full_name}.kernel"] = _split_rule(
-                device_count, dim=1
-            )
-            if hasattr(layer, "bias") and layer.bias is not None:
-                state_rules[f"{full_name}.bias"] = _split_rule(
-                    device_count, dim=0
-                )
-            output_rules[f"{full_name}"] = {0: "gather -1"}
+            state_rules[f"{full_name}.kernel"] = split_rule(dim=1)
+            if hasattr(layer, 'bias') and layer.bias is not None:
+                state_rules[f"{full_name}.bias"] = split_rule(dim=0)
+            output_rules[f"{full_name}"] = {0: gather_rule(axis=-1)}
 
-    elif (
-        isinstance(layer, (layers.Embedding,))
-        or "Embedding" in layer.__class__.__name__
-    ):
-        if hasattr(layer, "weights"):
+    elif isinstance(layer, (layers.Embedding,)) or "Embedding" in layer.__class__.__name__:
+        if hasattr(layer, 'weights'):
             for weight in layer.weights:
                 if "embedding" in weight.name or "weight" in weight.name:
                     key_found = False
-                    for attr_candidate in [
-                        "embeddings",
-                        "position_embeddings",
-                        "weight",
-                    ]:
+                    for attr_candidate in ['embeddings', 'position_embeddings', 'weight']:
                         if getattr(layer, attr_candidate, None) is weight:
-                            state_rules[f"{full_name}.{attr_candidate}"] = (
-                                _split_rule(device_count, dim=1)
-                            )
+                            state_rules[f"{full_name}.{attr_candidate}"] = split_rule(dim=1)
                             key_found = True
                             break
-
+                    
                     if not key_found:
-                        clean_name = weight.name.split("/")[-1].split(":")[0]
-                        state_rules[f"{full_name}.{clean_name}"] = _split_rule(
-                            device_count, dim=1
-                        )
+                        clean_name = weight.name.split('/')[-1].split(':')[0]
+                        state_rules[f"{full_name}.{clean_name}"] = split_rule(dim=1)
 
-            output_rules[f"{full_name}"] = {0: "no_comm"}
+            output_rules[f"{full_name}"] = {0: lambda x: x}
 
 
-def get_default_config(module, device_ids):
-    """Generates a default tensor parallelism configuration for a Keras model.
-
-    This function performs an iterative Depth-First Search traversal of the
-    model graph. It automatically detects layers suitable for Tensor Parallelism
-    (Embeddings, MLPs, Attention Heads) and generates a `LayoutMap`.
-
-    The traversal uses a LIFO stack and processes children in reverse order
-    to mimic the behavior of standard recursive traversal, ensuring correct
-    path naming and rule application for nested KerasNLP backbones.
-
-    Args:
-        module: The Keras model or layer to configure.
-        device_ids (list): A list of device identifiers (e.g., strings).
-
-    Returns:
-        keras.src.distribution.tensor_parallel.tensor_layout.LayoutMap:
-        The configuration map applied to the model distribution API.
+def get_default_config(model, device_ids):
+    """
+    Generates a default tensor parallelism configuration for a model using
+    iterative graph traversal (stack-based).
     """
     device_count = len(device_ids)
     state_rules = {}
     output_rules = {}
-
+    
     processed_layers = set()
-
-    stack = [(module, "")]
+    
+    stack = [(model, "")]
 
     while stack:
         current_layer, prefix = stack.pop()
@@ -217,29 +165,21 @@ def get_default_config(module, device_ids):
 
         children_to_add = []
 
-        if hasattr(current_layer, "layers") and current_layer.layers:
+        if hasattr(current_layer, 'layers') and current_layer.layers:
             for sub_layer in current_layer.layers:
                 children_to_add.append((sub_layer, full_name))
 
-        for specific_attr in [
-            "token_embedding",
-            "embeddings",
-            "position_embedding",
-        ]:
+        for specific_attr in ['token_embedding', 'embeddings', 'position_embedding']:
             if hasattr(current_layer, specific_attr):
                 attr_val = getattr(current_layer, specific_attr)
                 if isinstance(attr_val, layers.Layer):
                     children_to_add.append((attr_val, full_name))
 
         for attr_name in dir(current_layer):
-            if attr_name.startswith("__") and attr_name.endswith("__"):
+            if attr_name.startswith('__') and attr_name.endswith('__'):
                 continue
-
-            if attr_name in [
-                "trainable_variables",
-                "non_trainable_variables",
-                "weights",
-            ]:
+            
+            if attr_name in ['trainable_variables', 'non_trainable_variables', 'weights']:
                 continue
 
             attr_value = getattr(current_layer, attr_name, None)
@@ -247,16 +187,16 @@ def get_default_config(module, device_ids):
             if attr_value is None:
                 continue
 
-            if (
-                isinstance(attr_value, layers.Layer)
-                and attr_value is not current_layer
-            ):
+            if isinstance(attr_value, layers.Layer) and attr_value is not current_layer:
                 children_to_add.append((attr_value, full_name))
             elif isinstance(attr_value, (list, tuple)):
                 for item in attr_value:
                     if isinstance(item, layers.Layer):
                         children_to_add.append((item, full_name))
-
+        
         stack.extend(reversed(children_to_add))
 
-    return LayoutMap(state_rules=state_rules, output_rules=output_rules)
+    return LayoutMap(
+        state_rules=state_rules,
+        output_rules=output_rules
+    )
