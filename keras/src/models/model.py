@@ -2,6 +2,7 @@ import inspect
 import json
 import typing
 import warnings
+from collections.abc import Callable
 
 from keras.src import backend
 from keras.src import utils
@@ -10,6 +11,7 @@ from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import summary_utils
@@ -422,7 +424,30 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def quantize(self, mode, config=None, **kwargs):
+    def get_quantization_layer_structure(self, mode):
+        """Returns the quantization structure for the model.
+
+        This method is intended to be overridden by model authors to provide
+        topology information required for structure-aware quantization modes
+        like 'gptq'.
+
+        Args:
+            mode: The quantization mode.
+
+        Returns:
+            A dictionary describing the topology, e.g.:
+            `{'pre_block_layers': [list], 'sequential_blocks': [list]}`
+            or `None` if the mode does not require structure or is not
+            supported. `'pre_block_layers'` is a list of layers that
+            the inputs should be passed through, before being passed to
+            the sequential blocks. For example, inputs to an LLM must
+            first be passed through an embedding layer, followed by
+            the transformer.
+        """
+        del mode  # Unused.
+        return None
+
+    def quantize(self, mode, config=None, filters=None, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -430,9 +455,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         will be skipped if the layer doesn't implement the function.
 
         Args:
-            mode: The mode of the quantization. Only 'int8' is supported at this
-                time.
+            mode: The mode of the quantization. Supported modes are: 'int4',
+            'int8', 'float8', 'gptq'.
+            config: The configuration object specifying additional
+            quantization options for supported modes.
+            filters: Optional filters to apply to the quantization. Can be a
+             regex string, a list of regex strings, or a callable. Only the
+             layers which match the filter conditions will be quantized.
         """
+
         from keras.src.dtype_policies import QUANTIZATION_MODES
 
         # Validate inputs.
@@ -449,6 +480,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
             )
 
+        if filters is not None:
+            if not isinstance(filters, (str, Callable, list, tuple)):
+                raise ValueError(
+                    "The `filters` argument must be a regex string, a list of "
+                    "regex strings, or a callable. Received: "
+                    f"{type(filters)}"
+                )
+
         if mode == "gptq":
             if not isinstance(config, GPTQConfig):
                 raise ValueError(
@@ -464,6 +503,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         graph_modified = False
         for layer in self._flatten_layers():
+            # Apply filters
+            if not should_quantize_layer(layer, filters):
+                continue
+
             if len(list(layer._flatten_layers())) == 1:
                 try:
                     layer.quantize(mode, type_check=type_check, config=config)
@@ -474,7 +517,25 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     pass
 
         if mode == "gptq":
-            gptq_quantize(self, config)
+            # Resolve model structure.
+            # 1. If quantization_layer_structure is provided inside the config,
+            # use that.
+            structure = config.quantization_layer_structure
+            # 2. If no layer structure is provided in the config, try to fetch
+            # it using the `get_quantization_layer_structure` hook.
+            if structure is None:
+                structure = self.get_quantization_layer_structure(mode)
+
+            if structure is None:
+                raise ValueError(
+                    "For 'gptq' mode, a valid quantization structure must be "
+                    "provided either via `config.quantization_layer_structure` "
+                    "or by overriding "
+                    "`model.get_quantization_layer_structure(mode)`. The "
+                    "structure should be a dictionary with keys "
+                    "'pre_block_layers' and 'sequential_blocks'."
+                )
+            gptq_quantize(config, structure, filters=filters)
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:
@@ -569,8 +630,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"` and `"onnx"`.  Defaults to
-                `"tf_saved_model"`.
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.
+                Defaults to `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
                 backends and formats.
@@ -593,6 +654,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     provided, they will be automatically computed.
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
+                - LiteRT-specific options: Optional keyword arguments specific
+                    to `format="litert"`. These are passed directly to the
+                    TensorFlow Lite converter and include options like
+                    `optimizations`, `representative_dataset`,
+                    `experimental_new_quantizer`, `allow_custom_ops`,
+                    `enable_select_tf_ops`, etc. See TensorFlow Lite
+                    documentation for all available options.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -627,17 +695,40 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         }
         predictions = ort_session.run(None, ort_inputs)
         ```
+
+        Here's how to export a LiteRT (TFLite) for inference.
+
+        ```python
+        # Export the model as a LiteRT artifact
+        model.export("path/to/location", format="litert")
+
+        # Load the artifact in a different process/environment
+        interpreter = tf.lite.Interpreter(model_path="path/to/location")
+        interpreter.allocate_tensors()
+        interpreter.set_tensor(
+            interpreter.get_input_details()[0]['index'], input_data
+        )
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(
+            interpreter.get_output_details()[0]['index']
+        )
+        ```
         """
+        from keras.src.export import export_litert
         from keras.src.export import export_onnx
         from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx", "openvino")
+        available_formats = ("tf_saved_model", "onnx", "openvino", "litert")
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
                 f"{list(available_formats)}."
             )
+
+        # Check if LiteRT export is available (requires TensorFlow backend)
+        if format == "litert" and backend.backend() != "tensorflow":
+            raise ImportError("LiteRT export requires TensorFlow backend.")
 
         if format == "tf_saved_model":
             export_saved_model(
@@ -660,6 +751,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 self,
                 filepath,
                 verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "litert":
+            export_litert(
+                self,
+                filepath,
                 input_signature=input_signature,
                 **kwargs,
             )

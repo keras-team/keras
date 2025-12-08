@@ -1894,33 +1894,43 @@ class TestTrainer(testing.TestCase):
         logs = model.train_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 15.579)
+        self.assertAlmostEqual(logs["loss"], 15.579, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y)
         self.assertIsInstance(logs, list)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs[0], 15.173)
+        self.assertAlmostEqual(logs[0], 15.173, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 14.97)
+        self.assertAlmostEqual(logs["loss"], 14.97, tpu_decimal=1)
 
         output = model.predict_on_batch(x)
         self.assertIsInstance(output, np.ndarray)
-        self.assertAllClose(output[0], np.array([3.789511, 3.789511, 3.789511]))
+        self.assertAllClose(
+            output[0],
+            np.array([3.789511, 3.789511, 3.789511]),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
         # With sample weights
         logs = model.train_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.819)
+        self.assertAlmostEqual(logs[0], 14.819, tpu_decimal=1)
         logs = model.test_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.595)
+        self.assertAlmostEqual(logs[0], 14.595, tpu_decimal=1)
         output = model.predict_on_batch(x)
-        self.assertAllClose(output[0], np.array([3.689468, 3.689468, 3.689468]))
+        self.assertAllClose(
+            output[0],
+            np.array([3.689468, 3.689468, 3.689468]),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
         # With class weights
         logs = model.train_on_batch(x, y, class_weight={1: 0.3, 0: 0.2})
-        self.assertAlmostEqual(logs[0], 12.899)
+        self.assertAlmostEqual(logs[0], 12.899, tpu_decimal=1)
 
     @parameterized.named_parameters(
         [
@@ -2280,19 +2290,19 @@ class TestTrainer(testing.TestCase):
         history = model.fit(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         ).history
-        self.assertAllClose(history["loss"], 16.0)
+        self.assertAllClose(history["loss"], 16.0, tpu_atol=1e-4, tpu_rtol=1e-4)
         train_out = model.train_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(train_out[0], 15.2200)
+        self.assertAllClose(train_out[0], 15.2200, tpu_atol=1e-1, tpu_rtol=1e-1)
         eval_out = model.evaluate(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(eval_out[0], 13.0321)
+        self.assertAllClose(eval_out[0], 13.0321, tpu_atol=1e-2, tpu_rtol=1e-2)
         eval_out = model.test_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(eval_out[0], 13.0321)
+        self.assertAllClose(eval_out[0], 13.0321, tpu_atol=1e-2, tpu_rtol=1e-2)
         predict_out = model.predict([np.ones((3, 2)), np.ones((3, 3))])
         self.assertEqual(predict_out.shape, (3, 2))
         predict_out = model.predict_on_batch([np.ones((3, 2)), np.ones((3, 3))])
@@ -2645,6 +2655,7 @@ class TestTrainer(testing.TestCase):
             history["loss"],
             [3.182979, 3.115617, 3.049681],
             atol=1e-3,
+            tpu_atol=1e-2,
         )
 
         # Dict output case.
@@ -2677,6 +2688,7 @@ class TestTrainer(testing.TestCase):
             history["loss"],
             [4.778718, 4.694403, 4.611693],
             atol=1e-3,
+            tpu_atol=1e-2,
         )
 
         # List output case.
@@ -2702,6 +2714,7 @@ class TestTrainer(testing.TestCase):
             history["loss"],
             [4.778718, 4.694403, 4.611693],
             atol=1e-3,
+            tpu_atol=1e-2,
         )
 
     @pytest.mark.requires_trainable_backend

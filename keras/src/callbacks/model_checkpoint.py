@@ -283,6 +283,11 @@ class ModelCheckpoint(MonitorCallback):
                     self.model.save_weights(filepath, overwrite=True)
                 else:
                     self.model.save(filepath, overwrite=True)
+                if self.verbose > 0:
+                    io_utils.print_msg(
+                        f"\nEpoch {epoch + 1}: "
+                        f"finished saving model to {filepath}"
+                    )
         except IsADirectoryError:  # h5py 3.x
             raise IOError(
                 "Please specify a non-directory filepath for "

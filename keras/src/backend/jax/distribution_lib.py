@@ -27,6 +27,20 @@ def list_devices(device_type=None):
     return [f"{device.platform}:{device.id}" for device in jax_devices]
 
 
+def get_device_count(device_type=None):
+    """Returns the number of available JAX devices.
+    Args:
+        device_type: Optional device type to count (e.g., "cpu", "gpu", "tpu").
+            If `None`, it defaults to counting "gpu" or "tpu" devices if
+            available, otherwise it counts "cpu" devices. It does not
+            return the sum of all device types.
+    Returns:
+        int: The total number of JAX devices for the specified type.
+    """
+    device_type = device_type.lower() if device_type else None
+    return jax.device_count(device_type)
+
+
 def distribute_variable(value, layout):
     """Create a distributed variable for JAX.
 
@@ -146,13 +160,13 @@ def initialize_rng():
     # Check if the global seed generator is set and ensure it has an initialized
     # seed.  Otherwise, reset the seed to the global seed.
     global_seed_generator = global_state.get_global_attribute(
-        "global_seed_generator"
+        seed_generator.GLOBAL_SEED_GENERATOR
     )
     if global_seed_generator is not None:
         seed = global_seed_generator.get_config()["seed"]
         if seed is None:
             global_state.set_global_attribute(
-                "global_seed_generator",
+                seed_generator.GLOBAL_SEED_GENERATOR,
                 seed_generator.SeedGenerator(
                     seed=global_seed,
                     name=global_seed_generator.name,

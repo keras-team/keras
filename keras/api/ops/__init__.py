@@ -140,6 +140,7 @@ from keras.src.ops.numpy import argmin as argmin
 from keras.src.ops.numpy import argpartition as argpartition
 from keras.src.ops.numpy import argsort as argsort
 from keras.src.ops.numpy import array as array
+from keras.src.ops.numpy import array_split as array_split
 from keras.src.ops.numpy import average as average
 from keras.src.ops.numpy import bartlett as bartlett
 from keras.src.ops.numpy import bincount as bincount
@@ -178,6 +179,7 @@ from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
+from keras.src.ops.numpy import empty_like as empty_like
 from keras.src.ops.numpy import equal as equal
 from keras.src.ops.numpy import exp as exp
 from keras.src.ops.numpy import exp2 as exp2
@@ -213,6 +215,7 @@ from keras.src.ops.numpy import isreal as isreal
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import kron as kron
 from keras.src.ops.numpy import lcm as lcm
+from keras.src.ops.numpy import ldexp as ldexp
 from keras.src.ops.numpy import left_shift as left_shift
 from keras.src.ops.numpy import less as less
 from keras.src.ops.numpy import less_equal as less_equal

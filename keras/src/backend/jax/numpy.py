@@ -678,6 +678,10 @@ def empty(shape, dtype=None):
     return jnp.empty(shape, dtype=dtype)
 
 
+def empty_like(x, dtype=None):
+    return jnp.empty_like(x, dtype=dtype)
+
+
 def equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -839,6 +843,19 @@ def lcm(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.lcm(x1, x2)
+
+
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            f"ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+
+    return jnp.ldexp(x1, x2)
 
 
 def less(x1, x2):
@@ -1167,6 +1184,11 @@ def split(x, indices_or_sections, axis=0):
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    return jnp.array_split(x, indices_or_sections, axis=axis)
+
+
 def stack(x, axis=0):
     x = [convert_to_tensor(t) for t in x]
     return jnp.stack(x, axis=axis)
@@ -1191,6 +1213,8 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices, sparse=False)
     return jnp.take_along_axis(x, indices, axis=axis)
 
 

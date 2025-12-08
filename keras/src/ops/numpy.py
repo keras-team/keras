@@ -3114,6 +3114,48 @@ def empty(shape, dtype=None):
     return backend.numpy.empty(shape, dtype=dtype)
 
 
+class EmptyLike(Operation):
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return backend.numpy.empty_like(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.empty_like", "keras.ops.numpy.empty_like"])
+def empty_like(x, dtype=None):
+    """Return a new uninitialized tensor with the same shape and dtype as `x`.
+
+    Args:
+        x: Input tensor to mimic shape and dtype.
+        dtype: Optional data type. If None, uses `x.dtype`.
+
+    Returns:
+        A tensor with the same shape and dtype as `x`, with arbitrary contents.
+
+    Example:
+    >>> from keras import ops
+    >>> x = ops.ones((2, 3), dtype="float32")
+    >>> y = ops.empty_like(x)
+    >>> y.shape
+    (2, 3)
+    >>> y.dtype
+    dtype('float32')
+    """
+    if any_symbolic_tensors((x,)):
+        return EmptyLike(dtype=dtype).symbolic_call(x)
+    return backend.numpy.empty_like(x, dtype=dtype)
+
+
 class Equal(Operation):
     def call(self, x1, x2):
         return backend.numpy.equal(x1, x2)
@@ -3927,10 +3969,10 @@ def isreal(x):
         Output boolean tensor.
 
     Example:
-        >>> from keras import ops
-        >>> x = ops.array([1+1j, 1+0j, 4.5, 3, 2, 2j], dtype="complex64")
-        >>> ops.isreal(x)
-        array([False,  True,  True,  True,  True, False])
+    >>> from keras import ops
+    >>> x = ops.array([1+1j, 1+0j, 4.5, 3, 2, 2j], dtype="complex64")
+    >>> ops.isreal(x)
+    array([False,  True,  True,  True,  True, False])
     """
     if any_symbolic_tensors((x,)):
         return Isreal().symbolic_call(x)
@@ -4015,6 +4057,46 @@ def lcm(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Lcm().symbolic_call(x1, x2)
     return backend.numpy.lcm(x1, x2)
+
+
+class Ldexp(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.ldexp(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.ldexp", "keras.ops.numpy.ldexp"])
+def ldexp(x1, x2):
+    """Multiply `x1` by 2 raised to the power of `x2`, element-wise.
+
+    This function computes:
+        ldexp(x1, x2) = x1 * 2**x2
+
+    Args:
+        x1: Float input tensor.
+        x2: Integer exponent tensor.
+
+    Returns:
+        Output tensor
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([0.75, 1.5])
+    >>> x2 = keras.ops.convert_to_tensor([1, 2])
+    >>> keras.ops.ldexp(x1, x2)
+    array([1.5, 6. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Ldexp().symbolic_call(x1, x2)
+    return backend.numpy.ldexp(x1, x2)
 
 
 class Less(Operation):
@@ -5509,10 +5591,10 @@ def unravel_index(indices, shape):
         Tuple of arrays for each dimension with unraveled indices.
 
     Example:
-        >>> indices = 5
-        >>> shape = (3, 3)
-        >>> unravel_index(indices, shape)
-        (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
+    >>> indices = 5
+    >>> shape = (3, 3)
+    >>> unravel_index(indices, shape)
+    (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
     """
     if any_symbolic_tensors((indices,)):
         return UnravelIndex(shape).symbolic_call(indices)
@@ -7762,3 +7844,104 @@ def histogram(x, bins=10, range=None):
             f"Received: input.shape={x.shape}"
         )
     return backend.numpy.histogram(x, bins=bins, range=range)
+
+
+class ArraySplit(Operation):
+    def __init__(self, indices_or_sections, axis=0, *, name=None):
+        super().__init__(name=name)
+
+        self.indices_or_sections = indices_or_sections
+        self.axis = axis
+
+    def call(self, x):
+        return backend.numpy.array_split(
+            x,
+            indices_or_sections=self.indices_or_sections,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, x):
+        num_splits = self.indices_or_sections
+
+        axis = self.axis
+        if axis < 0:
+            axis += len(x.shape)
+
+        total_size = x.shape[axis]
+
+        if total_size is None:
+            output_specs = []
+            base_shape = list(x.shape)
+            base_shape[axis] = None
+            for _ in range(num_splits):
+                output_specs.append(
+                    KerasTensor(shape=tuple(base_shape), dtype=x.dtype)
+                )
+            return tuple(output_specs)
+
+        split_size = total_size // num_splits
+        remainder = total_size % num_splits
+
+        output_specs = []
+        base_shape = list(x.shape)
+        for i in range(num_splits):
+            size = split_size + (1 if i < remainder else 0)
+            shape = base_shape.copy()
+            shape[axis] = size
+            output_specs.append(KerasTensor(shape=tuple(shape), dtype=x.dtype))
+
+        return list(output_specs)
+
+
+@keras_export(["keras.ops.array_split", "keras.ops.numpy.array_split"])
+def array_split(x, indices_or_sections, axis=0):
+    """Splits an array into multiple sub-arrays (unevenly).
+
+    This is similar to `keras.ops.split`, but it allows for
+    unequal splits. `indices_or_sections` must be an integer
+    that indicates the total number of sub-arrays to create.
+    If the tensor cannot be divided evenly, the first `remainder`
+    splits will have size `quotient + 1`, and the rest will
+    have size `quotient`.
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: An integer indicating the number of
+            sub-arrays to create.
+        axis: The axis along which to split. Defaults to 0.
+
+    Returns:
+        A list of sub-tensors.
+
+    Example:
+    >>> x = keras.ops.arange(10)
+    >>> keras.ops.array_split(x, 3)
+    (array([0, 1, 2, 3], dtype=int32),
+     array([4, 5, 6], dtype=int32),
+     array([7, 8, 9], dtype=int32))
+    """
+    if not isinstance(indices_or_sections, int):
+        raise TypeError(
+            "Argument `indices_or_sections` must be of type `int`. "
+            f"Received: indices_or_sections={indices_or_sections}"
+        )
+
+    if indices_or_sections <= 0:
+        raise ValueError(
+            "Argument `indices_or_sections` must be a positive integer. "
+            f"Received: indices_or_sections={indices_or_sections}"
+        )
+
+    if not isinstance(axis, int):
+        raise TypeError(
+            f"Argument `axis` must be of type `int`. Received: {axis}"
+        )
+
+    if any_symbolic_tensors((x,)):
+        return ArraySplit(
+            indices_or_sections=indices_or_sections, axis=axis
+        ).symbolic_call(x)
+
+    return backend.numpy.array_split(
+        x, indices_or_sections=indices_or_sections, axis=axis
+    )

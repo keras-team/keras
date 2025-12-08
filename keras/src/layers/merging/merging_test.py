@@ -124,7 +124,7 @@ class MergingLayersTest(testing.TestCase):
         res = model([x1, x2])
 
         self.assertEqual(res.shape, expected_output_shape)
-        self.assertAllClose(res, x3, atol=1e-4)
+        self.assertAllClose(res, x3, atol=1e-4, tpu_atol=1e-2, tpu_rtol=1e-2)
         self.assertIsNone(layer.compute_mask([input_1, input_2], [None, None]))
         self.assertIsNone(layer.compute_mask([x1, x2], [None, None]))
         if not skip_mask_test:
@@ -161,7 +161,7 @@ class MergingLayersTest(testing.TestCase):
         res = model([x1, x2])
 
         self.assertEqual(res.shape, expected_output_shape)
-        self.assertAllClose(res, x3, atol=1e-4)
+        self.assertAllClose(res, x3, atol=1e-4, tpu_atol=1e-2, tpu_rtol=1e-2)
         self.assertIsNone(layer.compute_mask([input_1, input_2], [None, None]))
         if not skip_mask_test:
             self.assertTrue(

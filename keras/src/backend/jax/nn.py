@@ -355,7 +355,7 @@ def conv(
     feature_group_count = channels // kernel_in_channels
     kernel = convert_to_tensor(kernel)
     inputs = convert_to_tensor(inputs, dtype=kernel.dtype)
-    return jax.lax.conv_general_dilated(
+    result = jax.lax.conv_general_dilated(
         inputs,
         kernel,
         strides,
@@ -364,6 +364,14 @@ def conv(
         dimension_numbers=dimension_numbers,
         feature_group_count=feature_group_count,
     )
+    if result.size == 0:
+        raise ValueError(
+            "The convolution operation resulted in an empty output. "
+            "This can happen if the input is too small for the given "
+            "kernel size, strides, dilation rate, and padding mode. "
+            "Please check the input shape and convolution parameters."
+        )
+    return result
 
 
 def depthwise_conv(
