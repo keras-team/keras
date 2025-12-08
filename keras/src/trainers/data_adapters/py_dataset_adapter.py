@@ -98,8 +98,9 @@ class PyDataset:
         backend_name = backend.backend()
         if backend_name not in ("torch", "jax", "tensorflow", "numpy"):
             raise ValueError(
-                f"PyDataset supports tf, torch, jax, numpy backend"
                 f"Received unsupported backend: '{backend_name}'."
+                "Supported backends TensorFlow , numpy , torch , jax backend."
+            )
             )
         # Optionally warn if using TF (since tf.data.Dataset is better)
         if backend_name == "tensorflow":
