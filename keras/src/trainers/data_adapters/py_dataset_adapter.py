@@ -92,10 +92,10 @@ class PyDataset:
     """
     backend_name = backend.backend()
 
-    if backend_name not in ("tensorflow", "numpy", "torch", "jax"):            
+    if backend_name not in ("tensorflow", "numpy", "torch", "jax", "openvino"):            
             raise ValueError(
                 f"Incompatible backend '{backend_name}'"
-                "Supported backends TensorFlow , numpy , torch , jax backend."
+                "Supported backends TensorFlow , numpy , torch , jax , openvino backend."
             )
     
     def __init__(self, workers=1, use_multiprocessing=False, max_queue_size=10):
