@@ -1,38 +1,30 @@
-from unittest.mock import patch
-
-from autoconfig import analyze_dense_layer
-from autoconfig import get_default_config
+import functools
 
 import keras
 from keras.src import layers
 from keras.src import testing
+from keras.src.distribution.tensor_parallel.autoconfig import _gather
+from keras.src.distribution.tensor_parallel.autoconfig import _reduce_sum
+from keras.src.distribution.tensor_parallel.autoconfig import (
+    analyze_dense_layer,
+)
+from keras.src.distribution.tensor_parallel.autoconfig import get_default_config
+from keras.src.distribution.tensor_parallel.tensor_layout import (
+    split_tensor_for_parallelism,
+)
 
 
 class AutoConfigTest(testing.TestCase):
     def check_rule(self, rule, expected_device_count, expected_dim):
         """
-        Helper to verify a rule lambda.
-        Since the rule is a lambda, we mock the internal function it calls
-        to verify it captured the correct device_count and dim.
+        Helper to verify a rule.
+        The rules are now functools.partial objects, so we verify their
+        configuration directly.
         """
-        self.assertTrue(callable(rule), "Rule must be a callable (lambda)")
-
-        # Patch the internal function imported in autoconfig
-        with patch("autoconfig._split_fn_internal") as mock_split:
-            # Call the rule with dummy arguments
-            rule(keras.ops.zeros((2, 2)), 0)
-
-            # Verify _split_fn_internal was called
-            self.assertTrue(mock_split.called)
-
-            # Inspect arguments: (tensor, index, device_count, dim=dim)
-            args, kwargs = mock_split.call_args
-
-            # device_count is the 3rd positional argument (index 2)
-            self.assertEqual(args[2], expected_device_count)
-
-            # dim is passed as a keyword argument
-            self.assertEqual(kwargs["dim"], expected_dim)
+        self.assertIsInstance(rule, functools.partial)
+        self.assertEqual(rule.func, split_tensor_for_parallelism)
+        self.assertEqual(rule.keywords["device_count"], expected_device_count)
+        self.assertEqual(rule.keywords["dim"], expected_dim)
 
     def test_analyze_dense_layer_directly(self):
         """Tests the heuristic for classifying Dense layers."""
@@ -82,8 +74,15 @@ class AutoConfigTest(testing.TestCase):
         self.check_rule(state_rules[down_kernel_key], device_count, 0)
 
         # Assertions for Output Communication Rules
-        self.assertEqual(output_rules["mlp_block.mlp_up"], {0: "gather"})
-        self.assertEqual(output_rules["mlp_block.mlp_down"], {0: "allreduce"})
+        # Up-projection output should be Gather on last axis (-1)
+        up_output_rule = output_rules["mlp_block.mlp_up"][0]
+        self.assertIsInstance(up_output_rule, functools.partial)
+        self.assertEqual(up_output_rule.func, _gather)
+        self.assertEqual(up_output_rule.keywords["axis"], -1)
+
+        # Down-projection output should be ReduceSum
+        down_output_rule = output_rules["mlp_block.mlp_down"][0]
+        self.assertEqual(down_output_rule, _reduce_sum)
 
     def test_model_with_embedding_and_einsumdense(self):
         """Tests rule generation for Embedding and EinsumDense layers."""

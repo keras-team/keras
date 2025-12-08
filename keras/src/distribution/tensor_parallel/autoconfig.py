@@ -90,7 +90,7 @@ def _apply_layer_sharding_rules(
     Applies sharding rules to a single layer instance.
 
     This function populates the state_rules and output_rules dictionaries with
-    sharding strategies specific to the layer type (Dense, EinsumDense, Embedding).
+    sharding strategies specific to the layer type.
 
     Args:
         layer: The Keras layer instance to process.
@@ -170,7 +170,7 @@ def get_default_config(model, device_ids):
     """
     Generates a default tensor parallelism configuration for a model.
 
-    This function performs an iterative Depth-First Search (DFS) traversal of the
+    This function performs an iterative Depth-First Search traversal of the
     model graph (stack-based) to identify layers and apply sharding rules based
     on the available devices.
 
@@ -209,16 +209,6 @@ def get_default_config(model, device_ids):
         if hasattr(current_layer, "layers") and current_layer.layers:
             for sub_layer in current_layer.layers:
                 children_to_add.append((sub_layer, full_name))
-
-        for specific_attr in [
-            "token_embedding",
-            "embeddings",
-            "position_embedding",
-        ]:
-            if hasattr(current_layer, specific_attr):
-                attr_val = getattr(current_layer, specific_attr)
-                if isinstance(attr_val, layers.Layer):
-                    children_to_add.append((attr_val, full_name))
 
         for attr_name in dir(current_layer):
             if attr_name.startswith("__") and attr_name.endswith("__"):
