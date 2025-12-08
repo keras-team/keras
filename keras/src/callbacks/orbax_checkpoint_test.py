@@ -34,6 +34,15 @@ class OrbaxCheckpointTest(testing.TestCase):
         y = np.random.randn(num_samples, 2)  # Match 2 outputs
         return x, y
 
+    def _to_numpy(self, tensor):
+        """Convert tensor to numpy array, handling different tensor types."""
+        if hasattr(tensor, "detach"):  # PyTorch tensor
+            return tensor.detach().cpu().numpy()
+        elif hasattr(tensor, "numpy"):  # TF variable
+            return tensor.numpy()
+        else:  # numpy array
+            return tensor
+
     @pytest.mark.requires_trainable_backend
     def test_save_freq_batch(self):
         """Test batch-level saving."""
@@ -688,20 +697,8 @@ class OrbaxCheckpointTest(testing.TestCase):
             trained_val = trained_opt_flat[key]
             loaded_val = loaded_opt_flat[key]
 
-            # Handle different tensor types
-            if hasattr(trained_val, "detach"):  # PyTorch tensor
-                trained_np = trained_val.detach().cpu().numpy()
-            elif hasattr(trained_val, "numpy"):  # TF variable
-                trained_np = trained_val.numpy()
-            else:  # numpy array
-                trained_np = trained_val
-
-            if hasattr(loaded_val, "detach"):  # PyTorch tensor
-                loaded_np = loaded_val.detach().cpu().numpy()
-            elif hasattr(loaded_val, "numpy"):  # TF variable
-                loaded_np = loaded_val.numpy()
-            else:  # numpy array
-                loaded_np = loaded_val
+            trained_np = self._to_numpy(trained_val)
+            loaded_np = self._to_numpy(loaded_val)
 
             self.assertTrue(
                 np.allclose(trained_np, loaded_np),
@@ -725,20 +722,8 @@ class OrbaxCheckpointTest(testing.TestCase):
             trained_val = trained_met_flat[key]
             loaded_val = loaded_met_flat[key]
 
-            # Handle different tensor types
-            if hasattr(trained_val, "detach"):  # PyTorch tensor
-                trained_np = trained_val.detach().cpu().numpy()
-            elif hasattr(trained_val, "numpy"):  # TF variable
-                trained_np = trained_val.numpy()
-            else:  # numpy array
-                trained_np = trained_val
-
-            if hasattr(loaded_val, "detach"):  # PyTorch tensor
-                loaded_np = loaded_val.detach().cpu().numpy()
-            elif hasattr(loaded_val, "numpy"):  # TF variable
-                loaded_np = loaded_val.numpy()
-            else:  # numpy array
-                loaded_np = loaded_val
+            trained_np = self._to_numpy(trained_val)
+            loaded_np = self._to_numpy(loaded_val)
 
             self.assertTrue(
                 np.allclose(trained_np, loaded_np),
