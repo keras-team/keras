@@ -8,6 +8,7 @@ import weakref
 from contextlib import closing
 
 import numpy as np
+from keras import backend
 
 from keras.src.api_export import keras_export
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -89,7 +90,14 @@ class PyDataset:
                    for file_name in batch_x]), np.array(batch_y)
     ```
     """
+    backend_name = backend.backend()
 
+    if backend_name not in ("tensorflow", "numpy", "torch", "jax"):            
+            raise ValueError(
+                f"Incompatible backend '{backend_name}'"
+                "Supported backends TensorFlow , numpy , torch , jax backend."
+            )
+    
     def __init__(self, workers=1, use_multiprocessing=False, max_queue_size=10):
         self._workers = workers
         self._use_multiprocessing = use_multiprocessing

@@ -1,5 +1,5 @@
 import itertools
-
+from keras import backend
 import numpy as np
 
 from keras.src import tree
@@ -12,7 +12,14 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def __init__(self, dataloader):
         import torch
+        backend_name = backend.backend()
 
+        if backend_name not in ("tensorflow", "numpy", "torch", "jax"):
+            raise ValueError(
+                f"Incompatible backend '{backend_name}'"
+                "Supported backends TensorFlow , numpy , torch , jax backend."
+            )
+        
         if not isinstance(dataloader, torch.utils.data.DataLoader):
             raise ValueError(
                 f"Expected argument `dataloader` to be an instance of"

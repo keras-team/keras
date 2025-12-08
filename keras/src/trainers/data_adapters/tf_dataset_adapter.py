@@ -1,3 +1,4 @@
+from keras import backend
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -18,7 +19,12 @@ class TFDatasetAdapter(DataAdapter):
                 instance.
         """
         from keras.src.utils.module_utils import tensorflow as tf
-
+        backend_name = backend.backend()
+        if backend_name not in ("tensorflow", "numpy", "torch", "jax"):
+            raise ValueError(
+                f"Incompatible backend '{backend_name}'"
+                "Supported backends TensorFlow , numpy , torch , jax backend."
+            )
         if not isinstance(
             dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)
         ):
