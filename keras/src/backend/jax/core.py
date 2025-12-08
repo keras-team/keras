@@ -1,6 +1,5 @@
 import jax
 import jax.experimental.sparse as jax_sparse
-import jax.lax as lax
 import jax.numpy as jnp
 import ml_dtypes
 import numpy as np

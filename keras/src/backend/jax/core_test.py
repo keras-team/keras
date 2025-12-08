@@ -1,4 +1,3 @@
-import functools
 import os
 
 import jax
@@ -10,8 +9,6 @@ import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.config import is_nnx_enabled
-from keras.src.backend.jax.core import all_gather
-from keras.src.backend.jax.core import all_reduce
 
 if is_nnx_enabled():
     from flax import nnx
