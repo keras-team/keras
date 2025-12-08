@@ -24,9 +24,8 @@ class TFDatasetAdapter(DataAdapter):
         backend = keras.backend.backend()
         if backend not in ("tensorflow", "numpy", "torch", "jax"):
             raise ValueError(
-                f"Incompatible backend '{backend}' for TFDatasetAdapter. "
-                "This adapter only supports the TensorFlow , numpy , torch ,"
-                " jax backend."
+                f"Incompatible backend '{backend}'"
+                "Supported backends TensorFlow , numpy , torch ,jax backend."
             )
 
         # --- ✅ Dataset type validation ---
