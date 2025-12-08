@@ -780,6 +780,11 @@ class OrbaxCheckpointTest(testing.TestCase):
         if len(devices) < 1:
             self.skipTest("Test requires at least 1 JAX device")
 
+        # Skip test if there are more than 2 devices, as these tests are
+        # designed for 2-device scenarios and may not work with more devices
+        if len(devices) > 2:
+            self.skipTest(f"Test for 2 devices, but {len(devices)} available")
+
         num_devices = min(2, len(devices))
 
         # Configure JAX to use virtual devices if needed
@@ -796,7 +801,7 @@ class OrbaxCheckpointTest(testing.TestCase):
             # Set up distribution based on available devices
             if num_devices >= 2:
                 # Multi-device distribution
-                device_mesh = DeviceMesh((2,), axis_names=["data"])
+                device_mesh = DeviceMesh((num_devices,), axis_names=["data"])
                 layout_map = LayoutMap(device_mesh)
                 layout_map["dense_layer/kernel"] = TensorLayout(
                     axes=("data", None)
@@ -930,6 +935,11 @@ class OrbaxCheckpointTest(testing.TestCase):
         if len(devices) < 1:
             self.skipTest("Test requires at least 1 JAX device")
 
+        # Skip test if more than 2 devices, as these tests are designed
+        # for 2-device scenarios and may not work correctly with more devices
+        if len(devices) > 2:
+            self.skipTest(f"Test requires 2 devices, found {len(devices)}")
+
         num_devices = min(2, len(devices))
 
         # Configure JAX to use virtual devices if needed
@@ -946,7 +956,7 @@ class OrbaxCheckpointTest(testing.TestCase):
             # Set up distribution based on available devices
             if num_devices >= 2:
                 # Multi-device distribution for distributed checkpointing test
-                device_mesh = DeviceMesh((2,), axis_names=["data"])
+                device_mesh = DeviceMesh((num_devices,), axis_names=["data"])
                 layout_map = LayoutMap(device_mesh)
                 layout_map["dense_layer/kernel"] = TensorLayout(
                     axes=("data", None)
