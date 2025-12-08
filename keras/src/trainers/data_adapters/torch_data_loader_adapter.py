@@ -13,16 +13,22 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def __init__(self, dataloader):
         import torch
+
         backend_name = backend.backend()
 
-        if backend_name not in ("tensorflow", "numpy", "torch", "jax", 
-                                "openvino"):
+        if backend_name not in (
+            "tensorflow",
+            "numpy",
+            "torch",
+            "jax",
+            "openvino",
+        ):
             raise ValueError(
                 f"Incompatible backend '{backend_name}'"
-                "Supported backends TensorFlow , numpy , torch , jax backend ," 
+                "Supported backends TensorFlow , numpy , torch , jax backend ,"
                 " openvino"
             )
-        
+
         if not isinstance(dataloader, torch.utils.data.DataLoader):
             raise ValueError(
                 f"Expected argument `dataloader` to be an instance of"

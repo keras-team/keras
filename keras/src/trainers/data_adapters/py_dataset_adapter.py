@@ -90,16 +90,16 @@ class PyDataset:
                    for file_name in batch_x]), np.array(batch_y)
     ```
     """
+
     backend_name = backend.backend()
 
-    if backend_name not in ("tensorflow", "numpy", "torch", "jax",
-                             "openvino"):            
-            raise ValueError(
-                f"Incompatible backend '{backend_name}'"
-                "Supported backends TensorFlow , numpy , torch , jax , " 
-                "openvino backend."
-            )
-    
+    if backend_name not in ("tensorflow", "numpy", "torch", "jax", "openvino"):
+        raise ValueError(
+            f"Incompatible backend '{backend_name}'"
+            "Supported backends TensorFlow , numpy , torch , jax , "
+            "openvino backend."
+        )
+
     def __init__(self, workers=1, use_multiprocessing=False, max_queue_size=10):
         self._workers = workers
         self._use_multiprocessing = use_multiprocessing
