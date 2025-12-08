@@ -471,7 +471,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         new_model.load('/tmp/checkpoints')  # Loads latest checkpoint
         ```
         """
-        from keras.src.distribution import distribution as get_distribution
         from keras.src.saving.saving_api import _find_latest_orbax_checkpoint
         from keras.src.saving.saving_api import _is_orbax_checkpoint
         from keras.src.utils.module_utils import ocp
@@ -498,42 +497,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             # It's a checkpoint directory, find the latest checkpoint
             checkpoint_path = _find_latest_orbax_checkpoint(filepath)
 
-        # Determine loading strategy based on current distribution
-        current_distribution = get_distribution()
-        should_reshard = current_distribution is not None
-
         # Load the checkpoint with appropriate strategy
-        if backend.backend() == "jax" and should_reshard:
-            # For JAX with distribution, use abstract pytree to ensure proper
-            # resharding and avoid OOM issues from mismatched sharding
-            # layouts
-            import jax
-            from jax import tree_util
-
-            def create_abstract_leaf(tensor):
-                """Create abstract leaf with current sharding."""
-                if hasattr(tensor, "sharding") and tensor.sharding is not None:
-                    return jax.ShapeDtypeStruct(
-                        shape=tensor.shape,
-                        dtype=tensor.dtype,
-                        sharding=tensor.sharding,
-                    )
-                else:
-                    return jax.ShapeDtypeStruct(
-                        shape=tensor.shape, dtype=tensor.dtype
-                    )
-
-            # Get current state tree with sharding information
-            current_state = self.get_state_tree()
-            abstract_pytree = tree_util.tree_map(
-                create_abstract_leaf, current_state
-            )
-
-            # Load with resharding
-            loaded_state = ocp.load_pytree(checkpoint_path, abstract_pytree)
-        else:
-            # Preservation mode: load without abstract pytree
-            loaded_state = ocp.load_pytree(checkpoint_path)
+        # For now, use preservation mode to avoid memory corruption issues
+        # with abstract pytree when optimizer states don't match
+        loaded_state = ocp.load_pytree(checkpoint_path)
 
         # Set the state in the model, but only for components that exist
         state_to_set = {}
