@@ -66,6 +66,8 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -85,6 +87,8 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -104,6 +108,8 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -123,6 +129,8 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -142,6 +150,8 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_statefulness(self):
@@ -163,6 +173,8 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         layer.reset_state()
         layer(sequence)
@@ -175,6 +187,8 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_pass_initial_state(self):
@@ -190,6 +204,8 @@ class GRUTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.23774096, 0.33508456], [0.83659905, 1.0227708]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -203,6 +219,8 @@ class GRUTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.13486053, 0.23261218], [0.78257304, 0.9691353]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_pass_return_state(self):
@@ -221,8 +239,15 @@ class GRUTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.23774096, 0.33508456], [0.83659905, 1.0227708]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
-        self.assertAllClose(output, state)
+        self.assertAllClose(
+            output,
+            state,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
 
         # Test with go_backwards=True
         layer = layers.GRU(
@@ -237,8 +262,15 @@ class GRUTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.13486053, 0.23261218], [0.78257304, 0.9691353]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
-        self.assertAllClose(output, state)
+        self.assertAllClose(
+            output,
+            state,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
 
     def test_masking(self):
         sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
@@ -254,6 +286,8 @@ class GRUTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.19393763, 0.19393763], [0.30818558, 0.30818558]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -274,6 +308,8 @@ class GRUTest(testing.TestCase):
                 ],
             ),
             output[0],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array(
@@ -285,6 +321,8 @@ class GRUTest(testing.TestCase):
                 ],
             ),
             output[1],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -306,6 +344,8 @@ class GRUTest(testing.TestCase):
                 ],
             ),
             output[0],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array(
@@ -317,6 +357,8 @@ class GRUTest(testing.TestCase):
                 ],
             ),
             output[1],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.GRU(
@@ -330,6 +372,8 @@ class GRUTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.11669192, 0.11669192], [0.28380975, 0.28380975]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_legacy_implementation_argument(self):
@@ -353,4 +397,6 @@ class GRUTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )

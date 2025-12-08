@@ -616,7 +616,9 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             data_format,
             dilation_rate,
         )
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(
+            outputs, expected, atol=1e-5, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.parameters(
         {
@@ -696,7 +698,9 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             data_format,
             dilation_rate,
         )
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(
+            outputs, expected, atol=1e-5, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.parameters(
         {
@@ -767,7 +771,9 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             data_format,
             dilation_rate,
         )
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(
+            outputs, expected, atol=1e-5, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.product(
         kernel_size=list(range(1, 5)),

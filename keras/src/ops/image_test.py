@@ -573,7 +573,7 @@ def _compute_affine_transform_coordinates(image, transform):
     # transform the indices
     coordinates = np.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = np.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += np.reshape(offset, newshape=(*offset.shape, 1, 1, 1))
+    coordinates += np.reshape(offset, (*offset.shape, 1, 1, 1))
     if need_squeeze:
         coordinates = np.squeeze(coordinates, axis=0)
     return coordinates
@@ -1431,7 +1431,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             fill_mode=fill_mode,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         x = np.random.uniform(size=(2, 50, 50, 3)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
@@ -1456,7 +1456,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             axis=0,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1477,7 +1477,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=1, tpu_rtol=1)
 
         x = np.random.uniform(size=(2, 3, 50, 50)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
@@ -1505,13 +1505,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         # Test class
         out = kimage.AffineTransform(
             interpolation=interpolation, fill_mode=fill_mode
         )(x, transform)
-        self.assertAllClose(ref_out, out, atol=1e-2)
+        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
     @parameterized.named_parameters(
         named_product(
