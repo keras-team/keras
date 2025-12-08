@@ -20,10 +20,12 @@ class TFDatasetAdapter(DataAdapter):
         """
         from keras.src.utils.module_utils import tensorflow as tf
         backend_name = backend.backend()
-        if backend_name not in ("tensorflow", "numpy", "torch", "jax", "openvino"):
+        if backend_name not in ("tensorflow", "numpy", "torch", "jax",
+                                 "openvino"):
             raise ValueError(
                 f"Incompatible backend '{backend_name}'"
-                "Supported backends TensorFlow , numpy , torch , jax backend , openvino"
+                "Supported backends TensorFlow , numpy , torch , jax backend ," 
+                " openvino"
             )
         if not isinstance(
             dataset, (tf.data.Dataset, tf.distribute.DistributedDataset)

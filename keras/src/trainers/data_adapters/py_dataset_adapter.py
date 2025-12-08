@@ -8,8 +8,8 @@ import weakref
 from contextlib import closing
 
 import numpy as np
-from keras import backend
 
+from keras import backend
 from keras.src.api_export import keras_export
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -92,10 +92,12 @@ class PyDataset:
     """
     backend_name = backend.backend()
 
-    if backend_name not in ("tensorflow", "numpy", "torch", "jax", "openvino"):            
+    if backend_name not in ("tensorflow", "numpy", "torch", "jax",
+                             "openvino"):            
             raise ValueError(
                 f"Incompatible backend '{backend_name}'"
-                "Supported backends TensorFlow , numpy , torch , jax , openvino backend."
+                "Supported backends TensorFlow , numpy , torch , jax , " 
+                "openvino backend."
             )
     
     def __init__(self, workers=1, use_multiprocessing=False, max_queue_size=10):

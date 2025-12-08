@@ -1,7 +1,8 @@
 import itertools
-from keras import backend
+
 import numpy as np
 
+from keras import backend
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -14,10 +15,12 @@ class TorchDataLoaderAdapter(DataAdapter):
         import torch
         backend_name = backend.backend()
 
-        if backend_name not in ("tensorflow", "numpy", "torch", "jax", "openvino"):
+        if backend_name not in ("tensorflow", "numpy", "torch", "jax", 
+                                "openvino"):
             raise ValueError(
                 f"Incompatible backend '{backend_name}'"
-                "Supported backends TensorFlow , numpy , torch , jax backend , openvino"
+                "Supported backends TensorFlow , numpy , torch , jax backend ," 
+                " openvino"
             )
         
         if not isinstance(dataloader, torch.utils.data.DataLoader):
