@@ -846,7 +846,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                 )
 
                 original_distribution = get_distribution()
-            except:
+            except (ImportError, AttributeError):
                 pass
 
             try:
@@ -998,7 +998,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                 )
 
                 original_distribution = get_distribution()
-            except:
+            except (ImportError, AttributeError):
                 pass
 
             try:
