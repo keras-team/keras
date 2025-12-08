@@ -10,9 +10,9 @@ from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-from keras.src.layers import Embedding
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.utils import should_quantize_layer
 
 
 @contextmanager
@@ -193,38 +193,6 @@ def get_dataloader(
     return samples.astype(np.int32)[:, None, :]
 
 
-def _get_backbone_layers(model):
-    """Extract embedding and transformer layers from a KerasHub model."""
-    backbone = model.backbone
-    if not hasattr(backbone, "transformer_layers"):
-        raise ValueError(
-            "The model's backbone does not have a 'transformer_layers' "
-            "attribute. Please ensure you are using a standard KerasHub "
-            "transformer model."
-        )
-    transformer_blocks = backbone.transformer_layers
-
-    embedding_layer = None
-    if hasattr(backbone, "token_embedding"):
-        embedding_layer = backbone.token_embedding
-    elif hasattr(backbone, "embedding"):
-        embedding_layer = backbone.embedding
-    return embedding_layer, transformer_blocks
-
-
-def _get_custom_layers(model):
-    """Heuristic for extracting embedding + transformer blocks from a custom
-    model."""
-    embedding_layer = None
-    transformer_blocks = []
-    for layer in model.layers:
-        if isinstance(layer, Embedding) and embedding_layer is None:
-            embedding_layer = layer
-        elif getattr(layer, "_layers", None):  # container-like block
-            transformer_blocks.append(layer)
-    return embedding_layer, transformer_blocks
-
-
 def find_layers_in_block(block):
     """
     Finds all Dense and EinsumDense layers in a transformer block.
@@ -242,39 +210,31 @@ def find_layers_in_block(block):
     return found_layers
 
 
-def apply_gptq_layerwise(model, dataloader, config):
+def apply_gptq_layerwise(dataloader, config, structure, filters=None):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
-    This function is designed to work with common transformer architectures,
-    like those provided by KerasHub. It automatically discovers the model's
-    structure by first looking for the standard format: a `model.backbone`
-    attribute that contains a `transformer_layers` list.
-
-    If a standard backbone is not found, it falls back to a heuristic for
-    custom models, where it assumes the first `keras.layers.Embedding` layer
-    is the input embedding and any subsequent container layers are the
-    transformer blocks to be quantized.
+    This function uses the provided `structure` to identify pre-quantization
+    layers and sequential blocks.
 
     The core logic operates as follows:
-    1.  It automatically detects the model's structure, identifying the main
-        embedding layer and a sequence of transformer blocks.
-    2.  It processes the model sequentially, one block at a time. For each
+
+    1.  It processes the model sequentially, one block at a time. For each
         block, it uses temporary hooks to capture the input activations of
         each target layer during a forward pass with the calibration data.
-    3.  These captured activations are used to compute the Hessian matrix for
+    2.  These captured activations are used to compute the Hessian matrix for
         each layer's weights.
-    4.  The GPTQ algorithm is then applied to each layer to find the optimal
+    3.  The GPTQ algorithm is then applied to each layer to find the optimal
         quantized weights that minimize the error introduced.
-    5.  The output activations from the current block are then used as the
+    4.  The output activations from the current block are then used as the
         input for the next block, ensuring that quantization errors are
         accounted for throughout the model.
 
     Args:
-        model: The Keras model instance to be quantized. The function will
-            attempt to automatically discover its structure.
-        dataloader: An iterable providing calibration data. Each item should
-            be a batch of token IDs suitable for the model's embedding layer.
+        dataloader: An iterable providing calibration data.
         config: A GPTQConfiguration object.
+        structure: A dictionary with keys "pre_block_layers" and
+            "sequential_blocks".
+        filters: Optional filters to exclude layers from quantization.
 
     Raises:
         ValueError: If the function cannot automatically find an embedding
@@ -284,30 +244,23 @@ def apply_gptq_layerwise(model, dataloader, config):
     num_samples = config.num_samples
 
     logging.info("Starting model quantization...")
-    embedding_layer = None
-    transformer_blocks = []
-    if hasattr(model, "backbone"):
-        logging.info("Detected KerasHub model structure.")
-        embedding_layer, transformer_blocks = _get_backbone_layers(model)
-    else:
-        logging.info("Detected custom model structure.")
-        embedding_layer, transformer_blocks = _get_custom_layers(model)
 
-    if embedding_layer is None:
-        raise ValueError(
-            "Could not automatically find an embedding layer in the model."
-        )
+    pre_layers = structure.get("pre_block_layers", [])
+    transformer_blocks = structure.get("sequential_blocks", [])
+
     if not transformer_blocks:
         raise ValueError(
-            "Could not automatically find any transformer-like blocks to "
-            "quantize."
+            "No sequential blocks found in the provided structure to quantize."
         )
 
-    # Initial inputs are the outputs of the token embedding layer
-    inputs = [
-        embedding_layer(ops.convert_to_tensor(batch, dtype="int32"))
-        for batch in dataloader
-    ]
+    # Initial inputs are the outputs of the pre-block layers
+    inputs = []
+    for batch in dataloader:
+        batch = ops.convert_to_tensor(batch, dtype="int32")
+        for layer in pre_layers:
+            batch = layer(batch)
+        inputs.append(batch)
+
     num_samples = min(num_samples, len(inputs))
 
     progbar = keras_utils.Progbar(target=len(transformer_blocks))
@@ -316,10 +269,19 @@ def apply_gptq_layerwise(model, dataloader, config):
         logging.info(f"Quantizing Block {block_idx}")
         sub_layers_map = find_layers_in_block(block)
 
+        # Filter out layers that are not quantized with GPTQ
+        final_sub_layers_map = {}
+        for name, layer in sub_layers_map.items():
+            if not should_quantize_layer(layer, filters):
+                continue
+
+            final_sub_layers_map[name] = layer
+
+        sub_layers_map = final_sub_layers_map
+
         if not sub_layers_map:
             logging.info(
-                f"  No Dense or EinsumDense layers found in block {block_idx}. "
-                "Skipping."
+                f"  No quantizable layers found in block {block_idx}. Skipping."
             )
         else:
             logging.info(f"Found layers: {list(sub_layers_map.keys())}")
@@ -357,11 +319,30 @@ def apply_gptq_layerwise(model, dataloader, config):
     logging.info("Quantization process complete.")
 
 
-def gptq_quantize(model, config):
+def gptq_quantize(config, quantization_layer_structure, filters=None):
     """
-    Top-level function to quantize a Keras model using GPTQ.
+    Quantizes the model using GPTQ.
+
+    Args:
+        config: The GPTQ configuration.
+        quantization_layer_structure: A dictionary describing the model's layer
+        structure for quantization.
+        filters: Optional filters to exclude layers from quantization.
     """
-    logging.info("Starting GPTQ quantization process...")
+    if config.dataset is None or config.tokenizer is None:
+        raise ValueError(
+            "GPTQ quantization requires a dataset and a tokenizer. "
+            "Please provide them in the `GPTQConfig`."
+        )
+
+    if quantization_layer_structure is None:
+        raise ValueError(
+            "For 'gptq' mode, a valid quantization structure must be provided "
+            "either via `config.quantization_layer_structure` or by overriding "
+            "`model.get_quantization_layer_structure(mode)`. The structure "
+            "should be a dictionary with keys 'pre_block_layers' and "
+            "'sequential_blocks'."
+        )
 
     # Load all data needed from the generator/source in a single call.
     total_samples_to_request = config.num_samples
@@ -376,7 +357,12 @@ def gptq_quantize(model, config):
     # is now a NumPy array, which can be sliced and reused.
     calibration_dataloader = dataloader[: config.num_samples]
 
-    apply_gptq_layerwise(model, calibration_dataloader, config)
+    apply_gptq_layerwise(
+        calibration_dataloader,
+        config,
+        quantization_layer_structure,
+        filters=filters,
+    )
 
 
 def get_group_size_for_layer(layer, config):

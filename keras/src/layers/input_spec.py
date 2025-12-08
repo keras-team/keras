@@ -111,6 +111,7 @@ class InputSpec:
             "max_ndim": self.max_ndim,
             "min_ndim": self.min_ndim,
             "axes": self.axes,
+            "optional": self.optional,
         }
 
     @classmethod
@@ -184,24 +185,24 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
         if spec.ndim is not None and not spec.allow_last_axis_squeeze:
             if ndim != spec.ndim:
                 raise ValueError(
-                    f'Input {input_index} of layer "{layer_name}" '
-                    "is incompatible with the layer: "
+                    f"Input {input_index} with name '{spec.name}' of layer "
+                    f"'{layer_name}' is incompatible with the layer: "
                     f"expected ndim={spec.ndim}, found ndim={ndim}. "
                     f"Full shape received: {shape}"
                 )
         if spec.max_ndim is not None:
             if ndim is not None and ndim > spec.max_ndim:
                 raise ValueError(
-                    f'Input {input_index} of layer "{layer_name}" '
-                    "is incompatible with the layer: "
+                    f"Input {input_index} with name '{spec.name}' of layer "
+                    f"'{layer_name}' is incompatible with the layer: "
                     f"expected max_ndim={spec.max_ndim}, "
                     f"found ndim={ndim}"
                 )
         if spec.min_ndim is not None:
             if ndim is not None and ndim < spec.min_ndim:
                 raise ValueError(
-                    f'Input {input_index} of layer "{layer_name}" '
-                    "is incompatible with the layer: "
+                    f"Input {input_index} with name '{spec.name}' of layer "
+                    f"'{layer_name}' is incompatible with the layer: "
                     f"expected min_ndim={spec.min_ndim}, "
                     f"found ndim={ndim}. "
                     f"Full shape received: {shape}"
@@ -211,8 +212,8 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
             dtype = backend.standardize_dtype(x.dtype)
             if dtype != spec.dtype:
                 raise ValueError(
-                    f'Input {input_index} of layer "{layer_name}" '
-                    "is incompatible with the layer: "
+                    f"Input {input_index} with name '{spec.name}' of layer "
+                    f"'{layer_name}' is incompatible with the layer: "
                     f"expected dtype={spec.dtype}, "
                     f"found dtype={dtype}"
                 )
@@ -225,11 +226,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
                     None,
                 }:
                     raise ValueError(
-                        f'Input {input_index} of layer "{layer_name}" is '
-                        f"incompatible with the layer: expected axis {axis} "
-                        f"of input shape to have value {value}, "
-                        "but received input with "
-                        f"shape {shape}"
+                        f"Input {input_index} with name '{spec.name}' of layer "
+                        f"'{layer_name}' is incompatible with the layer: "
+                        f"expected axis {axis} of input shape to have value "
+                        f"{value}, but received input with shape {shape}"
                     )
         # Check shape.
         if spec.shape is not None:
@@ -243,8 +243,8 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
                 if spec_dim is not None and dim is not None:
                     if spec_dim != dim:
                         raise ValueError(
-                            f'Input {input_index} of layer "{layer_name}" is '
-                            "incompatible with the layer: "
-                            f"expected shape={spec.shape}, "
-                            f"found shape={shape}"
+                            f"Input {input_index} with name '{spec.name}' of "
+                            f"layer '{layer_name}' is incompatible with the "
+                            f"layer: expected shape={spec.shape}, found "
+                            f"shape={shape}"
                         )

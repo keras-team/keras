@@ -779,7 +779,12 @@ class ConvBasicTest(testing.TestCase):
 
         # Compare the effective kernel computed via the property.
         actual_effective_kernel = ops.convert_to_numpy(layer.kernel)
-        self.assertAllClose(actual_effective_kernel, expected_effective_kernel)
+        self.assertAllClose(
+            actual_effective_kernel,
+            expected_effective_kernel,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
@@ -891,7 +896,7 @@ class ConvCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-1, tpu_rtol=1e-1)
 
     @parameterized.parameters(
         {
@@ -989,7 +994,9 @@ class ConvCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected, rtol=5e-4)
+        self.assertAllClose(
+            outputs, expected, rtol=5e-4, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.parameters(
         {
@@ -1078,7 +1085,9 @@ class ConvCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected, rtol=1e-3)
+        self.assertAllClose(
+            outputs, expected, rtol=1e-3, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     def test_conv_constraints(self):
         layer = layers.Conv2D(

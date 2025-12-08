@@ -27,5 +27,6 @@ onnxruntime
 # onnxscript==0.3.2 breaks LSTM model export.
 onnxscript!=0.3.2
 openvino
-# for grain_dataset_adapter_test.py
 grain
+# for orbax_checkpoint_test.py
+orbax-checkpoint

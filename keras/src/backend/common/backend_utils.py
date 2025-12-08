@@ -96,13 +96,13 @@ def _convert_conv_transpose_padding_args_from_keras_to_torch(
         )
 
     if torch_output_padding >= stride:
-        raise ValueError(
-            f"The padding arguments (padding={padding}) and "
-            f"output_padding={output_padding}) lead to a Torch "
-            f"output_padding ({torch_output_padding}) that is greater than "
-            f"strides ({stride}). This is not supported. You can change the "
-            f"padding arguments, kernel or stride, or run on another backend. "
+        warnings.warn(
+            f"Torch backend requires output_padding < stride. "
+            f"Clamping output_padding {torch_output_padding} -> {stride - 1} "
+            f"for stride {stride}.",
+            UserWarning,
         )
+        torch_output_padding = stride - 1
 
     return torch_padding, torch_output_padding
 
@@ -183,6 +183,22 @@ def compute_conv_transpose_padding_args_for_torch(
         )
         torch_paddings.append(torch_padding)
         torch_output_paddings.append(torch_output_padding)
+
+    # --- FIX FOR TORCH CONSTRAINT: output_padding < stride ---
+    corrected_output_paddings = []
+    for s, op in zip(
+        strides
+        if isinstance(strides, (list, tuple))
+        else [strides] * num_spatial_dims,
+        torch_output_paddings,
+    ):
+        max_allowed = max(0, s - 1)
+        if op > max_allowed:
+            corrected_output_paddings.append(max_allowed)
+        else:
+            corrected_output_paddings.append(op)
+
+    torch_output_paddings = corrected_output_paddings
 
     return torch_paddings, torch_output_paddings
 

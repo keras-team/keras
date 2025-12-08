@@ -757,6 +757,15 @@ class Layer(BackendLayer, Operation):
             self._dtype_policy = policy
         if policy.quantization_mode is not None:
             if self.built and not getattr(self, "_is_quantized", False):
+                if policy.quantization_mode == "gptq":
+                    raise ValueError(
+                        "Implicitly enabling GPTQ quantization by setting "
+                        f"`dtype_policy` to '{value}' is not supported. "
+                        "GPTQ requires a calibration dataset and a "
+                        "`GPTQConfig` object.\n\n"
+                        "Please use the `.quantize('gptq', config=...)` method "
+                        "on the layer or model instead."
+                    )
                 self.quantize(policy.quantization_mode)
 
     @property
@@ -1893,6 +1902,10 @@ def get_shapes_dict(call_spec):
     {"input_a_shape": (2, 3)}
     ```
     """
+
+    def standardize_shape_or_none(x):
+        return None if x is None else backend.standardize_shape(x.shape)
+
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():
         if k == "mask" or k.endswith("_mask"):
@@ -1903,10 +1916,10 @@ def get_shapes_dict(call_spec):
             continue
         if k in call_spec.nested_tensor_argument_names:
             shapes_dict[f"{k}_shape"] = tree.map_structure(
-                lambda x: backend.standardize_shape(x.shape), v
+                standardize_shape_or_none, v
             )
         else:
-            shapes_dict[f"{k}_shape"] = backend.standardize_shape(v.shape)
+            shapes_dict[f"{k}_shape"] = standardize_shape_or_none(v)
     return shapes_dict
 
 

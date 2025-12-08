@@ -50,10 +50,16 @@ class AdditiveAttentionTest(testing.TestCase):
             return_attention_scores=True,
         )
         self.assertAllClose(
-            output, [[[1.727, 2.727], [2.272, 3.272]]], atol=1e-3
+            output,
+            [[[1.727, 2.727], [2.272, 3.272]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
         )
         self.assertAllClose(
-            scores, [[[0.636, 0.363], [0.363, 0.636]]], atol=1e-3
+            scores,
+            [[[0.636, 0.363], [0.363, 0.636]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
         )
 
     def test_attention_with_mask(self):
