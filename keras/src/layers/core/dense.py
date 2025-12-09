@@ -101,7 +101,6 @@ class Dense(Layer):
                 f"integer. Received: units={units}"
             )
 
-
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
         self.units = units
         self.activation = activations.get(activation)
