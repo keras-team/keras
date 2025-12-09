@@ -1749,7 +1749,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             dilation_rate=1,
             groups=1,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
@@ -1811,7 +1811,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
             dilation_rate=1,
             groups=1,
         )
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+        self.assertAllClose(
+            outputs,
+            expected,
+            rtol=1e-5,
+            atol=1e-5,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
         # Test for tracing error on tensorflow backend.
         if backend.backend() == "tensorflow":
@@ -1824,7 +1831,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 )
 
             outputs = conv(inputs_3d)
-            self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+            self.assertAllClose(
+                outputs,
+                expected,
+                rtol=1e-5,
+                atol=1e-5,
+                tpu_atol=1e-2,
+                tpu_rtol=1e-2,
+            )
 
     @parameterized.product(
         strides=(1, (1, 1), (2, 2)),
@@ -1863,7 +1877,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             data_format=backend.config.image_data_format(),
             dilation_rate=dilation_rate,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
     @parameterized.product(
         strides=(1, 2),
@@ -1915,7 +1929,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             groups=1,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
     @parameterized.product(padding=("valid", "same"))
     def test_conv_transpose_1d(self, padding):
@@ -2313,7 +2327,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
         output_length = np.array([3, 2])
 
         result = knn.ctc_loss(labels, outputs, label_length, output_length)
-        self.assertAllClose(result, np.array([3.4411672, 1.91680186]))
+        self.assertAllClose(
+            result,
+            np.array([3.4411672, 1.91680186]),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
     def test_ctc_decode(self):
         inputs = np.array(

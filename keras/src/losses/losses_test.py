@@ -1851,7 +1851,7 @@ class CTCTest(testing.TestCase):
         logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
         y_true = np.array(([[1, 2, 1, 0], [1, 2, 0, 2]]))
         output = losses.CTC()(y_true, logits)
-        self.assertAllClose(output, 2.448645)
+        self.assertAllClose(output, 2.448645, tpu_atol=1e-3, tpu_rtol=1e-3)
 
     def test_dtype_arg(self):
         logits = (np.arange(24).reshape((2, 4, 3)).astype("float32") - 12) / 100
@@ -1964,6 +1964,7 @@ class TverskyTest(testing.TestCase):
 
 class CircleTest(testing.TestCase):
     def setup(self):
+        super().setUp()
         self.y_true = np.array([1, 1, 2, 2, 3])
         self.y_pred = np.array(
             [
@@ -1995,11 +1996,11 @@ class CircleTest(testing.TestCase):
         self.setup()
         circle_loss = losses.Circle(gamma=80.0, margin=0.4)
         loss = circle_loss(self.y_true, self.y_pred)
-        self.assertAlmostEqual(loss, 188.3883)
+        self.assertAlmostEqual(loss, 188.3883, tpu_decimal=0)
 
         circle_loss = losses.Circle(gamma=256, margin=0.25)
         loss = circle_loss(self.y_true, self.y_pred)
-        self.assertAlmostEqual(loss, 652.7617)
+        self.assertAlmostEqual(loss, 652.7617, tpu_decimal=0)
 
         loss = losses.circle(
             self.y_true,
@@ -2012,7 +2013,10 @@ class CircleTest(testing.TestCase):
         )
 
         self.assertAllClose(
-            loss, (61.5844, 94.3465, 276.9344, 90.9873, 48.8963)
+            loss,
+            (61.5844, 94.3465, 276.9344, 90.9873, 48.8963),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_correctness_weighted(self):
@@ -2022,7 +2026,7 @@ class CircleTest(testing.TestCase):
         loss = circle_loss(
             self.y_true, self.y_pred, sample_weight=sample_weight
         )
-        self.assertAlmostEqual(loss, 244.91918)
+        self.assertAlmostEqual(loss, 244.91918, tpu_decimal=0)
 
     def test_no_reduction(self):
         self.setup()
@@ -2030,7 +2034,10 @@ class CircleTest(testing.TestCase):
         loss = circle_loss(self.ref_labels, self.ref_embeddings)
 
         self.assertAllClose(
-            loss, [82.9116, 36.7942, 92.4590, 52.6798, 0.0, 0.0]
+            loss,
+            [82.9116, 36.7942, 92.4590, 52.6798, 0.0, 0.0],
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_sum_reduction(self):
@@ -2038,7 +2045,7 @@ class CircleTest(testing.TestCase):
         circle_loss = losses.Circle(gamma=80.0, margin=0.4, reduction="sum")
         loss = circle_loss(self.ref_labels, self.ref_embeddings)
 
-        self.assertAlmostEqual(loss, 264.845)
+        self.assertAlmostEqual(loss, 264.845, tpu_decimal=0)
 
     def test_mean_with_sample_weight_reduction(self):
         self.setup()
@@ -2049,7 +2056,7 @@ class CircleTest(testing.TestCase):
         loss = circle_loss(
             self.y_true, self.y_pred, sample_weight=sample_weight
         )
-        self.assertAlmostEqual(loss, 163.27948)
+        self.assertAlmostEqual(loss, 163.27948, tpu_decimal=0)
 
     def test_dtype_arg(self):
         self.setup()
