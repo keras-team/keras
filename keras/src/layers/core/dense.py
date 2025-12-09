@@ -95,15 +95,12 @@ class Dense(Layer):
         lora_alpha=None,
         **kwargs,
     ):
-        if (
-            not isinstance(units, numbers.Integral)
-            or isinstance(units, bool)
-            or units <= 0
-        ):
+        if not isinstance(units, int) or units <= 0:
             raise ValueError(
                 "Received an invalid value for `units`, expected a positive "
                 f"integer. Received: units={units}"
             )
+
 
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
         self.units = units
