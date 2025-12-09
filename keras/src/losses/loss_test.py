@@ -299,5 +299,5 @@ class LossTest(testing.TestCase):
         )
 
         y = np.array([2.0, 0.0, 4.0, 0.0])
-        y_pred = np.array([0.5, 0.0, 0.75, 0.0])
-        self.assertAllClose(ops.divide_no_nan(x, y), y_pred)
+        expected = np.array([0.5, 0.0, 0.75, 0.0])
+        self.assertAllClose(ops.divide_no_nan(x, y), expected)
