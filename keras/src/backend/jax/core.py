@@ -30,7 +30,7 @@ class JaxVariable(KerasVariable):
         self._layout = layout
         super().__init__(*args, **kwargs)
 
-    def set_tensor_layout(self):
+    def _initialize_layout(self):
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
@@ -46,13 +46,14 @@ class JaxVariable(KerasVariable):
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
         self._shape = self._validate_shape(value.shape)
-        self.set_tensor_layout()
+        self._initialize_layout()
         self._direct_assign(value)
 
     def _initialize_with_initializer(self, initializer):
-        self.set_tensor_layout()
+        self._initialize_layout()
         layout = self._layout
-        if check_layout_spec_nnx(layout):
+        path = self._path
+        if check_token_spec(layout, path):
             jitted_initializer = jax.jit(
                 initializer.__call__,
                 out_shardings=layout,
@@ -61,11 +62,9 @@ class JaxVariable(KerasVariable):
             value = jax.device_put(
                 jitted_initializer(self._shape, dtype=self._dtype), layout
             )
+            self._value = value
         else:
-            value = self._convert_to_tensor(
-                initializer(self._shape, dtype=self._dtype)
-            )
-        self._direct_assign(value)
+            super()._initialize_with_initializer(initializer)
 
     def _direct_assign(self, value):
         if self._layout is not None:
@@ -315,14 +314,16 @@ if config.is_nnx_enabled():
     NnxVariable.__setattr__ = __setattr__
 
 
-def check_layout_spec_nnx(init_layout):
-    nnx_enabled = config.is_nnx_enabled()
+def check_token_spec(init_layout, path):
     is_named_sharding = isinstance(init_layout, jax.sharding.NamedSharding)
     # Check if PartitionSpec has any non-None values
     spec = getattr(init_layout, "spec", None)
     partition_spec = spec if spec is not None else ()
     is_partitioned = any(dim is not None for dim in partition_spec)
-    return is_partitioned and is_named_sharding and not nnx_enabled
+    is_partitioned = is_partitioned and is_named_sharding
+    # Check if path is for token embedding
+    token_embed_path = True if path == "token_embedding/embeddings" else False
+    return is_partitioned and token_embed_path
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
