@@ -1,5 +1,4 @@
 import math
-import numbers
 
 import ml_dtypes
 
