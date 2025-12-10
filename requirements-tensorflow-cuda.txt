@@ -1,7 +1,9 @@
 # Tensorflow with cuda support.
 tensorflow[and-cuda]~=2.20.0
 tf2onnx
-ai-edge-litert
+# This is the only version which works with TF 2.20.0.
+# TODO(#21914): Update this version when TF is updated.
+ai-edge-litert==1.3.0
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
