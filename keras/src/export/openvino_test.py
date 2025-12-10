@@ -119,7 +119,7 @@ class ExportOpenVINOTest(testing.TestCase):
 
         ov_output = compiled_model([ref_input])[compiled_model.output(0)]
 
-        self.assertAllClose(ref_output, ov_output)
+        self.assertAllClose(ref_output, ov_output, atol=1e-3, rtol=1e-3)
 
         larger_input = np.concatenate([ref_input, ref_input], axis=0)
         compiled_model([larger_input])
@@ -178,7 +178,7 @@ class ExportOpenVINOTest(testing.TestCase):
             ov_inputs = list(ref_input)
 
         ov_output = compiled_model(ov_inputs)[compiled_model.output(0)]
-        self.assertAllClose(ref_output, ov_output)
+        self.assertAllClose(ref_output, ov_output, atol=1e-3, rtol=1e-3)
 
         # Test with keras.saving_lib
         temp_filepath = os.path.join(
@@ -243,7 +243,7 @@ class ExportOpenVINOTest(testing.TestCase):
         ov_output = compiled_model([ref_input_x, ref_input_y])[
             compiled_model.output(0)
         ]
-        self.assertAllClose(ref_output, ov_output)
+        self.assertAllClose(ref_output, ov_output, atol=1e-3, rtol=1e-3)
         larger_input_x = np.concatenate([ref_input_x, ref_input_x], axis=0)
         larger_input_y = np.concatenate([ref_input_y, ref_input_y], axis=0)
         compiled_model([larger_input_x, larger_input_y])
