@@ -5,6 +5,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.random import seed_generator
 from keras.src.utils.module_utils import tensorflow as tf
 
 GLOBAL_RANDOM_SEED = "global_random_seed"
@@ -20,7 +21,7 @@ def set_random_seed(seed):
     sources of randomness, or when certain non-deterministic cuDNN ops are
     involved.
 
-    Calling this utility is equivalent to the following:
+    Calling this utility does the following:
 
     ```python
     import random
@@ -35,6 +36,9 @@ def set_random_seed(seed):
     import torch  # Only if the backend is 'torch'
     torch.manual_seed(seed)
     ```
+
+    Additionally, it resets the global Keras `SeedGenerator`, which is used by
+    `keras.random` functions when the `seed` is not provided.
 
     Note that the TensorFlow seed is set even if you're not using TensorFlow
     as your backend framework, since many workflows leverage `tf.data`
@@ -52,6 +56,10 @@ def set_random_seed(seed):
 
     # Store seed in global state so we can query it if set.
     global_state.set_global_attribute(GLOBAL_RANDOM_SEED, seed)
+    # Remove global SeedGenerator, it will be recreated from the seed.
+    global_state.set_global_attribute(
+        seed_generator.GLOBAL_SEED_GENERATOR, None
+    )
     random.seed(seed)
     np.random.seed(seed)
     if tf.available:

@@ -6,8 +6,8 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.data_layer import DataLayer
+from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils.module_utils import tensorflow as tf
-from keras.utils import PyDataset
 
 
 @keras_export("keras.layers.Normalization")

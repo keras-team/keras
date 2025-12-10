@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10']
+        python-version: ['3.11']
         backend: [tensorflow, jax, torch, numpy, openvino]
         nnx_enabled: [false]
         include:
@@ -59,7 +59,7 @@ jobs:
           if [ "${{ matrix.nnx_enabled }}" == "true" ]; then
             pip install --upgrade flax>=0.11.1
           fi
-          pip install --no-deps tf_keras==2.18.0
+          pip install --no-deps tf_keras==2.20.0
           pip uninstall -y keras keras-nightly
           pip install -e "." --progress-bar off --upgrade
       - name: Test applications with pytest
@@ -128,10 +128,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python 3.10
+      - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Get pip cache dir
         id: pip-cache
         run: |

@@ -673,7 +673,9 @@ def remat(f):
     """
 
     def wrapped(*args, **kwargs):
-        return torch.utils.checkpoint.checkpoint(f, *args, use_reentrant=False)
+        return torch.utils.checkpoint.checkpoint(
+            f, *args, use_reentrant=False, **kwargs
+        )
 
     return wrapped
 
