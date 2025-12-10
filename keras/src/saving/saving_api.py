@@ -17,45 +17,40 @@ except ImportError:
 
 def _is_orbax_checkpoint(filepath):
     """Check if the given path is an Orbax checkpoint directory."""
-    if not file_utils.isdir(filepath):
-        return False
-
-    # Check if it contains subdirectories that look like step numbers
     try:
-        items = os.listdir(filepath)
-        # Look for directories that are numeric (step numbers)
-        step_dirs = []
-        for item in items:
-            item_path = os.path.join(filepath, item)
-            if os.path.isdir(item_path) and item.isdigit():
-                # Check if it has Orbax-specific files
-                step_items = os.listdir(item_path)
-                if any(
-                    "_METADATA" in f or "_CHECKPOINT_METADATA" in f
-                    for f in step_items
-                ):
-                    step_dirs.append(int(item))
+        from keras.src.utils.module_utils import ocp
 
-        return len(step_dirs) > 0
-    except (OSError, ValueError):
-        return False
+        return ocp.is_orbax_checkpoint(filepath)
+    except (ImportError, AttributeError):
+        # Fallback to basic directory check if Orbax API not available
+        return file_utils.isdir(filepath)
 
 
 def _find_latest_orbax_checkpoint(checkpoint_dir):
     """Find the latest checkpoint in an Orbax checkpoint directory."""
-    items = os.listdir(checkpoint_dir)
-    step_dirs = []
+    try:
+        from keras.src.utils.module_utils import ocp
 
-    for item in items:
-        item_path = os.path.join(checkpoint_dir, item)
-        if os.path.isdir(item_path) and item.isdigit():
-            step_dirs.append(int(item))
+        checkpointer = ocp.training.Checkpointer(directory=checkpoint_dir)
+        latest = checkpointer.latest
+        if latest is None:
+            raise ValueError(f"No valid checkpoints found in {checkpoint_dir}")
+        return os.path.join(checkpoint_dir, str(latest.step))
+    except (ImportError, AttributeError):
+        # Fallback to manual directory inspection if Orbax API not available
+        items = os.listdir(checkpoint_dir)
+        step_dirs = []
 
-    if not step_dirs:
-        raise ValueError(f"No valid checkpoints found in {checkpoint_dir}")
+        for item in items:
+            item_path = os.path.join(checkpoint_dir, item)
+            if os.path.isdir(item_path) and item.isdigit():
+                step_dirs.append(int(item))
 
-    latest_step = max(step_dirs)
-    return os.path.join(checkpoint_dir, str(latest_step))
+        if not step_dirs:
+            raise ValueError(f"No valid checkpoints found in {checkpoint_dir}")
+
+        latest_step = max(step_dirs)
+        return os.path.join(checkpoint_dir, str(latest_step))
 
 
 @keras_export(["keras.saving.save_model", "keras.models.save_model"])

@@ -1307,7 +1307,8 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Mock multi-host environment
         with mock.patch("orbax.checkpoint.multihost") as mock_multihost:
             # Test when multi-host is initialized
-            mock_multihost.is_initialized.return_value = True
+            mock_init = mock_multihost.is_jax_distributed_client_initialized
+            mock_init.return_value = True
             mock_multihost.is_primary_host.return_value = True
 
             # Re-initialize to pick up mocked environment
@@ -1326,7 +1327,8 @@ class OrbaxCheckpointTest(testing.TestCase):
             )
 
             # Test when multi-host is not initialized
-            mock_multihost.is_initialized.return_value = False
+            mock_init = mock_multihost.is_jax_distributed_client_initialized
+            mock_init.return_value = False
             callback._multihost_initialized = (
                 callback._is_multihost_initialized()
             )
@@ -1363,7 +1365,8 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Test synchronization methods with mocked multihost
         with mock.patch("orbax.checkpoint.multihost") as mock_multihost:
             # Test when multi-host is initialized
-            mock_multihost.is_initialized.return_value = True
+            mock_init = mock_multihost.is_jax_distributed_client_initialized
+            mock_init.return_value = True
             mock_multihost.is_primary_host.return_value = True
             mock_multihost.sync_global_processes = mock.MagicMock()
 
@@ -1374,7 +1377,8 @@ class OrbaxCheckpointTest(testing.TestCase):
             mock_multihost.sync_global_processes.assert_called_with("test_key")
 
             # Test when multi-host is not initialized (should be no-op)
-            mock_multihost.is_initialized.return_value = False
+            mock_init = mock_multihost.is_jax_distributed_client_initialized
+            mock_init.return_value = False
             callback._multihost_initialized = False
 
             callback._sync_processes("test_key_noop")

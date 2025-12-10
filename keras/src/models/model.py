@@ -430,12 +430,18 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         """Load model state from an Orbax checkpoint.
 
         This method loads the complete model state (weights, optimizer state,
-        metrics state) from an Orbax checkpoint directory. The checkpoint
-        directory should contain subdirectories named with step numbers.
+        metrics state) from an Orbax checkpoint. Orbax organizes checkpoints
+        in a directory structure where:
 
-        If the filepath points to a checkpoint directory, it will load the
-        latest checkpoint. If it points to a specific step directory
-        (e.g., "checkpoint_dir/5"), it will load that specific checkpoint.
+        - The **checkpoint root directory** contains multiple **step
+          directories**
+        - Each **step directory** (named with step numbers like "0", "5", "10")
+          contains the actual checkpoint data for that training step
+
+        If the filepath points to a checkpoint root directory, it will
+        automatically load the latest checkpoint. If it points to a specific
+        step directory (e.g., "checkpoint_dir/5"), it will load that
+        specific checkpoint.
 
         The loading behavior automatically adapts based on the current
         distribution context:
@@ -445,8 +451,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
           Raises an error if the current hardware topology differs from save.
 
         Args:
-            filepath: `str` or `pathlib.Path` object. Path to the Orbax
-                checkpoint directory or specific step directory.
+            filepath: `str` or `pathlib.Path` object. Path to either:
+                - An Orbax checkpoint root directory (loads latest checkpoint)
+                - A specific Orbax checkpoint step directory
 
         Example:
 
@@ -477,25 +484,29 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         filepath = str(filepath)
 
-        # Check if it's an Orbax checkpoint
+        # Check if it's an Orbax checkpoint directory
         if not _is_orbax_checkpoint(filepath):
-            # Check if the parent directory is an Orbax checkpoint
-            parent_dir = os.path.dirname(filepath)
-            if (
-                _is_orbax_checkpoint(parent_dir)
-                and os.path.basename(filepath).isdigit()
-            ):
-                # It's a specific step directory
-                checkpoint_path = filepath
-            else:
-                raise ValueError(
-                    f"Path {filepath} does not appear to be a valid Orbax "
-                    "checkpoint. Expected a directory containing Orbax "
-                    "checkpoint subdirectories."
-                )
-        else:
-            # It's a checkpoint directory, find the latest checkpoint
+            raise ValueError(
+                f"Path {filepath} does not appear to be a valid Orbax "
+                "checkpoint. Expected a directory containing Orbax "
+                "checkpoint files or subdirectories."
+            )
+
+        # Determine if this is a root directory or a step directory
+        # Root directories contain step subdirectories (numeric names)
+        # Step directories contain checkpoint files directly
+        items = os.listdir(filepath)
+        has_step_subdirs = any(
+            os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
+            for item in items
+        )
+
+        if has_step_subdirs:
+            # It's a root directory, find the latest checkpoint
             checkpoint_path = _find_latest_orbax_checkpoint(filepath)
+        else:
+            # It's a step directory, use it directly
+            checkpoint_path = filepath
 
         # Load the checkpoint with appropriate strategy
         # For now, use preservation mode to avoid memory corruption issues

@@ -8,7 +8,6 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
-from keras.src.utils.io_utils import print_msg
 from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
@@ -22,6 +21,13 @@ try:
         jax.monitoring.record_scalar = lambda *args, **kwargs: None
 except ImportError:
     pass
+
+
+def _get_orbax_multihost():
+    """Get the orbax multihost module with lazy import."""
+    import orbax.checkpoint as ocp_multihost
+
+    return ocp_multihost.multihost
 
 
 def _get_state_tree(model):
@@ -182,9 +188,10 @@ class OrbaxCheckpoint(MonitorCallback):
             return False
 
         try:
-            import orbax.checkpoint as ocp
-
-            return ocp.multihost.is_initialized()
+            multihost = _get_orbax_multihost()
+            # Check if JAX distributed client is initialized
+            # (indicates multihost setup)
+            return multihost.is_jax_distributed_client_initialized()
         except (ImportError, AttributeError):
             return False
 
@@ -192,19 +199,17 @@ class OrbaxCheckpoint(MonitorCallback):
         """Check if this is the primary host for coordination."""
         if not self._multihost_initialized:
             return True  # Single host is always primary
-        import orbax.checkpoint as ocp
-
-        return ocp.multihost.is_primary_host()
+        multihost = _get_orbax_multihost()
+        return multihost.is_primary_host()
 
     def _sync_processes(self, key=None):
         """Synchronize all processes across hosts."""
         if not self._multihost_initialized:
             return  # No-op for single host
 
-        import orbax.checkpoint as ocp
-
+        multihost = _get_orbax_multihost()
         sync_key = key or f"checkpoint_sync_{id(self)}"
-        ocp.multihost.sync_global_processes(sync_key)
+        multihost.sync_global_processes(sync_key)
 
     def is_multihost_enabled(self):
         """Return True if multi-host checkpointing is enabled and initialized.
@@ -268,17 +273,6 @@ class OrbaxCheckpoint(MonitorCallback):
         else:
             composite_state = state_tree
 
-        # --- Multi-host Coordination ---
-        # All processes participate in distributed checkpointing
-        # Synchronize before saving to ensure consistency
-        self._sync_processes(f"checkpoint_save_start_{step}")
-
-        # --- Save Logic (V1 API) ---
-        if self.verbose > 0 and self._is_primary_host():
-            print_msg(
-                f"OrbaxCheckpoint: Triggering async save for step {step}..."
-            )
-
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
@@ -286,9 +280,6 @@ class OrbaxCheckpoint(MonitorCallback):
                 self.checkpointer.save_pytree_async(step, composite_state)
             else:
                 self.checkpointer.save_pytree(step, composite_state)
-
-        # Synchronize after saving to ensure all processes complete
-        self._sync_processes(f"checkpoint_save_end_{step}")
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
