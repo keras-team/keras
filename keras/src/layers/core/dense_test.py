@@ -58,6 +58,17 @@ class DenseTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @parameterized.named_parameters(
+        ("zero", 0),
+        ("negative", -3),
+        ("float", 2.5),
+        ("none", None),
+        ("string", "64"),
+    )
+    def test_dense_invalid_units_raises(self, units):
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            layers.Dense(units)
+
     def test_dense_correctness(self):
         # With bias and activation.
         layer = layers.Dense(units=2, activation="relu")
