@@ -8,6 +8,8 @@ from keras.src.backend.common import global_state
 from keras.src.utils import jax_utils
 from keras.src.utils.naming import auto_name
 
+GLOBAL_SEED_GENERATOR = "global_seed_generator"
+
 
 @keras_export("keras.random.SeedGenerator")
 class SeedGenerator:
@@ -133,10 +135,10 @@ def global_seed_generator():
             "out = keras.random.normal(shape=(1,), seed=self.seed_generator)\n"
             "```"
         )
-    gen = global_state.get_global_attribute("global_seed_generator")
+    gen = global_state.get_global_attribute(GLOBAL_SEED_GENERATOR)
     if gen is None:
         gen = SeedGenerator()
-        global_state.set_global_attribute("global_seed_generator", gen)
+        global_state.set_global_attribute(GLOBAL_SEED_GENERATOR, gen)
     return gen
 
 

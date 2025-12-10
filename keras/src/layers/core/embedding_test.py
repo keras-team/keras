@@ -239,7 +239,9 @@ class EmbeddingTest(test_case.TestCase):
 
         # Verify that the effective embeddings match expectation.
         actual_embeddings = ops.convert_to_numpy(layer.embeddings)
-        self.assertAllClose(actual_embeddings, expected_embeddings)
+        self.assertAllClose(
+            actual_embeddings, expected_embeddings, tpu_atol=1e-3, tpu_rtol=1e-3
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):

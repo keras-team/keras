@@ -5,6 +5,9 @@ import traceback
 
 import numpy as np
 
+if not hasattr(np, "object"):
+    np.object = object
+
 
 @functools.lru_cache()
 def patch_tf2onnx():
