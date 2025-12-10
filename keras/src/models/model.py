@@ -561,7 +561,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         format="tf_saved_model",
         verbose=None,
         input_signature=None,
-        **kwargs,
+        saved_model_kwargs=None,
+        onnx_kwargs=None,
+        litert_kwargs=None,
+        openvino_kwargs=None,
     ):
         """Export the model as an artifact for inference.
 
@@ -579,27 +582,29 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
                 not provided, it will be automatically computed. Defaults to
                 `None`.
-            **kwargs: Additional keyword arguments.
-                - `is_static`: Optional `bool`. Specific to the JAX backend and
-                    `format="tf_saved_model"`. Indicates whether `fn` is static.
-                    Set to `False` if `fn` involves state updates (e.g., RNG
-                    seeds and counters).
-                - `jax2tf_kwargs`: Optional `dict`. Specific to the JAX backend
-                    and `format="tf_saved_model"`. Arguments for
-                    `jax2tf.convert`. See the documentation for
+            saved_model_kwargs: Optional `dict`. Keyword arguments specific to
+                `format="tf_saved_model"`. Supported options:
+                - `is_static`: Optional `bool`. Specific to the JAX backend.
+                    Indicates whether `fn` is static. Set to `False` if `fn`
+                    involves state updates (e.g., RNG seeds and counters).
+                - `jax2tf_kwargs`: Optional `dict`. Specific to the JAX backend.
+                    Arguments for `jax2tf.convert`. See the documentation for
                     [`jax2tf.convert`](
                         https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
                     If `native_serialization` and `polymorphic_shapes` are not
                     provided, they will be automatically computed.
-                - `opset_version`: Optional `int`. Specific to `format="onnx"`.
-                    An integer value that specifies the ONNX opset version.
-                - LiteRT-specific options: Optional keyword arguments specific
-                    to `format="litert"`. These are passed directly to the
-                    TensorFlow Lite converter and include options like
-                    `optimizations`, `representative_dataset`,
-                    `experimental_new_quantizer`, `allow_custom_ops`,
-                    `enable_select_tf_ops`, etc. See TensorFlow Lite
-                    documentation for all available options.
+            onnx_kwargs: Optional `dict`. Keyword arguments specific to
+                `format="onnx"`. Supported options:
+                - `opset_version`: Optional `int`. An integer value that
+                    specifies the ONNX opset version.
+            litert_kwargs: Optional `dict`. Keyword arguments specific to
+                `format="litert"`. These are passed directly to the TensorFlow
+                Lite converter and include options like `optimizations`,
+                `representative_dataset`, `experimental_new_quantizer`,
+                `allow_custom_ops`, `enable_select_tf_ops`, etc. See
+                TensorFlow Lite documentation for all available options.
+            openvino_kwargs: Optional `dict`. Keyword arguments specific to
+                `format="openvino"`.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -621,11 +626,33 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         predictions = reloaded_artifact.serve(input_data)
         ```
 
+        With JAX backend, you can pass additional options via
+        `saved_model_kwargs`:
+
+        ```python
+        # Export with JAX-specific options
+        model.export(
+            "path/to/location",
+            format="tf_saved_model",
+            saved_model_kwargs={
+                "is_static": True,
+                "jax2tf_kwargs": {"enable_xla": True}
+            }
+        )
+        ```
+
         Here's how to export an ONNX for inference.
 
         ```python
         # Export the model as a ONNX artifact
         model.export("path/to/location", format="onnx")
+
+        # Export with specific ONNX opset version
+        model.export(
+            "path/to/location",
+            format="onnx",
+            onnx_kwargs={"opset_version": 18}
+        )
 
         # Load the artifact in a different process/environment
         ort_session = onnxruntime.InferenceSession("path/to/location")
@@ -640,6 +667,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         ```python
         # Export the model as a LiteRT artifact
         model.export("path/to/location", format="litert")
+
+        # Export with quantization options
+        def representative_dataset():
+            for _ in range(100):
+                yield [sample_input_data]
+
+        model.export(
+            "path/to/location",
+            format="litert",
+            litert_kwargs={
+                "optimizations": [tf.lite.Optimize.DEFAULT],
+                "representative_dataset": representative_dataset
+            }
+        )
 
         # Load the artifact in a different process/environment
         interpreter = tf.lite.Interpreter(model_path="path/to/location")
@@ -675,7 +716,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 filepath,
                 verbose,
                 input_signature=input_signature,
-                **kwargs,
+                **(saved_model_kwargs or {}),
             )
         elif format == "onnx":
             export_onnx(
@@ -683,7 +724,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 filepath,
                 verbose,
                 input_signature=input_signature,
-                **kwargs,
+                **(onnx_kwargs or {}),
             )
         elif format == "openvino":
             export_openvino(
@@ -691,14 +732,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 filepath,
                 verbose,
                 input_signature=input_signature,
-                **kwargs,
+                **(openvino_kwargs or {}),
             )
         elif format == "litert":
             export_litert(
                 self,
                 filepath,
                 input_signature=input_signature,
-                **kwargs,
+                **(litert_kwargs or {}),
             )
 
     @classmethod

@@ -470,7 +470,7 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             temp_filepath,
             format="litert",
-            optimizations=[tensorflow.lite.Optimize.DEFAULT],
+            litert_kwargs={"optimizations": [tensorflow.lite.Optimize.DEFAULT]},
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
@@ -501,7 +501,11 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             temp_filepath,
             format="litert",
-            optimizations=[tensorflow.lite.Optimize.EXPERIMENTAL_SPARSITY],
+            litert_kwargs={
+                "optimizations": [
+                    tensorflow.lite.Optimize.EXPERIMENTAL_SPARSITY
+                ]
+            },
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
@@ -532,7 +536,9 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             temp_filepath,
             format="litert",
-            optimizations=[tensorflow.lite.Optimize.OPTIMIZE_FOR_SIZE],
+            litert_kwargs={
+                "optimizations": [tensorflow.lite.Optimize.OPTIMIZE_FOR_SIZE]
+            },
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
@@ -562,7 +568,9 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             temp_filepath,
             format="litert",
-            optimizations=[tensorflow.lite.Optimize.OPTIMIZE_FOR_LATENCY],
+            litert_kwargs={
+                "optimizations": [tensorflow.lite.Optimize.OPTIMIZE_FOR_LATENCY]
+            },
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
@@ -592,10 +600,12 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             temp_filepath,
             format="litert",
-            optimizations=[
-                tensorflow.lite.Optimize.DEFAULT,
-                tensorflow.lite.Optimize.EXPERIMENTAL_SPARSITY,
-            ],
+            litert_kwargs={
+                "optimizations": [
+                    tensorflow.lite.Optimize.DEFAULT,
+                    tensorflow.lite.Optimize.EXPERIMENTAL_SPARSITY,
+                ]
+            },
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
@@ -627,8 +637,10 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             temp_filepath,
             format="litert",
-            optimizations=[tensorflow.lite.Optimize.DEFAULT],
-            representative_dataset=representative_dataset,
+            litert_kwargs={
+                "optimizations": [tensorflow.lite.Optimize.DEFAULT],
+                "representative_dataset": representative_dataset,
+            },
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
@@ -671,9 +683,11 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             temp_filepath,
             format="litert",
-            optimizations=[tensorflow.lite.Optimize.DEFAULT],
-            representative_dataset=representative_dataset,
-            experimental_new_quantizer=True,
+            litert_kwargs={
+                "optimizations": [tensorflow.lite.Optimize.DEFAULT],
+                "representative_dataset": representative_dataset,
+                "experimental_new_quantizer": True,
+            },
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
@@ -709,7 +723,7 @@ class ExportLitertTest(testing.TestCase):
         model.export(
             filepath_with_opt,
             format="litert",
-            optimizations=[tensorflow.lite.Optimize.DEFAULT],
+            litert_kwargs={"optimizations": [tensorflow.lite.Optimize.DEFAULT]},
         )
 
         # Optimized model should be smaller
