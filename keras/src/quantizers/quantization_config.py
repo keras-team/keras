@@ -141,7 +141,7 @@ class Float8QuantizationConfig(QuantizationConfig):
         return "float8"
 
 
-def validate_and_resolve_config(mode, config, name=None):
+def validate_and_resolve_config(mode, config):
     """Validate and resolve quantization config.
 
     This function validates the quantization config and resolves the mode.
@@ -151,7 +151,6 @@ def validate_and_resolve_config(mode, config, name=None):
     Args:
         mode: Quantization mode.
         config: Quantization config.
-        name: Name of the quantization config.
     """
     # 1. Backwards Compatibility: Handle string shortcuts
     if isinstance(config, str):
@@ -193,8 +192,9 @@ def validate_and_resolve_config(mode, config, name=None):
             f"config.mode='{config.mode}'"
         )
 
-    # 4. Execution
-    mode = config.mode  # Ensure mode is consistent
+    # Ensure mode is consistent
+    mode = config.mode
+
     if mode not in QUANTIZATION_MODES:
         raise ValueError(
             "Invalid quantization mode. "
