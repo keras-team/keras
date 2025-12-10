@@ -193,15 +193,12 @@ class RandomResizedCropTest(testing.TestCase):
         """Test compute_output_shape method."""
         layer = layers.RandomResizedCrop(224, 224)
 
-        # Batched input
         output_shape = layer.compute_output_shape((8, 256, 256, 3))
         self.assertEqual(output_shape, (8, 224, 224, 3))
 
-        # Unbatched input
         output_shape = layer.compute_output_shape((256, 256, 3))
         self.assertEqual(output_shape, (224, 224, 3))
 
-        # Dynamic batch
         output_shape = layer.compute_output_shape((None, 256, 256, 3))
         self.assertEqual(output_shape, (None, 224, 224, 3))
 
@@ -211,7 +208,8 @@ class RandomResizedCropTest(testing.TestCase):
         input_data = np.random.random((1, 100, 100, 3)).astype("float32")
         output = layer(input_data, training=True)
 
-        self.assertEqual(output.shape, (1, 224, 224, 3))
+        output_np = ops.convert_to_numpy(output)
+        self.assertEqual(output_np.shape, (1, 224, 224, 3))
 
     def test_random_resized_crop_edge_case_exact_size(self):
         """Test with input exactly matching target size."""
@@ -219,7 +217,8 @@ class RandomResizedCropTest(testing.TestCase):
         input_data = np.random.random((2, 256, 256, 3)).astype("float32")
         output = layer(input_data, training=False)
 
-        self.assertEqual(output.shape, (2, 256, 256, 3))
+        output_np = ops.convert_to_numpy(output)
+        self.assertEqual(output_np.shape, (2, 256, 256, 3))
 
     def test_random_resized_crop_non_square_target(self):
         """Test with non-square target size."""
@@ -227,7 +226,8 @@ class RandomResizedCropTest(testing.TestCase):
         input_data = np.random.random((2, 400, 400, 3)).astype("float32")
         output = layer(input_data, training=True)
 
-        self.assertEqual(output.shape, (2, 320, 224, 3))
+        output_np = ops.convert_to_numpy(output)
+        self.assertEqual(output_np.shape, (2, 320, 224, 3))
 
     def test_random_resized_crop_rectangular_input(self):
         """Test with rectangular (non-square) input."""
@@ -235,7 +235,8 @@ class RandomResizedCropTest(testing.TestCase):
         input_data = np.random.random((2, 300, 500, 3)).astype("float32")
         output = layer(input_data, training=False)
 
-        self.assertEqual(output.shape, (2, 224, 224, 3))
+        output_np = ops.convert_to_numpy(output)
+        self.assertEqual(output_np.shape, (2, 224, 224, 3))
 
     def test_random_resized_crop_dtype_float32(self):
         """Test with float32 input."""
