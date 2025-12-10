@@ -2,7 +2,7 @@
 tensorflow[and-cuda]~=2.20.0
 tf2onnx
 # This is the only version which works with TF 2.20.0.
-# TODO: Update this version when TF is updated.
+# TODO(#21914): Update this version when TF is updated.
 ai-edge-litert==1.3.0
 
 # Torch cpu-only version (needed for testing).

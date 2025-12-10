@@ -36,9 +36,9 @@ if backend.backend() == "tensorflow":
 
 # Model types to test (LSTM only if AI Edge LiteRT is available)
 model_types = ["sequential", "functional"]
-# TODO: `"lstm"` does not work with ai-edge-litert==1.3.0. Unfortunately, for TF
-# 2.20.0, this is the only version which works. Uncomment this part when we
-# upgrade TF and ai-edge-litert.
+# TODO(#21914): `"lstm"` does not work with ai-edge-litert==1.3.0.
+# Unfortunately, for TF 2.20.0, this is the only version which works. Uncomment
+# this part when we upgrade TF and ai-edge-litert.
 # if AI_EDGE_LITERT_AVAILABLE:
 #     model_types.append("lstm")
 
