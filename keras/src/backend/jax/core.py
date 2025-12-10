@@ -52,16 +52,14 @@ class JaxVariable(KerasVariable):
     def _initialize_with_initializer(self, initializer):
         self._initialize_layout()
         layout = self._layout
-        path = self._path
-        if check_token_spec(layout, path):
+        shape = self._shape
+        if check_memory_spec(layout, shape):
             jitted_initializer = jax.jit(
                 initializer.__call__,
                 out_shardings=layout,
                 static_argnames=["shape", "dtype"],
             )
-            value = jax.device_put(
-                jitted_initializer(self._shape, dtype=self._dtype), layout
-            )
+            value = jitted_initializer(shape=self._shape, dtype=self._dtype)
             self._value = value
         else:
             super()._initialize_with_initializer(initializer)
@@ -314,16 +312,19 @@ if config.is_nnx_enabled():
     NnxVariable.__setattr__ = __setattr__
 
 
-def check_token_spec(init_layout, path):
+def check_memory_spec(init_layout, shape):
     is_named_sharding = isinstance(init_layout, jax.sharding.NamedSharding)
     # Check if PartitionSpec has any non-None values
     spec = getattr(init_layout, "spec", None)
     partition_spec = spec if spec is not None else ()
     is_partitioned = any(dim is not None for dim in partition_spec)
     is_partitioned = is_partitioned and is_named_sharding
-    # Check if path is for token embedding
-    token_embed_path = True if path == "token_embedding/embeddings" else False
-    return is_partitioned and token_embed_path
+    # Size check: Allow sharding at init only for large arrays
+    # Sharding smaller arrays at init increases loading time
+    size_threshold = 250 * 1024 * 1024  # 250MB
+    array_size = np.prod(shape) * 4  # Assume 4 bytes per element
+    size_check = True if array_size >= size_threshold else False
+    return is_partitioned and size_check
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
