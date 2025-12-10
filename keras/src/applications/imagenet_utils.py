@@ -323,8 +323,18 @@ def obtain_input_shape(
     """
     if weights != "imagenet" and input_shape and len(input_shape) == 3:
         if data_format == "channels_first":
-            correct_channel_axis = 1 if len(input_shape) == 4 else 0
-            if input_shape[correct_channel_axis] not in {1, 3}:
+            # Check if user accidentally provided channels_last format
+            # when channels_first was expected
+            if input_shape[-1] in {1, 3} and input_shape[0] not in {1, 3}:
+                raise ValueError(
+                    f"The `input_shape` argument has shape {input_shape}, "
+                    "which appears to be in 'channels_last' format "
+                    f"(with {input_shape[-1]} channels), but the model "
+                    "is configured to use 'channels_first' data format. "
+                    f"For 'channels_first', provide input_shape as "
+                    f"({input_shape[-1]}, {input_shape[0]}, {input_shape[1]})."
+                )
+            if input_shape[0] not in {1, 3}:
                 warnings.warn(
                     "This model usually expects 1 or 3 input channels. "
                     "However, it was passed an input_shape "
