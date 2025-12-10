@@ -187,20 +187,14 @@ class RandomResizedCrop(BaseImagePreprocessingLayer):
         crop_h = ops.cast(crop_h, "int32")
         crop_w = ops.cast(crop_w, "int32")
 
-        input_shape = backend.shape(tensor)
-
         if self.data_format == "channels_first":
-            batch_size = input_shape[0]
-            channels = input_shape[1]
-            start = [0, 0, h_start, w_start]
-            size = [batch_size, channels, crop_h, crop_w]
+            return tensor[
+                :, :, h_start : h_start + crop_h, w_start : w_start + crop_w
+            ]
         else:
-            batch_size = input_shape[0]
-            channels = input_shape[-1]
-            start = [0, h_start, w_start, 0]
-            size = [batch_size, crop_h, crop_w, channels]
-
-        return ops.slice(tensor, start, size)
+            return tensor[
+                :, h_start : h_start + crop_h, w_start : w_start + crop_w, :
+            ]
 
     def _resize_images(self, images):
         """Resize images to `(height, width)` using backend API.
