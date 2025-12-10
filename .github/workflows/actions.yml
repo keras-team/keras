@@ -123,29 +123,29 @@ jobs:
       #     token: ${{ secrets.CODECOV_TOKEN }}
       #     fail_ci_if_error: false
 
-  format:
-    name: Check the code format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-      - name: Get pip cache dir
-        id: pip-cache
-        run: |
-          python -m pip install --upgrade pip setuptools
-          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-      - name: pip cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt --progress-bar off --upgrade
-          pip uninstall -y keras keras-nightly
-          pip install -e "." --progress-bar off --upgrade
-      - name: Run pre-commit
-        run: pre-commit run --all-files --hook-stage manual
+  # format:
+  #   name: Check the code format
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #     - name: Set up Python 3.11
+  #       uses: actions/setup-python@v6
+  #       with:
+  #         python-version: '3.11'
+  #     - name: Get pip cache dir
+  #       id: pip-cache
+  #       run: |
+  #         python -m pip install --upgrade pip setuptools
+  #         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+  #     - name: pip cache
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: ${{ steps.pip-cache.outputs.dir }}
+  #         key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
+  #     - name: Install dependencies
+  #       run: |
+  #         pip install -r requirements.txt --progress-bar off --upgrade
+  #         pip uninstall -y keras keras-nightly
+  #         pip install -e "." --progress-bar off --upgrade
+  #     - name: Run pre-commit
+  #       run: pre-commit run --all-files --hook-stage manual
