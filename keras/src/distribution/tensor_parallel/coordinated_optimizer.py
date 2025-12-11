@@ -1,9 +1,8 @@
-import re
-
 import numpy as np
 
 from keras.src import ops
 from keras.src import optimizers
+from keras.src import saving
 from keras.src.backend import distribution_lib
 
 
@@ -46,13 +45,6 @@ class CoordinatedOptimizer:
 
         This method inspects the variables created by the base optimizer and
         maps them to model parameters.
-
-
-
-        Note:
-            Since the Keras BaseOptimizer does not expose a direct mapping from
-            a model parameter to its optimizer state variables, this method
-            infers the mapping by string parsing their paths/names.
         """
         if not self.shard_optimizer_states or not self.base_optimizer.built:
             return
@@ -60,33 +52,38 @@ class CoordinatedOptimizer:
         self.sharded_states = {}
         self._state_variable_to_parameter = {}
         self._variable_to_slot_name = {}
-        opt_name = self.base_optimizer.name
 
-        normalized_params = sorted(
-            [(p.path.replace("/", "_"), p) for p in self._variables],
-            key=lambda x: len(x[0]),
-            reverse=True,
+        model_vars_by_path = {v.path: v for v in self._variables}
+
+        sorted_model_paths = sorted(
+            model_vars_by_path.keys(), key=len, reverse=True
         )
 
         for state_var in self.base_optimizer.variables:
             if state_var is self.base_optimizer.iterations:
                 continue
 
-            path_parts = state_var.path.split("/")
-            if len(path_parts) != 2 or path_parts[0] != opt_name:
-                continue
-
-            state_suffix = path_parts[1]
-
             found_param = None
             slot_name = None
 
-            for norm_param_path, param in normalized_params:
-                if state_suffix.startswith(norm_param_path):
-                    found_param = param
-                    slot_suffix = state_suffix[len(norm_param_path) :]
-                    slot_name = slot_suffix.strip("_")
-                    break
+            for model_path in sorted_model_paths:
+                model_var = model_vars_by_path[model_path]
+
+                if model_path in state_var.path:
+                    suffix = state_var.path.split(model_path)[-1]
+                    if suffix.startswith("/"):
+                        slot_name = suffix.strip("/")
+                        found_param = model_var
+                        break
+
+                sanitized_path = model_path.replace("/", "_")
+                if sanitized_path in state_var.path:
+                    suffix = state_var.path.split(sanitized_path)[-1]
+                    clean_suffix = suffix.lstrip("/_")
+                    if clean_suffix:
+                        slot_name = clean_suffix
+                        found_param = model_var
+                        break
 
             if found_param is not None and slot_name is not None:
                 self._state_variable_to_parameter[state_var.path] = found_param
@@ -94,14 +91,14 @@ class CoordinatedOptimizer:
 
                 sharding_dim = 0
                 if self.tensor_parallel_config:
-                    norm_param_name = found_param.path.replace("/", ".")
-                    for (
-                        p,
-                        a,
-                    ) in self.tensor_parallel_config.state_rules.items():
-                        if re.search(p, norm_param_name) and hasattr(a, "dim"):
-                            sharding_dim = a.dim
-                            break
+                    rule = self.tensor_parallel_config.state_rules.get(
+                        found_param.path
+                    )
+                    if rule:
+                        if hasattr(rule, "keywords") and "dim" in rule.keywords:
+                            sharding_dim = rule.keywords["dim"]
+                        elif hasattr(rule, "dim"):
+                            sharding_dim = rule.dim
 
                 partitioned_state = self._partition_state(
                     state_var, dim=sharding_dim
@@ -302,8 +299,6 @@ class CoordinatedOptimizer:
     def _synchronize_gradients(self, gradients_and_vars):
         """Synchronizes gradients across shards using tensor parallel rules.
 
-
-
         Args:
             gradients_and_vars: A list of (gradient, variable) tuples.
 
@@ -313,26 +308,11 @@ class CoordinatedOptimizer:
         if not self.tensor_parallel_config:
             return gradients_and_vars
 
-        rules = self.tensor_parallel_config.state_rules.items()
-        column_parallel_patterns = {
-            pattern
-            for pattern, action in rules
-            if hasattr(action, "sharding_type")
-            and action.sharding_type == "column"
-        }
-
-        if not column_parallel_patterns:
-            return gradients_and_vars
-
         num_weights = len(gradients_and_vars[0])
         for i in range(num_weights):
             variable = gradients_and_vars[0][i][1]
-            var_name = getattr(variable, "path", getattr(variable, "name", ""))
 
-            if any(
-                re.search(pattern, var_name)
-                for pattern in column_parallel_patterns
-            ):
+            if variable.path not in self.tensor_parallel_config.state_rules:
                 grads_to_reduce = [
                     g_and_v[i][0]
                     for g_and_v in gradients_and_vars
@@ -417,6 +397,8 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             setup.
         tensor_parallel_config: An optional configuration object. Defaults to
             `None`.
+        name: The name of the optimizer.
+        **kwargs: Additional keyword arguments.
     """
 
     def __init__(
@@ -424,6 +406,8 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         base_optimizer,
         device_count,
         tensor_parallel_config=None,
+        name=None,
+        **kwargs,
     ):
         if isinstance(base_optimizer, str):
             base_optimizer_instance = optimizers.get(base_optimizer)
@@ -436,18 +420,50 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         else:
             lr_value = float(ops.convert_to_numpy(learning_rate))
 
+        if name is None:
+            name = f"TensorParallel_{base_optimizer_instance.name}"
+
+        kwargs.pop("learning_rate", None)
+
         super().__init__(
             learning_rate=lr_value,
-            name=f"TensorParallel_{base_optimizer_instance.name}",
+            name=name,
+            **kwargs,
         )
 
         self.base_optimizer = base_optimizer_instance
         self.device_count = device_count
+        self.tensor_parallel_config = tensor_parallel_config
         self.coordinated_optimizer = CoordinatedOptimizer(
             self.base_optimizer,
             device_count,
             tensor_parallel_config=tensor_parallel_config,
         )
+
+    def apply_gradients(self, grads_and_vars, **kwargs):
+        """Applies gradients to the model variables.
+        Args:
+            grads_and_vars: List of (gradient, variable) pairs.
+            **kwargs: Keyword arguments. Must contain `shard_models` if
+                `grads_and_vars` is a list of lists (sharded gradients).
+        """
+        is_sharded_grads = (
+            isinstance(grads_and_vars, list)
+            and grads_and_vars
+            and isinstance(grads_and_vars[0], list)
+        )
+        if is_sharded_grads:
+            if "shard_models" not in kwargs:
+                raise ValueError(
+                    "The `shard_models` keyword argument is required when "
+                    "applying sharded gradients (a list of lists)."
+                )
+            shard_models = kwargs.get("shard_models")
+            self.coordinated_optimizer.apply_gradients(
+                grads_and_vars, shard_models
+            )
+        else:
+            self.base_optimizer.apply_gradients(grads_and_vars, **kwargs)
 
     def update_step(self, gradient, variable, *args, **kwargs):
         """Delegates the update step to the base optimizer.
@@ -497,6 +513,28 @@ class TensorParallelOptimizer(optimizers.Optimizer):
     def set_weights(self, weights):
         """Sets the weights of the base optimizer."""
         self.coordinated_optimizer.set_weights(weights)
+
+    def get_config(self):
+        config = super().get_config()
+        base_optimizer_config = saving.serialize_keras_object(
+            self.base_optimizer
+        )
+        config.update(
+            {
+                "base_optimizer": base_optimizer_config,
+                "device_count": self.device_count,
+                "tensor_parallel_config": self.tensor_parallel_config,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config, custom_objects=None):
+        base_optimizer_config = config.pop("base_optimizer")
+        base_optimizer = saving.deserialize_keras_object(
+            base_optimizer_config, custom_objects=custom_objects
+        )
+        return cls(base_optimizer=base_optimizer, **config)
 
     @property
     def variables(self):

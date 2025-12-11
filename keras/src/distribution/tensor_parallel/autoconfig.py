@@ -9,8 +9,18 @@ from keras.src.distribution.tensor_parallel.tensor_layout import (
 
 
 def analyze_dense_layer(layer):
-    """
-    Classifies a Dense layer based on its input/output dimensions.
+    """Classifies a Dense layer based on its input/output dimensions.
+
+    This function uses a heuristic to determine if a Dense layer acts as an
+    'up_projection' (expansion), a 'down_projection' (contraction), or a
+    standard 'dense' layer. This classification is used to determine the
+    appropriate sharding strategy (e.g., column-parallel vs row-parallel).
+
+    Args:
+        layer: The Keras Dense layer instance to analyze.
+
+    Returns:
+        str: One of 'up_projection', 'down_projection', or 'dense'.
     """
     input_dim = None
     output_dim = None
@@ -48,24 +58,61 @@ def analyze_dense_layer(layer):
 
 
 def _reduce_sum(x):
+    """Performs an all-reduce sum operation across the 'model' mesh axis.
+
+    Args:
+        x: The input tensor to reduce.
+
+    Returns:
+        The reduced tensor, summed across all devices in the model axis.
+    """
     return distribution_lib.all_reduce(x, op="sum", axis_name="model")
 
 
 def _gather(x, axis):
+    """Performs an all-gather operation across the 'model' mesh axis.
+
+    Args:
+        x: The input tensor shard to gather.
+        axis: The axis along which to concatenate the gathered parts.
+
+    Returns:
+        The gathered tensor, concatenated along the specified axis.
+    """
     return distribution_lib.all_gather(x, axis=axis, axis_name="model")
 
 
 def _get_layer_path(layer):
-    """
-    Returns the unique hierarchical path of the layer.
-    Ex: 'model/dense_1'
+    """Retrieves the unique hierarchical path of a layer.
+
+    This utilizes `layer.path` (available in Keras 3+) which provides a
+    globally unique identifier based on the model structure (e.g.,
+    'model/dense_1'). Falls back to `layer.name` if the path is unavailable.
+
+    Args:
+        layer: The Keras layer instance.
+
+    Returns:
+        str: The unique path string for the layer.
     """
     return getattr(layer, "path", layer.name)
 
 
 def _apply_layer_sharding_rules(layer, device_count, state_rules, output_rules):
-    """
-    Helper function that applies rules to a single layer instance.
+    """Applies sharding rules to a single layer based on its type.
+
+    This function populates `state_rules` and `output_rules` with strategies
+    specific to the layer class (e.g., Dense, EinsumDense, Embedding). It
+    determines how weights should be partitioned (state rules) and how outputs
+    should be synchronized (output rules).
+
+    Args:
+        layer: The Keras layer instance to configure.
+        device_count: The number of devices available for tensor parallelism.
+        state_rules: A dictionary mapping variable paths to sharding functions.
+            Updated in-place.
+        output_rules: A dictionary mapping layer paths to output communication
+            functions. Updated in-place.
     """
 
     def split_rule(dim):
@@ -123,8 +170,23 @@ def _apply_layer_sharding_rules(layer, device_count, state_rules, output_rules):
 
 
 def get_default_config(model, device_ids):
-    """
-    Generates a default tensor parallelism configuration for a model.
+    """Generates a default tensor parallelism configuration for a model.
+
+    This function traverses the model's layer hierarchy and
+    automatically generates a `LayoutMap`. This map contains:
+    1.  `state_rules`: How to shard the weights of supported layers
+        across the specified devices.
+    2.  `output_rules`: How to synchronize or gather the outputs of
+        these layers during the forward pass.
+
+    Args:
+        model: The Keras model to configure.
+        device_ids: A list of device identifiers to be used
+            for distribution.
+
+    Returns:
+        LayoutMap: A configuration object containing `state_rules` and
+        `output_rules` for tensor parallelism.
     """
     device_count = len(device_ids)
     state_rules = {}

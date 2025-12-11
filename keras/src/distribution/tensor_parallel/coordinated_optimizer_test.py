@@ -1,15 +1,17 @@
 import numpy as np
 import pytest
 
-# Assuming the implementation code is saved in coordinated_optimizer.py
-from coordinated_optimizer import CoordinatedOptimizer
-from coordinated_optimizer import TensorParallelOptimizer
-
 import keras
 from keras import ops
 from keras.src import backend
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    CoordinatedOptimizer,
+)
+from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
+    TensorParallelOptimizer,
+)
 
 
 @pytest.mark.skipif(
@@ -73,7 +75,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
             device_count,
             shard_optimizer_states=False,
         )
-        coord.apply_gradients(mock_grads, shard_models=[])
+        coord.apply_gradients(mock_grads, [])
 
         self.assertEqual(optimizer.apply_gradients_call_count, 1)
         grad_numpy = ops.convert_to_numpy(optimizer.received_grads[0])
@@ -108,14 +110,13 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
         optimizer.base_optimizer.apply_gradients = base_apply_mock
 
-        optimizer.coordinated_optimizer.apply_gradients(
-            mock_grads, shard_models=[]
-        )
+        optimizer.apply_gradients(mock_grads, shard_models=[])
         self.assertTrue(coord_apply_tracker["called"])
+        self.assertFalse(base_apply_tracker["called"])
 
         coord_apply_tracker["called"] = False
         unsharded_grads = mock_grads[0]
-        optimizer.base_optimizer.apply_gradients(unsharded_grads)
+        optimizer.apply_gradients(unsharded_grads)
         self.assertTrue(base_apply_tracker["called"])
         self.assertFalse(coord_apply_tracker["called"])
 
@@ -130,25 +131,24 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(optimizer.built)
 
         sharded_states = optimizer.coordinated_optimizer.sharded_states
-        # Check for either 'momentum' or 'm' (Adam standard names)
-        self.assertTrue("momentum" in sharded_states or "m" in sharded_states)
-        self.assertTrue("velocity" in sharded_states or "v" in sharded_states)
+        self.assertIn("momentum", sharded_states)
+        self.assertIn("velocity", sharded_states)
         self.assertIn("iterations", sharded_states)
 
-        mom_key = "momentum" if "momentum" in sharded_states else "m"
         dense_1_kernel_path = model.get_layer("dense_1").kernel.path
-        self.assertIn(dense_1_kernel_path, sharded_states[mom_key])
-        self.assertEqual(len(sharded_states[mom_key][dense_1_kernel_path]), 4)
+        self.assertIn(dense_1_kernel_path, sharded_states["momentum"])
+        self.assertEqual(
+            len(sharded_states["momentum"][dense_1_kernel_path]), 4
+        )
 
     def test_serialization(self):
         """Tests manual reconstruction via from_config."""
         device_count = 4
         base_opt = optimizers.Adam(learning_rate=0.1)
-        config = {
-            "base_optimizer": base_opt,
-            "device_count": device_count,
-        }
 
+        optimizer = TensorParallelOptimizer(base_opt, device_count)
+
+        config = optimizer.get_config()
         recreated = TensorParallelOptimizer.from_config(config)
 
         self.assertEqual(recreated.device_count, device_count)
