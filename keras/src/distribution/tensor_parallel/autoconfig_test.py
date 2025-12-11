@@ -52,8 +52,8 @@ class AutoConfigTest(testing.TestCase):
         model = keras.Sequential(
             [
                 keras.Input(shape=(32,)),
-                layers.Dense(128, name="mlp_up"),  # Up-projection
-                layers.Dense(32, name="mlp_down"),  # Down-projection
+                layers.Dense(128, name="mlp_up"),
+                layers.Dense(32, name="mlp_down"),
             ],
             name="mlp_block",
         )
@@ -62,26 +62,24 @@ class AutoConfigTest(testing.TestCase):
         state_rules = layout_map.state_rules
         output_rules = layout_map.output_rules
 
-        # Assertions for State (Weight) Sharding Rules
-        up_kernel_key = "mlp_block.mlp_up.kernel"
+        up_kernel_key = "mlp_block/mlp_up/kernel"
         self.assertIn(up_kernel_key, state_rules)
-        # Verify Up Projection (split on dim 1)
-        self.check_rule(state_rules[up_kernel_key], device_count, 1)
+        up_kernel_rule = state_rules[up_kernel_key]
+        self.check_rule(up_kernel_rule, device_count, 1)
 
-        down_kernel_key = "mlp_block.mlp_down.kernel"
+        down_kernel_key = "mlp_block/mlp_down/kernel"
         self.assertIn(down_kernel_key, state_rules)
-        # Verify Down Projection (split on dim 0)
-        self.check_rule(state_rules[down_kernel_key], device_count, 0)
+        down_kernel_rule = state_rules[down_kernel_key]
+        self.check_rule(down_kernel_rule, device_count, 0)
 
-        # Assertions for Output Communication Rules
-        # Up-projection output should be Gather on last axis (-1)
-        up_output_rule = output_rules["mlp_block.mlp_up"][0]
+        self.assertIn("mlp_block/mlp_up", output_rules)
+        up_output_rule = output_rules["mlp_block/mlp_up"][0]
         self.assertIsInstance(up_output_rule, functools.partial)
         self.assertEqual(up_output_rule.func, _gather)
         self.assertEqual(up_output_rule.keywords["axis"], -1)
 
-        # Down-projection output should be ReduceSum
-        down_output_rule = output_rules["mlp_block.mlp_down"][0]
+        self.assertIn("mlp_block/mlp_down", output_rules)
+        down_output_rule = output_rules["mlp_block/mlp_down"][0]
         self.assertEqual(down_output_rule, _reduce_sum)
 
     def test_model_with_embedding_and_einsumdense(self):
@@ -120,20 +118,20 @@ class AutoConfigTest(testing.TestCase):
         layout_map = get_default_config(model, devices)
         state_rules = layout_map.state_rules
 
-        # Check Embedding
-        expected_key = "transformer.embedding.embeddings"
+        expected_key = "transformer/embedding/embeddings"
         self.assertIn(expected_key, state_rules)
-        self.check_rule(state_rules[expected_key], device_count, 1)
+        emb_rule = state_rules[expected_key]
+        self.check_rule(emb_rule, device_count, 1)
 
-        # Check QKV Projection
-        qkv_key = "transformer.qkv_proj.kernel"
+        qkv_key = "transformer/qkv_proj/kernel"
         self.assertIn(qkv_key, state_rules)
-        self.check_rule(state_rules[qkv_key], device_count, 1)
+        qkv_rule = state_rules[qkv_key]
+        self.check_rule(qkv_rule, device_count, 1)
 
-        # Check Attention Output
-        attn_out_key = "transformer.attention_output.kernel"
+        attn_out_key = "transformer/attention_output/kernel"
         self.assertIn(attn_out_key, state_rules)
-        self.check_rule(state_rules[attn_out_key], device_count, 0)
+        attn_out_rule = state_rules[attn_out_key]
+        self.check_rule(attn_out_rule, device_count, 0)
 
     def test_nested_model(self):
         """Tests that the recursive traversal finds layers in nested models."""
@@ -153,6 +151,7 @@ class AutoConfigTest(testing.TestCase):
         layout_map = get_default_config(outer_model, devices)
         state_rules = layout_map.state_rules
 
-        expected_key = "outer_block.inner_block.inner_dense.kernel"
+        expected_key = "outer_block/inner_block/inner_dense/kernel"
         self.assertIn(expected_key, state_rules)
-        self.check_rule(state_rules[expected_key], device_count, 1)
+        inner_rule = state_rules[expected_key]
+        self.check_rule(inner_rule, device_count, 1)
