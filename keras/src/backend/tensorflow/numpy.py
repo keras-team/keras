@@ -2757,8 +2757,6 @@ def tile(x, repeats):
 
     # Get x rank
     x_rank = x.shape.rank
-    if x_rank is None:
-        x_rank = tf.rank(x)
 
     # Pad repeats if needed
     if len(repeats) < x_rank:
