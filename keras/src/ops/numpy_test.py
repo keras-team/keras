@@ -9512,23 +9512,15 @@ class HistogramTest(testing.TestCase):
 
         model.predict(np.random.randn(1, 8))
 
+
+class TileTest(testing.TestCase):
     def test_tile_shape_inference_in_layer(self):
-        """Test that ops.tile properly infers output shape in a Layer.
-
-        This is a regression test for issue #20914 where TensorFlow backend
-        would return all-None shapes when tile was called inside a Layer's
-        call method with concrete integer repeats.
-        """
-
         class TileLayer(keras.layers.Layer):
             def call(self, x):
-                # Use concrete integer repeats
                 repeats = [1, 2, 1, 1]
                 return knp.tile(x, repeats)
 
         inputs = keras.Input(shape=(3, 2, 2))
         output = TileLayer()(inputs)
 
-        # With the fix, output shape should be (None, 6, 2, 2)
-        # Before the fix, it was (None, None, None, None)
         self.assertEqual(output.shape, (None, 6, 2, 2))
