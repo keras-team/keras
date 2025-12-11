@@ -7345,11 +7345,11 @@ def vander(x, N=None, increasing=False):
 
     Args:
         x: 1D input tensor.
-        N: Number of columns. If None, `N` = `len(x)`.
+        N: Number of columns. If `None`, `N` = `len(x)`.
         increasing: Order of powers. If True, powers increase left to right.
 
     Returns:
-        Output tensor, vandermonde matrix of shape `(len(x), N)`.
+        Output tensor, Vandermonde matrix of shape `(len(x), N)`.
 
     Example:
     >>> import numpy as np
@@ -7376,13 +7376,14 @@ def vander(x, N=None, increasing=False):
 
         if not isinstance(N, int):
             raise TypeError(
-                f"Argument `N` must be of type `int`. Received: dtype={type(N)}"
+                f"Argument `N` must be of type `int`. "
+                f"Received: N={N} of type {type(N)}"
             )
 
     if not isinstance(increasing, bool):
         raise TypeError(
             f"Argument `increasing` must be of type `bool`. "
-            f"Received: dtype={type(increasing)}"
+            f"Received: increasing={increasing} of type {type(increasing)}"
         )
 
     if any_symbolic_tensors((x,)):
