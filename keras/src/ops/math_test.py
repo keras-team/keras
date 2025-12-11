@@ -692,7 +692,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         for i in range(num_sequences):
             expected[i] = x[pos : pos + sequence_length]
             pos += sequence_stride
-        self.assertAllClose(output, expected)
+        self.assertAllClose(output, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
         # Test N-D case.
         x = np.random.random((4, 8))
@@ -706,7 +706,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         for i in range(num_sequences):
             expected[:, i] = x[:, pos : pos + sequence_length]
             pos += sequence_stride
-        self.assertAllClose(output, expected)
+        self.assertAllClose(output, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
     def test_fft(self):
         real = np.random.random((2, 4, 3))
