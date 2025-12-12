@@ -8,7 +8,6 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
-from keras.src.utils.io_utils import print_msg
 from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
@@ -22,6 +21,13 @@ try:
         jax.monitoring.record_scalar = lambda *args, **kwargs: None
 except ImportError:
     pass
+
+
+def _get_orbax_multihost():
+    """Get the orbax multihost module with lazy import."""
+    import orbax.checkpoint as ocp
+
+    return ocp.multihost
 
 
 def _get_state_tree(model):
@@ -61,6 +67,11 @@ class OrbaxCheckpoint(MonitorCallback):
 
     This callback saves the model's weights and optimizer state asynchronously
     using Orbax, allowing training to continue without blocking for I/O.
+
+    **Multi-host Support**: When running in a multi-host distributed training
+    environment with JAX backend, this callback automatically coordinates
+    checkpointing across all hosts to ensure consistency and proper
+    synchronization. Multi-host checkpointing is only supported on JAX.
 
     Example:
 
@@ -138,6 +149,9 @@ class OrbaxCheckpoint(MonitorCallback):
         self._current_epoch = 0  # Keep track of epoch
         self._total_batches_seen = 0  # Global batch counter for step tracking
 
+        # Multi-host support
+        self._multihost_initialized = self._is_multihost_initialized()
+
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
                 f"Unrecognized save_freq: {self.save_freq}. "
@@ -167,6 +181,57 @@ class OrbaxCheckpoint(MonitorCallback):
             preservation_policy=preservation_policy,
         )
 
+    def _is_multihost_initialized(self):
+        """Check if multi-host environment is initialized."""
+        # Multi-host checkpointing is only supported on JAX backend
+        if backend.backend() != "jax":
+            return False
+
+        try:
+            multihost = _get_orbax_multihost()
+            # Check if JAX distributed client is initialized
+            # (indicates multihost setup)
+            return multihost.is_jax_distributed_client_initialized()
+        except (ImportError, AttributeError):
+            return False
+
+    def _sync_processes(self, key=None):
+        """Synchronize all processes across hosts."""
+        if not self._multihost_initialized:
+            return  # No-op for single host
+
+        multihost = _get_orbax_multihost()
+        sync_key = key or f"checkpoint_sync_{id(self)}"
+        multihost.sync_global_processes(sync_key)
+
+    def is_multihost_enabled(self):
+        """Return True if multi-host checkpointing is enabled and initialized.
+
+        This method can be used to check if the callback is operating in
+        a multi-host distributed training environment. Multi-host checkpointing
+        is only supported on JAX backend.
+
+        Returns:
+            bool: True if multi-host support is active, False otherwise.
+        """
+        return self._multihost_initialized
+
+    def is_primary_host(self):
+        """Return True if this process is the primary host in multi-host setup.
+
+        In multi-host environments, only the primary host typically handles
+        logging and coordination tasks. Multi-host checkpointing is only
+        supported on JAX backend.
+
+        Returns:
+            bool: True if this is the primary host, False otherwise.
+            Always returns True in single-host environments.
+        """
+        if not self._multihost_initialized:
+            return True  # Single host is always primary
+        multihost = _get_orbax_multihost()
+        return multihost.is_primary_host()
+
     def _should_save_on_batch(self, batch):
         """Check if we should save on this batch."""
         if self.save_freq == "epoch":
@@ -186,7 +251,7 @@ class OrbaxCheckpoint(MonitorCallback):
         return False
 
     def _save_checkpoint(self, step, logs=None):
-        """Save a checkpoint at the given step."""
+        """Save a checkpoint at the given step with multi-host coordination."""
 
         # --- Prepare Composite State (Backend-Agnostic) ---
         state_tree = _get_state_tree(self.model)
@@ -195,6 +260,7 @@ class OrbaxCheckpoint(MonitorCallback):
         # names and structure)
         if self.save_weights_only:
             composite_state = {
+                "model_config": self.model.get_config(),
                 "trainable_variables": state_tree["trainable_variables"],
             }
             if "non_trainable_variables" in state_tree:
@@ -202,16 +268,10 @@ class OrbaxCheckpoint(MonitorCallback):
                     "non_trainable_variables"
                 ]
         else:
-            composite_state = state_tree
-
-        # --- Save Logic (V1 API) ---
-        # All processes participate in distributed checkpointing
-        # Checkpointer is configured to save unconditionally when
-        # save_pytree is called
-        if self.verbose > 0:
-            print_msg(
-                f"OrbaxCheckpoint: Triggering async save for step {step}..."
-            )
+            composite_state = {
+                "model_config": self.model.get_config(),
+                **state_tree,
+            }
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
@@ -282,18 +342,16 @@ class OrbaxCheckpoint(MonitorCallback):
         except Exception:
             pass  # Ignore errors during cleanup
 
+        # Multi-host synchronization: ensure all hosts complete cleanup
+        self._sync_processes("checkpoint_cleanup")
+
     def wait_until_finished(self):
         """Wait for any in-progress checkpoint operations to complete.
         This method blocks until all asynchronous checkpoint save operations
-        have completed. It should be called before attempting to load
-        checkpoints if there might be pending save operations.
+        have completed across all hosts in a multi-host setup.
         """
-        # Wait for any async operations to complete
-        if hasattr(self.checkpointer, "wait"):
-            self.checkpointer.wait()
-        else:
-            # Fallback for older Orbax versions that don't have wait() method
-            while self.checkpointer.is_saving_in_progress():
-                import time
+        # Wait for any async operations to complete on this host
+        self.checkpointer.wait()
 
-                time.sleep(0.1)
+        # Multi-host synchronization: ensure all hosts complete
+        self._sync_processes("checkpoint_wait_complete")
