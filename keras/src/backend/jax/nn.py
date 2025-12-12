@@ -1340,25 +1340,32 @@ def dot_product_attention(
         if custom_mask is None and is_causal:
             custom_mask = jnp.tril(jnp.ones((q_len, q_len), dtype=jnp.bool_))
 
-        try:
-            output = wrap_flash_attention(
-                query_tpu_layout,
-                key_tpu_layout,
-                value_tpu_layout,
-                decoder_segment_ids=decoder_segment_ids,
-                custom_mask=custom_mask,
-                attn_logits_soft_cap=attn_logits_soft_cap,
-                head_shards=head_shards,
-                q_seq_shards=q_seq_shards,
-            )
-            # Transpose output back to Keras layout
-            return jnp.transpose(output, axes=(0, 2, 1, 3))
-        except Exception:
-            logging.exception(
-                "Failed to apply Splash kernel for flash attention. "
-                "Falling back to JAX native dot_product_attention."
-            )
+        # Splash attention kernel requires concrete mask values for hashing.
+        # If the mask is a tracer (e.g. inside a scan/loop), we must fall back.
+        if isinstance(mask, jax.core.Tracer) or isinstance(
+            custom_mask, jax.core.Tracer
+        ):
             flash_attention = False
+        else:
+            try:
+                output = wrap_flash_attention(
+                    query_tpu_layout,
+                    key_tpu_layout,
+                    value_tpu_layout,
+                    decoder_segment_ids=decoder_segment_ids,
+                    custom_mask=custom_mask,
+                    attn_logits_soft_cap=attn_logits_soft_cap,
+                    head_shards=head_shards,
+                    q_seq_shards=q_seq_shards,
+                )
+                # Transpose output back to Keras layout
+                return jnp.transpose(output, axes=(0, 2, 1, 3))
+            except Exception:
+                logging.exception(
+                    "Failed to apply Splash kernel for flash attention. "
+                    "Falling back to JAX native dot_product_attention."
+                )
+                flash_attention = False
 
     # JAX native dot_product_attention for GPU or fallback for TPU
     if hasattr(jax.nn, "dot_product_attention"):
@@ -1404,6 +1411,11 @@ def dot_product_attention(
 
     def _reshape_to_grouped(t):
         if t is not None:
+            while t.ndim < 4:
+                if t.ndim == 3 and t.shape[1] == N:
+                    t = jnp.expand_dims(t, axis=2)
+                else:
+                    t = jnp.expand_dims(t, axis=1)
             tB, tN, tT, tS = t.shape
             if tN == 1:
                 t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))

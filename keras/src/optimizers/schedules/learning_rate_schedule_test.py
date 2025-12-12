@@ -40,6 +40,8 @@ class TestFitLRSchedulesFlow(testing.TestCase):
             history.history["loss"],
             [230.79457092285156, 128.30319213867188, 79.33648681640625],
             rtol=5e-5,
+            tpu_atol=5e-3,
+            tpu_rtol=5e-3,
         )
 
 

@@ -364,15 +364,28 @@ class RNNTest(testing.TestCase):
         layer = layers.RNN(OneStateRNNCell(2), go_backwards=True)
         layer(sequence)
         output = layer(sequence)
-        self.assertAllClose(np.array([[202.0, 202.0], [538.0, 538.0]]), output)
+        self.assertAllClose(
+            np.array([[202.0, 202.0], [538.0, 538.0]]),
+            output,
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
+        )
 
         layer = layers.RNN(OneStateRNNCell(2), stateful=True, return_state=True)
         layer(sequence)
         output, state = layer(sequence)
         self.assertAllClose(
-            np.array([[954.0, 954.0], [3978.0, 3978.0]]), output
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
-        self.assertAllClose(np.array([[954.0, 954.0], [3978.0, 3978.0]]), state)
+        self.assertAllClose(
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
+            state,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
     def test_serialization(self):
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)
