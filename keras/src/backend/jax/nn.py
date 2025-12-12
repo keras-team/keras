@@ -665,7 +665,8 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
     return out
 
 
-def adaptive_average_pool(inputs, output_size, data_format="channels_first"):
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_average_pool1d(inputs, output_size, data_format)
@@ -676,7 +677,8 @@ def adaptive_average_pool(inputs, output_size, data_format="channels_first"):
     raise ValueError("adaptive_average_pool supports only 1D/2D/3D inputs")
 
 
-def adaptive_max_pool(inputs, output_size, data_format="channels_first"):
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_max_pool1d(inputs, output_size, data_format)

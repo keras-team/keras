@@ -1166,28 +1166,28 @@ def max_pool(
 class AdaptiveMaxPool(Operation):
     """Adaptive max pooling operation."""
 
-    def __init__(self, output_size, data_format="channels_last"):
-        super().__init__()
+    def __init__(self, output_size, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.output_size = output_size
         self.data_format = data_format
 
-    def call(self, x):
+    def call(self, inputs):
         return backend.nn.adaptive_max_pool(
-            x, output_size=self.output_size, data_format=self.data_format
+            inputs, output_size=self.output_size, data_format=self.data_format
         )
 
-    def compute_output_spec(self, x):
+    def compute_output_spec(self, inputs):
         if self.data_format == "channels_last":
             spatial_dims = self.output_size
             output_shape = (
-                x.shape[: -len(self.output_size)]
+                inputs.shape[: -len(self.output_size)]
                 + spatial_dims
-                + (x.shape[-1],)
+                + (inputs.shape[-1],)
             )
         else:
             spatial_dims = self.output_size
-            output_shape = (x.shape[0], x.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=x.dtype)
+            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.adaptive_max_pool")
@@ -1342,28 +1342,28 @@ def average_pool(
 class AdaptiveAveragePool(Operation):
     """Adaptive average pooling operation."""
 
-    def __init__(self, output_size, data_format="channels_last"):
-        super().__init__()
+    def __init__(self, output_size, data_format=None, *, name=None):
+        super().__init__(name=name)
         self.output_size = output_size
         self.data_format = data_format
 
-    def call(self, x):
+    def call(self, inputs):
         return backend.nn.adaptive_average_pool(
-            x, output_size=self.output_size, data_format=self.data_format
+            inputs, output_size=self.output_size, data_format=self.data_format
         )
 
-    def compute_output_spec(self, x):
+    def compute_output_spec(self, inputs):
         if self.data_format == "channels_last":
             spatial_dims = self.output_size
             output_shape = (
-                x.shape[: -len(self.output_size)]
+                inputs.shape[: -len(self.output_size)]
                 + spatial_dims
-                + (x.shape[-1],)
+                + (inputs.shape[-1],)
             )
         else:
             spatial_dims = self.output_size
-            output_shape = (x.shape[0], x.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=x.dtype)
+            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.adaptive_average_pool")

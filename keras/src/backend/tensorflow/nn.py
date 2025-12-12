@@ -721,7 +721,8 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
     return pooled_w
 
 
-def adaptive_average_pool(inputs, output_size, data_format="channels_first"):
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
         return _adaptive_average_pool1d(inputs, output_size, data_format)
@@ -735,8 +736,8 @@ def adaptive_average_pool(inputs, output_size, data_format="channels_first"):
         )
 
 
-def adaptive_max_pool(inputs, output_size, data_format="channels_first"):
-    """Dispatcher for adaptive max pooling (1D, 2D, or 3D)."""
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
         return _adaptive_max_pool1d(inputs, output_size, data_format)
