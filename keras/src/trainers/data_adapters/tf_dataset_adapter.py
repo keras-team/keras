@@ -1,3 +1,4 @@
+from keras import backend
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -5,6 +6,15 @@ from keras.src.trainers.data_adapters.data_adapter import DataAdapter
 
 class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
+
+    backend_name = backend.backend()
+
+    if backend_name not in ("tensorflow", "numpy", "torch", "jax", "openvino"):
+        raise ValueError(
+            f"Incompatible backend '{backend_name}'"
+            "Supported backends TensorFlow , numpy , torch , jax , "
+            "openvino backend."
+        )
 
     def __init__(self, dataset, class_weight=None, distribution=None):
         """Initialize the TFDatasetAdapter.
