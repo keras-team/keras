@@ -65,10 +65,7 @@ class GeneratorDataAdapterTest(testing.TestCase):
         )
 
         adapter = generator_data_adapter.GeneratorDataAdapter(make_generator())
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
@@ -79,6 +76,9 @@ class GeneratorDataAdapterTest(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         sample_order = []
         for i, batch in enumerate(it):
@@ -112,14 +112,14 @@ class GeneratorDataAdapterTest(testing.TestCase):
 
         adapter = generator_data_adapter.GeneratorDataAdapter(generator())
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        else:
+            it = adapter.get_numpy_iterator()
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)

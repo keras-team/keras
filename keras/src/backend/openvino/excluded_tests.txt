@@ -35,5 +35,7 @@ keras/src/quantizers
 keras/src/random/seed_generator_test.py
 keras/src/regularizers
 keras/src/saving
-keras/src/trainers
+keras/src/trainers/compile_utils_test.py
+keras/src/trainers/epoch_iterator_test.py
+keras/src/trainers/trainer_test.py
 keras/src/utils
