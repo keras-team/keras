@@ -25,9 +25,9 @@ except ImportError:
 
 def _get_orbax_multihost():
     """Get the orbax multihost module with lazy import."""
-    import orbax.checkpoint as ocp_multihost
+    import orbax.checkpoint as ocp
 
-    return ocp_multihost.multihost
+    return ocp.multihost
 
 
 def _get_state_tree(model):
@@ -195,13 +195,6 @@ class OrbaxCheckpoint(MonitorCallback):
         except (ImportError, AttributeError):
             return False
 
-    def _is_primary_host(self):
-        """Check if this is the primary host for coordination."""
-        if not self._multihost_initialized:
-            return True  # Single host is always primary
-        multihost = _get_orbax_multihost()
-        return multihost.is_primary_host()
-
     def _sync_processes(self, key=None):
         """Synchronize all processes across hosts."""
         if not self._multihost_initialized:
@@ -234,7 +227,10 @@ class OrbaxCheckpoint(MonitorCallback):
             bool: True if this is the primary host, False otherwise.
             Always returns True in single-host environments.
         """
-        return self._is_primary_host()
+        if not self._multihost_initialized:
+            return True  # Single host is always primary
+        multihost = _get_orbax_multihost()
+        return multihost.is_primary_host()
 
     def _should_save_on_batch(self, batch):
         """Check if we should save on this batch."""
