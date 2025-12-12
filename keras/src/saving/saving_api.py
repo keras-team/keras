@@ -130,6 +130,9 @@ def _load_model_from_orbax_checkpoint(
 
 def _is_orbax_checkpoint(filepath):
     """Check if the given path is an Orbax checkpoint directory."""
+    if not os.path.exists(filepath):
+        return False
+
     try:
         from keras.src.utils.module_utils import ocp
 
