@@ -49,7 +49,7 @@ class BaseAdaptiveAveragePooling(BaseAdaptivePooling):
     """Base class for adaptive average pooling in 1D, 2D, and 3D."""
 
     def call(self, inputs):
-        return ops.adaptive_avg_pool(
+        return ops.adaptive_average_pool(
             inputs, output_size=self.output_size, data_format=self.data_format
         )
 

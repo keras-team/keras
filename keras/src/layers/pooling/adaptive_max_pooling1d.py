@@ -47,12 +47,19 @@ class AdaptiveMaxPooling1D(BaseAdaptiveMaxPooling):
     """
 
     def __init__(self, output_size, data_format=None, **kwargs):
-        if not isinstance(output_size, int):
+        if isinstance(output_size, int):
+            output_size = (output_size,)
+        elif isinstance(output_size, (tuple, list)):
+            if len(output_size) != 1:
+                raise ValueError(
+                    f"For 1D input, `output_size` tuple must have length 1. "
+                    f"Received: {output_size}"
+                )
+            output_size = tuple(output_size)
+        else:
             raise TypeError(
-                "`output_size` must be an integer. Received output_size={} "
-                "of type {}".format(output_size, type(output_size))
+                f"`output_size` must be an integer or tuple of 1 integer. "
+                f"Received: {output_size} of type {type(output_size)}"
             )
 
-        output_size_tuple = (output_size,)
-
-        super().__init__(output_size_tuple, data_format, **kwargs)
+        super().__init__(output_size, data_format, **kwargs)
