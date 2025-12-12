@@ -545,15 +545,60 @@ def average(x, axis=None, weights=None):
 
 
 def bartlett(x):
-    raise NotImplementedError(
-        "`bartlett` is not supported with openvino backend"
+    x = get_ov_output(x)
+    zero_const = ov_opset.constant(0, Type.i64)
+    one_const = ov_opset.constant(1, Type.i64)
+    two_const = ov_opset.constant(2, Type.i64)
+    two_const_f64 = ov_opset.constant(2.0, Type.f64)
+    if x.get_element_type() != Type.i64:
+        x = ov_opset.convert(x, Type.i64)
+    half = ov_opset.convert(
+        ov_opset.divide(ov_opset.subtract(x, one_const), two_const), Type.f64
     )
+    n = ov_opset.range(zero_const, x, one_const, Type.f64)
+    condition = ov_opset.less_equal(n, half)
+    first_half = ov_opset.divide(
+        ov_opset.multiply(two_const_f64, n),
+        ov_opset.convert(ov_opset.subtract(x, one_const), Type.f64),
+    )
+    second_half = ov_opset.subtract(two_const_f64, first_half)
+    window = ov_opset.select(condition, first_half, second_half)
+    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
+        0
+    )
+    return OpenVINOKerasTensor(window)
 
 
 def hamming(x):
-    raise NotImplementedError(
-        "`hamming` is not supported with openvino backend"
+    m = get_ov_output(x)
+
+    m_i64 = (
+        m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
     )
+
+    start = ov_opset.constant(0, Type.i64)
+    step = ov_opset.constant(1, Type.i64)
+    n = ov_opset.range(start, m_i64, step, Type.f64)
+
+    one_i64 = ov_opset.constant(1, Type.i64)
+    denom_i64 = ov_opset.subtract(m_i64, one_i64)
+    denom = ov_opset.convert(denom_i64, Type.f64)
+
+    two_pi = ov_opset.constant(2.0 * np.pi, Type.f64)
+    two_pi_over_m_minus_1 = ov_opset.divide(two_pi, denom)
+
+    x = ov_opset.multiply(two_pi_over_m_minus_1, n)
+    c = ov_opset.cos(x)
+
+    # 0.54 - 0.46 * cos(...)
+    a = ov_opset.constant(0.54, Type.f64)
+    b = ov_opset.constant(0.46, Type.f64)
+    hamming_window = ov_opset.subtract(a, ov_opset.multiply(b, c))
+    hamming_window = ov_opset.convert(
+        hamming_window, OPENVINO_DTYPES[config.floatx()]
+    )
+
+    return OpenVINOKerasTensor(hamming_window.output(0))
 
 
 def heaviside(x1, x2):
@@ -624,9 +669,30 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 
 def blackman(x):
-    raise NotImplementedError(
-        "`blackman` is not supported with openvino backend"
+    x = get_ov_output(x)
+    zero_const = ov_opset.constant(0, Type.i64)
+    one_const = ov_opset.constant(1, Type.i64)
+    two_pi = ov_opset.constant(2.0 * np.pi, Type.f64)
+    term_1 = ov_opset.constant(0.42, Type.f64)
+    term_2 = ov_opset.constant(0.5, Type.f64)
+    term_3 = ov_opset.constant(0.08, Type.f64)
+    if x.get_element_type() != Type.i64:
+        x = ov_opset.convert(x, Type.i64)
+    n = ov_opset.range(zero_const, x, one_const, Type.f64)
+    n_minus_1 = ov_opset.subtract(
+        ov_opset.convert(x, Type.f64), ov_opset.constant(1.0, Type.f64)
+    ).output(0)
+    angle_2pi = ov_opset.divide(ov_opset.multiply(two_pi, n), n_minus_1)
+    angle_4pi = ov_opset.multiply(angle_2pi, ov_opset.constant(2.0, Type.f64))
+    cos_2pi = ov_opset.cos(angle_2pi)
+    cos_4pi = ov_opset.cos(angle_4pi)
+    term_2_final = ov_opset.multiply(term_2, cos_2pi)
+    term_3_final = ov_opset.multiply(term_3, cos_4pi)
+    window = ov_opset.add(ov_opset.subtract(term_1, term_2_final), term_3_final)
+    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
+        0
     )
+    return OpenVINOKerasTensor(window)
 
 
 def broadcast_to(x, shape):
