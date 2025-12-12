@@ -25,10 +25,7 @@ class TestTFDatasetAdapter(testing.TestCase):
         self.assertEqual(adapter.has_partial_batch, None)
         self.assertEqual(adapter.partial_batch_size, None)
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
@@ -37,6 +34,9 @@ class TestTFDatasetAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)
@@ -312,10 +312,7 @@ class TestTFDatasetAdapter(testing.TestCase):
         self.assertIsNone(adapter.has_partial_batch)
         self.assertIsNone(adapter.partial_batch_size)
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
@@ -324,6 +321,9 @@ class TestTFDatasetAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         batch_count = 0
         for batch in it:
