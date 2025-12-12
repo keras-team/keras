@@ -1385,10 +1385,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     def test_softsign(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
+        kwargs = {"atol": 1e-3} if backend.backend() == "openvino" else {}
         self.assertAllClose(
             knn.softsign(x), [-0.5, 0, 0.5, 0.6666667, 0.75], **kwargs
         )
@@ -1409,18 +1406,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     def test_leaky_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
+        kwargs = {"atol": 1e-3} if backend.backend() == "openvino" else {}
         self.assertAllClose(knn.leaky_relu(x), [-0.2, 0, 1, 2, 3], **kwargs)
 
     def test_hard_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
+        kwargs = {"atol": 1e-3} if backend.backend() == "openvino" else {}
         self.assertAllClose(
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
@@ -1429,10 +1420,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     def test_hard_silu(self):
         x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
+        kwargs = {"atol": 1e-3} if backend.backend() == "openvino" else {}
         self.assertAllClose(
             knn.hard_silu(x),
             [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
@@ -1441,10 +1429,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     def test_elu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
+        kwargs = {"atol": 1e-3} if backend.backend() == "openvino" else {}
         self.assertAllClose(knn.elu(x), [-0.63212055, 0, 1, 2, 3], **kwargs)
         self.assertAllClose(
             knn.elu(x, alpha=0.5), [-0.31606027, 0, 1, 2, 3], **kwargs
@@ -1452,10 +1437,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     def test_selu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
-        if backend.backend() == "openvino":
-            kwargs = {"atol": 1e-3}
-        else:
-            kwargs = {}
+        kwargs = {"atol": 1e-3} if backend.backend() == "openvino" else {}
         self.assertAllClose(
             knn.selu(x),
             [-1.1113307, 0.0, 1.050701, 2.101402, 3.152103],
