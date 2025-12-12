@@ -260,6 +260,7 @@ class OrbaxCheckpoint(MonitorCallback):
         # names and structure)
         if self.save_weights_only:
             composite_state = {
+                "model_config": self.model.get_config(),
                 "trainable_variables": state_tree["trainable_variables"],
             }
             if "non_trainable_variables" in state_tree:
@@ -267,7 +268,10 @@ class OrbaxCheckpoint(MonitorCallback):
                     "non_trainable_variables"
                 ]
         else:
-            composite_state = state_tree
+            composite_state = {
+                "model_config": self.model.get_config(),
+                **state_tree,
+            }
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
@@ -347,14 +351,7 @@ class OrbaxCheckpoint(MonitorCallback):
         have completed across all hosts in a multi-host setup.
         """
         # Wait for any async operations to complete on this host
-        if hasattr(self.checkpointer, "wait"):
-            self.checkpointer.wait()
-        else:
-            # Fallback for older Orbax versions that don't have wait() method
-            while self.checkpointer.is_saving_in_progress():
-                import time
-
-                time.sleep(0.1)
+        self.checkpointer.wait()
 
         # Multi-host synchronization: ensure all hosts complete
         self._sync_processes("checkpoint_wait_complete")

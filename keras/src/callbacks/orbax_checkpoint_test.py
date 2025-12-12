@@ -393,26 +393,13 @@ class OrbaxCheckpointTest(testing.TestCase):
         original_weights = model.get_weights()
 
         if use_model_load:
-            # Test model.load method
-            new_model = self._create_test_model()
-            if include_metrics:
-                new_model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+            # Test load_model method
+            import keras
 
-            original_weights_new = new_model.get_weights()
-
-            # Load checkpoint using model.load
-            new_model.load(checkpoint_dir)
-            loaded_weights = new_model.get_weights()
-            loaded_state = new_model.get_state_tree()
-
-            # Verify weights changed
-            weights_changed = any(
-                not np.allclose(orig, loaded)
-                for orig, loaded in zip(original_weights_new, loaded_weights)
-            )
-            self.assertTrue(
-                weights_changed, "Weights should change after loading"
-            )
+            # Load checkpoint using load_model
+            loaded_model = keras.saving.load_model(checkpoint_dir)
+            loaded_weights = loaded_model.get_weights()
+            loaded_state = loaded_model.get_state_tree()
 
             # Verify loaded weights match trained weights
             for trained_w, loaded_w in zip(original_weights, loaded_weights):
@@ -606,33 +593,14 @@ class OrbaxCheckpointTest(testing.TestCase):
             model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
             callback.wait_until_finished()
 
-            # Create new model and load with same distribution
-            new_model = self._create_test_model()
-            # Initialize optimizer state by running a dummy training step
-            batch_size = min(2, len(x))  # Compatible with distribution
-            new_model.fit(x[:batch_size], y[:batch_size], epochs=0, verbose=0)
+            # Load using load_model
+            import keras
 
-            # Get initial weights before loading
-            initial_weights = new_model.get_weights()
-
-            new_model.load(checkpoint_dir)
-            loaded_weights = new_model.get_weights()
+            loaded_model = keras.saving.load_model(checkpoint_dir)
+            loaded_weights = loaded_model.get_weights()
 
             # Get original weights for comparison
             original_weights = model.get_weights()
-
-            # Check that loading actually changed some weights from initial
-            # random values. If all weights remained the same, loading
-            # likely failed
-            all_weights_same = all(
-                np.allclose(init, loaded)
-                for init, loaded in zip(initial_weights, loaded_weights)
-            )
-            self.assertFalse(
-                all_weights_same,
-                "Loading should change at least some weights from initial "
-                "random values",
-            )
 
             # Check that loaded weights match the original trained weights
             for orig, loaded in zip(original_weights, loaded_weights):
@@ -729,21 +697,18 @@ class OrbaxCheckpointTest(testing.TestCase):
             original_predictions = model.predict(x[:5], verbose=0)
             original_weights = model.get_weights()
 
-            # Create new model and load checkpoint
-            new_model = self._create_test_model()
-            # Initialize by running a dummy training step
-            new_model.fit(x[:2], y[:2], epochs=0, verbose=0)
+            # Load checkpoint using load_model
+            import keras
 
-            # Load checkpoint
-            new_model.load(checkpoint_dir)
-            loaded_weights = new_model.get_weights()
+            loaded_model = keras.saving.load_model(checkpoint_dir)
+            loaded_weights = loaded_model.get_weights()
 
             # Verify loaded weights match original
             for orig, loaded in zip(original_weights, loaded_weights):
                 self.assertAllClose(orig, loaded)
 
             # Verify loaded model produces same predictions
-            loaded_predictions = new_model.predict(x[:5], verbose=0)
+            loaded_predictions = loaded_model.predict(x[:5], verbose=0)
             self.assertAllClose(original_predictions, loaded_predictions)
 
             print("Distributed checkpoint functionality verified")
@@ -757,3 +722,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                     set_distribution(None)
                 except:
                     pass
+
+        # Verify the model is compiled (since original had optimizer)
+        self.assertIsNotNone(loaded_model.optimizer)
+        self.assertEqual(len(loaded_model.metrics), 1)  # MAE metric
