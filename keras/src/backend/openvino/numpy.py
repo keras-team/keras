@@ -2692,26 +2692,21 @@ def floor_divide(x1, x2):
     x2_output = get_ov_output(x2)
     if x1_output.get_element_type() == Type.boolean:
         x1_output = ov_opset.convert(x1_output, Type.i32).output(0)
-    ov_type = OPENVINO_DTYPES[
-        dtypes.result_type(
-            ov_to_keras_type(x1_output.get_element_type()),
-            ov_to_keras_type(x2_output.get_element_type()),
-        )
-    ]
-    if isinstance(x2, (int, float)):
-        if x1_output.get_element_type().is_integral():
-            if isinstance(x2, int):
-                ov_type = x1_output.get_element_type()
-            else:
-                ov_type = OPENVINO_DTYPES[config.floatx()]
+    if not isinstance(x2, (int, float)):
+        x1, x2 = _align_operand_types(x1_output, x2_output, "floor_divide()")
+        div = ov_opset.divide(x1, x2).output(0)
+        floored_div = ov_opset.floor(div).output(0)
+        return OpenVINOKerasTensor(floored_div)
+    else:
+        if x1_output.get_element_type().is_integral() and isinstance(x2, float):
+            ov_type = OPENVINO_DTYPES[config.floatx()]
         else:
             ov_type = x1_output.get_element_type()
-
-    x1 = ov_opset.convert(x1_output, ov_type).output(0)
-    x2 = ov_opset.convert(x2_output, ov_type).output(0)
-    div = ov_opset.divide(x1, x2).output(0)
-    floored_div = ov_opset.floor(div).output(0)
-    return OpenVINOKerasTensor(floored_div)
+        x1 = ov_opset.convert(x1_output, ov_type).output(0)
+        x2 = ov_opset.convert(x2_output, ov_type).output(0)
+        div = ov_opset.divide(x1, x2).output(0)
+        floored_div = ov_opset.floor(div).output(0)
+        return OpenVINOKerasTensor(floored_div)
 
 
 def logical_xor(x1, x2):
