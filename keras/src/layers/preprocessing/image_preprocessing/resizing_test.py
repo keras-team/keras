@@ -125,6 +125,31 @@ class ResizingTest(testing.TestCase):
         self.assertAllClose(ref_out, out)
 
     @parameterized.parameters([("channels_first",), ("channels_last",)])
+    def test_crop_to_aspect_ratio_no_op_when_aspects_match(self, data_format):
+        # Test that crop_to_aspect_ratio=True behaves identically to False
+        # when source and target aspect ratios match (no cropping should occur).
+        img = np.reshape(np.arange(0, 16), (1, 4, 4, 1)).astype("float32")
+        if data_format == "channels_first":
+            img = img.transpose(0, 3, 1, 2)
+        out_false = layers.Resizing(
+            height=2,
+            width=2,
+            interpolation="nearest",
+            data_format=data_format,
+            crop_to_aspect_ratio=False,
+        )(img)
+        out_true = layers.Resizing(
+            height=2,
+            width=2,
+            interpolation="nearest",
+            data_format=data_format,
+            crop_to_aspect_ratio=True,
+        )(img)
+        # Outputs should be identical when aspect ratios match
+        # (4:4 -> 2:2, both 1:1).
+        self.assertAllClose(out_false, out_true)
+
+    @parameterized.parameters([("channels_first",), ("channels_last",)])
     def test_unbatched_image(self, data_format):
         img = np.reshape(np.arange(0, 16), (4, 4, 1)).astype("float32")
         if data_format == "channels_first":
