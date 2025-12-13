@@ -1,4 +1,5 @@
 import functools
+import math
 import operator
 import re
 import warnings
@@ -539,3 +540,10 @@ def slice_along_axis(x, start=0, stop=None, step=1, axis=0):
             -1 - axis
         )
     return x[tuple(slices)]
+
+
+def compute_adaptive_pooling_window_sizes(input_dim, output_dim):
+    """Compute small and big window sizes for adaptive pooling."""
+    small = math.ceil(input_dim / output_dim)
+    big = small + 1
+    return small, big

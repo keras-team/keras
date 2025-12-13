@@ -4,6 +4,9 @@ from jax import lax
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    compute_adaptive_pooling_window_sizes,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
 from keras.src.backend.numpy.core import cast
@@ -338,6 +341,252 @@ def average_pool(
             padding,
         )
         return pooled / window_counts
+
+
+def _compute_adaptive_pooling_gather_indices(
+    input_dim, output_size, big_window
+):
+    window_starts = np.floor(
+        (np.arange(output_size) * input_dim) / output_size
+    ).astype(np.int32)
+
+    window_ends = np.ceil(
+        (np.arange(1, output_size + 1) * input_dim) / output_size
+    ).astype(np.int32)
+
+    window_sizes = window_ends - window_starts
+    is_big = window_sizes == big_window
+
+    small_window = big_window - 1
+    small_pool_len = input_dim - small_window + 1
+
+    small_indices = window_starts
+    big_indices = window_starts + small_pool_len
+
+    gather = np.where(is_big, big_indices, small_indices)
+    return gather.astype(np.int32)
+
+
+def _strided_view_1d(x, window_size):
+    n, l, c = x.shape
+    out = l - window_size + 1
+
+    strides = x.strides
+    shape = (n, out, window_size, c)
+    new_strides = (strides[0], strides[1], strides[1], strides[2])
+
+    return np.lib.stride_tricks.as_strided(x, shape=shape, strides=new_strides)
+
+
+def _adaptive_pool1d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+
+    if data_format == "channels_first":
+        inputs = np.transpose(inputs, (0, 2, 1))
+
+    n, l, c = inputs.shape
+    out_l = output_size[0]
+
+    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
+    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
+
+    sv_small = _strided_view_1d(inputs, small)
+    small_pool = (
+        np.mean(sv_small, axis=2)
+        if mode == "average"
+        else np.max(sv_small, axis=2)
+    )
+
+    sv_big = _strided_view_1d(inputs, big)
+    big_pool = (
+        np.mean(sv_big, axis=2) if mode == "average" else np.max(sv_big, axis=2)
+    )
+
+    combined = np.concatenate([small_pool, big_pool], axis=1)
+    out = combined[:, gather, :]
+
+    if data_format == "channels_first":
+        out = np.transpose(out, (0, 2, 1))
+
+    return out
+
+
+def _adaptive_pool2d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = np.transpose(inputs, (0, 2, 3, 1))
+
+    n, h, w, c = inputs.shape
+    out_h, out_w = output_size
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    x_h = np.transpose(inputs, (0, 2, 1, 3)).reshape(n * w, h, c)
+
+    sv_small_h = _strided_view_1d(x_h, small_h)
+    small_pool_h = (
+        np.mean(sv_small_h, axis=2)
+        if mode == "average"
+        else np.max(sv_small_h, axis=2)
+    )
+
+    sv_big_h = _strided_view_1d(x_h, big_h)
+    big_pool_h = (
+        np.mean(sv_big_h, axis=2)
+        if mode == "average"
+        else np.max(sv_big_h, axis=2)
+    )
+
+    combined_h = np.concatenate([small_pool_h, big_pool_h], axis=1)
+    pooled_h = combined_h[:, gather_h, :]
+
+    pooled_h = pooled_h.reshape(n, w, out_h, c)
+    pooled_h = np.transpose(pooled_h, (0, 2, 1, 3))
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    x_w = pooled_h.reshape(n * out_h, w, c)
+
+    sv_small_w = _strided_view_1d(x_w, small_w)
+    small_pool_w = (
+        np.mean(sv_small_w, axis=2)
+        if mode == "average"
+        else np.max(sv_small_w, axis=2)
+    )
+
+    sv_big_w = _strided_view_1d(x_w, big_w)
+    big_pool_w = (
+        np.mean(sv_big_w, axis=2)
+        if mode == "average"
+        else np.max(sv_big_w, axis=2)
+    )
+
+    combined_w = np.concatenate([small_pool_w, big_pool_w], axis=1)
+    out = combined_w[:, gather_w, :].reshape(n, out_h, out_w, c)
+
+    if data_format == "channels_first":
+        out = np.transpose(out, (0, 3, 1, 2))
+
+    return out
+
+
+def _adaptive_pool3d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = np.transpose(inputs, (0, 2, 3, 4, 1))
+
+    n, d, h, w, c = inputs.shape
+    out_d, out_h, out_w = output_size
+
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
+    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
+
+    x_d = np.transpose(inputs, (0, 2, 3, 1, 4)).reshape(n * h * w, d, c)
+
+    sv_small_d = _strided_view_1d(x_d, small_d)
+    small_pool_d = (
+        np.mean(sv_small_d, axis=2)
+        if mode == "average"
+        else np.max(sv_small_d, axis=2)
+    )
+
+    sv_big_d = _strided_view_1d(x_d, big_d)
+    big_pool_d = (
+        np.mean(sv_big_d, axis=2)
+        if mode == "average"
+        else np.max(sv_big_d, axis=2)
+    )
+
+    combined_d = np.concatenate([small_pool_d, big_pool_d], axis=1)
+    pooled_d = combined_d[:, gather_d, :].reshape(n, h, w, out_d, c)
+    pooled_d = np.transpose(pooled_d, (0, 3, 1, 2, 4))
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    x_h = np.transpose(pooled_d, (0, 1, 3, 2, 4)).reshape(n * out_d * w, h, c)
+
+    sv_small_h = _strided_view_1d(x_h, small_h)
+    small_pool_h = (
+        np.mean(sv_small_h, axis=2)
+        if mode == "average"
+        else np.max(sv_small_h, axis=2)
+    )
+
+    sv_big_h = _strided_view_1d(x_h, big_h)
+    big_pool_h = (
+        np.mean(sv_big_h, axis=2)
+        if mode == "average"
+        else np.max(sv_big_h, axis=2)
+    )
+
+    combined_h = np.concatenate([small_pool_h, big_pool_h], axis=1)
+    pooled_h = combined_h[:, gather_h, :].reshape(n, out_d, w, out_h, c)
+    pooled_h = np.transpose(pooled_h, (0, 1, 3, 2, 4))
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    x_w = pooled_h.reshape(n * out_d * out_h, w, c)
+
+    sv_small_w = _strided_view_1d(x_w, small_w)
+    small_pool_w = (
+        np.mean(sv_small_w, axis=2)
+        if mode == "average"
+        else np.max(sv_small_w, axis=2)
+    )
+
+    sv_big_w = _strided_view_1d(x_w, big_w)
+    big_pool_w = (
+        np.mean(sv_big_w, axis=2)
+        if mode == "average"
+        else np.max(sv_big_w, axis=2)
+    )
+
+    combined_w = np.concatenate([small_pool_w, big_pool_w], axis=1)
+    out = combined_w[:, gather_w, :].reshape(n, out_d, out_h, out_w, c)
+
+    if data_format == "channels_first":
+        out = np.transpose(out, (0, 4, 1, 2, 3))
+
+    return out
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_pool1d_impl(
+            inputs, output_size, "average", data_format
+        )
+    if dims == 2:
+        return _adaptive_pool2d_impl(
+            inputs, output_size, "average", data_format
+        )
+    if dims == 3:
+        return _adaptive_pool3d_impl(
+            inputs, output_size, "average", data_format
+        )
+    raise ValueError("adaptive_average_pool supports only 1D/2D/3D")
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_pool1d_impl(inputs, output_size, "max", data_format)
+    if dims == 2:
+        return _adaptive_pool2d_impl(inputs, output_size, "max", data_format)
+    if dims == 3:
+        return _adaptive_pool3d_impl(inputs, output_size, "max", data_format)
+    raise ValueError("adaptive_max_pool supports only 1D/2D/3D")
 
 
 def _convert_to_lax_conv_dimension_numbers(
