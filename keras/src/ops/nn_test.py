@@ -1324,6 +1324,40 @@ class NNOpsStaticShapeTest(testing.TestCase):
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    def test_dot_product_attention_inside_scan(self):
+        import jax
+
+        try:
+            if jax.devices()[0].platform != "tpu":
+                self.skipTest("TPU-specific test")
+        except:
+            self.skipTest("TPU-specific test")
+
+        import jax.numpy as jnp
+
+        def attention_scan_body(carry, x):
+            query, key, value = x
+            # dot_product_attention expects 4D inputs (B, H, S, D)
+            query = jnp.expand_dims(query, axis=0)
+            key = jnp.expand_dims(key, axis=0)
+            value = jnp.expand_dims(value, axis=0)
+
+            # Use a mask to trigger the issue
+            mask = jnp.ones((1, 4, 8), dtype="bool")
+            out = knn.dot_product_attention(query, key, value, mask=mask)
+
+            out = jnp.squeeze(out, axis=0)
+            return carry, out
+
+        query = jnp.ones((2, 1, 4, 8))
+        key = jnp.ones((2, 1, 4, 8))
+        value = jnp.ones((2, 1, 4, 8))
+
+        # Scan over the first dimension
+        _, out = jax.lax.scan(attention_scan_body, None, (query, key, value))
+        self.assertEqual(out.shape, (2, 1, 4, 8))
+
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.relu(x), [0, 0, 1, 2, 3])
@@ -2458,19 +2492,20 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask = mask[None, None, ...]
             mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
-            if backend.backend() == "torch":
+            if backend.backend() in ("torch", "openvino"):
                 self.skipTest(
-                    "torch does not support `bias` with `dot_product_attention`"
+                    "torch and openvino do not support `bias` with "
+                    "`dot_product_attention`"
                 )
             bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
                 bias_shape
             )
 
         if flash_attention:
-            if backend.backend() in ("tensorflow", "numpy"):
+            if backend.backend() in ("tensorflow", "numpy", "openvino"):
                 self.skipTest(
-                    "Flash attention is not supported in tensorflow and numpy "
-                    "backends."
+                    "Flash attention is not supported in tensorflow, numpy, "
+                    "and openvino backends."
                 )
             elif backend.backend() == "torch":
                 import torch
