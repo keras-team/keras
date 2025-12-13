@@ -9514,6 +9514,10 @@ class HistogramTest(testing.TestCase):
 
 
 class TileTest(testing.TestCase):
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="`tile` is not supported with openvino backend",
+    )
     def test_tile_shape_inference_in_layer(self):
         class TileLayer(keras.layers.Layer):
             def call(self, x):
