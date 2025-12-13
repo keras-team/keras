@@ -3,7 +3,6 @@ NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
-NumpyDtypeTest::test_empty_like
 NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
@@ -105,7 +104,6 @@ NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
 NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyOneInputOpsDynamicShapeTest::test_angle
-NumpyOneInputOpsDynamicShapeTest::test_empty_like
 NumpyOneInputOpsDynamicShapeTest::test_cbrt
 NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_hanning

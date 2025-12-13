@@ -1026,9 +1026,7 @@ def empty(shape, dtype=None):
 
 
 def empty_like(x, dtype=None):
-    raise NotImplementedError(
-        "`empty_like` is not supported with openvino backend"
-    )
+    return zeros_like(x, dtype=dtype)
 
 
 def equal(x1, x2):

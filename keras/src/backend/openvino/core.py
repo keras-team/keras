@@ -2,6 +2,7 @@ import builtins
 import contextlib
 import warnings
 
+import jax
 import numpy as np
 import openvino as ov
 import openvino.opset14 as ov_opset
@@ -127,6 +128,9 @@ def get_ov_output(x, ov_type=None):
         x = x.output
     elif isinstance(x, Tensor):
         x = ov_opset.constant(x.data).output(0)
+    elif isinstance(x, jax.Array):
+        x_np = np.array(x)
+        x = get_ov_output(x_np, ov_type=ov_type)
     else:
         raise ValueError(
             "unsupported type of `x` to create ov.Output: {}".format(type(x))
