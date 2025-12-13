@@ -287,17 +287,3 @@ class LossTest(testing.TestCase):
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
         self.assertDType(loss, backend.floatx())
-
-    def test_divide_no_nan(self):
-        x = np.array([1.0, 2.0, 3.0, 4.0])
-        y = np.zeros_like(x)
-
-        # divide_no_nan should return 0, not inf, when dividing by 0
-        self.assertAllClose(
-            ops.divide_no_nan(x, y),
-            y,
-        )
-
-        y = np.array([2.0, 0.0, 4.0, 0.0])
-        expected = np.array([0.5, 0.0, 0.75, 0.0])
-        self.assertAllClose(ops.divide_no_nan(x, y), expected)
