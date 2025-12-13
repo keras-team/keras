@@ -2078,8 +2078,16 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     x = get_ov_output(x)
-    x, axis = _resolve_axis(x, axis)
-    return OpenVINOKerasTensor(ov_opset.roll(x, shift, axis).output(0))
+    if axis is not None:
+        result = ov_opset.roll(x, shift, axis).output(0)
+    else:
+        output_shape = ov_opset.shape_of(x).output(0)
+        flattened = ov_opset.reshape(
+            x, ov_opset.constant([-1], Type.i32), False
+        ).output(0)
+        result = ov_opset.roll(flattened, shift, 0).output(0)
+        result = ov_opset.reshape(result, output_shape, False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def sign(x):
