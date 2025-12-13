@@ -1,6 +1,10 @@
 import inspect
 
 from keras.src.api_export import keras_export
+from keras.src.quantizers.quantization_config import Float8QuantizationConfig
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize
@@ -13,7 +17,14 @@ from keras.src.quantizers.quantizers import unpack_int4
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 
-ALL_OBJECTS = {Quantizer, AbsMaxQuantizer}
+ALL_OBJECTS = {
+    Quantizer,
+    AbsMaxQuantizer,
+    QuantizationConfig,
+    Int8QuantizationConfig,
+    Int4QuantizationConfig,
+    Float8QuantizationConfig,
+}
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
     {to_snake_case(cls.__name__): cls for cls in ALL_OBJECTS}
