@@ -45,7 +45,6 @@ NumpyDtypeTest::test_trapezoid
 NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
-NumpyDtypeTest::test_vdot
 NumpyDtypeTest::test_view
 NumpyDtypeTest::test_vstack
 HistogramTest
@@ -100,7 +99,6 @@ NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_ldexp
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
-NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_cbrt
 NumpyOneInputOpsDynamicShapeTest::test_corrcoef

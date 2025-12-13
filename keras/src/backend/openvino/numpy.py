@@ -2470,6 +2470,21 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "vdot()")
+    if x1.get_partial_shape().rank == 0 or x2.get_partial_shape().rank == 0:
+        return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
+    flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+    x1 = ov_opset.reshape(x1, flatten_shape, False).output(0)
+    x2 = ov_opset.reshape(x2, flatten_shape, False).output(0)
+    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
+
     raise NotImplementedError("`vdot` is not supported with openvino backend")
 
 
