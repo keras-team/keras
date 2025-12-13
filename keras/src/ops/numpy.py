@@ -6421,7 +6421,7 @@ class Tile(Operation):
 
         output_shape = []
         for x_size, repeat in zip(x_shape, repeats):
-            if isinstance(repeat, int):
+            if isinstance(x_size, int):
                 output_shape.append(x_size * repeat)
             else:
                 output_shape.append(None)
