@@ -2077,7 +2077,9 @@ def reshape(x, newshape):
 
 
 def roll(x, shift, axis=None):
-    raise NotImplementedError("`roll` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x, axis = _resolve_axis(x, axis)
+    return OpenVINOKerasTensor(ov_opset.roll(x, shift, axis).output(0))
 
 
 def sign(x):
