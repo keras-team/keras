@@ -162,37 +162,40 @@ class Muon(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self.adam_momentums = {}
-        self.adam_velocities = {}
-
-        self.muon_momentums = {}
-        self.muon_velocities = {}
+        # Momentums are for both Muon and Adam
+        self.momentums = [None] * len(var_list)
+        # Velocities are just for Adam
+        self.adam_velocities = [None] * len(var_list)
 
         for var in var_list:
             if not self._overwrite_variable_with_gradient(var):
-                self.adam_momentums[var.path] = (
+                self.momentums[self._get_variable_index(var)] = (
                     self.add_variable_from_reference(
                         reference_variable=var, name="momentum"
                     )
                 )
                 if self._should_use_adamw(var):
-                    self.adam_velocities[var.path] = (
+                    self.adam_velocities[self._get_variable_index(var)] = (
                         self.add_variable_from_reference(
                             reference_variable=var, name="velocity"
                         )
                     )
 
     def update_step(self, gradient, variable, learning_rate):
-        if self._should_use_adamw(variable):
+        variable_index = self._get_variable_index(variable)
+        m = self.momentums[variable_index]
+        v = self.adam_velocities[variable_index]
+
+        # The presence of the velocity tells us that this variable is for Adam
+        if v is not None:
             # It should be noted that lr is one-tenth when using adamw.
             self._adamw_update_step(
-                gradient, variable, learning_rate * self.adam_lr_ratio
+                gradient, variable, learning_rate * self.adam_lr_ratio, m, v
             )
         else:
-            self._muon_update_step(gradient, variable, learning_rate)
+            self._muon_update_step(gradient, variable, learning_rate, m)
 
-    def _muon_update_step(self, gradient, variable, lr):
-        m = self.adam_momentums[variable.path]
+    def _muon_update_step(self, gradient, variable, lr, m):
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
         if self.nesterov:
             g = ops.add(gradient, self.momentum * m)
@@ -202,7 +205,7 @@ class Muon(optimizer.Optimizer):
 
         self.assign_sub(variable, self.lr_adjust(lr * update))
 
-    def _adamw_update_step(self, gradient, variable, learning_rate):
+    def _adamw_update_step(self, gradient, variable, learning_rate, m, v):
         """Update step given gradient and the associated model variable."""
         lr = ops.cast(learning_rate, variable.dtype)
         gradient = ops.cast(gradient, variable.dtype)
@@ -213,9 +216,6 @@ class Muon(optimizer.Optimizer):
         adam_beta_2_power = ops.power(
             ops.cast(self.adam_beta_2, variable.dtype), local_step
         )
-
-        m = self.adam_momentums[variable.path]
-        v = self.adam_velocities[variable.path]
 
         alpha = lr * ops.sqrt(1 - adam_beta_2_power) / (1 - adam_beta_1_power)
 
