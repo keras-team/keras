@@ -2485,8 +2485,6 @@ def vdot(x1, x2):
     x2 = ov_opset.reshape(x2, flatten_shape, False).output(0)
     return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
-    raise NotImplementedError("`vdot` is not supported with openvino backend")
-
 
 def vstack(xs):
     raise NotImplementedError("`vstack` is not supported with openvino backend")
