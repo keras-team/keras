@@ -1207,12 +1207,7 @@ def isin(x1, x2, assume_unique=False, invert=False):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
     output_shape = ov_opset.shape_of(x1).output(0)
-
-    x1_type = ov_to_keras_type(x1.get_element_type())
-    x2_type = ov_to_keras_type(x2.get_element_type())
-    dtype = dtypes.result_type(x1_type, x2_type)
-    x1 = ov_opset.convert(x1, OPENVINO_DTYPES[dtype])
-    x2 = ov_opset.convert(x2, OPENVINO_DTYPES[dtype])
+    x1, x2 = _align_operand_types(x1, x2, "isin()")
 
     minus_one = ov_opset.constant([-1], dtype=Type.i64)
     x1 = ov_opset.reshape(x1, minus_one, special_zero=False).output(0)
