@@ -1206,7 +1206,30 @@ def isfinite(x):
 
 
 def isin(x1, x2, assume_unique=False, invert=False):
-    raise NotImplementedError("`isin` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    output_shape = ov_opset.shape_of(x1).output(0)
+
+    x1_type = ov_to_keras_type(x1.get_element_type())
+    x2_type = ov_to_keras_type(x2.get_element_type())
+    dtype = dtypes.result_type(x1_type, x2_type)
+    x1 = ov_opset.convert(x1, OPENVINO_DTYPES[dtype])
+    x2 = ov_opset.convert(x2, OPENVINO_DTYPES[dtype])
+
+    minus_one = ov_opset.constant([-1], dtype=Type.i64)
+    x1 = ov_opset.reshape(x1, minus_one, special_zero=False).output(0)
+    x2 = ov_opset.reshape(x2, minus_one, special_zero=False).output(0)
+    if not assume_unique:
+        x2 = ov_opset.unique(x2).output(0)
+    x1 = ov_opset.unsqueeze(x1, 1).output(0)
+    x2 = ov_opset.unsqueeze(x2, 0).output(0)
+    cmp = ov_opset.equal(x1, x2).output(0)
+    result_flat = ov_opset.reduce_logical_or(cmp, 1).output(0)
+
+    if invert:
+        result_flat = ov_opset.logical_not(result_flat).output(0)
+    result = ov_opset.reshape(result_flat, output_shape, False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def isinf(x):
@@ -2644,9 +2667,30 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
-    raise NotImplementedError(
-        "`floor_divide` is not supported with openvino backend"
-    )
+    x1_output = get_ov_output(x1)
+    x2_output = get_ov_output(x2)
+    if x1_output.get_element_type() == Type.boolean:
+        x1_output = ov_opset.convert(x1_output, Type.i32).output(0)
+    ov_type = OPENVINO_DTYPES[
+        dtypes.result_type(
+            ov_to_keras_type(x1_output.get_element_type()),
+            ov_to_keras_type(x2_output.get_element_type()),
+        )
+    ]
+    if isinstance(x2, (int, float)):
+        if x1_output.get_element_type().is_integral():
+            if isinstance(x2, int):
+                ov_type = x1_output.get_element_type()
+            else:
+                ov_type = OPENVINO_DTYPES[config.floatx()]
+        else:
+            ov_type = x1_output.get_element_type()
+
+    x1 = ov_opset.convert(x1_output, ov_type).output(0)
+    x2 = ov_opset.convert(x2_output, ov_type).output(0)
+    div = ov_opset.divide(x1, x2).output(0)
+    floored_div = ov_opset.floor(div).output(0)
+    return OpenVINOKerasTensor(floored_div)
 
 
 def logical_xor(x1, x2):
