@@ -3098,7 +3098,7 @@ def vander(x, N=None, increasing=False):
     result_dtype = dtypes.result_type(x.dtype)
 
     if N is None:
-        N = tf.shape(x)[0]
+        N = shape_op(x)[0]
 
     if increasing:
         powers = tf.range(N)

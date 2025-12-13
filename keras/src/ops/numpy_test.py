@@ -3766,20 +3766,23 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_vander(self):
         x = np.random.random((3,))
         N = 6
-        increasing = True
 
         self.assertAllClose(knp.vander(x), np.vander(x))
         self.assertAllClose(knp.vander(x, N=N), np.vander(x, N=N))
         self.assertAllClose(
-            knp.vander(x, N=N, increasing=increasing),
-            np.vander(x, N=N, increasing=increasing),
+            knp.vander(x, N=N, increasing=True),
+            np.vander(x, N=N, increasing=True),
         )
 
         self.assertAllClose(knp.Vander().call(x), np.vander(x))
         self.assertAllClose(knp.Vander(N=N).call(x), np.vander(x, N=N))
         self.assertAllClose(
-            knp.Vander(N=N, increasing=increasing).call(x),
-            np.vander(x, N=N, increasing=increasing),
+            knp.Vander(N=N, increasing=True).call(x),
+            np.vander(x, N=N, increasing=True),
+        )
+        self.assertAllClose(
+            knp.Vander(N=N, increasing=False).call(x),
+            np.vander(x, N=N, increasing=False),
         )
 
     def test_var(self):

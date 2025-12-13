@@ -7334,8 +7334,7 @@ class Vander(Operation):
         else:
             N = self.N
 
-        out_shape = list(x.shape)
-        out_shape.append(N)
+        out_shape = x.shape + (N,)
         return KerasTensor(tuple(out_shape), dtype=x.dtype)
 
 
@@ -7369,15 +7368,15 @@ def vander(x, N=None, increasing=False):
         )
 
     if N is not None:
-        if N < 0:
-            raise ValueError(
-                f"Argument 'N' must be nonnegative. Received: N={N}"
-            )
-
         if not isinstance(N, int):
             raise TypeError(
                 f"Argument `N` must be of type `int`. "
                 f"Received: N={N} of type {type(N)}"
+            )
+
+        if N < 0:
+            raise ValueError(
+                f"Argument 'N' must be nonnegative. Received: N={N}"
             )
 
     if not isinstance(increasing, bool):
