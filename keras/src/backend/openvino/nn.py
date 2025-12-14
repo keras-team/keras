@@ -665,7 +665,27 @@ def ctc_decode(
 
 
 def psnr(x1, x2, max_val):
-    raise NotImplementedError("`psnr` is not supported with openvino backend")
+    from keras.src.backend.openvino.numpy import log10
+
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    max_val = get_ov_output(max_val, x1.get_element_type())
+    diff = ov_opset.subtract(x1, x2)
+    squared_diff = ov_opset.multiply(diff, diff)
+    reduction_axes = list(range(0, x1.get_partial_shape().rank.get_length()))
+    mse = ov_opset.reduce_mean(squared_diff, reduction_axes).output(0)
+    log_max_val = get_ov_output(log10(OpenVINOKerasTensor(max_val)))
+    log_mse = get_ov_output(log10(OpenVINOKerasTensor(mse)))
+
+    psnr = ov_opset.subtract(
+        ov_opset.multiply(
+            ov_opset.constant(20, log_max_val.get_element_type()), log_max_val
+        ),
+        ov_opset.multiply(
+            ov_opset.constant(10, log_mse.get_element_type()), log_mse
+        ),
+    ).output(0)
+    return OpenVINOKerasTensor(psnr)
 
 
 def dot_product_attention(

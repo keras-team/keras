@@ -258,7 +258,6 @@ NNOpsCorrectnessTest::test_glu
 NNOpsCorrectnessTest::test_moments
 NNOpsCorrectnessTest::test_normalize
 NNOpsCorrectnessTest::test_polar_corectness
-NNOpsCorrectnessTest::test_psnr
 NNOpsCorrectnessTest::test_sparse_categorical_crossentropy
 NNOpsCorrectnessTest::test_sparsemax
 NNOpsCorrectnessTest::test_rms_normalization_10.0
