@@ -549,9 +549,14 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
 
 def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
-    raise NotImplementedError(
-        "`multi_hot` is not supported with openvino backend"
-    )
+    reduction_axis = 1 if len(x.shape) > 1 else 0
+    if backend.standardize_dtype(dtype) == "bool":
+        outputs = one_hot(x, num_classes, axis=axis, dtype=dtype, sparse=sparse)
+        result = ov_opset.reduce_logical_or(outputs, reduction_axis)
+    else:
+        outputs = one_hot(x, num_classes, axis=axis, dtype=dtype)
+        result = ov_opset.reduce_max(outputs, reduction_axis)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
