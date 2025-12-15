@@ -3093,6 +3093,27 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     return result
 
 
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype)
+
+    if N is None:
+        N = shape_op(x)[0]
+
+    if increasing:
+        powers = tf.range(N)
+    else:
+        powers = tf.range(N - 1, -1, -1)
+
+    x_exp = tf.expand_dims(x, axis=-1)
+
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    vander = tf.math.pow(
+        tf.cast(x_exp, compute_dtype), tf.cast(powers, compute_dtype)
+    )
+    return tf.cast(vander, result_dtype)
+
+
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
