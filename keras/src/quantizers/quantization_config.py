@@ -51,16 +51,14 @@ class QuantizationConfig:
 
     @staticmethod
     def weight_quantizer_or_default(config, default):
-        if config and config.weight_quantizer:
+        if config is not None and config.weight_quantizer is not None:
             return config.weight_quantizer
         return default
 
     @staticmethod
     def activation_quantizer_or_default(config, default):
-        if config and config.activation_quantizer:
+        if config is not None:
             return config.activation_quantizer
-        elif config and config.activation_quantizer is None:
-            return None
         return default
 
 
@@ -80,7 +78,7 @@ class Int8QuantizationConfig(QuantizationConfig):
         if activation_quantizer == "default":
             activation_quantizer = AbsMaxQuantizer(axis=-1)
         super().__init__(weight_quantizer, activation_quantizer)
-        if self.weight_quantizer:
+        if self.weight_quantizer is not None:
             if hasattr(self.weight_quantizer, "value_range"):
                 if self.weight_quantizer.value_range != (-127, 127):
                     raise ValueError(
@@ -110,7 +108,7 @@ class Int4QuantizationConfig(QuantizationConfig):
         if activation_quantizer == "default":
             activation_quantizer = AbsMaxQuantizer(axis=-1)
         super().__init__(weight_quantizer, activation_quantizer)
-        if self.weight_quantizer:
+        if self.weight_quantizer is not None:
             if hasattr(self.weight_quantizer, "value_range"):
                 if self.weight_quantizer.value_range != (-8, 7):
                     raise ValueError(
@@ -152,12 +150,14 @@ def validate_and_resolve_config(mode, config):
         mode: Quantization mode.
         config: Quantization config.
     """
-    # 1. Backwards Compatibility: Handle string shortcuts
+    # 1. Backwards Compatibility: Handle string shortcuts.
     if isinstance(config, str):
         mode = config
         config = None
 
-    # 2. Resolve "mode" into a Config object
+    _validate_mode(mode)
+
+    # 2. Resolve "mode" into a Config object.
     if config is None:
         if mode == "int8":
             config = Int8QuantizationConfig()
@@ -167,7 +167,8 @@ def validate_and_resolve_config(mode, config):
             config = Float8QuantizationConfig()
         elif mode == "gptq":
             raise ValueError(
-                "For GPTQ, you must pass a GPTQConfig object explicitly."
+                "For GPTQ, you must pass a `GPTQConfig` object in the "
+                "`config` argument."
             )
         else:
             if mode is not None:
@@ -185,21 +186,18 @@ def validate_and_resolve_config(mode, config):
                 f"Received: config={config} (of type {type(config)})"
             )
 
-    # 3. Validation: Prevent contradictions
+    # 3. Validation: Prevent contradictions.
     if mode is not None and config.mode != mode:
         raise ValueError(
             f"Contradictory arguments: mode='{mode}' but "
             f"config.mode='{config.mode}'"
         )
 
-    # Ensure mode is consistent
+    # Ensure mode is consistent.
     mode = config.mode
 
-    if mode not in QUANTIZATION_MODES:
-        raise ValueError(
-            "Invalid quantization mode. "
-            f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
-        )
+    # Ensure the mode derived from the config is valid.
+    _validate_mode(mode)
 
     if mode == "gptq":
         from keras.src.quantizers.gptq_config import GPTQConfig
@@ -211,3 +209,12 @@ def validate_and_resolve_config(mode, config):
             )
 
     return config
+
+
+def _validate_mode(mode):
+    """Validates quantization mode."""
+    if mode is not None and mode not in QUANTIZATION_MODES:
+        raise ValueError(
+            "Invalid quantization mode. "
+            f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
+        )

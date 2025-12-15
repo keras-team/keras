@@ -634,8 +634,8 @@ class TestModelQuantization(testing.TestCase):
             "mode": "gptq",
             "config": None,
             "expected_exception": ValueError,
-            "error_msg": "For GPTQ, you must pass a GPTQConfig "
-            "object explicitly.",
+            "error_msg": "For GPTQ, you must pass a `GPTQConfig` object "
+            "in the `config` argument.",
         },
         {
             "testcase_name": "gptq_with_base_quantization_config",

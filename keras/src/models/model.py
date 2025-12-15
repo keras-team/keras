@@ -479,14 +479,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         ```python
         # Build the model
-        >>> model = keras.Sequential([
+        model = keras.Sequential([
             keras.Input(shape=(10,)),
             keras.layers.Dense(10),
-            ])
-        >>> model.build((None, 10))
+        ])
+        model.build((None, 10))
 
         # Quantize with default int8 config
-        >>> model.quantize("int8")
+        model.quantize("int8")
         ```
 
         Quantize a model to int8 with a custom configuration:
@@ -496,14 +496,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         from keras.quantizers import AbsMaxQuantizer
 
         # Build the model
-        >>> model = keras.Sequential([
+        model = keras.Sequential([
             keras.Input(shape=(10,)),
             keras.layers.Dense(10),
-            ])
-        >>> model.build((None, 10))
+        ])
+        model.build((None, 10))
 
         # Create a custom config
-        >>> config = Int8QuantizationConfig(
+        config = Int8QuantizationConfig(
             weight_quantizer=AbsMaxQuantizer(
                 axis=0,
                 value_range=(-127, 127)
@@ -515,7 +515,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         )
 
         # Quantize with custom config
-        >>> model.quantize(config=config)
+        model.quantize(config=config)
         ```
         """
         # Validate inputs.
