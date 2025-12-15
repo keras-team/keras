@@ -777,6 +777,7 @@ class OrbaxCheckpointTest(testing.TestCase):
             len(checkpoint_files), 0, "Should have checkpoint files"
         )
 
+    @pytest.mark.requires_trainable_backend
     def test_save_assets_sync(self):
         """Test asset saving with synchronous checkpoint saving."""
         # Create model with actual assets
@@ -867,6 +868,7 @@ class OrbaxCheckpointTest(testing.TestCase):
             "Numpy array should match",
         )
 
+    @pytest.mark.requires_trainable_backend
     def test_save_assets_async(self):
         """Test asset saving with asynchronous checkpoint saving."""
         # Create model with actual assets
