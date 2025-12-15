@@ -1,7 +1,7 @@
 """Base classes for adaptive pooling layers."""
 
-from keras import config
 from keras.src import ops
+from keras.src.backend import config
 from keras.src.layers.layer import Layer
 
 
