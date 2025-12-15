@@ -46,8 +46,7 @@ def _load_model_from_orbax_checkpoint(
         raise ValueError(
             f"Orbax checkpoint at {filepath} does not contain model "
             "configuration. Cannot recreate model from checkpoint. This "
-            "checkpoint was created with an older version that did not save "
-            "model configuration."
+            "may happen when saving weights only."
         )
 
     # Recreate model from config
@@ -144,19 +143,13 @@ def _is_orbax_checkpoint(filepath):
 
 def _find_latest_orbax_checkpoint(checkpoint_dir):
     """Find the latest checkpoint in an Orbax checkpoint directory."""
-    try:
-        from keras.src.utils.module_utils import ocp
+    from keras.src.utils.module_utils import ocp
 
-        checkpointer = ocp.training.Checkpointer(directory=checkpoint_dir)
-        latest = checkpointer.latest
-        if latest is None:
-            raise ValueError(f"No valid checkpoints found in {checkpoint_dir}")
-        return os.path.join(checkpoint_dir, str(latest.step))
-    except (ImportError, AttributeError):
-        raise ImportError(
-            "Orbax checkpoint support requires the 'orbax-checkpoint' package. "
-            "Install it with: pip install orbax-checkpoint"
-        )
+    checkpointer = ocp.training.Checkpointer(directory=checkpoint_dir)
+    latest = checkpointer.latest
+    if latest is None:
+        raise ValueError(f"No valid checkpoints found in {checkpoint_dir}")
+    return os.path.join(checkpoint_dir, str(latest.step))
 
 
 @keras_export(["keras.saving.save_model", "keras.models.save_model"])
@@ -467,9 +460,46 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 legacy_h5_format.load_weights_from_hdf5_group(
                     f, model, skip_mismatch
                 )
+    elif _is_orbax_checkpoint(filepath):
+        # Load weights from Orbax checkpoint
+        from keras.src.utils.module_utils import ocp
+
+        filepath = str(filepath)
+
+        # Determine if this is a root directory or a step directory
+        items = os.listdir(filepath)
+        has_step_subdirs = any(
+            os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
+            for item in items
+        )
+
+        if has_step_subdirs:
+            # It's a root directory, find the latest checkpoint
+            checkpoint_path = _find_latest_orbax_checkpoint(filepath)
+        else:
+            # It's a step directory, use it directly
+            checkpoint_path = filepath
+
+        # Load checkpoint
+        loaded_state = ocp.load_pytree(checkpoint_path)
+
+        # Set the state in the model, but only for components that exist
+        state_to_set = {}
+
+        # Always load trainable and non-trainable variables
+        if "trainable_variables" in loaded_state:
+            state_to_set["trainable_variables"] = loaded_state[
+                "trainable_variables"
+            ]
+        if "non_trainable_variables" in loaded_state:
+            state_to_set["non_trainable_variables"] = loaded_state[
+                "non_trainable_variables"
+            ]
+
+        model.set_state_tree(state_to_set)
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
             "Keras 3 only supports V3 `.keras` and `.weights.h5` "
-            "files, or legacy V1/V2 `.h5` files."
+            "files, legacy V1/V2 `.h5` files, and Orbax checkpoints."
         )

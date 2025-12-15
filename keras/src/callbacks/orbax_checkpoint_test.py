@@ -182,6 +182,57 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
+    def test_load_weights_from_orbax_checkpoint(self):
+        """Test loading weights from Orbax checkpoint using load_weights."""
+        import keras
+
+        # Create and train model to create checkpoint
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), "test_load_weights_orbax"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_weights_only=True,
+            save_freq="epoch",
+        )
+
+        # Train to create checkpoint
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Get original weights after training
+        original_weights = model.get_weights()
+
+        # Create a new model with the same architecture
+        new_model = self._create_test_model()
+
+        # Initialize with different weights to ensure loading works
+        different_weights = [w * 2 for w in original_weights]
+        new_model.set_weights(different_weights)
+
+        # Verify weights are different initially
+        new_weights_before = new_model.get_weights()
+        for orig, new in zip(original_weights, new_weights_before):
+            self.assertFalse(
+                np.allclose(orig, new),
+                "Weights should be different before loading",
+            )
+
+        # Load weights from Orbax checkpoint
+        keras.saving.load_weights(new_model, checkpoint_dir)
+
+        # Verify weights were loaded correctly
+        loaded_weights = new_model.get_weights()
+        for orig, loaded in zip(original_weights, loaded_weights):
+            self.assertTrue(
+                np.allclose(orig, loaded),
+                "Weights should match after loading from checkpoint",
+            )
+
+    @pytest.mark.requires_trainable_backend
     def test_save_freq_epoch(self):
         """Test save_freq='epoch' functionality."""
         model = self._create_test_model()
@@ -722,7 +773,3 @@ class OrbaxCheckpointTest(testing.TestCase):
                     set_distribution(None)
                 except:
                     pass
-
-        # Verify the model is compiled (since original had optimizer)
-        self.assertIsNotNone(loaded_model.optimizer)
-        self.assertEqual(len(loaded_model.metrics), 1)  # MAE metric

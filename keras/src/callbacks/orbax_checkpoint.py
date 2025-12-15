@@ -23,13 +23,6 @@ except ImportError:
     pass
 
 
-def _get_orbax_multihost():
-    """Get the orbax multihost module with lazy import."""
-    import orbax.checkpoint as ocp
-
-    return ocp.multihost
-
-
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
     # For JAX backend, preserve native arrays for performance
@@ -187,21 +180,18 @@ class OrbaxCheckpoint(MonitorCallback):
         if backend.backend() != "jax":
             return False
 
-        try:
-            multihost = _get_orbax_multihost()
-            # Check if JAX distributed client is initialized
-            # (indicates multihost setup)
-            return multihost.is_jax_distributed_client_initialized()
-        except (ImportError, AttributeError):
-            return False
+        multihost = ocp.multihost
+        # Check if JAX distributed client is initialized
+        # (indicates multihost setup)
+        return multihost.is_jax_distributed_client_initialized()
 
     def _sync_processes(self, key=None):
         """Synchronize all processes across hosts."""
         if not self._multihost_initialized:
             return  # No-op for single host
 
-        multihost = _get_orbax_multihost()
-        sync_key = key or f"checkpoint_sync_{id(self)}"
+        multihost = ocp.multihost
+        sync_key = key or "orbax_checkpoint_sync"
         multihost.sync_global_processes(sync_key)
 
     def is_multihost_enabled(self):
@@ -229,7 +219,7 @@ class OrbaxCheckpoint(MonitorCallback):
         """
         if not self._multihost_initialized:
             return True  # Single host is always primary
-        multihost = _get_orbax_multihost()
+        multihost = ocp.multihost
         return multihost.is_primary_host()
 
     def _should_save_on_batch(self, batch):
@@ -260,7 +250,6 @@ class OrbaxCheckpoint(MonitorCallback):
         # names and structure)
         if self.save_weights_only:
             composite_state = {
-                "model_config": self.model.get_config(),
                 "trainable_variables": state_tree["trainable_variables"],
             }
             if "non_trainable_variables" in state_tree:

@@ -44,8 +44,18 @@ class OrbaxLazyModule(LazyModule):
         try:
             parent_module = importlib.import_module("orbax.checkpoint")
             self.module = parent_module.v1
+            self.parent_module = parent_module
         except ImportError:
             raise ImportError(self.import_error_msg)
+
+    def __getattr__(self, name):
+        if name == "_api_export_path":
+            raise AttributeError
+        if self.module is None:
+            self.initialize()
+        if name == "multihost":
+            return self.parent_module.multihost
+        return getattr(self.module, name)
 
 
 tensorflow = LazyModule("tensorflow")
