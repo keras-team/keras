@@ -24,9 +24,8 @@ class QuantizationConfigTest(testing.TestCase):
 
     def test_int8_quantization_config_invalid(self):
         # Invalid value_range
-        q = AbsMaxQuantizer(axis=0, value_range=(-8, 7))
         with self.assertRaisesRegex(ValueError, "value_range"):
-            Int8QuantizationConfig(weight_quantizer=q)
+            AbsMaxQuantizer(axis=0, value_range=(-256, 256))
 
     def test_int4_quantization_config_valid(self):
         config = Int4QuantizationConfig()
@@ -89,7 +88,7 @@ class QuantizationConfigTest(testing.TestCase):
             validate_and_resolve_config("invalid_mode", None)
 
         # 6. GPTQ without config
-        with self.assertRaisesRegex(ValueError, "must pass a GPTQConfig"):
+        with self.assertRaisesRegex(ValueError, "must pass a `GPTQConfig`"):
             validate_and_resolve_config("gptq", None)
 
         # 7. Contradictory config
@@ -104,3 +103,17 @@ class QuantizationConfigTest(testing.TestCase):
 
         with self.assertRaisesRegex(ValueError, "requires a valid `config`"):
             validate_and_resolve_config("gptq", FakeGPTQConfig())
+
+    def test_int8_quantization_config_output_dtype_mismatch(self):
+        # Invalid output_dtype
+        q = AbsMaxQuantizer(
+            axis=0, value_range=(-127, 127), output_dtype="int16"
+        )
+        with self.assertRaisesRegex(ValueError, "output_dtype='int8'"):
+            Int8QuantizationConfig(weight_quantizer=q)
+
+    def test_int4_quantization_config_output_dtype_mismatch(self):
+        # Invalid output_dtype
+        q = AbsMaxQuantizer(axis=0, value_range=(-8, 7), output_dtype="int16")
+        with self.assertRaisesRegex(ValueError, "output_dtype='int8'"):
+            Int4QuantizationConfig(weight_quantizer=q)

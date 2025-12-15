@@ -116,6 +116,13 @@ class AbsMaxQuantizer(Quantizer):
         self.axis = tuple(axis)
         self.value_range = value_range
         self.epsilon = epsilon
+        if output_dtype == "int8":
+            if value_range[0] < -128 or value_range[1] > 127:
+                raise ValueError(
+                    f"Quantizer with output_dtype='int8' requires value_range "
+                    f"to be within the interval [-128, 127]. Received: "
+                    f"value_range={value_range}"
+                )
 
     def __call__(self, x, to_numpy=False):
         quantized_x, scale = abs_max_quantize(

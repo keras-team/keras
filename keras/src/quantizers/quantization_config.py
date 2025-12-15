@@ -79,12 +79,12 @@ class Int8QuantizationConfig(QuantizationConfig):
             activation_quantizer = AbsMaxQuantizer(axis=-1)
         super().__init__(weight_quantizer, activation_quantizer)
         if self.weight_quantizer is not None:
-            if hasattr(self.weight_quantizer, "value_range"):
-                if self.weight_quantizer.value_range != (-127, 127):
+            if hasattr(self.weight_quantizer, "output_dtype"):
+                if self.weight_quantizer.output_dtype != "int8":
                     raise ValueError(
                         "Int8QuantizationConfig requires a weight_quantizer "
-                        "with value_range=(-127, 127). Received: "
-                        f"value_range={self.weight_quantizer.value_range}"
+                        "with output_dtype='int8'. Received: "
+                        f"output_dtype={self.weight_quantizer.output_dtype}"
                     )
 
     @property
@@ -115,6 +115,13 @@ class Int4QuantizationConfig(QuantizationConfig):
                         "Int4QuantizationConfig requires a weight_quantizer "
                         "with value_range=(-8, 7). Received: "
                         f"value_range={self.weight_quantizer.value_range}"
+                    )
+            if hasattr(self.weight_quantizer, "output_dtype"):
+                if self.weight_quantizer.output_dtype != "int8":
+                    raise ValueError(
+                        "Int4QuantizationConfig requires a weight_quantizer "
+                        "with output_dtype='int8'. Received: "
+                        f"output_dtype={self.weight_quantizer.output_dtype}"
                     )
 
     @property
