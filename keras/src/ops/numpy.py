@@ -301,33 +301,6 @@ def all(x, axis=None, keepdims=False):
     return backend.numpy.all(x, axis=axis, keepdims=keepdims)
 
 
-class Any(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.numpy.any(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(
-                x.shape,
-                axis=self.axis,
-                keepdims=self.keepdims,
-            ),
-            dtype="bool",
-        )
-
-
 class Angle(Operation):
     def call(self, x):
         return backend.numpy.angle(x)
@@ -361,6 +334,33 @@ def angle(x):
     if any_symbolic_tensors((x,)):
         return Angle().symbolic_call(x)
     return backend.numpy.angle(x)
+
+
+class Any(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.any(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(
+                x.shape,
+                axis=self.axis,
+                keepdims=self.keepdims,
+            ),
+            dtype="bool",
+        )
 
 
 @keras_export(["keras.ops.any", "keras.ops.numpy.any"])
@@ -7317,6 +7317,77 @@ def mean(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Mean(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.mean(x, axis=axis, keepdims=keepdims)
+
+
+class Vander(Operation):
+    def __init__(self, N=None, increasing=False, *, name=None):
+        super().__init__(name=name)
+        self.N = N
+        self.increasing = increasing
+
+    def call(self, x):
+        return backend.numpy.vander(x, self.N, self.increasing)
+
+    def compute_output_spec(self, x):
+        if self.N is None:
+            N = x.shape[0]
+        else:
+            N = self.N
+
+        out_shape = x.shape + (N,)
+        return KerasTensor(tuple(out_shape), dtype=x.dtype)
+
+
+@keras_export(["keras.ops.vander", "keras.ops.numpy.vander"])
+def vander(x, N=None, increasing=False):
+    """Generate a Vandermonde matrix.
+
+    Args:
+        x: 1D input tensor.
+        N: Number of columns. If `None`, `N` = `len(x)`.
+        increasing: Order of powers. If True, powers increase left to right.
+
+    Returns:
+        Output tensor, Vandermonde matrix of shape `(len(x), N)`.
+
+    Example:
+    >>> import numpy as np
+    >>> import keras
+    >>> x = np.array([1, 2, 3, 5])
+    >>> keras.ops.vander(x)
+    array([[  1,   1,   1,   1],
+           [  8,   4,   2,   1],
+           [ 27,   9,   3,   1],
+           [125,  25,   5,   1]])
+    """
+
+    if len(x.shape) != 1:
+        raise ValueError(
+            "Input tensor must be 1-dimensional. "
+            f"Received: input.shape={x.shape}"
+        )
+
+    if N is not None:
+        if not isinstance(N, int):
+            raise TypeError(
+                f"Argument `N` must be of type `int`. "
+                f"Received: N={N} of type {type(N)}"
+            )
+
+        if N < 0:
+            raise ValueError(
+                f"Argument 'N' must be nonnegative. Received: N={N}"
+            )
+
+    if not isinstance(increasing, bool):
+        raise TypeError(
+            f"Argument `increasing` must be of type `bool`. "
+            f"Received: increasing={increasing} of type {type(increasing)}"
+        )
+
+    if any_symbolic_tensors((x,)):
+        return Vander(N=N, increasing=increasing).symbolic_call(x)
+    return backend.numpy.vander(x, N=N, increasing=increasing)
 
 
 class Var(Operation):

@@ -2590,6 +2590,10 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     )
 
 
+def vander(x, N=None, increasing=False):
+    raise NotImplementedError("`vander` is not supported with openvino backend")
+
+
 def var(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     x_type = x.get_element_type()

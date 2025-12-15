@@ -1154,6 +1154,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.trapezoid(x, axis=1).shape, (None, 3))
 
+    def test_vander(self):
+        x = KerasTensor((None,))
+        self.assertEqual(knp.vander(x).shape, (None, None))
+
     def test_var(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.var(x).shape, ())
@@ -1913,6 +1917,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_trapezoid(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.trapezoid(x).shape, (2,))
+
+    def test_vander(self):
+        x = KerasTensor((2,))
+        self.assertEqual(knp.vander(x).shape, (2, 2))
 
     def test_var(self):
         x = KerasTensor((2, 3))
@@ -3753,6 +3761,28 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.trapezoid(y, x=x, axis=1),
             np.trapezoid(y, x=x, axis=1),
+        )
+
+    def test_vander(self):
+        x = np.random.random((3,))
+        N = 6
+
+        self.assertAllClose(knp.vander(x), np.vander(x))
+        self.assertAllClose(knp.vander(x, N=N), np.vander(x, N=N))
+        self.assertAllClose(
+            knp.vander(x, N=N, increasing=True),
+            np.vander(x, N=N, increasing=True),
+        )
+
+        self.assertAllClose(knp.Vander().call(x), np.vander(x))
+        self.assertAllClose(knp.Vander(N=N).call(x), np.vander(x, N=N))
+        self.assertAllClose(
+            knp.Vander(N=N, increasing=True).call(x),
+            np.vander(x, N=N, increasing=True),
+        )
+        self.assertAllClose(
+            knp.Vander(N=N, increasing=False).call(x),
+            np.vander(x, N=N, increasing=False),
         )
 
     def test_var(self):
@@ -9218,6 +9248,24 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Trapezoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_vander(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2,), dtype=dtype)
+        x_jax = jnp.ones((2,), dtype=dtype)
+
+        if dtype == "bool":
+            self.skipTest("vander does not support bool")
+
+        expected_dtype = standardize_dtype(jnp.vander(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.vander(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Vander().symbolic_call(x).dtype),
             expected_dtype,
         )
 
