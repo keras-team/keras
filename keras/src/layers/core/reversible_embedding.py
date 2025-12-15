@@ -289,7 +289,7 @@ class ReversibleEmbedding(layers.Embedding):
                 )
             return logits
 
-    def quantize(self, mode, type_check=True, config=None):
+    def quantize(self, mode=None, type_check=True, config=None):
         if type_check and type(self) is not ReversibleEmbedding:
             raise self._not_implemented_error(self.quantize)
 

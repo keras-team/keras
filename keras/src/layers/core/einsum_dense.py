@@ -975,7 +975,7 @@ class EinsumDense(Layer):
             x = self.activation(x)
         return x
 
-    def quantize(self, mode, type_check=True, config=None):
+    def quantize(self, mode=None, type_check=True, config=None):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not EinsumDense):
             raise self._not_implemented_error(self.quantize)
