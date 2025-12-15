@@ -124,7 +124,60 @@ def _load_model_from_orbax_checkpoint(
 
     model.set_state_tree(state_to_set)
 
+    # Load assets if they exist
+    _load_orbax_assets(model, filepath)
+
     return model
+
+
+def _load_orbax_assets(model, checkpoint_dir):
+    """Load assets from an Orbax checkpoint directory."""
+    from keras.src.saving.saving_lib import _walk_saveable
+
+    # For load_model, checkpoint_dir is the root directory
+    # For load_weights, it might be a step directory
+    assets_dir = None
+
+    # Check for new format: checkpoint_dir/assets/step/
+    assets_root = os.path.join(checkpoint_dir, "assets")
+    if os.path.exists(assets_root):
+        # Find the latest step in assets directory
+        items = os.listdir(assets_root)
+        step_dirs = [
+            item
+            for item in items
+            if os.path.isdir(os.path.join(assets_root, item)) and item.isdigit()
+        ]
+        if step_dirs:
+            latest_step = max(step_dirs, key=int)
+            assets_dir = os.path.join(assets_root, latest_step)
+
+    # Fallback to old format: checkpoint_dir/step/assets/
+    if not assets_dir:
+        items = os.listdir(checkpoint_dir)
+        for item in items:
+            step_path = os.path.join(checkpoint_dir, item)
+            if os.path.isdir(step_path) and os.path.exists(
+                os.path.join(step_path, "assets")
+            ):
+                assets_dir = os.path.join(step_path, "assets")
+                break
+
+    if assets_dir:
+        assets_store = saving_lib.DiskIOStore(assets_dir, mode="r")
+        try:
+            visited = set()
+            for child_attr, child_obj in _walk_saveable(model):
+                if hasattr(child_obj, "load_assets"):
+                    inner_path = child_attr.replace("\\", "/")
+                    try:
+                        child_obj.load_assets(assets_store.get(inner_path))
+                    except KeyError:
+                        # Asset not found, skip
+                        pass
+                    visited.add(id(child_obj))
+        finally:
+            assets_store.close()
 
 
 def _is_orbax_checkpoint(filepath):
